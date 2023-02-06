@@ -19,13 +19,13 @@
 package org.apache.flink.table.planner.runtime.stream.table;
 
 import org.apache.flink.connector.print.table.PrintTableSinkFactory;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -41,7 +41,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** End to end tests for {@link PrintTableSinkFactory}. */
-public class PrintConnectorITCase extends StreamingTestBase {
+public class PrintConnectorITCase extends StreamingTestBaseV2 {
 
     private final PrintStream originalSystemOut = System.out;
     private final PrintStream originalSystemErr = System.err;
@@ -49,14 +49,16 @@ public class PrintConnectorITCase extends StreamingTestBase {
     private final ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
     private final ByteArrayOutputStream arrayErrorStream = new ByteArrayOutputStream();
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
         System.setOut(new PrintStream(arrayOutputStream));
         System.setErr(new PrintStream(arrayErrorStream));
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    public void after() {
+        super.after();
         if (System.out != originalSystemOut) {
             System.out.close();
         }
@@ -79,18 +81,18 @@ public class PrintConnectorITCase extends StreamingTestBase {
 
     @Test
     public void testWithParallelism() throws Exception {
-        tEnv().executeSql(
-                        "create table print_t ("
-                                + "f0 int,"
-                                + "f1 double"
-                                + ") with ("
-                                + "'connector' = 'print',"
-                                + "'print-identifier' = 'test_print',"
-                                + "'sink.parallelism' = '2',"
-                                + "'standard-error'='false')");
-        DataType type = tEnv().from("print_t").getResolvedSchema().toPhysicalRowDataType();
+        tEnv.executeSql(
+                "create table print_t ("
+                        + "f0 int,"
+                        + "f1 double"
+                        + ") with ("
+                        + "'connector' = 'print',"
+                        + "'print-identifier' = 'test_print',"
+                        + "'sink.parallelism' = '2',"
+                        + "'standard-error'='false')");
+        DataType type = tEnv.from("print_t").getResolvedSchema().toPhysicalRowDataType();
         Row row = Row.of(1, 1.1);
-        tEnv().fromValues(type, Collections.singleton(row)).executeInsert("print_t").await();
+        tEnv.fromValues(type, Collections.singleton(row)).executeInsert("print_t").await();
 
         String expectedLine1 = "test_print:1> +I[" + /* 0 */ "1, " + /* 1 */ "1.1" + "]";
         String expectedLine2 = "test_print:2> +I[" + /* 0 */ "1, " + /* 1 */ "1.1" + "]";
@@ -103,7 +105,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
     @Test
     public void testWithPartitionedTableAll() throws Exception {
         createPartitionedTable();
-        tEnv().executeSql("INSERT INTO print_t PARTITION (f0=1,f1=1.1) SELECT 'n1'").await();
+        tEnv.executeSql("INSERT INTO print_t PARTITION (f0=1,f1=1.1) SELECT 'n1'").await();
 
         String expectedLine1 =
                 "test_print:f0=1:f1=1.1:1> +I["
@@ -126,7 +128,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
     @Test
     public void testWithPartitionedTablePart() throws Exception {
         createPartitionedTable();
-        tEnv().executeSql("INSERT INTO print_t PARTITION (f0=1) SELECT 1.1, 'n1'").await();
+        tEnv.executeSql("INSERT INTO print_t PARTITION (f0=1) SELECT 1.1, 'n1'").await();
 
         String expectedLine1 =
                 "test_print:f0=1:1> +I[" + /* 0 */ "1, " + /* 1 */ "1.1, " + /* 2 */ "n1" + "]";
@@ -139,41 +141,41 @@ public class PrintConnectorITCase extends StreamingTestBase {
     }
 
     private void createPartitionedTable() {
-        tEnv().executeSql(
-                        "create table print_t ("
-                                + "f0 int,"
-                                + "f1 double,"
-                                + "f2 string) "
-                                + "PARTITIONED BY (f0, f1) "
-                                + "with ("
-                                + "'connector' = 'print',"
-                                + "'print-identifier' = 'test_print',"
-                                + "'sink.parallelism' = '2',"
-                                + "'standard-error'='false')");
+        tEnv.executeSql(
+                "create table print_t ("
+                        + "f0 int,"
+                        + "f1 double,"
+                        + "f2 string) "
+                        + "PARTITIONED BY (f0, f1) "
+                        + "with ("
+                        + "'connector' = 'print',"
+                        + "'print-identifier' = 'test_print',"
+                        + "'sink.parallelism' = '2',"
+                        + "'standard-error'='false')");
     }
 
     private void test(boolean standardError) throws Exception {
-        tEnv().executeSql(
-                        String.format(
-                                "create table print_t ("
-                                        + "f0 int,"
-                                        + "f1 double,"
-                                        + "f2 decimal(5, 2),"
-                                        + "f3 boolean,"
-                                        + "f4 string,"
-                                        + "f5 date,"
-                                        + "f6 time,"
-                                        + "f7 timestamp,"
-                                        + "f8 bytes,"
-                                        + "f9 array<int>,"
-                                        + "f10 map<int, int>,"
-                                        + "f11 row<n0 int, n1 string>"
-                                        + ") with ("
-                                        + "'connector' = 'print',"
-                                        + "'print-identifier' = '%s',"
-                                        + "'standard-error'='%b')",
-                                "test_print", standardError));
-        DataType type = tEnv().from("print_t").getResolvedSchema().toPhysicalRowDataType();
+        tEnv.executeSql(
+                String.format(
+                        "create table print_t ("
+                                + "f0 int,"
+                                + "f1 double,"
+                                + "f2 decimal(5, 2),"
+                                + "f3 boolean,"
+                                + "f4 string,"
+                                + "f5 date,"
+                                + "f6 time,"
+                                + "f7 timestamp,"
+                                + "f8 bytes,"
+                                + "f9 array<int>,"
+                                + "f10 map<int, int>,"
+                                + "f11 row<n0 int, n1 string>"
+                                + ") with ("
+                                + "'connector' = 'print',"
+                                + "'print-identifier' = '%s',"
+                                + "'standard-error'='%b')",
+                        "test_print", standardError));
+        DataType type = tEnv.from("print_t").getResolvedSchema().toPhysicalRowDataType();
         Map<Integer, Integer> mapData = new HashMap<>();
         mapData.put(1, 1);
         mapData.put(2, 2);
@@ -191,7 +193,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
                         /* 9 */ new int[] {11, 22, 33},
                         /* 10 */ mapData,
                         /* 11 */ Row.of(1, "1"));
-        tEnv().fromValues(type, Arrays.asList(row, row)).executeInsert("print_t").await();
+        tEnv.fromValues(type, Arrays.asList(row, row)).executeInsert("print_t").await();
 
         String expectedLine =
                 "test_print> +I["

@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -30,14 +28,16 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -49,30 +49,38 @@ import java.util.Map;
  * org.apache.calcite.rel.rules.LoptOptimizeJoinRule} together by changing the factor
  * isBushyJoinReorder.
  */
-public abstract class JoinReorderITCaseBase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class JoinReorderITCaseBase extends AbstractTestBaseV2 {
 
-    private static final int DEFAULT_PARALLELISM = 4;
+    @Parameter public boolean isBushyJoinReorder;
 
-    protected TableEnvironment tEnv;
+    @Parameters(name = "isBushyJoinReorder={0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
+
     private Catalog catalog;
-
-    protected abstract TableEnvironment getTableEnvironment();
 
     protected abstract void assertEquals(String query, List<String> expectedList);
 
     @BeforeEach
     public void before() throws Exception {
-        tEnv = getTableEnvironment();
+        super.before();
         catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).get();
 
         tEnv.getConfig()
                 .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM,
-                        DEFAULT_PARALLELISM);
+
+        if (!isBushyJoinReorder) {
+            tEnv.getConfig()
+                    .getConfiguration()
+                    .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 3);
+        } else {
+            tEnv.getConfig()
+                    .getConfiguration()
+                    .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 1000);
+        }
 
         // Test data
         String dataId2 = TestValuesTableFactory.registerData(TestData.data2());
@@ -153,15 +161,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
                 false);
     }
 
-    @AfterEach
-    public void after() {
-        TestValuesTableFactory.clearAllData();
-    }
-
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithFullOuterJoin(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithFullOuterJoin() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "FULL OUTER JOIN T3 ON T4.b4 = T3.b3 "
@@ -189,10 +190,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, expectedList);
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithInnerAndFullOuterJoin(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithInnerAndFullOuterJoin() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -207,10 +206,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, expectedList);
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithInnerJoin(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithInnerJoin() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -225,10 +222,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, expectedList);
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithLeftOuterJoin(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithLeftOuterJoin() {
         // can reorder, all join keys will not generate null.
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
@@ -245,10 +240,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, expectedList);
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithInnerAndLeftOuterJoin(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithInnerAndLeftOuterJoin() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "JOIN T3 ON T4.b4 = T3.b3 "
@@ -264,10 +257,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, expectedList);
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithRightOuterJoin(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithRightOuterJoin() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4 "
                         + "RIGHT OUTER JOIN T3 ON T4.b4 = T3.b3 "
@@ -282,20 +273,16 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, expectedList);
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithTrueCondition(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithTrueCondition() {
         String query =
                 "SELECT T4.d4, T3.c3, T2.d2, T1.d1 FROM T4, T3, T2, T1 "
                         + "WHERE T4.a4 <= 1 AND T3.a3 <= 1 AND T2.a2 <= 1 AND T1.a1 <= 1";
         assertEquals(query, Collections.singletonList("Hallo,Hi,Hallo,Hallo"));
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithInnerJoinAndTrueCondition(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithInnerJoinAndTrueCondition() {
         String query =
                 "SELECT tab1.d4, tab1.c3, T2.d2, T1.d1 FROM T1, "
                         + "(SELECT * FROM T3 JOIN T4 ON T4.b4 = T3.b3) tab1, T2 "
@@ -303,10 +290,8 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, Collections.singletonList("Hallo,Hi,Hallo,Hallo"));
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testJoinReorderWithMixedJoinTypeAndCondition(boolean isBushyJoinReorder) {
-        setIsBushyJoinReorder(isBushyJoinReorder);
+    @TestTemplate
+    public void testJoinReorderWithMixedJoinTypeAndCondition() {
         String query =
                 "SELECT tab2.d4, tab2.c3, tab2.d2, T1.d1 FROM T1, (SELECT * FROM T4 "
                         + "LEFT OUTER JOIN T3 ON T4.b4 = T3.b3 "
@@ -315,11 +300,9 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
         assertEquals(query, Collections.singletonList("Hallo,Hi,Hallo,Hallo"));
     }
 
-    @ParameterizedTest(name = "Is bushy join reorder: {0}")
-    @ValueSource(booleans = {true, false})
-    public void testBushyTreeJoinReorder(boolean isBushyJoinReorder)
+    @TestTemplate
+    public void testBushyTreeJoinReorder()
             throws TableNotExistException, TablePartitionedException {
-        setIsBushyJoinReorder(isBushyJoinReorder);
         CatalogColumnStatisticsDataLong longColStats =
                 new CatalogColumnStatisticsDataLong(100L, 100L, 50L, 1000L);
         Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(1);
@@ -365,17 +348,5 @@ public abstract class JoinReorderITCaseBase extends TestLogger {
                         "Hallo Welt,Hello,Hallo Welt,Hallo Welt",
                         "Hallo Welt,Hello world,Hallo Welt,Hallo Welt");
         assertEquals(query, expectedList);
-    }
-
-    private void setIsBushyJoinReorder(boolean isBushyJoinReorder) {
-        if (!isBushyJoinReorder) {
-            tEnv.getConfig()
-                    .getConfiguration()
-                    .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 3);
-        } else {
-            tEnv.getConfig()
-                    .getConfiguration()
-                    .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, 1000);
-        }
     }
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
@@ -36,7 +35,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.planner.factories.TestValuesCatalog;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.util.Preconditions;
 
@@ -50,15 +49,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for `ANALYZE TABLE`. */
-public class AnalyzeTableITCase extends BatchTestBase {
-
-    private TableEnvironment tEnv;
+public class AnalyzeTableITCase extends BatchTestBaseV2 {
 
     @BeforeEach
-    @Override
     public void before() throws Exception {
         super.before();
-        tEnv = tEnv();
         Catalog catalog = new TestValuesCatalog("cat", "db", true);
         tEnv.registerCatalog("cat", catalog);
         tEnv.useCatalog("cat");

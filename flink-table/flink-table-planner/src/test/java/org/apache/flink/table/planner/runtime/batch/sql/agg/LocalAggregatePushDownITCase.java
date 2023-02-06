@@ -21,24 +21,23 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.planner.runtime.utils.TestData;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 /** Test for local aggregate push down. */
-public class LocalAggregatePushDownITCase extends BatchTestBase {
+public class LocalAggregatePushDownITCase extends BatchTestBaseV2 {
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         super.before();
-        env().setParallelism(1); // set sink parallelism to 1
+        env.setParallelism(1); // set sink parallelism to 1
 
         String testDataId = TestValuesTableFactory.registerData(TestData.personData());
         String ddl =
@@ -62,7 +61,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'readable-metadata' = 'metadata_1:BIGINT, metadata_2:STRING',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
-        tEnv().executeSql(ddl);
+        tEnv.executeSql(ddl);
 
         // partitioned table
         String ddl2 =
@@ -86,7 +85,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'partition-list' = 'type:A;type:B;type:C;type:D',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
-        tEnv().executeSql(ddl2);
+        tEnv.executeSql(ddl2);
 
         // partitioned table
         String ddl3 =
@@ -110,7 +109,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'enable-projection-push-down' = 'false',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
-        tEnv().executeSql(ddl3);
+        tEnv.executeSql(ddl3);
     }
 
     @Test
@@ -125,15 +124,14 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  AggregatableTable\n"
                         + "GROUP BY gender\n"
                         + "ORDER BY avg_dep",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(Row.of(126, 630, 5, "f"), Row.of(220, 1320, 6, "m"))),
+                Arrays.asList(Row.of(126, 630, 5, "f"), Row.of(220, 1320, 6, "m")),
                 false);
     }
 
     @Test
     public void testDisablePushDownLocalAgg() {
         // disable push down local agg
-        tEnv().getConfig()
+        tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
                         false);
@@ -148,8 +146,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  AggregatableTable\n"
                         + "GROUP BY gender\n"
                         + "ORDER BY avg_dep",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(Row.of(126, 630, 5, "f"), Row.of(220, 1320, 6, "m"))),
+                Arrays.asList(Row.of(126, 630, 5, "f"), Row.of(220, 1320, 6, "m")),
                 false);
     }
 
@@ -162,14 +159,14 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  count(*)\n"
                         + "FROM\n"
                         + "  AggregatableTable",
-                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(177, 1950, 11))),
+                Collections.singletonList(Row.of(177, 1950, 11)),
                 false);
     }
 
     @Test
     public void testPushDownLocalSortAggWithoutSort() {
         // enable sort agg
-        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
         checkResult(
                 "SELECT\n"
@@ -178,14 +175,14 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  count(*)\n"
                         + "FROM\n"
                         + "  AggregatableTable",
-                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(177, 1950, 11))),
+                Collections.singletonList(Row.of(177, 1950, 11)),
                 false);
     }
 
     @Test
     public void testPushDownLocalSortAggWithSort() {
         // enable sort agg
-        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
         checkResult(
                 "SELECT\n"
@@ -197,15 +194,14 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "FROM\n"
                         + "  AggregatableTable\n"
                         + "GROUP BY gender, age",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(50, 50, 1, "f", 19),
-                                Row.of(200, 200, 1, "f", 20),
-                                Row.of(250, 750, 3, "m", 23),
-                                Row.of(126, 380, 3, "f", 25),
-                                Row.of(300, 300, 1, "m", 27),
-                                Row.of(170, 170, 1, "m", 28),
-                                Row.of(100, 100, 1, "m", 34))),
+                Arrays.asList(
+                        Row.of(50, 50, 1, "f", 19),
+                        Row.of(200, 200, 1, "f", 20),
+                        Row.of(250, 750, 3, "m", 23),
+                        Row.of(126, 380, 3, "f", 25),
+                        Row.of(300, 300, 1, "m", 27),
+                        Row.of(170, 170, 1, "m", 28),
+                        Row.of(100, 100, 1, "m", 34)),
                 false);
     }
 
@@ -222,8 +218,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  AggregatableTable\n"
                         + "WHERE age <= 20\n"
                         + "GROUP BY gender, age",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(Row.of(50, 50, 1, "f", 19), Row.of(200, 200, 1, "f", 20))),
+                Arrays.asList(Row.of(50, 50, 1, "f", 19), Row.of(200, 200, 1, "f", 20)),
                 false);
     }
 
@@ -236,12 +231,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "FROM\n"
                         + "  AggregatableTable\n"
                         + "GROUP BY metadata_2",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(156, 'C'),
-                                Row.of(183, 'A'),
-                                Row.of(51, 'D'),
-                                Row.of(70, 'B'))),
+                Arrays.asList(Row.of(156, 'C'), Row.of(183, 'A'), Row.of(51, 'D'), Row.of(70, 'B')),
                 false);
     }
 
@@ -257,15 +247,14 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  AggregatableTable_Part\n"
                         + "WHERE type in ('A', 'C')"
                         + "GROUP BY type, name",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(150, 1, "C", "jack"),
-                                Row.of(180, 1, "A", "emma"),
-                                Row.of(200, 1, "A", "tom"),
-                                Row.of(200, 1, "C", "eva"),
-                                Row.of(300, 1, "C", "danny"),
-                                Row.of(400, 1, "A", "tommas"),
-                                Row.of(50, 1, "C", "olivia"))),
+                Arrays.asList(
+                        Row.of(150, 1, "C", "jack"),
+                        Row.of(180, 1, "A", "emma"),
+                        Row.of(200, 1, "A", "tom"),
+                        Row.of(200, 1, "C", "eva"),
+                        Row.of(300, 1, "C", "danny"),
+                        Row.of(400, 1, "A", "tommas"),
+                        Row.of(50, 1, "C", "olivia")),
                 false);
     }
 
@@ -282,15 +271,14 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  AggregatableTable_No_Proj\n"
                         + "WHERE age <= 20\n"
                         + "GROUP BY gender, age",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(Row.of(50, 50, 1, "f", 19), Row.of(200, 200, 1, "f", 20))),
+                Arrays.asList(Row.of(50, 50, 1, "f", 19), Row.of(200, 200, 1, "f", 20)),
                 false);
     }
 
     @Test
     public void testPushDownLocalAggWithoutAuxGrouping() {
         // enable two-phase aggregate, otherwise there is no local aggregate
-        tEnv().getConfig()
+        tEnv.getConfig()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
 
         checkResult(
@@ -302,11 +290,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  AggregatableTable\n"
                         + "WHERE id > 8\n"
                         + "GROUP BY id, name",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(9, "emma", 1),
-                                Row.of(10, "benji", 1),
-                                Row.of(11, "eva", 1))),
+                Arrays.asList(Row.of(9, "emma", 1), Row.of(10, "benji", 1), Row.of(11, "eva", 1)),
                 false);
     }
 }

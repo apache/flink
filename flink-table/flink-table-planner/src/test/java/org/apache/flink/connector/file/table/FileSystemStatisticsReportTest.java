@@ -52,8 +52,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
-        super.setup(file);
+    public void before(@TempDir File file) throws Exception {
+        super.before(file);
         String filePath1 =
                 createFileAndWriteData(
                         file, "00-00.tmp", Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world"));

@@ -19,22 +19,20 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.calcite.sql.SqlMatchRecognize;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,18 +44,14 @@ import static org.apache.flink.api.common.typeinfo.Types.INT;
 import static org.apache.flink.api.common.typeinfo.Types.LONG;
 import static org.apache.flink.api.common.typeinfo.Types.ROW_NAMED;
 import static org.apache.flink.api.common.typeinfo.Types.STRING;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Case for testing {@link SqlMatchRecognize}. */
-public class MatchRecognizeITCase {
+public class MatchRecognizeITCase extends StreamingTestBaseV2 {
 
-    private StreamExecutionEnvironment env;
-    private StreamTableEnvironment tEnv;
-
-    @Before
-    public void setup() {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        tEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inBatchMode());
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
         tEnv.getConfig().set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, false);
     }
 
@@ -98,9 +92,8 @@ public class MatchRecognizeITCase {
                                 + "    \u006C AS name = 'b',\n"
                                 + "    C AS name = 'c'\n"
                                 + ") AS T");
-        assertEquals(
-                Collections.singletonList(Row.of(6, 7, 8)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Collections.singletonList(Row.of(6, 7, 8)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -147,9 +140,8 @@ public class MatchRecognizeITCase {
                                 + "    B AS name = 'b' AND LAST(A.nullField) IS NULL,\n"
                                 + "    C AS name = 'c'\n"
                                 + ") AS T");
-        assertEquals(
-                Arrays.asList(Row.of(1, null, 3, null), Row.of(6, null, 8, null)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Arrays.asList(Row.of(1, null, 3, null), Row.of(6, null, 8, null)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -203,11 +195,11 @@ public class MatchRecognizeITCase {
                                 + ") AS T");
         List<Row> actual = CollectionUtil.iteratorToList(tableResult.collect());
         actual.sort(Comparator.comparing(o -> String.valueOf(o.getField(0))));
-        assertEquals(
-                Arrays.asList(
-                        Row.of("key1", "second_key3", 1, "key1", 2, 3, "second_key3"),
-                        Row.of("key2", "second_key4", 6, "key2", 7, 8, "second_key4")),
-                actual);
+        assertThat(
+                        Arrays.asList(
+                                Row.of("key1", "second_key3", 1, "key1", 2, 3, "second_key3"),
+                                Row.of("key2", "second_key4", 6, "key2", 7, 8, "second_key4")))
+                .isEqualTo(actual);
     }
 
     @Test
@@ -257,9 +249,8 @@ public class MatchRecognizeITCase {
                                 + "    DOWN AS price < LAST(DOWN.price, 1) OR LAST(DOWN.price, 1) IS NULL,\n"
                                 + "    UP AS price < FIRST(DOWN.price)\n"
                                 + ") AS T");
-        assertEquals(
-                Collections.singletonList(Row.of(6L, 7L, 8L, 33, 33)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Collections.singletonList(Row.of(6L, 7L, 8L, 33, 33)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -320,9 +311,10 @@ public class MatchRecognizeITCase {
                                 + "    `DOWN\"` AS price < LAST(price, 1) OR LAST(price, 1) IS NULL,\n"
                                 + "    UP AS price = FIRST(price) AND price > FIRST(price, 3) AND price = LAST(price, 7)\n"
                                 + ") AS T");
-        assertEquals(
-                Collections.singletonList(Row.of(1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(
+                        Collections.singletonList(
+                                Row.of(1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -366,9 +358,8 @@ public class MatchRecognizeITCase {
                                 + "    DOWN AS price < LAST(DOWN.price, 1) OR LAST(DOWN.price, 1) IS NULL,\n"
                                 + "    UP AS price > LAST(DOWN.price)\n"
                                 + ") AS T");
-        assertEquals(
-                Collections.singletonList(Row.of(19, 13, null)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Collections.singletonList(Row.of(19, 13, null)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     /**
@@ -441,11 +432,12 @@ public class MatchRecognizeITCase {
                                 + "      AVG(B.price) >= 1 AND\n"
                                 + "      weightedAvg(price, weight) > 1\n"
                                 + ") AS T");
-        assertEquals(
-                Arrays.asList(
-                        Row.of(1, 5, 0L, null, 2L, 3, 3.4D, 8),
-                        Row.of(9, 4, 0L, null, 3L, 4, 3.2D, 12)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+
+        assertThat(
+                        Arrays.asList(
+                                Row.of(1, 5, 0L, null, 2L, 3, 3.4D, 8),
+                                Row.of(9, 4, 0L, null, 3L, 4, 3.2D, 12)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -496,9 +488,8 @@ public class MatchRecognizeITCase {
                                 + "    A AS SUM(A.price) < 30,\n"
                                 + "    C AS C.name = 'c'\n"
                                 + ") AS T");
-        assertEquals(
-                Collections.singletonList(Row.of(29, 7L, 5L, 8L, 6L, 8)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Collections.singletonList(Row.of(29, 7L, 5L, 8L, 6L, 8)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -527,9 +518,8 @@ public class MatchRecognizeITCase {
                                 + "  DEFINE\n"
                                 + "    A AS proctime >= (CURRENT_TIMESTAMP - INTERVAL '1' day)\n"
                                 + ") AS T");
-        assertEquals(
-                Collections.singletonList(Row.of(1)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Collections.singletonList(Row.of(1)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     @Test
@@ -586,9 +576,8 @@ public class MatchRecognizeITCase {
                                         + "    A AS prefix(A.name) = '%s:a' AND countFrom(A.price) <= %d\n"
                                         + ") AS T",
                                 prefix, 4 + 4));
-        assertEquals(
-                Arrays.asList(Row.of(1, "PREF:a", 8, 5), Row.of(7, "PREF:a", 6, 9)),
-                CollectionUtil.iteratorToList(tableResult.collect()));
+        assertThat(Arrays.asList(Row.of(1, "PREF:a", 8, 5), Row.of(7, "PREF:a", 6, 9)))
+                .isEqualTo(CollectionUtil.iteratorToList(tableResult.collect()));
     }
 
     /** Test prefixing function.. */

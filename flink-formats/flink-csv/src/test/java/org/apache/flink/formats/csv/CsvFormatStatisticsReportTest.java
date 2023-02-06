@@ -46,8 +46,8 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     private static CsvFileFormatFactory.CsvBulkDecodingFormat csvBulkDecodingFormat;
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
-        super.setup(file);
+    public void before(@TempDir File file) throws Exception {
+        super.before(file);
         createFileSystemSource();
         Configuration configuration = new Configuration();
         csvBulkDecodingFormat = new CsvFileFormatFactory.CsvBulkDecodingFormat(configuration);

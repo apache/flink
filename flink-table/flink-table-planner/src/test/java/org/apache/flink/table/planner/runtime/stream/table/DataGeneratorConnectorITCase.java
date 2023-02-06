@@ -21,13 +21,13 @@ package org.apache.flink.table.planner.runtime.stream.table;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for data generator source. */
-public class DataGeneratorConnectorITCase extends BatchTestBase {
+public class DataGeneratorConnectorITCase extends BatchTestBaseV2 {
 
     private static final String TABLE =
             "CREATE TABLE datagen_t (\n"
@@ -65,11 +65,11 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
 
     @Test
     public void testTypes() throws Exception {
-        tEnv().executeSql(TABLE);
+        tEnv.executeSql(TABLE);
 
         List<Row> results = new ArrayList<>();
 
-        try (CloseableIterator<Row> iter = tEnv().executeSql("select * from datagen_t").collect()) {
+        try (CloseableIterator<Row> iter = tEnv.executeSql("select * from datagen_t").collect()) {
             while (iter.hasNext()) {
                 results.add(iter.next());
             }
@@ -79,7 +79,7 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
     }
 
     @Test
-    public void testLimitPushDown() throws Exception {
+    public void testLimitPushDown() {
         final TestingTableEnvironment env =
                 TestingTableEnvironment.create(
                         EnvironmentSettings.newInstance().inStreamingMode().build(),

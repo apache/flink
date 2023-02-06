@@ -29,9 +29,9 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 import java.util.Set;
@@ -39,26 +39,26 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for modules. */
-public class ModuleITCase extends StreamingTestBase {
+public class ModuleITCase extends StreamingTestBaseV2 {
 
     @Test
     public void testTableSourceFactory() {
-        tEnv().createTemporaryTable(
-                        "T",
-                        TableFactoryHarness.newBuilder()
-                                .schema(Schema.newBuilder().build())
-                                .source(
-                                        new TableFactoryHarness.ScanSourceBase() {
-                                            @Override
-                                            public ScanRuntimeProvider getScanRuntimeProvider(
-                                                    ScanContext runtimeProviderContext) {
-                                                throw new UnsupportedOperationException(
-                                                        "Discovered factory should not be used");
-                                            }
-                                        })
-                                .build());
+        tEnv.createTemporaryTable(
+                "T",
+                TableFactoryHarness.newBuilder()
+                        .schema(Schema.newBuilder().build())
+                        .source(
+                                new TableFactoryHarness.ScanSourceBase() {
+                                    @Override
+                                    public ScanRuntimeProvider getScanRuntimeProvider(
+                                            ScanContext runtimeProviderContext) {
+                                        throw new UnsupportedOperationException(
+                                                "Discovered factory should not be used");
+                                    }
+                                })
+                        .build());
 
-        final Table table = tEnv().from("T");
+        final Table table = tEnv.from("T");
 
         // Sanity check: without our module loaded, the factory discovery process is used.
         assertThatThrownBy(table::explain)
@@ -66,35 +66,35 @@ public class ModuleITCase extends StreamingTestBase {
                 .isInstanceOf(UnsupportedOperationException.class);
 
         // The module has precedence over factory discovery.
-        tEnv().loadModule("M", new SourceSinkFactoryOverwriteModule());
+        tEnv.loadModule("M", new SourceSinkFactoryOverwriteModule());
         table.explain();
     }
 
     @Test
     public void testTableSinkFactory() {
-        tEnv().createTemporaryTable(
-                        "T",
-                        TableFactoryHarness.newBuilder()
-                                .schema(Schema.newBuilder().column("f0", DataTypes.INT()).build())
-                                .sink(
-                                        new TableFactoryHarness.SinkBase() {
-                                            @Override
-                                            public SinkRuntimeProvider getSinkRuntimeProvider(
-                                                    Context context) {
-                                                throw new UnsupportedOperationException(
-                                                        "Discovered factory should not be used");
-                                            }
-                                        })
-                                .build());
+        tEnv.createTemporaryTable(
+                "T",
+                TableFactoryHarness.newBuilder()
+                        .schema(Schema.newBuilder().column("f0", DataTypes.INT()).build())
+                        .sink(
+                                new TableFactoryHarness.SinkBase() {
+                                    @Override
+                                    public SinkRuntimeProvider getSinkRuntimeProvider(
+                                            Context context) {
+                                        throw new UnsupportedOperationException(
+                                                "Discovered factory should not be used");
+                                    }
+                                })
+                        .build());
 
         // Sanity check: without our module loaded, the factory discovery process is used.
-        assertThatThrownBy(() -> tEnv().explainSql("INSERT INTO T SELECT 1"))
+        assertThatThrownBy(() -> tEnv.explainSql("INSERT INTO T SELECT 1"))
                 .as("Discovered factory should not be used")
                 .isInstanceOf(UnsupportedOperationException.class);
 
         // The module has precedence over factory discovery.
-        tEnv().loadModule("M", new SourceSinkFactoryOverwriteModule());
-        tEnv().explainSql("INSERT INTO T SELECT 1");
+        tEnv.loadModule("M", new SourceSinkFactoryOverwriteModule());
+        tEnv.explainSql("INSERT INTO T SELECT 1");
     }
 
     // ---------------------------------------------------------------------------------------------

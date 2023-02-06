@@ -49,8 +49,8 @@ public class OrcFormatStatisticsReportTest extends StatisticsReportTestBase {
     private static OrcFileFormatFactory.OrcBulkDecodingFormat orcBulkDecodingFormat;
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
-        super.setup(file);
+    public void before(@TempDir File file) throws Exception {
+        super.before(file);
         createFileSystemSource();
         Configuration configuration = new Configuration();
         orcBulkDecodingFormat = new OrcFileFormatFactory.OrcBulkDecodingFormat(configuration);

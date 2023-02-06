@@ -24,12 +24,12 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -50,7 +50,7 @@ import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** End to end tests for {@link org.apache.flink.table.api.TableEnvironment#fromValues}. */
-public class ValuesITCase extends StreamingTestBase {
+public class ValuesITCase extends StreamingTestBaseV2 {
     @Test
     public void testTypeConversions() throws Exception {
         List<Row> data =
@@ -100,16 +100,16 @@ public class ValuesITCase extends StreamingTestBase {
                                         DataTypes.FIELD(
                                                 "d", DataTypes.ARRAY(DataTypes.DECIMAL(10, 2))))));
 
-        Table t = tEnv().fromValues(rowType, data);
+        Table t = tEnv.fromValues(rowType, data);
 
         TestCollectionTableFactory.reset();
-        tEnv().executeSql(
-                        "CREATE TABLE SinkTable("
-                                + "a DECIMAL(10, 2) NOT NULL, "
-                                + "b CHAR(4) NOT NULL,"
-                                + "c TIMESTAMP(4) NOT NULL,"
-                                + "`row` ROW<a DECIMAL(10, 3) NOT NULL, b BINARY(2), c CHAR(5) NOT NULL, d ARRAY<DECIMAL(10, 2)>>) "
-                                + "WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql(
+                "CREATE TABLE SinkTable("
+                        + "a DECIMAL(10, 2) NOT NULL, "
+                        + "b CHAR(4) NOT NULL,"
+                        + "c TIMESTAMP(4) NOT NULL,"
+                        + "`row` ROW<a DECIMAL(10, 3) NOT NULL, b BINARY(2), c CHAR(5) NOT NULL, d ARRAY<DECIMAL(10, 2)>>) "
+                        + "WITH ('connector' = 'COLLECTION')");
         t.executeInsert("SinkTable").await();
 
         List<Row> expected =
@@ -223,45 +223,45 @@ public class ValuesITCase extends StreamingTestBase {
                                 new BigDecimal[] {new BigDecimal("2.2")},
                                 createMap("2", new BigDecimal("2.2"))));
 
-        Table t = tEnv().fromValues(data);
+        Table t = tEnv.fromValues(data);
 
         TestCollectionTableFactory.reset();
-        tEnv().executeSql(
-                        "CREATE TABLE SinkTable("
-                                + "f0 TINYINT, "
-                                + "f1 SMALLINT, "
-                                + "f2 INT, "
-                                + "f3 BIGINT, "
-                                + "f4 FLOAT, "
-                                + "f5 DOUBLE, "
-                                + "f6 DECIMAL(2, 1), "
-                                + "f7 BOOLEAN, "
-                                + "f8 TIME(0), "
-                                + "f9 DATE, "
-                                + "f12 TIMESTAMP(9), "
-                                + "f13 TIMESTAMP(3) WITH LOCAL TIME ZONE, "
-                                + "f14 CHAR(1), "
-                                + "f15 BINARY(1), "
-                                + "f16 ARRAY<DECIMAL(2, 1)>, "
-                                + "f17 MAP<CHAR(1), DECIMAL(2, 1)>, "
-                                + "f18 ROW<"
-                                + "   `f0` TINYINT, "
-                                + "   `f1` SMALLINT, "
-                                + "   `f2` INT, "
-                                + "   `f3` BIGINT, "
-                                + "   `f4` FLOAT, "
-                                + "   `f5` DOUBLE, "
-                                + "   `f6` DECIMAL(2, 1), "
-                                + "   `f7` BOOLEAN, "
-                                + "   `f8` TIME(0), "
-                                + "   `f9` DATE, "
-                                + "   `f12` TIMESTAMP(9), "
-                                + "   `f13` TIMESTAMP(3) WITH LOCAL TIME ZONE, "
-                                + "   `f14` CHAR(1), "
-                                + "   `f15` BINARY(1), "
-                                + "   `f16` ARRAY<DECIMAL(2, 1)>, "
-                                + "   `f17` MAP<CHAR(1), DECIMAL(2, 1)>>) "
-                                + "WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql(
+                "CREATE TABLE SinkTable("
+                        + "f0 TINYINT, "
+                        + "f1 SMALLINT, "
+                        + "f2 INT, "
+                        + "f3 BIGINT, "
+                        + "f4 FLOAT, "
+                        + "f5 DOUBLE, "
+                        + "f6 DECIMAL(2, 1), "
+                        + "f7 BOOLEAN, "
+                        + "f8 TIME(0), "
+                        + "f9 DATE, "
+                        + "f12 TIMESTAMP(9), "
+                        + "f13 TIMESTAMP(3) WITH LOCAL TIME ZONE, "
+                        + "f14 CHAR(1), "
+                        + "f15 BINARY(1), "
+                        + "f16 ARRAY<DECIMAL(2, 1)>, "
+                        + "f17 MAP<CHAR(1), DECIMAL(2, 1)>, "
+                        + "f18 ROW<"
+                        + "   `f0` TINYINT, "
+                        + "   `f1` SMALLINT, "
+                        + "   `f2` INT, "
+                        + "   `f3` BIGINT, "
+                        + "   `f4` FLOAT, "
+                        + "   `f5` DOUBLE, "
+                        + "   `f6` DECIMAL(2, 1), "
+                        + "   `f7` BOOLEAN, "
+                        + "   `f8` TIME(0), "
+                        + "   `f9` DATE, "
+                        + "   `f12` TIMESTAMP(9), "
+                        + "   `f13` TIMESTAMP(3) WITH LOCAL TIME ZONE, "
+                        + "   `f14` CHAR(1), "
+                        + "   `f15` BINARY(1), "
+                        + "   `f16` ARRAY<DECIMAL(2, 1)>, "
+                        + "   `f17` MAP<CHAR(1), DECIMAL(2, 1)>>) "
+                        + "WITH ('connector' = 'COLLECTION')");
         t.executeInsert("SinkTable").await();
 
         List<Row> actual = TestCollectionTableFactory.getResult();
@@ -307,11 +307,11 @@ public class ValuesITCase extends StreamingTestBase {
                                 new BigDecimal[] {new BigDecimal("2.2")},
                                 createMap("2", new BigDecimal("2.2"))));
 
-        tEnv().createTemporaryFunction("func", new CustomScalarFunction());
-        Table t = tEnv().fromValues(data).select(call("func", withColumns(range("f0", "f15"))));
+        tEnv.createTemporaryFunction("func", new CustomScalarFunction());
+        Table t = tEnv.fromValues(data).select(call("func", withColumns(range("f0", "f15"))));
 
         TestCollectionTableFactory.reset();
-        tEnv().executeSql("CREATE TABLE SinkTable(str STRING) WITH ('connector' = 'COLLECTION')");
+        tEnv.executeSql("CREATE TABLE SinkTable(str STRING) WITH ('connector' = 'COLLECTION')");
         t.executeInsert("SinkTable").await();
 
         List<Row> actual = TestCollectionTableFactory.getResult();
@@ -333,11 +333,10 @@ public class ValuesITCase extends StreamingTestBase {
         mapData.put(2, 2);
 
         Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[] {1, 2});
-        Table values = tEnv().fromValues(Collections.singletonList(row));
-        tEnv().createTemporaryView("values_t", values);
+        Table values = tEnv.fromValues(Collections.singletonList(row));
+        tEnv.createTemporaryView("values_t", values);
         List<Row> results =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("select * from values_t").collect());
+                CollectionUtil.iteratorToList(tEnv.executeSql("select * from values_t").collect());
 
         assertThat(results).containsExactly(row);
     }

@@ -27,13 +27,14 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,11 +46,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for UPDATE statement in batch mode. */
-@RunWith(Parameterized.class)
-public class UpdateTableITCase extends BatchTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+public class UpdateTableITCase extends BatchTestBaseV2 {
     private final SupportsRowLevelUpdate.RowLevelUpdateMode updateMode;
 
-    @Parameterized.Parameters(name = "updateMode = {0}")
+    @Parameters(name = "updateMode = {0}")
     public static Collection<SupportsRowLevelUpdate.RowLevelUpdateMode> data() {
         return Arrays.asList(
                 SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS,
@@ -60,37 +61,37 @@ public class UpdateTableITCase extends BatchTestBase {
         this.updateMode = updateMode;
     }
 
-    @Test
+    @TestTemplate
     public void testUpdate() throws Exception {
         String dataId = registerData();
-        tEnv().executeSql(
-                        String.format(
-                                "CREATE TABLE t ("
-                                        + " a int PRIMARY KEY NOT ENFORCED,"
-                                        + " b string,"
-                                        + " c double) WITH"
-                                        + " ('connector' = 'test-update-delete', "
-                                        + "'data-id' = '%s', "
-                                        + "'update-mode' = '%s')",
-                                dataId, updateMode));
-        tEnv().executeSql("UPDATE t SET b = 'uaa', c = c * c WHERE a >= 1").await();
-        List<String> rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE t ("
+                                + " a int PRIMARY KEY NOT ENFORCED,"
+                                + " b string,"
+                                + " c double) WITH"
+                                + " ('connector' = 'test-update-delete', "
+                                + "'data-id' = '%s', "
+                                + "'update-mode' = '%s')",
+                        dataId, updateMode));
+        tEnv.executeSql("UPDATE t SET b = 'uaa', c = c * c WHERE a >= 1").await();
+        List<String> rows = toSortedResults(tEnv.executeSql("SELECT * FROM t"));
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 4.0], +I[2, uaa, 16.0]]");
 
-        tEnv().executeSql("UPDATE t SET b = 'uab' WHERE a > (SELECT count(1) FROM t WHERE a > 1)")
+        tEnv.executeSql("UPDATE t SET b = 'uab' WHERE a > (SELECT count(1) FROM t WHERE a > 1)")
                 .await();
-        rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
+        rows = toSortedResults(tEnv.executeSql("SELECT * FROM t"));
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 4.0], +I[2, uab, 16.0]]");
     }
 
-    @Test
+    @TestTemplate
     public void testStatementSetContainUpdateAndInsert() throws Exception {
-        tEnv().executeSql(
-                        "CREATE TABLE t (a int, b string, c double) WITH"
-                                + " ('connector' = 'test-update-delete')");
-        StatementSet statementSet = tEnv().createStatementSet();
+        tEnv.executeSql(
+                "CREATE TABLE t (a int, b string, c double) WITH"
+                        + " ('connector' = 'test-update-delete')");
+        StatementSet statementSet = tEnv.createStatementSet();
         // should throw exception when statement set contains insert and update statement
         statementSet.addInsertSql("INSERT INTO t VALUES (1, 'v1', 1)");
         statementSet.addInsertSql("UPDATE t SET b = 'uaa'");
@@ -100,24 +101,24 @@ public class UpdateTableITCase extends BatchTestBase {
                         "Unsupported SQL query! Only accept a single SQL statement of type UPDATE.");
     }
 
-    @Test
+    @TestTemplate
     public void testCompilePlanSql() throws Exception {
-        tEnv().executeSql(
-                        "CREATE TABLE t (a int, b string, c double) WITH"
-                                + " ('connector' = 'test-update-delete')");
+        tEnv.executeSql(
+                "CREATE TABLE t (a int, b string, c double) WITH"
+                        + " ('connector' = 'test-update-delete')");
         // should throw exception when compile sql for update statement
-        assertThatThrownBy(() -> tEnv().compilePlanSql("UPDATE t SET b = 'uaa'"))
+        assertThatThrownBy(() -> tEnv.compilePlanSql("UPDATE t SET b = 'uaa'"))
                 .isInstanceOf(TableException.class)
                 .hasMessage(
                         "Unsupported SQL query! compilePlanSql() only accepts a single SQL statement of type INSERT");
     }
 
-    @Test
+    @TestTemplate
     public void testUpdateWithLegacyTableSink() {
-        tEnv().executeSql(
-                        "CREATE TABLE t (a int, b string, c double) WITH"
-                                + " ('connector' = 'COLLECTION')");
-        assertThatThrownBy(() -> tEnv().executeSql("UPDATE t SET b = 'uaa'"))
+        tEnv.executeSql(
+                "CREATE TABLE t (a int, b string, c double) WITH"
+                        + " ('connector' = 'COLLECTION')");
+        assertThatThrownBy(() -> tEnv.executeSql("UPDATE t SET b = 'uaa'"))
                 .isInstanceOf(TableException.class)
                 .hasMessage(
                         String.format(

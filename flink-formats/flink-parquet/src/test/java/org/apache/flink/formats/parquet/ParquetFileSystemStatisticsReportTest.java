@@ -35,8 +35,8 @@ import java.util.concurrent.ExecutionException;
 public class ParquetFileSystemStatisticsReportTest extends ParquetFormatStatisticsReportTest {
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
-        super.setup(file);
+    public void before(@TempDir File file) throws Exception {
+        super.before(file);
     }
 
     @Test

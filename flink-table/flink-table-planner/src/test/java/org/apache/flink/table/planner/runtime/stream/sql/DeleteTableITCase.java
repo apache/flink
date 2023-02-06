@@ -19,26 +19,26 @@
 package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for DELETE statement in streaming mode. */
-public class DeleteTableITCase extends StreamingTestBase {
+public class DeleteTableITCase extends StreamingTestBaseV2 {
 
     @Test
     public void testDelete() {
-        tEnv().executeSql("CREATE TABLE t (a int) WITH ('connector' = 'test-update-delete')");
-        assertThatThrownBy(() -> tEnv().executeSql("DELETE FROM t"))
+        tEnv.executeSql("CREATE TABLE t (a int) WITH ('connector' = 'test-update-delete')");
+        assertThatThrownBy(() -> tEnv.executeSql("DELETE FROM t"))
                 .isInstanceOf(TableException.class)
                 .hasMessage("DELETE statement is not supported for streaming mode now.");
 
-        tEnv().executeSql(
-                        "CREATE TABLE t1 (a int) WITH ('connector' = 'test-update-delete', "
-                                + "'support-delete-push-down' = 'false')");
-        assertThatThrownBy(() -> tEnv().executeSql("DELETE FROM t1"))
+        tEnv.executeSql(
+                "CREATE TABLE t1 (a int) WITH ('connector' = 'test-update-delete', "
+                        + "'support-delete-push-down' = 'false')");
+        assertThatThrownBy(() -> tEnv.executeSql("DELETE FROM t1"))
                 .isInstanceOf(TableException.class)
                 .hasMessage("DELETE statement is not supported for streaming mode now.");
     }

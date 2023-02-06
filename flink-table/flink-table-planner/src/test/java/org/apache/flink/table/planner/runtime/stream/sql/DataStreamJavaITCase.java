@@ -55,6 +55,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
@@ -62,7 +63,9 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -72,14 +75,13 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
@@ -87,6 +89,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -112,34 +115,34 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
-@RunWith(Parameterized.class)
-public class DataStreamJavaITCase extends AbstractTestBase {
-
-    private StreamExecutionEnvironment env;
+@ExtendWith(ParameterizedTestExtension.class)
+public class DataStreamJavaITCase extends StreamingTestBaseV2 {
 
     enum ObjectReuse {
         ENABLED,
         DISABLED
     }
 
-    @Parameters(name = "objectReuse = {0}")
-    public static ObjectReuse[] objectReuse() {
-        return ObjectReuse.values();
-    }
-
     @Parameter public ObjectReuse objectReuse;
+
+    @Parameters(name = "objectReuse = {0}")
+    public static Collection<ObjectReuse> parameters() {
+        return Arrays.asList(ObjectReuse.ENABLED, ObjectReuse.DISABLED);
+    }
 
     private static String udfClassName1;
     private static String jarPath1;
     private static String udfClassName2;
     private static String jarPath2;
 
-    @BeforeClass
-    public static void beforeClass() throws IOException {
+    @TempDir private static File tempFolder;
+
+    @BeforeAll
+    public static void beforeAll() throws IOException {
         udfClassName1 = GENERATED_LOWER_UDF_CLASS;
         jarPath1 =
                 UserClassLoaderJarTestUtils.createJarFile(
-                                TEMPORARY_FOLDER.newFolder("test-jar1"),
+                                tempFolder,
                                 "test-classloader-udf1.jar",
                                 udfClassName1,
                                 String.format(GENERATED_LOWER_UDF_CODE, udfClassName1))
@@ -148,7 +151,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         udfClassName2 = GENERATED_UPPER_UDF_CLASS;
         jarPath2 =
                 UserClassLoaderJarTestUtils.createJarFile(
-                                TEMPORARY_FOLDER.newFolder("test-jar2"),
+                                tempFolder,
                                 "test-classloader-udf2.jar",
                                 udfClassName2,
                                 String.format(GENERATED_UPPER_UDF_CODE, udfClassName2))
@@ -156,11 +159,9 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         .toString();
     }
 
-    @Before
-    public void before() throws IOException {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
-        env.setParallelism(4);
+    @BeforeEach
+    public void before() throws Exception {
+        super.before();
         if (objectReuse == ObjectReuse.ENABLED) {
             env.getConfig().enableObjectReuse();
         } else if (objectReuse == ObjectReuse.DISABLED) {
@@ -171,7 +172,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         env.configure(defaultConfig);
     }
 
-    @Test
+    @TestTemplate
     public void testFromDataStreamAtomic() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -185,7 +186,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(result, Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
     }
 
-    @Test
+    @TestTemplate
     public void testToDataStreamAtomic() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -194,7 +195,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(tableEnv.toDataStream(table, Integer.class), 1, 2, 3, 4, 5);
     }
 
-    @Test
+    @TestTemplate
     public void testFromDataStreamWithRow() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -224,7 +225,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(result, rows);
     }
 
-    @Test
+    @TestTemplate
     public void testToDataStreamWithRow() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -239,7 +240,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(tableEnv.toDataStream(table), rows);
     }
 
-    @Test
+    @TestTemplate
     public void testFromAndToDataStreamWithPojo() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -281,7 +282,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(tableEnv.toDataStream(table, ComplexPojo.class), pojos);
     }
 
-    @Test
+    @TestTemplate
     public void testFromAndToDataStreamWithRaw() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -315,7 +316,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 rawRecords.toArray(new Tuple2[0]));
     }
 
-    @Test
+    @TestTemplate
     public void testFromAndToDataStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -377,7 +378,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 Row.of("c", 1000));
     }
 
-    @Test
+    @TestTemplate
     public void testFromAndToChangelogStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -433,7 +434,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 Row.of("C", 1000));
     }
 
-    @Test
+    @TestTemplate
     public void testFromAndToChangelogStreamRetract() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -481,7 +482,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(tableEnv.toChangelogStream(result), getOutput(inputOrOutput));
     }
 
-    @Test
+    @TestTemplate
     public void testFromChangelogStreamUpsert() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -520,7 +521,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(result.execute(), getOutput(inputOrOutput));
     }
 
-    @Test
+    @TestTemplate
     public void testFromAndToChangelogStreamUpsert() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -561,7 +562,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 getOutput(inputOrOutput));
     }
 
-    @Test
+    @TestTemplate
     public void testToDataStreamCustomEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -622,7 +623,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         tableConfig.setLocalTimeZone(originalZone);
     }
 
-    @Test
+    @TestTemplate
     public void testComplexUnifiedPipelineBatch() {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -631,7 +632,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(resultTable.execute(), Row.of("Bob", 1L), Row.of("Alice", 1L));
     }
 
-    @Test
+    @TestTemplate
     public void testTableStreamConversionBatch() throws Exception {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -664,7 +665,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 new Tuple2<>("LILY", 3));
     }
 
-    @Test
+    @TestTemplate
     public void testComplexUnifiedPipelineStreaming() {
         final Table resultTable = getComplexUnifiedPipeline(env);
 
@@ -677,7 +678,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 Row.of("Alice", 1L));
     }
 
-    @Test
+    @TestTemplate
     public void testAttachAsDataStream() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -728,7 +729,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 .containsExactlyInAnyOrder("+I[1]", "+I[2]", "+I[3]");
     }
 
-    @Test
+    @TestTemplate
     public void testMultiChangelogStreamUpsert() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -802,7 +803,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 resultStream, 0, Row.of(2, null, null, null), Row.of(1, 11.0, "1", "A"));
     }
 
-    @Test
+    @TestTemplate
     public void testResourcePropagation() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         assertStreamJarsOf(0);

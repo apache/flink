@@ -28,14 +28,14 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,11 +46,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for adaptive hash join. */
 public class AdaptiveHashJoinITCase extends TestLogger {
 
-    public static final int DEFAULT_PARALLELISM = 3;
+    private static final int DEFAULT_PARALLELISM = 3;
 
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
@@ -69,11 +69,13 @@ public class AdaptiveHashJoinITCase extends TestLogger {
                     null,
                     TableConfig.getDefault());
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         tEnv.getConfig()
                 .getConfiguration()
-                .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM,
+                        DEFAULT_PARALLELISM);
 
         JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, JoinType.HashJoin());
 
@@ -129,8 +131,8 @@ public class AdaptiveHashJoinITCase extends TestLogger {
                         + ")");
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         TestValuesTableFactory.clearAllData();
     }
 

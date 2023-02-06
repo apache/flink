@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -30,15 +29,11 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for `ANALYZE TABLE`. */
-public class AnalyzeTableITCase extends StreamingTestBase {
-
-    private TableEnvironment tEnv;
+public class AnalyzeTableITCase extends StreamingTestBaseV2 {
 
     @BeforeEach
-    @Override
     public void before() throws Exception {
         super.before();
-        tEnv = tEnv();
         String dataId1 = TestValuesTableFactory.registerData(TestData.smallData3());
         tEnv.executeSql(
                 String.format(

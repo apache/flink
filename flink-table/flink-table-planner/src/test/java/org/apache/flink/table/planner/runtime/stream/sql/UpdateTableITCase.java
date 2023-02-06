@@ -19,25 +19,24 @@
 package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBaseV2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for UPDATE statement in streaming mode. */
-public class UpdateTableITCase extends StreamingTestBase {
+public class UpdateTableITCase extends StreamingTestBaseV2 {
 
     @Test
     public void testUpdate() throws Exception {
-        tEnv().executeSql(
-                        "CREATE TABLE t ("
-                                + " a int PRIMARY KEY NOT ENFORCED,"
-                                + " b string,"
-                                + " c double) WITH"
-                                + " ('connector' = 'test-update-delete')");
-        assertThatThrownBy(
-                        () -> tEnv().executeSql("UPDATE t SET b = 'uaa', c = c * c WHERE a >= 1"))
+        tEnv.executeSql(
+                "CREATE TABLE t ("
+                        + " a int PRIMARY KEY NOT ENFORCED,"
+                        + " b string,"
+                        + " c double) WITH"
+                        + " ('connector' = 'test-update-delete')");
+        assertThatThrownBy(() -> tEnv.executeSql("UPDATE t SET b = 'uaa', c = c * c WHERE a >= 1"))
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining("UPDATE statement is not supported for streaming mode now.");
     }

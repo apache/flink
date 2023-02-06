@@ -37,8 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CsvFormatFilesystemStatisticsReportTest extends CsvFormatStatisticsReportTest {
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
-        super.setup(file);
+    public void before(@TempDir File file) throws Exception {
+        super.before(file);
     }
 
     @Test

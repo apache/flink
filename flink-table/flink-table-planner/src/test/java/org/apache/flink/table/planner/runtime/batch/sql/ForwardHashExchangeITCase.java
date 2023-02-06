@@ -21,24 +21,23 @@ import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.planner.runtime.utils.TestData;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Arrays;
 
 /** Tests for ForwardHashExchangeProcessor. */
-public class ForwardHashExchangeITCase extends BatchTestBase {
+public class ForwardHashExchangeITCase extends BatchTestBaseV2 {
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         super.before();
-        env().disableOperatorChaining();
-        tEnv().getConfig()
+        env.disableOperatorChaining();
+        tEnv.getConfig()
                 .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_BLOCKING);
 
         String testDataId = TestValuesTableFactory.registerData(TestData.data3());
@@ -54,12 +53,12 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
                         + "',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
-        tEnv().executeSql(ddl);
+        tEnv.executeSql(ddl);
     }
 
     @Test
     public void testOverAggWithHashAgg() {
-        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
         checkResult(
                 "SELECT\n"
                         + "   b,\n"
@@ -68,20 +67,19 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
                         + "   RANK() OVER (PARTITION BY b ORDER BY b) rn\n"
                         + " FROM MyTable\n"
                         + " GROUP BY b",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(1, 1, 1, 1),
-                                Row.of(2, 5, 5, 1),
-                                Row.of(3, 15, 15, 1),
-                                Row.of(4, 34, 34, 1),
-                                Row.of(5, 65, 65, 1),
-                                Row.of(6, 111, 111, 1))),
+                Arrays.asList(
+                        Row.of(1, 1, 1, 1),
+                        Row.of(2, 5, 5, 1),
+                        Row.of(3, 15, 15, 1),
+                        Row.of(4, 34, 34, 1),
+                        Row.of(5, 65, 65, 1),
+                        Row.of(6, 111, 111, 1)),
                 false);
     }
 
     @Test
     public void testOverAggWithSortAgg() {
-        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
         checkResult(
                 "SELECT\n"
                         + "   b,\n"
@@ -90,14 +88,13 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
                         + "   RANK() OVER (PARTITION BY b ORDER BY b) rn\n"
                         + " FROM MyTable\n"
                         + " GROUP BY b",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(1, 1, 1, 1),
-                                Row.of(2, 5, 5, 1),
-                                Row.of(3, 15, 15, 1),
-                                Row.of(4, 34, 34, 1),
-                                Row.of(5, 65, 65, 1),
-                                Row.of(6, 111, 111, 1))),
+                Arrays.asList(
+                        Row.of(1, 1, 1, 1),
+                        Row.of(2, 5, 5, 1),
+                        Row.of(3, 15, 15, 1),
+                        Row.of(4, 34, 34, 1),
+                        Row.of(5, 65, 65, 1),
+                        Row.of(6, 111, 111, 1)),
                 false);
     }
 }

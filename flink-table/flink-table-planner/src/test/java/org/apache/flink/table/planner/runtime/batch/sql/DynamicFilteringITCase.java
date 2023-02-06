@@ -21,44 +21,44 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.planner.runtime.utils.TestData;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.stream.Stream;
 
 /** IT test for dynamic filtering. */
-public class DynamicFilteringITCase extends BatchTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+public class DynamicFilteringITCase extends BatchTestBaseV2 {
 
-    private TableEnvironment tEnv;
+    @Parameter public BatchShuffleMode batchShuffleMode;
+
     private Catalog catalog;
 
-    static Stream<Arguments> parameters() {
-        return Stream.of(
-                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_BLOCKING),
-                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_PIPELINED));
+    @Parameters(name = "batchShuffleMode={0}")
+    public static Collection<BatchShuffleMode> parameters() {
+        return Arrays.asList(
+                BatchShuffleMode.ALL_EXCHANGES_BLOCKING, BatchShuffleMode.ALL_EXCHANGES_PIPELINED);
     }
 
     @BeforeEach
-    @Override
     public void before() throws Exception {
         super.before();
-        tEnv = tEnv();
         catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).get();
         tEnv.getConfig()
                 .getConfiguration()
@@ -66,6 +66,9 @@ public class DynamicFilteringITCase extends BatchTestBase {
         tEnv.getConfig()
                 .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED, true);
+
+        // Setting batch shuffle mode.
+        configure(batchShuffleMode);
 
         String dataId1 = TestValuesTableFactory.registerData(TestData.data7());
         tEnv.executeSql(
@@ -125,40 +128,34 @@ public class DynamicFilteringITCase extends BatchTestBase {
                         dataId3));
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testSimpleDynamicFiltering(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testSimpleDynamicFiltering() {
         checkResult(
                 "SELECT * FROM fact1, dim WHERE x = a AND z = 2",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(2, 2, 1, "Hallo Welt", 2, 2, 2, 2),
-                                Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 2, 2),
-                                Row.of(3, 4, 3, "Hallo Welt wie gehts?", 2, 3, 3, 2),
-                                Row.of(3, 5, 4, "ABC", 2, 3, 3, 2),
-                                Row.of(3, 6, 5, "BCD", 3, 3, 3, 2),
-                                Row.of(4, 10, 9, "FGH", 2, 4, 5, 2),
-                                Row.of(4, 10, 9, "FGH", 2, 4, 7, 2),
-                                Row.of(4, 7, 6, "CDE", 2, 4, 5, 2),
-                                Row.of(4, 7, 6, "CDE", 2, 4, 7, 2),
-                                Row.of(4, 8, 7, "DEF", 1, 4, 5, 2),
-                                Row.of(4, 8, 7, "DEF", 1, 4, 7, 2),
-                                Row.of(4, 9, 8, "EFG", 1, 4, 5, 2),
-                                Row.of(4, 9, 8, "EFG", 1, 4, 7, 2),
-                                Row.of(5, 11, 10, "GHI", 1, 5, 9, 2),
-                                Row.of(5, 12, 11, "HIJ", 3, 5, 9, 2),
-                                Row.of(5, 13, 12, "IJK", 3, 5, 9, 2),
-                                Row.of(5, 14, 13, "JKL", 2, 5, 9, 2),
-                                Row.of(5, 15, 14, "KLM", 2, 5, 9, 2))),
+                Arrays.asList(
+                        Row.of(2, 2, 1, "Hallo Welt", 2, 2, 2, 2),
+                        Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 2, 2),
+                        Row.of(3, 4, 3, "Hallo Welt wie gehts?", 2, 3, 3, 2),
+                        Row.of(3, 5, 4, "ABC", 2, 3, 3, 2),
+                        Row.of(3, 6, 5, "BCD", 3, 3, 3, 2),
+                        Row.of(4, 10, 9, "FGH", 2, 4, 5, 2),
+                        Row.of(4, 10, 9, "FGH", 2, 4, 7, 2),
+                        Row.of(4, 7, 6, "CDE", 2, 4, 5, 2),
+                        Row.of(4, 7, 6, "CDE", 2, 4, 7, 2),
+                        Row.of(4, 8, 7, "DEF", 1, 4, 5, 2),
+                        Row.of(4, 8, 7, "DEF", 1, 4, 7, 2),
+                        Row.of(4, 9, 8, "EFG", 1, 4, 5, 2),
+                        Row.of(4, 9, 8, "EFG", 1, 4, 7, 2),
+                        Row.of(5, 11, 10, "GHI", 1, 5, 9, 2),
+                        Row.of(5, 12, 11, "HIJ", 3, 5, 9, 2),
+                        Row.of(5, 13, 12, "IJK", 3, 5, 9, 2),
+                        Row.of(5, 14, 13, "JKL", 2, 5, 9, 2),
+                        Row.of(5, 15, 14, "KLM", 2, 5, 9, 2)),
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testDynamicFilteringChainWithMultipleInput(BatchShuffleMode shuffleMode)
-            throws Exception {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testDynamicFilteringChainWithMultipleInput() throws Exception {
         String dataId1 = TestValuesTableFactory.registerData(TestData.data7());
         tEnv.executeSql(
                 String.format(
@@ -184,107 +181,78 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
         checkResult(
                 "SELECT * FROM fact1, dim, dim2 WHERE dim.x = fact1.a and dim2.y = fact1.a AND dim.z = 1",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(1, 1, 0, "Hallo", 1, 1, 0, 1, 2, 1, 1),
-                                Row.of(2, 2, 1, "Hallo Welt", 2, 2, 1, 1, 2, 2, 2),
-                                Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1, 2, 2, 2),
-                                Row.of(4, 10, 9, "FGH", 2, 4, 6, 1, 3, 4, 3),
-                                Row.of(4, 7, 6, "CDE", 2, 4, 6, 1, 3, 4, 3),
-                                Row.of(4, 8, 7, "DEF", 1, 4, 6, 1, 3, 4, 3),
-                                Row.of(4, 9, 8, "EFG", 1, 4, 6, 1, 3, 4, 3),
-                                Row.of(5, 11, 10, "GHI", 1, 5, 8, 1, 4, 5, 2),
-                                Row.of(5, 12, 11, "HIJ", 3, 5, 8, 1, 4, 5, 2),
-                                Row.of(5, 13, 12, "IJK", 3, 5, 8, 1, 4, 5, 2),
-                                Row.of(5, 14, 13, "JKL", 2, 5, 8, 1, 4, 5, 2),
-                                Row.of(5, 15, 14, "KLM", 2, 5, 8, 1, 4, 5, 2))),
+                Arrays.asList(
+                        Row.of(1, 1, 0, "Hallo", 1, 1, 0, 1, 2, 1, 1),
+                        Row.of(2, 2, 1, "Hallo Welt", 2, 2, 1, 1, 2, 2, 2),
+                        Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1, 2, 2, 2),
+                        Row.of(4, 10, 9, "FGH", 2, 4, 6, 1, 3, 4, 3),
+                        Row.of(4, 7, 6, "CDE", 2, 4, 6, 1, 3, 4, 3),
+                        Row.of(4, 8, 7, "DEF", 1, 4, 6, 1, 3, 4, 3),
+                        Row.of(4, 9, 8, "EFG", 1, 4, 6, 1, 3, 4, 3),
+                        Row.of(5, 11, 10, "GHI", 1, 5, 8, 1, 4, 5, 2),
+                        Row.of(5, 12, 11, "HIJ", 3, 5, 8, 1, 4, 5, 2),
+                        Row.of(5, 13, 12, "IJK", 3, 5, 8, 1, 4, 5, 2),
+                        Row.of(5, 14, 13, "JKL", 2, 5, 8, 1, 4, 5, 2),
+                        Row.of(5, 15, 14, "KLM", 2, 5, 8, 1, 4, 5, 2)),
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testDynamicFilteringCannotChainWithMultipleInput(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testDynamicFilteringCannotChainWithMultipleInput() {
         checkResult(
                 "SELECT * FROM fact1, dim, fact2 WHERE x = fact1.a and fact2.a = fact1.a AND z = 1 and fact1.e = 2 and fact2.e = 1",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(
-                                        2,
-                                        2,
-                                        1,
-                                        "Hallo Welt",
-                                        2,
-                                        2,
-                                        1,
-                                        1,
-                                        2,
-                                        3,
-                                        2,
-                                        "Hallo Welt wie",
-                                        1),
-                                Row.of(4, 10, 9, "FGH", 2, 4, 6, 1, 4, 8, 7, "DEF", 1),
-                                Row.of(4, 10, 9, "FGH", 2, 4, 6, 1, 4, 9, 8, "EFG", 1),
-                                Row.of(4, 7, 6, "CDE", 2, 4, 6, 1, 4, 8, 7, "DEF", 1),
-                                Row.of(4, 7, 6, "CDE", 2, 4, 6, 1, 4, 9, 8, "EFG", 1),
-                                Row.of(5, 14, 13, "JKL", 2, 5, 8, 1, 5, 11, 10, "GHI", 1),
-                                Row.of(5, 15, 14, "KLM", 2, 5, 8, 1, 5, 11, 10, "GHI", 1))),
+                Arrays.asList(
+                        Row.of(2, 2, 1, "Hallo Welt", 2, 2, 1, 1, 2, 3, 2, "Hallo Welt wie", 1),
+                        Row.of(4, 10, 9, "FGH", 2, 4, 6, 1, 4, 8, 7, "DEF", 1),
+                        Row.of(4, 10, 9, "FGH", 2, 4, 6, 1, 4, 9, 8, "EFG", 1),
+                        Row.of(4, 7, 6, "CDE", 2, 4, 6, 1, 4, 8, 7, "DEF", 1),
+                        Row.of(4, 7, 6, "CDE", 2, 4, 6, 1, 4, 9, 8, "EFG", 1),
+                        Row.of(5, 14, 13, "JKL", 2, 5, 8, 1, 5, 11, 10, "GHI", 1),
+                        Row.of(5, 15, 14, "KLM", 2, 5, 8, 1, 5, 11, 10, "GHI", 1)),
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testReuseDimSide(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testReuseDimSide() {
         checkResult(
                 "SELECT * FROM fact1, dim WHERE x = a AND z = 1 and b = 3"
                         + "UNION ALL "
                         + "SELECT * FROM fact2, dim WHERE x = a AND z = 1 and b = 2",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(2, 2, 1, "Hallo Welt", 2, 2, 1, 1),
-                                Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1))),
+                Arrays.asList(
+                        Row.of(2, 2, 1, "Hallo Welt", 2, 2, 1, 1),
+                        Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1)),
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testDynamicFilteringWithStaticPartitionPruning(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testDynamicFilteringWithStaticPartitionPruning() {
         checkResult(
                 "SELECT * FROM fact2, dim WHERE x = a and e = z AND y < 5 and a = 3",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(3, 4, 3, "Hallo Welt wie gehts?", 2, 3, 3, 2),
-                                Row.of(3, 5, 4, "ABC", 2, 3, 3, 2),
-                                Row.of(3, 6, 5, "BCD", 3, 3, 4, 3))),
+                Arrays.asList(
+                        Row.of(3, 4, 3, "Hallo Welt wie gehts?", 2, 3, 3, 2),
+                        Row.of(3, 5, 4, "ABC", 2, 3, 3, 2),
+                        Row.of(3, 6, 5, "BCD", 3, 3, 4, 3)),
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testMultiplePartitionKeysWithFullKey(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testMultiplePartitionKeysWithFullKey() {
         checkResult(
                 "SELECT * FROM fact2, dim WHERE x = a AND z = e and y = 1",
-                JavaScalaConversionUtil.toScala(
-                        Collections.singletonList(Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1))),
+                Collections.singletonList(Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1)),
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
-    @MethodSource("parameters")
-    public void testMultiplePartitionKeysWithPartialKey(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+    @TestTemplate
+    public void testMultiplePartitionKeysWithPartialKey() {
         checkResult(
                 "SELECT * FROM fact2, dim WHERE z = e and y = 1",
-                JavaScalaConversionUtil.toScala(
-                        Arrays.asList(
-                                Row.of(1, 1, 0, "Hallo", 1, 2, 1, 1),
-                                Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1),
-                                Row.of(4, 8, 7, "DEF", 1, 2, 1, 1),
-                                Row.of(4, 9, 8, "EFG", 1, 2, 1, 1),
-                                Row.of(5, 11, 10, "GHI", 1, 2, 1, 1))),
+                Arrays.asList(
+                        Row.of(1, 1, 0, "Hallo", 1, 2, 1, 1),
+                        Row.of(2, 3, 2, "Hallo Welt wie", 1, 2, 1, 1),
+                        Row.of(4, 8, 7, "DEF", 1, 2, 1, 1),
+                        Row.of(4, 9, 8, "EFG", 1, 2, 1, 1),
+                        Row.of(5, 11, 10, "GHI", 1, 2, 1, 1)),
                 false);
     }
 

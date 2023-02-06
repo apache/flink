@@ -26,12 +26,13 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -59,39 +60,38 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** IT Case for testing managed table compaction. */
-public class CompactManagedTableITCase extends BatchTestBase {
+public class CompactManagedTableITCase extends BatchTestBaseV2 {
 
-    private final ObjectIdentifier tableIdentifier =
-            ObjectIdentifier.of(tEnv().getCurrentCatalog(), tEnv().getCurrentDatabase(), "MyTable");
+    private ObjectIdentifier tableIdentifier;
     private final Map<CatalogPartitionSpec, List<RowData>> collectedElements = new HashMap<>();
 
     private Path rootPath;
     private AtomicReference<Map<CatalogPartitionSpec, List<Path>>>
             referenceOfManagedTableFileEntries;
 
-    @Override
-    @Before
+    @TempDir private static Path tempFolder;
+
+    @BeforeEach
     public void before() throws Exception {
         super.before();
+        tableIdentifier =
+                ObjectIdentifier.of(tEnv.getCurrentCatalog(), tEnv.getCurrentDatabase(), "MyTable");
+
         MANAGED_TABLES.put(tableIdentifier, new AtomicReference<>());
         referenceOfManagedTableFileEntries = new AtomicReference<>();
         MANAGED_TABLE_FILE_ENTRIES.put(tableIdentifier, referenceOfManagedTableFileEntries);
         try {
-            rootPath =
-                    new Path(
-                            new Path(TEMPORARY_FOLDER.newFolder().getPath()),
-                            tableIdentifier.asSummaryString());
+            rootPath = new Path(new Path(tempFolder.getPath()), tableIdentifier.asSummaryString());
             rootPath.getFileSystem().mkdirs(rootPath);
         } catch (IOException e) {
             fail(String.format("Failed to create dir for %s", rootPath), e);
         }
     }
 
-    @Override
-    @After
+    @AfterEach
     public void after() {
         super.after();
-        tEnv().executeSql("DROP TABLE MyTable");
+        tEnv.executeSql("DROP TABLE MyTable");
         collectedElements.clear();
         try {
             rootPath.getFileSystem().delete(rootPath, true);
@@ -103,11 +103,11 @@ public class CompactManagedTableITCase extends BatchTestBase {
     @Test
     public void testCompactPartitionOnNonPartitionedTable() {
         String sql = "CREATE TABLE MyTable (id BIGINT, content STRING)";
-        tEnv().executeSql(sql);
+        tEnv.executeSql(sql);
         assertThatThrownBy(
                         () ->
-                                tEnv().executeSql(
-                                                "ALTER TABLE MyTable PARTITION (season = 'summer') COMPACT"))
+                                tEnv.executeSql(
+                                        "ALTER TABLE MyTable PARTITION (season = 'summer') COMPACT"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         String.format("Table %s is not partitioned.", tableIdentifier));
@@ -121,11 +121,11 @@ public class CompactManagedTableITCase extends BatchTestBase {
                         + "  content STRING,\n"
                         + "  season STRING\n"
                         + ") PARTITIONED BY (season)";
-        tEnv().executeSql(sql);
+        tEnv.executeSql(sql);
         assertThatThrownBy(
                         () ->
-                                tEnv().executeSql(
-                                                "ALTER TABLE MyTable PARTITION (saeson = 'summer') COMPACT"))
+                                tEnv.executeSql(
+                                        "ALTER TABLE MyTable PARTITION (saeson = 'summer') COMPACT"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Partition column 'saeson' not defined in the table schema. "
@@ -143,8 +143,8 @@ public class CompactManagedTableITCase extends BatchTestBase {
         prepare(sql, Collections.singletonList(of("season", "'spring'")));
         assertThatThrownBy(
                         () ->
-                                tEnv().executeSql(
-                                                "ALTER TABLE MyTable PARTITION (season = 'summer') COMPACT"))
+                                tEnv.executeSql(
+                                        "ALTER TABLE MyTable PARTITION (season = 'summer') COMPACT"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Cannot resolve partition spec CatalogPartitionSpec{{season=summer}}");
@@ -284,7 +284,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     private void prepareMirrorTables(String managedTableDDL) {
-        tEnv().executeSql(managedTableDDL);
+        tEnv.executeSql(managedTableDDL);
         String helperSource =
                 "CREATE TABLE HelperSource (id BIGINT, content STRING ) WITH ("
                         + "  'connector' = 'datagen', "
@@ -303,13 +303,13 @@ public class CompactManagedTableITCase extends BatchTestBase {
                                 + "LIKE MyTable (EXCLUDING OPTIONS)",
                         rootPath.getPath());
 
-        tEnv().executeSql(helperSource);
-        tEnv().executeSql(helperSink);
+        tEnv.executeSql(helperSource);
+        tEnv.executeSql(helperSink);
     }
 
     private void prepareFileEntries(List<LinkedHashMap<String, String>> partitionKVs)
             throws Exception {
-        tEnv().executeSql(prepareInsertDML(partitionKVs)).await();
+        tEnv.executeSql(prepareInsertDML(partitionKVs)).await();
     }
 
     private static String prepareInsertDML(List<LinkedHashMap<String, String>> partitionKVs) {
@@ -422,12 +422,12 @@ public class CompactManagedTableITCase extends BatchTestBase {
         String compactSql = prepareCompactSql(unresolvedPartitionSpec);
 
         // first run to check compacted file size and content
-        tEnv().executeSql(compactSql).await();
+        tEnv.executeSql(compactSql).await();
         Map<CatalogPartitionSpec, Long> firstRun =
                 checkFileAndElements(resolvedPartitionSpecsHaveBeenOrToBeCompacted);
 
         // second run to check idempotence
-        tEnv().executeSql(compactSql).await();
+        tEnv.executeSql(compactSql).await();
         Map<CatalogPartitionSpec, Long> secondRun =
                 checkFileAndElements(resolvedPartitionSpecsHaveBeenOrToBeCompacted);
         checkModifiedTime(firstRun, secondRun);

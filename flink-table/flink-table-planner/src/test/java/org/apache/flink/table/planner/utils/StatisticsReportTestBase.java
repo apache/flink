@@ -18,23 +18,20 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBaseV2;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.core.TableScan;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -53,27 +50,18 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toList;
 
 /** The base class for statistics report testing. */
-public abstract class StatisticsReportTestBase extends TestLogger {
-
-    private static final int DEFAULT_PARALLELISM = 4;
-
-    protected TableEnvironment tEnv;
+public abstract class StatisticsReportTestBase extends BatchTestBaseV2 {
     protected File folder;
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
+    public void before(@TempDir File file) throws Exception {
+        super.before();
         folder = file;
-        tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tEnv.getConfig()
                 .getConfiguration()
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM,
                         DEFAULT_PARALLELISM);
-    }
-
-    @AfterEach
-    public void after() {
-        TestValuesTableFactory.clearAllData();
     }
 
     protected void createFileSystemSource() {

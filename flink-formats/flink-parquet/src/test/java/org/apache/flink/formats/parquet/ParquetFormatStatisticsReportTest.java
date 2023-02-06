@@ -47,8 +47,8 @@ public class ParquetFormatStatisticsReportTest extends StatisticsReportTestBase 
     private static ParquetFileFormatFactory.ParquetBulkDecodingFormat parquetBulkDecodingFormat;
 
     @BeforeEach
-    public void setup(@TempDir File file) throws Exception {
-        super.setup(file);
+    public void before(@TempDir File file) throws Exception {
+        super.before(file);
         createFileSystemSource();
         Configuration configuration = new Configuration();
         parquetBulkDecodingFormat =
