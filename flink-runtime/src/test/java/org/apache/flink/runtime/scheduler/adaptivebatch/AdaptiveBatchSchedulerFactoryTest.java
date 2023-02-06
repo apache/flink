@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
@@ -62,6 +63,17 @@ class AdaptiveBatchSchedulerFactoryTest {
                 ONLY_FINISHED_PRODUCERS, PartialFinishedInputConsumableDecider.Factory.INSTANCE);
         assertAndLoadInputConsumableDecider(
                 ALL_PRODUCERS_FINISHED, AllFinishedInputConsumableDecider.Factory.INSTANCE);
+    }
+
+    @Test
+    void testMaxParallelismFallsBackToExecutionConfigDefaultParallelism() {
+        Configuration configuration = new Configuration();
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setParallelism(5);
+        assertThat(
+                        AdaptiveBatchSchedulerFactory.getDefaultMaxParallelism(
+                                configuration, executionConfig))
+                .isEqualTo(5);
     }
 
     private void assertAndLoadInputConsumableDecider(

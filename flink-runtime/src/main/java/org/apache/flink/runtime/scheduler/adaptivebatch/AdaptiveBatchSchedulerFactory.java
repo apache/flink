@@ -20,10 +20,10 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.BatchShuffleMode;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
@@ -138,11 +138,12 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 createExecutionSlotAllocatorFactory(jobMasterConfiguration, slotPool);
 
+        ExecutionConfig executionConfig =
+                jobGraph.getSerializedExecutionConfig().deserializeValue(userCodeLoader);
+
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                                jobGraph.getSerializedExecutionConfig()
-                                        .deserializeValue(userCodeLoader)
-                                        .getRestartStrategy(),
+                                executionConfig.getRestartStrategy(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();
@@ -173,16 +174,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         loadInputConsumableDeciderFactory(hybridPartitionDataConsumeConstraint));
 
         int defaultMaxParallelism =
-                jobMasterConfiguration
-                        .getOptional(
-                                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM)
-                        .orElse(
-                                jobMasterConfiguration
-                                        .getOptional(CoreOptions.DEFAULT_PARALLELISM)
-                                        .orElse(
-                                                BatchExecutionOptions
-                                                        .ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM
-                                                        .defaultValue()));
+                getDefaultMaxParallelism(jobMasterConfiguration, executionConfig);
 
         if (enableSpeculativeExecution) {
             return new SpeculativeScheduler(
@@ -209,7 +201,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
-                    DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
+                    DefaultVertexParallelismAndInputInfosDecider.from(
+                            defaultMaxParallelism, jobMasterConfiguration),
                     defaultMaxParallelism,
                     blocklistOperations,
                     hybridPartitionDataConsumeConstraint);
@@ -238,7 +231,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
-                    DefaultVertexParallelismAndInputInfosDecider.from(jobMasterConfiguration),
+                    DefaultVertexParallelismAndInputInfosDecider.from(
+                            defaultMaxParallelism, jobMasterConfiguration),
                     defaultMaxParallelism,
                     hybridPartitionDataConsumeConstraint);
         }
@@ -323,6 +317,17 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE));
             }
         }
+    }
+
+    static int getDefaultMaxParallelism(
+            Configuration configuration, ExecutionConfig executionConfig) {
+        return configuration
+                .getOptional(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM)
+                .orElse(
+                        executionConfig.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT
+                                ? BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM
+                                        .defaultValue()
+                                : executionConfig.getParallelism());
     }
 
     @Override
