@@ -332,6 +332,12 @@ that a sink can still work on common data structures and perform a conversion at
         The table sink can delete existing data directly according to the filters.
         </td>
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelDelete.java" name="SupportsRowLevelDelete" >}}</td>
+        <td>Enables to delete existing data according to row-level changes in a <code>DynamicTableSink</code>. The table sink is responsible for telling planner how to produce the row changes, 
+        and consuming them to achieve the purpose of row(s) deletion.
+        </td>
+    </tr>
     </tbody>
 </table>
 
