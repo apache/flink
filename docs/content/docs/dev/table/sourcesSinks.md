@@ -321,6 +321,12 @@ that a sink can still work on common data structures and perform a conversion at
         responsible for accepting requested metadata columns at the end of consumed rows and persist
         them. This includes potentially forwarding metadata columns to contained formats.</td>
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsDeletePushDown.java" name="SupportsDeletePushDown" >}}</td>
+        <td>Enables to push down filters decomposed from the <code>WHERE</code> clause in <code>DELETE</code> statement to <code>DynamicTableSink</code>.
+        The table sink can delete existing data directly according to the filters.
+        </td>
+    </tr>
     </tbody>
 </table>
 
