@@ -320,7 +320,10 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
         final ParallelismAndInputInfos parallelismAndInputInfos =
                 vertexParallelismAndInputInfosDecider.decideParallelismAndInputInfosForVertex(
-                        jobVertex.getJobVertexId(), inputs, parallelism);
+                        jobVertex.getJobVertexId(),
+                        inputs,
+                        parallelism,
+                        jobVertex.getMaxParallelism());
 
         if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
             log.info(

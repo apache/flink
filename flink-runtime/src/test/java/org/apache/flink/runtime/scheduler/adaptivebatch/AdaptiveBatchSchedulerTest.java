@@ -67,7 +67,7 @@ import java.util.stream.LongStream;
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
-import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDefaultVertexParallelismAndInputInfosDecider;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -266,8 +266,7 @@ class AdaptiveBatchSchedulerTest {
         SchedulerBase scheduler =
                 createScheduler(
                         new JobGraph(new JobID(), "test job", source, sink),
-                        createDefaultVertexParallelismAndInputInfosDecider(
-                                1, 16, 4 * SUBPARTITION_BYTES),
+                        createDecider(1, 16, 4 * SUBPARTITION_BYTES),
                         16);
 
         final DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
@@ -296,6 +295,67 @@ class AdaptiveBatchSchedulerTest {
         scheduler.startScheduling();
         // check sink is not initialized
         assertThat(sinkExecutionJobVertex.isInitialized()).isTrue();
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsLargerThanGlobalMaxParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(1, 32, 128, 1L, 32);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalMaxParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(1, 128, 32, 1L, 32);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalMinParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(16, 128, 8, 4 * SUBPARTITION_BYTES, 8);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalDefaultSourceParallelism()
+            throws Exception {
+        final JobVertex source = createJobVertex("source", -1);
+        source.setMaxParallelism(8);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source),
+                        createDecider(1, 128, 1L, 32),
+                        128);
+
+        scheduler.startScheduling();
+
+        // check source's parallelism
+        assertThat(source.getParallelism()).isEqualTo(8);
+    }
+
+    void testUserConfiguredMaxParallelism(
+            int globalMinParallelism,
+            int globalMaxParallelism,
+            int userConfiguredMaxParallelism,
+            long dataVolumePerTask,
+            int expectedParallelism)
+            throws Exception {
+        final JobVertex source = createJobVertex("source", 8);
+        final JobVertex sink = createJobVertex("sink", -1);
+        sink.setMaxParallelism(userConfiguredMaxParallelism);
+
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source, sink),
+                        createDecider(
+                                globalMinParallelism, globalMaxParallelism, dataVolumePerTask),
+                        globalMaxParallelism);
+
+        scheduler.startScheduling();
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
+
+        // check sink's parallelism
+        assertThat(sink.getParallelism()).isEqualTo(expectedParallelism);
     }
 
     private BlockingResultInfo getBlockingResultInfo(

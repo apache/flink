@@ -59,83 +59,61 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testDecideParallelism() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
         BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
         BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_256_MB + BYTE_8_GB);
 
         int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
+                createDeciderAndDecideParallelism(Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelism).isEqualTo(9);
     }
 
     @Test
     void testInitiallyNormalizedParallelismIsLargerThanMaxParallelism() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
         BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
         BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_8_GB + BYTE_1_TB);
 
         int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
+                createDeciderAndDecideParallelism(Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelism).isEqualTo(MAX_PARALLELISM);
     }
 
     @Test
     void testInitiallyNormalizedParallelismIsSmallerThanMinParallelism() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
         BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_256_MB);
         BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_512_MB);
 
         int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
+                createDeciderAndDecideParallelism(Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelism).isEqualTo(MIN_PARALLELISM);
     }
 
     @Test
     void testNonBroadcastBytesCanNotDividedEvenly() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
         BlockingResultInfo resultInfo1 = createFromBroadcastResult(BYTE_512_MB);
         BlockingResultInfo resultInfo2 = createFromNonBroadcastResult(BYTE_256_MB + BYTE_8_GB);
 
         int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
+                createDeciderAndDecideParallelism(Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelism).isEqualTo(9);
     }
 
     @Test
     void testDecideParallelismWithMaxSubpartitionLimitation() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 100, BYTE_256_MB);
-
         BlockingResultInfo resultInfo1 = new TestingBlockingResultInfo(false, 1L, 1024, 1024);
         BlockingResultInfo resultInfo2 = new TestingBlockingResultInfo(false, 1L, 512, 512);
 
         int parallelism =
-                decider.decideParallelism(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2));
+                createDeciderAndDecideParallelism(
+                        1, 100, BYTE_256_MB, Arrays.asList(resultInfo1, resultInfo2));
         assertThat(parallelism).isEqualTo(32);
     }
 
     @Test
     void testAllEdgesAllToAll() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 10, 60L);
-
         AllToAllBlockingResultInfo resultInfo1 =
                 createAllToAllBlockingResultInfo(
                         new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L});
@@ -143,8 +121,8 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 createAllToAllBlockingResultInfo(
                         new long[] {8L, 12L, 21L, 9L, 13L, 7L, 19L, 13L, 14L, 5L});
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(5);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
@@ -166,15 +144,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testAllEdgesAllToAllAndDecidedParallelismIsMaxParallelism() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 2, 10L);
-
         AllToAllBlockingResultInfo resultInfo =
                 createAllToAllBlockingResultInfo(
                         new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L});
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Collections.singletonList(resultInfo), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 2, 10L, Collections.singletonList(resultInfo));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(2);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(1);
@@ -186,15 +161,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testAllEdgesAllToAllAndDecidedParallelismIsMinParallelism() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(4, 10, 1000L);
-
         AllToAllBlockingResultInfo resultInfo =
                 createAllToAllBlockingResultInfo(
                         new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L});
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Collections.singletonList(resultInfo), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        4, 10, 1000L, Collections.singletonList(resultInfo));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(4);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(1);
@@ -210,15 +182,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testFallBackToEvenlyDistributeSubpartitions() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(8, 8, 10L);
-
         AllToAllBlockingResultInfo resultInfo =
                 createAllToAllBlockingResultInfo(
                         new long[] {10L, 1L, 10L, 1L, 10L, 1L, 10L, 1L, 10L, 1L});
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Collections.singletonList(resultInfo), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        8, 8, 10L, Collections.singletonList(resultInfo));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(8);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(1);
@@ -238,9 +207,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testAllEdgesAllToAllAndOneIsBroadcast() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 10, 60L);
-
         AllToAllBlockingResultInfo resultInfo1 =
                 createAllToAllBlockingResultInfo(
                         new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L});
@@ -248,8 +214,8 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 createAllToAllBlockingResultInfo(new long[] {10L}, true);
 
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(3);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
@@ -264,16 +230,13 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testAllEdgesBroadcast() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 10, 60L);
-
         AllToAllBlockingResultInfo resultInfo1 =
                 createAllToAllBlockingResultInfo(new long[] {10L}, true);
         AllToAllBlockingResultInfo resultInfo2 =
                 createAllToAllBlockingResultInfo(new long[] {10L}, true);
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(1);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
@@ -288,9 +251,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testHavePointwiseEdges() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 10, 60L);
-
         AllToAllBlockingResultInfo resultInfo1 =
                 createAllToAllBlockingResultInfo(
                         new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L});
@@ -298,8 +258,8 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 createPointwiseBlockingResultInfo(
                         new long[] {8L, 12L, 21L, 9L, 13L}, new long[] {7L, 19L, 13L, 14L, 5L});
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Arrays.asList(resultInfo1, resultInfo2), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(4);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
@@ -328,7 +288,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     @Test
     void testParallelismAlreadyDecided() {
         final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
+                createDecider(MIN_PARALLELISM, MAX_PARALLELISM, DATA_VOLUME_PER_TASK);
 
         AllToAllBlockingResultInfo allToAllBlockingResultInfo =
                 createAllToAllBlockingResultInfo(
@@ -337,7 +297,8 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 decider.decideParallelismAndInputInfosForVertex(
                         new JobVertexID(),
                         Collections.singletonList(allToAllBlockingResultInfo),
-                        3);
+                        3,
+                        MAX_PARALLELISM);
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(3);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(1);
@@ -350,12 +311,12 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testSourceJobVertex() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider();
-
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Collections.emptyList(), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        MIN_PARALLELISM,
+                        MAX_PARALLELISM,
+                        DATA_VOLUME_PER_TASK,
+                        Collections.emptyList());
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(DEFAULT_SOURCE_PARALLELISM);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).isEmpty();
@@ -363,9 +324,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
     @Test
     void testEvenlyDistributeDataWithMaxSubpartitionLimitation() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDefaultVertexParallelismAndInputInfosDecider(1, 100, BYTE_256_MB);
-
         long[] subpartitionBytes = new long[1024];
         Arrays.fill(subpartitionBytes, 1L);
         AllToAllBlockingResultInfo resultInfo =
@@ -375,8 +333,8 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         }
 
         ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(), Collections.singletonList(resultInfo), -1);
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 100, BYTE_256_MB, Collections.singletonList(resultInfo));
 
         assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(32);
         List<IndexRange> subpartitionRanges = new ArrayList<>();
@@ -424,15 +382,17 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 .containsExactlyInAnyOrderElementsOf(executionVertexInputInfos);
     }
 
-    private static DefaultVertexParallelismAndInputInfosDecider
-            createDefaultVertexParallelismAndInputInfosDecider() {
-        return createDefaultVertexParallelismAndInputInfosDecider(
-                MIN_PARALLELISM, MAX_PARALLELISM, DATA_VOLUME_PER_TASK);
+    static DefaultVertexParallelismAndInputInfosDecider createDecider(
+            int minParallelism, int maxParallelism, long dataVolumePerTask) {
+        return createDecider(
+                minParallelism, maxParallelism, dataVolumePerTask, DEFAULT_SOURCE_PARALLELISM);
     }
 
-    static DefaultVertexParallelismAndInputInfosDecider
-            createDefaultVertexParallelismAndInputInfosDecider(
-                    int minParallelism, int maxParallelism, long dataVolumePerTask) {
+    static DefaultVertexParallelismAndInputInfosDecider createDecider(
+            int minParallelism,
+            int maxParallelism,
+            long dataVolumePerTask,
+            int defaultSourceParallelism) {
         Configuration configuration = new Configuration();
 
         configuration.setInteger(
@@ -442,9 +402,36 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 new MemorySize(dataVolumePerTask));
         configuration.setInteger(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
-                DEFAULT_SOURCE_PARALLELISM);
+                defaultSourceParallelism);
 
         return DefaultVertexParallelismAndInputInfosDecider.from(maxParallelism, configuration);
+    }
+
+    private static int createDeciderAndDecideParallelism(List<BlockingResultInfo> consumedResults) {
+        return createDeciderAndDecideParallelism(
+                MIN_PARALLELISM, MAX_PARALLELISM, DATA_VOLUME_PER_TASK, consumedResults);
+    }
+
+    private static int createDeciderAndDecideParallelism(
+            int minParallelism,
+            int maxParallelism,
+            long dataVolumePerTask,
+            List<BlockingResultInfo> consumedResults) {
+        final DefaultVertexParallelismAndInputInfosDecider decider =
+                createDecider(minParallelism, maxParallelism, dataVolumePerTask);
+        return decider.decideParallelism(
+                new JobVertexID(), consumedResults, minParallelism, maxParallelism);
+    }
+
+    private static ParallelismAndInputInfos createDeciderAndDecideParallelismAndInputInfos(
+            int minParallelism,
+            int maxParallelism,
+            long dataVolumePerTask,
+            List<BlockingResultInfo> consumedResults) {
+        final DefaultVertexParallelismAndInputInfosDecider decider =
+                createDecider(minParallelism, maxParallelism, dataVolumePerTask);
+        return decider.decideParallelismAndInputInfosForVertex(
+                new JobVertexID(), consumedResults, -1, maxParallelism);
     }
 
     private AllToAllBlockingResultInfo createAllToAllBlockingResultInfo(
