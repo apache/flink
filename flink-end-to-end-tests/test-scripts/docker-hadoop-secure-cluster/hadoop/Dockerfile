@@ -24,7 +24,7 @@
 #
 # Creates multi-node, kerberized Hadoop cluster on Docker
 
-FROM openjdk:8
+FROM eclipse-temurin:8-jdk-jammy
 
 RUN set -x \
     && addgroup hadoop \
@@ -35,7 +35,9 @@ RUN set -x \
 
 # install dev tools
 RUN set -x \
-    && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    && apt-get update \
+    && apt-get upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl tar sudo openssh-server openssh-client rsync unzip krb5-user net-tools build-essential
 
 # Kerberos client
