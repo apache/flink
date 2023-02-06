@@ -452,7 +452,6 @@ class ExecutorImplITCase {
                         Collections.singletonList(udfDependency),
                         Configuration.fromMap(configMap))) {
 
-
             executor.configureSession(srcDdl);
             executor.configureSession(snkDdl);
             StatementResult result = executor.executeStatement(insert);

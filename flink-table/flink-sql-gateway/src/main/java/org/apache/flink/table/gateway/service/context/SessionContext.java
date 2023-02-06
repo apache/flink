@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
@@ -108,7 +109,7 @@ public class SessionContext {
     }
 
     public Configuration getSessionConf() {
-        return sessionConf;
+        return new UnmodifiableConfiguration(sessionConf);
     }
 
     public OperationManager getOperationManager() {

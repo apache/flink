@@ -310,8 +310,8 @@ public class OperationExecutor {
     @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {
         // checks the value of RUNTIME_MODE
-        Configuration operationConfig = executionConfig.clone();
-        operationConfig.addAll(sessionContext.getSessionConf());
+        Configuration operationConfig = sessionContext.getSessionConf().clone();
+        operationConfig.addAll(executionConfig);
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(operationConfig).build();
 
