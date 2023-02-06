@@ -169,8 +169,11 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     @Override
     public void appendMeta(byte[] value) throws IOException {
+        if (closed) {
+            LOG.warn("{} is closed.", logId);
+            return;
+        }
         LOG.trace("append metadata to {}: {} bytes", logId, value.length);
-        checkState(!closed, "%s is closed", logId);
         activeChangeSet.add(StateChange.ofMetadataChange(value));
         preEmptiveFlushIfNeeded(value);
     }
@@ -178,7 +181,10 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     @Override
     public void append(int keyGroup, byte[] value) throws IOException {
         LOG.trace("append to {}: keyGroup={} {} bytes", logId, keyGroup, value.length);
-        checkState(!closed, "%s is closed", logId);
+        if (closed) {
+            LOG.warn("{} is closed.", logId);
+            return;
+        }
         activeChangeSet.add(StateChange.ofDataChange(keyGroup, value));
         preEmptiveFlushIfNeeded(value);
     }
