@@ -100,6 +100,15 @@ jobs:
         source ./tools/ci/maven-utils.sh
         setup_maven
 
+        # the APT mirrors access is based on a proposal from https://github.com/actions/runner-images/issues/7048#issuecomment-1419426054
+        echo "Configure APT mirrors"
+        mirror_file_path="/etc/apt/mirrors.txt"
+        default_ubuntu_mirror_url="http://azure.archive.ubuntu.com/ubuntu/"
+        
+        sudo cp ./tools/ci/ubuntu-mirror-list.txt ${mirror_file_path}
+        sudo sed -i "s~${default_ubuntu_mirror_url}~mirror+file:${mirror_file_path}~" /etc/apt/sources.list
+        sudo apt-get update
+
         echo "Installing required software"
         sudo apt-get install -y bc libapr1
         # install libssl1.0.0 for netty tcnative
