@@ -323,8 +323,10 @@ class ApplicationDispatcherBootstrapTest {
     @Test
     void testApplicationIsStoppedWhenStoppingBootstrap() throws Exception {
         final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
+        final CompletableFuture<JobStatus> getJobStatusFuture = new CompletableFuture<>();
         final TestingDispatcherGateway.Builder dispatcherBuilder =
                 runningJobGatewayBuilder()
+                        .setRequestJobStatusFunction(ignoredJobId -> getJobStatusFuture)
                         .setClusterShutdownFunction(
                                 status -> {
                                     shutdownCalled.set(true);
@@ -347,6 +349,10 @@ class ApplicationDispatcherBootstrapTest {
         ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
         bootstrap.stop();
+
+        // the JobStatusFuture needs to be completed after stopping the bootstrap process to ensure
+        // that the process doesn't finish before explicitly stopping it
+        getJobStatusFuture.complete(JobStatus.RUNNING);
 
         // we didn't call the error handler
         assertThat(errorHandlerFuture.isDone()).isFalse();
