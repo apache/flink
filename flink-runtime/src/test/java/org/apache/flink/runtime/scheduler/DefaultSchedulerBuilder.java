@@ -402,10 +402,10 @@ public class DefaultSchedulerBuilder {
 
     public static VertexParallelismAndInputInfosDecider createCustomParallelismDecider(
             Function<JobVertexID, Integer> parallelismFunction) {
-        return (jobVertexId, consumedResults, initialParallelism) -> {
+        return (jobVertexId, consumedResults, vertexInitialParallelism, ignored) -> {
             int parallelism =
-                    initialParallelism > 0
-                            ? initialParallelism
+                    vertexInitialParallelism > 0
+                            ? vertexInitialParallelism
                             : parallelismFunction.apply(jobVertexId);
             return new ParallelismAndInputInfos(
                     parallelism,

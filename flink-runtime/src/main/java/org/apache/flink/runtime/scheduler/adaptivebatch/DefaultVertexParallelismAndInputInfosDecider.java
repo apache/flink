@@ -75,54 +75,110 @@ public class DefaultVertexParallelismAndInputInfosDecider
      */
     private static final int MAX_NUM_SUBPARTITIONS_PER_TASK_CONSUME = 32768;
 
-    private final int maxParallelism;
-    private final int minParallelism;
+    private final int globalMaxParallelism;
+    private final int globalMinParallelism;
     private final long dataVolumePerTask;
-    private final int defaultSourceParallelism;
+    private final int globalDefaultSourceParallelism;
 
     private DefaultVertexParallelismAndInputInfosDecider(
-            int maxParallelism,
-            int minParallelism,
+            int globalMaxParallelism,
+            int globalMinParallelism,
             MemorySize dataVolumePerTask,
-            int defaultSourceParallelism) {
+            int globalDefaultSourceParallelism) {
 
-        checkArgument(minParallelism > 0, "The minimum parallelism must be larger than 0.");
+        checkArgument(globalMinParallelism > 0, "The minimum parallelism must be larger than 0.");
         checkArgument(
-                maxParallelism >= minParallelism,
+                globalMaxParallelism >= globalMinParallelism,
                 "Maximum parallelism should be greater than or equal to the minimum parallelism.");
         checkArgument(
-                defaultSourceParallelism > 0,
+                globalDefaultSourceParallelism > 0,
                 "The default source parallelism must be larger than 0.");
         checkNotNull(dataVolumePerTask);
 
-        this.maxParallelism = maxParallelism;
-        this.minParallelism = minParallelism;
+        this.globalMaxParallelism = globalMaxParallelism;
+        this.globalMinParallelism = globalMinParallelism;
         this.dataVolumePerTask = dataVolumePerTask.getBytes();
-        this.defaultSourceParallelism = defaultSourceParallelism;
+        this.globalDefaultSourceParallelism = globalDefaultSourceParallelism;
     }
 
     @Override
     public ParallelismAndInputInfos decideParallelismAndInputInfosForVertex(
             JobVertexID jobVertexId,
             List<BlockingResultInfo> consumedResults,
-            int initialParallelism) {
+            int vertexInitialParallelism,
+            int vertexMaxParallelism) {
         checkArgument(
-                initialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
-                        || initialParallelism > 0);
+                vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                        || vertexInitialParallelism > 0);
+        checkArgument(vertexMaxParallelism > 0 && vertexMaxParallelism >= vertexInitialParallelism);
 
         if (consumedResults.isEmpty()) {
             // source job vertex
             int parallelism =
-                    initialParallelism > 0 ? initialParallelism : defaultSourceParallelism;
+                    vertexInitialParallelism > 0
+                            ? vertexInitialParallelism
+                            : computeSourceParallelism(jobVertexId, vertexMaxParallelism);
             return new ParallelismAndInputInfos(parallelism, Collections.emptyMap());
-        } else if (initialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
-                && areAllInputsAllToAll(consumedResults)
-                && !areAllInputsBroadcast(consumedResults)) {
-            return decideParallelismAndEvenlyDistributeData(
-                    jobVertexId, consumedResults, initialParallelism);
         } else {
-            return decideParallelismAndEvenlyDistributeSubpartitions(
-                    jobVertexId, consumedResults, initialParallelism);
+            int minParallelism = globalMinParallelism;
+            int maxParallelism = globalMaxParallelism;
+
+            if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                    && vertexMaxParallelism < minParallelism) {
+                LOG.info(
+                        "The vertex maximum parallelism {} is smaller than the global minimum parallelism {}. "
+                                + "Use {} as the lower bound to decide parallelism of job vertex {}.",
+                        vertexMaxParallelism,
+                        minParallelism,
+                        vertexMaxParallelism,
+                        jobVertexId);
+                minParallelism = vertexMaxParallelism;
+            }
+            if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                    && vertexMaxParallelism < maxParallelism) {
+                LOG.info(
+                        "The vertex maximum parallelism {} is smaller than the global maximum parallelism {}. "
+                                + "Use {} as the upper bound to decide parallelism of job vertex {}.",
+                        vertexMaxParallelism,
+                        maxParallelism,
+                        vertexMaxParallelism,
+                        jobVertexId);
+                maxParallelism = vertexMaxParallelism;
+            }
+            checkState(maxParallelism >= minParallelism);
+
+            if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                    && areAllInputsAllToAll(consumedResults)
+                    && !areAllInputsBroadcast(consumedResults)) {
+                return decideParallelismAndEvenlyDistributeData(
+                        jobVertexId,
+                        consumedResults,
+                        vertexInitialParallelism,
+                        minParallelism,
+                        maxParallelism);
+            } else {
+                return decideParallelismAndEvenlyDistributeSubpartitions(
+                        jobVertexId,
+                        consumedResults,
+                        vertexInitialParallelism,
+                        minParallelism,
+                        maxParallelism);
+            }
+        }
+    }
+
+    private int computeSourceParallelism(JobVertexID jobVertexId, int maxParallelism) {
+        if (globalDefaultSourceParallelism > maxParallelism) {
+            LOG.info(
+                    "The global default source parallelism {} is larger than the maximum parallelism {}. "
+                            + "Use {} as the parallelism of source job vertex {}.",
+                    globalDefaultSourceParallelism,
+                    maxParallelism,
+                    maxParallelism,
+                    jobVertexId);
+            return maxParallelism;
+        } else {
+            return globalDefaultSourceParallelism;
         }
     }
 
@@ -142,24 +198,33 @@ public class DefaultVertexParallelismAndInputInfosDecider
      * @param jobVertexId The job vertex id
      * @param consumedResults The information of consumed blocking results
      * @param initialParallelism The initial parallelism of the job vertex
+     * @param minParallelism the min parallelism
+     * @param maxParallelism the max parallelism
      * @return the parallelism and vertex input infos
      */
     private ParallelismAndInputInfos decideParallelismAndEvenlyDistributeSubpartitions(
             JobVertexID jobVertexId,
             List<BlockingResultInfo> consumedResults,
-            int initialParallelism) {
+            int initialParallelism,
+            int minParallelism,
+            int maxParallelism) {
         checkArgument(!consumedResults.isEmpty());
         int parallelism =
                 initialParallelism > 0
                         ? initialParallelism
-                        : decideParallelism(jobVertexId, consumedResults);
+                        : decideParallelism(
+                                jobVertexId, consumedResults, minParallelism, maxParallelism);
         return new ParallelismAndInputInfos(
                 parallelism,
                 VertexInputInfoComputationUtils.computeVertexInputInfos(
                         parallelism, consumedResults, true));
     }
 
-    int decideParallelism(JobVertexID jobVertexId, List<BlockingResultInfo> consumedResults) {
+    int decideParallelism(
+            JobVertexID jobVertexId,
+            List<BlockingResultInfo> consumedResults,
+            int minParallelism,
+            int maxParallelism) {
         checkArgument(!consumedResults.isEmpty());
 
         // Considering that the sizes of broadcast results are usually very small, we compute the
@@ -219,12 +284,16 @@ public class DefaultVertexParallelismAndInputInfosDecider
      * @param jobVertexId The job vertex id
      * @param consumedResults The information of consumed blocking results
      * @param initialParallelism The initial parallelism of the job vertex
+     * @param minParallelism the min parallelism
+     * @param maxParallelism the max parallelism
      * @return the parallelism and vertex input infos
      */
     private ParallelismAndInputInfos decideParallelismAndEvenlyDistributeData(
             JobVertexID jobVertexId,
             List<BlockingResultInfo> consumedResults,
-            int initialParallelism) {
+            int initialParallelism,
+            int minParallelism,
+            int maxParallelism) {
         checkArgument(initialParallelism == ExecutionConfig.PARALLELISM_DEFAULT);
         checkArgument(!consumedResults.isEmpty());
         consumedResults.forEach(resultInfo -> checkState(!resultInfo.isPointwise()));
@@ -252,11 +321,13 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 computeSubpartitionRanges(bytesBySubpartition, dataVolumePerTask, maxRangeSize);
 
         // if the parallelism is not legal, adjust to a legal parallelism
-        if (!isLegalParallelism(subpartitionRanges.size())) {
+        if (!isLegalParallelism(subpartitionRanges.size(), minParallelism, maxParallelism)) {
             Optional<List<IndexRange>> adjustedSubpartitionRanges =
                     adjustToClosestLegalParallelism(
                             dataVolumePerTask,
                             subpartitionRanges.size(),
+                            minParallelism,
+                            maxParallelism,
                             Arrays.stream(bytesBySubpartition).min().getAsLong(),
                             Arrays.stream(bytesBySubpartition).sum(),
                             limit -> computeParallelism(bytesBySubpartition, limit, maxRangeSize),
@@ -270,16 +341,21 @@ public class DefaultVertexParallelismAndInputInfosDecider
                                 + "Fall back to compute a parallelism that can evenly distribute subpartitions.",
                         jobVertexId);
                 return decideParallelismAndEvenlyDistributeSubpartitions(
-                        jobVertexId, consumedResults, initialParallelism);
+                        jobVertexId,
+                        consumedResults,
+                        initialParallelism,
+                        minParallelism,
+                        maxParallelism);
             }
             subpartitionRanges = adjustedSubpartitionRanges.get();
         }
 
-        checkState(isLegalParallelism(subpartitionRanges.size()));
+        checkState(isLegalParallelism(subpartitionRanges.size(), minParallelism, maxParallelism));
         return createParallelismAndInputInfos(consumedResults, subpartitionRanges);
     }
 
-    private boolean isLegalParallelism(int parallelism) {
+    private static boolean isLegalParallelism(
+            int parallelism, int minParallelism, int maxParallelism) {
         return parallelism >= minParallelism && parallelism <= maxParallelism;
     }
 
@@ -303,6 +379,8 @@ public class DefaultVertexParallelismAndInputInfosDecider
      *
      * @param currentDataVolumeLimit current data volume limit
      * @param currentParallelism current parallelism
+     * @param minParallelism the min parallelism
+     * @param maxParallelism the max parallelism
      * @param minLimit the minimum data volume limit
      * @param maxLimit the maximum data volume limit
      * @param parallelismComputer a function to compute the parallelism according to the data volume
@@ -312,9 +390,11 @@ public class DefaultVertexParallelismAndInputInfosDecider
      * @return the computed subpartition ranges or {@link Optional#empty()} if we can't find any
      *     legal parallelism
      */
-    private Optional<List<IndexRange>> adjustToClosestLegalParallelism(
+    private static Optional<List<IndexRange>> adjustToClosestLegalParallelism(
             long currentDataVolumeLimit,
             int currentParallelism,
+            int minParallelism,
+            int maxParallelism,
             long minLimit,
             long maxLimit,
             Function<Long, Integer> parallelismComputer,
@@ -355,7 +435,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
         }
 
         int adjustedParallelism = parallelismComputer.apply(adjustedDataVolumeLimit);
-        if (isLegalParallelism(adjustedParallelism)) {
+        if (isLegalParallelism(adjustedParallelism, minParallelism, maxParallelism)) {
             return Optional.of(subpartitionRangesComputer.apply(adjustedDataVolumeLimit));
         } else {
             return Optional.empty();
