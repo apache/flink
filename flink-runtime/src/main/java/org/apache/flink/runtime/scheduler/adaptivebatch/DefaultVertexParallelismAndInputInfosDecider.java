@@ -457,10 +457,10 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 .collect(Collectors.toList());
     }
 
-    static DefaultVertexParallelismAndInputInfosDecider from(Configuration configuration) {
+    static DefaultVertexParallelismAndInputInfosDecider from(
+            int maxParallelism, Configuration configuration) {
         return new DefaultVertexParallelismAndInputInfosDecider(
-                configuration.getInteger(
-                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM),
+                maxParallelism,
                 configuration.getInteger(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(

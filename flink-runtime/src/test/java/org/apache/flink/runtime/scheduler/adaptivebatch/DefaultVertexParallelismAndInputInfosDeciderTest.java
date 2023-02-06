@@ -436,8 +436,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         Configuration configuration = new Configuration();
 
         configuration.setInteger(
-                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, maxParallelism);
-        configuration.setInteger(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM, minParallelism);
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
@@ -446,7 +444,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 DEFAULT_SOURCE_PARALLELISM);
 
-        return DefaultVertexParallelismAndInputInfosDecider.from(configuration);
+        return DefaultVertexParallelismAndInputInfosDecider.from(maxParallelism, configuration);
     }
 
     private AllToAllBlockingResultInfo createAllToAllBlockingResultInfo(
