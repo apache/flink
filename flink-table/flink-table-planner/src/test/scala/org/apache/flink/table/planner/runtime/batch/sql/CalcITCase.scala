@@ -1926,6 +1926,31 @@ class CalcITCase extends BatchTestBase {
       )
     )
 
+    // Test for Sarg.nullAs == RexUnknownAs.FALSE
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IS NOT NULL AND T.a IN (1, 3)
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world")
+      )
+    )
+
+    // Test for Sarg.nullAs == RexUnknownAs.UNKNOWN
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IN (1, 3)
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world")
+      )
+    )
   }
 
   @Test
@@ -1947,9 +1972,16 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "SELECT IF(a NOT IN ('', ' ') OR a IS NULL, 'a', 'b') FROM MyTable",
       Seq(row('b'), row('a'), row('a')))
+    // Test for Sarg.nullAs == RexUnknownAs.FALSE
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
     checkResult(
-      "SELECT IF(a NOT IN ('', ' ') OR a IS NOT NULL, 'a', 'b') FROM MyTable",
-      Seq(row('a'), row('a'), row('b')))
+      "SELECT IF(a NOT IN ('', ' ') AND a IS NOT NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('a'), row('b')))
+    // Test for Sarg.nullAs == RexUnknownAs.UNKNOWN
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      "SELECT IF(a NOT IN ('', ' '), 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('b')))
   }
 
   @Test

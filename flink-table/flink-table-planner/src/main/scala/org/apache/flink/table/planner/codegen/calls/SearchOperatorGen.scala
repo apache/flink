@@ -80,7 +80,7 @@ object SearchOperatorGen {
         // The elements are constant, we perform the cast immediately
         .map(CastRuleProvider.cast(toCastContext(ctx), sargType, commonType, _))
         .map(generateLiteral(ctx, _, commonType))
-      if (sarg.containsNull) {
+      if (sarg.nullAs == RexUnknownAs.TRUE) {
         haystack += generateNullLiteral(commonType)
       }
       val setTerm = ctx.addReusableHashSet(haystack.toSeq, commonType)
@@ -114,7 +114,7 @@ object SearchOperatorGen {
       var rangeChecks: Seq[GeneratedExpression] = sarg.rangeSet.asRanges.asScala.toSeq
         .map(RangeSets.map(_, rangeToExpression))
 
-      if (sarg.containsNull) {
+      if (sarg.nullAs == RexUnknownAs.TRUE) {
         rangeChecks =
           Seq(generateIsNull(target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
       }
