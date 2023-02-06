@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampComparator;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampSerializer;
 import org.apache.flink.table.api.DataTypes;
@@ -30,7 +30,8 @@ import org.apache.flink.table.api.DataTypes;
 import java.sql.Timestamp;
 
 /**
- * Type information for indicating event or processing time.
+ * Type information for indicating event or processing time. However, it behaves like a regular SQL
+ * timestamp but is serialized as Long.
  *
  * @deprecated This class will be removed in future versions as it is used for the old type system.
  *     It is recommended to use {@link DataTypes} instead. Please make sure to use either the old or
@@ -61,10 +62,13 @@ public class TimeIndicatorTypeInfo extends SqlTimeTypeInfo<Timestamp> {
         this.isEventTime = isEventTime;
     }
 
+    // this replaces the effective serializer by a LongSerializer
+    // it is a hacky but efficient solution to keep the object creation overhead low but still
+    // be compatible with the corresponding SqlTimestampTypeInfo
     @Override
     @SuppressWarnings("unchecked")
     public TypeSerializer<Timestamp> createSerializer(ExecutionConfig executionConfig) {
-        return (TypeSerializer) LocalDateTimeSerializer.INSTANCE;
+        return (TypeSerializer) LongSerializer.INSTANCE;
     }
 
     public boolean isEventTime() {
