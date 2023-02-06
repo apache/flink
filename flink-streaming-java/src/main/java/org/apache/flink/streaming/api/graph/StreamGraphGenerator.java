@@ -375,7 +375,6 @@ public class StreamGraphGenerator {
         } else {
             configureStreamGraphStreaming(graph);
         }
-        executionConfig.setJobType(graph.getJobType().name());
     }
 
     private void configureStreamGraphBatch(final StreamGraph graph) {
