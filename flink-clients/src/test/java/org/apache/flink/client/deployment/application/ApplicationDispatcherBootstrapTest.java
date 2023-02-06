@@ -350,8 +350,11 @@ class ApplicationDispatcherBootstrapTest {
 
         bootstrap.stop();
 
-        // the JobStatusFuture needs to be completed after stopping the bootstrap process to ensure
-        // that the process doesn't finish before explicitly stopping it
+        // EmbeddedExecutor calls getJobStatus after the job is submitted in a busy-waiting loop to
+        // wait for the job to pass the initialization phase. Only then, a JobClient is returned
+        // which finalizes the job submission. Completing the getJobStatusFuture after calling
+        // ApplicationDispatcherBootstrap#stop ensures that the applicationExecutionFuture doesn't
+        // complete before ApplicationDispatcherBootstrap#stop is called
         getJobStatusFuture.complete(JobStatus.RUNNING);
 
         // we didn't call the error handler
