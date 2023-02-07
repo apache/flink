@@ -18,15 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -182,13 +176,56 @@ class ForwardGroupComputeUtilTest {
         checkGroupSize(groups, 1, 3);
     }
 
+    /**
+     * Tests whether the parallelism of job vertices in forward group are correctly set.
+     *
+     * <pre>
+     *
+     *     (v1) -> (v2)
+     *
+     *     (v3) -> (v4)
+     *
+     * </pre>
+     */
+    @Test
+    void testComputeForwardGroupsAndSetVertexParallelismsIfNecessary() throws Exception {
+        JobVertex v1 = new JobVertex("v1");
+        JobVertex v2 = new JobVertex("v2");
+        JobVertex v3 = new JobVertex("v3");
+        JobVertex v4 = new JobVertex("v4");
+
+        v2.setParallelism(8);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        v4.connectNewDataSetAsInput(
+                v3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+        v1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
+        v3.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
+
+        Set<ForwardGroup> groups =
+                computeForwardGroupsAndSetVertexParallelismsIfNecessary(v1, v2, v3, v4);
+        checkGroupSize(groups, 2, 2, 2);
+        assertThat(v1.getParallelism()).isEqualTo(8);
+        assertThat(v2.getParallelism()).isEqualTo(8);
+        assertThat(v3.getParallelism()).isEqualTo(-1);
+        assertThat(v4.getParallelism()).isEqualTo(-1);
+    }
+
+    private static Set<ForwardGroup> computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+            JobVertex... vertices) throws Exception {
+        Arrays.asList(vertices).forEach(vertex -> vertex.setInvokableClass(NoOpInvokable.class));
+        return new HashSet<>(
+                ForwardGroupComputeUtil.computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                                Arrays.asList(vertices))
+                        .values());
+    }
+
     private static Set<ForwardGroup> computeForwardGroups(JobVertex... vertices) throws Exception {
         Arrays.asList(vertices).forEach(vertex -> vertex.setInvokableClass(NoOpInvokable.class));
-        ExecutionGraph executionGraph = createDynamicGraph(vertices);
         return new HashSet<>(
-                ForwardGroupComputeUtil.computeForwardGroups(
-                                Arrays.asList(vertices), executionGraph::getJobVertex)
-                        .values());
+                ForwardGroupComputeUtil.computeForwardGroups(Arrays.asList(vertices)).values());
     }
 
     private static void checkGroupSize(
@@ -196,17 +233,5 @@ class ForwardGroupComputeUtilTest {
         assertThat(groups.size()).isEqualTo(numOfGroups);
         assertThat(groups.stream().map(ForwardGroup::size).collect(Collectors.toList()))
                 .contains(sizes);
-    }
-
-    private static DefaultExecutionGraph createDynamicGraph(JobVertex... vertices)
-            throws Exception {
-
-        TestingDefaultExecutionGraphBuilder builder =
-                TestingDefaultExecutionGraphBuilder.newBuilder()
-                        .setJobGraph(new JobGraph(new JobID(), "TestJob", vertices))
-                        .setVertexParallelismStore(
-                                AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
-                                        Arrays.asList(vertices), 10));
-        return builder.buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
     }
 }
