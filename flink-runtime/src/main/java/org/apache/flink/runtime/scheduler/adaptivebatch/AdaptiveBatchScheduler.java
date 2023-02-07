@@ -62,7 +62,6 @@ import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroup;
-import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -127,7 +126,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             final Time rpcTimeout,
             final VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
             int defaultMaxParallelism,
-            HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint)
+            final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint,
+            final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId)
             throws Exception {
 
         super(
@@ -162,10 +162,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         this.vertexParallelismAndInputInfosDecider =
                 checkNotNull(vertexParallelismAndInputInfosDecider);
 
-        this.forwardGroupsByJobVertexId =
-                ForwardGroupComputeUtil.computeForwardGroups(
-                        jobGraph.getVerticesSortedTopologicallyFromSources(),
-                        getExecutionGraph()::getJobVertex);
+        this.forwardGroupsByJobVertexId = checkNotNull(forwardGroupsByJobVertexId);
 
         this.blockingResultInfos = new HashMap<>();
 
