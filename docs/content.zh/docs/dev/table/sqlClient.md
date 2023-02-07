@@ -47,7 +47,7 @@ SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它
 
 ### 启动 SQL 客户端命令行界面
 
-SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌入式 standalone 进程或通过连接到远程 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 来启动 SQL 客户端命令行界面。SQL 客户端默认使用`embedded`模式，你可以通过以下方式启动 CLI：
+SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌入式 standalone 进程或通过连接到远程 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 来启动 SQL 客户端命令行界面。SQL 客户端默认使用 `embedded` 模式，你可以通过以下方式启动 CLI：
 
 ```bash
 ./bin/sql-client.sh
@@ -59,14 +59,13 @@ SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌
 ./bin/sql-client.sh embedded
 ```
 
-若想使用 gateway 模式，你可以通过一下命令启动 SQL 客户端：
+若想使用 gateway 模式，你可以通过以下命令启动 SQL 客户端：
 
 ```bash
 ./bin/sql-client.sh gateway --endpoint <gateway address>
 ```
 
 <span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。
-
 
 参阅 [SQL Client startup options](#sql-client-startup-options) 了解更多启动命令。
 
