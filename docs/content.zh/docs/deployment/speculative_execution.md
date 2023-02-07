@@ -45,15 +45,15 @@ under the License.
 {{< /hint >}}
 
 ### 启用预测执行
-要启用预测执行，你需要设置以下配置项：
-- `jobmanager.scheduler: AdaptiveBatch`
-    - 因为当前只有 [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) 支持预测执行.
-- `jobmanager.adaptive-batch-scheduler.speculative.enabled: true`
+你可以通过以下配置项启用预测执行：
+- `execution.batch.speculative.enabled: true`
+
+需要注意的是，当前只有 [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) 支持预测执行。不过 Flink 批作业会默认使用该调度器，除非显式配置了其他调度器。
 
 ### 配置调优
 考虑到不同作业的差异，为了让预测执行获得更好的效果，你可以调优下列调度器配置项：
-- [`jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-max-concurrent-e)
-- [`jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-block-slow-node)
+- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-max-concurrent-e)
+- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-block-slow-node)
 
 你还可以调优下列慢任务检测器的配置项：
 - [`slow-task-detector.check-interval`]({{< ref "docs/deployment/config" >}}#slow-task-detector-check-interval)
