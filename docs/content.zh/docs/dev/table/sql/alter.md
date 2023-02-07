@@ -331,149 +331,102 @@ ALTER TABLE [IF EXISTS] table_name {
   AS computed_column_expression
 ```
 
-<span class="label label-info">注意</span> 如果表不存在且未指定 `IF EXISTS` 时将会抛出 `ValidationException`。
+**IF EXISTS**
 
-**新增列**
+若表不存在，则不进行任何操作。
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD (<column_component>[, <column_component>, ...])
+### ADD
+使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)， [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark)。
+
+向表新增列时可通过 `FIRST` or `AFTER col_name` 指定位置，不指定位置时默认追加在最后。
+
+`ADD` 语句示例如下。
+
+```sql
+-- add a new column 
+ALTER TABLE MyTable ADD category_id STRING COMMENT 'identifier of the category';
+
+-- add columns, constraint, and watermark
+ALTER TABLE MyTable ADD (
+    log_ts STRING COMMENT 'log timestamp string' FIRST,
+    ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+    PRIMARY KEY (id) NOT ENFORCED,
+    WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
+);
 ```
 
-向表中新增一列或多列至指定位置，包括
-- 将新增列置于最后
-- 将新增列置于最前
-- 将新增列置于指定列后
+### MODIFY
+使用 `MODIFY` 语句修改列的位置 、类型 、注释 、nullability，主键或 watermark。
 
-在触发以下任一条件时将抛出 `ValidationException`
-- 新增列列名已存在
-- `AFTER` 指向不存在的列
-- 新增计算列的表达式引用了其它计算列或不存在的列
-- 新增计算列的表达式非法
+可使用 `FIRST` 或 `AFTER col_name` 将已有列移动至指定位置。
 
-**新增主键约束**
+`MODIFY` 语句示例如下。
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD [CONSTRAINT constraint_name] PRIMARY KEY(col1[, col2, ...]) NOT ENFORCED
+```sql
+-- modify a column type, comment and position
+ALTER TABLE MyTable MODIFY measurement double COMMENT 'unit is bytes per second' AFTER `id`;
+
+-- modify definition of column log_ts and ts, primary key, watermark. They must exist in table schema
+ALTER TABLE MyTable MODIFY (
+    log_ts STRING COMMENT 'log timestamp string' AFTER `id`,  -- reorder columns
+    ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+    PRIMARY KEY (id) NOT ENFORCED,
+    WATERMARK FOR ts AS ts -- modify watermark strategy
+);
 ```
 
-向表中新增主键约束。当表中已存在主键、指定列不存在或为非物理列时抛出 `ValidationException`。
+### DROP
+使用 `DROP` 语句删除列 、主键或 watermark。
 
-<span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
+`DROP` 语句示例如下。
 
-**新增 Watermark**
+```sql
+-- drop a column
+ALTER TABLE MyTable DROP measurement;
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+-- drop columns
+ALTER TABLE MyTable DROP (col1, col2, col3);
+
+-- drop primary key
+ALTER TABLE MyTable DROP PRIMARY KEY;
+
+-- drop a watermark
+ALTER TABLE MyTable DROP WATERMARK;
 ```
 
-向表中新增 Watermark。当表中已存在 Watermark、指定的 row-time 列不存在或表达式非法时抛出 `ValidationException`。
+### RENAME
+使用 `RENAME` 语句修改列名或表名。
 
-**修改列**
+`RENAME` 语句示例如下。
+```sql
+-- rename column
+ALTER TABLE MyTable RENAME `data` TO payload;
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name MODIFY (<column_component>[, <column_component>, ...])
+-- rename table
+ALTER TABLE MyTable RENAME TO MyTable2;
 ```
 
-修改表中已存在的一列或多列，包括
-- 修改列的类型
-- 修改列的注释
-- 修改列的 nullability
-- 修改列的位置
+### SET
 
-在触发以下任一条件时将抛出 `ValidationException`
-- 修改不存在的列名
-- `AFTER` 指向不存在的列
-- 修改列类型，导致引用其的计算列或 watermark 表达式非法
-- 将主键列修改为计算列或 metadata 列
+为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新值覆盖旧值。
 
+`SET` 语句示例如下。
 
-**修改主键约束**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name MODIFY [CONSTRAINT constraint_name] PRIMARY KEY(col1[, col2, ...]) NOT ENFORCED
+```sql
+-- set 'rows-per-second'
+ALTER TABLE DataGenSource SET ('rows-per-second' = '10');
 ```
 
-修改表的主键约束。在触发以下任一条件时将抛出 `ValidationException`
-- 源表未定义主键
-- 指定不存在的列
-- 指定非物理列
+### RESET
 
-<span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
+为指定的表重置一个或多个属性。
 
-**修改 Watermark**
+`RESET` 语句示例如下。
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name MODIFY WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+```sql
+-- reset 'rows-per-second' to the default value
+ALTER TABLE DataGenSource RESET ('rows-per-second');
 ```
-
-修改 watermark 表达式或重新指定 row-time 列。在触发以下任一条件时将抛出 `ValidationException`
-- 源表未定义 watermark
-- 指定不存在的 row-time 列，或 watermark 表达式非法
-
-**删除列**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP (col1[, col2, ...])
-```
-
-删除表中一列或多列。在触发以下任一条件时将抛出 `ValidationException`
-- 指定列不存在
-- 指定列存在计算列引用，且计算列不随指定列一起删除
-- 指定列是主键列
-- 指定列定义了 watermark 策略
-
-**删除主键约束**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP <constraint_definition>
-
-<constraint_definition>:
-{
-    PRIMARY KEY | CONSTRAINT constraint_name
-}
-```
-
-使用关键字 `PRIMARY KEY` 或约束名删除主键约束。如果表中不存在主键或指定错误的约束名时抛出 `ValidationException`。
-
-**删除 Watermark**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP WATERMARK
-```
-
-使用关键字 `WATERMARK` 删除 watermark。如果表中不存在 watermark 时抛出 `ValidationException`。
-
-**重命名列**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RENAME old_column_name TO new_column_name
-```
-
-把原有的列名更改为新的列名。若指定的原有列名不存在或新列名已存在时抛出 `ValidationException`。
-
-**重命名表**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RENAME TO new_table_name
-```
-
-把原有的表名更改为新的表名。 若新表名已存在则抛出 `TableAlreadyExistException`。
-
-**设置或修改表属性**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
-```
-
-为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新的值覆盖旧的值。
-
-**重置表属性**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RESET (key1, key2, ...)
-```
-
-为指定的表重置一个或多个属性。不支持设置 `connector` 属性, 会抛出 `ValidationException`。
 
 {{< top >}}
 

@@ -332,154 +332,102 @@ ALTER TABLE [IF EXISTS] table_name {
   AS computed_column_expression
 ```
 
-<span class="label label-info">Note</span> If the table does not exist, `ValidationException` is thrown unless `IF EXISTS` is specified.
+**IF EXISTS**
 
-**Add Table Column**
+If the table does not exist, nothing happens.
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD (<column_component>[, <column_component>, ...])
+### ADD
+Use `ADD` clause to add [columns]({{< ref "docs/dev/table/sql/create" >}}#columns), [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key), [watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark) to an existing table. 
+
+To add a column at the specified position, use `FIRST` or `AFTER col_name`. The default is to add the column last.
+
+The following examples illustrate the usage of the `ADD` statements.
+
+```sql
+-- add a new column 
+ALTER TABLE MyTable ADD category_id STRING COMMENT 'identifier of the category';
+
+-- add columns, constraint, and watermark
+ALTER TABLE MyTable ADD (
+    log_ts STRING COMMENT 'log timestamp string' FIRST,
+    ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+    PRIMARY KEY (id) NOT ENFORCED,
+    WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
+);
 ```
 
-Add table column(s) to the specified position, which includes
-- Append the column to the last position
-- Insert the column to the first position
-- Insert the column after the specified column
+### MODIFY
+Use `MODIFY` clause to change column's position, type, comment or nullability, change primary key columns and watermark strategy to an existing table. 
 
-Throws `ValidationException` when either of following conditions are met
-- Add a column name which is already defined in the table schema
-- Add a column which refers to a nonexistent column by `AFTER`
-- Add a computed column which is derived from another computed or nonexistent columns
-- Add a computed column with invalid expression
+To modify an existent column to a new position, use `FIRST` or `AFTER col_name`.
 
-**Add Table Constraint**
+The following examples illustrate the usage of the `MODIFY` statements.
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD [CONSTRAINT constraint_name] PRIMARY KEY(col1[, col2, ...]) NOT ENFORCED
+```sql
+-- modify a column type, comment and position
+ALTER TABLE MyTable MODIFY measurement double COMMENT 'unit is bytes per second' AFTER `id`;
+
+-- modify definition of column log_ts and ts, primary key, watermark. They must exist in table schema
+ALTER TABLE MyTable MODIFY (
+    log_ts STRING COMMENT 'log timestamp string' AFTER `id`,  -- reorder columns
+    ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+    PRIMARY KEY (id) NOT ENFORCED,
+    WATERMARK FOR ts AS ts -- modify watermark strategy
+);
 ```
 
-Add primary key to the table. Throws `ValidationException` when either of following conditions are met
-- The table already defines primary key
-- The specified column does not exist or is not a physical column
+### DROP
+Use `DROP` clause to drop columns, primary key and watermark strategy to an existing table.
 
-<span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
+The following examples illustrate the usage of the `DROP` statements.
 
-**Add Table Watermark**
+```sql
+-- drop a column
+ALTER TABLE MyTable DROP measurement;
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+-- drop columns
+ALTER TABLE MyTable DROP (col1, col2, col3);
+
+-- drop primary key
+ALTER TABLE MyTable DROP PRIMARY KEY;
+
+-- drop a watermark
+ALTER TABLE MyTable DROP WATERMARK;
 ```
 
-Add a watermark to the table. Add primary key to the table. Throws `ValidationException` when either of following conditions are met
-- The table already defines watermark 
-- The specified row-time field does not exist
-- The watermark strategy expression is invalid.
+### RENAME
+Use `RENAME` clause to rename column or an existing table.
 
-**Modify Table Column**
+The following examples illustrate the usage of the `RENAME` statements.
+```sql
+-- rename column
+ALTER TABLE MyTable RENAME `data` TO payload;
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name MODIFY (<column_component>[, <column_component>, ...])
+-- rename table
+ALTER TABLE MyTable RENAME TO MyTable2;
 ```
 
-Modify table column(s), which includes
-- Change column type
-- Change column comment
-- Change column nullability
-- Change column position
-
-Throws `ValidationException` when either of following conditions are met
-- Modify a nonexistent column
-- Modify a column which refers to a nonexistent column by `AFTER`
-- Modify a physical/metadata column type which renders the derived computed column expression invalid
-- Modify a physical column which defines primary key to computed/metadata column
-- Modify a column which renders the derived watermark strategy invalid
-
-**Modify Table Constraint**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name MODIFY [CONSTRAINT constraint_name] PRIMARY KEY(col1[, col2, ...]) NOT ENFORCED
-```
-
-Modify the primary key definition. Throws `ValidationException` when either of following conditions are met
-- The table does not define primary key
-- Specify a nonexistent column
-- The column is computed/metadata column
-
-<span class="label label-danger">Note</span> Modify a column to be primary key will change the column's nullability to false implicitly.
-
-**Modify Table Watermark**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name MODIFY WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
-```
-
-Modify the watermark strategy or change row-time column. Throws `ValidationException` when either of following conditions are met
-- The table does not define watermark
-- Specify a nonexistent row-time column, or the watermark strategy expression is invalid
-
-**Drop Table Column**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP (col1[, col2, ...])
-```
-
-Drop the column(s) by the specified column name(s). Throws `ValidationException` when either of following conditions are met
-- The table does not contain the specified column
-- The column to be dropped derives computed column(s), and the computed column is not to be dropped together
-- The column to be dropped defines primary key
-- The column to be dropped defines watermark strategy
-
-**Drop Table Constraint**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP <constraint_definition>
-
-<constraint_definition>:
-{
-    PRIMARY KEY | CONSTRAINT constraint_name
-}
-```
-
-Drop the table constraint by keyword `PRIMARY KEY` or constraint name. Throws `ValidationException` if the table does not define primary key or the specified constraint name is not correct.
-
-**Drop Table Watermark**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP WATERMARK
-```
-
-Drop table's watermark by keyword `WATERMARK`. Throws `ValidationException` if the table does not define a watermark strategy.
-
-**Rename Table Column**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RENAME old_column_name TO new_column_name
-```
-
-Rename the given column name to the specified new column name. Throws `ValidationException` if the given column name does not exist in the table, or the new column name already exists in the table.
-
-**Rename Table**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RENAME TO new_table_name
-```
-
-Rename the given table name to another new table name. Throws `TableAlreadyExistException` if the new table exists.
-
-**Set Table Properties**
-
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
-```
+### SET
 
 Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
 
-**Reset Table Properties**
+The following examples illustrate the usage of the `SET` statements.
 
-```text
-ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RESET (key1, key2, ...)
+```sql
+-- set 'rows-per-second'
+ALTER TABLE DataGenSource SET ('rows-per-second' = '10');
 ```
 
-Reset one or more properties to its default value. Throws `ValidationException` if the property key to reset is `connector`.
+### RESET
+
+Reset one or more properties to its default value.
+
+The following examples illustrate the usage of the `RESET` statements.
+
+```sql
+-- reset 'rows-per-second' to the default value
+ALTER TABLE DataGenSource RESET ('rows-per-second');
+```
 
 {{< top >}}
 
