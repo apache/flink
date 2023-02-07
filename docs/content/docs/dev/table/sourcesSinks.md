@@ -266,6 +266,11 @@ will be called with values for the given lookup keys during runtime.
         is a built-in marker function that will be detected by the planner and translated into a call
         to this interface if available.</td>
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsRowLevelModificationScan.java" name="SupportsRowLevelModificationScan" >}}</td>
+        <td>Enables to pass a scan context described by <code>RowLevelModificationScanContext</code> from <code>ScanTableSource</code> 
+        to sink which implements <code>SupportsRowLevelDelete</code>, <code>SupportsRowLevelUpdate</code>.
+    </tr>
     </tbody>
 </table>
 
@@ -320,6 +325,24 @@ that a sink can still work on common data structures and perform a conversion at
         <td>Enables to write metadata columns into a <code>DynamicTableSource</code>. A table sink is
         responsible for accepting requested metadata columns at the end of consumed rows and persist
         them. This includes potentially forwarding metadata columns to contained formats.</td>
+    </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsDeletePushDown.java" name="SupportsDeletePushDown" >}}</td>
+        <td>Enables to push down filters decomposed from the <code>WHERE</code> clause in <code>DELETE</code> statement to <code>DynamicTableSink</code>.
+        The table sink can delete existing data directly according to the filters.
+        </td>
+    </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelDelete.java" name="SupportsRowLevelDelete" >}}</td>
+        <td>Enables to delete existing data according to row-level changes in a <code>DynamicTableSink</code>. The table sink is responsible for telling planner how to produce the row changes, 
+        and consuming them to achieve the purpose of row(s) deletion.
+        </td>
+    </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelUpdate.java" name="SupportsRowLevelUpdate" >}}</td>
+        <td>Enables to update existing data according to row-level changes in a <code>DynamicTableSink</code>. The table sink is responsible for telling planner how to produce the row changes, 
+        and consuming them to achieve the purpose of row(s) update.
+        </td>
     </tr>
     </tbody>
 </table>
