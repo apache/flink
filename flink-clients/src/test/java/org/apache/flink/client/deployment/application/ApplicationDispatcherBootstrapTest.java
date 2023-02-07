@@ -47,6 +47,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -335,6 +336,8 @@ public class ApplicationDispatcherBootstrapTest {
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
 
+        final ManuallyTriggeredScheduledExecutor manuallyTriggeredExecutor =
+                new ManuallyTriggeredScheduledExecutor();
         // we're "listening" on this to be completed to verify that the error handler is called.
         // In production, this will shut down the cluster with an exception.
         final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
@@ -342,7 +345,7 @@ public class ApplicationDispatcherBootstrapTest {
                 createApplicationDispatcherBootstrap(
                         3,
                         dispatcherBuilder.build(),
-                        scheduledExecutor,
+                        manuallyTriggeredExecutor,
                         errorHandlerFuture::completeExceptionally);
 
         final CompletableFuture<Acknowledge> completionFuture =
@@ -351,6 +354,11 @@ public class ApplicationDispatcherBootstrapTest {
         ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
         bootstrap.stop();
+
+        // Triggers the scheduled ApplicationDispatcherBootstrap process after calling stop. This
+        // ensures that the bootstrap task isn't completed before the stop method is called which
+        // would prevent the stop call from cancelling the task's future.
+        manuallyTriggeredExecutor.triggerNonPeriodicScheduledTask();
 
         // we didn't call the error handler
         assertFalse(errorHandlerFuture.isDone());
