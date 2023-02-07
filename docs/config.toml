@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-baseURL = '//nightlies.apache.org/flink/flink-docs-master'
+baseURL = '//nightlies.apache.org/flink/flink-docs-release-1.17'
 languageCode = "en-us"
 title = "Apache Flink"
 enableGitInfo = false
@@ -24,7 +24,7 @@ pygmentsUseClasses = true
 [params]
   # Flag whether this is a stable version or not.
   # Used for the quickstart page.
-  IsStable = false
+  IsStable = true
 
   # Flag to indicate whether an outdated warning should be shown.
   ShowOutDatedWarning = false
@@ -34,14 +34,14 @@ pygmentsUseClasses = true
   # we change the version for the complete docs when forking of a release branch
   # etc.
   # The full version string as referenced in Maven (e.g. 1.2.1)
-  Version = "1.17-SNAPSHOT"
+  Version = "1.17.0"
 
   # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
   # release this should be the same as the regular version
-  VersionTitle = "1.17-SNAPSHOT"
+  VersionTitle = "1.17"
 
   # The branch for this version of Apache Flink
-  Branch = "master"
+  Branch = "release-1.17"
 
   # The github repository for Apache Flink
   Repo = "//github.com/apache/flink"
@@ -60,22 +60,23 @@ pygmentsUseClasses = true
 
   ZhDownloadPage = "//flink.apache.org/zh/downloads.html"
 
-  JavaDocs = "//nightlies.apache.org/flink/flink-docs-master/api/java/"
+  JavaDocs = "//nightlies.apache.org/flink/flink-docs-release-1.17/api/java/"
 
-  ScalaDocs = "//nightlies.apache.org/flink/flink-docs-master/api/scala/index.html#org.apache.flink.api.scala.package"
+  ScalaDocs = "//nightlies.apache.org/flink/flink-docs-release-1.17/api/scala/index.html#org.apache.flink.api.scala.package"
 
-  PyDocs = "//nightlies.apache.org/flink/flink-docs-master/api/python/"
+  PyDocs = "//nightlies.apache.org/flink/flink-docs-release-1.17/api/python/"
 
   # External links at the bottom
   # of the menu
   MenuLinks = [
     ["Project Homepage", "//flink.apache.org"],
-    ["JavaDocs", "//nightlies.apache.org/flink/flink-docs-master/api/java/"],
-    ["ScalaDocs", "//nightlies.apache.org/flink/flink-docs-master/api/scala/index.html#org.apache.flink.api.scala.package"],
-    ["PyDocs", "//nightlies.apache.org/flink/flink-docs-master/api/python/"]
+    ["JavaDocs", "//nightlies.apache.org/flink/flink-docs-release-1.17/api/java/"],
+    ["ScalaDocs", "//nightlies.apache.org/flink/flink-docs-release-1.17/api/scala/index.html#org.apache.flink.api.scala.package/"],
+    ["PyDocs", "//nightlies.apache.org/flink/flink-docs-release-1.17/api/python/"]
   ]
 
   PreviousDocs = [
+    ["1.17", "http://nightlies.apache.org/flink/flink-docs-release-1.17"],
     ["1.16", "http://nightlies.apache.org/flink/flink-docs-release-1.16"],
     ["1.15", "http://nightlies.apache.org/flink/flink-docs-release-1.15"],
     ["1.14", "http://nightlies.apache.org/flink/flink-docs-release-1.14"],
