@@ -52,15 +52,15 @@ in near future. DataStream API is now the recommended low level API to develop F
 {{< /hint >}}
 
 ### Enable Speculative Execution
-To enable speculative execution, you need to set the following configuration options:
-- `jobmanager.scheduler: AdaptiveBatch`
-    - Because only [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) supports speculative execution.
-- `jobmanager.adaptive-batch-scheduler.speculative.enabled: true`
+You can enable speculative execution through the following configuration items：
+- `execution.batch.speculative.enabled: true`
+
+Note that currently only [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) supports speculative execution. And Flink batch jobs will use this scheduler by default unless another scheduler is explicitly configured.
 
 ### Tuning Configuration
 To make speculative execution work better for different jobs, you can tune below configuration options of the scheduler:
-- [`jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-max-concurrent-e)
-- [`jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-block-slow-node)
+- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-max-concurrent-e)
+- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-block-slow-node)
 
 You can also tune below configuration options of the slow task detector:
 - [`slow-task-detector.check-interval`]({{< ref "docs/deployment/config" >}}#slow-task-detector-check-interval)
