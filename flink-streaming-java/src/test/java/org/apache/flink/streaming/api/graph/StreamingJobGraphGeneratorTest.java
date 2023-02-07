@@ -259,7 +259,7 @@ class StreamingJobGraphGeneratorTest {
         env.fromSequence(1L, 3L).map(i -> i).setParallelism(10).print().setParallelism(20);
         StreamGraph streamGraph = env.getStreamGraph();
 
-        // check the streamGraph parallleism configured
+        // check the streamGraph parallelism configured
         final List<StreamNode> streamNodes =
                 streamGraph.getStreamNodes().stream()
                         .sorted(Comparator.comparingInt(StreamNode::getId))
@@ -283,7 +283,7 @@ class StreamingJobGraphGeneratorTest {
         env.fromSequence(1L, 3L).map(value -> value).print().setParallelism(env.getParallelism());
         StreamGraph streamGraph = env.getStreamGraph();
 
-        // check the streamGraph parallleism configured
+        // check the streamGraph parallelism configured
         final List<StreamNode> streamNodes =
                 streamGraph.getStreamNodes().stream()
                         .sorted(Comparator.comparingInt(StreamNode::getId))
@@ -291,6 +291,50 @@ class StreamingJobGraphGeneratorTest {
         assertThat(streamNodes.get(0).isParallelismConfigured()).isFalse();
         assertThat(streamNodes.get(1).isParallelismConfigured()).isFalse();
         assertThat(streamNodes.get(2).isParallelismConfigured()).isTrue();
+
+        // check the jobGraph parallelism configured
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(1);
+        assertThat(vertices.get(0).isParallelismConfigured()).isTrue();
+    }
+
+    @Test
+    public void testChainedSourcesSetParallelism() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        MultipleInputTransformation<Long> transform =
+                new MultipleInputTransformation<>(
+                        "mit",
+                        new UnusedOperatorFactory(),
+                        Types.LONG,
+                        env.getParallelism(),
+                        false);
+        DataStreamSource<Long> source1 =
+                env.fromSource(
+                        new NumberSequenceSource(1, 2),
+                        WatermarkStrategy.noWatermarks(),
+                        "source1");
+        DataStreamSource<Long> source2 =
+                env.fromSource(
+                        new NumberSequenceSource(1, 2),
+                        WatermarkStrategy.noWatermarks(),
+                        "source2");
+        transform.addInput(source1.getTransformation());
+        transform.addInput(source2.getTransformation());
+        transform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
+        source1.setParallelism(env.getParallelism());
+        env.addOperator(transform);
+
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        // check the streamGraph parallelism configured
+        final List<StreamNode> streamNodes =
+                streamGraph.getStreamNodes().stream()
+                        .sorted(Comparator.comparingInt(StreamNode::getId))
+                        .collect(Collectors.toList());
+        assertThat(streamNodes.get(0).isParallelismConfigured()).isFalse();
+        assertThat(streamNodes.get(1).isParallelismConfigured()).isTrue();
+        assertThat(streamNodes.get(2).isParallelismConfigured()).isFalse();
 
         // check the jobGraph parallelism configured
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
