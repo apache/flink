@@ -31,10 +31,9 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,11 +44,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for {@link AdaptiveBatchScheduler}. */
-public class AdaptiveBatchSchedulerITCase extends TestLogger {
+class AdaptiveBatchSchedulerITCase {
 
     private static final int DEFAULT_MAX_PARALLELISM = 4;
     private static final int SOURCE_PARALLELISM_1 = 2;
@@ -60,8 +58,8 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
 
     private Map<Long, Long> expectedResult;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         expectedResult =
                 LongStream.range(0, NUMBERS_TO_PRODUCE)
                         .boxed()
@@ -71,16 +69,16 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
     }
 
     @Test
-    public void testSchedulingWithUnknownResource() throws Exception {
+    void testSchedulingWithUnknownResource() throws Exception {
         testScheduling(false);
     }
 
     @Test
-    public void testSchedulingWithFineGrainedResource() throws Exception {
+    void testSchedulingWithFineGrainedResource() throws Exception {
         testScheduling(true);
     }
 
-    public void testScheduling(Boolean isFineGrained) throws Exception {
+    private void testScheduling(Boolean isFineGrained) throws Exception {
         executeJob(isFineGrained);
 
         Map<Long, Long> numberCountResultMap =
@@ -97,7 +95,7 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
                 System.out.println(i + ": " + numberCountResultMap.get(i));
             }
         }
-        assertThat(numberCountResultMap, equalTo(expectedResult));
+        assertThat(numberCountResultMap).isEqualTo(expectedResult);
     }
 
     private void executeJob(Boolean isFineGrained) throws Exception {
