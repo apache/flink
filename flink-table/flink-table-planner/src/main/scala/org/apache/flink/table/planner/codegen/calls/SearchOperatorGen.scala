@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newNames
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateLiteral, generateNullLiteral}
+import org.apache.flink.table.planner.codegen.GenerateUtils.generateLiteral
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.functions.casting.CastRuleProvider
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil.toFlinkInternalValue
@@ -80,25 +80,41 @@ object SearchOperatorGen {
         // The elements are constant, we perform the cast immediately
         .map(CastRuleProvider.cast(toCastContext(ctx), sargType, commonType, _))
         .map(generateLiteral(ctx, _, commonType))
-      if (sarg.nullAs == RexUnknownAs.TRUE) {
-        haystack += generateNullLiteral(commonType)
-      }
       val setTerm = ctx.addReusableHashSet(haystack.toSeq, commonType)
       val negation = if (sarg.isComplementedPoints) "!" else ""
 
       val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
+      // Since https://issues.apache.org/jira/browse/CALCITE-4446
+      // there is three-valued logic for SEARCH operator
+      // sarg.nullAs should be used instead of sarg.containsNull
+      val isNullCode = sarg.nullAs match {
+        case RexUnknownAs.TRUE =>
+          s"""
+             |$resultTerm = true;
+             |$nullTerm = false;
+             |""".stripMargin
+        case RexUnknownAs.FALSE =>
+          s"""
+             |$resultTerm = false;
+             |$nullTerm = false;
+             |""".stripMargin
+        case RexUnknownAs.UNKNOWN =>
+          s"""
+             |$resultTerm = false;
+             |$nullTerm = true;
+             |""".stripMargin
+      }
 
       val operatorCode =
         s"""
            |${needle.code}
            |// --- Begin SEARCH ${target.resultTerm}
-           |boolean $resultTerm = false;
-           |boolean $nullTerm = true;
+           |boolean $resultTerm;
+           |boolean $nullTerm;
+           |$isNullCode
            |if (!${needle.nullTerm}) {
            |  $resultTerm = $negation$setTerm.contains(${needle.resultTerm});
            |  $nullTerm = false;
-           |} else {
-           |  $resultTerm = $setTerm.containsNull();
            |}
            |// --- End SEARCH ${target.resultTerm}
            |""".stripMargin.trim
