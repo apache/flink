@@ -78,6 +78,24 @@ class AdaptiveBatchSchedulerITCase {
         testScheduling(true);
     }
 
+    @Test
+    void testParallelismOfForwardGroupLargerThanGlobalMaxParallelism() throws Exception {
+        final Configuration configuration = createConfiguration();
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(4);
+
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(4)
+                        .name("source")
+                        .slotSharingGroup("group1");
+
+        source.forward().map(new NumberCounter()).name("map").slotSharingGroup("group2");
+        env.execute();
+    }
+
     private void testScheduling(Boolean isFineGrained) throws Exception {
         executeJob(isFineGrained);
 
@@ -99,18 +117,7 @@ class AdaptiveBatchSchedulerITCase {
     }
 
     private void executeJob(Boolean isFineGrained) throws Exception {
-        final Configuration configuration = new Configuration();
-        configuration.setString(RestOptions.BIND_PORT, "0");
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
-        configuration.setInteger(
-                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
-                DEFAULT_MAX_PARALLELISM);
-        configuration.set(
-                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
-                MemorySize.parse("150kb"));
-        configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
-        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-
+        final Configuration configuration = createConfiguration();
         if (isFineGrained) {
             configuration.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
             configuration.set(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING, true);
@@ -155,6 +162,21 @@ class AdaptiveBatchSchedulerITCase {
                 .slotSharingGroup(slotSharingGroups.get(2));
 
         env.execute();
+    }
+
+    private static Configuration createConfiguration() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(RestOptions.BIND_PORT, "0");
+        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.setInteger(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, 2);
+        configuration.set(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
+                MemorySize.parse("150kb"));
+        configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 1);
+
+        return configuration;
     }
 
     private static class NumberCounter extends RichMapFunction<Long, Long> {
