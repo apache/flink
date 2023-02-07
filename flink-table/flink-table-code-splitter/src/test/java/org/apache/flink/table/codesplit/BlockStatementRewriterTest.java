@@ -76,6 +76,11 @@ class BlockStatementRewriterTest extends CodeRewriterTestBase<BlockStatementRewr
         runTest("TestRewriteInnerClass");
     }
 
+    @Test
+    void testRewriteTwoStatements() {
+        runTest("TestRewriteTwoStatements");
+    }
+
     /**
      * Check whether the given and expected classes are actually a valid Java code -> it compiles.
      * If this test fails on "expected" files, it probably means that code split logic is invalid
