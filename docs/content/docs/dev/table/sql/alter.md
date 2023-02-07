@@ -339,7 +339,7 @@ If the table does not exist, nothing happens.
 ### ADD
 Use `ADD` clause to add [columns]({{< ref "docs/dev/table/sql/create" >}}#columns), [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key), [watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark) to an existing table. 
 
-To add a column at the specified position, use `FIRST` or `AFTER col_name`. The default is to add the column last.
+To add a column at the specified position, use `FIRST` or `AFTER col_name`. By default, the column is appended at last.
 
 The following examples illustrate the usage of the `ADD` statements.
 
@@ -355,11 +355,12 @@ ALTER TABLE MyTable ADD (
     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
 );
 ```
+<span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
 
 ### MODIFY
 Use `MODIFY` clause to change column's position, type, comment or nullability, change primary key columns and watermark strategy to an existing table. 
 
-To modify an existent column to a new position, use `FIRST` or `AFTER col_name`.
+To modify an existent column to a new position, use `FIRST` or `AFTER col_name`. By default, the position remains unchanged. 
 
 The following examples illustrate the usage of the `MODIFY` statements.
 
@@ -375,6 +376,8 @@ ALTER TABLE MyTable MODIFY (
     WATERMARK FOR ts AS ts -- modify watermark strategy
 );
 ```
+
+<span class="label label-danger">Note</span> Modify a column to be primary key will change the column's nullability to false implicitly.
 
 ### DROP
 Use `DROP` clause to drop columns, primary key and watermark strategy to an existing table.
@@ -401,7 +404,7 @@ Use `RENAME` clause to rename column or an existing table.
 The following examples illustrate the usage of the `RENAME` statements.
 ```sql
 -- rename column
-ALTER TABLE MyTable RENAME `data` TO payload;
+ALTER TABLE MyTable RENAME request_body TO payload;
 
 -- rename table
 ALTER TABLE MyTable RENAME TO MyTable2;

@@ -354,11 +354,12 @@ ALTER TABLE MyTable ADD (
     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
 );
 ```
+<span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
 
 ### MODIFY
 使用 `MODIFY` 语句修改列的位置 、类型 、注释 、nullability，主键或 watermark。
 
-可使用 `FIRST` 或 `AFTER col_name` 将已有列移动至指定位置。
+可使用 `FIRST` 或 `AFTER col_name` 将已有列移动至指定位置，不指定时默认保持位置不变。
 
 `MODIFY` 语句示例如下。
 
@@ -374,6 +375,7 @@ ALTER TABLE MyTable MODIFY (
     WATERMARK FOR ts AS ts -- modify watermark strategy
 );
 ```
+<span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
 
 ### DROP
 使用 `DROP` 语句删除列 、主键或 watermark。
@@ -400,7 +402,7 @@ ALTER TABLE MyTable DROP WATERMARK;
 `RENAME` 语句示例如下。
 ```sql
 -- rename column
-ALTER TABLE MyTable RENAME `data` TO payload;
+ALTER TABLE MyTable RENAME request_body TO payload;
 
 -- rename table
 ALTER TABLE MyTable RENAME TO MyTable2;
