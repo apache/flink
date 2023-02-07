@@ -457,14 +457,21 @@ public class EnvironmentInformation {
                 log.info(" Program Arguments: (none)");
             } else {
                 log.info(" Program Arguments:");
+                boolean splitKVHidden = false;
                 for (String s : commandLineArgs) {
                     if (GlobalConfiguration.isSensitive(s)) {
+                        // the s can be a (x=y) argument or a (x y) argument
+                        // if s is (x y), the y should be masked.
+                        splitKVHidden = !s.contains("=");
                         log.info(
-                                "    "
-                                        + GlobalConfiguration.HIDDEN_CONTENT
-                                        + " (sensitive information)");
+                                "    {}",
+                                !splitKVHidden
+                                        ? GlobalConfiguration.HIDDEN_CONTENT
+                                                + " (sensitive information)"
+                                        : s);
                     } else {
-                        log.info("    " + s);
+                        log.info("    {}", splitKVHidden ? GlobalConfiguration.HIDDEN_CONTENT : s);
+                        splitKVHidden = false;
                     }
                 }
             }
