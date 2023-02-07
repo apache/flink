@@ -94,11 +94,11 @@ Endpoint Options
 REST API
 ----------------
 
-The available OpenAPI specification as follows. The default version is v2.
+The available OpenAPI specification is as follows. The default version is v2.
 
 | Version                       | Description |
 | ----------- | ------- |
-| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | Allow users to submit statement to the Gateway and execute. |
+| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | Allow users to submit statements to the gateway and execute. |
 | [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | Supports SQL Client to connect to the gateway |
 
 {{< hint warning >}}
