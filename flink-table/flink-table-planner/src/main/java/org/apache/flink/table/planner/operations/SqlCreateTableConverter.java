@@ -52,7 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,21 +60,17 @@ class SqlCreateTableConverter {
 
     private final MergeTableLikeUtil mergeTableLikeUtil;
     private final CatalogManager catalogManager;
-    private final Consumer<SqlTableConstraint> validateTableConstraint;
 
     SqlCreateTableConverter(
             FlinkCalciteSqlValidator sqlValidator,
             CatalogManager catalogManager,
-            Function<SqlNode, String> escapeExpression,
-            Consumer<SqlTableConstraint> validateTableConstraint) {
+            Function<SqlNode, String> escapeExpression) {
         this.mergeTableLikeUtil = new MergeTableLikeUtil(sqlValidator, escapeExpression);
         this.catalogManager = catalogManager;
-        this.validateTableConstraint = validateTableConstraint;
     }
 
     /** Convert the {@link SqlCreateTable} node. */
     Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-        sqlCreateTable.getTableConstraints().forEach(validateTableConstraint);
         CatalogTable catalogTable = createCatalogTable(sqlCreateTable);
 
         UnresolvedIdentifier unresolvedIdentifier =

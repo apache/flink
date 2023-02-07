@@ -750,7 +750,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
             statement.execute(
                     "CREATE TABLE db_test1.tbl_1(\n"
-                            + "`user` BIGINT CONSTRAINT `pk` PRIMARY KEY COMMENT 'user id.',\n"
+                            + "`user` BIGINT CONSTRAINT `pk` PRIMARY KEY NOT ENFORCED COMMENT 'user id.',\n"
                             + "`product` STRING NOT NULL,\n"
                             + "`amount`  INT) COMMENT 'temporary table tbl_1'");
             statement.execute(

@@ -73,7 +73,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -91,17 +90,14 @@ public class AlterSchemaConverter {
 
     private final SqlValidator sqlValidator;
     private final Function<SqlNode, String> escapeExpression;
-    private final Consumer<SqlTableConstraint> constraintValidator;
     private final CatalogManager catalogManager;
 
     AlterSchemaConverter(
             SqlValidator sqlValidator,
-            Consumer<SqlTableConstraint> constraintValidator,
             Function<SqlNode, String> escapeExpression,
             CatalogManager catalogManager) {
         this.sqlValidator = sqlValidator;
         this.escapeExpression = escapeExpression;
-        this.constraintValidator = constraintValidator;
         this.catalogManager = catalogManager;
     }
 
@@ -305,7 +301,6 @@ public class AlterSchemaConverter {
         Function<SqlNode, String> escapeExpressions;
         FlinkTypeFactory typeFactory;
         SqlValidator sqlValidator;
-        Consumer<SqlTableConstraint> constraintValidator;
         SchemaResolver schemaResolver;
 
         List<TableChange> changesCollector;
@@ -315,12 +310,10 @@ public class AlterSchemaConverter {
                 Schema oldSchema,
                 FlinkTypeFactory typeFactory,
                 SqlValidator sqlValidator,
-                Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
                 SchemaResolver schemaResolver) {
             this.typeFactory = typeFactory;
             this.sqlValidator = sqlValidator;
-            this.constraintValidator = constraintValidator;
             this.escapeExpressions = escapeExpressions;
             this.schemaResolver = schemaResolver;
             this.changesCollector = new ArrayList<>();
@@ -380,7 +373,6 @@ public class AlterSchemaConverter {
 
         private void updatePrimaryKey(SqlTableConstraint alterPrimaryKey) {
             checkAndCollectPrimaryKeyChange();
-            constraintValidator.accept(alterPrimaryKey);
             List<String> primaryKeyColumns = Arrays.asList(alterPrimaryKey.getColumnNames());
             primaryKey =
                     new Schema.UnresolvedPrimaryKey(
@@ -550,16 +542,9 @@ public class AlterSchemaConverter {
                 Schema oldSchema,
                 FlinkTypeFactory typeFactory,
                 SqlValidator sqlValidator,
-                Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
                 SchemaResolver schemaResolver) {
-            super(
-                    oldSchema,
-                    typeFactory,
-                    sqlValidator,
-                    constraintValidator,
-                    escapeExpressions,
-                    schemaResolver);
+            super(oldSchema, typeFactory, sqlValidator, escapeExpressions, schemaResolver);
         }
 
         @Override
@@ -642,14 +627,12 @@ public class AlterSchemaConverter {
                 ResolvedCatalogTable oldTable,
                 FlinkTypeFactory typeFactory,
                 SqlValidator sqlValidator,
-                Consumer<SqlTableConstraint> constraintValidator,
                 Function<SqlNode, String> escapeExpressions,
                 SchemaResolver schemaResolver) {
             super(
                     oldTable.getUnresolvedSchema(),
                     typeFactory,
                     sqlValidator,
-                    constraintValidator,
                     escapeExpressions,
                     schemaResolver);
             this.oldTable = oldTable;
@@ -962,7 +945,6 @@ public class AlterSchemaConverter {
                     oldTable.getUnresolvedSchema(),
                     (FlinkTypeFactory) sqlValidator.getTypeFactory(),
                     sqlValidator,
-                    constraintValidator,
                     escapeExpression,
                     catalogManager.getSchemaResolver());
         } else if (alterTableSchema instanceof SqlAlterTableModify) {
@@ -970,7 +952,6 @@ public class AlterSchemaConverter {
                     oldTable,
                     (FlinkTypeFactory) sqlValidator.getTypeFactory(),
                     sqlValidator,
-                    constraintValidator,
                     escapeExpression,
                     catalogManager.getSchemaResolver());
         }
