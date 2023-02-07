@@ -44,7 +44,7 @@ The SQL Client is bundled in the regular Flink distribution and thus runnable ou
 ```
 ### Starting the SQL Client CLI
 
-The SQL Client scripts are also located in the binary directory of Flink. A user has two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}). 
+The SQL Client scripts are also located in the binary directory of Flink. Users have two options for starting the SQL Client CLI, either by starting an embedded standalone process or by connecting to a remote [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 SQL Client default mode is `embedded`. 
 
 You can start the CLI in embedded mode by calling:
@@ -67,7 +67,7 @@ For gateway mode, you can start the CLI by calling:
 
 In the gateway mode, the CLI submits the SQL to the specified remote gateway to execute statements.
 
-<span class="label label-danger">Note</span> SQL Client only supports to connect to the [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) whose version is larger than v1.
+<span class="label label-danger">Note</span> SQL Client only supports connecting to the [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) since version v2.
 
 See [SQL Client startup options](#sql-client-startup-options) below for more details.
 
