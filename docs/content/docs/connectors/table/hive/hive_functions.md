@@ -99,7 +99,7 @@ Users can use the native aggregation function by turning on the option `table.ex
   </tbody>
 </table>
 
-<span class="label label-danger">Attention</span> The ability of the native aggregate functions don't fully align with Hive built-in aggregation functions now, for example, some data types are not supported. If performance is not a bottleneck, you don't need to turn on this option.
+<span class="label label-danger">Attention</span> The ability of the native aggregate functions doesn't fully align with Hive built-in aggregation functions now, for example, some data types are not supported. If performance is not a bottleneck, you don't need to turn on this option.
 
 ## Hive User Defined Functions
 
