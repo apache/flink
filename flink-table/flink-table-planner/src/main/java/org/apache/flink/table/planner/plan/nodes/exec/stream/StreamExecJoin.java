@@ -46,6 +46,8 @@ import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideS
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
@@ -172,6 +174,10 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
         long minRetentionTime = config.getStateRetentionTime();
 
+        final boolean isBatchBackfillEnabled = config.get(ExecutionConfigOptions.TABLE_EXEC_BATCH_BACKFILL);
+        final boolean isMinibatchEnabled = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+        final int maxMinibatchSize = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_JOIN_MAX_SIZE);
+
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
         if (joinType == FlinkJoinType.ANTI || joinType == FlinkJoinType.SEMI) {
@@ -184,7 +190,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                             leftInputSpec,
                             rightInputSpec,
                             joinSpec.getFilterNulls(),
-                            minRetentionTime);
+                            minRetentionTime,
+                            isBatchBackfillEnabled,
+                            isMinibatchEnabled,
+                            maxMinibatchSize);
+
         } else {
             boolean leftIsOuter = joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.FULL;
             boolean rightIsOuter =
@@ -199,7 +209,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                             leftIsOuter,
                             rightIsOuter,
                             joinSpec.getFilterNulls(),
-                            minRetentionTime);
+                            minRetentionTime,
+                            isBatchBackfillEnabled,
+                            isMinibatchEnabled,
+                            maxMinibatchSize);
+
         }
 
         final RowType returnType = (RowType) getOutputType();

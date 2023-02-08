@@ -29,19 +29,38 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
+import org.apache.flink.util.Collector;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateFunction;
+import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.types.RowKind;
+import org.apache.flink.table.data.util.RowDataUtil;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Utility to create a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}. */
+/**
+ * Utility to create a {@link JoinRecordStateView} depends on
+ * {@link JoinInputSideSpec}.
+ */
 public final class JoinRecordStateViews {
 
-    /** Creates a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}. */
+    private static final Logger LOG = LoggerFactory.getLogger(JoinRecordStateViews.class);
+
+    /**
+     * Creates a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}.
+     */
     public static JoinRecordStateView create(
             RuntimeContext ctx,
             String stateName,
@@ -72,20 +91,23 @@ public final class JoinRecordStateViews {
 
         private final ValueState<RowData> recordState;
         private final List<RowData> reusedList;
+        private final String stateName;
+        private final InternalTypeInfo<RowData> recordType;
 
         private JoinKeyContainsUniqueKey(
                 RuntimeContext ctx,
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
                 StateTtlConfig ttlConfig) {
-            ValueStateDescriptor<RowData> recordStateDesc =
-                    new ValueStateDescriptor<>(stateName, recordType);
+            ValueStateDescriptor<RowData> recordStateDesc = new ValueStateDescriptor<>(stateName, recordType);
             if (ttlConfig.isEnabled()) {
                 recordStateDesc.enableTimeToLive(ttlConfig);
             }
             this.recordState = ctx.getState(recordStateDesc);
             // the result records always not more than 1
             this.reusedList = new ArrayList<>(1);
+            this.stateName = stateName;
+            this.recordType = recordType;
         }
 
         @Override
@@ -107,13 +129,54 @@ public final class JoinRecordStateViews {
             }
             return reusedList;
         }
+
+        @Override
+        public void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+                JoinRecordStateView otherView, JoinCondition condition, boolean leftRowOnly,
+                boolean inputIsLeft) throws Exception {
+            emitCompleteState(be, collect, otherView, condition);
+        }
+
+        private void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+                JoinRecordStateView otherView, JoinCondition condition) throws Exception {
+            ValueStateDescriptor<RowData> recordStateDesc = new ValueStateDescriptor<>(stateName, recordType);
+
+            JoinedRowData outRow = new JoinedRowData();
+            outRow.setRowKind(RowKind.INSERT);
+
+            be.applyToAllKeys(VoidNamespace.INSTANCE,
+                    VoidNamespaceSerializer.INSTANCE,
+                    recordStateDesc,
+                    new KeyedStateFunction<RowData, ValueState<RowData>>() {
+                        @Override
+                        public void process(RowData key, ValueState<RowData> state) throws Exception {
+                            RowData thisRow = state.value();
+
+                            // set current key context for otherView fetch
+                            be.setCurrentKey(key);
+
+                            Iterable<RowData> records = otherView.getRecords();
+                            for (RowData otherRow : records) {
+                                boolean matched = condition.apply(thisRow, otherRow);
+                                outRow.replace(thisRow, otherRow);
+                                if (matched) {
+                                    collect.collect(outRow);
+                                }
+                            }
+                        }
+                    });
+        }
     }
 
     private static final class InputSideHasUniqueKey implements JoinRecordStateView {
 
         // stores record in the mapping <UK, Record>
         private final MapState<RowData, RowData> recordState;
+
         private final KeySelector<RowData, RowData> uniqueKeySelector;
+        private final String stateName;
+        private final InternalTypeInfo<RowData> uniqueKeyType;
+        private final InternalTypeInfo<RowData> recordType;
 
         private InputSideHasUniqueKey(
                 RuntimeContext ctx,
@@ -124,13 +187,17 @@ public final class JoinRecordStateViews {
                 StateTtlConfig ttlConfig) {
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
-            MapStateDescriptor<RowData, RowData> recordStateDesc =
-                    new MapStateDescriptor<>(stateName, uniqueKeyType, recordType);
+            MapStateDescriptor<RowData, RowData> recordStateDesc = new MapStateDescriptor<>(stateName, uniqueKeyType,
+                    recordType);
+
             if (ttlConfig.isEnabled()) {
                 recordStateDesc.enableTimeToLive(ttlConfig);
             }
             this.recordState = ctx.getMapState(recordStateDesc);
             this.uniqueKeySelector = uniqueKeySelector;
+            this.stateName = stateName;
+            this.uniqueKeyType = uniqueKeyType;
+            this.recordType = recordType;
         }
 
         @Override
@@ -149,22 +216,66 @@ public final class JoinRecordStateViews {
         public Iterable<RowData> getRecords() throws Exception {
             return recordState.values();
         }
+
+        @Override
+        public void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+                JoinRecordStateView otherView, JoinCondition condition, boolean leftRowOnly,
+                boolean inputIsLeft) throws Exception {
+            emitCompleteState(be, collect, otherView, condition);
+        }
+
+        private void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+                JoinRecordStateView otherView, JoinCondition condition) throws Exception {
+            MapStateDescriptor<RowData, RowData> recordStateDesc = new MapStateDescriptor<>(stateName, uniqueKeyType,
+                    recordType);
+
+            JoinedRowData outRow = new JoinedRowData();
+            outRow.setRowKind(RowKind.INSERT);
+
+            be.applyToAllKeys(VoidNamespace.INSTANCE,
+                    VoidNamespaceSerializer.INSTANCE,
+                    recordStateDesc,
+                    new KeyedStateFunction<RowData, MapState<RowData, RowData>>() {
+                        @Override
+                        public void process(RowData key, MapState<RowData, RowData> state) throws Exception {
+                            // set current key context for otherView fetch
+                            be.setCurrentKey(key);
+
+                            for (Map.Entry<RowData, RowData> entry : state.entries()) {
+                                RowData thisRow = entry.getValue();
+                                Iterable<RowData> records = otherView.getRecords();
+                                for (RowData otherRow : records) {
+                                    boolean matched = condition.apply(thisRow, otherRow);
+                                    outRow.replace(thisRow, otherRow);
+                                    if (matched) {
+                                        collect.collect(outRow);
+                                    }
+                                }
+                            }
+                        }
+                    });
+        }
     }
 
     private static final class InputSideHasNoUniqueKey implements JoinRecordStateView {
 
         private final MapState<RowData, Integer> recordState;
+        private final InternalTypeInfo<RowData> recordType;
+        private final String stateName;
 
         private InputSideHasNoUniqueKey(
                 RuntimeContext ctx,
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
                 StateTtlConfig ttlConfig) {
-            MapStateDescriptor<RowData, Integer> recordStateDesc =
-                    new MapStateDescriptor<>(stateName, recordType, Types.INT);
+            MapStateDescriptor<RowData, Integer> recordStateDesc = new MapStateDescriptor<>(stateName, recordType,
+                    Types.INT);
+
             if (ttlConfig.isEnabled()) {
                 recordStateDesc.enableTimeToLive(ttlConfig);
             }
+            this.stateName = stateName;
+            this.recordType = recordType;
             this.recordState = ctx.getMapState(recordStateDesc);
         }
 
@@ -196,8 +307,7 @@ public final class JoinRecordStateViews {
         public Iterable<RowData> getRecords() throws Exception {
             return new IterableIterator<RowData>() {
 
-                private final Iterator<Map.Entry<RowData, Integer>> backingIterable =
-                        recordState.entries().iterator();
+                private final Iterator<Map.Entry<RowData, Integer>> backingIterable = recordState.entries().iterator();
                 private RowData record;
                 private int remainingTimes = 0;
 
@@ -225,6 +335,49 @@ public final class JoinRecordStateViews {
                     return this;
                 }
             };
+        }
+
+        @Override
+        public void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+                JoinRecordStateView otherView, JoinCondition condition, boolean leftRowOnly,
+                boolean inputIsLeft) throws Exception {
+            emitCompleteState(be, collect, otherView, condition);
+        }
+
+        private void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+                JoinRecordStateView otherView, JoinCondition condition) throws Exception {
+            MapStateDescriptor<RowData, Integer> recordStateDesc = new MapStateDescriptor<>(stateName, recordType,
+                    Types.INT);
+
+            JoinedRowData outRow = new JoinedRowData();
+            outRow.setRowKind(RowKind.INSERT);
+
+            be.applyToAllKeys(VoidNamespace.INSTANCE,
+                    VoidNamespaceSerializer.INSTANCE,
+                    recordStateDesc,
+                    new KeyedStateFunction<RowData, MapState<RowData, Integer>>() {
+                        @Override
+                        public void process(RowData key, MapState<RowData, Integer> state) throws Exception {
+                            // set current key context for otherView fetch
+                            be.setCurrentKey(key);
+
+                            for (Map.Entry<RowData, Integer> entry : state.entries()) {
+                                RowData thisRow = entry.getKey();
+                                Integer numRows = entry.getValue();
+
+                                Iterable<RowData> records = otherView.getRecords();
+                                for (RowData otherRow : records) {
+                                    boolean matched = condition.apply(thisRow, otherRow);
+                                    outRow.replace(thisRow, otherRow);
+                                    if (matched) {
+                                        for (int i = 0; i < numRows; i++) {
+                                            collect.collect(outRow);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
         }
     }
 }

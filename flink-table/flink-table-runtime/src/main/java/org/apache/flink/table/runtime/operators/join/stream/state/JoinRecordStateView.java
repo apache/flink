@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.state;
 
+import org.apache.flink.util.Collector;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.table.runtime.generated.JoinCondition;
 
 /**
  * A {@link JoinRecordStateView} is a view to the join state. It encapsulates the join state and
@@ -39,4 +42,9 @@ public interface JoinRecordStateView {
 
     /** Gets all the records under the current context (i.e. join key). */
     Iterable<RowData> getRecords() throws Exception;
+
+    /** Emit join state */
+    void emitCompleteState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+            JoinRecordStateView otherView, JoinCondition condition, boolean leftRowOnly,
+            boolean inputIsLeft) throws Exception;
 }

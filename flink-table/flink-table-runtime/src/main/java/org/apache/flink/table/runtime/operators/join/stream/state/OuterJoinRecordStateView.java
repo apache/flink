@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.operators.join.stream.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.util.Collector;
 
 /**
  * A {@link OuterJoinRecordStateView} is an extension to {@link JoinRecordStateView}. The {@link
@@ -54,4 +57,9 @@ public interface OuterJoinRecordStateView extends JoinRecordStateView {
      * Gets all the records and number of associations under the current context (i.e. join key).
      */
     Iterable<Tuple2<RowData, Integer>> getRecordsAndNumOfAssociations() throws Exception;
+
+    /** Emit anti join state */
+    void emitAntiJoinState(KeyedStateBackend<RowData> be, Collector<RowData> collect,
+        JoinRecordStateView otherView, JoinCondition condition, boolean inputRowOnly,
+        boolean inputIsLeft) throws Exception;
 }

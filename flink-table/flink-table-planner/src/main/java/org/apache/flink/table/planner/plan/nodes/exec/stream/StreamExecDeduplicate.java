@@ -357,7 +357,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                 } else {
                     ProcTimeMiniBatchDeduplicateKeepFirstRowFunction processFunction =
                             new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                                    typeSerializer, getMinRetentionTime());
+                                    rowTypeInfo, typeSerializer, getMinRetentionTime());
                     return new KeyedMapBundleOperator<>(processFunction, trigger);
                 }
             } else {

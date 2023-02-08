@@ -27,13 +27,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcTimeMiniBatchDeduplicateKeepFirstRowFunction}. */
 public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
@@ -54,14 +54,14 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
     public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
                 new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                        typeSerializer, minTime.toMilliseconds());
+                        inputRowType, typeSerializer, minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.processElement(insertRecord("book", 2L, 11));
 
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput()).isEmpty();
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
 
         testHarness.processElement(insertRecord("book", 1L, 13));
 
@@ -77,14 +77,14 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
     public void testKeepFirstRowWithStateTtl() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
                 new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                        typeSerializer, minTime.toMilliseconds());
+                        inputRowType, typeSerializer, minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.setup();
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.processElement(insertRecord("book", 2L, 11));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput()).isEmpty();
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
         testHarness.processElement(insertRecord("book", 1L, 13));
 
         testHarness.setStateTtlProcessingTime(30);

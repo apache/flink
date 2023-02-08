@@ -34,7 +34,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static junit.framework.TestCase.assertEquals;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 /** Tests for {@link MapBundleOperator}. */
 public class MapBundleOperatorTest {
@@ -60,13 +62,13 @@ public class MapBundleOperatorTest {
             input.replace(new Tuple2<>("k1", "v2"));
             op.processElement(input);
 
-            assertThat(func.getFinishCount()).isEqualTo(0);
+            assertEquals(0, func.getFinishCount());
 
             input.replace(new Tuple2<>("k2", "v3"));
             op.processElement(input);
 
-            assertThat(func.getFinishCount()).isEqualTo(1);
-            assertThat(Arrays.asList("k1=v1,v2", "k2=v3")).isEqualTo(func.getOutputs());
+            assertEquals(1, func.getFinishCount());
+            assertThat(Arrays.asList("k1=v1,v2", "k2=v3"), is(func.getOutputs()));
 
             input.replace(new Tuple2<>("k3", "v4"));
             op.processElement(input);
@@ -74,11 +76,11 @@ public class MapBundleOperatorTest {
             input.replace(new Tuple2<>("k4", "v5"));
             op.processElement(input);
 
-            assertThat(func.getFinishCount()).isEqualTo(1);
+            assertEquals(1, func.getFinishCount());
 
             op.close();
-            assertThat(func.getFinishCount()).isEqualTo(2);
-            assertThat(Arrays.asList("k3=v4", "k4=v5")).isEqualTo(func.getOutputs());
+            assertEquals(2, func.getFinishCount());
+            assertThat(Arrays.asList("k3=v4", "k4=v5"), is(func.getOutputs()));
         }
     }
 
@@ -89,7 +91,7 @@ public class MapBundleOperatorTest {
         private List<String> outputs = new ArrayList<>();
 
         @Override
-        public String addInput(@Nullable String value, Tuple2<String, String> input)
+        public String addInput(@Nullable String value, Tuple2<String, String> input, boolean shouldLogInput)
                 throws Exception {
             if (value == null) {
                 return input.f1;

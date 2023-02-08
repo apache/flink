@@ -164,6 +164,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
+        final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
@@ -223,6 +224,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 new MiniBatchIncrementalGroupAggFunction(
                         partialAggsHandler,
                         finalAggsHandler,
+                        inputRowType,
                         finalKeySelector,
                         config.getStateRetentionTime());
 
