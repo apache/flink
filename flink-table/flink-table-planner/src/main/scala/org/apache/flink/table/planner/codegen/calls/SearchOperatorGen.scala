@@ -130,6 +130,10 @@ object SearchOperatorGen {
       var rangeChecks: Seq[GeneratedExpression] = sarg.rangeSet.asRanges.asScala.toSeq
         .map(RangeSets.map(_, rangeToExpression))
 
+      // Based on https://issues.apache.org/jira/browse/CALCITE-4446 description it is calculated as
+      // for sarg.nullAs == RexUnknownAs.TRUE: X IS NULL OR X IN (...)
+      // for sarg.nullAs == RexUnknownAs.FALSE: X IS NOT NULL AND (X IN (...))
+      // for sarg.nullAs == RexUnknownAs.UNKNOWN: X IN (...)
       if (sarg.nullAs == RexUnknownAs.TRUE) {
         rangeChecks =
           Seq(generateIsNull(target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
@@ -143,15 +147,24 @@ object SearchOperatorGen {
               right,
               new BooleanType(left.resultType.isNullable || right.resultType.isNullable)))
 
+      val generatedRangeWithIsNotNullIfRequiredChecks =
+        if (sarg.nullAs == RexUnknownAs.FALSE)
+          generateAnd(
+            generatedRangeChecks,
+            generateIsNotNull(target, new BooleanType(target.resultType.isNullable)),
+            new BooleanType(
+              generatedRangeChecks.resultType.isNullable || target.resultType.isNullable)
+          )
+        else generatedRangeChecks;
       // Add the target expression code
       val finalCode =
         s"""
            |${target.code}
            |// --- Begin SEARCH ${target.resultTerm}
-           |${generatedRangeChecks.code}
+           |${generatedRangeWithIsNotNullIfRequiredChecks.code}
            |// --- End SEARCH ${target.resultTerm}
            |""".stripMargin.trim
-      generatedRangeChecks.copy(code = finalCode)
+      generatedRangeWithIsNotNullIfRequiredChecks.copy(code = finalCode)
     }
   }
 
