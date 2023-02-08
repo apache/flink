@@ -72,4 +72,9 @@ public class JobClientHeartbeatHeaders
     public String getDescription() {
         return "Report the jobClient's aliveness.";
     }
+
+    @Override
+    public String operationId() {
+        return "triggerHeartbeat";
+    }
 }
