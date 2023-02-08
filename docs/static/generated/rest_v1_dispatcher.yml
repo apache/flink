@@ -615,6 +615,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/clientHeartbeat:
+    patch:
+      description: Report the jobClient's aliveness.
+      operationId: triggerHeartbeat
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobClientHeartbeatRequestBody'
+      responses:
+        "202":
+          description: The request was successful.
   /jobs/{jobid}/config:
     get:
       description: Returns the configuration of a job.
@@ -1056,13 +1075,21 @@ paths:
         style: form
         schema:
           $ref: '#/components/schemas/Type'
+      - name: subtaskindex
+        in: query
+        description: Positive integer value that identifies a subtask.
+        required: false
+        style: form
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobVertexFlameGraph'
+                $ref: '#/components/schemas/VertexFlameGraph'
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
@@ -1928,6 +1955,8 @@ components:
           type: string
         stacktrace:
           type: string
+        taskManagerId:
+          type: string
         taskName:
           type: string
         timestamp:
@@ -1957,6 +1986,8 @@ components:
         location:
           type: string
         task:
+          type: string
+        taskManagerId:
           type: string
         timestamp:
           type: integer
@@ -2183,6 +2214,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserTaskAccumulator'
+    JobClientHeartbeatRequestBody:
+      type: object
+      properties:
+        expiredTimestamp:
+          type: integer
+          format: int64
     JobConfigInfo:
       type: object
       properties:
@@ -2416,14 +2453,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
-    JobVertexFlameGraph:
-      type: object
-      properties:
-        data:
-          $ref: '#/components/schemas/Node'
-        endTimestamp:
-          type: integer
-          format: int64
     JobVertexID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2595,6 +2624,8 @@ components:
         location:
           type: string
         stacktrace:
+          type: string
+        taskManagerId:
           type: string
         taskName:
           type: string
@@ -3167,3 +3198,11 @@ components:
       enum:
       - deprecated
       - ok
+    VertexFlameGraph:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Node'
+        endTimestamp:
+          type: integer
+          format: int64
