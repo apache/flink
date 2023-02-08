@@ -251,4 +251,14 @@ public class ExecutionCheckpointingOptions {
                                                     "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta",
                                                     "the important considerations"))
                                     .build());
+
+    public static final ConfigOption<String> PER_OPERATOR_PARALLELISM = ConfigOptions
+            .key("execution.checkpointing.per-operator-parallelism")
+            .stringType()
+            .defaultValue("")
+            .withDescription(
+                    "Sets per operator ID parallelism to help us selectively rescale down jobs with small"
+                            + " operator states. The format is a list of opId,parallelism pairs in string format."
+                            + " Exammple: '927799aa5f58e46f12593a76acc4dba3,64,ed48e05970c6882d033071b3313259ee,64'");
+
 }
