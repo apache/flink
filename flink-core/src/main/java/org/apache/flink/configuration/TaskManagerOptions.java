@@ -501,6 +501,7 @@ public class TaskManagerOptions {
 
     /** Max Network Memory size for TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<MemorySize> NETWORK_MEMORY_MAX =
             key("taskmanager.memory.network.max")
                     .memoryType()
