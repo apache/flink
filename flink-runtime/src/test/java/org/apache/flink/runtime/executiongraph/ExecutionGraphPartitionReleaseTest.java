@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -40,7 +39,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,12 +53,12 @@ class ExecutionGraphPartitionReleaseTest {
     public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
-    private static final ScheduledExecutorService scheduledExecutorService =
-            Executors.newSingleThreadScheduledExecutor();
-    private static final TestingComponentMainThreadExecutor mainThreadExecutor =
-            new TestingComponentMainThreadExecutor(
-                    ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
-                            scheduledExecutorService));
+    @RegisterExtension
+    public static final TestingComponentMainThreadExecutor.Extension MAIN_THREAD_EXTENSION =
+            new TestingComponentMainThreadExecutor.Extension();
+
+    private final TestingComponentMainThreadExecutor mainThreadExecutor =
+            MAIN_THREAD_EXTENSION.getComponentMainThreadTestExecutor();
 
     @Test
     void testStrategyNotifiedOfFinishedVerticesAndResultsRespected() throws Exception {
