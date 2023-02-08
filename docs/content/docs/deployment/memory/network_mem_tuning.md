@@ -97,7 +97,7 @@ The actual value of parallelism from which the problem occurs is various from jo
 ## Network buffer lifecycle
  
 Flink has several local buffer pools - one for the output stream and one for each input gate. 
-Each of those pools is limited to at most 
+The upper limit of the size of each buffer pool is called the buffer pool **Target**, which is calculated by the following formula.
 
 `#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
 
@@ -105,14 +105,9 @@ The size of the buffer can be configured by setting `taskmanager.memory.segment-
 
 ### Input network buffers
 
-The number of buffers in one pool calculated according to the above formula can be divided into two parts. The part below this configured value `taskmanager.network.memory.read-buffer.required-per-gate.max` is required. The excess part buffers, if any, is optional. A task will fail if the required buffers cannot be obtained in runtime. A task will not fail due to not obtaining optional buffers, but may suffer a performance reduction. If not explicitly configured, the default value is Integer.MAX_VALUE for streaming workloads, and 1000 for batch workloads.
+Not all buffers in the buffer pool Target can be obtained eventually. A **Threshold** is introduced to divide the buffer pool Target into two parts. The part below the threshold is called required. The excess part buffers, if any, is optional. A task will fail if the required buffers cannot be obtained in runtime. A task will not fail due to not obtaining optional buffers, but may suffer a performance reduction. If not explicitly configured, the default value of the threshold is Integer.MAX_VALUE for streaming workloads, and 1000 for batch workloads.
 
-Generally, `taskmanager.network.memory.read-buffer.required-per-gate.max` need not configure, and the default value can fulfill most scenes. Setting the option to a lower value, at least 1, can avoid the "insufficient number of network buffers" exception as much as possible, but may reduce performance. Setting the option as Integer.MAX_VALUE to disable the required buffer limit, When disabled, more read buffers may be required, which is good for performance, but may lead to more easily throwing insufficient network buffers exceptions.
-
-In the initialization phase:
-- Get the effectively required buffers, determined by the min value between the number of buffers calculated according to the above formula and the configured required buffers by the option `taskmanager.network.memory.read-buffer.required-per-gate.max`.
-- When the total network buffers are less than the effectively required buffers, an exception will be thrown.
-- When the memory is sufficient, try to allocate the configured number of exclusive buffers to each channel. If the memory is insufficient, gradually reduce the number of exclusive buffers for each channel until all buffers are floating.
+It is not recommended to adjust the above threshold during normal use. Unless you are a Flink network expert and can clearly understand the impact of this threshold, you can adjust the above threshold through the option `taskmanager.network.memory.read-buffer.required-per-gate.max`. If this option is configured to a smaller value, it can avoid the "insufficient number of network buffers" exception as much as possible, but may suffer a performance reduction silently. If this option is configured as Integer.MAX_VALUE, the required buffer limit is disabled. When the feature is disabled, more read buffers may be required in runtime, which is good for performance but this may lead to more easily throwing insufficient network buffers exceptions.
 
 ### Output network buffers
 

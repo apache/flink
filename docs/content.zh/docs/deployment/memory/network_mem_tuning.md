@@ -94,22 +94,17 @@ The actual value of parallelism from which the problem occurs is various from jo
 ## 网络缓冲生命周期
  
 Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
-每个缓冲区池的大小被限制为
+每个缓冲区池的大小上限被称为缓冲区池 Target，由下面的公式计算得到。
 
 `#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
 
-缓冲区的大小可以通过 `taskmanager.memory.segment-size` 来设置。
+每个缓冲区（Buffer）的大小可以通过 `taskmanager.memory.segment-size` 来设置。
 
 ### 输入网络缓冲
 
-由上面的公式计算得到的输入缓冲池的所有缓冲区（Buffer）可以分为两部分。小于`taskmanager.network.memory.read-buffer.required-per-gate.max`配置值的部分是必须（Required）缓冲区，剩余部分（如果有剩余）是可选（Optional）缓冲区。作业在运行时，如果没有获取到必须（Required）缓冲区，会失败。作业在运行时，如果没有获取到可选（Optional）缓冲区，不会失败，但会降低性能。如果没有显示配置`taskmanager.network.memory.read-buffer.required-per-gate.max`，流作业的默认值是 Integer.MAX_VALUE，批作业默认值是 1000。
+不一定缓冲区池 Target 里的所有缓冲区都能获取到。引入了一个阈值 Threshold 把缓冲区池 Target 分成两个部分。其中，低于阈值的部分，称为必须（Required）缓冲区，剩余部分（如果有剩余）称为可选（Optional）缓冲区。作业在运行时，如果没有获取到必须（Required）缓冲区，会失败。作业在运行时，如果没有获取到可选（Optional）缓冲区，不会失败，但会降低性能。如果这个阈值没有被配置过，流作业的默认阈值是 Integer.MAX_VALUE，批作业默认阈值是 1000。
 
-一般情况下，`taskmanager.network.memory.read-buffer.required-per-gate.max`不需要配置，使用默认值就能满足大部分场景的需求。这个选项如果被配置为较小值（至少为1），能够最大可能的降低出现"网络内存不足"报错的可能，但是会降低运行性能。这个选项如果被配置为Integer.MAX_VALUE，则关闭了最多必须（Required）缓冲区的限制，如果关闭这个能力，作业执行可能会需要更多的读缓冲区，这对性能更友好，但会更容易遇到"网络内存不足"的报错。
-
-在初始阶段：
-- 获取生效的必须（Required）缓冲区数量，这个值来自下面两个值的最小值：上述公式计算得到的缓冲区总数和`taskmanager.network.memory.read-buffer.required-per-gate.max`配置值。
-- 当总的网络内存小于生效的必须（Required）缓冲区数量，作业会抛出异常。
-- 如果内存足够，会根据配置给每个通道分配配置的专用缓冲区（Exclusive Buffer）。但是如果内存不足，会逐渐地降低给每个通道分配配置的专用缓冲区数量，直到所有的缓冲区都变成可流动的缓冲区（Floating Buffer）。
+用户正常使用时，不建议调整上面这个阈值。除非你是一个 Flink 网络方面的专家，能够很明确的理解这个阈值带来的影响，才能通过 `taskmanager.network.memory.read-buffer.required-per-gate.max`这个配置对上述阈值进行调整。如果这个选项被配置为较小值，能够最大程度的减少出现"网络内存不足"的报错，但是可能会静默地降低运行性能。如果这个选项被配置为Integer.MAX_VALUE，则关闭了最多必须（Required）缓冲区的限制，如果关闭这个能力，作业执行可能会需要更多的读缓冲区，这对性能更友好，但会更容易遇到"网络内存不足"的报错。
 
 ### 输出网络缓冲
 
