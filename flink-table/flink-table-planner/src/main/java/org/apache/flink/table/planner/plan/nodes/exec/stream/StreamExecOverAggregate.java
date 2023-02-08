@@ -25,9 +25,12 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
+import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -39,6 +42,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -55,10 +59,14 @@ import org.apache.flink.table.runtime.operators.over.RowTimeRangeBoundedPrecedin
 import org.apache.flink.table.runtime.operators.over.RowTimeRangeUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction;
+import org.apache.flink.table.runtime.operators.rank.ComparableRecordComparator;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.runtime.operators.over.OverAggregateFunction;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -100,6 +108,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_OVER_SPEC)
     private final OverSpec overSpec;
 
+    // XXX(sergei): parameterize this
+    private final boolean useGenericOverAggregate = true;
+
     public StreamExecOverAggregate(
             ReadableConfig tableConfig,
             OverSpec overSpec,
@@ -139,41 +150,15 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         }
 
         final OverSpec.GroupSpec group = overSpec.getGroups().get(0);
-        final int[] orderKeys = group.getSort().getFieldIndices();
-        final boolean[] isAscendingOrders = group.getSort().getAscendingOrders();
-        if (orderKeys.length != 1 || isAscendingOrders.length != 1) {
-            throw new TableException("The window can only be ordered by a single time column.");
-        }
 
-        if (!isAscendingOrders[0]) {
-            throw new TableException("The window can only be ordered in ASCENDING mode.");
-        }
-
-        final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
-            LOG.warn(
-                    "No state retention interval configured for a query which accumulates state. "
-                            + "Please provide a query configuration with valid retention interval to prevent "
-                            + "excessive state size. You may specify a retention time of 0 to not clean up the state.");
-        }
+        final KeyedProcessFunction<RowData, RowData, RowData> overProcessFunction;
 
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
-
-        final int orderKey = orderKeys[0];
-        final LogicalType orderKeyType = inputRowType.getFields().get(orderKey).getType();
-        // check time field && identify window rowtime attribute
-        final int rowTimeIdx;
-        if (isRowtimeAttribute(orderKeyType)) {
-            rowTimeIdx = orderKey;
-        } else if (isProctimeAttribute(orderKeyType)) {
-            rowTimeIdx = -1;
-        } else {
-            throw new TableException(
-                    "OVER windows' ordering in stream mode must be defined on a time attribute.");
-        }
+        final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
+        InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputRowType);
 
         final List<RexLiteral> constants = overSpec.getConstants();
         final List<String> fieldNames = new ArrayList<>(inputRowType.getFieldNames());
@@ -190,50 +175,104 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
 
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
-        final KeyedProcessFunction<RowData, RowData, RowData> overProcessFunction;
-        if (group.getLowerBound().isPreceding()
-                && group.getLowerBound().isUnbounded()
-                && group.getUpperBound().isCurrentRow()) {
-            // unbounded OVER window
-            overProcessFunction =
-                    createUnboundedOverProcessFunction(
-                            ctx,
-                            group.getAggCalls(),
-                            constants,
-                            aggInputRowType,
-                            inputRowType,
-                            rowTimeIdx,
-                            group.isRows(),
-                            config,
-                            planner.createRelBuilder(),
-                            planner.getTypeFactory());
-        } else if (group.getLowerBound().isPreceding()
-                && !group.getLowerBound().isUnbounded()
-                && group.getUpperBound().isCurrentRow()) {
-            final Object boundValue =
-                    OverAggregateUtil.getBoundary(overSpec, group.getLowerBound());
 
-            if (boundValue instanceof BigDecimal) {
-                throw new TableException(
-                        "the specific value is decimal which haven not supported yet.");
+
+        if (useGenericOverAggregate) {
+
+            if (group.getSort().getFieldSize() == 0) {
+                throw new TableException("OVER windows without an ORDER BY are not supported yet in this context");
             }
-            // bounded OVER window
-            final long precedingOffset = -1 * (long) boundValue + (group.isRows() ? 1 : 0);
-            overProcessFunction =
-                    createBoundedOverProcessFunction(
-                            ctx,
-                            group.getAggCalls(),
-                            constants,
-                            aggInputRowType,
-                            inputRowType,
-                            rowTimeIdx,
-                            group.isRows(),
-                            precedingOffset,
-                            config,
-                            planner.createRelBuilder(),
-                            planner.getTypeFactory());
+
+            overProcessFunction = createGenericOverAggregateFunction(
+                                    ctx,
+                                    config,
+                                    group.getAggCalls(),
+                                    constants,
+                                    group.getSort(),
+                                    inputRowType,
+                                    aggInputRowType,
+                                    inputRowTypeInfo,
+                                    planner.getFlinkContext().getClassLoader(),
+                                    planner.createRelBuilder(),
+                                    planner.getTypeFactory());
         } else {
-            throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.");
+            final int[] orderKeys = group.getSort().getFieldIndices();
+            final boolean[] isAscendingOrders = group.getSort().getAscendingOrders();
+            final int orderKey = orderKeys[0];
+            final LogicalType orderKeyType = inputRowType.getFields().get(orderKey).getType();
+
+
+            if (orderKeys.length != 1 || isAscendingOrders.length != 1) {
+                throw new TableException("The window can only be ordered by a single time column.");
+            }
+
+            if (!isAscendingOrders[0]) {
+                throw new TableException("The window can only be ordered in ASCENDING mode.");
+            }
+
+            if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
+                LOG.warn(
+                        "No state retention interval configured for a query which accumulates state. "
+                                + "Please provide a query configuration with valid retention interval to prevent "
+                                + "excessive state size. You may specify a retention time of 0 to not clean up the state.");
+            }
+
+
+            // check time field && identify window rowtime attribute
+            final int rowTimeIdx;
+            if (isRowtimeAttribute(orderKeyType)) {
+                rowTimeIdx = orderKey;
+            } else if (isProctimeAttribute(orderKeyType)) {
+                rowTimeIdx = -1;
+            } else {
+                throw new TableException(
+                        "OVER windows' ordering in stream mode must be defined on a time attribute instead of " + orderKeyType);
+            }
+
+            if (group.getLowerBound().isPreceding()
+                    && group.getLowerBound().isUnbounded()
+                    && group.getUpperBound().isCurrentRow()) {
+                // unbounded OVER window
+                overProcessFunction =
+                        createUnboundedOverProcessFunction(
+                                ctx,
+                                group.getAggCalls(),
+                                constants,
+                                aggInputRowType,
+                                inputRowType,
+                                rowTimeIdx,
+                                group.isRows(),
+                                config,
+                                planner.createRelBuilder(),
+                                planner.getTypeFactory());
+            } else if (group.getLowerBound().isPreceding()
+                    && !group.getLowerBound().isUnbounded()
+                    && group.getUpperBound().isCurrentRow()) {
+                final Object boundValue =
+                        OverAggregateUtil.getBoundary(overSpec, group.getLowerBound());
+
+                if (boundValue instanceof BigDecimal) {
+                    throw new TableException(
+                            "the specific value is decimal which haven not supported yet.");
+                }
+                // bounded OVER window
+                final long precedingOffset = -1 * (long) boundValue + (group.isRows() ? 1 : 0);
+                overProcessFunction =
+                        createBoundedOverProcessFunction(
+                                ctx,
+                                group.getAggCalls(),
+                                constants,
+                                aggInputRowType,
+                                inputRowType,
+                                rowTimeIdx,
+                                group.isRows(),
+                                precedingOffset,
+                                config,
+                                planner.createRelBuilder(),
+                                planner.getTypeFactory());
+            } else {
+                throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.");
+            }
         }
 
         final KeyedProcessOperator<RowData, RowData, RowData> operator =
@@ -257,6 +296,106 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         transform.setStateKeyType(selector.getProducedType());
 
         return transform;
+    }
+
+    private KeyedProcessFunction<RowData, RowData, RowData> createGenericOverAggregateFunction(
+                CodeGeneratorContext ctx,
+                ExecNodeConfig config,
+                List<AggregateCall> aggCalls,
+                List<RexLiteral> constants,
+                SortSpec sortSpec,
+                RowType inputRowType,
+                RowType aggInputRowType,
+                InternalTypeInfo<RowData> inputRowTypeInfo,
+                ClassLoader classLoader,
+                RelBuilder relBuilder,
+                FlinkTypeFactory typeFactory) {
+
+        final boolean isBatchBackfillEnabled = config.get(ExecutionConfigOptions.TABLE_EXEC_BATCH_BACKFILL);
+
+        boolean[] aggCallNeedRetractions = new boolean[aggCalls.size()];
+        Arrays.fill(aggCallNeedRetractions, false);
+
+        AggregateInfoList aggInfoList =
+                AggregateUtil.transformToStreamAggregateInfoList(
+                        typeFactory,
+                        // use aggInputType which considers constants as input instead of
+                        // inputSchema.relDataType
+                        aggInputRowType,
+                        JavaScalaConversionUtil.toScala(aggCalls),
+                        aggCallNeedRetractions,
+                        false, // needRetraction
+                        true, // isStateBackendDataViews
+                        true); // needDistinctInfo
+
+        LogicalType[] fieldTypes = inputRowType.getChildren().toArray(new LogicalType[0]);
+        AggsHandlerCodeGenerator generator =
+                new AggsHandlerCodeGenerator(
+                        ctx,
+                        relBuilder,
+                        JavaScalaConversionUtil.toScala(Arrays.asList(fieldTypes)),
+                        false); // copyInputField
+
+        GeneratedAggsHandleFunction genAggsHandler =
+                generator
+                        .needAccumulate()
+                        // .needRetract()
+                        // over agg code gen must pass the constants
+                        .withConstants(JavaScalaConversionUtil.toScala(constants))
+                        .generateAggsHandler("GenericOverAggregateHelper", aggInfoList);
+
+        LogicalType[] flattenAccTypes =
+                Arrays.stream(aggInfoList.getAccTypes())
+                        .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
+                        .toArray(LogicalType[]::new);
+
+        EqualiserCodeGenerator equaliserCodeGen =
+                new EqualiserCodeGenerator(
+                        inputRowType.getFields().stream()
+                                .map(RowType.RowField::getType)
+                                .toArray(LogicalType[]::new),
+                        classLoader);
+
+        GeneratedRecordEqualiser generatedEqualiser =
+                equaliserCodeGen.generateRecordEqualiser("OverAggregateEqualiser");
+
+        int[] sortFields = sortSpec.getFieldIndices();
+        int[] sortKeyPositions = IntStream.range(0, sortFields.length).toArray();
+        SortSpec.SortSpecBuilder builder = SortSpec.builder();
+        IntStream.range(0, sortFields.length)
+                .forEach(
+                        idx ->
+                                builder.addField(
+                                        idx,
+                                        sortSpec.getFieldSpec(idx).getIsAscendingOrder(),
+                                        sortSpec.getFieldSpec(idx).getNullIsLast()));
+        SortSpec sortSpecInSortKey = builder.build();
+        GeneratedRecordComparator sortKeyComparator =
+                ComparatorCodeGenerator.gen(
+                        config,
+                        classLoader,
+                        "StreamExecOverAggregateOrderByComparator",
+                        RowType.of(sortSpec.getFieldTypes(inputRowType)),
+                        sortSpecInSortKey);
+
+        RowDataKeySelector sortKeySelector =
+            KeySelectorUtil.getRowDataSelector(classLoader, sortFields, inputRowTypeInfo);
+
+        ComparableRecordComparator comparableSortKeyComparator =
+                new ComparableRecordComparator(
+                        sortKeyComparator,
+                        sortKeyPositions,
+                        sortSpec.getFieldTypes(inputRowType),
+                        sortSpec.getAscendingOrders(),
+                        sortSpec.getNullsIsLast());
+
+        return new OverAggregateFunction(
+                inputRowTypeInfo,
+                genAggsHandler,
+                generatedEqualiser,
+                comparableSortKeyComparator,
+                sortKeySelector,
+                isBatchBackfillEnabled);
     }
 
     /**
