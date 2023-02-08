@@ -31,3 +31,4 @@ grpcio-tools>=1.29.0,<=1.46.3
 pemja==0.3.0; platform_system != 'Windows'
 httplib2>=0.19.0,<=0.20.4
 protobuf>=3.19.0,<=3.21
+pytest~=7.0
