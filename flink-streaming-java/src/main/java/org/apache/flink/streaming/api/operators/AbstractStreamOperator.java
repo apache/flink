@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -48,6 +49,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
+import org.apache.flink.streaming.api.operators.util.DebugLogWatcher;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -60,6 +62,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Paths;
 import java.io.Serializable;
 import java.util.Locale;
 import java.util.Optional;
@@ -122,7 +125,7 @@ public abstract class AbstractStreamOperator<OUT>
      *
      * <p>This is for elements from the first input.
      */
-    private transient KeySelector<?, ?> stateKeySelector1;
+    protected transient KeySelector<?, ?> stateKeySelector1;
 
     /**
      * {@code KeySelector} for extracting a key from an element being processed. This is used to
@@ -130,7 +133,7 @@ public abstract class AbstractStreamOperator<OUT>
      *
      * <p>This is for elements from the second input.
      */
-    private transient KeySelector<?, ?> stateKeySelector2;
+    protected transient KeySelector<?, ?> stateKeySelector2;
 
     private transient StreamOperatorStateHandler stateHandler;
 
@@ -142,6 +145,8 @@ public abstract class AbstractStreamOperator<OUT>
     protected transient InternalOperatorMetricGroup metrics;
 
     protected transient LatencyStats latencyStats;
+
+    protected DebugLogWatcher debugLogWatcher;
 
     // ---------------- time handler ------------------
 
@@ -234,6 +239,10 @@ public abstract class AbstractStreamOperator<OUT>
 
         stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
         stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
+
+        String fileName = getOperatorID().toString() + ".debug";
+        String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        this.debugLogWatcher = new DebugLogWatcher(Paths.get(configDir, fileName).toString(), getOperatorName(), 10);
     }
 
     /**
@@ -327,6 +336,7 @@ public abstract class AbstractStreamOperator<OUT>
         if (stateHandler != null) {
             stateHandler.dispose();
         }
+        this.debugLogWatcher.close();
     }
 
     @Override
@@ -404,6 +414,10 @@ public abstract class AbstractStreamOperator<OUT>
 
     public ClassLoader getUserCodeClassloader() {
         return container.getUserCodeClassLoader();
+    }
+
+    public boolean shouldLogInput() {
+        return debugLogWatcher.shouldLog();
     }
 
     /**
