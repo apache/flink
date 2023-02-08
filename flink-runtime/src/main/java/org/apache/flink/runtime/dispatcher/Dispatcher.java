@@ -128,8 +128,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         implements DispatcherGateway {
 
+    @VisibleForTesting
     public static final ConfigOption<Duration> CLIENT_ALIVENESS_CHECK_DURATION =
-            ConfigOptions.key("internal.client-aliveness-check.interval")
+            ConfigOptions.key("$internal.dispatcher.client-aliveness-check.interval")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(1));
 
