@@ -349,6 +349,42 @@ public class ExecutionConfigOptions {
                                     + "'table.exec.mini-batch.size' must be set.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_MINIBATCH_JOIN_MAX_SIZE =
+            key("table.exec.mini-batch.join.size")
+                    .intType()
+                    .defaultValue(25000)
+                    .withDescription(
+                            "The maximum number of input records can be buffered for MiniBatch for JOIN operators. "
+                                    + "MiniBatch is an optimization to buffer input records to reduce state access. "
+                                    + "MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. ");
+
+
+    // ------------------------------------------------------------------------
+    // Backfill Exec Options
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_BATCH_BACKFILL =
+            key("table.exec.batch-backfill")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Use hybrid batch stream mode for backfill");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_IS_BOUNDED_LATEST =
+            key("table.exec.force-bounded-latest")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Use bounded mode for unbounded Kafka operators");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_DEDUP_SINK_MATERIALIZER =
+            key("table.exec.dedup-sink-materializer")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("Use DedupSinkUpsertMaterializer variant");
+
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_MINIBATCH_ALLOW_LATENCY =
             key("table.exec.mini-batch.allow-latency")
                     .durationType()
