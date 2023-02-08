@@ -38,7 +38,7 @@ import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderCont
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.commons.collections.IteratorUtils;
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.hadoop.hbase.HConstants;
 import org.junit.Rule;
 import org.junit.Test;

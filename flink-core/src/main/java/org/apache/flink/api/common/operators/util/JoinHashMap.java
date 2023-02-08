@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import org.apache.commons.collections.map.AbstractHashedMap;
+import org.apache.commons.collections4.map.AbstractHashedMap;
 
 @Internal
 public class JoinHashMap<BT> extends AbstractHashedMap {
@@ -48,25 +48,23 @@ public class JoinHashMap<BT> extends AbstractHashedMap {
 
     public <PT> Prober<PT> createProber(
             TypeComparator<PT> probeComparator, TypePairComparator<PT, BT> pairComparator) {
-        return new Prober<PT>(probeComparator, pairComparator);
+        return new Prober<>(probeComparator, pairComparator);
     }
 
     @SuppressWarnings("unchecked")
     public void insertOrReplace(BT record) {
-        int hashCode = hash(buildComparator.hash(record));
-        int index = hashIndex(hashCode, data.length);
+        Object key = buildComparator.hash(record);
         buildComparator.setReference(record);
-        HashEntry entry = data[index];
-        while (entry != null) {
-            if (entryHashCode(entry) == hashCode
-                    && buildComparator.equalToReference((BT) entry.getValue())) {
-                entry.setValue(record);
-                return;
+        if (containsKey(key)) {
+            HashEntry<Object, BT> entry = getEntry(key);
+            if (entry != null) {
+                if (buildComparator.equalToReference(entry.getValue())) {
+                    entry.setValue(record);
+                    return;
+                }
             }
-            entry = entryNext(entry);
         }
-
-        addMapping(index, hashCode, null, record);
+        put(key, record);
     }
 
     public class Prober<PT> {
@@ -83,16 +81,15 @@ public class JoinHashMap<BT> extends AbstractHashedMap {
 
         @SuppressWarnings("unchecked")
         public BT lookupMatch(PT record) {
-            int hashCode = hash(probeComparator.hash(record));
-            int index = hashIndex(hashCode, data.length);
+            Object key = probeComparator.hash(record);
             pairComparator.setReference(record);
-            HashEntry entry = data[index];
-            while (entry != null) {
-                if (entryHashCode(entry) == hashCode
-                        && pairComparator.equalToReference((BT) entry.getValue())) {
-                    return (BT) entry.getValue();
+            if (containsKey(key)) {
+                HashEntry<Object, PT> entry = getEntry(key);
+                if (entry != null) {
+                    if (pairComparator.equalToReference((BT) entry.getValue())) {
+                        return (BT) entry.setValue(record);
+                    }
                 }
-                entry = entryNext(entry);
             }
             return null;
         }

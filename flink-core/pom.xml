@@ -96,9 +96,10 @@ under the License.
 		</dependency>
 
 		<!-- The common collections are needed for some hash tables used in the collection execution -->
+
 		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
 			<!-- managed version -->
 		</dependency>
 

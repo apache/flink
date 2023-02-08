@@ -35,7 +35,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.commons.collections.iterators.IteratorChain;
+import org.apache.commons.collections4.iterators.IteratorChain;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 

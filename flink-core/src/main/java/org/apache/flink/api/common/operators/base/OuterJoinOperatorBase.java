@@ -37,8 +37,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
 
-import org.apache.commons.collections.ResettableIterator;
-import org.apache.commons.collections.iterators.ListIteratorWrapper;
+import org.apache.commons.collections4.ResettableIterator;
+import org.apache.commons.collections4.iterators.ListIteratorWrapper;
 
 import java.io.IOException;
 import java.util.ArrayList;

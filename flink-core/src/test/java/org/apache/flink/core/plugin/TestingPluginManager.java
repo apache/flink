@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.plugin;
 
-import org.apache.commons.collections.IteratorUtils;
+import org.apache.commons.collections4.IteratorUtils;
 
 import java.util.Iterator;
 import java.util.Map;

@@ -23,7 +23,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.MetricGroup;
 
-import org.apache.commons.collections.map.CompositeMap;
+import org.apache.commons.collections4.map.CompositeMap;
 
 import java.util.Collections;
 import java.util.Map;
