@@ -975,6 +975,8 @@ public class KafkaDynamicTableFactoryTest {
                 specificStartupOffsets,
                 startupTimestampMillis,
                 false,
+                -1 /* sourceParallelism */,
+                false, /* isBackfilleBatchModeEnabled */
                 FactoryMocks.IDENTIFIER.asSummaryString());
     }
 

@@ -60,6 +60,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SOURCE_PARALLELISM;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX;
@@ -207,6 +208,10 @@ class KafkaConnectorOptionsUtil {
 
     public static List<String> getSourceTopics(ReadableConfig tableOptions) {
         return tableOptions.getOptional(TOPIC).orElse(null);
+    }
+
+    public static int getSourceParallelism(ReadableConfig tableOptions) {
+        return tableOptions.getOptional(SOURCE_PARALLELISM).orElse(-1);
     }
 
     public static Pattern getSourceTopicPattern(ReadableConfig tableOptions) {

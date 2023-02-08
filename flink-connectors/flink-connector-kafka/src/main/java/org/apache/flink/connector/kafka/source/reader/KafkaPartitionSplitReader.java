@@ -97,19 +97,28 @@ public class KafkaPartitionSplitReader
     @Override
     public RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>> fetch() throws IOException {
         ConsumerRecords<byte[], byte[]> consumerRecords;
-        try {
-            consumerRecords = consumer.poll(Duration.ofMillis(POLL_TIMEOUT));
-        } catch (WakeupException | IllegalStateException e) {
-            // IllegalStateException will be thrown if the consumer is not assigned any partitions.
-            // This happens if all assigned partitions are invalid or empty (starting offset >=
-            // stopping offset). We just mark empty partitions as finished and return an empty
-            // record container, and this consumer will be closed by SplitFetcherManager.
-            KafkaPartitionSplitRecords recordsBySplits =
-                    new KafkaPartitionSplitRecords(
-                            ConsumerRecords.empty(), kafkaSourceReaderMetrics);
-            markEmptySplitsAsFinished(recordsBySplits);
-            return recordsBySplits;
+
+        if (consumer.assignment().isEmpty()) {
+            // In cases where we have small inputs with empty partitions, it's possible
+            // to have no data in any of tem. The consume.poll() below will fail with
+            // an InvalidState exception in such cases, so do the check here first.
+            consumerRecords = ConsumerRecords.empty();
+        } else {
+            try {
+                consumerRecords = consumer.poll(Duration.ofMillis(POLL_TIMEOUT));
+            } catch (WakeupException | IllegalStateException e) {
+                // IllegalStateException will be thrown if the consumer is not assigned any partitions.
+                // This happens if all assigned partitions are invalid or empty (starting offset >=
+                // stopping offset). We just mark empty partitions as finished and return an empty
+                // record container, and this consumer will be closed by SplitFetcherManager.
+                KafkaPartitionSplitRecords recordsBySplits =
+                        new KafkaPartitionSplitRecords(
+                                ConsumerRecords.empty(), kafkaSourceReaderMetrics);
+                markEmptySplitsAsFinished(recordsBySplits);
+                return recordsBySplits;
+            }
         }
+
         KafkaPartitionSplitRecords recordsBySplits =
                 new KafkaPartitionSplitRecords(consumerRecords, kafkaSourceReaderMetrics);
         List<TopicPartition> finishedPartitions = new ArrayList<>();

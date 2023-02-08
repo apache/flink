@@ -79,6 +79,14 @@ public class KafkaConnectorOptions {
                                             + "appear in the data type for both the key and value format.",
                                     ValueFieldsStrategy.ALL));
 
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("source.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Override default job parallelism with this value for source reads. Used to "
+                                    + "match Kafka partition parallelism to enable watermaks to work correctly.");
+
     public static final ConfigOption<String> KEY_FIELDS_PREFIX =
             ConfigOptions.key("key.fields-prefix")
                     .stringType()

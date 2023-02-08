@@ -154,6 +154,10 @@ public class KafkaDynamicSource
 
     protected final String tableIdentifier;
 
+    protected final int sourceParallelism;
+
+    protected final boolean isBoundedLatest;
+
     public KafkaDynamicSource(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
@@ -168,6 +172,8 @@ public class KafkaDynamicSource
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             boolean upsertMode,
+            int sourceParallelism,
+            boolean isBoundedLatest,
             String tableIdentifier) {
         // Format attributes
         this.physicalDataType =
@@ -202,6 +208,8 @@ public class KafkaDynamicSource
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
+        this.sourceParallelism = sourceParallelism;
+        this.isBoundedLatest = isBoundedLatest;
     }
 
     @Override
@@ -234,6 +242,9 @@ public class KafkaDynamicSource
                         execEnv.fromSource(
                                 kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
                 providerContext.generateUid(KAFKA_TRANSFORMATION).ifPresent(sourceStream::uid);
+                if (sourceParallelism > 0) {
+                    sourceStream.setParallelism(sourceParallelism);
+                }
                 return sourceStream;
             }
 
@@ -315,6 +326,8 @@ public class KafkaDynamicSource
                         specificStartupOffsets,
                         startupTimestampMillis,
                         upsertMode,
+                        sourceParallelism,
+                        isBoundedLatest,
                         tableIdentifier);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
@@ -394,6 +407,10 @@ public class KafkaDynamicSource
             kafkaSourceBuilder.setTopics(topics);
         } else {
             kafkaSourceBuilder.setTopicPattern(topicPattern);
+        }
+
+        if (isBoundedLatest) {
+            kafkaSourceBuilder.setBounded(OffsetsInitializer.latest());
         }
 
         switch (startupMode) {

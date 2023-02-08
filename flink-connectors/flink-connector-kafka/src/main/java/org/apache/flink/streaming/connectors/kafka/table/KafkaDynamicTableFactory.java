@@ -31,6 +31,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -75,6 +76,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_TOPIC_PARTITION_DISCOVERY;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARALLELISM;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SOURCE_PARALLELISM;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX;
@@ -87,6 +89,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createValueFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getFlinkKafkaPartitioner;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getKafkaProperties;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceParallelism;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopicPattern;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopics;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getStartupOptions;
@@ -140,6 +143,7 @@ public class KafkaDynamicTableFactory
         options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
         options.add(SINK_PARTITIONER);
         options.add(SINK_PARALLELISM);
+        options.add(SOURCE_PARALLELISM);
         options.add(DELIVERY_GUARANTEE);
         options.add(TRANSACTIONAL_ID_PREFIX);
         options.add(SINK_SEMANTIC);
@@ -176,6 +180,11 @@ public class KafkaDynamicTableFactory
         helper.validateExcept(PROPERTIES_PREFIX);
 
         final ReadableConfig tableOptions = helper.getOptions();
+
+        final boolean isBoundedLatest =
+                context.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_BATCH_BACKFILL)
+                        || context.getConfiguration()
+                                .get(ExecutionConfigOptions.TABLE_EXEC_IS_BOUNDED_LATEST);
 
         validateTableSourceOptions(tableOptions);
 
@@ -217,6 +226,8 @@ public class KafkaDynamicTableFactory
                 startupOptions.startupMode,
                 startupOptions.specificOffsets,
                 startupOptions.startupTimestampMillis,
+                getSourceParallelism(tableOptions),
+                isBoundedLatest,
                 context.getObjectIdentifier().asSummaryString());
     }
 
@@ -378,6 +389,8 @@ public class KafkaDynamicTableFactory
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
+            int sourceParallelism,
+            boolean isBoundedLatest,
             String tableIdentifier) {
         return new KafkaDynamicSource(
                 physicalDataType,
@@ -393,6 +406,8 @@ public class KafkaDynamicTableFactory
                 specificStartupOffsets,
                 startupTimestampMillis,
                 false,
+                sourceParallelism,
+                isBoundedLatest,
                 tableIdentifier);
     }
 

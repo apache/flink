@@ -86,11 +86,12 @@ public class KafkaSourceReader<T>
     protected void onSplitFinished(Map<String, KafkaPartitionSplitState> finishedSplitIds) {
         finishedSplitIds.forEach(
                 (ignored, splitState) -> {
-                    if (splitState.getCurrentOffset() >= 0) {
-                        offsetsOfFinishedSplits.put(
-                                splitState.getTopicPartition(),
-                                new OffsetAndMetadata(splitState.getCurrentOffset()));
-                    }
+                    // if (splitState.getCurrentOffset() >= 0) {
+                    long offset = splitState.getCurrentOffset();
+                    offset = offset < 0 ? 0L : offset;
+                    offsetsOfFinishedSplits.put(
+                            splitState.getTopicPartition(), new OffsetAndMetadata(offset));
+                    // }
                 });
     }
 
@@ -110,15 +111,32 @@ public class KafkaSourceReader<T>
             for (KafkaPartitionSplit split : splits) {
                 // If the checkpoint is triggered before the partition starting offsets
                 // is retrieved, do not commit the offsets for those partitions.
-                if (split.getStartingOffset() >= 0) {
-                    offsetsMap.put(
-                            split.getTopicPartition(),
-                            new OffsetAndMetadata(split.getStartingOffset()));
-                }
+
+                // Partitions with no data will report an offset of <0, which will cause
+                // the reader to silently drop them and not add them to checkpoint state,
+                // and we will lose that state on savepoint restore. Force the reporting
+                // of ALL partitions, even those that never returned data since they can
+                // return data later in production
+                // if (split.getStartingOffset() >= 0) {
+                offsetsMap.put(
+                        split.getTopicPartition(),
+                        new OffsetAndMetadata(
+                                split.getStartingOffset() >= 0 ? split.getStartingOffset() : 0L));
+                // }
             }
             // Put offsets of all the finished splits.
             offsetsMap.putAll(offsetsOfFinishedSplits);
+
+            // The original code never did anything with offsetsMap. It's unclear why this
+            // was the case, but we definitely want to save that state during savepoints
+            for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsetsMap.entrySet()) {
+                OffsetAndMetadata meta = entry.getValue();
+                KafkaPartitionSplit split = new KafkaPartitionSplit(entry.getKey(), meta.offset());
+                splits.add(split);
+            }
         }
+
+        LOG.debug("SNAPSHOT returning split {}", splits);
         return splits;
     }
 
