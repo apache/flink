@@ -216,7 +216,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             LOG.debug(
                     "pre-emptively flush {}MB of appended changes to the common store",
                     activeChangeSetSize / 1024 / 1024);
-            persistInternal(notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey());
+            persistInternal(activeSequenceNumber);
         }
     }
 
@@ -433,6 +433,11 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     @VisibleForTesting
     SequenceNumber lastAppendedSqnUnsafe() {
         return activeSequenceNumber;
+    }
+
+    @VisibleForTesting
+    public NavigableMap<SequenceNumber, StateChangeSet> getNotUploaded() {
+        return notUploaded;
     }
 
     private void ensureCanPersist(SequenceNumber from) throws IOException {

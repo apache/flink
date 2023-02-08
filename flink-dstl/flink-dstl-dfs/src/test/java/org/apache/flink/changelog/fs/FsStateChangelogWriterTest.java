@@ -202,6 +202,33 @@ class FsStateChangelogWriterTest {
     }
 
     @Test
+    void testPreEmptivelyUpload() throws Exception {
+        int preEmptivelyUploadThreshold = 100;
+        withWriter(
+                preEmptivelyUploadThreshold,
+                (writer, uploader) -> {
+                    writer.append(KEY_GROUP, getBytes(10));
+
+                    // trigger materialization, move ChangeSet[sqn=0] to notUploaded
+                    SequenceNumber materializationSqn = writer.nextSequenceNumber();
+
+                    // trigger pre-emptively upload
+                    writer.append(KEY_GROUP, getBytes(100));
+
+                    // assert pre-emptively upload happened
+                    SequenceNumber sqnAfterPreEmptivelyUpload = writer.lastAppendedSqnUnsafe();
+                    assertThat(sqnAfterPreEmptivelyUpload).isEqualTo(materializationSqn.next());
+
+                    // assert pre-emptively upload not persisted older data
+                    assertThat(writer.getNotUploaded()).isNotEmpty();
+
+                    // assert notUploaded will be clean after truncated
+                    writer.truncate(materializationSqn);
+                    assertThat(writer.getNotUploaded()).isEmpty();
+                });
+    }
+
+    @Test
     void testTruncate() {
         assertThatThrownBy(
                         () ->
