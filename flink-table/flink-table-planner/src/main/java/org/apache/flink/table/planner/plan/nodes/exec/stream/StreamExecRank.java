@@ -60,6 +60,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -217,6 +218,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
         StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(config.getStateRetentionTime());
 
+        final boolean isBatchBackfillEnabled = config.get(ExecutionConfigOptions.TABLE_EXEC_BATCH_BACKFILL);
+
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
             if (sortFields.length == 1
@@ -319,7 +322,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                             rankRange,
                             generatedEqualiser,
                             generateUpdateBefore,
-                            outputRankNumber);
+                            outputRankNumber,
+                            isBatchBackfillEnabled);
         } else {
             throw new TableException(
                     String.format("rank strategy:%s is not supported.", rankStrategy));

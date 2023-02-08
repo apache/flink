@@ -56,7 +56,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 rankRange,
                 generatedEqualiser,
                 generateUpdateBefore,
-                outputRankNumber);
+                outputRankNumber,
+                false /* isBatchBackfillEnabled */ );
     }
 
     @Test
@@ -532,7 +533,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                         new ConstantRankRange(1, 1),
                         generatedEqualiser,
                         true,
-                        false);
+                        false,
+                        false /* isBatchBackfillEnabled */ );
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
@@ -571,7 +573,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                         new ConstantRankRange(1, 2),
                         generatedEqualiser,
                         true,
-                        true);
+                        true,
+                        false /* isBatchBackfillEnabled */);
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();

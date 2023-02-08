@@ -137,6 +137,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         this.sortKeySelector = sortKeySelector;
     }
 
+    protected String getPrintableName() {
+        return getRuntimeContext().getJobId() + " " + getRuntimeContext().getTaskName();
+    }
+
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
