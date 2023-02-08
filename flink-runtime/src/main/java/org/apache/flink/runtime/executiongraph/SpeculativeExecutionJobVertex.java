@@ -64,7 +64,7 @@ public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
             CoordinatorStore coordinatorStore)
             throws Exception {
         return OperatorCoordinatorHolder.create(
-                provider, this, classLoader, coordinatorStore, true);
+                provider, this, classLoader, coordinatorStore, true, getTaskInformation());
     }
 
     /** Factory to create {@link SpeculativeExecutionJobVertex}. */
