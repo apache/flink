@@ -18,18 +18,26 @@
 
 package org.apache.flink.table.planner.alias;
 
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.fun.SqlCollectionTableOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlModality;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -56,6 +64,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                 .executeSql(
                         "CREATE TABLE src (\n"
                                 + "  a BIGINT,"
+                                + "  ds ARRAY<BIGINT>,"
                                 + "  pts AS PROCTIME()\n"
                                 + ") WITH (\n"
                                 + " 'connector' = 'values'\n"
@@ -67,6 +76,10 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 + ") WITH (\n"
                                 + " 'connector' = 'values'\n"
                                 + ")");
+        util.tableEnv()
+                .createTemporarySystemFunction(
+                        "MockOffset",
+                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest().new MockOffsetTableFunction());
     }
 
     @Test
@@ -116,7 +129,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
 
     @Test
     public void testClearLookupHintWithInvalidPropagationToSubQuery() {
-        // SELECT /*+ LOOKUP('table'='lookup', 'retry-predicate'='lookup_miss',
+        // SELECT /*+ LOOKUP('table'='src', 'retry-predicate'='lookup_miss',
         // 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
         // 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
         // */ t1.a
@@ -167,8 +180,114 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 JoinRelType.INNER,
                                 builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
                         .project(builder.field(1, 0, "a"))
-                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("lookup", true, true))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("src", true, true))
                         .build();
         verifyRelPlan(root);
+    }
+
+    @Test
+    public void testNoNeedToClearLookupHintWhileJoinWithUnnest() {
+        //  SELECT /*+ LOOKUP('table'='d', 'retry-predicate'='lookup_miss',
+        //  'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+        //  'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+        //  */ s.a
+        //  FROM src s
+        //  CROSS JOIN UNNEST(s.ds) AS d(a)
+
+        System.out.println(util.tableEnv().explainSql(" SELECT /*+ LOOKUP('table'='d', "
+                + "'retry-predicate'='lookup_miss',\n"
+                + "         'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',\n"
+                + "         'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')\n"
+                + "         */ s.a\n"
+                + "              FROM src s\n"
+                + "              CROSS JOIN UNNEST(s.ds) AS d(a)"));
+        CorrelationId cid = builder.getCluster().createCorrel();
+        RelDataType dsType =
+                builder.getTypeFactory()
+                        .createStructType(
+                                Collections.singletonList(
+                                        builder.getTypeFactory()
+                                                .createArrayType(
+                                                        builder
+                                                                .getTypeFactory()
+                                                                .createSqlType(SqlTypeName.BIGINT),
+                                                        -1L
+                                                )),
+                                Collections.singletonList("ds"));
+        RelOptCluster cluster = util.getPlanner().plannerContext().getCluster();
+        RelNode root =
+                builder.scan("src")
+                        .project(builder.field(1, 0, "a"))
+                        .push(LogicalValues.createOneRow(cluster))
+                        .project(builder.field(
+                                builder.getRexBuilder().makeCorrel(dsType, cid),
+                                "ds"))
+                        .uncollect(Collections.singletonList("a"), false)
+                        .project(builder.field(1, 0, "a"))
+                        .correlate(
+                                JoinRelType.INNER,
+                                cid)
+                        .project(builder.field(1, 0, "a"))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("d", true, false))
+                        .build();
+        verifyRelPlan(root);
+    }
+
+    @Test
+    public void testNoNeedToClearLookupHintWhileJoinWithUDTF() {
+        //  SELECT /*+ LOOKUP('table'='d', 'retry-predicate'='lookup_miss',
+        //  'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+        //  'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+        //  */ s.a
+        //  FROM src s
+        //  CROSS JOIN LATERAL TABLE(MockOffset(a)) AS d(b)
+
+        CorrelationId cid = builder.getCluster().createCorrel();
+        RelDataType bType = builder.getTypeFactory().
+                createStructType(
+                        Collections.singletonList(
+                                builder
+                                        .getTypeFactory()
+                                        .createSqlType(
+                                                SqlTypeName.BIGINT)),
+                        Collections.singletonList(
+                                "b"));
+        RelNode root =
+                builder.scan("src")
+                        .project(builder.field(1, 0, "a"))
+                        .functionScan(
+                                new SqlCollectionTableOperator("TABLE", SqlModality.RELATION) {
+                                    @Override
+                                    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+                                        return bType;
+                                    }
+                                },
+                                0,
+                                builder
+                                        .getRexBuilder()
+                                        .makeFieldAccess(
+                                                builder
+                                                        .getRexBuilder()
+                                                        .makeCorrel(bType
+                                                                ,
+                                                                cid),
+                                                0))
+                        .correlate(
+                                JoinRelType.INNER,
+                                cid)
+                        .project(builder.field(1, 0, "a"))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint(
+                                "d",
+                                true,
+                                false))
+                        .build();
+        verifyRelPlan(root);
+    }
+
+    @FunctionHint(output = @DataTypeHint("ROW< b BIGINT >"))
+    public class MockOffsetTableFunction extends TableFunction<Long> {
+        public void eval(Long arg) {
+            collect(arg + 10L);
+        }
     }
 }
