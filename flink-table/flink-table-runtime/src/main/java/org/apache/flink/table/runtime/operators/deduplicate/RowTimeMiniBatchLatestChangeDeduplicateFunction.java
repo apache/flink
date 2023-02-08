@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
 
 import javax.annotation.Nullable;
 
@@ -45,6 +46,8 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunction
     private final boolean generateInsert;
     private final int rowtimeIndex;
     private final boolean keepLastRow;
+    private final RowDataStringSerializer inputStringSerializer;
+
 
     public RowTimeMiniBatchLatestChangeDeduplicateFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -60,10 +63,14 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunction
         this.generateInsert = generateInsert;
         this.rowtimeIndex = rowtimeIndex;
         this.keepLastRow = keepLastRow;
+        this.inputStringSerializer = new RowDataStringSerializer(typeInfo.toRowType());
     }
 
     @Override
-    public RowData addInput(@Nullable RowData value, RowData input) throws Exception {
+    public RowData addInput(@Nullable RowData value, RowData input, boolean shouldLogInput) throws Exception {
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
+        }
         if (isDuplicate(value, input, rowtimeIndex, keepLastRow)) {
             return serializer.copy(input);
         }

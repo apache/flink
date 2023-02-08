@@ -26,6 +26,8 @@ import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
 
 import javax.annotation.Nullable;
 
@@ -41,6 +43,7 @@ public class MiniBatchLocalGroupAggFunction
 
     /** The code generated function used to handle aggregates. */
     private final GeneratedAggsHandleFunction genAggsHandler;
+    private final RowDataStringSerializer inputStringSerializer;
 
     /** Reused output row. */
     private transient JoinedRowData resultRow = new JoinedRowData();
@@ -48,8 +51,9 @@ public class MiniBatchLocalGroupAggFunction
     // function used to handle all aggregates
     private transient AggsHandleFunction function = null;
 
-    public MiniBatchLocalGroupAggFunction(GeneratedAggsHandleFunction genAggsHandler) {
+    public MiniBatchLocalGroupAggFunction(RowType inputType, GeneratedAggsHandleFunction genAggsHandler) {
         this.genAggsHandler = genAggsHandler;
+        this.inputStringSerializer = new RowDataStringSerializer(inputType);
     }
 
     @Override
@@ -63,7 +67,10 @@ public class MiniBatchLocalGroupAggFunction
     }
 
     @Override
-    public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+    public RowData addInput(@Nullable RowData previousAcc, RowData input, boolean shouldLogInput) throws Exception {
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
+        }
         RowData currentAcc;
         if (previousAcc == null) {
             currentAcc = function.createAccumulators();

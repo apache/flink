@@ -36,6 +36,8 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
+
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -95,6 +97,8 @@ public class MiniBatchGroupAggFunction
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
 
+    private final RowDataStringSerializer inputStringSerializer;
+
     /**
      * Creates a {@link MiniBatchGroupAggFunction}.
      *
@@ -122,6 +126,7 @@ public class MiniBatchGroupAggFunction
         this.accTypes = accTypes;
         this.inputType = inputType;
         this.generateUpdateBefore = generateUpdateBefore;
+        this.inputStringSerializer = new RowDataStringSerializer(inputType);
         this.stateRetentionTime = stateRetentionTime;
     }
 
@@ -149,10 +154,13 @@ public class MiniBatchGroupAggFunction
     }
 
     @Override
-    public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
+    public List<RowData> addInput(@Nullable List<RowData> value, RowData input, boolean shouldLogInput) throws Exception {
         List<RowData> bufferedRows = value;
         if (value == null) {
             bufferedRows = new ArrayList<>();
+        }
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
         }
         // input row maybe reused, we need deep copy here
         bufferedRows.add(inputRowSerializer.copy(input));

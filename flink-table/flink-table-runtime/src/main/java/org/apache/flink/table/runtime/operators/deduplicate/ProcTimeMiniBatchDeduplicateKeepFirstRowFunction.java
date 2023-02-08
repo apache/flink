@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import javax.annotation.Nullable;
 
@@ -39,15 +41,20 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunction
 
     private static final long serialVersionUID = -7994602893547654994L;
     private final TypeSerializer<RowData> serializer;
+    private final RowDataStringSerializer inputStringSerializer;
 
     public ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-            TypeSerializer<RowData> serializer, long stateRetentionTime) {
+        InternalTypeInfo<RowData> typeInfo, TypeSerializer<RowData> serializer, long stateRetentionTime) {
         super(Types.BOOLEAN, stateRetentionTime);
         this.serializer = serializer;
+        this.inputStringSerializer = new RowDataStringSerializer(typeInfo.toRowType());
     }
 
     @Override
-    public RowData addInput(@Nullable RowData value, RowData input) {
+    public RowData addInput(@Nullable RowData value, RowData input, boolean shouldLogInput) {
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
+        }
         if (value == null) {
             // put the input into buffer
             return serializer.copy(input);

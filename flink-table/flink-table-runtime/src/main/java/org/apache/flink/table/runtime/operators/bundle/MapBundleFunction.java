@@ -23,6 +23,9 @@ import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.util.Map;
@@ -38,11 +41,16 @@ import java.util.Map;
 public abstract class MapBundleFunction<K, V, IN, OUT> implements Function {
 
     private static final long serialVersionUID = -6672219582127325882L;
+    protected static final Logger LOG = LoggerFactory.getLogger(MapBundleFunction.class);
 
     protected transient ExecutionContext ctx;
 
     public void open(ExecutionContext ctx) throws Exception {
         this.ctx = Preconditions.checkNotNull(ctx);
+    }
+
+    protected String getPrintableName() {
+        return ctx.getRuntimeContext().getJobId() + " " + ctx.getRuntimeContext().getTaskName();
     }
 
     /**
@@ -51,7 +59,7 @@ public abstract class MapBundleFunction<K, V, IN, OUT> implements Function {
      * @param value the existing bundle value, maybe null
      * @param input the given input, not null
      */
-    public abstract V addInput(@Nullable V value, IN input) throws Exception;
+    public abstract V addInput(@Nullable V value, IN input, boolean shouldLogInput) throws Exception;
 
     /**
      * Called when a bundle is finished. Transform a bundle to zero, one, or more output elements.

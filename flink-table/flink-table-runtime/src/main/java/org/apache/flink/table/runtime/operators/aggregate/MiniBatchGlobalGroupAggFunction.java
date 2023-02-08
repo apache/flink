@@ -34,6 +34,8 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
+import org.apache.flink.table.types.logical.RowType;
 
 import javax.annotation.Nullable;
 
@@ -83,6 +85,8 @@ public class MiniBatchGlobalGroupAggFunction
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
 
+    private final RowDataStringSerializer inputStringSerializer;
+
     /**
      * Creates a {@link MiniBatchGlobalGroupAggFunction}.
      *
@@ -100,6 +104,7 @@ public class MiniBatchGlobalGroupAggFunction
             GeneratedAggsHandleFunction genLocalAggsHandler,
             GeneratedAggsHandleFunction genGlobalAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
+            RowType inputType,
             LogicalType[] accTypes,
             int indexOfCountStar,
             boolean generateUpdateBefore,
@@ -111,6 +116,7 @@ public class MiniBatchGlobalGroupAggFunction
         this.recordCounter = RecordCounter.of(indexOfCountStar);
         this.generateUpdateBefore = generateUpdateBefore;
         this.stateRetentionTime = stateRetentionTime;
+        this.inputStringSerializer = new RowDataStringSerializer(inputType);
     }
 
     @Override
@@ -144,7 +150,10 @@ public class MiniBatchGlobalGroupAggFunction
      * accumulator in merge method.
      */
     @Override
-    public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+    public RowData addInput(@Nullable RowData previousAcc, RowData input, boolean shouldLogInput) throws Exception {
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
+        }
         RowData currentAcc;
         if (previousAcc == null) {
             currentAcc = localAgg.createAccumulators();

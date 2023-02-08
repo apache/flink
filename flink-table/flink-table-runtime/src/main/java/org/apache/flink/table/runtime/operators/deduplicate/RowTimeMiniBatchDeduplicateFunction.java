@@ -33,6 +33,7 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.checkInsertOnly;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.updateDeduplicateResult;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
 
 /** This function is used to get the first or last row for every key partition in miniBatch mode. */
 public class RowTimeMiniBatchDeduplicateFunction
@@ -46,6 +47,7 @@ public class RowTimeMiniBatchDeduplicateFunction
     private final boolean generateInsert;
     private final int rowtimeIndex;
     private final boolean keepLastRow;
+    private final RowDataStringSerializer inputStringSerializer;
 
     public RowTimeMiniBatchDeduplicateFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -61,12 +63,16 @@ public class RowTimeMiniBatchDeduplicateFunction
         this.generateInsert = generateInsert;
         this.rowtimeIndex = rowtimeIndex;
         this.keepLastRow = keepLastRow;
+        this.inputStringSerializer = new RowDataStringSerializer(typeInfo.toRowType());
     }
 
     @Override
-    public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
+    public List<RowData> addInput(@Nullable List<RowData> value, RowData input, boolean shouldLogInput) throws Exception {
         if (value == null) {
             value = new ArrayList<>();
+        }
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
         }
         value.add(serializer.copy(input));
         return value;

@@ -25,6 +25,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
+import org.apache.flink.table.runtime.util.RowDataStringSerializer;
 
 import javax.annotation.Nullable;
 
@@ -48,6 +49,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
 
     // The record equaliser used to equal RowData.
     private transient RecordEqualiser equaliser;
+    private final RowDataStringSerializer inputStringSerializer;
 
     public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -64,6 +66,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
         this.inputInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
         this.isStateTtlEnabled = stateRetentionTime > 0;
+        this.inputStringSerializer = new RowDataStringSerializer(typeInfo.toRowType());
     }
 
     @Override
@@ -74,7 +77,10 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     }
 
     @Override
-    public RowData addInput(@Nullable RowData value, RowData input) {
+    public RowData addInput(@Nullable RowData value, RowData input, boolean shouldLogInput) {
+        if (shouldLogInput) {
+            LOG.info("{}: processing input {}", getPrintableName(), inputStringSerializer.asString(input));
+        }
         // always put the input into buffer
         return serializer.copy(input);
     }
