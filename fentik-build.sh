@@ -7,7 +7,7 @@
 set -ex
 
 FLINK_DIR=build-target
-FLINK_VER=1.16.0
+FLINK_VER=1.16.1
 FLINK_BASE=flink-${FLINK_VER}
 LIB_DIR="$FLINK_DIR/lib/"
 OPT_DIR="$FLINK_DIR/opt/"
