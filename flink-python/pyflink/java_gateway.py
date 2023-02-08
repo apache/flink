@@ -109,7 +109,11 @@ def launch_gateway():
             time.sleep(0.1)
 
         if not os.path.isfile(conn_info_file):
-            raise Exception("Java gateway process exited before sending its port number")
+            stderr_info = p.stderr.read().decode('utf-8')
+            raise RuntimeError(
+                "Java gateway process exited before sending its port number.\nStderr:\n"
+                + stderr_info
+            )
 
         with open(conn_info_file, "rb") as info:
             gateway_port = struct.unpack("!I", info.read(4))[0]
