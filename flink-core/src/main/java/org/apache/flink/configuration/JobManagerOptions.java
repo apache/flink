@@ -319,6 +319,7 @@ public class JobManagerOptions {
 
     /** The max number of completed jobs that can be kept in the job store. */
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
             key("jobstore.max-capacity")
                     .intType()
