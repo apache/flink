@@ -345,7 +345,7 @@ val sink: FileSink[String] = FileSink
         DefaultRollingPolicy.builder()
             .withRolloverInterval(Duration.ofSeconds(10))
             .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
     .build()
 
