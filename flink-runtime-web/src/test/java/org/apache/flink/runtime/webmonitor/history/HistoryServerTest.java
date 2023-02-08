@@ -33,7 +33,7 @@ import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.ArchiveEventType;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveProcessor.ProcessEventType;
 import org.apache.flink.runtime.webmonitor.testutils.HttpUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -71,7 +71,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS;
+import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_UNZIPPED_JOBS_MAX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -131,7 +131,7 @@ class HistoryServerTest {
                 new HistoryServer(
                         historyServerConfig,
                         (event) -> {
-                            if (event.getType() == ArchiveEventType.DOWNLOADED) {
+                            if (event.getType() == ProcessEventType.DOWNLOADED) {
                                 numExpectedArchivedJobs.countDown();
                             }
                         });
@@ -264,7 +264,7 @@ class HistoryServerTest {
                                     numArchivesJobsInitially.countDown();
                                     numArchivesJobsTotal.countDown();
                                     break;
-                                case CREATED:
+                                case UNZIPPED:
                                     numUnzippedJobsTotal.countDown();
                                     break;
                                 case CLEANED:
@@ -332,7 +332,7 @@ class HistoryServerTest {
         CountDownLatch numArchivesDeletedTotal = new CountDownLatch(numArchivesToRemove);
 
         Configuration historyServerConfig = createTestConfiguration(true);
-        historyServerConfig.set(HISTORY_SERVER_CACHED_JOBS, numCached);
+        historyServerConfig.set(HISTORY_SERVER_UNZIPPED_JOBS_MAX, numCached);
 
         HistoryServer hs =
                 new HistoryServer(
@@ -343,7 +343,7 @@ class HistoryServerTest {
                                     numArchivesJobsInitially.countDown();
                                     numArchivesJobsTotal.countDown();
                                     break;
-                                case CREATED:
+                                case UNZIPPED:
                                     numUnzippedJobsTotal.countDown();
                                     break;
                                 case CLEANED:
@@ -417,7 +417,7 @@ class HistoryServerTest {
                                 case DOWNLOADED:
                                     numArchivesJobsTotal.countDown();
                                     break;
-                                case CREATED:
+                                case UNZIPPED:
                                     numUnzippedJobsTotal.countDown();
                                     break;
                                 case RELOADED:
@@ -474,7 +474,7 @@ class HistoryServerTest {
                                 case DOWNLOADED:
                                     numArchivesJobsTotal.countDown();
                                     break;
-                                case CREATED:
+                                case UNZIPPED:
                                     numUnzippedJobsTotal.countDown();
                                     break;
                                 case RELOADED:
@@ -516,7 +516,7 @@ class HistoryServerTest {
                                 case DOWNLOADED:
                                     numArchivesJobsTotal.countDown();
                                     break;
-                                case CREATED:
+                                case UNZIPPED:
                                     numUnzippedJobsTotal.countDown();
                                     break;
                                 case RELOADED:
@@ -608,7 +608,7 @@ class HistoryServerTest {
                                 case DOWNLOADED:
                                     numExpectedArchivedJobs.countDown();
                                     break;
-                                case CREATED:
+                                case UNZIPPED:
                                     numExpectedUnzipJobs.countDown();
                                     break;
                                 case CLEANED:

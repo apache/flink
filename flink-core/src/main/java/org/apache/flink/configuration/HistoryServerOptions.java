@@ -143,8 +143,8 @@ public class HistoryServerOptions {
                                             code("IllegalConfigurationException"))
                                     .build());
 
-    public static final ConfigOption<Integer> HISTORY_SERVER_CACHED_JOBS =
-            key("historyserver.archive.cached-jobs")
+    public static final ConfigOption<Integer> HISTORY_SERVER_UNZIPPED_JOBS_MAX =
+            key("historyserver.archive.unzipped-jobs.max")
                     .intType()
                     .defaultValue(500)
                     .withDescription("The maximum number of cached unzipped jobs in HistoryServer");

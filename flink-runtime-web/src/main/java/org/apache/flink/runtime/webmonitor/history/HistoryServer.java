@@ -39,6 +39,7 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.Runnables;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveProcessor.ProcessEvent;
 import org.apache.flink.runtime.webmonitor.utils.LogUrlUtil;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
@@ -85,7 +86,7 @@ import java.util.function.Supplier;
  * jobs for which the JobManager may have already shut down.
  *
  * <p>The HistoryServer regularly checks a set of directories for job archives created by the {@link
- * FsJobArchivist} and caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
+ * FsJobArchivist} and caches these in a local directory. See {@link HistoryServerArchiveProcessor}.
  *
  * <p>All configuration options are defined in{@link HistoryServerOptions}.
  *
@@ -117,16 +118,16 @@ public class HistoryServer {
     private final long webRefreshIntervalMillis;
     private final File webDir;
 
-    private final HistoryServerArchiveFetcher archiveFetcher;
+    private final HistoryServerArchiveProcessor archiveProcessor;
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
 
     private final long refreshIntervalMillis;
-    private final ScheduledExecutorService fetcherExecutor =
+    protected final ScheduledExecutorService fetcherExecutor =
             Executors.newSingleThreadScheduledExecutor(
                     new ExecutorThreadFactory("Flink-HistoryServer-ArchiveFetcher"));
-    private final ExecutorService unzipExecutor =
+    protected final ExecutorService unzipExecutor =
             new ThreadPoolExecutor(
                     8,
                     32,
@@ -183,17 +184,15 @@ public class HistoryServer {
      * Creates HistoryServer instance.
      *
      * @param config configuration
-     * @param jobArchiveEventListener Listener for job archive operations. First param is operation,
+     * @param jobProcessEventListener Listener for job archive operations. First param is operation,
      *     second param is id of the job.
      * @throws IOException When creation of SSL factory failed
      * @throws FlinkException When configuration error occurred
      */
-    public HistoryServer(
-            Configuration config,
-            Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener)
+    public HistoryServer(Configuration config, Consumer<ProcessEvent> jobProcessEventListener)
             throws IOException, FlinkException {
         Preconditions.checkNotNull(config);
-        Preconditions.checkNotNull(jobArchiveEventListener);
+        Preconditions.checkNotNull(jobProcessEventListener);
 
         this.config = config;
         if (HistoryServerUtils.isSSLEnabled(config)) {
@@ -255,20 +254,21 @@ public class HistoryServer {
         refreshIntervalMillis =
                 config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
         int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
-        int maxCachedJobSize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
+        int maxUnzippedJobSize =
+                config.getInteger(HistoryServerOptions.HISTORY_SERVER_UNZIPPED_JOBS_MAX);
         if (maxHistorySize == 0 || maxHistorySize < -1) {
             throw new IllegalConfigurationException(
                     "Cannot set %s to 0 or less than -1",
                     HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
         }
-        archiveFetcher =
-                new HistoryServerArchiveFetcher(
+        archiveProcessor =
+                new HistoryServerArchiveProcessor(
                         refreshDirs,
                         webDir,
-                        jobArchiveEventListener,
+                        jobProcessEventListener,
                         cleanupExpiredArchives,
                         maxHistorySize,
-                        maxCachedJobSize);
+                        maxUnzippedJobSize);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -346,11 +346,11 @@ public class HistoryServer {
 
     private Runnable getArchiveFetchingRunnable() {
         return Runnables.withUncaughtExceptionHandler(
-                () -> archiveFetcher.fetchArchives(), FatalExitExceptionHandler.INSTANCE);
+                () -> archiveProcessor.fetchArchives(), FatalExitExceptionHandler.INSTANCE);
     }
 
     private Supplier<Boolean> getArchiveUnzipRunnable(final String jobId) {
-        return () -> archiveFetcher.getUnzippedJob(jobId);
+        return () -> archiveProcessor.getUnzippedJob(jobId);
     }
 
     void stop() {
