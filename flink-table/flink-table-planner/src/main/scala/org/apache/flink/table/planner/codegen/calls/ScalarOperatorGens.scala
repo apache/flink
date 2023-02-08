@@ -1369,25 +1369,36 @@ object ScalarOperatorGens {
       }
     }
 
-    val elementsCode = elements
-      .map {
-        element =>
-          s"""
-             | ${element.code}
-             | if (!$nullTerm) {
-             |   $boxedResultTypeTerm $cur = ${castIfNumeric(element)};
-             |   if (${element.nullTerm}) {
-             |     $nullTerm = true;
-             |   } else {
-             |     int compareResult = $tmpResult.compareTo($cur);
-             |     if (($greatest && compareResult < 0) || (compareResult > 0 && !$greatest)) {
-             |       $tmpResult = $cur;
-             |     }
-             |   }
-             | }
-       """.stripMargin
-      }
-      .mkString("\n")
+    var counter = 0
+    def elementCodeTransform(element: GeneratedExpression): String = {
+        // XXX(sergei): in the code below, we already inline the first element
+        // to as a fix to unitialized variable use problem we saw previously;
+        // in some cases, the inlined code is not idempotent (you can only run
+        // it once, so it's more than just a performance issue to try to inline
+        // it multiple times, it's a correctness issue).
+        // We use the following counter to skip inlining the very first element
+        var inlineCode = ""
+        if (counter > 0) {
+          inlineCode = element.code
+        }
+        counter += 1
+        s"""
+          | $inlineCode
+          | if (!$nullTerm) {
+          |   $boxedResultTypeTerm $cur = ${castIfNumeric(element)};
+          |   if (${element.nullTerm}) {
+          |     $nullTerm = true;
+          |   } else {
+          |     int compareResult = $tmpResult.compareTo($cur);
+          |     if (($greatest && compareResult < 0) || (compareResult > 0 && !$greatest)) {
+          |       $tmpResult = $cur;
+          |     }
+          |   }
+          | }
+        """.stripMargin
+    }
+
+    val elementsCode = elements.map { elementCodeTransform }.mkString("\n")
 
     val code =
       s"""
