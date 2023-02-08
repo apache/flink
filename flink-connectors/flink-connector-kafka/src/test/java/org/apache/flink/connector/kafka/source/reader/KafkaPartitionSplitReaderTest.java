@@ -74,6 +74,7 @@ public class KafkaPartitionSplitReaderTest {
     private static final String TOPIC1 = "topic1";
     private static final String TOPIC2 = "topic2";
     private static final String TOPIC3 = "topic3";
+    private static final String CLIENT_RACK = "use1-az1";
 
     private static Map<Integer, Map<String, KafkaPartitionSplit>> splitsByOwners;
     private static Map<TopicPartition, Long> earliestOffsets;
@@ -394,7 +395,8 @@ public class KafkaPartitionSplitReaderTest {
         return new KafkaPartitionSplitReader(
                 props,
                 new TestingReaderContext(new Configuration(), sourceReaderMetricGroup),
-                kafkaSourceReaderMetrics);
+                kafkaSourceReaderMetrics,
+                () -> CLIENT_RACK);
     }
 
     private Map<String, KafkaPartitionSplit> assignSplits(

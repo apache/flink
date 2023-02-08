@@ -79,12 +79,14 @@ public class KafkaPartitionSplitReader
     public KafkaPartitionSplitReader(
             Properties props,
             SourceReaderContext context,
-            KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
+            KafkaSourceReaderMetrics kafkaSourceReaderMetrics,
+            Supplier<String> rackIdSupplier) {
         this.subtaskId = context.getIndexOfSubtask();
         this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
         Properties consumerProps = new Properties();
         consumerProps.putAll(props);
         consumerProps.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, createConsumerClientId(props));
+        setConsumerClientRack(consumerProps, rackIdSupplier);
         this.consumer = new KafkaConsumer<>(consumerProps);
         this.stoppingOffsets = new HashMap<>();
         this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
@@ -255,6 +257,12 @@ public class KafkaPartitionSplitReader
     }
 
     // --------------- private helper method ----------------------
+
+    private void setConsumerClientRack(Properties consumerProps, Supplier<String> rackIdSupplier) {
+        if (rackIdSupplier != null) {
+            consumerProps.setProperty(ConsumerConfig.CLIENT_RACK_CONFIG, rackIdSupplier.get());
+        }
+    }
 
     private void parseStartingOffsets(
             KafkaPartitionSplit split,
