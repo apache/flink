@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.util.Collector;
@@ -52,6 +54,7 @@ import org.apache.flink.util.OutputTag;
 public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction {
 
     private static final long serialVersionUID = 1L;
+    static final Watermark defaultWatermark = new Watermark(-1L);
 
     /**
      * Process one element from the input stream.
@@ -68,6 +71,23 @@ public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction
      *     operation to fail and may trigger recovery.
      */
     public abstract void processElement(I value, Context ctx, Collector<O> out) throws Exception;
+
+    /**
+     * Hybrid Batch/Stream operators need to access the keyed state backend during processing so
+     * that they can correctly handle the switch from Batch to Steam mode.
+     */
+    public boolean isHybridStreamBatchCapable() {
+        return false;
+    }
+
+    public void emitStateAndSwitchToStreaming(
+            Context ctx, Collector<O> out, KeyedStateBackend<K> be) throws Exception {
+        throw new Exception("EMIT programming error");
+    }
+
+    public boolean isBatchMode() {
+        return false;
+    }
 
     /**
      * Called when a timer set using {@link TimerService} fires.
@@ -96,6 +116,12 @@ public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction
          * set to {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime}.
          */
         public abstract Long timestamp();
+
+        public boolean shouldLogInput() {
+            // default implenetation returns false and operators that
+            // support it can override
+            return false;
+        }
 
         /** A {@link TimerService} for querying time and registering timers. */
         public abstract TimerService timerService();

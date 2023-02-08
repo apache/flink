@@ -877,6 +877,21 @@ public class StreamingJobGraphGenerator {
 
         int parallelism = streamNode.getParallelism();
 
+        // If we find an operator ID for this vertex in the list of operators with
+        // preset parallelism from config, then overwrite the default parallelism
+        // with the configured value. We use this logic to assist in rescaling
+        // batch backfill jobs to streaming state on reduced resources.
+        for (OperatorIDPair pair : operatorIDPairs) {
+            OperatorID opID = pair.getGeneratedOperatorID();
+            Integer newParallelism = streamGraph.getPerOperatorParallelism(opID.toHexString());
+            if (newParallelism != null) {
+                LOG.info("Set parallellism of {} on {}", newParallelism, jobVertex);
+                parallelism = newParallelism.intValue();
+                streamNode.setParallelism(parallelism);
+                break;
+            }
+        }
+
         if (parallelism > 0) {
             jobVertex.setParallelism(parallelism);
         } else {

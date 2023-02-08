@@ -43,6 +43,15 @@ public class ExecutionCheckpointingOptions {
                     .defaultValue(CheckpointingMode.EXACTLY_ONCE)
                     .withDescription("The checkpointing mode (exactly-once vs. at-least-once).");
 
+    public static final ConfigOption<Boolean> HOLD_BATCH_FOR_SAVEPOINT =
+            ConfigOptions.key("execution.checkpointing.hold-batch-for-savepoint")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Prevent hybrid batch stream job from exiting on data complete and "
+                                    + "hold for a savepoint event, then exit");
+
+
     public static final ConfigOption<Duration> CHECKPOINTING_TIMEOUT =
             ConfigOptions.key("execution.checkpointing.timeout")
                     .durationType()
