@@ -54,6 +54,8 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+import org.apache.flink.table.planner.plan.rules.physical.stream.PushCalcsPastChangelogNormalize
+
 
 import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -315,7 +317,7 @@ abstract class PlannerBase(
     val optimizedRelNodes = getOptimizer.optimize(relNodes)
     require(optimizedRelNodes.size == relNodes.size)
     // XXX(sst): in 1.16, there's a hook for this use case, but for now hack it
-    PushCalcsPastChangelogNormalize.optimize(getRelBuilder, optimizedRelNodes)
+    PushCalcsPastChangelogNormalize.optimize(createRelBuilder, optimizedRelNodes)
   }
 
   @VisibleForTesting
@@ -323,7 +325,7 @@ abstract class PlannerBase(
     val optimizedRelNodes = getOptimizer.optimize(Seq(relNode))
     require(optimizedRelNodes.size == 1)
     // XXX(sst): in 1.16, there's a hook for this use case, but for now hack it
-    PushCalcsPastChangelogNormalize.optimize(getRelBuilder, optimizedRelNodes).head
+    PushCalcsPastChangelogNormalize.optimize(createRelBuilder, optimizedRelNodes).head
   }
 
   /**
