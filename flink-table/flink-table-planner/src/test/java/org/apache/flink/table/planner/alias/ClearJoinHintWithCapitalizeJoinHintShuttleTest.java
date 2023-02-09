@@ -36,6 +36,9 @@ import org.junit.Test;
 
 import java.util.Collections;
 
+/**
+ * Tests clearing lookup join hint case-insensitive in stream.
+ */
 public class ClearJoinHintWithCapitalizeJoinHintShuttleTest
         extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
 

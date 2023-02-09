@@ -79,7 +79,8 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "MockOffset",
-                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest().new MockOffsetTableFunction());
+                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest()
+                        .new MockOffsetTableFunction());
     }
 
     @Test
@@ -194,13 +195,16 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         //  FROM src s
         //  CROSS JOIN UNNEST(s.ds) AS d(a)
 
-        System.out.println(util.tableEnv().explainSql(" SELECT /*+ LOOKUP('table'='d', "
-                + "'retry-predicate'='lookup_miss',\n"
-                + "         'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',\n"
-                + "         'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')\n"
-                + "         */ s.a\n"
-                + "              FROM src s\n"
-                + "              CROSS JOIN UNNEST(s.ds) AS d(a)"));
+        System.out.println(
+                util.tableEnv()
+                        .explainSql(
+                                " SELECT /*+ LOOKUP('table'='d', "
+                                        + "'retry-predicate'='lookup_miss',\n"
+                                        + "         'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',\n"
+                                        + "         'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')\n"
+                                        + "         */ s.a\n"
+                                        + "              FROM src s\n"
+                                        + "              CROSS JOIN UNNEST(s.ds) AS d(a)"));
         CorrelationId cid = builder.getCluster().createCorrel();
         RelDataType dsType =
                 builder.getTypeFactory()
@@ -208,25 +212,21 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 Collections.singletonList(
                                         builder.getTypeFactory()
                                                 .createArrayType(
-                                                        builder
-                                                                .getTypeFactory()
+                                                        builder.getTypeFactory()
                                                                 .createSqlType(SqlTypeName.BIGINT),
-                                                        -1L
-                                                )),
+                                                        -1L)),
                                 Collections.singletonList("ds"));
         RelOptCluster cluster = util.getPlanner().plannerContext().getCluster();
         RelNode root =
                 builder.scan("src")
                         .project(builder.field(1, 0, "a"))
                         .push(LogicalValues.createOneRow(cluster))
-                        .project(builder.field(
-                                builder.getRexBuilder().makeCorrel(dsType, cid),
-                                "ds"))
+                        .project(
+                                builder.field(
+                                        builder.getRexBuilder().makeCorrel(dsType, cid), "ds"))
                         .uncollect(Collections.singletonList("a"), false)
                         .project(builder.field(1, 0, "a"))
-                        .correlate(
-                                JoinRelType.INNER,
-                                cid)
+                        .correlate(JoinRelType.INNER, cid)
                         .project(builder.field(1, 0, "a"))
                         .hints(LookupJoinHintTestUtil.getLookupJoinHint("d", true, false))
                         .build();
@@ -243,47 +243,37 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         //  CROSS JOIN LATERAL TABLE(MockOffset(a)) AS d(b)
 
         CorrelationId cid = builder.getCluster().createCorrel();
-        RelDataType bType = builder.getTypeFactory().
-                createStructType(
-                        Collections.singletonList(
-                                builder
-                                        .getTypeFactory()
-                                        .createSqlType(
-                                                SqlTypeName.BIGINT)),
-                        Collections.singletonList(
-                                "b"));
+        RelDataType bType =
+                builder.getTypeFactory()
+                        .createStructType(
+                                Collections.singletonList(
+                                        builder.getTypeFactory().createSqlType(SqlTypeName.BIGINT)),
+                                Collections.singletonList("b"));
         RelNode root =
                 builder.scan("src")
                         .project(builder.field(1, 0, "a"))
                         .functionScan(
                                 new SqlCollectionTableOperator("TABLE", SqlModality.RELATION) {
                                     @Override
-                                    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+                                    public RelDataType inferReturnType(
+                                            SqlOperatorBinding opBinding) {
                                         return bType;
                                     }
                                 },
                                 0,
-                                builder
-                                        .getRexBuilder()
+                                builder.getRexBuilder()
                                         .makeFieldAccess(
-                                                builder
-                                                        .getRexBuilder()
-                                                        .makeCorrel(bType
-                                                                ,
-                                                                cid),
-                                                0))
-                        .correlate(
-                                JoinRelType.INNER,
-                                cid)
+                                                builder.getRexBuilder().makeCorrel(bType, cid), 0))
+                        .correlate(JoinRelType.INNER, cid)
                         .project(builder.field(1, 0, "a"))
-                        .hints(LookupJoinHintTestUtil.getLookupJoinHint(
-                                "d",
-                                true,
-                                false))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("d", true, false))
                         .build();
         verifyRelPlan(root);
     }
 
+    /**
+     * Mock UDTF, used for JOIN LATERAL TABLE test.
+     */
     @FunctionHint(output = @DataTypeHint("ROW< b BIGINT >"))
     public class MockOffsetTableFunction extends TableFunction<Long> {
         public void eval(Long arg) {
