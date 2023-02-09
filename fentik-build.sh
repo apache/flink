@@ -20,6 +20,7 @@ mvn install -DskipTests -Dfast
 cp ./flink-connectors/flink-sql-connector-kafka/target/flink-sql-connector-kafka-${FLINK_VER}.jar $LIB_DIR
 cp ./flink-table/flink-table-runtime/target/flink-table-runtime-${FLINK_VER}.jar  $LIB_DIR
 cp ./flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus-${FLINK_VER}.jar $LIB_DIR
+cp ./fentik-udf/target/fentik-sql-functions-0.1.0.jar $LIB_DIR
 
 # Move flink-connector-hive jar, since it conflicts with flink-connector-files.
 # mv $LIB_DIR/flink-connector-hive-${FLINK_VER}.jar $OPT_DIR
