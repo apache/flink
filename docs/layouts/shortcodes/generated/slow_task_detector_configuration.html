@@ -24,13 +24,13 @@
             <td><h5>slow-task-detector.execution-time.baseline-multiplier</h5></td>
             <td style="word-wrap: break-word;">1.5</td>
             <td>Double</td>
-            <td>The multiplier to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline.</td>
+            <td>The multiplier to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
         </tr>
         <tr>
             <td><h5>slow-task-detector.execution-time.baseline-ratio</h5></td>
             <td style="word-wrap: break-word;">0.75</td>
             <td>Double</td>
-            <td>The finished execution ratio threshold to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline.</td>
+            <td>The finished execution ratio threshold to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
         </tr>
     </tbody>
 </table>
