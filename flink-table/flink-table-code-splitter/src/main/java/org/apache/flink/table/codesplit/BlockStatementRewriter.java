@@ -176,6 +176,7 @@ public class BlockStatementRewriter implements CodeRewriter {
                         " throws " + CodeSplitUtil.getContextString(ctx.qualifiedNameList());
             }
 
+            int counter = 0;
             for (JavaParser.BlockStatementContext blockStatementContext :
                     ctx.methodBody().block().blockStatement()) {
 
@@ -191,8 +192,12 @@ public class BlockStatementRewriter implements CodeRewriter {
                                     CodeSplitUtil.getContextString(statement),
                                     String.join(", ", declarationContext));
 
+                    // create rewrite context for every block that will be rewritten. This is for
+                    // case
+                    // when we can have many IF/ELSE/WHILE blocks in single method and
+                    String context = String.format(functionName + "_%d", counter++);
                     // Rewrite function's body to include calls to extracted methods.
-                    String blockRewrittenBody = splitter.rewriteBlock(functionName);
+                    String blockRewrittenBody = splitter.rewriteBlock(context);
 
                     // Get extract methods from block's original body.
                     Map<String, List<String>> newMethods = splitter.extractBlocks();
@@ -205,7 +210,7 @@ public class BlockStatementRewriter implements CodeRewriter {
                                     maxMethodLength,
                                     String.join(", ", declarationContext));
 
-                    RewriteGroupedCode groupedCode = statementGrouper.rewrite(functionName);
+                    RewriteGroupedCode groupedCode = statementGrouper.rewrite(context);
                     // add new methods, representing extracted groups.
                     newMethods.putAll(groupedCode.getGroups());
 
