@@ -64,11 +64,21 @@ public abstract class FlinkHints {
      * null.
      */
     public static Map<String, String> getHintedOptions(List<RelHint> tableHints) {
-        return tableHints.stream()
-                .filter(hint -> hint.hintName.equalsIgnoreCase(HINT_NAME_OPTIONS))
-                .findFirst()
-                .map(hint -> hint.kvOptions)
-                .orElse(Collections.emptyMap());
+        Map<String, String> hintedOptions =
+                tableHints.stream()
+                        .filter(hint -> hint.hintName.equalsIgnoreCase(HINT_NAME_OPTIONS))
+                        .findFirst()
+                        .map(hint -> hint.kvOptions)
+                        .orElse(Collections.emptyMap());
+
+        if (!hintedOptions.isEmpty()) {
+            return hintedOptions.entrySet().stream()
+                    .collect(
+                            Collectors.toMap(
+                                    entry -> entry.getKey().replaceAll("\n", ""),
+                                    entry -> entry.getValue().replaceAll("\n", "")));
+        }
+        return hintedOptions;
     }
 
     /**

@@ -120,6 +120,20 @@ public class SqlDmlToOperationConverterTest extends SqlToOperationConverterTestB
     }
 
     @Test
+    public void testDynamicTableWithNewLineInOptions() {
+        final String sql =
+                "insert into t1 /*+ OPTIONS('k\n1'='v1', 'k2'='v\n2') */\n"
+                        + "select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(SinkModifyOperation.class);
+        SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
+        Map<String, String> dynamicOptions = sinkModifyOperation.getDynamicOptions();
+        assertThat(dynamicOptions.toString()).isEqualTo("{k1=v1, k2=v2}");
+    }
+
+    @Test
     public void testBeginStatementSet() {
         final String sql = "BEGIN STATEMENT SET";
         Operation operation = parse(sql);

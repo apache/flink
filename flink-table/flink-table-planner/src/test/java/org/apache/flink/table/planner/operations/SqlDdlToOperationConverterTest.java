@@ -132,6 +132,23 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
     }
 
     @Test
+    public void testCreateDatabaseWithNewLineInTableOptions() {
+        String sql =
+                "create database cat1.db1 comment 'db1_comment' with ('k\n1' = 'v1', 'K2' = 'V\n2')";
+
+        Operation operation = parse(sql);
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("k1", "v1");
+        properties.put("K2", "V2");
+
+        assertThat(operation).isInstanceOf(CreateDatabaseOperation.class);
+        final CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
+        assertThat(createDatabaseOperation.getCatalogDatabase().getProperties())
+                .isEqualTo(new HashMap<>(properties));
+    }
+
+    @Test
     public void testDropDatabase() {
         final String[] dropDatabaseSqls =
                 new String[] {

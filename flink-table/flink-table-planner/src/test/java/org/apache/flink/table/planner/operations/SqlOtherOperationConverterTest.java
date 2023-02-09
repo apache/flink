@@ -104,6 +104,20 @@ public class SqlOtherOperationConverterTest extends SqlToOperationConverterTestB
     }
 
     @Test
+    public void testLoadModuleWithNewLineInTableOptions() {
+        final String sql = "LOAD MODULE dummy WITH ('k\n1' = 'v1', 'k2' = 'v\n2')";
+        final Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("k1", "v1");
+        expectedOptions.put("k2", "v2");
+
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(LoadModuleOperation.class);
+        final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
+
+        assertThat(loadModuleOperation.getOptions()).isEqualTo(expectedOptions);
+    }
+
+    @Test
     public void testUnloadModule() {
         final String sql = "UNLOAD MODULE dummy";
         final String expectedModuleName = "dummy";

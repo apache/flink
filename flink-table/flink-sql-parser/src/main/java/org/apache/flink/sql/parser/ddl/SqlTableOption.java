@@ -56,11 +56,11 @@ public class SqlTableOption extends SqlCall {
     }
 
     public String getKeyString() {
-        return ((NlsString) SqlLiteral.value(key)).getValue();
+        return ((NlsString) SqlLiteral.value(key)).getValue().replaceAll("\n", "");
     }
 
     public String getValueString() {
-        return ((NlsString) SqlLiteral.value(value)).getValue();
+        return ((NlsString) SqlLiteral.value(value)).getValue().replaceAll("\n", "");
     }
 
     @Override
