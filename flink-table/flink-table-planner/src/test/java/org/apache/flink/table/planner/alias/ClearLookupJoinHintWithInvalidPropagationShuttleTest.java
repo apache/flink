@@ -79,8 +79,8 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "MockOffset",
-                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest()
-                        .new MockOffsetTableFunction());
+                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest
+                                .MockOffsetTableFunction());
     }
 
     @Test
@@ -263,7 +263,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
 
     /** Mock UDTF, used for JOIN LATERAL TABLE test. */
     @FunctionHint(output = @DataTypeHint("ROW< b BIGINT >"))
-    public class MockOffsetTableFunction extends TableFunction<Long> {
+    public static class MockOffsetTableFunction extends TableFunction<Long> {
         public void eval(Long arg) {
             collect(arg + 10L);
         }
