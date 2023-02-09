@@ -74,12 +74,17 @@ CREATE TABLE hive_table (
 [INFO] Execute statement succeed.
 !info
 
+SET table.dml-sync = true;
+[INFO] Execute statement succeed.
+!info
+
 # test "ctas" in Hive Dialect
 CREATE TABLE foo as select 1;
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] SQL update statement has been successfully submitted to the cluster:
-Job ID:
+[INFO] Complete execution of the SQL update statement.
+!info
 
+RESET table.dml-sync;
+[INFO] Execute statement succeed.
 !info
 
 SELECT * from foo;
