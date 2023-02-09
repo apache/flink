@@ -198,13 +198,10 @@ public class DefaultLeaderElectionService
             if (running) {
                 issuedLeaderSessionID = newLeaderSessionId;
                 clearConfirmedLeaderInformation();
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Grant leadership to contender {} with session ID {}.",
-                            leaderContender.getDescription(),
-                            issuedLeaderSessionID);
-                }
+                LOG.info(
+                        "Grant leadership to contender {} with session ID {}.",
+                        leaderContender.getDescription(),
+                        issuedLeaderSessionID);
 
                 leaderContender.grantLeadership(issuedLeaderSessionID);
             } else {
@@ -222,13 +219,11 @@ public class DefaultLeaderElectionService
     public void onRevokeLeadership() {
         synchronized (lock) {
             if (running) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Revoke leadership of {} ({}@{}).",
-                            leaderContender.getDescription(),
-                            confirmedLeaderInformation.getLeaderSessionID(),
-                            confirmedLeaderInformation.getLeaderAddress());
-                }
+                LOG.info(
+                        "Revoke leadership of {} ({}@{}).",
+                        leaderContender.getDescription(),
+                        confirmedLeaderInformation.getLeaderSessionID(),
+                        confirmedLeaderInformation.getLeaderAddress());
 
                 issuedLeaderSessionID = null;
                 clearConfirmedLeaderInformation();

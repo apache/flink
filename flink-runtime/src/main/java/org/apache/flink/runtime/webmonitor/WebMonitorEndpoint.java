@@ -1089,17 +1089,11 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void grantLeadership(final UUID leaderSessionID) {
-        log.info(
-                "{} was granted leadership with leaderSessionID={}",
-                getRestBaseUrl(),
-                leaderSessionID);
         leaderElectionService.confirmLeadership(leaderSessionID, getRestBaseUrl());
     }
 
     @Override
-    public void revokeLeadership() {
-        log.info("{} lost leadership", getRestBaseUrl());
-    }
+    public void revokeLeadership() {}
 
     @Override
     public String getDescription() {

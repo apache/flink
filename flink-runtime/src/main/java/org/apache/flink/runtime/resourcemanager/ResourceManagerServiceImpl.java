@@ -196,10 +196,6 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                             return;
                         }
 
-                        LOG.info(
-                                "Resource manager service is granted leadership with session id {}.",
-                                newLeaderSessionID);
-
                         try {
                             startNewLeaderResourceManager(newLeaderSessionID);
                         } catch (Throwable t) {
@@ -220,11 +216,6 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                                     "Resource manager service is not running. Ignore revoking leadership.");
                             return;
                         }
-
-                        LOG.info(
-                                "Resource manager service is revoked leadership with session id {}.",
-                                leaderSessionID);
-
                         stopLeaderResourceManager();
 
                         if (!resourceManagerFactory.supportMultiLeaderSession()) {
