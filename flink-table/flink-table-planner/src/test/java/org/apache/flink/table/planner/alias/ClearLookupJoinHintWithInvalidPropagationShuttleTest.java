@@ -195,16 +195,6 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         //  FROM src s
         //  CROSS JOIN UNNEST(s.ds) AS d(a)
 
-        System.out.println(
-                util.tableEnv()
-                        .explainSql(
-                                " SELECT /*+ LOOKUP('table'='d', "
-                                        + "'retry-predicate'='lookup_miss',\n"
-                                        + "         'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',\n"
-                                        + "         'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')\n"
-                                        + "         */ s.a\n"
-                                        + "              FROM src s\n"
-                                        + "              CROSS JOIN UNNEST(s.ds) AS d(a)"));
         CorrelationId cid = builder.getCluster().createCorrel();
         RelDataType dsType =
                 builder.getTypeFactory()
@@ -271,9 +261,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         verifyRelPlan(root);
     }
 
-    /**
-     * Mock UDTF, used for JOIN LATERAL TABLE test.
-     */
+    /** Mock UDTF, used for JOIN LATERAL TABLE test. */
     @FunctionHint(output = @DataTypeHint("ROW< b BIGINT >"))
     public class MockOffsetTableFunction extends TableFunction<Long> {
         public void eval(Long arg) {
