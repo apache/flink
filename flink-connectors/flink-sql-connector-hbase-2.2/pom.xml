@@ -91,6 +91,7 @@ under the License.
 									<include>org.apache.htrace:htrace-core4</include>
 									<include>com.google.protobuf:protobuf-java</include>
 									<include>commons-codec:commons-codec</include>
+									<include>commons-io:commons-io</include>
 									<include>org.apache.commons:commons-crypto</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>io.netty:netty-all</include>
