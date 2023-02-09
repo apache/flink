@@ -24,7 +24,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KafkaPartitionSplitSerializer}. */
 public class KafkaPartitionSplitSerializerTest {
@@ -49,6 +51,28 @@ public class KafkaPartitionSplitSerializerTest {
             KafkaPartitionSplit deserializeSplit =
                     splitSerializer.deserialize(splitSerializer.getVersion(), serialize);
             assertThat(deserializeSplit).isEqualTo(kafkaPartitionSplit);
+        }
+    }
+
+    @Test
+    public void testSerializerWithUnsupportedVersion() throws IOException {
+        String topic = "topic";
+        Long offsetZero = 0L;
+        Long normalOffset = 1L;
+        TopicPartition topicPartition = new TopicPartition(topic, 1);
+        List<Long> stoppingOffsets =
+                Lists.newArrayList(
+                        KafkaPartitionSplit.COMMITTED_OFFSET,
+                        KafkaPartitionSplit.LATEST_OFFSET,
+                        offsetZero,
+                        normalOffset);
+        KafkaPartitionSplitSerializer splitSerializer = new KafkaPartitionSplitSerializer();
+        for (Long stoppingOffset : stoppingOffsets) {
+            KafkaPartitionSplit kafkaPartitionSplit =
+                    new KafkaPartitionSplit(topicPartition, 0, stoppingOffset);
+            byte[] serialize = splitSerializer.serialize(kafkaPartitionSplit);
+            assertThatThrownBy(() -> splitSerializer.deserialize(1, serialize))
+                    .satisfies(anyCauseMatches("Unrecognized version or corrupt state"));
         }
     }
 }

@@ -23,7 +23,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for serializing and deserialzing {@link KafkaCommittable} with {@link
@@ -40,5 +42,15 @@ public class KafkaCommittableSerializerTest extends TestLogger {
         final KafkaCommittable committable = new KafkaCommittable(1L, epoch, transactionalId, null);
         final byte[] serialized = SERIALIZER.serialize(committable);
         assertThat(SERIALIZER.deserialize(1, serialized)).isEqualTo(committable);
+    }
+
+    @Test
+    public void testCommittableSerDeWithUnsupportedVersion() throws IOException {
+        final String transactionalId = "test-id";
+        final short epoch = 5;
+        final KafkaCommittable committable = new KafkaCommittable(1L, epoch, transactionalId, null);
+        final byte[] serialized = SERIALIZER.serialize(committable);
+        assertThatThrownBy(() -> SERIALIZER.deserialize(0, serialized))
+                .satisfies(anyCauseMatches("Unrecognized version or corrupt state"));
     }
 }

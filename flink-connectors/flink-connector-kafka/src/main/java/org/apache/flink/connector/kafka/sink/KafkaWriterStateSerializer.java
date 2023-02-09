@@ -45,6 +45,15 @@ class KafkaWriterStateSerializer implements SimpleVersionedSerializer<KafkaWrite
 
     @Override
     public KafkaWriterState deserialize(int version, byte[] serialized) throws IOException {
+        switch (version) {
+            case 1:
+                return deserializeV1(serialized);
+            default:
+                throw new IOException("Unrecognized version or corrupt state: " + version);
+        }
+    }
+
+    private KafkaWriterState deserializeV1(byte[] serialized) throws IOException {
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 final DataInputStream in = new DataInputStream(bais)) {
             final String transactionalIdPrefx = in.readUTF();

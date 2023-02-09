@@ -23,7 +23,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for serializing and deserialzing {@link KafkaWriterState} with {@link
@@ -38,5 +40,13 @@ public class KafkaWriterStateSerializerTest extends TestLogger {
         final KafkaWriterState state = new KafkaWriterState("idPrefix");
         final byte[] serialized = SERIALIZER.serialize(state);
         assertThat(SERIALIZER.deserialize(1, serialized)).isEqualTo(state);
+    }
+
+    @Test
+    public void testStateSerDeWithUnsupportedVersion() throws IOException {
+        final KafkaWriterState state = new KafkaWriterState("idPrefix");
+        final byte[] serialized = SERIALIZER.serialize(state);
+        assertThatThrownBy(() -> SERIALIZER.deserialize(0, serialized))
+                .satisfies(anyCauseMatches("Unrecognized version or corrupt state"));
     }
 }

@@ -59,6 +59,15 @@ public class KafkaPartitionSplitSerializer
 
     @Override
     public KafkaPartitionSplit deserialize(int version, byte[] serialized) throws IOException {
+        switch (version) {
+            case 0:
+                return deserializeV0(serialized);
+            default:
+                throw new IOException("Unrecognized version or corrupt state: " + version);
+        }
+    }
+
+    private KafkaPartitionSplit deserializeV0(byte[] serialized) throws IOException {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 DataInputStream in = new DataInputStream(bais)) {
             String topic = in.readUTF();
