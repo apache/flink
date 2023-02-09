@@ -97,7 +97,7 @@ The actual value of parallelism from which the problem occurs is various from jo
 ## Network buffer lifecycle
  
 Flink has several local buffer pools - one for the output stream and one for each input gate. 
-The upper limit of the size of each buffer pool is called the buffer pool **Target**, which is calculated by the following formula.
+The target size of each buffer pool is calculated by the following formula.
 
 `#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
 
@@ -105,9 +105,17 @@ The size of the buffer can be configured by setting `taskmanager.memory.segment-
 
 ### Input network buffers
 
-Not all buffers in the buffer pool Target can be obtained eventually. A **Threshold** is introduced to divide the buffer pool Target into two parts. The part below the threshold is called required. The excess part buffers, if any, is optional. A task will fail if the required buffers cannot be obtained in runtime. A task will not fail due to not obtaining optional buffers, but may suffer a performance reduction. If not explicitly configured, the default value of the threshold is Integer.MAX_VALUE for streaming workloads, and 1000 for batch workloads.
+The target buffer pool size is not always reached.
+There's a threshold controlling whether Flink should fail upon not obtaining buffers.
+The part of the target number of buffers that below this threshold is considered required.
+The remaining, if any, is optional.
+Not obtaining required buffers will lead to task failures.
+A task will not fail if it cannot obtain optional buffers, but may suffer a performance reduction.
 
-It is not recommended to adjust the above threshold during normal use. Unless you are a Flink network expert and can clearly understand the impact of this threshold, you can adjust the above threshold through the option `taskmanager.network.memory.read-buffer.required-per-gate.max`. If this option is configured to a smaller value, it can avoid the "insufficient number of network buffers" exception as much as possible, but may suffer a performance reduction silently. If this option is configured as Integer.MAX_VALUE, the required buffer limit is disabled. When the feature is disabled, more read buffers may be required in runtime, which is good for performance but this may lead to more easily throwing insufficient network buffers exceptions.
+The default value for this threshold is `Integer.MAX_VALUE` for streaming workloads, and `1000` for batch workloads.
+We do not recommend users to change this threshold, unless the user has good reasons and knows what he/she is doing well.
+The relevant configuration option is `taskmanager.network.memory.read-buffer.required-per-gate.max`.
+In general, a smaller threshold leads to less chance of the "insufficient number of network buffers" exception, while the workloads may suffer performance reduction silently, and vice versa.
 
 ### Output network buffers
 
