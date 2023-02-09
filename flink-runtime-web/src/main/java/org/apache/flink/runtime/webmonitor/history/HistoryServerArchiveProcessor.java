@@ -170,7 +170,7 @@ class HistoryServerArchiveProcessor {
 
     /** Cache of all available jobs identified by their id. */
     private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
-    /** Cache of all unzipped jobs. key: jobID */
+    /** Cache of all unzipped jobs. key: jobID. */
     private final LoadingCache<String, Boolean> unzippedJobCache;
 
     /**
@@ -178,14 +178,14 @@ class HistoryServerArchiveProcessor {
      * HistoryServerOptions#HISTORY_SERVER_WEB_DIR} *
      */
     private final File webDir;
-    /** This dir stores unzipped job files * */
+    /** This dir stores unzipped job files. */
     private final File webJobDir;
     /**
      * This dir stores job archives fetched from {@link
      * HistoryServerOptions#HISTORY_SERVER_ARCHIVE_DIRS}. *
      */
     private final File webArchivedDir;
-    /** This dir stores unzipped job files related to overview after unzipping job archive* */
+    /** This dir stores unzipped job files related to overview after unzipping job archive. */
     private final File webOverviewDir;
 
     HistoryServerArchiveProcessor(
@@ -253,7 +253,7 @@ class HistoryServerArchiveProcessor {
         initUnzippedJobCache();
     }
 
-    /** Reload job archives stored in {@link HistoryServerArchiveProcessor#webArchivedDir} */
+    /** Reload job archives stored in {@link HistoryServerArchiveProcessor#webArchivedDir}. */
     private void initArchivedJobCache() {
         if (this.webArchivedDir.list() == null) {
             LOG.info("No legacy archived jobs");
@@ -284,7 +284,7 @@ class HistoryServerArchiveProcessor {
         }
     }
 
-    /** Reload Unzipped Job files stored in {@link HistoryServerArchiveProcessor#webOverviewDir} */
+    /** Reload Unzipped Job files stored in {@link HistoryServerArchiveProcessor#webOverviewDir}. */
     private void initUnzippedJobCache() {
         if (this.webOverviewDir.list() == null) {
             LOG.info("No legacy unzipped jobs");
@@ -310,9 +310,9 @@ class HistoryServerArchiveProcessor {
     }
 
     /**
-     * This method fetch new job archives from `refreshLocation`
+     * This method fetch new job archives from `refreshLocation`.
      *
-     * <p>This method is called in {@link HistoryServer#fetcherExecutor}
+     * <p>This method is called in {@link HistoryServer#fetcherExecutor}.
      */
     void fetchArchives() {
         try {
@@ -404,9 +404,9 @@ class HistoryServerArchiveProcessor {
 
     /**
      * This method unzip specific job archives and save those job files into {@link
-     * HistoryServerOptions#HISTORY_SERVER_WEB_DIR}
+     * HistoryServerOptions#HISTORY_SERVER_WEB_DIR}.
      *
-     * <p>This method is called in {@link HistoryServer#unzipExecutor}
+     * <p>This method is called in {@link HistoryServer#unzipExecutor}.
      */
     private Boolean unzipArchive(String jobID) {
         if (unzippedJobExist(jobID)) {
