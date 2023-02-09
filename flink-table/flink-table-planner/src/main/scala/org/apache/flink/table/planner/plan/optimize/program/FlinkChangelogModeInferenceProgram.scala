@@ -253,12 +253,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
         createNewNode(cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
+      case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin =>
         // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
+
+      case _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
+        val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
+        createNewNode(rel, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
 
       case join: StreamPhysicalJoin =>
         // join support all changes in input
@@ -483,11 +486,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           // use requiredTrait as providedTrait, because they should support all kinds of UpdateKind
           createNewNode(rel, children, requiredTrait)
 
+        case _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
+          val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
+          val children = visitChildren(rel, requiredChildTrait)
+          createNewNode(rel, children, requiredChildTrait)
+
         case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
             _: StreamPhysicalWindowDeduplicate | _: StreamPhysicalDeduplicate |
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
-            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
-            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
+            _: StreamPhysicalIntervalJoin | _: StreamPhysicalWindowJoin =>
           // WindowAggregate, WindowTableAggregate, WindowRank, WindowDeduplicate, Deduplicate,
           // TemporalSort, CEP, OverAggregate, and IntervalJoin, WindowJoin require nothing about
           // UpdateKind.
