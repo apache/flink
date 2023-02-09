@@ -22,6 +22,7 @@ import org.apache.flink.util.FileUtils;
 import java.io.File;
 import java.util.function.Function;
 
+import static org.apache.flink.table.codesplit.CodeSplitTestUtil.trimLines;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for {@link CodeRewriter}. */
@@ -53,9 +54,16 @@ abstract class CodeRewriterTestBase<R extends CodeRewriter> {
                                             .getResource(
                                                     resourceDir + "/expected/" + filename + ".java")
                                             .toURI()));
+
             R rewriter = rewriterProvider.apply(code);
-            String actual = rewriter.rewrite();
-            assertThat(actual == null ? "" : actual).isEqualTo(expected);
+
+            // Trying to mitigate any indentation issues between all sort of platforms by simply
+            // trim every line of the "class". Before this change, code-splitter test could fail on
+            // Windows machines while passing on Unix.
+            expected = trimLines(expected);
+            String actual = trimLines(rewriter.rewrite());
+
+            assertThat(actual).isEqualTo(expected);
             return rewriter;
         } catch (Exception e) {
             throw new RuntimeException(e);
