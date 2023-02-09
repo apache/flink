@@ -68,6 +68,20 @@ You can also tune below configuration options of the slow task detector:
 - [`slow-task-detector.execution-time.baseline-multiplier`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-multiplier)
 - [`slow-task-detector.execution-time.baseline-ratio`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-ratio)
 
+Currently, speculative execution uses the slow task detector based on execution time to detect slow tasks.
+The detector will periodically count all finished executions, if the finished execution ratio reaches the
+configured ratio(`slow-task-detector.execution-time.baseline-ratio`), the baseline will be defined as
+the execution time median multiplied by the configured multiplier(`slow-task-detector.execution-time.baseline-multiplier`),
+then the running task whose execution time exceeds the baseline will be detected as a slow task.
+It is worth mentioning that the execution time will be weighted with the input data volume of the execution vertex,
+so the executions with large data volume differences but close computing power will not be detected as a slow task,
+when data skew occurs. This helps to avoid starting unnecessary speculative attempts.
+
+{{< hint warning >}}
+Note: If the node is Source or the Hybrid Shuffle mode is used, the optimization that execution time
+weighted with input data volume will not take effect, because the input data volume cannot be judged.
+{{< /hint >}}
+
 ### Enable Sources for Speculative Execution
 If your job uses a custom {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}}, 
 and the source uses custom {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/SourceEvent.java" name="SourceEvent" >}},
