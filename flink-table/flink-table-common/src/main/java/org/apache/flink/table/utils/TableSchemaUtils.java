@@ -68,6 +68,36 @@ public class TableSchemaUtils {
         return builder.build();
     }
 
+    /**
+     * Return {@link TableSchema} which consists of all persisted columns. That means, the virtual
+     * computed columns and metadata columns are filterd out.
+     *
+     * <p>Readers(or writers) such as {@link TableSource} and {@link TableSink} should use this
+     * persisted schema to generate {@link TableSource#getProducedDataType()} and {@link
+     * TableSource#getTableSchema()} rather than using the raw TableSchema which may contains
+     * additional columns.
+     */
+    public static TableSchema getPersistedSchema(TableSchema tableSchema) {
+        Preconditions.checkNotNull(tableSchema);
+        TableSchema.Builder builder = new TableSchema.Builder();
+        tableSchema
+                .getTableColumns()
+                .forEach(
+                        tableColumn -> {
+                            if (tableColumn.isPersisted()) {
+                                builder.field(tableColumn.getName(), tableColumn.getType());
+                            }
+                        });
+        tableSchema
+                .getPrimaryKey()
+                .ifPresent(
+                        uniqueConstraint ->
+                                builder.primaryKey(
+                                        uniqueConstraint.getName(),
+                                        uniqueConstraint.getColumns().toArray(new String[0])));
+        return builder.build();
+    }
+
     /** Returns true if there are only physical columns in the given {@link TableSchema}. */
     public static boolean containsPhysicalColumnsOnly(TableSchema schema) {
         Preconditions.checkNotNull(schema);
