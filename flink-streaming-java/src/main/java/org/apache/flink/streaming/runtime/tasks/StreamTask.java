@@ -288,6 +288,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private Long syncSavepoint = null;
     private Long finalCheckpointMinId = null;
     private final CompletableFuture<Void> finalCheckpointCompleted = new CompletableFuture<>();
+    private CompletableFuture<Void> waitForFinalSavepointCompleted;
 
     private long latestReportCheckpointId = -1;
 
@@ -423,6 +424,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // Register all asynchronous checkpoint threads.
             resourceCloser.registerCloseable(this::shutdownAsyncThreads);
             resourceCloser.registerCloseable(cancelables);
+
+            // Prevent task from exiting after the final checkpoint
+            if (configuration
+                    .getConfiguration()
+                    .get(ExecutionCheckpointingOptions.HOLD_BATCH_FOR_SAVEPOINT)) {
+                LOG.info(
+                        "Hold operator {} in job {} for savepoint",
+                        getEnvironment().getJobID(),
+                        getName());
+                waitForFinalSavepointCompleted = new CompletableFuture<>();
+            }
 
             environment.setMainMailboxExecutor(mainMailboxExecutor);
             environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
@@ -847,6 +859,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
 
             terminationConditions.add(finalCheckpointCompleted);
+
+            if (waitForFinalSavepointCompleted != null) {
+                terminationConditions.add(waitForFinalSavepointCompleted);
+            } else {
+                terminationConditions.add(finalCheckpointCompleted);
+            }
         }
 
         if (syncSavepoint != null) {
@@ -904,6 +922,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     private boolean areCheckpointsWithFinishedTasksEnabled() {
+        // Short circuit the check below since this is a special case of
+        // running a savepoint on a streaming batch job
+        if (waitForFinalSavepointCompleted != null) {
+            return true;
+        }
+
         return configuration
                         .getConfiguration()
                         .get(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
@@ -1177,6 +1201,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
         } finally {
             FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            if (waitForFinalSavepointCompleted != null) {
+                waitForFinalSavepointCompleted.complete(null);
+            }
         }
     }
 
@@ -1240,6 +1267,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     e);
         } finally {
             FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            if (waitForFinalSavepointCompleted != null) {
+                waitForFinalSavepointCompleted.complete(null);
+            }
         }
     }
 
