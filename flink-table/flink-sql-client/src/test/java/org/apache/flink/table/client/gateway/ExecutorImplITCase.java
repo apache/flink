@@ -659,7 +659,8 @@ class ExecutorImplITCase {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext = new DefaultContext(configuration, dependencies);
         // frequently trigger heartbeat
-        return new ExecutorImpl(defaultContext, address, "test-session", 1_000);
+        return new ExecutorImpl(
+                defaultContext, address, "test-session", 1_000, Collections.emptyMap());
     }
 
     private void initSession(Executor executor, Map<String, String> replaceVars) {

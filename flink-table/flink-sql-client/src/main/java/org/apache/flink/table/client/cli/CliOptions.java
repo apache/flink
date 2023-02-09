@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -39,6 +40,7 @@ public class CliOptions {
     private final URL sqlFile;
     private final String updateStatement;
     private final String historyFilePath;
+    private final Map<String, String> sessionConfig;
 
     private CliOptions(
             boolean isPrintHelp,
@@ -46,13 +48,15 @@ public class CliOptions {
             URL initFile,
             URL sqlFile,
             String updateStatement,
-            String historyFilePath) {
+            String historyFilePath,
+            Map<String, String> sessionConfig) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
         this.initFile = initFile;
         this.sqlFile = sqlFile;
         this.updateStatement = updateStatement;
         this.historyFilePath = historyFilePath;
+        this.sessionConfig = sessionConfig;
     }
 
     public boolean isPrintHelp() {
@@ -79,6 +83,10 @@ public class CliOptions {
         return updateStatement;
     }
 
+    public Map<String, String> getSessionConfig() {
+        return sessionConfig;
+    }
+
     /** Command option lines to configure SQL Client in the embedded mode. */
     public static class EmbeddedCliOptions extends CliOptions {
 
@@ -96,8 +104,16 @@ public class CliOptions {
                 String historyFilePath,
                 List<URL> jars,
                 List<URL> libraryDirs,
-                Configuration pythonConfiguration) {
-            super(isPrintHelp, sessionId, initFile, sqlFile, updateStatement, historyFilePath);
+                Configuration pythonConfiguration,
+                Map<String, String> sessionConfig) {
+            super(
+                    isPrintHelp,
+                    sessionId,
+                    initFile,
+                    sqlFile,
+                    updateStatement,
+                    historyFilePath,
+                    sessionConfig);
             this.jars = jars;
             this.libraryDirs = libraryDirs;
             this.pythonConfiguration = pythonConfiguration;
@@ -128,8 +144,16 @@ public class CliOptions {
                 URL sqlFile,
                 String updateStatement,
                 String historyFilePath,
-                @Nullable InetSocketAddress gatewayAddress) {
-            super(isPrintHelp, sessionId, initFile, sqlFile, updateStatement, historyFilePath);
+                @Nullable InetSocketAddress gatewayAddress,
+                Map<String, String> sessionConfig) {
+            super(
+                    isPrintHelp,
+                    sessionId,
+                    initFile,
+                    sqlFile,
+                    updateStatement,
+                    historyFilePath,
+                    sessionConfig);
             this.gatewayAddress = gatewayAddress;
         }
 

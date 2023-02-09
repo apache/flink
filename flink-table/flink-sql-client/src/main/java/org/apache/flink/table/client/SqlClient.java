@@ -96,7 +96,8 @@ public class SqlClient {
                                                     new SqlClientException(
                                                             "Please specify the address of the SQL Gateway with command line option"
                                                                     + " '-e,--endpoint <SQL Gateway address>' in the gateway mode.")),
-                            options.getSessionId())) {
+                            options.getSessionId(),
+                            options.getSessionConfig())) {
                 // add shutdown hook
                 Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor));
                 openCli(executor);
@@ -112,7 +113,8 @@ public class SqlClient {
                                     InetSocketAddress.createUnresolved(
                                             embeddedGateway.getAddress(),
                                             embeddedGateway.getPort()),
-                                    options.getSessionId())) {
+                                    options.getSessionId(),
+                                    options.getSessionConfig())) {
                 // add shutdown hook
                 Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor, embeddedGateway));
                 openCli(executor);
