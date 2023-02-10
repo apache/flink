@@ -161,6 +161,8 @@ public class KafkaSourceEnumerator
                     0,
                     partitionDiscoveryIntervalMs);
         } else {
+            LOG.debug("Partition discovery is disabled.");
+            noMoreNewPartitionSplits = true;
             LOG.info(
                     "Starting the KafkaSourceEnumerator for consumer group {} "
                             + "without periodic partition discovery.",
@@ -297,10 +299,6 @@ public class KafkaSourceEnumerator
             PartitionSplitChange partitionSplitChange, Throwable t) {
         if (t != null) {
             throw new FlinkRuntimeException("Failed to initialize partition splits due to ", t);
-        }
-        if (partitionDiscoveryIntervalMs < 0) {
-            LOG.debug("Partition discovery is disabled.");
-            noMoreNewPartitionSplits = true;
         }
         // TODO: Handle removed partitions.
         addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);
