@@ -79,6 +79,13 @@ public class KafkaPartitionSplitReader
     public KafkaPartitionSplitReader(
             Properties props,
             SourceReaderContext context,
+            KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
+        this(props, context, kafkaSourceReaderMetrics, () -> null);
+    }
+
+    public KafkaPartitionSplitReader(
+            Properties props,
+            SourceReaderContext context,
             KafkaSourceReaderMetrics kafkaSourceReaderMetrics,
             Supplier<String> rackIdSupplier) {
         this.subtaskId = context.getIndexOfSubtask();
@@ -260,7 +267,10 @@ public class KafkaPartitionSplitReader
 
     private void setConsumerClientRack(Properties consumerProps, Supplier<String> rackIdSupplier) {
         if (rackIdSupplier != null) {
-            consumerProps.setProperty(ConsumerConfig.CLIENT_RACK_CONFIG, rackIdSupplier.get());
+            String rackId = rackIdSupplier.get();
+            if (rackId != null) {
+                consumerProps.setProperty(ConsumerConfig.CLIENT_RACK_CONFIG, rackId);
+            }
         }
     }
 
