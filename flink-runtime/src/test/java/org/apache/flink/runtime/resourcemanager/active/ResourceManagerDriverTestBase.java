@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceIDRetrievable> {
 
     protected static final long TIMEOUT_SEC = 5L;
+    protected static final long TIMEOUT_SHOULD_NOT_HAPPEN_MS = 10;
 
     protected static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC =
             TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
