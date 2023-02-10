@@ -83,6 +83,14 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
   }
 
   @Test
+  def testPythonTableFunctionWithNestedCompositeInputs(): Unit = {
+    util.addTableSource[(Int, Int, Int, (Int, (Int, Int)))]("MyTable", 'a, 'b, 'c, 'd)
+    val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, " +
+      "LATERAL TABLE(func(d._1 * a, pyFunc(d._2._1, c))) AS T(x, y)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
   def testJavaTableFunctionWithPythonCalcCompositeInputs(): Unit = {
     util.addTableSource[(Int, Int, String, (String, String))]("MyTable", 'a, 'b, 'c, 'd)
     val sqlQuery = "SELECT a, b, c, x FROM MyTable, " +

@@ -105,4 +105,26 @@ FlinkLogicalCalc(select=[a, b, c, f00 AS x, f10 AS y])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPythonTableFunctionWithNestedCompositeInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c, x, y FROM MyTable, LATERAL TABLE(func(d._1 * a, pyFunc(d._2._1, c))) AS T(x, y)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], x=[$4], y=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+   +- LogicalTableFunctionScan(invocation=[func(*($cor0.d._1, $cor0.a), pyFunc($cor0.d._2._1, $cor0.c))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, f00 AS x, f10 AS y])
++- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
+   :- FlinkLogicalCalc(select=[a, b, c, d, *(d._1, a) AS f0, d._2._1 AS f1])
+   :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- FlinkLogicalTableFunctionScan(invocation=[func($4, pyFunc($5, $2))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

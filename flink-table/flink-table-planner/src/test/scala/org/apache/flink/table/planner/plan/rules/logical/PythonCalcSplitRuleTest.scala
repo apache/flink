@@ -229,4 +229,10 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     val sqlQuery = "SELECT a + 1 FROM MyTable where RowJavaFunc(pyFunc5(a).f0).f0 is NULL and b > 0"
     util.verifyRelPlan(sqlQuery)
   }
+
+  @Test
+  def testPythonFunctionWithJavaFunctionInputs(): Unit = {
+    val sqlQuery = "SELECT pyFunc1(a, RowJavaFunc(d).f0) FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
 }

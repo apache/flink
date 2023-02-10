@@ -396,10 +396,12 @@ private class ScalarFunctionSplitter(
   extends RexDefaultVisitor[RexNode] {
 
   private var fieldsRexCall: Map[Int, Int] = Map[Int, Int]()
+  // Make sure no recursive extraction happens
+  private var extractFlag: Boolean = true
 
   override def visitCall(call: RexCall): RexNode = {
     if (needConvert(call)) {
-      getExtractedRexNode(call)
+      if (extractFlag) getExtractedRexNode(call) else call
     } else {
       call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)))
     }
@@ -410,14 +412,17 @@ private class ScalarFunctionSplitter(
       val expr = fieldAccess.getReferenceExpr
       expr match {
         case localRef: RexLocalRef if containsPythonCall(program.expandLocalRef(localRef)) =>
-          getExtractedRexFieldAccess(fieldAccess, localRef.getIndex)
+          if (extractFlag) getExtractedRexFieldAccess(fieldAccess, localRef.getIndex) else localRef
         case _: RexCorrelVariable =>
           val field = fieldAccess.getField
           new RexInputRef(field.getIndex, field.getType)
         case _ =>
+          val outerConvertFlag = extractFlag
+          extractFlag = false
           val newFieldAccess =
             rexBuilder.makeFieldAccess(expr.accept(this), fieldAccess.getField.getIndex)
-          getExtractedRexNode(newFieldAccess)
+          extractFlag = outerConvertFlag
+          if (extractFlag) getExtractedRexNode(newFieldAccess) else newFieldAccess
       }
     } else {
       fieldAccess

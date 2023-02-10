@@ -520,4 +520,22 @@ FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPythonFunctionWithJavaFunctionInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(a, RowJavaFunc(d).f0) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[pyFunc1($0, RowJavaFunc($3).f0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[pyFunc1(a, f0) AS EXPR$0])
++- FlinkLogicalCalc(select=[a, RowJavaFunc(d).f0 AS f0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
 </Root>
