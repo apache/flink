@@ -127,6 +127,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     private final Set<String> lastBlockedNodes = new HashSet<>();
 
+    private volatile boolean isRunning = false;
+
     public YarnResourceManagerDriver(
             Configuration flinkConfig,
             YarnResourceManagerDriverConfiguration configuration,
@@ -175,6 +177,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     @Override
     protected void initializeInternal() throws Exception {
+        isRunning = true;
         final YarnContainerEventHandler yarnContainerEventHandler = new YarnContainerEventHandler();
         try {
             resourceManagerClient =
@@ -204,6 +207,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     @Override
     public void terminate() throws Exception {
+        isRunning = false;
         // wait for all containers to stop
         trackerOfReleasedResources.register();
         trackerOfReleasedResources.arriveAndAwaitAdvance();
@@ -721,7 +725,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
         @Override
         public void onError(Throwable throwable) {
-            getResourceEventHandler().onError(throwable);
+            if (isRunning) {
+                getResourceEventHandler().onError(throwable);
+            }
         }
 
         @Override
