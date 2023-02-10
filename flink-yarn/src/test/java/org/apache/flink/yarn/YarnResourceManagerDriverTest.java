@@ -185,6 +185,54 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
+    void testOnErrorCausesFatalError() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<Throwable> throwableCompletableFuture =
+                        new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnErrorConsumer(
+                        throwableCompletableFuture::complete);
+
+                Throwable expectedThrowable = new Exception("test");
+                runTest(
+                        () -> {
+                            resourceManagerClientCallbackHandler.onError(expectedThrowable);
+
+                            Throwable actualThrowable =
+                                    throwableCompletableFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                            assertThat(actualThrowable).isEqualTo(expectedThrowable);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testOnErrorAfterTerminationIgnored() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<Throwable> throwableCompletableFuture =
+                        new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnErrorConsumer(
+                        throwableCompletableFuture::complete);
+
+                Throwable expectedThrowable = new Exception("test");
+                runTest(
+                        () -> {
+                            getDriver().terminate();
+                            resourceManagerClientCallbackHandler.onError(expectedThrowable);
+
+                            assertThatThrownBy(
+                                            () ->
+                                                    throwableCompletableFuture.get(
+                                                            TIMEOUT_SHOULD_NOT_HAPPEN_MS,
+                                                            TimeUnit.MILLISECONDS))
+                                    .isInstanceOf(TimeoutException.class);
+                        });
+            }
+        };
+    }
+
+    @Test
     void testTerminationDoesNotBlock() throws Exception {
         new Context() {
             {
