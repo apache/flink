@@ -213,16 +213,21 @@ public class KubernetesResourceManagerDriver
                         },
                         getMainThreadExecutor()));
 
-        requestResourceFuture.whenComplete(
-                (ignore, t) -> {
-                    if (t instanceof CancellationException) {
-                        requestResourceFutures.remove(taskManagerPod.getName());
-                        if (createPodFuture.isDone()) {
-                            log.info("pod {} is cancelled before scheduled, stop it.", podName);
-                            stopPod(taskManagerPod.getName());
-                        }
-                    }
-                });
+        FutureUtils.assertNoException(
+                requestResourceFuture.whenComplete(
+                        (ignore, t) -> {
+                            if (t instanceof CancellationException) {
+                                requestResourceFutures.remove(taskManagerPod.getName());
+                                if (createPodFuture.isDone()) {
+                                    log.info(
+                                            "pod {} is cancelled before scheduled, stop it.",
+                                            podName);
+                                    stopPod(taskManagerPod.getName());
+                                }
+                            } else {
+                                ExceptionUtils.rethrow(t);
+                            }
+                        }));
 
         return requestResourceFuture;
     }

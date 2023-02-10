@@ -278,51 +278,52 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
 
-            requestResourceFuture.whenComplete(
-                    (ignore, t) -> {
-                        if (t instanceof CancellationException) {
-                            try {
-                                final Queue<CompletableFuture<YarnWorkerNode>>
-                                        pendingRequestResourceFutures =
-                                                requestResourceFutures.getOrDefault(
-                                                        taskExecutorProcessSpec,
-                                                        new LinkedList<>());
-                                Preconditions.checkState(
-                                        pendingRequestResourceFutures.remove(
-                                                requestResourceFuture));
-                                log.info(
-                                        "cancelling pending request with priority {}, remaining {} pending container requests.",
-                                        priority,
-                                        pendingRequestResourceFutures.size());
-                                int pendingRequestsSizeBeforeCancel =
-                                        pendingRequestResourceFutures.size() + 1;
-                                final Iterator<AMRMClient.ContainerRequest>
-                                        pendingContainerRequestIterator =
-                                                getPendingRequestsAndCheckConsistency(
-                                                                priority,
-                                                                resource,
-                                                                pendingRequestsSizeBeforeCancel)
-                                                        .iterator();
+            FutureUtils.assertNoException(
+                    requestResourceFuture.whenComplete(
+                            (ignore, t) -> {
+                                if (t instanceof CancellationException) {
 
-                                Preconditions.checkState(pendingContainerRequestIterator.hasNext());
+                                    final Queue<CompletableFuture<YarnWorkerNode>>
+                                            pendingRequestResourceFutures =
+                                                    requestResourceFutures.getOrDefault(
+                                                            taskExecutorProcessSpec,
+                                                            new LinkedList<>());
+                                    Preconditions.checkState(
+                                            pendingRequestResourceFutures.remove(
+                                                    requestResourceFuture));
+                                    log.info(
+                                            "cancelling pending request with priority {}, remaining {} pending container requests.",
+                                            priority,
+                                            pendingRequestResourceFutures.size());
+                                    int pendingRequestsSizeBeforeCancel =
+                                            pendingRequestResourceFutures.size() + 1;
+                                    final Iterator<AMRMClient.ContainerRequest>
+                                            pendingContainerRequestIterator =
+                                                    getPendingRequestsAndCheckConsistency(
+                                                                    priority,
+                                                                    resource,
+                                                                    pendingRequestsSizeBeforeCancel)
+                                                            .iterator();
 
-                                final AMRMClient.ContainerRequest pendingRequest =
-                                        pendingContainerRequestIterator.next();
-                                removeContainerRequest(pendingRequest);
+                                    Preconditions.checkState(
+                                            pendingContainerRequestIterator.hasNext());
 
-                                if (pendingRequestResourceFutures.isEmpty()) {
-                                    requestResourceFutures.remove(taskExecutorProcessSpec);
+                                    final AMRMClient.ContainerRequest pendingRequest =
+                                            pendingContainerRequestIterator.next();
+                                    removeContainerRequest(pendingRequest);
+
+                                    if (pendingRequestResourceFutures.isEmpty()) {
+                                        requestResourceFutures.remove(taskExecutorProcessSpec);
+                                    }
+
+                                    if (getNumRequestedNotAllocatedWorkers() <= 0) {
+                                        resourceManagerClient.setHeartbeatInterval(
+                                                yarnHeartbeatIntervalMillis);
+                                    }
+                                } else {
+                                    ExceptionUtils.rethrow(t);
                                 }
-
-                                if (getNumRequestedNotAllocatedWorkers() <= 0) {
-                                    resourceManagerClient.setHeartbeatInterval(
-                                            yarnHeartbeatIntervalMillis);
-                                }
-                            } catch (Throwable unhandledError) {
-                                getResourceEventHandler().onError(unhandledError);
-                            }
-                        }
-                    });
+                            }));
 
             addContainerRequest(resource, priority);
 
