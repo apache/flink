@@ -84,11 +84,11 @@ class AdaptiveBatchSchedulerITCase {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironment(configuration);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        env.setParallelism(4);
+        env.setParallelism(8);
 
         final DataStream<Long> source =
                 env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
-                        .setParallelism(4)
+                        .setParallelism(8)
                         .name("source")
                         .slotSharingGroup("group1");
 
@@ -169,7 +169,8 @@ class AdaptiveBatchSchedulerITCase {
         configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
         configuration.setInteger(
-                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, 2);
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
+                DEFAULT_MAX_PARALLELISM);
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
                 MemorySize.parse("150kb"));
