@@ -1402,6 +1402,7 @@ object ScalarOperatorGens {
 
     val code =
       s"""
+         | ${elements.head.code}
          | $boxedResultTypeTerm $tmpResult = ${castIfNumeric(elements.head)};
          | $primitiveResultTypeTerm $result = ${primitiveDefaultValue(widerType.get)};
          | boolean $nullTerm = false;
