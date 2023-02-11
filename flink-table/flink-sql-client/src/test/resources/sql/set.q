@@ -75,16 +75,18 @@ CREATE TABLE hive_table (
 !info
 
 SET table.dml-sync = true;
-[INFO] Execute statement succeed.
+[INFO] Session property has been set.
 !info
 
 # test "ctas" in Hive Dialect
 CREATE TABLE foo as select 1;
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 
 RESET table.dml-sync;
-[INFO] Execute statement succeed.
+[INFO] Session property has been reset.
 !info
 
 SELECT * from foo;
