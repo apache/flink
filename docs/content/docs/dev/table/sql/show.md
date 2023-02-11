@@ -43,6 +43,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW JARS
+- SHOW JOBS
 
 ## Run a SHOW statement
 
@@ -744,6 +745,16 @@ SHOW JARS
 ```
 
 Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
+
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+
+## SHOW JOBS
+
+```sql
+SHOW JOBS
+```
+
+Show the jobs in the Flink cluster.
 
 <span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 

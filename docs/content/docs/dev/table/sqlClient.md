@@ -537,7 +537,7 @@ information on how to configure connector and format dependencies.
 
 {{< top >}}
 
-Use SQL Client to submit job
+Executing statements
 ----------------------------
 
 SQL Client allows users to submit jobs either within the interactive command line or using `-f` option to execute sql file.
@@ -811,5 +811,36 @@ Flink SQL> RESET pipeline.name;
 ```
 
 If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
+
+### Monitoring job status
+
+SQL Client supports to list jobs status in the cluster through `SHOW JOBS` statements.
+
+```sql
+Flink SQL> SHOW JOBS;
++----------------------------------+---------------+----------+-------------------------+
+|                           job id |      job name |   status |              start time |
++----------------------------------+---------------+----------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c | kafka-to-hive |  RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+---------------+----------+-------------------------+
+```
+
+### Terminating a job
+
+SQL client supports to stop jobs with or without savepoints through `STOP JOB` statements.
+
+```sql
+Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
++-----------------------------------------+
+|                          savepoint path |
++-----------------------------------------+
+| file:/tmp/savepoint-3addd4-0b224d9311e6 |
++-----------------------------------------+
+```
+
+The savepoint path could be specified with [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 
+either in the cluster configuration or session configuration (the latter would take precedence).
+
+For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
 {{< top >}}
