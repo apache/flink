@@ -14,6 +14,7 @@ OPT_DIR="$FLINK_DIR/opt/"
 GIT_SHA=$(git log -n 1 --format="%H" .)
 
 mvn install -DskipTests -Dfast -f fentik-udf
+mvn install -DskipTests -Dfast -f fentik-rescale-savepoint
 mvn install -DskipTests -Dfast
 
 # Copy some required libraries that are not part of the core Flink distribution.
@@ -21,13 +22,13 @@ cp ./flink-connectors/flink-sql-connector-kafka/target/flink-sql-connector-kafka
 cp ./flink-table/flink-table-runtime/target/flink-table-runtime-${FLINK_VER}.jar  $LIB_DIR
 cp ./flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus-${FLINK_VER}.jar $LIB_DIR
 cp ./fentik-udf/target/fentik-sql-functions-0.1.0.jar $LIB_DIR
+cp ./fentik-rescale-savepoint/target/fentik-rescale-savepoint-0.2.0.jar $OPT_DIR
 
 # Move flink-connector-hive jar, since it conflicts with flink-connector-files.
 # mv $LIB_DIR/flink-connector-hive-${FLINK_VER}.jar $OPT_DIR
 
 aws s3 cp s3://dev-dataflo/ops/ec2/flink-lib/libfb303-0.9.3.jar $LIB_DIR
 aws s3 cp s3://dev-dataflo/ops/ec2/flink-lib/hive-exec-3.1.2.jar $LIB_DIR
-aws s3 cp s3://dev-dataflo/ops/ec2/fentik-rescale-savepoint-0.1.0.jar $OPT_DIR
 
 mkdir -p $FLINK_DIR/plugins/s3-fs-presto
 cp ./flink-filesystems/flink-s3-fs-presto/target/flink-s3-fs-presto-${FLINK_VER}.jar $FLINK_DIR/plugins/s3-fs-presto/
