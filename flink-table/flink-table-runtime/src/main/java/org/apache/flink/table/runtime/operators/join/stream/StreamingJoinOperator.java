@@ -19,9 +19,6 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
-
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -38,8 +35,8 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.table.runtime.util.RowDataStringSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.api.java.functions.KeySelector;
+
 /**
  * Streaming unbounded Join operator which supports INNER/LEFT/RIGHT/FULL JOIN.
  */
@@ -69,13 +66,10 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     private transient JoinRecordStateView rightRecordStateView;
     private transient MiniBatchJoinBuffer rightRecordStateBuffer;
 
-    // Stats related to associatedRecords for each processed row. Helps us
-    // understand the overhead of
-    // reading from state.
-    private transient Counter associatedRecordsSizeSum;
-    private transient Counter associatedRecordsCallCount;
-    private transient Meter associatedRecordsSizeSumRate;
-    private transient Meter associatedRecordsCallRate;
+    private transient Counter leftInputCount;
+    private transient Counter rightInputCount;
+    private transient Counter leftInputNullKeyCount;
+    private transient Counter rightInputNullKeyCount;
 
     public StreamingJoinOperator(
             InternalTypeInfo<RowData> leftType,
@@ -113,13 +107,10 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         this.leftNullRow = new GenericRowData(leftType.toRowSize());
         this.rightNullRow = new GenericRowData(rightType.toRowSize());
 
-        this.associatedRecordsCallCount = getRuntimeContext().getMetricGroup().counter("associated_records_call_count");
-        this.associatedRecordsCallRate = getRuntimeContext().getMetricGroup().meter("associated_records_call_rate",
-                new MeterView(this.associatedRecordsCallCount));
-        this.associatedRecordsSizeSum = getRuntimeContext().getMetricGroup().counter("associated_records_size_sum");
-        this.associatedRecordsSizeSumRate = getRuntimeContext().getMetricGroup().meter(
-                "associated_records_size_sum_rate",
-                new MeterView(this.associatedRecordsSizeSum));
+        this.leftInputCount = getRuntimeContext().getMetricGroup().counter("join.leftInputCount");
+        this.rightInputCount = getRuntimeContext().getMetricGroup().counter("join.rightInputCount");
+        this.leftInputNullKeyCount = getRuntimeContext().getMetricGroup().counter("join.leftInputNullKeyCount");
+        this.rightInputNullKeyCount = getRuntimeContext().getMetricGroup().counter("join.rightInputNullKeyCount");
 
         // initialize states
         if (leftIsOuter) {
@@ -167,13 +158,28 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         }
     }
 
+    private void incrementCounters(Counter allInputs, Counter nullInputs) {
+        // We want to monitor a specific kind of data skew when a join key
+        // comes in as all NULLs.
+        RowData key = (RowData) getCurrentKey();
+        boolean isNullInput = true;
+        for (int i = 0; i < key.getArity() && isNullInput; i++) {
+            if (!key.isNullAt(i)) {
+                isNullInput = false;
+            }
+        }
+
+        if (isNullInput) {
+            nullInputs.inc();
+        }
+        allInputs.inc();
+    }
+
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
+        incrementCounters(leftInputCount, leftInputNullKeyCount);
         if (isMinibatchEnabled && !isBatchMode()) {
             RowData input = element.getValue();
-            // RowDataStringSerializer rowStringSerializer = new RowDataStringSerializer(leftType);
-            // LOG.debug("MINIBATCH element 1 (left) input {} kind {} key {}", rowStringSerializer.asString(input),
-            //         input.getRowKind(), getCurrentKey());
             leftRecordStateBuffer.addRecordToBatch(input, this.shouldLogInput());
             if (leftRecordStateBuffer.batchNeedsFlush()) {
                 flushLeftMinibatch();
@@ -185,11 +191,9 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
+        incrementCounters(rightInputCount, rightInputNullKeyCount);
         if (isMinibatchEnabled && !isBatchMode()) {
             RowData input = element.getValue();
-            // RowDataStringSerializer rowStringSerializer = new RowDataStringSerializer(rightType);
-            // LOG.debug("MINIBATCH element 2 (right) input {} kind {} key {}", rowStringSerializer.asString(input),
-            //         input.getRowKind(), getCurrentKey());
             rightRecordStateBuffer.addRecordToBatch(input, this.shouldLogInput());
             if (rightRecordStateBuffer.batchNeedsFlush()) {
                 flushRighMinibatch();
@@ -231,7 +235,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-        LOG.info("MINIBATCH prepareSnapshotPreBarrier");
         flushRighMinibatch();
         flushLeftMinibatch();
         super.prepareSnapshotPreBarrier(checkpointId);
@@ -362,8 +365,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         // joins.
         AssociatedRecords associatedRecords = AssociatedRecords.of(input, inputIsLeft, this.leftType, this.rightType,
                 getOperatorName(), otherSideStateView, joinCondition);
-        this.associatedRecordsSizeSum.inc(associatedRecords.size());
-        this.associatedRecordsCallCount.inc();
         if (this.shouldLogInput()) {
             RowDataStringSerializer rowStringSerializer = new RowDataStringSerializer(
                     inputIsLeft ? leftType : rightType);
