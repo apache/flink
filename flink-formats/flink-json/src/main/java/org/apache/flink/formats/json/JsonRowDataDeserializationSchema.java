@@ -133,8 +133,9 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
         reusableCollectList.clear();
         deserialize(message, collector);
         if (reusableCollectList.size() > 1) {
-            throw new FlinkRuntimeException("Please invoke "
-                    + "DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
+            throw new FlinkRuntimeException(
+                    "Please invoke "
+                            + "DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
         }
         if (reusableCollectList.isEmpty()) {
             return null;
@@ -173,7 +174,8 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
             }
         } catch (Throwable t) {
             if (!ignoreParseErrors) {
-                throw new IOException(format("Failed to deserialize JSON '%s'.", new String(message)), t);
+                throw new IOException(
+                        format("Failed to deserialize JSON '%s'.", new String(message)), t);
             }
         }
     }

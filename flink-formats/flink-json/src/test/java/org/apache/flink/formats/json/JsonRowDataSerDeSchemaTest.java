@@ -39,7 +39,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -217,11 +216,7 @@ class JsonRowDataSerDeSchemaTest {
 
     @Test
     public void testJsonArrayToMultiRecords() throws Exception {
-        DataType dataType = ROW(
-                FIELD("f1", INT()),
-                FIELD("f2", BOOLEAN()),
-                FIELD("f3", STRING())
-        );
+        DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
         RowType rowType = (RowType) dataType.getLogicalType();
 
         ObjectMapper objectMapper = new ObjectMapper();
@@ -240,8 +235,13 @@ class JsonRowDataSerDeSchemaTest {
         arrayNode.add(element1);
         arrayNode.add(element2);
 
-        JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-                rowType, InternalTypeInfo.of(rowType), false, false,  TimestampFormat.ISO_8601);
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        rowType,
+                        InternalTypeInfo.of(rowType),
+                        false,
+                        false,
+                        TimestampFormat.ISO_8601);
         deserializationSchema.open(new DummyInitializationContext());
         JsonRowDataSerializationSchema serializationSchema =
                 new JsonRowDataSerializationSchema(
