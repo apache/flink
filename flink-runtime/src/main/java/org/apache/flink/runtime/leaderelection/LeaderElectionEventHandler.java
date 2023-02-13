@@ -39,7 +39,10 @@ public interface LeaderElectionEventHandler {
      */
     void onGrantLeadership(UUID newLeaderSessionId);
 
-    /** Called by specific {@link LeaderElectionDriver} when the leadership is revoked. */
+    /**
+     * Called by specific {@link LeaderElectionDriver} when the leadership is revoked. Updating the
+     * LeaderElection data at this point doesn't have any effect anymore.
+     */
     void onRevokeLeadership();
 
     /**

@@ -211,6 +211,9 @@ public class EmbeddedLeaderService {
                 }
 
                 // stop the service
+                if (service.isLeader) {
+                    service.contender.revokeLeadership();
+                }
                 service.contender = null;
                 service.running = false;
                 service.isLeader = false;

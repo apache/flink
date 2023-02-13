@@ -46,20 +46,55 @@ class DefaultLeaderElectionServiceTest {
                             assertThat(testingContender.getDescription()).isEqualTo(TEST_URL);
                             assertThat(testingContender.getLeaderSessionID())
                                     .isEqualTo(leaderElectionService.getLeaderSessionID());
-                            // Check the external storage
+
+                            final LeaderInformation expectedLeaderInformationInHaBackend =
+                                    LeaderInformation.known(
+                                            leaderElectionService.getLeaderSessionID(), TEST_URL);
                             assertThat(testingLeaderElectionDriver.getLeaderInformation())
-                                    .isEqualTo(
-                                            LeaderInformation.known(
-                                                    leaderElectionService.getLeaderSessionID(),
-                                                    TEST_URL));
+                                    .as(
+                                            "The HA backend should have its leader information updated.")
+                                    .isEqualTo(expectedLeaderInformationInHaBackend);
 
                             // revoke leadership
                             testingLeaderElectionDriver.notLeader();
                             testingContender.waitForRevokeLeader();
                             assertThat(testingContender.getLeaderSessionID()).isNull();
                             assertThat(leaderElectionService.getLeaderSessionID()).isNull();
-                            // External storage should be cleared
                             assertThat(testingLeaderElectionDriver.getLeaderInformation())
+                                    .as(
+                                            "External storage is not touched by the leader session because the leadership is already lost.")
+                                    .isEqualTo(expectedLeaderInformationInHaBackend);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testProperCleanupOnStopWhenHoldingTheLeadership() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            testingLeaderElectionDriver.isLeader();
+                            testingContender.waitForLeader();
+
+                            assertThat(testingContender.getLeaderSessionID()).isNotNull();
+                            assertThat(leaderElectionService.getLeaderSessionID()).isNotNull();
+                            assertThat(testingLeaderElectionDriver.getLeaderInformation().isEmpty())
+                                    .isFalse();
+
+                            leaderElectionService.stop();
+
+                            assertThat(testingContender.getLeaderSessionID())
+                                    .as(
+                                            "The LeaderContender should have been informed about the leadership loss.")
+                                    .isNull();
+                            assertThat(leaderElectionService.getLeaderSessionID())
+                                    .as(
+                                            "The LeaderElectionService should have its internal state cleaned.")
+                                    .isNull();
+                            assertThat(testingLeaderElectionDriver.getLeaderInformation())
+                                    .as("The HA backend's data should have been cleaned.")
                                     .isEqualTo(LeaderInformation.empty());
                         });
             }
@@ -170,7 +205,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testOnRevokeLeadershipIsIgnoredAfterBeingStop() throws Exception {
+    void testOnRevokeLeadershipIsTriggeredAfterBeingStop() throws Exception {
         new Context() {
             {
                 runTest(
@@ -182,10 +217,10 @@ class DefaultLeaderElectionServiceTest {
 
                             leaderElectionService.stop();
 
-                            testingLeaderElectionDriver.notLeader();
-                            // leader contender is not revoked leadership
                             assertThat(testingContender.getLeaderSessionID())
-                                    .isEqualTo(oldSessionId);
+                                    .as(
+                                            "LeaderContender should have been revoked as part of the stop call.")
+                                    .isNull();
                         });
             }
         };
