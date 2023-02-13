@@ -28,11 +28,11 @@ import java.lang
  * basic SQL type.
  */
 class TimeIndicatorRelDataType(
-    val typeSystem: RelDataTypeSystem,
+    val typeSystemField: RelDataTypeSystem,
     val originalType: BasicSqlType,
     val nullable: Boolean,
     val isEventTime: Boolean)
-  extends BasicSqlType(typeSystem, originalType.getSqlTypeName, originalType.getPrecision) {
+  extends BasicSqlType(typeSystemField, originalType.getSqlTypeName, originalType.getPrecision) {
 
   this.isNullable = nullable
   computeDigest()

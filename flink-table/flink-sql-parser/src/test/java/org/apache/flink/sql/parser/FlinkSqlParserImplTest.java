@@ -24,7 +24,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParserImplFactory;
+import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -42,9 +42,8 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 class FlinkSqlParserImplTest extends SqlParserTest {
 
-    @Override
-    protected SqlParserImplFactory parserImplFactory() {
-        return FlinkSqlParserImpl.FACTORY;
+    public SqlParserFixture fixture() {
+        return super.fixture().withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }
 
     @Test

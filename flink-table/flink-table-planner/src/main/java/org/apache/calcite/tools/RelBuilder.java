@@ -154,7 +154,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fix of FLINK-29804: Lines 2927 ~ 2930
+ *   <li>Should be removed after fix of FLINK-29804: Lines 2928 ~ 2931
  * </ol>
  */
 @Value.Enclosing
@@ -2879,7 +2879,8 @@ public class RelBuilder {
                 tableSpool(Spool.Type.LAZY, Spool.Type.LAZY, finder.relOptTable).build();
         RelNode seed = tableSpool(Spool.Type.LAZY, Spool.Type.LAZY, finder.relOptTable).build();
         RelNode repeatUnion =
-                struct.repeatUnionFactory.createRepeatUnion(seed, iterative, all, iterationLimit);
+                struct.repeatUnionFactory.createRepeatUnion(
+                        seed, iterative, all, iterationLimit, finder.relOptTable);
         return push(repeatUnion);
     }
 
@@ -2962,7 +2963,7 @@ public class RelBuilder {
             final ImmutableBitSet requiredColumns = RelOptUtil.correlationColumns(id, right.rel);
             join =
                     struct.correlateFactory.createCorrelate(
-                            left.rel, right.rel, id, requiredColumns, joinType);
+                            left.rel, right.rel, ImmutableList.of(), id, requiredColumns, joinType);
         } else {
             RelNode join0 =
                     struct.joinFactory.createJoin(
@@ -3020,6 +3021,7 @@ public class RelBuilder {
                 struct.correlateFactory.createCorrelate(
                         left.rel,
                         right.rel,
+                        ImmutableList.of(),
                         correlationId,
                         ImmutableBitSet.of(requiredOrdinals),
                         joinType);

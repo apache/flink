@@ -77,12 +77,12 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<calcite.version>1.29.0</calcite.version>
-		<!-- Calcite 1.29.0 depends on 3.1.6,
+		<calcite.version>1.30.0</calcite.version>
+		<!-- Calcite 1.30.0 depends on 3.1.6,
 		at the same time minimum 3.1.x Janino version passing Flink tests is 3.1.9,
 		more details are in FLINK-27995 -->
 		<janino.version>3.1.9</janino.version>
-		<jsonpath.version>2.6.0</jsonpath.version>
+		<jsonpath.version>2.7.0</jsonpath.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
 </project>
