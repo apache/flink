@@ -170,7 +170,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testOnRevokeLeadershipIsIgnoredAfterBeingStop() throws Exception {
+    void testOnRevokeLeadershipIsTriggeredAfterBeingStop() throws Exception {
         new Context() {
             {
                 runTest(
@@ -182,10 +182,10 @@ class DefaultLeaderElectionServiceTest {
 
                             leaderElectionService.stop();
 
-                            testingLeaderElectionDriver.notLeader();
-                            // leader contender is not revoked leadership
                             assertThat(testingContender.getLeaderSessionID())
-                                    .isEqualTo(oldSessionId);
+                                    .as(
+                                            "LeaderContender should have been revoked as part of the stop call.")
+                                    .isNull();
                         });
             }
         };

@@ -106,6 +106,7 @@ public class DefaultLeaderElectionService
             if (!running) {
                 return;
             }
+            leaderContender.revokeLeadership();
             running = false;
             clearConfirmedLeaderInformation();
         }

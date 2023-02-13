@@ -62,6 +62,10 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 
     @Override
     public synchronized void stop() throws Exception {
+        if (contender != null) {
+            contender.revokeLeadership();
+        }
+
         contender = null;
         hasLeadership = false;
         issuedLeaderSessionId = null;
