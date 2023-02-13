@@ -94,7 +94,7 @@ public class ClientHeartbeatTest {
         Configuration configuration = new Configuration();
         configuration.set(
                 Dispatcher.CLIENT_ALIVENESS_CHECK_DURATION,
-                Duration.ofMillis(clientHeartbeatTimeout));
+                Duration.ofMillis(clientHeartbeatInterval));
         if (shutdownOnAttachedExit) {
             configuration.setBoolean(DeploymentOptions.ATTACHED, true);
             configuration.setBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED, true);
