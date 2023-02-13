@@ -28,26 +28,24 @@ import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JobManagerOperatorMetricGroup}. */
 public class JobManagerOperatorGroupTest {
     private MetricRegistryImpl registry;
 
-    @Before
+    @BeforeEach
     public void setup() {
         registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
     }
 
-    @After
+    @AfterEach
     public void teardown() throws Exception {
         if (registry != null) {
             registry.closeAsync().get();
@@ -59,7 +57,7 @@ public class JobManagerOperatorGroupTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void addOperators() throws Exception {
+    void addOperators() {
         JobManagerJobMetricGroup jmJobGroup =
                 JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
                         .addJob(new JobID(), "myJobName");
@@ -76,21 +74,21 @@ public class JobManagerOperatorGroupTest {
         JobManagerOperatorMetricGroup jmOperatorGroup21 =
                 jmJobGroup.getOrAddOperator(jobVertexId2, "taskName3", operatorId2, "opName3");
 
-        assertEquals(jmOperatorGroup11, jmOperatorGroup12);
+        assertThat(jmOperatorGroup11).isEqualTo(jmOperatorGroup12);
 
-        assertEquals(2, jmJobGroup.numRegisteredOperatorMetricGroups());
+        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isEqualTo(2);
 
         jmOperatorGroup11.close();
-        assertTrue(jmOperatorGroup11.isClosed());
-        assertEquals(1, jmJobGroup.numRegisteredOperatorMetricGroups());
+        assertThat(jmOperatorGroup11.isClosed()).isTrue();
+        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isEqualTo(1);
 
         jmOperatorGroup21.close();
-        assertTrue(jmOperatorGroup21.isClosed());
-        assertEquals(0, jmJobGroup.numRegisteredOperatorMetricGroups());
+        assertThat(jmOperatorGroup21.isClosed()).isTrue();
+        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isEqualTo(0);
     }
 
     @Test
-    public void testCloseClosesAll() throws Exception {
+    void testCloseClosesAll() {
         JobManagerJobMetricGroup jmJobGroup =
                 JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
                         .addJob(new JobID(), "myJobName");
@@ -107,13 +105,13 @@ public class JobManagerOperatorGroupTest {
         JobManagerOperatorMetricGroup jmOperatorGroup21 =
                 jmJobGroup.getOrAddOperator(jobVertexId2, "taskName3", operatorId2, "opName3");
 
-        assertEquals(jmOperatorGroup11, jmOperatorGroup12);
-        assertEquals(2, jmJobGroup.numRegisteredOperatorMetricGroups());
+        assertThat(jmOperatorGroup11).isEqualTo(jmOperatorGroup12);
+        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isEqualTo(2);
 
         jmJobGroup.close();
 
-        assertTrue(jmOperatorGroup11.isClosed());
-        assertTrue(jmOperatorGroup21.isClosed());
+        assertThat(jmOperatorGroup11.isClosed()).isTrue();
+        assertThat(jmOperatorGroup21.isClosed()).isTrue();
     }
 
     // ------------------------------------------------------------------------
@@ -121,7 +119,7 @@ public class JobManagerOperatorGroupTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testGenerateScopeDefault() throws Exception {
+    void testGenerateScopeDefault() {
         final JobID jobId = new JobID();
         final JobVertexID jobVertexId = new JobVertexID();
         final OperatorID operatorId = new OperatorID();
@@ -130,16 +128,14 @@ public class JobManagerOperatorGroupTest {
                         .addJob(jobId, "myJobName")
                         .getOrAddOperator(jobVertexId, "taskName", operatorId, "opName");
 
-        assertArrayEquals(
-                new String[] {"localhost", "jobmanager", "myJobName", "opName"},
-                jmJobGroup.getScopeComponents());
-        assertEquals(
-                "localhost.jobmanager.myJobName.opName.name",
-                jmJobGroup.getMetricIdentifier("name"));
+        assertThat(jmJobGroup.getScopeComponents())
+                .containsExactly("localhost", "jobmanager", "myJobName", "opName");
+        assertThat(jmJobGroup.getMetricIdentifier("name"))
+                .isEqualTo("localhost.jobmanager.myJobName.opName.name");
     }
 
     @Test
-    public void testGenerateScopeCustom() throws Exception {
+    void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
         cfg.setString(
                 MetricOptions.SCOPE_NAMING_JM_OPERATOR,
@@ -155,31 +151,29 @@ public class JobManagerOperatorGroupTest {
                         .addJob(jobId, "myJobName")
                         .getOrAddOperator(jobVertexId, "taskName", operatorId, "opName");
 
-        assertArrayEquals(
-                new String[] {
-                    "constant",
-                    "host",
-                    "foo",
-                    "host",
-                    jobId.toString(),
-                    "myJobName",
-                    jobVertexId.toString(),
-                    "taskName",
-                    operatorId.toString(),
-                    "opName"
-                },
-                jmJobGroup.getScopeComponents());
-        assertEquals(
-                String.format(
-                        "constant.host.foo.host.%s.myJobName.%s.taskName.%s.opName.name",
-                        jobId, jobVertexId, operatorId),
-                jmJobGroup.getMetricIdentifier("name"));
+        assertThat(jmJobGroup.getScopeComponents())
+                .containsExactly(
+                        "constant",
+                        "host",
+                        "foo",
+                        "host",
+                        jobId.toString(),
+                        "myJobName",
+                        jobVertexId.toString(),
+                        "taskName",
+                        operatorId.toString(),
+                        "opName");
+        assertThat(jmJobGroup.getMetricIdentifier("name"))
+                .isEqualTo(
+                        String.format(
+                                "constant.host.foo.host.%s.myJobName.%s.taskName.%s.opName.name",
+                                jobId, jobVertexId, operatorId));
 
         registry.closeAsync().get();
     }
 
     @Test
-    public void testGenerateScopeCustomWildcard() throws Exception {
+    void testGenerateScopeCustomWildcard() throws Exception {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_JM, "peter");
         cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
@@ -195,25 +189,25 @@ public class JobManagerOperatorGroupTest {
                         .addJob(jobId, "myJobName")
                         .getOrAddOperator(jobVertexId, "taskName", operatorId, "opName");
 
-        assertArrayEquals(
-                new String[] {
-                    "peter",
-                    "some-constant",
-                    jobId.toString(),
-                    "other-constant",
-                    operatorId.toString()
-                },
-                jmJobGroup.getScopeComponents());
+        assertThat(jmJobGroup.getScopeComponents())
+                .containsExactly(
+                        "peter",
+                        "some-constant",
+                        jobId.toString(),
+                        "other-constant",
+                        operatorId.toString());
 
-        assertEquals(
-                String.format("peter.some-constant.%s.other-constant.%s.name", jobId, operatorId),
-                jmJobGroup.getMetricIdentifier("name"));
+        assertThat(jmJobGroup.getMetricIdentifier("name"))
+                .isEqualTo(
+                        String.format(
+                                "peter.some-constant.%s.other-constant.%s.name",
+                                jobId, operatorId));
 
         registry.closeAsync().get();
     }
 
     @Test
-    public void testCreateQueryServiceMetricInfo() {
+    void testCreateQueryServiceMetricInfo() {
         final JobID jobId = new JobID();
         final JobVertexID jobVertexId = new JobVertexID();
         final OperatorID operatorId = new OperatorID();
@@ -222,9 +216,11 @@ public class JobManagerOperatorGroupTest {
                         .addJob(jobId, "myJobName")
                         .getOrAddOperator(jobVertexId, "taskName", operatorId, "opName");
 
-        QueryScopeInfo.JobQueryScopeInfo info =
+        QueryScopeInfo.JobManagerOperatorQueryScopeInfo info =
                 jmJobGroup.createQueryServiceMetricInfo(new DummyCharacterFilter());
-        assertEquals("", info.scope);
-        assertEquals(jobId.toString(), info.jobID);
+        assertThat(info.scope).isEqualTo("");
+        assertThat(info.jobID).isEqualTo(jobId.toString());
+        assertThat(info.vertexID).isEqualTo(jobVertexId.toString());
+        assertThat(info.operatorName).isEqualTo("opName");
     }
 }

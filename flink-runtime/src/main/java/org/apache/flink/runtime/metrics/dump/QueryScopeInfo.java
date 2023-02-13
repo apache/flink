@@ -29,6 +29,7 @@ public abstract class QueryScopeInfo {
     public static final byte INFO_CATEGORY_JOB = 2;
     public static final byte INFO_CATEGORY_TASK = 3;
     public static final byte INFO_CATEGORY_OPERATOR = 4;
+    public static final byte INFO_CATEGORY_JM_OPERATOR = 5;
 
     /** The remaining scope not covered by specific fields. */
     public final String scope;
@@ -223,6 +224,40 @@ public abstract class QueryScopeInfo {
         @Override
         public byte getCategory() {
             return INFO_CATEGORY_OPERATOR;
+        }
+    }
+
+    /**
+     * Container for the job manager operator scope. Stores the ID of the job/vertex and the name of
+     * the operator.
+     */
+    public static class JobManagerOperatorQueryScopeInfo extends QueryScopeInfo {
+        public final String jobID;
+        public final String vertexID;
+        public final String operatorName;
+
+        public JobManagerOperatorQueryScopeInfo(
+                String jobID, String vertexID, String operatorName) {
+            this(jobID, vertexID, operatorName, "");
+        }
+
+        public JobManagerOperatorQueryScopeInfo(
+                String jobID, String vertexID, String operatorName, String scope) {
+            super(scope);
+            this.jobID = jobID;
+            this.vertexID = vertexID;
+            this.operatorName = operatorName;
+        }
+
+        @Override
+        public JobManagerOperatorQueryScopeInfo copy(String additionalScope) {
+            return new JobManagerOperatorQueryScopeInfo(
+                    this.jobID, this.vertexID, this.operatorName, concatScopes(additionalScope));
+        }
+
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_JM_OPERATOR;
         }
     }
 }

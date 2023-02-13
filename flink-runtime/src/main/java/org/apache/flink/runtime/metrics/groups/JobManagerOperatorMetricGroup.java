@@ -66,9 +66,12 @@ public class JobManagerOperatorMetricGroup extends ComponentMetricGroup<JobManag
     }
 
     @Override
-    protected QueryScopeInfo.JobQueryScopeInfo createQueryServiceMetricInfo(
+    protected QueryScopeInfo.JobManagerOperatorQueryScopeInfo createQueryServiceMetricInfo(
             CharacterFilter filter) {
-        return new QueryScopeInfo.JobQueryScopeInfo(this.parent.jobId.toString());
+        return new QueryScopeInfo.JobManagerOperatorQueryScopeInfo(
+                this.parent.jobId.toString(),
+                vertexId.toString(),
+                filter.filterCharacters(this.operatorName));
     }
 
     @Override
@@ -89,21 +92,5 @@ public class JobManagerOperatorMetricGroup extends ComponentMetricGroup<JobManag
     @Override
     protected Iterable<? extends ComponentMetricGroup> subComponents() {
         return Collections.emptyList();
-    }
-
-    public AbstractID getVertexId() {
-        return vertexId;
-    }
-
-    public String getTaskName() {
-        return taskName;
-    }
-
-    public String getOperatorName() {
-        return operatorName;
-    }
-
-    public OperatorID getOperatorID() {
-        return operatorID;
     }
 }
