@@ -19,9 +19,11 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
@@ -1069,5 +1071,43 @@ public class NotPatternITCase extends TestLogger {
                         Lists.newArrayList(a2, c1, c2),
                         Lists.newArrayList(a3),
                         Lists.newArrayList(a3, c3)));
+    }
+
+    @Test
+    public void testNotFollowedByWithinAtEndAfterMatch() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a1 = new Event(40, "a", 1.0);
+        Event a2 = new Event(41, "a", 2.0);
+        Event a3 = new Event(42, "a", 3.0);
+        Event a4 = new Event(43, "a", 4.0);
+        Event c = new Event(44, "c", 5.0);
+
+        inputEvents.add(new StreamRecord<>(a1, 1));
+        inputEvents.add(new StreamRecord<>(a2, 2));
+        inputEvents.add(new StreamRecord<>(a3, 3));
+        inputEvents.add(new StreamRecord<>(a4, 4));
+        inputEvents.add(new StreamRecord<>(c, 10));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipPastLastEvent())
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .oneOrMore()
+                        .consecutive()
+                        .notFollowedBy("b")
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
+                        .within(Time.milliseconds(3));
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        NFATestHarness harness =
+                NFATestHarness.forNFA(nfa)
+                        .withAfterMatchSkipStrategy(AfterMatchSkipStrategy.skipPastLastEvent())
+                        .build();
+        final List<List<Event>> matches = harness.feedRecords(inputEvents);
+
+        // TODO: Because of the bug reported by FLINK-31040, the result is incorrect
+        comparePatterns(
+                matches, Lists.newArrayList(Lists.newArrayList(a1, a2), Lists.newArrayList(a3)));
     }
 }
