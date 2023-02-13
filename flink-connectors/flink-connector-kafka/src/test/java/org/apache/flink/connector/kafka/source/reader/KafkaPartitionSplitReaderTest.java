@@ -323,12 +323,18 @@ public class KafkaPartitionSplitReaderTest {
     @Test
     public void testConsumerClientRackSupplier() {
         AtomicReference<Boolean> supplierCalled = new AtomicReference<>(false);
-        Supplier<String> rackIdSupplier = () -> {
-            supplierCalled.set(true);
-            return null;
-        };
-        createReader(new Properties(), UnregisteredMetricsGroup.createSourceReaderMetricGroup(), rackIdSupplier);
+        Supplier<String> rackIdSupplier =
+                () -> {
+                    supplierCalled.set(true);
+                    return "foo";
+                };
+        Properties properties = new Properties();
+        createReader(
+                properties,
+                UnregisteredMetricsGroup.createSourceReaderMetricGroup(),
+                rackIdSupplier);
         assertThat(supplierCalled.get()).isEqualTo(true);
+        assertThat("foo".equals(properties.getProperty(ConsumerConfig.CLIENT_RACK_CONFIG)));
     }
 
     // ------------------
@@ -394,8 +400,7 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     private KafkaPartitionSplitReader createReader(
-            Properties additionalProperties,
-            SourceReaderMetricGroup sourceReaderMetricGroup) {
+            Properties additionalProperties, SourceReaderMetricGroup sourceReaderMetricGroup) {
         return createReader(additionalProperties, sourceReaderMetricGroup, () -> null);
     }
 

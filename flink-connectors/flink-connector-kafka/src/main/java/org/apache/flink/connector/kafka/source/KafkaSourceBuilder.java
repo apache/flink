@@ -361,7 +361,7 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * Set the clientRackId supplier to be passed down to the KafkaPartitionSplitReader
+     * Set the clientRackId supplier to be passed down to the KafkaPartitionSplitReader.
      *
      * @param rackIdCallback callback to provide Kafka consumer client.rack
      * @return this KafkaSourceBuilder

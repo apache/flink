@@ -161,8 +161,9 @@ public class KafkaSource<OUT>
                 new KafkaSourceReaderMetrics(readerContext.metricGroup());
 
         Supplier<KafkaPartitionSplitReader> splitReaderSupplier =
-                () -> new KafkaPartitionSplitReader(props, readerContext, kafkaSourceReaderMetrics,
-                        rackIdSupplier);
+                () ->
+                        new KafkaPartitionSplitReader(
+                                props, readerContext, kafkaSourceReaderMetrics, rackIdSupplier);
         KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>(deserializationSchema);
 
         return new KafkaSourceReader<>(
