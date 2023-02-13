@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation.hive.copy;
 import org.apache.flink.table.planner.delegation.hive.HiveParserIN;
 import org.apache.flink.table.planner.delegation.hive.SqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
@@ -189,7 +190,9 @@ public class HiveParserSqlFunctionConverter {
                     HiveParserBetween.INSTANCE,
                     hToken(HiveASTParser.Identifier, "between"));
             registerFunction(
-                    "struct", SqlStdOperatorTable.ROW, hToken(HiveASTParser.Identifier, "struct"));
+                    "struct",
+                    FlinkSqlOperatorTable.ROW,
+                    hToken(HiveASTParser.Identifier, "struct"));
             registerFunction(
                     "isnotnull",
                     SqlStdOperatorTable.IS_NOT_NULL,
