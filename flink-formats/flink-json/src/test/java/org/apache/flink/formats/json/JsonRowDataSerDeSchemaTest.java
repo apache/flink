@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.core.testutils.FlinkAssertions;
@@ -31,12 +32,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -46,6 +49,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -78,6 +82,8 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
@@ -207,6 +213,54 @@ class JsonRowDataSerDeSchemaTest {
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
         assertThat(serializedJson).containsExactly(actualBytes);
+    }
+
+    @Test
+    public void testJsonArrayToMultiRecords() throws Exception {
+        DataType dataType = ROW(
+                FIELD("f1", INT()),
+                FIELD("f2", BOOLEAN()),
+                FIELD("f3", STRING())
+        );
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        ObjectNode element1 = objectMapper.createObjectNode();
+        element1.put("f1", 1);
+        element1.put("f2", true);
+        element1.put("f3", "str");
+
+        ObjectNode element2 = objectMapper.createObjectNode();
+        element2.put("f1", 10);
+        element2.put("f2", false);
+        element2.put("f3", "newStr");
+
+        ArrayNode arrayNode = objectMapper.createArrayNode();
+        arrayNode.add(element1);
+        arrayNode.add(element2);
+
+        JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+                rowType, InternalTypeInfo.of(rowType), false, false,  TimestampFormat.ISO_8601);
+        deserializationSchema.open(new DummyInitializationContext());
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true);
+        serializationSchema.open(new DummyInitializationContext());
+
+        List<RowData> result = new ArrayList<>();
+        Collector<RowData> collector = new ListCollector<>(result);
+        deserializationSchema.deserialize(objectMapper.writeValueAsBytes(arrayNode), collector);
+        assertEquals(result.size(), 2);
+
+        byte[] result1 = serializationSchema.serialize(result.get(0));
+        byte[] result2 = serializationSchema.serialize(result.get(1));
+        assertArrayEquals(result1, objectMapper.writeValueAsBytes(element1));
+        assertArrayEquals(result2, objectMapper.writeValueAsBytes(element2));
     }
 
     /**

@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -26,16 +27,21 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.json.JsonReadFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static java.lang.String.format;
@@ -69,6 +75,11 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 
     /** Object mapper for parsing the JSON. */
     private transient ObjectMapper objectMapper;
+
+    /** */
+    private transient Collector<RowData> collector;
+
+    private transient List<RowData> reusableCollectList;
 
     /** Timestamp format specification which is used to parse timestamp. */
     private final TimestampFormat timestampFormat;
@@ -105,21 +116,65 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
         if (hasDecimalType) {
             objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         }
+        reusableCollectList = new ArrayList<>();
+        collector = new ListCollector<>(reusableCollectList);
+    }
+
+    /**
+     * NOTICE: We prefer to keep only {@link DeserializationSchema#deserialize(byte[], Collector)},
+     * however, {@link DeserializationSchema#deserialize(byte[])} has not been deprecated now, hence
+     * it's better to keep {@link DeserializationSchema#deserialize(byte[])} usable until we remove
+     * {@link DeserializationSchema#deserialize(byte[])}.
+     *
+     * <p> Please do not change this method when you add new features!
+     */
+    @Override
+    public RowData deserialize(@Nullable byte[] message) throws IOException {
+        reusableCollectList.clear();
+        deserialize(message, collector);
+        if (reusableCollectList.size() > 1) {
+            throw new FlinkRuntimeException("Please invoke "
+                    + "DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
+        }
+        if (reusableCollectList.isEmpty()) {
+            return null;
+        }
+        return reusableCollectList.get(0);
     }
 
     @Override
-    public RowData deserialize(@Nullable byte[] message) throws IOException {
+    public void deserialize(@Nullable byte[] message, Collector<RowData> out) throws IOException {
         if (message == null) {
-            return null;
+            return;
         }
         try {
-            return convertToRowData(deserializeToJsonNode(message));
-        } catch (Throwable t) {
-            if (ignoreParseErrors) {
-                return null;
+            final JsonNode root = objectMapper.readTree(message);
+
+            if (root != null && root.isArray()) {
+                ArrayNode arrayNode = (ArrayNode) root;
+                for (int i = 0; i < arrayNode.size(); ++i) {
+                    try {
+                        RowData result = convertToRowData(arrayNode.get(i));
+                        if (result != null) {
+                            out.collect(result);
+                        }
+                    } catch (Throwable t) {
+                        if (!ignoreParseErrors) {
+                            // will be caught by outer try-catch
+                            throw t;
+                        }
+                    }
+                }
+            } else {
+                RowData result = convertToRowData(root);
+                if (result != null) {
+                    out.collect(result);
+                }
             }
-            throw new IOException(
-                    format("Failed to deserialize JSON '%s'.", new String(message)), t);
+        } catch (Throwable t) {
+            if (!ignoreParseErrors) {
+                throw new IOException(format("Failed to deserialize JSON '%s'.", new String(message)), t);
+            }
         }
     }
 
