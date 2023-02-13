@@ -23,34 +23,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JobManagerOperatorMetricGroup}. */
-public class JobManagerOperatorGroupTest {
-    private MetricRegistryImpl registry;
-
-    @BeforeEach
-    public void setup() {
-        registry =
-                new MetricRegistryImpl(
-                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
-    }
-
-    @AfterEach
-    public void teardown() throws Exception {
-        if (registry != null) {
-            registry.closeAsync().get();
-        }
-    }
+class JobManagerOperatorGroupTest {
+    private static final MetricRegistry registry = TestingMetricRegistry.builder().build();
 
     // ------------------------------------------------------------------------
     //  adding and removing operators
@@ -135,13 +120,15 @@ public class JobManagerOperatorGroupTest {
     }
 
     @Test
-    void testGenerateScopeCustom() throws Exception {
+    void testGenerateScopeCustom() {
         Configuration cfg = new Configuration();
         cfg.setString(
                 MetricOptions.SCOPE_NAMING_JM_OPERATOR,
                 "constant.<host>.foo.<host>.<job_id>.<job_name>.<task_id>.<task_name>.<operator_id>.<operator_name>");
-        MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
+        MetricRegistry registry =
+                TestingMetricRegistry.builder()
+                        .setScopeFormats(ScopeFormats.fromConfig(cfg))
+                        .build();
 
         final JobID jobId = new JobID();
         final JobVertexID jobVertexId = new JobVertexID();
@@ -168,18 +155,18 @@ public class JobManagerOperatorGroupTest {
                         String.format(
                                 "constant.host.foo.host.%s.myJobName.%s.taskName.%s.opName.name",
                                 jobId, jobVertexId, operatorId));
-
-        registry.closeAsync().get();
     }
 
     @Test
-    void testGenerateScopeCustomWildcard() throws Exception {
+    void testGenerateScopeCustomWildcard() {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_JM, "peter");
         cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
         cfg.setString(MetricOptions.SCOPE_NAMING_JM_OPERATOR, "*.other-constant.<operator_id>");
-        MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
+        MetricRegistry registry =
+                TestingMetricRegistry.builder()
+                        .setScopeFormats(ScopeFormats.fromConfig(cfg))
+                        .build();
 
         final JobID jobId = new JobID();
         final JobVertexID jobVertexId = new JobVertexID();
@@ -202,8 +189,6 @@ public class JobManagerOperatorGroupTest {
                         String.format(
                                 "peter.some-constant.%s.other-constant.%s.name",
                                 jobId, operatorId));
-
-        registry.closeAsync().get();
     }
 
     @Test
