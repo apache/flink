@@ -33,7 +33,7 @@ import java.util.Collection;
  * @param <SplitT> the split type.
  */
 @PublicEvolving
-public interface SplitReader<E, SplitT extends SourceSplit> {
+public interface SplitReader<E, SplitT extends SourceSplit> extends AutoCloseable {
 
     /**
      * Fetch elements into the blocking queue for the given splits. The fetch call could be blocking
