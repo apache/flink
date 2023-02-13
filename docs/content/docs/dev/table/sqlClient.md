@@ -87,7 +87,7 @@ FROM
 GROUP BY name;
 ```
 
-The SQL client will retrieve the results from the cluster and visualize them (you can close the result view by pressing the `Q` key):
+The SQL Client will retrieve the results from the cluster and visualize them (you can close the result view by pressing the `Q` key):
 
 ```text
 +-------+-----+
@@ -106,7 +106,7 @@ The [configuration section](#configuration) explains how to declare table source
 
 ### Key-strokes
 
-There is a list of available key-strokes in SQL client
+There is a list of available key-strokes in SQL Client
 
 | Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                                                            |
 |:---------------------------------|------------------|:---------------------------------------------------------------------------------------|
@@ -140,7 +140,7 @@ There is a list of available key-strokes in SQL client
 
 ### Getting help
 
-The documentation of the SQL client commands can be accessed by typing the `HELP` command.
+The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
 
 See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
 
@@ -332,7 +332,7 @@ Mode "gateway" mode connects to the SQL gateway for submission.
 
 ### SQL Client Configuration
 
-You can configure the SQL client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
+You can configure the SQL Client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
 
 ```sql
 SET 'key' = 'value';
@@ -340,7 +340,7 @@ SET 'key' = 'value';
 
 {{< generated/sql_client_configuration >}}
 
-### SQL client result modes
+### SQL Client result modes
 
 The CLI supports **three modes** for maintaining and visualizing results.
 
@@ -750,7 +750,8 @@ Cluster ID: StandaloneClusterId
 Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 ```
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">Attention</span> The status of the submitted Flink jobs could be 
+monitored through [SHOW JOBS statements]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status).
 
 However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
@@ -827,7 +828,7 @@ Flink SQL> SHOW JOBS;
 
 ### Terminating a job
 
-SQL client supports to stop jobs with or without savepoints through `STOP JOB` statements.
+SQL Client supports to stop jobs with or without savepoints through `STOP JOB` statements.
 
 ```sql
 Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;

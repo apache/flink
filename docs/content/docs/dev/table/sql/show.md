@@ -746,7 +746,7 @@ SHOW JARS
 
 Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
 
-<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
 ## SHOW JOBS
 
@@ -756,6 +756,6 @@ SHOW JOBS
 
 Show the jobs in the Flink cluster.
 
-<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+<span class="label label-danger">Attention</span> Currently `SHOW JOBS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
 {{< top >}}

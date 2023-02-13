@@ -94,6 +94,6 @@ REMOVE JAR '<path_to_filename>.jar'
 
 Remove the specified jar that is added by the [`ADD JAR`](#add-jar) statements.
 
-<span class="label label-danger">Attention</span> REMOVE JAR statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> REMOVE JAR statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
 {{< top >}}
