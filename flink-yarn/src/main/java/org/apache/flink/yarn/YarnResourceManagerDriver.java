@@ -283,8 +283,11 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             final Resource resource = priorityAndResourceOpt.get().getResource();
 
             FutureUtils.assertNoException(
-                    requestResourceFuture.whenComplete(
+                    requestResourceFuture.handle(
                             (ignore, t) -> {
+                                if (t == null) {
+                                    return null;
+                                }
                                 if (t instanceof CancellationException) {
 
                                     final Queue<CompletableFuture<YarnWorkerNode>>
@@ -325,8 +328,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                                                 yarnHeartbeatIntervalMillis);
                                     }
                                 } else {
+                                    log.error("Error completing resource request.", t);
                                     ExceptionUtils.rethrow(t);
                                 }
+                                return null;
                             }));
 
             addContainerRequest(resource, priority);

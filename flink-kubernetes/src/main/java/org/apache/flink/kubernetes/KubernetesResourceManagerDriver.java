@@ -214,9 +214,13 @@ public class KubernetesResourceManagerDriver
                         getMainThreadExecutor()));
 
         FutureUtils.assertNoException(
-                requestResourceFuture.whenComplete(
+                requestResourceFuture.handle(
                         (ignore, t) -> {
+                            if (t == null) {
+                                return null;
+                            }
                             if (t instanceof CancellationException) {
+
                                 requestResourceFutures.remove(taskManagerPod.getName());
                                 if (createPodFuture.isDone()) {
                                     log.info(
@@ -225,8 +229,10 @@ public class KubernetesResourceManagerDriver
                                     stopPod(taskManagerPod.getName());
                                 }
                             } else {
+                                log.error("Error completing resource request.", t);
                                 ExceptionUtils.rethrow(t);
                             }
+                            return null;
                         }));
 
         return requestResourceFuture;
