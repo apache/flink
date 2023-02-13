@@ -13,9 +13,9 @@ LIB_DIR="$FLINK_DIR/lib/"
 OPT_DIR="$FLINK_DIR/opt/"
 GIT_SHA=$(git log -n 1 --format="%H" .)
 
-mvn install -DskipTests -Dfast -f fentik-udf
-mvn install -DskipTests -Dfast -f fentik-rescale-savepoint
-mvn install -DskipTests -Dfast
+mvn install -DskipTests -Dfast -f fentik-udf -s maven-unblock-http-repos.xml
+mvn install -DskipTests -Dfast -f fentik-rescale-savepoint -s maven-unblock-http-repos.xml
+mvn install -DskipTests -Dfast -s maven-unblock-http-repos.xml
 
 # Copy some required libraries that are not part of the core Flink distribution.
 cp ./flink-connectors/flink-sql-connector-kafka/target/flink-sql-connector-kafka-${FLINK_VER}.jar $LIB_DIR

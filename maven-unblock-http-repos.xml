@@ -1,0 +1,24 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 http://maven.apache.org/xsd/settings-1.2.0.xsd">
+    <mirrors>
+        <mirror>
+            <id>repository.jboss.org-unblocker</id>
+            <mirrorOf>repository.jboss.org</mirrorOf>
+            <name></name>
+            <url>http://repository.jboss.org/nexus/content/groups/public/</url>
+        </mirror>
+        <mirror>
+            <id>conjars-unblocker</id>
+            <mirrorOf>conjars</mirrorOf>
+            <name></name>
+            <url>http://http://conjars.org/repo</url>
+        </mirror>
+        <mirror>
+            <id>apache.snapshots-unblocker</id>
+            <mirrorOf>apache.snapshots</mirrorOf>
+            <name></name>
+            <url>http://repository.apache.org/snapshots</url>
+        </mirror>
+    </mirrors>
+</settings>
