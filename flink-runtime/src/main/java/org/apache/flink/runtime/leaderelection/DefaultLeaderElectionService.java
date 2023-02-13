@@ -116,10 +116,7 @@ public class DefaultLeaderElectionService
 
     @Override
     public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug(
-                    "Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
-        }
+        LOG.debug("Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
 
         checkNotNull(leaderSessionID);
 
@@ -128,23 +125,17 @@ public class DefaultLeaderElectionService
                 if (running) {
                     confirmLeaderInformation(leaderSessionID, leaderAddress);
                 } else {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug(
-                                "Ignoring the leader session Id {} confirmation, since the "
-                                        + "LeaderElectionService has already been stopped.",
-                                leaderSessionID);
-                    }
+                    LOG.debug(
+                            "Ignoring the leader session Id {} confirmation, since the LeaderElectionService has already been stopped.",
+                            leaderSessionID);
                 }
             } else {
                 // Received an old confirmation call
                 if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug(
-                                "Receive an old confirmation call of leader session ID {}, "
-                                        + "current issued session ID is {}",
-                                leaderSessionID,
-                                issuedLeaderSessionID);
-                    }
+                    LOG.debug(
+                            "Receive an old confirmation call of leader session ID {}, current issued session ID is {}",
+                            leaderSessionID,
+                            issuedLeaderSessionID);
                 } else {
                     LOG.warn(
                             "The leader session ID {} was confirmed even though the "
@@ -162,10 +153,7 @@ public class DefaultLeaderElectionService
                 return leaderElectionDriver.hasLeadership()
                         && leaderSessionId.equals(issuedLeaderSessionID);
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "hasLeadership is called after the service is stopped, returning false.");
-                }
+                LOG.debug("hasLeadership is called after the service is stopped, returning false.");
                 return false;
             }
         }
@@ -200,21 +188,16 @@ public class DefaultLeaderElectionService
                 issuedLeaderSessionID = newLeaderSessionId;
                 clearConfirmedLeaderInformation();
 
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Grant leadership to contender {} with session ID {}.",
-                            leaderContender.getDescription(),
-                            issuedLeaderSessionID);
-                }
+                LOG.debug(
+                        "Grant leadership to contender {} with session ID {}.",
+                        leaderContender.getDescription(),
+                        issuedLeaderSessionID);
 
                 leaderContender.grantLeadership(issuedLeaderSessionID);
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Ignoring the grant leadership notification since the {} has "
-                                    + "already been closed.",
-                            leaderElectionDriver);
-                }
+                LOG.debug(
+                        "Ignoring the grant leadership notification since the {} has already been closed.",
+                        leaderElectionDriver);
             }
         }
     }
@@ -242,12 +225,10 @@ public class DefaultLeaderElectionService
                 // Clear the old leader information on the external storage
                 leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Ignoring the revoke leadership notification since the {} "
-                                    + "has already been closed.",
-                            leaderElectionDriver);
-                }
+                LOG.debug(
+                        "Ignoring the revoke leadership notification since the {} "
+                                + "has already been closed.",
+                        leaderElectionDriver);
             }
         }
     }
@@ -256,39 +237,30 @@ public class DefaultLeaderElectionService
     public void onLeaderInformationChange(LeaderInformation leaderInformation) {
         synchronized (lock) {
             if (running) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace(
-                            "Leader node changed while {} is the leader with session ID {}. New leader information {}.",
-                            leaderContender.getDescription(),
-                            confirmedLeaderInformation.getLeaderSessionID(),
-                            leaderInformation);
-                }
+                LOG.trace(
+                        "Leader node changed while {} is the leader with session ID {}. New leader information {}.",
+                        leaderContender.getDescription(),
+                        confirmedLeaderInformation.getLeaderSessionID(),
+                        leaderInformation);
                 if (!confirmedLeaderInformation.isEmpty()) {
                     final LeaderInformation confirmedLeaderInfo = this.confirmedLeaderInformation;
                     if (leaderInformation.isEmpty()) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug(
-                                    "Writing leader information by {} since the external storage is empty.",
-                                    leaderContender.getDescription());
-                        }
+                        LOG.debug(
+                                "Writing leader information by {} since the external storage is empty.",
+                                leaderContender.getDescription());
                         leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
                     } else if (!leaderInformation.equals(confirmedLeaderInfo)) {
                         // the data field does not correspond to the expected leader information
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug(
-                                    "Correcting leader information by {}.",
-                                    leaderContender.getDescription());
-                        }
+                        LOG.debug(
+                                "Correcting leader information by {}.",
+                                leaderContender.getDescription());
                         leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
                     }
                 }
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Ignoring change notification since the {} has "
-                                    + "already been closed.",
-                            leaderElectionDriver);
-                }
+                LOG.debug(
+                        "Ignoring change notification since the {} has " + "already been closed.",
+                        leaderElectionDriver);
             }
         }
     }
@@ -299,10 +271,7 @@ public class DefaultLeaderElectionService
         public void onFatalError(Throwable throwable) {
             synchronized (lock) {
                 if (!running) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug(
-                                "Ignoring error notification since the service has been stopped.");
-                    }
+                    LOG.debug("Ignoring error notification since the service has been stopped.");
                     return;
                 }
 
