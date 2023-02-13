@@ -108,7 +108,7 @@ public class DefaultLeaderElectionService
             }
             leaderContender.revokeLeadership();
             running = false;
-            clearConfirmedLeaderInformation();
+            confirmedLeaderInformation = LeaderInformation.empty();
         }
 
         leaderElectionDriver.close();
@@ -176,17 +176,12 @@ public class DefaultLeaderElectionService
         leaderElectionDriver.writeLeaderInformation(confirmedLeaderInformation);
     }
 
-    @GuardedBy("lock")
-    private void clearConfirmedLeaderInformation() {
-        confirmedLeaderInformation = LeaderInformation.empty();
-    }
-
     @Override
     public void onGrantLeadership(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
                 issuedLeaderSessionID = newLeaderSessionId;
-                clearConfirmedLeaderInformation();
+                confirmedLeaderInformation = LeaderInformation.empty();
 
                 LOG.debug(
                         "Grant leadership to contender {} with session ID {}.",
@@ -215,7 +210,7 @@ public class DefaultLeaderElectionService
                 }
 
                 issuedLeaderSessionID = null;
-                clearConfirmedLeaderInformation();
+                confirmedLeaderInformation = LeaderInformation.empty();
 
                 leaderContender.revokeLeadership();
 
