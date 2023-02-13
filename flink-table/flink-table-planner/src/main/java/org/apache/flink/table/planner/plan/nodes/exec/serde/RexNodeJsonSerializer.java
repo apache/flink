@@ -93,7 +93,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     static final String FIELD_NAME_BOUND_LOWER = "lower";
     static final String FIELD_NAME_BOUND_UPPER = "upper";
     static final String FIELD_NAME_BOUND_TYPE = "boundType";
-    static final String FIELD_NAME_CONTAINS_NULL = "containsNull";
+    static final String FIELD_NAME_NULL_AS = "nullAs";
     // Symbol fields
     static final String FIELD_NAME_SYMBOL = "symbol";
 
@@ -312,7 +312,8 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             gen.writeEndObject();
         }
         gen.writeEndArray();
-        gen.writeBooleanField(FIELD_NAME_CONTAINS_NULL, value.containsNull);
+        final SerializableSymbol symbol = calciteToSerializable(value.nullAs);
+        gen.writeStringField(FIELD_NAME_NULL_AS, symbol.getValue());
         gen.writeEndObject();
     }
 
