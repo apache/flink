@@ -30,3 +30,9 @@ jobs:
            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
            AWS_EC2_METADATA_DISABLED: true
 
+      - uses: act10ns/slack@v1
+        with:
+          status: ${{ job.status }}
+          channel: '#fentik-github'
+        if: always()
+
