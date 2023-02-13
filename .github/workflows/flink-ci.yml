@@ -2,9 +2,9 @@ name: flink-ci
 
 on:
   push:
-    branches: [release-1.16.1-rc1-fentik, release-1.16.1-fentik]
+    branches: [release-1.16.1-fentik]
   pull_request:
-    branches: [release-1.16.1-rc1-fentik, release-1.16.1-fentik]
+    branches: [release-1.16.1-fentik]
 
 jobs:
   build:

@@ -12,7 +12,7 @@
             <id>conjars-unblocker</id>
             <mirrorOf>conjars</mirrorOf>
             <name></name>
-            <url>http://http://conjars.org/repo</url>
+            <url>http://conjars.org/repo</url>
         </mirror>
         <mirror>
             <id>apache.snapshots-unblocker</id>
