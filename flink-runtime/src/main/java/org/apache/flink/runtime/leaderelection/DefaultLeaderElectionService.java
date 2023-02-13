@@ -104,10 +104,19 @@ public class DefaultLeaderElectionService
 
         synchronized (lock) {
             if (!running) {
+                LOG.debug(
+                        "The stop procedure was called on an already stopped DefaultLeaderElectionService instance. No action necessary.");
                 return;
             }
             running = false;
-            clearConfirmedLeaderInformation();
+
+            if (leaderElectionDriver.hasLeadership()) {
+                handleLeadershipLoss();
+                leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
+            } else {
+                LOG.debug(
+                        "DefaultLeaderElectionService is stopping while not having the leadership acquired. No cleanup necessary.");
+            }
         }
 
         leaderElectionDriver.close();
@@ -175,17 +184,12 @@ public class DefaultLeaderElectionService
         leaderElectionDriver.writeLeaderInformation(confirmedLeaderInformation);
     }
 
-    @GuardedBy("lock")
-    private void clearConfirmedLeaderInformation() {
-        confirmedLeaderInformation = LeaderInformation.empty();
-    }
-
     @Override
     public void onGrantLeadership(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
                 issuedLeaderSessionID = newLeaderSessionId;
-                clearConfirmedLeaderInformation();
+                confirmedLeaderInformation = LeaderInformation.empty();
 
                 LOG.debug(
                         "Grant leadership to contender {} with session ID {}.",
@@ -205,20 +209,7 @@ public class DefaultLeaderElectionService
     public void onRevokeLeadership() {
         synchronized (lock) {
             if (running) {
-                LOG.debug(
-                        "Revoke leadership of {} ({}@{}).",
-                        leaderContender.getDescription(),
-                        confirmedLeaderInformation.getLeaderSessionID(),
-                        confirmedLeaderInformation.getLeaderAddress());
-
-                issuedLeaderSessionID = null;
-                clearConfirmedLeaderInformation();
-
-                leaderContender.revokeLeadership();
-
-                LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
-                // Clear the old leader information on the external storage
-                leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
+                handleLeadershipLoss();
             } else {
                 LOG.debug(
                         "Ignoring the revoke leadership notification since the {} "
@@ -226,6 +217,20 @@ public class DefaultLeaderElectionService
                         leaderElectionDriver);
             }
         }
+    }
+
+    @GuardedBy("lock")
+    private void handleLeadershipLoss() {
+        LOG.debug(
+                "Revoke leadership of {} ({}@{}).",
+                leaderContender.getDescription(),
+                confirmedLeaderInformation.getLeaderSessionID(),
+                confirmedLeaderInformation.getLeaderAddress());
+
+        issuedLeaderSessionID = null;
+        confirmedLeaderInformation = LeaderInformation.empty();
+
+        leaderContender.revokeLeadership();
     }
 
     @Override
