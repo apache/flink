@@ -106,6 +106,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     protected final ExecutionDeployer executionDeployer;
 
+    private volatile boolean failed = false;
+
     protected DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -294,6 +296,16 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     @Override
     public void handleGlobalFailure(final Throwable error) {
         final long timestamp = System.currentTimeMillis();
+
+        if (failed) {
+            log.debug(
+                    "Ignoring the request to fail job because the job is already failing. "
+                            + "The ignored failure cause is",
+                    error);
+            return;
+        }
+        failed = true;
+
         setGlobalFailureCause(error, timestamp);
 
         log.info("Trying to recover from a global failure.", error);
@@ -389,6 +401,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
 
         schedulingStrategy.restartTasks(verticesToRestart);
+        failed = false;
     }
 
     private CompletableFuture<?> cancelTasksAsync(final Set<ExecutionVertexID> verticesToRestart) {

@@ -99,6 +99,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
+import org.assertj.core.api.Assertions;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.hamcrest.collection.IsIterableWithSize;
@@ -659,6 +660,18 @@ public class DefaultSchedulerTest extends TestLogger {
                 testExecutionOperations.getDeployedVertices();
         final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
         assertThat(deployedExecutionVertices, contains(executionVertexId, executionVertexId));
+    }
+
+    @Test
+    public void handleGlobalFailureDebouncesMultipleFailures() {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        scheduler.handleGlobalFailure(new Exception("1st error"));
+        scheduler.handleGlobalFailure(new Exception("2nd error"));
+
+        Assertions.assertThat(scheduler.getExecutionGraph().getFailureCause())
+                .hasMessage("1st error");
     }
 
     /**
