@@ -364,6 +364,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
                     return client.getChildren().forPath(path);
                 } catch (KeeperException.NoNodeException ignored) {
                     // Concurrent deletion, retry
+					LOG.warn("NoNodeException happend, and retrying again.");
                 }
             }
         }
