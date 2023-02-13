@@ -126,7 +126,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
      * it's better to keep {@link DeserializationSchema#deserialize(byte[])} usable until we remove
      * {@link DeserializationSchema#deserialize(byte[])}.
      *
-     * <p> Please do not change this method when you add new features!
+     * <p>Please do not change this method when you add new features!
      */
     @Override
     public RowData deserialize(@Nullable byte[] message) throws IOException {
