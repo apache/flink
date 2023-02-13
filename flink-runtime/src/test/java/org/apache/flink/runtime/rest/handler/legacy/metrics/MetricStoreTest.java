@@ -27,7 +27,6 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,7 +42,7 @@ class MetricStoreTest {
     private static final JobID JOB_ID = new JobID();
 
     @Test
-    void testAdd() throws IOException {
+    void testAdd() {
         MetricStore store = setupStore(new MetricStore());
 
         assertThat(store.getJobManagerMetricStore().getMetric("abc.metric1", "-1")).isEqualTo("0");
@@ -100,6 +99,18 @@ class MetricStoreTest {
                         store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 4)
                                 .getMetric("opname.abc.metric7", "-1"))
                 .isEqualTo("16");
+
+        assertThat(
+                        store.getTaskMetricStore(JOB_ID.toString(), "taskid")
+                                .getJobManagerOperatorMetricStores("opname")
+                                .getMetric("abc.metric8", "-1"))
+                .isEqualTo("19");
+
+        assertThat(
+                        store.getTaskMetricStore(JOB_ID.toString(), "taskid")
+                                .getJobManagerOperatorMetricStores("opname")
+                                .getMetric("abc.metric9", "-1"))
+                .isEqualTo("20");
     }
 
     @Test
@@ -258,6 +269,12 @@ class MetricStoreTest {
         MetricDump.CounterDump cd74 =
                 new MetricDump.CounterDump(speculativeOperator3, "metric7", 18);
 
+        QueryScopeInfo.JobManagerOperatorQueryScopeInfo jmOperator =
+                new QueryScopeInfo.JobManagerOperatorQueryScopeInfo(
+                        JOB_ID.toString(), "taskid", "opname", "abc");
+        MetricDump.CounterDump jmCd8 = new MetricDump.CounterDump(jmOperator, "metric8", 19);
+        MetricDump.CounterDump jmCd9 = new MetricDump.CounterDump(jmOperator, "metric9", 20);
+
         store.add(cd1);
         store.add(cd2);
         store.add(cd2a);
@@ -279,6 +296,9 @@ class MetricStoreTest {
         store.add(cd73);
         store.add(cd64);
         store.add(cd74);
+
+        store.add(jmCd8);
+        store.add(jmCd9);
 
         return store;
     }

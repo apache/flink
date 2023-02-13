@@ -98,7 +98,7 @@ class MetricDumpSerializerTest {
     }
 
     @Test
-    void testSerialization() throws IOException {
+    void testSerialization() {
         MetricDumpSerialization.MetricDumpSerializer serializer =
                 new MetricDumpSerialization.MetricDumpSerializer();
         MetricDumpSerialization.MetricDumpDeserializer deserializer =
@@ -111,9 +111,11 @@ class MetricDumpSerializerTest {
 
         SimpleCounter c1 = new SimpleCounter();
         SimpleCounter c2 = new SimpleCounter();
+        SimpleCounter c3 = new SimpleCounter();
 
         c1.inc(1);
         c2.inc(2);
+        c3.inc(3);
 
         Gauge<Integer> g1 =
                 new Gauge<Integer>() {
@@ -144,25 +146,22 @@ class MetricDumpSerializerTest {
                     }
                 };
 
+        counters.put(c1, new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "c1"));
         counters.put(
-                c1,
-                new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "c1"));
+                c2, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo("tmid", "B"), "c2"));
         counters.put(
-                c2,
-                new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.TaskManagerQueryScopeInfo("tmid", "B"), "c2"));
-        meters.put(
-                m1,
-                new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.JobQueryScopeInfo("jid", "C"), "c3"));
+                c3,
+                new Tuple2<>(
+                        new QueryScopeInfo.JobManagerOperatorQueryScopeInfo(
+                                "job-id", "tmid", "opName", "C"),
+                        "c3"));
+        meters.put(m1, new Tuple2<>(new QueryScopeInfo.JobQueryScopeInfo("jid", "C"), "c3"));
         gauges.put(
                 g1,
-                new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, 0, "D"), "g1"));
+                new Tuple2<>(new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, 0, "D"), "g1"));
         histograms.put(
                 h1,
-                new Tuple2<QueryScopeInfo, String>(
+                new Tuple2<>(
                         new QueryScopeInfo.OperatorQueryScopeInfo(
                                 "jid", "vid", 2, 0, "opname", "E"),
                         "h1"));
@@ -173,7 +172,7 @@ class MetricDumpSerializerTest {
 
         // ===== Counters
         // ==============================================================================================
-        assertThat(deserialized.size()).isEqualTo(5);
+        assertThat(deserialized.size()).isEqualTo(6);
 
         for (MetricDump metric : deserialized) {
             switch (metric.getCategory()) {
@@ -198,6 +197,21 @@ class MetricDumpSerializerTest {
                                                             counterDump.scopeInfo)
                                                     .taskManagerID);
                             counters.remove(c2);
+                            break;
+                        case 3:
+                            assertThat(counterDump.scopeInfo)
+                                    .isInstanceOf(
+                                            QueryScopeInfo.JobManagerOperatorQueryScopeInfo.class);
+                            assertThat(counterDump.scopeInfo.scope).isEqualTo("C");
+                            assertThat(counterDump.name).isEqualTo("c3");
+                            QueryScopeInfo.JobManagerOperatorQueryScopeInfo
+                                    jmOperatorQueryScopeInfo =
+                                            ((QueryScopeInfo.JobManagerOperatorQueryScopeInfo)
+                                                    counterDump.scopeInfo);
+                            assertThat(jmOperatorQueryScopeInfo.jobID).isEqualTo("job-id");
+                            assertThat(jmOperatorQueryScopeInfo.vertexID).isEqualTo("tmid");
+                            assertThat(jmOperatorQueryScopeInfo.operatorName).isEqualTo("opName");
+                            counters.remove(c3);
                             break;
                         default:
                             fail("Unexpected counter count.");
