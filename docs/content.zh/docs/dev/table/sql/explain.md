@@ -386,7 +386,7 @@ GroupAggregate(..., changelogMode=[I,UA,D])
 SET 'table.exec.mini-batch.enabled' = 'true';
 SET 'table.exec.mini-batch.allow-latency' = '5s';
 SET 'table.exec.mini-batch.size' = '200';
-SET 'table.optimizer.agg-phase-strategy' = 'OHE_PHASE';
+SET 'table.optimizer.agg-phase-strategy' = 'ONE_PHASE';
 
 CREATE TABLE MyTable (
   a BIGINT,
