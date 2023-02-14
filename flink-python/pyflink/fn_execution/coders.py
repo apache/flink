@@ -21,8 +21,19 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 import pytz
-from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 
+from pyflink import fn_execution
+
+if fn_execution.PYFLINK_CYTHON_ENABLED:
+    try:
+        from pyflink.fn_execution import coder_impl_fast as coder_impl
+    except:
+        from pyflink.fn_execution import coder_impl_slow as coder_impl
+        fn_execution.PYFLINK_CYTHON_ENABLED = False
+else:
+    from pyflink.fn_execution import coder_impl_slow as coder_impl
+
+from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
     TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
     MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo, \
@@ -31,10 +42,6 @@ from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, 
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
     LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType
 
-try:
-    from pyflink.fn_execution import coder_impl_fast as coder_impl
-except:
-    from pyflink.fn_execution import coder_impl_slow as coder_impl
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
