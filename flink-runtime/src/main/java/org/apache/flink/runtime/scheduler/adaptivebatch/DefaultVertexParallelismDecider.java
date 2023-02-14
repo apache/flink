@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.MathUtils;
 
 import org.slf4j.Logger;
@@ -50,44 +51,91 @@ public class DefaultVertexParallelismDecider implements VertexParallelismDecider
      */
     private static final double CAP_RATIO_OF_BROADCAST = 0.5;
 
-    private final int maxParallelism;
-    private final int minParallelism;
+    private final int globalMaxParallelism;
+    private final int globalMinParallelism;
     private final long dataVolumePerTask;
-    private final int defaultSourceParallelism;
+    private final int globalDefaultSourceParallelism;
 
     private DefaultVertexParallelismDecider(
-            int maxParallelism,
-            int minParallelism,
+            int globalMaxParallelism,
+            int globalMinParallelism,
             MemorySize dataVolumePerTask,
-            int defaultSourceParallelism) {
+            int globalDefaultSourceParallelism) {
 
-        checkArgument(minParallelism > 0, "The minimum parallelism must be larger than 0.");
+        checkArgument(globalMinParallelism > 0, "The minimum parallelism must be larger than 0.");
         checkArgument(
-                maxParallelism >= minParallelism,
+                globalMaxParallelism >= globalMinParallelism,
                 "Maximum parallelism should be greater than or equal to the minimum parallelism.");
         checkArgument(
-                defaultSourceParallelism > 0,
+                globalDefaultSourceParallelism > 0,
                 "The default source parallelism must be larger than 0.");
         checkNotNull(dataVolumePerTask);
 
-        this.maxParallelism = maxParallelism;
-        this.minParallelism = minParallelism;
+        this.globalMaxParallelism = globalMaxParallelism;
+        this.globalMinParallelism = globalMinParallelism;
         this.dataVolumePerTask = dataVolumePerTask.getBytes();
-        this.defaultSourceParallelism = defaultSourceParallelism;
+        this.globalDefaultSourceParallelism = globalDefaultSourceParallelism;
     }
 
     @Override
-    public int decideParallelismForVertex(List<BlockingResultInfo> consumedResults) {
+    public int decideParallelismForVertex(
+            JobVertexID jobVertexId,
+            List<BlockingResultInfo> consumedResults,
+            int vertexMaxParallelism) {
 
         if (consumedResults.isEmpty()) {
             // source job vertex
-            return defaultSourceParallelism;
+            return computeSourceParallelism(jobVertexId, vertexMaxParallelism);
         } else {
-            return calculateParallelism(consumedResults);
+            int minParallelism = globalMinParallelism;
+            int maxParallelism = globalMaxParallelism;
+            vertexMaxParallelism = getNormalizedMaxParallelism(vertexMaxParallelism);
+
+            if (vertexMaxParallelism < minParallelism) {
+                LOG.info(
+                        "The vertex maximum parallelism {} is smaller than the global minimum parallelism {}. "
+                                + "Use {} as the lower bound to decide parallelism of job vertex {}.",
+                        vertexMaxParallelism,
+                        minParallelism,
+                        vertexMaxParallelism,
+                        jobVertexId);
+                minParallelism = vertexMaxParallelism;
+            }
+            if (vertexMaxParallelism < maxParallelism) {
+                LOG.info(
+                        "The vertex maximum parallelism {} is smaller than the global maximum parallelism {}. "
+                                + "Use {} as the upper bound to decide parallelism of job vertex {}.",
+                        vertexMaxParallelism,
+                        maxParallelism,
+                        vertexMaxParallelism,
+                        jobVertexId);
+                maxParallelism = vertexMaxParallelism;
+            }
+            checkState(maxParallelism >= minParallelism);
+            return computeParallelism(jobVertexId, consumedResults, maxParallelism, minParallelism);
         }
     }
 
-    private int calculateParallelism(List<BlockingResultInfo> consumedResults) {
+    private int computeSourceParallelism(JobVertexID jobVertexId, int maxParallelism) {
+        if (globalDefaultSourceParallelism > maxParallelism) {
+            LOG.info(
+                    "The global default source parallelism {} is larger than the maximum parallelism {}. "
+                            + "Use {} as the parallelism of source job vertex {}.",
+                    globalDefaultSourceParallelism,
+                    maxParallelism,
+                    maxParallelism,
+                    jobVertexId);
+            return maxParallelism;
+        } else {
+            return globalDefaultSourceParallelism;
+        }
+    }
+
+    private int computeParallelism(
+            JobVertexID jobVertexId,
+            List<BlockingResultInfo> consumedResults,
+            int maxParallelism,
+            int minParallelism) {
 
         long broadcastBytes =
                 consumedResults.stream()
@@ -113,12 +161,13 @@ public class DefaultVertexParallelismDecider implements VertexParallelismDecider
         if (broadcastBytes > expectedMaxBroadcastBytes) {
             LOG.info(
                     "The size of broadcast data {} is larger than the expected maximum value {} ('{}' * {})."
-                            + " Use {} as the size of broadcast data to decide the parallelism.",
+                            + " Use {} as the size of broadcast data to decide the parallelism of job vertex {}.",
                     new MemorySize(broadcastBytes),
                     new MemorySize(expectedMaxBroadcastBytes),
                     JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK.key(),
                     CAP_RATIO_OF_BROADCAST,
-                    new MemorySize(expectedMaxBroadcastBytes));
+                    new MemorySize(expectedMaxBroadcastBytes),
+                    jobVertexId);
 
             broadcastBytes = expectedMaxBroadcastBytes;
         }
@@ -129,27 +178,30 @@ public class DefaultVertexParallelismDecider implements VertexParallelismDecider
 
         LOG.debug(
                 "The size of broadcast data is {}, the size of non-broadcast data is {}, "
-                        + "the initially decided parallelism is {}, after normalize is {}",
+                        + "the initially decided parallelism of job vertex {} is {}, after normalization is {}",
                 new MemorySize(broadcastBytes),
                 new MemorySize(nonBroadcastBytes),
+                jobVertexId,
                 initialParallelism,
                 parallelism);
 
         if (parallelism < minParallelism) {
             LOG.info(
                     "The initially normalized parallelism {} is smaller than the normalized minimum parallelism {}. "
-                            + "Use {} as the finally decided parallelism.",
+                            + "Use {} as the finally decided parallelism of job vertex {}.",
                     parallelism,
                     minParallelism,
-                    minParallelism);
+                    minParallelism,
+                    jobVertexId);
             parallelism = minParallelism;
         } else if (parallelism > maxParallelism) {
             LOG.info(
                     "The initially normalized parallelism {} is larger than the normalized maximum parallelism {}. "
-                            + "Use {} as the finally decided parallelism.",
+                            + "Use {} as the finally decided parallelism of job vertex {}.",
                     parallelism,
                     maxParallelism,
-                    maxParallelism);
+                    maxParallelism,
+                    jobVertexId);
             parallelism = maxParallelism;
         }
 
@@ -157,13 +209,13 @@ public class DefaultVertexParallelismDecider implements VertexParallelismDecider
     }
 
     @VisibleForTesting
-    int getMaxParallelism() {
-        return maxParallelism;
+    int getGlobalMaxParallelism() {
+        return globalMaxParallelism;
     }
 
     @VisibleForTesting
-    int getMinParallelism() {
-        return minParallelism;
+    int getGlobalMinParallelism() {
+        return globalMinParallelism;
     }
 
     static DefaultVertexParallelismDecider from(Configuration configuration) {
@@ -185,8 +237,12 @@ public class DefaultVertexParallelismDecider implements VertexParallelismDecider
                         JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM));
     }
 
+    private static int getNormalizedMaxParallelism(int maxParallelism) {
+        return MathUtils.roundDownToPowerOf2(maxParallelism);
+    }
+
     static int getNormalizedMaxParallelism(Configuration configuration) {
-        return MathUtils.roundDownToPowerOf2(
+        return getNormalizedMaxParallelism(
                 configuration.getInteger(
                         JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM));
     }
