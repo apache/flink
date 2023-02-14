@@ -76,7 +76,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
     /** Object mapper for parsing the JSON. */
     private transient ObjectMapper objectMapper;
 
-    /** */
     private transient Collector<RowData> collector;
 
     private transient List<RowData> reusableCollectList;
