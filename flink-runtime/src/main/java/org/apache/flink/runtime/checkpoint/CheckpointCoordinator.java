@@ -741,7 +741,7 @@ public class CheckpointCoordinator {
                                         "Triggering Checkpoint {} for job {} failed due to {}",
                                         checkpoint.getCheckpointID(),
                                         job,
-                                        failure);
+                                        failure.getMessage());
 
                                 final CheckpointException cause;
                                 if (failure instanceof CheckpointException) {
