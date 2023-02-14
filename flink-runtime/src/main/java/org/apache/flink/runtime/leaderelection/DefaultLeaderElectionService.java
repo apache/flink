@@ -106,9 +106,8 @@ public class DefaultLeaderElectionService
             if (!running) {
                 return;
             }
-            leaderContender.revokeLeadership();
             running = false;
-            confirmedLeaderInformation = LeaderInformation.empty();
+            handleLeadershipLoss();
         }
 
         leaderElectionDriver.close();
@@ -201,24 +200,7 @@ public class DefaultLeaderElectionService
     public void onRevokeLeadership() {
         synchronized (lock) {
             if (running) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Revoke leadership of {} ({}@{}).",
-                            leaderContender.getDescription(),
-                            confirmedLeaderInformation.getLeaderSessionID(),
-                            confirmedLeaderInformation.getLeaderAddress());
-                }
-
-                issuedLeaderSessionID = null;
-                confirmedLeaderInformation = LeaderInformation.empty();
-
-                leaderContender.revokeLeadership();
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
-                }
-                // Clear the old leader information on the external storage
-                leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
+                handleLeadershipLoss();
             } else {
                 LOG.debug(
                         "Ignoring the revoke leadership notification since the {} "
@@ -226,6 +208,25 @@ public class DefaultLeaderElectionService
                         leaderElectionDriver);
             }
         }
+    }
+
+    @GuardedBy("lock")
+    private void handleLeadershipLoss() {
+        LOG.debug(
+                "Revoke leadership of {} ({}@{}).",
+                leaderContender.getDescription(),
+                confirmedLeaderInformation.getLeaderSessionID(),
+                confirmedLeaderInformation.getLeaderAddress());
+
+        issuedLeaderSessionID = null;
+        confirmedLeaderInformation = LeaderInformation.empty();
+
+        leaderContender.revokeLeadership();
+
+        LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
+
+        // Clear the old leader information on the external storage
+        leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
     }
 
     @Override
