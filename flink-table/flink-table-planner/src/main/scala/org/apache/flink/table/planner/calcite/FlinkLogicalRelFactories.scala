@@ -174,6 +174,7 @@ object FlinkLogicalRelFactories {
     def createCorrelate(
         left: RelNode,
         right: RelNode,
+        hints: util.List[RelHint],
         correlationId: CorrelationId,
         requiredColumns: ImmutableBitSet,
         joinType: JoinRelType): RelNode = {
