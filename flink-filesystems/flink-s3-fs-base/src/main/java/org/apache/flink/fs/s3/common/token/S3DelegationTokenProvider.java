@@ -25,14 +25,12 @@ import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
-import com.amazonaws.services.securitytoken.model.Credentials;
-import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.model.Credentials;
 
 import java.util.Optional;
 
@@ -91,22 +89,21 @@ public class S3DelegationTokenProvider implements DelegationTokenProvider {
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        AWSSecurityTokenService stsClient =
-                AWSSecurityTokenServiceClientBuilder.standard()
-                        .withRegion(region)
-                        .withCredentials(
-                                new AWSStaticCredentialsProvider(
-                                        new BasicAWSCredentials(accessKey, secretKey)))
+        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(accessKey, secretKey);
+
+        StsClient stsClient =
+                StsClient.builder()
+                        .credentialsProvider(() -> awsBasicCredentials)
+                        .region(Region.of(region))
                         .build();
-        GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
-        Credentials credentials = sessionTokenResult.getCredentials();
+        Credentials credentials = stsClient.getSessionToken().credentials();
         LOG.info(
                 "Session credentials obtained successfully with access key: {} expiration: {}",
-                credentials.getAccessKeyId(),
-                credentials.getExpiration());
+                credentials.accessKeyId(),
+                credentials.expiration());
 
         return new ObtainedDelegationTokens(
                 InstantiationUtil.serializeObject(credentials),
-                Optional.of(credentials.getExpiration().getTime()));
+                Optional.of(credentials.expiration().getEpochSecond()));
     }
 }

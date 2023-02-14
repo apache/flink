@@ -26,9 +26,9 @@ import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.sts.model.Credentials;
 
 import javax.annotation.Nullable;
 
@@ -95,8 +95,8 @@ public class S3DelegationTokenReceiver implements DelegationTokenReceiver {
                         tokens, S3DelegationTokenReceiver.class.getClassLoader());
         LOG.info(
                 "Session credentials updated successfully with access key: {} expiration: {}",
-                credentials.getAccessKeyId(),
-                credentials.getExpiration());
+                credentials.accessKeyId(),
+                credentials.expiration());
     }
 
     @Nullable

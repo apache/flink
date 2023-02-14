@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import com.amazonaws.services.s3.model.PartETag;
+import software.amazon.awssdk.services.s3.model.Part;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -51,8 +51,8 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
     @Override
     public byte[] serialize(S3Recoverable obj) throws IOException {
-        final List<PartETag> partList = obj.parts();
-        final PartETag[] parts = partList.toArray(new PartETag[partList.size()]);
+        final List<Part> partList = obj.parts();
+        final Part[] parts = partList.toArray(new Part[partList.size()]);
 
         final byte[] keyBytes = obj.getObjectName().getBytes(CHARSET);
         final byte[] uploadIdBytes = obj.uploadId().getBytes(CHARSET);
@@ -60,7 +60,7 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         final byte[][] etags = new byte[parts.length][];
         int partEtagBytes = 0;
         for (int i = 0; i < parts.length; i++) {
-            etags[i] = parts[i].getETag().getBytes(CHARSET);
+            etags[i] = parts[i].eTag().getBytes(CHARSET);
             partEtagBytes += etags[i].length + 2 * Integer.BYTES;
         }
 
@@ -93,8 +93,8 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
         bb.putInt(etags.length);
         for (int i = 0; i < parts.length; i++) {
-            PartETag pe = parts[i];
-            bb.putInt(pe.getPartNumber());
+            Part pe = parts[i];
+            bb.putInt(pe.partNumber());
             bb.putInt(etags[i].length);
             bb.put(etags[i]);
         }
@@ -137,12 +137,12 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         bb.get(uploadIdBytes);
 
         final int numParts = bb.getInt();
-        final ArrayList<PartETag> parts = new ArrayList<>(numParts);
+        final ArrayList<Part> parts = new ArrayList<>(numParts);
         for (int i = 0; i < numParts; i++) {
             final int partNum = bb.getInt();
             final byte[] buffer = new byte[bb.getInt()];
             bb.get(buffer);
-            parts.add(new PartETag(partNum, new String(buffer, CHARSET)));
+            parts.add(Part.builder().partNumber(partNum).eTag(new String(buffer, CHARSET)).build());
         }
 
         final long numBytes = bb.getLong();

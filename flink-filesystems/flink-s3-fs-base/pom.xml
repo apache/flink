@@ -32,8 +32,21 @@ under the License.
 
 	<properties>
 		<fs.s3.aws.version>1.12.319</fs.s3.aws.version>
+		<fs.s3.aws.v2.version>2.20.1</fs.s3.aws.v2.version>
 		<japicmp.skip>true</japicmp.skip>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${fs.s3.aws.v2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 
@@ -185,31 +198,31 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- AWS dependencies (bundled) -->
+		<!-- AWS sdk v2 dependencies (bundled) -->
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-core</artifactId>
-			<version>${fs.s3.aws.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>aws-sdk-java</artifactId>
+			<version>${fs.s3.aws.v2.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-s3</artifactId>
-			<version>${fs.s3.aws.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${fs.s3.aws.v2.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-kms</artifactId>
-			<version>${fs.s3.aws.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>kms</artifactId>
+			<version>${fs.s3.aws.v2.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-dynamodb</artifactId>
-			<version>${fs.s3.aws.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>dynamodb</artifactId>
+			<version>${fs.s3.aws.v2.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-sts</artifactId>
-			<version>${fs.s3.aws.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${fs.s3.aws.v2.version}</version>
 		</dependency>
 
 		<!-- Hadoop's s3 support classes (bundled) -->

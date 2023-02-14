@@ -20,7 +20,7 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
 
-import com.amazonaws.services.s3.model.PartETag;
+import software.amazon.awssdk.services.s3.model.Part;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ final class MultiPartUploadInfo {
 
     private final String uploadId;
 
-    private final List<PartETag> completeParts;
+    private final List<Part> completeParts;
 
     private final Optional<File> incompletePart;
 
@@ -57,7 +57,7 @@ final class MultiPartUploadInfo {
     MultiPartUploadInfo(
             final String objectName,
             final String uploadId,
-            final List<PartETag> completeParts,
+            final List<Part> completeParts,
             final long numBytes,
             final Optional<File> incompletePart) {
 
@@ -92,7 +92,7 @@ final class MultiPartUploadInfo {
         return incompletePart;
     }
 
-    List<PartETag> getCopyOfEtagsOfCompleteParts() {
+    List<Part> getCopyOfEtagsOfCompleteParts() {
         return new ArrayList<>(completeParts);
     }
 
@@ -101,7 +101,7 @@ final class MultiPartUploadInfo {
         this.numberOfRegisteredParts++;
     }
 
-    void registerCompletePart(PartETag eTag) {
+    void registerCompletePart(Part eTag) {
         completeParts.add(eTag);
     }
 

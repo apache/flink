@@ -21,14 +21,6 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.util.MathUtils;
 
-import com.amazonaws.SdkBaseException;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.UploadPartRequest;
-import com.amazonaws.services.s3.model.UploadPartResult;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
@@ -37,6 +29,14 @@ import org.apache.hadoop.fs.s3a.WriteOperationHelper;
 import org.apache.hadoop.fs.s3a.statistics.S3AStatisticsContext;
 import org.apache.hadoop.fs.store.audit.AuditSpan;
 import org.apache.hadoop.fs.store.audit.AuditSpanSource;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.Part;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
+import software.amazon.awssdk.services.s3control.model.S3ObjectMetadata;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -72,7 +72,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     }
 
     @Override
-    public UploadPartResult uploadPart(
+    public UploadPartResponse uploadPart(
             String key, String uploadId, int partNumber, File inputFile, long length)
             throws IOException {
         final UploadPartRequest uploadRequest =
@@ -88,21 +88,20 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     }
 
     @Override
-    public PutObjectResult putObject(String key, File inputFile) throws IOException {
+    public PutObjectResponse putObject(String key, File inputFile) throws IOException {
         final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputFile);
         return s3accessHelper.putObject(putRequest);
     }
 
     @Override
-    public CompleteMultipartUploadResult commitMultiPartUpload(
+    public CompleteMultipartUploadResponse commitMultiPartUpload(
             String destKey,
             String uploadId,
-            List<PartETag> partETags,
+            List<Part> parts,
             long length,
             AtomicInteger errorCount)
             throws IOException {
-        return s3accessHelper.completeMPUwithRetries(
-                destKey, uploadId, partETags, length, errorCount);
+        return s3accessHelper.completeMPUwithRetries(destKey, uploadId, parts, length, errorCount);
     }
 
     @Override
@@ -139,10 +138,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     }
 
     @Override
-    public ObjectMetadata getObjectMetadata(String key) throws IOException {
+    public S3ObjectMetadata getObjectMetadata(String key) throws IOException {
         try {
             return s3a.getObjectMetadata(new Path('/' + key));
-        } catch (SdkBaseException e) {
+        } catch (SdkException e) {
             throw S3AUtils.translateException("getObjectMetadata", key, e);
         }
     }

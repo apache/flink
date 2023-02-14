@@ -18,10 +18,10 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-import com.amazonaws.services.s3.model.PartETag;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
+import software.amazon.awssdk.services.s3.model.Part;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -112,10 +112,10 @@ public class S3RecoverableSerializerTest {
                         && compareLists(expectedRecoverable.parts(), actualRecoverable.parts());
             }
 
-            private boolean compareLists(final List<PartETag> first, final List<PartETag> second) {
+            private boolean compareLists(final List<Part> first, final List<Part> second) {
                 return Arrays.equals(
-                        first.stream().map(PartETag::getETag).toArray(),
-                        second.stream().map(PartETag::getETag).toArray());
+                        first.stream().map(Part::eTag).toArray(),
+                        second.stream().map(Part::eTag).toArray());
             }
 
             @Override
@@ -130,7 +130,7 @@ public class S3RecoverableSerializerTest {
 
     private static S3Recoverable createTestS3Recoverable(
             boolean withIncompletePart, int... partNumbers) {
-        List<PartETag> etags = new ArrayList<>();
+        List<Part> etags = new ArrayList<>();
         for (int i : partNumbers) {
             etags.add(createEtag(i));
         }
@@ -148,7 +148,7 @@ public class S3RecoverableSerializerTest {
         }
     }
 
-    private static PartETag createEtag(int partNumber) {
-        return new PartETag(partNumber, ETAG_PREFIX + partNumber);
+    private static Part createEtag(int partNumber) {
+        return Part.builder().partNumber(partNumber).eTag(ETAG_PREFIX + partNumber).build();
     }
 }
