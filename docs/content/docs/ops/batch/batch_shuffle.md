@@ -132,7 +132,7 @@ These could be configured via [jobmanager.partition.hybrid.partition-data-consum
 Hybrid shuffle mode is still experimental and has some known limitations, which the Flink community is still working on eliminating.
 
 - **No support for Slot Sharing.** In hybrid shuffle mode, Flink currently forces each task to be executed in a dedicated slot exclusively. If slot sharing is explicitly specified, an error will occur.
-- **No optimization for dynamic graph.** If auto-parallelism(dynamic graph) is enabled for `AdaptiveBatchScheduler`, hybrid shuffle will always schedule tasks only when all producer are finished like blocking shuffle, this means that the constraint will fall back to `ALL_PRODUCERS_FINISHED` in this case.
+- **No pipelined execution for dynamic graph.** If auto-parallelism (dynamic graph) is enabled, Adaptive Batch Scheduler will wait until upstream tasks finish to decide parallelism of downstream tasks, which means hybrid shuffle effectively fallback to blocking shuffle (`ALL_PRODUCERS_FINISHED` constraint).
 
 ## Performance Tuning
 
