@@ -21,8 +21,6 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
-
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -81,7 +79,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
     }
 
     @Override
-    public synchronized boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+    public synchronized boolean hasLeadership(UUID leaderSessionId) {
         return hasLeadership && leaderSessionId.equals(issuedLeaderSessionId);
     }
 
