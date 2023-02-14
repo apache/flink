@@ -373,7 +373,8 @@ class CalcITCase extends StreamingTestBase {
       Row.of(Row.of("Hello", "Hidden"), Int.box(5)),
       Row.of(Row.of("Hello again", null), Int.box(2)),
       Row.of(Row.of(null, "World"), Int.box(0)),
-      Row.of(Row.of("Hello again", "Hide"), Int.box(6)))
+      Row.of(Row.of("Hello again", "Hide"), Int.box(6))
+    )
     val dataId = TestValuesTableFactory.registerData(data)
     val ddl =
       s"""
@@ -388,8 +389,8 @@ class CalcITCase extends StreamingTestBase {
          |""".stripMargin
     tEnv.executeSql(ddl)
     val cmp = (l: Row, r: Row) => l.getField(1).asInstanceOf[Int] > r.getField(1).asInstanceOf[Int]
-    var result = tEnv.executeSql(
-      "SELECT IF(c > 3, words.a, words.b), c, words.a, words.b from t")
+    var result = tEnv
+      .executeSql("SELECT IF(c > 3, words.a, words.b), c, words.a, words.b from t")
       .collect()
       .toList
       .sortWith(cmp)
@@ -403,7 +404,8 @@ class CalcITCase extends StreamingTestBase {
     assertEquals(expected, result)
 
     // IF with constant values
-    result = tEnv.executeSql("SELECT IF(c > 3, 'true', 'false'), c from t")
+    result = tEnv
+      .executeSql("SELECT IF(c > 3, 'true', 'false'), c from t")
       .collect()
       .toList
       .sortWith(cmp)
@@ -412,7 +414,7 @@ class CalcITCase extends StreamingTestBase {
       Row.of("true", Int.box(5)),
       Row.of("false", Int.box(2)),
       Row.of("false", Int.box(1)),
-      Row.of("false", Int.box(0)),
+      Row.of("false", Int.box(0))
     ).sortWith(cmp)
     assertEquals(expected, result)
   }
