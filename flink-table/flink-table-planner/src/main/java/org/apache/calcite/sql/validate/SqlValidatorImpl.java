@@ -305,7 +305,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Methods ----------------------------------------------------------------
 
     public SqlConformance getConformance() {
-        return config.sqlConformance();
+        return config.conformance();
     }
 
     @Pure
@@ -539,7 +539,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         final SqlIdentifier identifier = (SqlIdentifier) selectItem;
         if (!identifier.isSimple()) {
-            if (!validator.config().sqlConformance().allowQualifyingCommonColumn()) {
+            if (!validator.config().conformance().allowQualifyingCommonColumn()) {
                 validateQualifiedCommonColumn((SqlJoin) from, identifier, scope, validator);
             }
             return selectItem;
@@ -3420,7 +3420,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         // a NATURAL keyword?
         switch (joinType) {
             case LEFT_SEMI_JOIN:
-                if (!this.config.sqlConformance().isLiberal()) {
+                if (!this.config.conformance().isLiberal()) {
                     throw newValidationError(
                             join.getJoinTypeNode(),
                             RESOURCE.dialectDoesNotSupportFeature("LEFT SEMI JOIN"));
@@ -3551,7 +3551,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         }
 
         if (select.getFrom() == null) {
-            if (this.config.sqlConformance().isFromRequired()) {
+            if (this.config.conformance().isFromRequired()) {
                 throw newValidationError(select, RESOURCE.selectMissingFrom());
             }
         } else {
@@ -4282,7 +4282,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             return;
         }
         final AggregatingScope havingScope = (AggregatingScope) getSelectScope(select);
-        if (config.sqlConformance().isHavingAlias()) {
+        if (config.conformance().isHavingAlias()) {
             SqlNode newExpr = expandGroupByOrHavingExpr(having, havingScope, select, true);
             if (having != newExpr) {
                 having = newExpr;
@@ -4732,7 +4732,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
     protected RelDataType getLogicalTargetRowType(RelDataType targetRowType, SqlInsert insert) {
         if (insert.getTargetColumnList() == null
-                && this.config.sqlConformance().isInsertSubsetColumnsAllowed()) {
+                && this.config.conformance().isInsertSubsetColumnsAllowed()) {
             // Target an implicit subset of columns.
             final SqlNode source = insert.getSource();
             final RelDataType sourceRowType = getNamespaceOrThrow(source).getRowType();
@@ -5034,7 +5034,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             }
 
             SqlCall rowConstructor = (SqlCall) operand;
-            if (this.config.sqlConformance().isInsertSubsetColumnsAllowed()
+            if (this.config.conformance().isInsertSubsetColumnsAllowed()
                     && targetRowType.isStruct()
                     && rowConstructor.operandCount() < targetRowType.getFieldCount()) {
                 targetRowType =
@@ -5655,7 +5655,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         // What columns from the input are not referenced by a column in the IN
         // list?
-        final SqlValidatorNamespace inputNs = Objects.requireNonNull(getNamespace(unpivot.query));
+        final SqlValidatorNamespace inputNs = requireNonNull(getNamespace(unpivot.query));
         final Set<String> unusedColumnNames = catalogReader.nameMatcher().createSet();
         unusedColumnNames.addAll(inputNs.getRowType().getFieldNames());
         unusedColumnNames.removeAll(unpivot.usedColumnNames());
@@ -5873,7 +5873,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         if ((call.operandCount() == 0)
                 && (operator.getSyntax() == SqlSyntax.FUNCTION_ID)
                 && !call.isExpanded()
-                && !this.config.sqlConformance().allowNiladicParentheses()) {
+                && !this.config.conformance().allowNiladicParentheses()) {
             // For example, "LOCALTIME()" is illegal. (It should be
             // "LOCALTIME", which would have been handled as a
             // SqlIdentifier.)
@@ -6416,7 +6416,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             // Ordinal markers, e.g. 'select a, b from t order by 2'.
             // Only recognize them if they are the whole expression,
             // and if the dialect permits.
-            if (literal == root && config.sqlConformance().isSortByOrdinal()) {
+            if (literal == root && config.conformance().isSortByOrdinal()) {
                 switch (literal.getTypeName()) {
                     case DECIMAL:
                     case DOUBLE:
@@ -6462,7 +6462,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         @Override
         public SqlNode visit(SqlIdentifier id) {
             // Aliases, e.g. 'select a as x, b from t order by x'.
-            if (id.isSimple() && config.sqlConformance().isSortByAlias()) {
+            if (id.isSimple() && config.conformance().isSortByAlias()) {
                 String alias = id.getSimple();
                 final SqlValidatorNamespace selectNs = getNamespaceOrThrow(select);
                 final RelDataType rowType = selectNs.getRowTypeSansSystemColumns();
@@ -6537,8 +6537,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         public @Nullable SqlNode visit(SqlIdentifier id) {
             if (id.isSimple()
                     && (havingExpr
-                            ? validator.config().sqlConformance().isHavingAlias()
-                            : validator.config().sqlConformance().isGroupByAlias())) {
+                            ? validator.config().conformance().isHavingAlias()
+                            : validator.config().conformance().isGroupByAlias())) {
                 String name = id.getSimple();
                 SqlNode expr = null;
                 final SqlNameMatcher nameMatcher = validator.catalogReader.nameMatcher();
@@ -6579,7 +6579,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         @Override
         public @Nullable SqlNode visit(SqlLiteral literal) {
-            if (havingExpr || !validator.config().sqlConformance().isGroupByOrdinal()) {
+            if (havingExpr || !validator.config().conformance().isGroupByOrdinal()) {
                 return super.visit(literal);
             }
             boolean isOrdinalLiteral = literal == root;
