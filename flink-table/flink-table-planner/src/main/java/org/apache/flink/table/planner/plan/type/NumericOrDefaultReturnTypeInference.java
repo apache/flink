@@ -56,7 +56,7 @@ public class NumericOrDefaultReturnTypeInference implements SqlReturnTypeInferen
         List<RelDataType> types = new ArrayList<>();
         for (int i = startTypeIdx; i < nOperands; i++) {
             RelDataType type = opBinding.getOperandType(i);
-            if (SqlTypeUtil.isNumeric(type)) {
+            if (SqlTypeUtil.isNumeric(type) || SqlTypeUtil.isCharacter(type)) {
                 types.add(type);
             } else {
                 return opBinding.getOperandType(defaultTypeIdx);
