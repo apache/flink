@@ -738,10 +738,10 @@ public class CheckpointCoordinator {
                     .exceptionally(
                             failure -> {
                                 LOG.info(
-                                        "Triggering Checkpoint {} for job {} failed due to {}",
+                                        "Triggering Checkpoint {} for job {} failed due to : ",
                                         checkpoint.getCheckpointID(),
                                         job,
-                                        failure.getMessage());
+                                        failure);
 
                                 final CheckpointException cause;
                                 if (failure instanceof CheckpointException) {
