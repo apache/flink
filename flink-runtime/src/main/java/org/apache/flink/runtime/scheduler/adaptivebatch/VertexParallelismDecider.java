@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import java.util.List;
 
 /**
@@ -29,8 +31,13 @@ public interface VertexParallelismDecider {
     /**
      * Computing the parallelism.
      *
+     * @param jobVertexId The job vertex id.
      * @param consumedResults The information of consumed blocking results.
+     * @param vertexMaxParallelism The max parallelism of the job vertex.
      * @return the parallelism of the job vertex.
      */
-    int decideParallelismForVertex(List<BlockingResultInfo> consumedResults);
+    int decideParallelismForVertex(
+            JobVertexID jobVertexId,
+            List<BlockingResultInfo> consumedResults,
+            int vertexMaxParallelism);
 }
