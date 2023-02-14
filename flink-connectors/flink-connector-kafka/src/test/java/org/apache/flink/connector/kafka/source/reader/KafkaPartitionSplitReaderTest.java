@@ -48,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
@@ -323,7 +324,7 @@ public class KafkaPartitionSplitReaderTest {
     @Test
     public void testConsumerClientRackSupplier() {
         AtomicReference<Boolean> supplierCalled = new AtomicReference<>(false);
-        String rackId = "use-az1";
+        String rackId = "use1-az1";
         Supplier<String> rackIdSupplier =
                 () -> {
                     supplierCalled.set(true);
@@ -335,7 +336,34 @@ public class KafkaPartitionSplitReaderTest {
                 UnregisteredMetricsGroup.createSourceReaderMetricGroup(),
                 rackIdSupplier);
         assertThat(supplierCalled.get()).isEqualTo(true);
-        assertThat(rackId.equals(properties.getProperty(ConsumerConfig.CLIENT_RACK_CONFIG)));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    public void testSetConsumerClientRackIgnoresNullAndEmpty(String rackId) {
+        Properties properties = new Properties();
+        Supplier<String> rackIdSupplier = () -> rackId;
+        KafkaPartitionSplitReader reader =
+                createReader(
+                        properties,
+                        UnregisteredMetricsGroup.createSourceReaderMetricGroup(),
+                        rackIdSupplier);
+        reader.setConsumerClientRack(properties, rackIdSupplier);
+        assertThat(properties.containsKey(ConsumerConfig.CLIENT_RACK_CONFIG)).isFalse();
+    }
+
+    @Test
+    public void testSetConsumerClientRackUsesCorrectParameter() {
+        String rackId = "use1-az1";
+        Properties properties = new Properties();
+        Supplier<String> rackIdSupplier = () -> rackId;
+        KafkaPartitionSplitReader reader =
+                createReader(
+                        properties,
+                        UnregisteredMetricsGroup.createSourceReaderMetricGroup(),
+                        rackIdSupplier);
+        reader.setConsumerClientRack(properties, rackIdSupplier);
+        assertThat(properties.get(ConsumerConfig.CLIENT_RACK_CONFIG)).isEqualTo(rackId);
     }
 
     // ------------------

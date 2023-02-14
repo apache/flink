@@ -265,10 +265,10 @@ public class KafkaPartitionSplitReader
 
     // --------------- private helper method ----------------------
 
-    private void setConsumerClientRack(Properties consumerProps, Supplier<String> rackIdSupplier) {
+    void setConsumerClientRack(Properties consumerProps, Supplier<String> rackIdSupplier) {
         if (rackIdSupplier != null) {
             String rackId = rackIdSupplier.get();
-            if (rackId != null) {
+            if (rackId != null && !rackId.isEmpty()) {
                 consumerProps.setProperty(ConsumerConfig.CLIENT_RACK_CONFIG, rackId);
             }
         }
