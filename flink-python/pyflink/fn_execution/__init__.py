@@ -15,3 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+import os
+
+if 'PYFLINK_CYTHON_ENABLED' in os.environ:
+    PYFLINK_CYTHON_ENABLED = bool(os.environ['PYFLINK_CYTHON_ENABLED'])
+else:
+    PYFLINK_CYTHON_ENABLED = True
