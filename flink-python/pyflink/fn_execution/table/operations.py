@@ -20,6 +20,30 @@ from functools import reduce
 from itertools import chain
 from typing import Tuple
 
+from pyflink import fn_execution
+
+if fn_execution.PYFLINK_CYTHON:
+    try:
+        from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
+            SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+            SimpleTableAggsHandleFunction, GroupTableAggFunction
+        from pyflink.fn_execution.table.window_aggregate_fast import \
+            SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+        from pyflink.fn_execution.coder_impl_fast import InternalRow
+    except:
+        from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
+            SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+            SimpleTableAggsHandleFunction, GroupTableAggFunction
+        from pyflink.fn_execution.table.window_aggregate_slow import \
+            SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+        fn_execution.PYFLINK_CYTHON = False
+else:
+    from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
+        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+        SimpleTableAggsHandleFunction, GroupTableAggFunction
+    from pyflink.fn_execution.table.window_aggregate_slow import \
+        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+
 from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
@@ -36,21 +60,6 @@ from pyflink.fn_execution.utils import operation_utils
 from pyflink.fn_execution.utils.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.metrics.process.metric_impl import GenericMetricGroup
 
-try:
-    from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
-        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-        SimpleTableAggsHandleFunction, GroupTableAggFunction
-    from pyflink.fn_execution.table.window_aggregate_fast import \
-        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
-    from pyflink.fn_execution.coder_impl_fast import InternalRow
-    has_cython = True
-except ImportError:
-    from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
-        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-        SimpleTableAggsHandleFunction, GroupTableAggFunction
-    from pyflink.fn_execution.table.window_aggregate_slow import \
-        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
-    has_cython = False
 
 from pyflink.table import FunctionContext, Row
 
@@ -378,13 +387,13 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
         # all the fields are nullable except the "element_type"
         if input_data[0] == NORMAL_RECORD:
-            if has_cython:
+            if fn_execution.PYFLINK_CYTHON:
                 row = InternalRow.from_row(input_data[1])
             else:
                 row = input_data[1]
             self.group_agg_function.process_element(row)
         else:
-            if has_cython:
+            if fn_execution.PYFLINK_CYTHON:
                 timer = InternalRow.from_row(input_data[3])
             else:
                 timer = input_data[3]
@@ -521,7 +530,7 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
     def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
         if input_data[0] == NORMAL_RECORD:
             self.group_agg_function.process_watermark(input_data[3])
-            if has_cython:
+            if fn_execution.PYFLINK_CYTHON:
                 input_row = InternalRow.from_row(input_data[1])
             else:
                 input_row = input_data[1]
