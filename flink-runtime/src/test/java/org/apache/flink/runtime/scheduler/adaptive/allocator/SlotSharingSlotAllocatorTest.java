@@ -278,6 +278,11 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         public VertexInformation getVertexInformation(JobVertexID jobVertexId) {
             return vertexIdToInformation.get(jobVertexId);
         }
+
+        @Override
+        public Iterable<VertexInformation> getVertices() {
+            return vertexIdToInformation.values();
+        }
     }
 
     private static class TestVertexInformation implements JobInformation.VertexInformation {
