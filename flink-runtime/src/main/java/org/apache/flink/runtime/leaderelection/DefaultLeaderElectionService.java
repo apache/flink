@@ -27,7 +27,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -268,7 +267,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+    public boolean hasLeadership(UUID leaderSessionId) {
         synchronized (lock) {
             if (leaderElectionDriver != null) {
                 if (leaderContender != null) {
