@@ -119,8 +119,8 @@ To use hybrid shuffle mode, you need to configure the [execution.batch-shuffle-m
 Hybrid shuffle divides the partition data consumption constraints between producer and consumer into the following three cases:
 
 - **ALL_PRODUCERS_FINISHED** : hybrid partition data can be consumed only when all producers are finished.
-- **ONLY_FINISHED_PRODUCERS** : hybrid partition data can be consumed when its producer is finished.
-- **UNFINISHED_PRODUCERS** : hybrid partition data can be consumed even if its producer is un-finished.
+- **ONLY_FINISHED_PRODUCERS** : hybrid partition can only consume data from finished producers.
+- **UNFINISHED_PRODUCERS** : hybrid partition can consume data from unfinished producers.
 
 These could be configured via [jobmanager.partition.hybrid.partition-data-consume-constraint]({{< ref "docs/deployment/config" >}}#jobmanager-partition-hybrid-partition-data-consume-constraint).
 
