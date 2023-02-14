@@ -37,8 +37,6 @@ import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -101,7 +99,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         public void confirmLeadership(final UUID leaderSessionID, final String leaderAddress) {}
 
         @Override
-        public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+        public boolean hasLeadership(UUID leaderSessionId) {
             return false;
         }
     }
