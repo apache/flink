@@ -7,5 +7,5 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
 
-- org.jline:jline-terminal:3.21.0
-- org.jline:jline-reader:3.21.0
+- org.jline:jline-terminal:3.22.0
+- org.jline:jline-reader:3.22.0

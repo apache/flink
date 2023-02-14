@@ -78,14 +78,14 @@ under the License.
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-terminal</artifactId>
-			<version>3.21.0</version>
+			<version>3.22.0</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-reader</artifactId>
-			<version>3.21.0</version>
+			<version>3.22.0</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
