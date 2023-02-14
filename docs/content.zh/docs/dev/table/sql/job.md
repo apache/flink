@@ -89,8 +89,8 @@ STOP JOB '<job_id>' [WITH SAVEPOINT] [WITH DRAIN]
 或者通过 `SET` 语句指定（后者有更高优先级）。
 
 **WITH DRAIN**
-在完成最后一个 Checkpoint 之前将 Watermark 提升至最大。当你想永久停止作业时可以使用。
+在触发 savepoint 之前将 Watermark 提升至最大。该操作会可能会触发窗口的计算。请您注意该操作可能导致您之后从该创建的 savepoint 恢复的作业结果不正确。
 
-<span class="label label-danger">Attention</span> STOP JOBS 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> STOP JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
 {{< top >}}

@@ -754,7 +754,7 @@ SHOW JARS
 SHOW JOBS
 ```
 
-展示集群中所有 job。
+展示集群中所有作业。
 
 <span class="label label-danger">Attention</span> 当前 SHOW JOBS 命令只能在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 中使用.
 

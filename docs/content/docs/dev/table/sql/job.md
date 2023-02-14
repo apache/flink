@@ -92,6 +92,6 @@ the cluster configuration or via `SET` statements (the latter would take precede
 Increase the watermark to the maximum value before the last checkpoint barrier. Use it when you
 want to terminate the job permanently.
 
-<span class="label label-danger">Attention</span> STOP JOBS statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> STOP JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
 {{< top >}}

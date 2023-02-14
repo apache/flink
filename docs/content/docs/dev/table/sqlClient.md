@@ -537,7 +537,7 @@ information on how to configure connector and format dependencies.
 
 {{< top >}}
 
-Executing statements
+Usage
 ----------------------------
 
 SQL Client allows users to submit jobs either within the interactive command line or using `-f` option to execute sql file.
@@ -750,8 +750,11 @@ Cluster ID: StandaloneClusterId
 Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 ```
 
-<span class="label label-danger">Attention</span> The status of the submitted Flink jobs could be 
-monitored through [SHOW JOBS statements]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status).
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the
+running Flink job after submission. The CLI process can be shutdown after the submission without
+affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
+use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
+or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
 
 However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
@@ -813,7 +816,7 @@ Flink SQL> RESET pipeline.name;
 
 If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
 
-### Monitoring job status
+### Monitoring Job Status
 
 SQL Client supports to list jobs status in the cluster through `SHOW JOBS` statements.
 
@@ -826,7 +829,7 @@ Flink SQL> SHOW JOBS;
 +----------------------------------+---------------+----------+-------------------------+
 ```
 
-### Terminating a job
+### Terminating a Job
 
 SQL Client supports to stop jobs with or without savepoints through `STOP JOB` statements.
 
