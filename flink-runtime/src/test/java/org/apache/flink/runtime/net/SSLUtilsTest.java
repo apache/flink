@@ -24,6 +24,8 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.JdkSslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
@@ -47,6 +49,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.JDK;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -164,6 +167,21 @@ public class SSLUtilsTest {
             fail("exception expected");
         } catch (Exception ignored) {
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    public void testRESTSSLConfigCipherAlgorithms(String sslProvider) throws Exception {
+        String testSSLAlgorithms = "test_algorithm1,test_algorithm2";
+        Configuration config = createRestSslConfigWithTrustStore(sslProvider);
+        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        config.setString(SecurityOptions.SSL_ALGORITHMS.key(), testSSLAlgorithms);
+        JdkSslContext nettySSLContext =
+                (JdkSslContext)
+                        SSLUtils.createRestNettySSLContext(config, true, ClientAuth.NONE, JDK);
+        List<String> cipherSuites = checkNotNull(nettySSLContext).cipherSuites();
+        assertThat(cipherSuites.size()).isEqualTo(2);
+        assertThat(cipherSuites.toArray()).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
     }
 
     // ------------------------ server --------------------------
