@@ -195,10 +195,10 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     }
 
     private void validateAllowedExecution() {
-        if (enforceSingleJobExecution && jobCounter > 0) {
-            throw new FlinkRuntimeException(
-                    "Cannot have more than one execute() or executeAsync() call in a single environment.");
-        }
+//        if (enforceSingleJobExecution && jobCounter > 0) {
+//            throw new FlinkRuntimeException(
+//                    "Cannot have more than one execute() or executeAsync() call in a single environment.");
+//        }
         jobCounter++;
     }
 

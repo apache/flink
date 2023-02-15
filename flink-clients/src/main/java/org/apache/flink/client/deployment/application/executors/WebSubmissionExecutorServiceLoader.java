@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.util.Collection;
 import java.util.stream.Stream;
@@ -41,6 +42,7 @@ public class WebSubmissionExecutorServiceLoader implements PipelineExecutorServi
 
     private final DispatcherGateway dispatcherGateway;
 
+    private final ScheduledExecutor retryExecutor;
     /**
      * Creates an {@link WebSubmissionExecutorServiceLoader}.
      *
@@ -51,14 +53,15 @@ public class WebSubmissionExecutorServiceLoader implements PipelineExecutorServi
      *     jobs.
      */
     public WebSubmissionExecutorServiceLoader(
-            final Collection<JobID> submittedJobIds, final DispatcherGateway dispatcherGateway) {
+            final Collection<JobID> submittedJobIds, final DispatcherGateway dispatcherGateway,final ScheduledExecutor retryExecutor) {
         this.submittedJobIds = checkNotNull(submittedJobIds);
         this.dispatcherGateway = checkNotNull(dispatcherGateway);
+        this.retryExecutor = checkNotNull(retryExecutor);
     }
 
     @Override
     public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-        return new WebSubmissionExecutorFactory(submittedJobIds, dispatcherGateway);
+        return new WebSubmissionExecutorFactory(submittedJobIds, dispatcherGateway, retryExecutor);
     }
 
     @Override

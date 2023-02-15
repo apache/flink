@@ -129,6 +129,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
     @Override
     public JobClient executeAsync(String jobName) throws Exception {
         validateAllowedExecution();
+        System.out.println("ContextEnvironment --------------------------------");
         final JobClient jobClient = super.executeAsync(jobName);
 
         if (!suppressSysout) {
@@ -139,10 +140,10 @@ public class ContextEnvironment extends ExecutionEnvironment {
     }
 
     private void validateAllowedExecution() {
-        if (enforceSingleJobExecution && jobCounter > 0) {
-            throw new FlinkRuntimeException(
-                    "Cannot have more than one execute() or executeAsync() call in a single environment.");
-        }
+//        if (enforceSingleJobExecution && jobCounter > 0) {
+//            throw new FlinkRuntimeException(
+//                    "Cannot have more than one execute() or executeAsync() call in a single environment.");
+//        }
         jobCounter++;
     }
 

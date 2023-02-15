@@ -20,13 +20,23 @@ package org.apache.flink.client.deployment.application.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.WebSubmissionJobClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,6 +51,8 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
 
     private final DispatcherGateway dispatcherGateway;
 
+    private final ScheduledExecutor retryExecutor;
+
     /**
      * Creates an {@link WebSubmissionExecutorFactory}.
      *
@@ -50,10 +62,10 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
      * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit
      *     jobs.
      */
-    public WebSubmissionExecutorFactory(
-            final Collection<JobID> submittedJobIds, final DispatcherGateway dispatcherGateway) {
+    public WebSubmissionExecutorFactory(final Collection<JobID> submittedJobIds, final DispatcherGateway dispatcherGateway, final ScheduledExecutor retryExecutor) {
         this.submittedJobIds = checkNotNull(submittedJobIds);
         this.dispatcherGateway = checkNotNull(dispatcherGateway);
+        this.retryExecutor = checkNotNull(retryExecutor);
     }
 
     @Override
@@ -75,6 +87,12 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
         return new EmbeddedExecutor(
                 submittedJobIds,
                 dispatcherGateway,
-                (jobId, userCodeClassloader) -> new WebSubmissionJobClient(jobId));
+                (jobId, userCodeClassloader) ->{
+                    final Time timeout =
+                            Time.milliseconds(configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
+                    return new WebSubmissionJobClient(jobId, dispatcherGateway, retryExecutor, timeout, userCodeClassloader);
+                });
     }
+
+
 }

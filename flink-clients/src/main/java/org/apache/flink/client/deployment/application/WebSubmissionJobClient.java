@@ -22,14 +22,29 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -40,12 +55,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * while waiting for their completion.
  */
 @PublicEvolving
-public class WebSubmissionJobClient implements JobClient {
+public class WebSubmissionJobClient implements JobClient, CoordinationRequestGateway {
+//public class WebSubmissionJobClient implements JobClient {
 
     private final JobID jobId;
 
-    public WebSubmissionJobClient(final JobID jobId) {
-        this.jobId = checkNotNull(jobId);
+
+//    public WebSubmissionJobClient(final JobID jobId) {
+//        this.jobId = checkNotNull(jobId);
+//    }
+
+    private final DispatcherGateway dispatcherGateway;
+
+    private final ScheduledExecutor retryExecutor;
+
+    private final Time timeout;
+
+    private final ClassLoader classLoader;
+
+    public WebSubmissionJobClient(final JobID jobId, DispatcherGateway dispatcherGateway, final ScheduledExecutor retryExecutor, Time rpcTimeout, final ClassLoader classLoader) {
+        this.jobId = (JobID) Preconditions.checkNotNull(jobId);
+        this.dispatcherGateway = checkNotNull(dispatcherGateway);
+        this.retryExecutor = checkNotNull(retryExecutor);
+        this.timeout = checkNotNull(rpcTimeout);
+        this.classLoader = classLoader;
     }
 
     @Override
@@ -55,14 +88,12 @@ public class WebSubmissionJobClient implements JobClient {
 
     @Override
     public CompletableFuture<JobStatus> getJobStatus() {
-        throw new FlinkRuntimeException(
-                "The Job Status cannot be requested when in Web Submission.");
+        return dispatcherGateway.requestJobStatus(jobId, timeout);
     }
 
     @Override
     public CompletableFuture<Void> cancel() {
-        throw new FlinkRuntimeException(
-                "Cancelling the job is not supported by the Job Client when in Web Submission.");
+        return dispatcherGateway.cancelJob(jobId, timeout).thenApply(ignores -> null);
     }
 
     @Override
@@ -70,26 +101,67 @@ public class WebSubmissionJobClient implements JobClient {
             boolean advanceToEndOfEventTime,
             @Nullable String savepointDirectory,
             SavepointFormatType formatType) {
-        throw new FlinkRuntimeException(
-                "Stop with Savepoint is not supported by the Job Client when in Web Submission.");
+        return dispatcherGateway.stopWithSavepointAndGetLocation(
+                jobId,
+                savepointDirectory,
+                formatType,
+                advanceToEndOfEventTime
+                        ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                        : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
+                timeout);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
             @Nullable String savepointDirectory, SavepointFormatType formatType) {
-        throw new FlinkRuntimeException(
-                "A savepoint cannot be taken through the Job Client when in Web Submission.");
+        return dispatcherGateway.triggerSavepointAndGetLocation(
+                jobId, savepointDirectory, formatType, TriggerSavepointMode.SAVEPOINT, timeout);
     }
 
     @Override
     public CompletableFuture<Map<String, Object>> getAccumulators() {
-        throw new FlinkRuntimeException(
-                "The Accumulators cannot be fetched through the Job Client when in Web Submission.");
+        checkNotNull(classLoader);
+
+        return dispatcherGateway
+                .requestJob(jobId, timeout)
+                .thenApply(ArchivedExecutionGraph::getAccumulatorsSerialized)
+                .thenApply(
+                        accumulators -> {
+                            try {
+                                return AccumulatorHelper.deserializeAndUnwrapAccumulators(
+                                        accumulators, classLoader);
+                            } catch (Exception e) {
+                                throw new CompletionException(
+                                        "Cannot deserialize and unwrap accumulators properly.", e);
+                            }
+                        });
     }
 
     @Override
     public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
-        throw new FlinkRuntimeException(
-                "The Job Result cannot be fetched through the Job Client when in Web Submission.");
+        checkNotNull(classLoader);
+
+        final Time retryPeriod = Time.milliseconds(100L);
+        return JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, retryExecutor, timeout, retryPeriod)
+            .thenApply(
+                (jobResult) -> {
+                    try {
+                        return jobResult.toJobExecutionResult(classLoader);
+                    } catch (Throwable t) {
+                        throw new CompletionException(UnsuccessfulExecutionException.fromJobResult(jobResult, classLoader));
+                    }
+                });
     }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+            OperatorID operatorId, CoordinationRequest request) {
+        try {
+            SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
+            return dispatcherGateway.deliverCoordinationRequestToCoordinator(jobId, operatorId, serializedRequest, timeout);
+        } catch (IOException e) {
+            return FutureUtils.completedExceptionally(e);
+        }
+    }
+
 }

@@ -31,11 +31,17 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -59,6 +65,10 @@ public class DetachedApplicationRunner implements ApplicationRunner {
         this.enforceSingleJobExecution = enforceSingleJobExecution;
     }
 
+    // 我这里加的
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+    private final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+
     @Override
     public List<JobID> run(
             final DispatcherGateway dispatcherGateway,
@@ -67,18 +77,20 @@ public class DetachedApplicationRunner implements ApplicationRunner {
         checkNotNull(dispatcherGateway);
         checkNotNull(program);
         checkNotNull(configuration);
-        return tryExecuteJobs(dispatcherGateway, program, configuration);
+        // 
+        return tryExecuteJobs(dispatcherGateway, program, scheduledExecutor, configuration);
     }
 
     private List<JobID> tryExecuteJobs(
             final DispatcherGateway dispatcherGateway,
             final PackagedProgram program,
+            final ScheduledExecutor scheduledExecutor,
             final Configuration configuration) {
         configuration.set(DeploymentOptions.ATTACHED, false);
 
         final List<JobID> applicationJobIds = new ArrayList<>();
         final PipelineExecutorServiceLoader executorServiceLoader =
-                new WebSubmissionExecutorServiceLoader(applicationJobIds, dispatcherGateway);
+                new WebSubmissionExecutorServiceLoader(applicationJobIds, dispatcherGateway, scheduledExecutor);
 
         try {
             ClientUtils.executeProgram(
