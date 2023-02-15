@@ -97,7 +97,7 @@ public class NFA<T> {
 
     /**
      * The length of a windowed pattern, as specified using the {@link
-     * org.apache.flink.cep.pattern.Pattern#within(Time)} Pattern.within(Time)} method.
+     * org.apache.flink.cep.pattern.Pattern#within(Time) Pattern.within(Time)} method.
      */
     private final long windowTime;
 

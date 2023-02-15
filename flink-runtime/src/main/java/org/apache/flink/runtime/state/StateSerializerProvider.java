@@ -214,9 +214,9 @@ public abstract class StateSerializerProvider<T> {
      * <ul>
      *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAsIs()}: nothing needs to be done.
      *       {@link #currentSchemaSerializer()} now returns the newly registered serializer.
-     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()} ()}: state needs
-     *       to be migrated before the serializer returned by {@link #currentSchemaSerializer()} can
-     *       be used. The migration should be performed by reading the state with {@link
+     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()}: state needs to
+     *       be migrated before the serializer returned by {@link #currentSchemaSerializer()} can be
+     *       used. The migration should be performed by reading the state with {@link
      *       #previousSchemaSerializer()}, and then writing it again with {@link
      *       #currentSchemaSerializer()}.
      *   <li>{@link TypeSerializerSchemaCompatibility#isIncompatible()}: the registered serializer
@@ -247,9 +247,9 @@ public abstract class StateSerializerProvider<T> {
      *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAsIs()}: nothing needs to be done.
      *       {@link #currentSchemaSerializer()} remains to return the initially registered
      *       serializer.
-     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()} ()}: state needs
-     *       to be migrated before the serializer returned by {@link #currentSchemaSerializer()} can
-     *       be used. The migration should be performed by reading the state with {@link
+     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()}: state needs to
+     *       be migrated before the serializer returned by {@link #currentSchemaSerializer()} can be
+     *       used. The migration should be performed by reading the state with {@link
      *       #previousSchemaSerializer()}, and then writing it again with {@link
      *       #currentSchemaSerializer()}.
      *   <li>{@link TypeSerializerSchemaCompatibility#isIncompatible()}: the registered serializer

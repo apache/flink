@@ -189,7 +189,7 @@ public enum ResultPartitionType {
     }
 
     /**
-     * {@link #isHybridResultPartition()} ()} is used to judge whether it is the specified {@link
+     * {@link #isHybridResultPartition()} is used to judge whether it is the specified {@link
      * #HYBRID_FULL} or {@link #HYBRID_SELECTIVE} resultPartitionType.
      *
      * <p>this method suitable for judgment conditions related to the specific implementation of

@@ -44,7 +44,7 @@ public final class WindowListState<W> implements WindowState<W> {
     }
 
     /**
-     * Updates the operator state accessible by {@link #get(W)})} by adding the given value to the
+     * Updates the operator state accessible by {@link #get(W)} by adding the given value to the
      * list of values. The next time {@link #get(W)} is called (for the same state partition) the
      * returned state will represent the updated list.
      *

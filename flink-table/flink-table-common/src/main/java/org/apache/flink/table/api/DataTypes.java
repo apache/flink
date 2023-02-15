@@ -783,7 +783,7 @@ public final class DataTypes {
      * <p>Use {@link #FIELD(String, AbstractDataType)} or {@link #FIELD(String, AbstractDataType,
      * String)} to construct fields.
      *
-     * <p>Note: Compared to {@link #ROW(Field...)} )}, this method produces an {@link
+     * <p>Note: Compared to {@link #ROW(Field...)}, this method produces an {@link
      * UnresolvedDataType} with {@link UnresolvedField}s. In most of the cases, the {@link
      * UnresolvedDataType} will be automatically resolved by the API. At other locations, a {@link
      * DataTypeFactory} is provided.
