@@ -26,6 +26,7 @@ under the License.
 
 # Apache Kafka SQL 连接器
 
+{{< label "Scan Source: Bounded" >}}
 {{< label "Scan Source: Unbounded" >}}
 {{< label "Sink: Streaming Append Mode" >}}
 

@@ -27,6 +27,7 @@ under the License.
 
 # Apache Kafka SQL Connector
 
+{{< label "Scan Source: Bounded" >}}
 {{< label "Scan Source: Unbounded" >}}
 {{< label "Sink: Streaming Append Mode" >}}
 
