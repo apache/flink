@@ -485,6 +485,30 @@ class DataStreamTests(object):
         ]
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
+    def test_process_side_output(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                yield value[0]
+                yield tag, value[1]
+
+        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_process_side_output")
+        main_expected = ['a', 'b', 'c']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['0', '1', '2']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
     def test_side_output_chained_with_upstream_operator(self):
         tag = OutputTag("side", Types.INT())
 
@@ -658,6 +682,28 @@ class DataStreamTests(object):
         result = [i for i in ds_side.execute_and_collect()]
         expected = [2, 4, 6]
         self.assert_equals_sorted(expected, result)
+
+    def test_side_output_tag_reusing(self):
+        tag = OutputTag("side", Types.INT())
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx):
+                yield value
+                yield tag, value * 2
+
+        side1_sink = DataStreamTestSinkFunction()
+        ds = self.env.from_collection([1, 2, 3], Types.INT()).process(MyProcessFunction())
+        ds.get_side_output(tag).add_sink(side1_sink)
+
+        side2_sink = DataStreamTestSinkFunction()
+        ds.map(lambda i: i*2).process(MyProcessFunction()).get_side_output(tag).add_sink(side2_sink)
+
+        self.env.execute("test_side_output_tag_reusing")
+        result1 = [i for i in side1_sink.get_results(stringify=False)]
+        result2 = [i for i in side2_sink.get_results(stringify=False)]
+        self.assert_equals_sorted(['2', '4', '6'], result1)
+        self.assert_equals_sorted(['4', '8', '12'], result2)
 
 
 class DataStreamStreamingTests(DataStreamTests):
@@ -998,30 +1044,6 @@ class ProcessDataStreamTests(DataStreamTests):
                     "current timestamp: 1603708289000, "
                     "current_value: Row(f0=4, f1='1603708289000')"]
         self.assert_equals_sorted(expected, results)
-
-    def test_process_side_output(self):
-        tag = OutputTag("side", Types.INT())
-
-        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        class MyProcessFunction(ProcessFunction):
-
-            def process_element(self, value, ctx: 'ProcessFunction.Context'):
-                yield value[0]
-                yield tag, value[1]
-
-        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
-        main_sink = DataStreamTestSinkFunction()
-        ds2.add_sink(main_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute("test_process_side_output")
-        main_expected = ['a', 'b', 'c']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side_expected = ['0', '1', '2']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
 
 class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStreamTests,
