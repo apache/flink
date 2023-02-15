@@ -64,6 +64,7 @@ class OutputTag(object):
         tag_id, type_info = state
         self.tag_id = tag_id
         self.type_info = type_info
+        self._j_output_tag = None
 
     def get_java_output_tag(self):
         gateway = get_gateway()
