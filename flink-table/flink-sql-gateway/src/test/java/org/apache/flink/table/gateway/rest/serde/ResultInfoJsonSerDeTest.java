@@ -47,11 +47,14 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Period;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,29 +70,34 @@ import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DAY;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ResultInfoSerializer} and {@link ResultInfoDeserializer}. */
-public class ResultInfoJsonSerDeTest {
+class ResultInfoJsonSerDeTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Row testRow = initRow();
 
     @BeforeAll
-    public static void setUp() {
+    static void setUp() {
         SimpleModule simpleModule = new SimpleModule();
         simpleModule.addSerializer(ResultInfo.class, new ResultInfoSerializer());
         simpleModule.addDeserializer(ResultInfo.class, new ResultInfoDeserializer());
@@ -98,19 +106,19 @@ public class ResultInfoJsonSerDeTest {
 
     @ParameterizedTest
     @EnumSource(RowFormat.class)
-    public void testResultInfoSerDeWithSingleRow(RowFormat rowFormat) throws Exception {
+    void testResultInfoSerDeWithSingleRow(RowFormat rowFormat) throws Exception {
         serDeTest(Collections.singletonList(testRow), rowFormat);
     }
 
     @ParameterizedTest
     @EnumSource(RowFormat.class)
-    public void testResultInfoSerDeWithMultiRowData(RowFormat rowFormat) throws Exception {
+    void testResultInfoSerDeWithMultiRowData(RowFormat rowFormat) throws Exception {
         serDeTest(Collections.nCopies(10, testRow), rowFormat);
     }
 
     @ParameterizedTest
     @EnumSource(RowFormat.class)
-    public void testResultInfoSerDeWithNullValues(RowFormat rowFormat) throws Exception {
+    void testResultInfoSerDeWithNullValues(RowFormat rowFormat) throws Exception {
         List<Integer> positions =
                 IntStream.range(0, 18)
                         .mapToObj(i -> new Random().nextInt(18))
@@ -123,7 +131,7 @@ public class ResultInfoJsonSerDeTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"result_info_json_format.txt", "result_info_plain_text_format.txt"})
-    public void testDeserializationFromJson(String fileName) throws Exception {
+    void testDeserializationFromJson(String fileName) throws Exception {
         URL url = ResultInfoJsonSerDeTest.class.getClassLoader().getResource(fileName);
         String input =
                 IOUtils.toString(Preconditions.checkNotNull(url), StandardCharsets.UTF_8).trim();
@@ -155,8 +163,8 @@ public class ResultInfoJsonSerDeTest {
         ResultInfo resultInfo = OBJECT_MAPPER.readValue(result, ResultInfo.class);
 
         // validate schema
-        assertThat(resultInfo.getResultSchema().toString())
-                .isEqualTo(testResultInfo.getResultSchema().toString());
+        assertThat(resultInfo.getResultSchema())
+                .hasToString(testResultInfo.getResultSchema().toString());
 
         // validate data
         assertDataWithFormat(resultInfo.getData(), rows, rowFormat);
@@ -177,6 +185,8 @@ public class ResultInfoJsonSerDeTest {
         final LocalTime time = LocalTime.parse("12:12:43");
         final Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
         final Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
+        final long duration = Duration.of(123, ChronoUnit.HOURS).getSeconds();
+        final int period = Period.of(1, 2, 3).getDays();
         final Instant timestampWithLocalZone =
                 LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789)
                         .atOffset(ZoneOffset.of("Z"))
@@ -193,7 +203,7 @@ public class ResultInfoJsonSerDeTest {
         innerMap.put("key", 234);
         nestedMap.put("inner_map", innerMap);
 
-        Row testRow = new Row(18);
+        Row testRow = new Row(20);
         setRandomKind(testRow);
         testRow.setField(0, true);
         testRow.setField(1, tinyint);
@@ -213,6 +223,8 @@ public class ResultInfoJsonSerDeTest {
         testRow.setField(15, map);
         testRow.setField(16, multiSet);
         testRow.setField(17, nestedMap);
+        testRow.setField(18, duration);
+        testRow.setField(19, period);
         return testRow;
     }
 
@@ -253,7 +265,9 @@ public class ResultInfoJsonSerDeTest {
                 FIELD("timestampWithLocalZone", TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
                 FIELD("map", MAP(STRING(), BIGINT())),
                 FIELD("multiSet", MULTISET(STRING())),
-                FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
+                FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
+                FIELD("dayTimeInterval", INTERVAL(DAY(), SECOND(3))),
+                FIELD("yearMonthInterval", INTERVAL(YEAR(), MONTH())));
     }
 
     private ResolvedSchema getTestResolvedSchema(List<DataTypes.Field> fields) {

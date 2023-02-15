@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.rest.serde;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.DataTypeJsonSerdeTest;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -28,7 +29,6 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -41,6 +41,7 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -71,13 +72,13 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
 @Execution(CONCURRENT)
-public class LogicalTypeJsonSerDeTest {
+class LogicalTypeJsonSerDeTest {
 
     private final ObjectMapper mapper = buildObjectMapper();
 
     @ParameterizedTest
     @MethodSource("generateTestData")
-    public void testLogicalTypeJsonSerDe(LogicalType logicalType) throws IOException {
+    void testLogicalTypeJsonSerDe(LogicalType logicalType) throws IOException {
         String json = mapper.writeValueAsString(logicalType);
         LogicalType actualType = mapper.readValue(json, LogicalType.class);
 
@@ -85,9 +86,18 @@ public class LogicalTypeJsonSerDeTest {
     }
 
     @Test
-    public void testSerializeUnsupportedType() {
+    void testSerializeUnsupportedType() {
         LogicalType unsupportedType =
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR);
+                StructuredType.newBuilder(DataTypeJsonSerdeTest.PojoClass.class)
+                        .attributes(
+                                Arrays.asList(
+                                        new StructuredType.StructuredAttribute(
+                                                "f0", new IntType(true)),
+                                        new StructuredType.StructuredAttribute(
+                                                "f1", new BigIntType(true)),
+                                        new StructuredType.StructuredAttribute(
+                                                "f2", new VarCharType(200), "desc")))
+                        .build();
         assertThatThrownBy(() -> mapper.writeValueAsString(unsupportedType))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
@@ -98,8 +108,8 @@ public class LogicalTypeJsonSerDeTest {
     }
 
     @Test
-    public void testDeserializeUnsupportedType() {
-        String unsupportedTypeString = "INTERVAL_DAY_TIME";
+    void testDeserializeUnsupportedType() {
+        String unsupportedTypeString = "STRUCTURED_TYPE";
         String json =
                 String.format(
                         "{\"%s\": \"%s\", \"%s\": %s}",
@@ -114,7 +124,7 @@ public class LogicalTypeJsonSerDeTest {
     }
 
     @Test
-    public void testDeserializeUnsupportedJson() {
+    void testDeserializeUnsupportedJson() {
         String json = String.format("{\"%s\": \"%s\"}", "unknown", "whatever");
         assertThatThrownBy(() -> mapper.readValue(json, LogicalType.class))
                 .satisfies(
@@ -229,5 +239,16 @@ public class LogicalTypeJsonSerDeTest {
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
         mapper.registerModule(module);
         return mapper;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper POJOs
+    // --------------------------------------------------------------------------------------------
+
+    /** Testing class. */
+    public static class PojoClass {
+        public int f0;
+        public long f1;
+        public String f2;
     }
 }
