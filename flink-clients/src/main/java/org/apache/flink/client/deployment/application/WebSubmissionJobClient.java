@@ -56,14 +56,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public class WebSubmissionJobClient implements JobClient, CoordinationRequestGateway {
-//public class WebSubmissionJobClient implements JobClient {
 
     private final JobID jobId;
-
-
-//    public WebSubmissionJobClient(final JobID jobId) {
-//        this.jobId = checkNotNull(jobId);
-//    }
 
     private final DispatcherGateway dispatcherGateway;
 
