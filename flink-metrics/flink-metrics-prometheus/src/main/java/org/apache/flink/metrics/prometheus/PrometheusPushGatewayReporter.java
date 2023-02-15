@@ -26,6 +26,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.util.Preconditions;
 
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
 import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
@@ -54,6 +55,22 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
+    }
+
+    PrometheusPushGatewayReporter(
+            URL hostUrl,
+            String jobName,
+            Map<String, String> groupingKey,
+            final boolean deleteOnShutdown,
+            String username,
+            String password) {
+        this.hostUrl = hostUrl;
+        this.pushGateway = new PushGateway(hostUrl);
+        this.jobName = Preconditions.checkNotNull(jobName);
+        this.groupingKey = Preconditions.checkNotNull(groupingKey);
+        this.deleteOnShutdown = deleteOnShutdown;
+        this.pushGateway.setConnectionFactory(
+                new BasicAuthHttpConnectionFactory(username, password));
     }
 
     @Override
