@@ -121,7 +121,9 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        this.schema = new Parser().parse(schemaString);
+        if (schemaString != null) {
+            this.schema = new Parser().parse(schemaString);
+        }
     }
 
     @Override
