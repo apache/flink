@@ -382,6 +382,7 @@ public class SSLUtils {
         }
 
         String[] sslProtocols = getEnabledProtocols(config);
+        List<String> ciphers = Arrays.asList(getEnabledCipherSuites(config));
 
         final SslContextBuilder sslContextBuilder;
         if (clientMode) {
@@ -403,6 +404,7 @@ public class SSLUtils {
         return sslContextBuilder
                 .sslProvider(provider)
                 .protocols(sslProtocols)
+                .ciphers(ciphers)
                 .clientAuth(clientAuth)
                 .build();
     }
