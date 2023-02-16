@@ -54,12 +54,11 @@ class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
             ExecutionGraphInfo executionGraphInfo) {
         return CompletableFuture.runAsync(
                         ThrowingRunnable.unchecked(
-                                () ->
-                                        FsJobArchivist.archiveJob(
-                                                archivePath,
-                                                executionGraphInfo.getJobId(),
-                                                jsonArchivist.archiveJsonWithPath(
-                                                        executionGraphInfo))),
+                                () ->{
+                                    if (executionGraphInfo.getArchivedExecutionGraph().getState().isGloballyTerminalState()) {
+                                        FsJobArchivist.archiveJob(archivePath, executionGraphInfo.getJobId(), jsonArchivist.archiveJsonWithPath(executionGraphInfo));
+                                    }
+                                }),
                         ioExecutor)
                 .thenApply(ignored -> Acknowledge.get());
     }
