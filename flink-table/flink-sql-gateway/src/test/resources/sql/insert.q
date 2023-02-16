@@ -56,26 +56,10 @@ create table StreamingTable (
 1 row in set
 !ok
 
-# test only to verify the test job id.
-SET '$internal.pipeline.job-id' = 'e68e7fabddfade4f42910980652582dc';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| e68e7fabddfade4f42910980652582dc |
-+----------------------------------+
-1 row in set
-!ok
+Job ID:
+!info
 
 RESET '$internal.pipeline.job-id';
 !output
@@ -134,36 +118,10 @@ create table BatchTable (
 1 row in set
 !ok
 
-# test only to verify the test job id.
-SET '$internal.pipeline.job-id' = '29ba2263b9b86bd8a14b91487941bfe7';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| 29ba2263b9b86bd8a14b91487941bfe7 |
-+----------------------------------+
-1 row in set
-!ok
-
-RESET '$internal.pipeline.job-id';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+Job ID:
+!info
 
 SELECT * FROM BatchTable;
 !output
@@ -181,17 +139,6 @@ SELECT * FROM BatchTable;
 7 rows in set
 !ok
 
-# test only to verify the test job id.
-SET '$internal.pipeline.job-id' = '84c7408a08c284d5736e50d3f5a648be';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
-
 CREATE TABLE CtasTable
 WITH (
   'connector' = 'filesystem',
@@ -200,23 +147,8 @@ WITH (
 )
 AS SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE')) T(id, str);
 !output
-+----------------------------------+
-|                           job id |
-+----------------------------------+
-| 84c7408a08c284d5736e50d3f5a648be |
-+----------------------------------+
-1 row in set
-!ok
-
-RESET '$internal.pipeline.job-id';
-!output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+Job ID:
+!info
 
 SELECT * FROM CtasTable;
 !output

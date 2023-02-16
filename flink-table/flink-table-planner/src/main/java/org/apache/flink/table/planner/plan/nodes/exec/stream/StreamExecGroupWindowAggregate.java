@@ -288,7 +288,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =

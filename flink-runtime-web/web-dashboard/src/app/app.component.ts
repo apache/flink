@@ -16,16 +16,42 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
+import { AsyncPipe, NgForOf, NgIf } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { fromEvent, merge } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
 
 import { StatusService } from '@flink-runtime-web/services';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
 
 @Component({
   selector: 'flink-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.less']
+  styleUrls: ['./app.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    AsyncPipe,
+    NzLayoutModule,
+    NzMenuModule,
+    NzIconModule,
+    NzDividerModule,
+    NzBadgeModule,
+    NzDrawerModule,
+    NzAlertModule,
+    NgIf,
+    NgForOf
+  ],
+  standalone: true
 })
 export class AppComponent {
   collapsed = false;
@@ -41,17 +67,20 @@ export class AppComponent {
   showMessage(): void {
     if (this.statusService.listOfErrorMessage.length) {
       this.visible = true;
+      this.cdr.markForCheck();
     }
   }
 
   clearMessage(): void {
     this.statusService.listOfErrorMessage = [];
     this.visible = false;
+    this.cdr.markForCheck();
   }
 
   toggleCollapse(): void {
     this.collapsed = !this.collapsed;
+    this.cdr.markForCheck();
   }
 
-  constructor(public statusService: StatusService) {}
+  constructor(public statusService: StatusService, private cdr: ChangeDetectorRef) {}
 }

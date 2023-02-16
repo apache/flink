@@ -70,7 +70,7 @@ abstract class CheckpointIDCounterTestBase {
         try {
             counter.start();
 
-            assertThat(counter.getAndIncrement()).isEqualTo(1);
+            assertThat(counter.getAndIncrement()).isOne();
             assertThat(counter.get()).isEqualTo(2);
             assertThat(counter.getAndIncrement()).isEqualTo(2);
             assertThat(counter.get()).isEqualTo(3);

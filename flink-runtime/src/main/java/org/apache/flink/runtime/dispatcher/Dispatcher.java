@@ -27,8 +27,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.MetricGroup;
@@ -94,12 +98,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,6 +113,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -119,6 +127,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         implements DispatcherGateway {
+
+    @VisibleForTesting
+    public static final ConfigOption<Duration> CLIENT_ALIVENESS_CHECK_DURATION =
+            ConfigOptions.key("$internal.dispatcher.client-aliveness-check.interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1));
 
     public static final String DISPATCHER_NAME = "dispatcher";
 
@@ -168,6 +182,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private final ResourceCleaner localResourceCleaner;
     private final ResourceCleaner globalResourceCleaner;
+
+    private final Time webTimeout;
+
+    private final Map<JobID, Long> jobClientExpiredTimestamp = new HashMap<>();
+    private final Map<JobID, Long> uninitializedJobClientHeartbeatTimeout = new HashMap<>();
+    private final long jobClientAlivenessCheckInterval;
+    private ScheduledFuture<?> jobClientAlivenessCheck;
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
@@ -281,6 +302,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 resourceCleanerFactory.createLocalResourceCleaner(this.getMainThreadExecutor());
         this.globalResourceCleaner =
                 resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
+
+        this.webTimeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+
+        this.jobClientAlivenessCheckInterval =
+                configuration.get(CLIENT_ALIVENESS_CHECK_DURATION).toMillis();
     }
 
     // ------------------------------------------------------
@@ -353,6 +379,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void runRecoveredJob(final JobGraph recoveredJob) {
         checkNotNull(recoveredJob);
+
+        initJobClientExpiredTime(recoveredJob);
+
         try {
             runJob(createJobMasterRunner(recoveredJob), ExecutionType.RECOVERY);
         } catch (Throwable throwable) {
@@ -361,6 +390,32 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             String.format(
                                     "Could not start recovered job %s.", recoveredJob.getJobID()),
                             throwable));
+        }
+    }
+
+    private void initJobClientExpiredTime(JobGraph jobGraph) {
+        JobID jobID = jobGraph.getJobID();
+        long initialClientHeartbeatTimeout = jobGraph.getInitialClientHeartbeatTimeout();
+        if (initialClientHeartbeatTimeout > 0) {
+            log.info(
+                    "Begin to detect the client's aliveness for job {}. The heartbeat timeout is {}",
+                    jobID,
+                    initialClientHeartbeatTimeout);
+            uninitializedJobClientHeartbeatTimeout.put(jobID, initialClientHeartbeatTimeout);
+
+            if (jobClientAlivenessCheck == null) {
+                // Use the client heartbeat timeout as the check interval.
+                jobClientAlivenessCheck =
+                        this.getRpcService()
+                                .getScheduledExecutor()
+                                .scheduleWithFixedDelay(
+                                        () ->
+                                                getMainThreadExecutor()
+                                                        .execute(this::checkJobClientAliveness),
+                                        0L,
+                                        jobClientAlivenessCheckInterval,
+                                        TimeUnit.MILLISECONDS);
+            }
         }
     }
 
@@ -397,6 +452,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<Void> onStop() {
         log.info("Stopping dispatcher {}.", getAddress());
+
+        if (jobClientAlivenessCheck != null) {
+            jobClientAlivenessCheck.cancel(false);
+            jobClientAlivenessCheck = null;
+        }
 
         final CompletableFuture<Void> allJobsTerminationFuture =
                 terminateRunningJobsAndGetTerminationFuture();
@@ -531,6 +591,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
+        applyParallelismOverrides(jobGraph);
         log.info("Submitting job '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
         return waitForTerminatingJob(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)
                 .handle((ignored, throwable) -> handleTermination(jobGraph.getJobID(), throwable))
@@ -568,6 +629,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
         jobGraphWriter.putJobGraph(jobGraph);
+        initJobClientExpiredTime(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
     }
 
@@ -1014,6 +1076,61 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                 operatorId, serializedRequest, timeout));
     }
 
+    @Override
+    public CompletableFuture<Void> reportJobClientHeartbeat(
+            JobID jobId, long expiredTimestamp, Time timeout) {
+        if (!getJobManagerRunner(jobId).isPresent()) {
+            log.warn("Fail to find job {} for client.", jobId);
+        } else {
+            log.debug(
+                    "Job {} receives client's heartbeat which expiredTimestamp is {}.",
+                    jobId,
+                    expiredTimestamp);
+            jobClientExpiredTimestamp.put(jobId, expiredTimestamp);
+        }
+        return FutureUtils.completedVoidFuture();
+    }
+
+    private void checkJobClientAliveness() {
+        setClientHeartbeatTimeoutForInitializedJob();
+
+        long currentTimestamp = System.currentTimeMillis();
+        Iterator<Map.Entry<JobID, Long>> iterator = jobClientExpiredTimestamp.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<JobID, Long> entry = iterator.next();
+            JobID jobID = entry.getKey();
+            long expiredTimestamp = entry.getValue();
+
+            if (!getJobManagerRunner(jobID).isPresent()) {
+                iterator.remove();
+            } else if (expiredTimestamp <= currentTimestamp) {
+                log.warn(
+                        "The heartbeat from the job client is timeout and cancel the job {}. "
+                                + "You can adjust the heartbeat interval "
+                                + "by 'client.heartbeat.interval' and the timeout "
+                                + "by 'client.heartbeat.timeout'",
+                        jobID);
+                cancelJob(jobID, webTimeout);
+            }
+        }
+    }
+
+    private void setClientHeartbeatTimeoutForInitializedJob() {
+        Iterator<Map.Entry<JobID, Long>> iterator =
+                uninitializedJobClientHeartbeatTimeout.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<JobID, Long> entry = iterator.next();
+            JobID jobID = entry.getKey();
+            Optional<JobManagerRunner> jobManagerRunnerOptional = getJobManagerRunner(jobID);
+            if (!jobManagerRunnerOptional.isPresent()) {
+                iterator.remove();
+            } else if (jobManagerRunnerOptional.get().isInitialized()) {
+                jobClientExpiredTimestamp.put(jobID, System.currentTimeMillis() + entry.getValue());
+                iterator.remove();
+            }
+        }
+    }
+
     private void registerJobManagerRunnerTerminationFuture(
             JobID jobId, CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
         Preconditions.checkState(!jobManagerRunnerTerminationFutures.containsKey(jobId));
@@ -1333,5 +1450,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
         return CompletableFuture.runAsync(() -> terminateJob(jobId), getMainThreadExecutor());
+    }
+
+    private void applyParallelismOverrides(JobGraph jobGraph) {
+        Map<String, String> overrides = configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            String override = overrides.get(vertex.getID().toHexString());
+            if (override != null) {
+                int currentParallelism = vertex.getParallelism();
+                int overrideParallelism = Integer.parseInt(override);
+                log.info(
+                        "Changing job vertex {} parallelism from {} to {}",
+                        vertex.getID(),
+                        currentParallelism,
+                        overrideParallelism);
+                vertex.setParallelism(overrideParallelism);
+            }
+        }
     }
 }

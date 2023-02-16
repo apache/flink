@@ -58,8 +58,9 @@ public class SinkTransformation<InputT, OutputT> extends PhysicalTransformation<
             TypeInformation<OutputT> outputType,
             String name,
             int parallelism,
+            boolean parallelismConfigured,
             CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
-        super(name, outputType, parallelism);
+        super(name, outputType, parallelism, parallelismConfigured);
         this.inputStream = checkNotNull(inputStream);
         this.sink = checkNotNull(sink);
         this.input = inputStream.getTransformation();

@@ -25,17 +25,20 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,11 +50,21 @@ import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRI
 import static org.junit.Assert.assertEquals;
 
 /** Integration tests for proper initialization of the system resource metrics. */
-public class SystemResourcesMetricsITCase extends TestLogger {
+class SystemResourcesMetricsITCase {
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    @Order(1)
+    static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(
+                            MetricReporterFactory.class,
+                            SystemResourcesMetricsITCase.TestReporter.class.getName())
+                    .build();
+
+    @RegisterExtension
+    @Order(2)
+    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
@@ -64,13 +77,13 @@ public class SystemResourcesMetricsITCase extends TestLogger {
         configuration.setString(REPORTERS_LIST, "test_reporter");
         configuration.setString(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
         configuration.setString(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
-        configuration.setString(
-                "metrics.reporter.test_reporter.class", TestReporter.class.getName());
+        MetricOptions.forReporter(configuration, "test_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter.class.getName());
         return configuration;
     }
 
     @Test
-    public void startTaskManagerAndCheckForRegisteredSystemMetrics() throws Exception {
+    void startTaskManagerAndCheckForRegisteredSystemMetrics() throws Exception {
         assertEquals(1, TestReporter.OPENED_REPORTERS.size());
         TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
 
@@ -107,7 +120,7 @@ public class SystemResourcesMetricsITCase extends TestLogger {
     }
 
     /** Test metric reporter that exposes registered metrics. */
-    public static final class TestReporter implements MetricReporter {
+    public static final class TestReporter implements MetricReporter, MetricReporterFactory {
         public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
         private final Map<String, CompletableFuture<Void>> patternFutures =
                 getExpectedPatterns().stream()
@@ -140,5 +153,10 @@ public class SystemResourcesMetricsITCase extends TestLogger {
 
         @Override
         public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {}
+
+        @Override
+        public MetricReporter createMetricReporter(Properties properties) {
+            return this;
+        }
     }
 }

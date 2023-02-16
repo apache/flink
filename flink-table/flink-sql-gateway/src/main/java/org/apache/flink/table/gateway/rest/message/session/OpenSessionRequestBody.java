@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.session;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -43,6 +44,7 @@ public class OpenSessionRequestBody implements RequestBody {
     @Nullable
     private final Map<String, String> properties;
 
+    @JsonCreator
     public OpenSessionRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_SESSION_NAME) String sessionName,
             @Nullable @JsonProperty(FIELD_NAME_PROPERTIES) Map<String, String> properties) {

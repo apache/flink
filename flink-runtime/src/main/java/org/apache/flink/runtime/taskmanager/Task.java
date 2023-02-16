@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointStoreUtil;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -66,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
@@ -191,6 +193,9 @@ public class Task
     /** The memory manager to be used by this task. */
     private final MemoryManager memoryManager;
 
+    /** Shared memory manager provided by the task manager. */
+    private final SharedResources sharedResources;
+
     /** The I/O manager to be used by this task. */
     private final IOManager ioManager;
 
@@ -258,6 +263,9 @@ public class Task
     /** Future that is completed once {@link #run()} exits. */
     private final CompletableFuture<ExecutionState> terminationFuture = new CompletableFuture<>();
 
+    /** The factory of channel state write request executor. */
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     // ------------------------------------------------------------------------
     //  Fields that control the task execution. All these fields are volatile
     //  (which means that they introduce memory barriers), to establish
@@ -302,6 +310,7 @@ public class Task
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
             MemoryManager memManager,
+            SharedResources sharedResources,
             IOManager ioManager,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
             KvStateService kvStateService,
@@ -319,7 +328,8 @@ public class Task
             TaskManagerRuntimeInfo taskManagerConfig,
             @Nonnull TaskMetricGroup metricGroup,
             PartitionProducerStateChecker partitionProducerStateChecker,
-            Executor executor) {
+            Executor executor,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
@@ -352,6 +362,7 @@ public class Task
                 tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
         this.memoryManager = Preconditions.checkNotNull(memManager);
+        this.sharedResources = Preconditions.checkNotNull(sharedResources);
         this.ioManager = Preconditions.checkNotNull(ioManager);
         this.broadcastVariableManager = Preconditions.checkNotNull(bcVarManager);
         this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
@@ -376,6 +387,7 @@ public class Task
         this.partitionProducerStateChecker =
                 Preconditions.checkNotNull(partitionProducerStateChecker);
         this.executor = Preconditions.checkNotNull(executor);
+        this.channelStateExecutorFactory = channelStateExecutorFactory;
 
         // create the reader and writer structures
 
@@ -612,16 +624,19 @@ public class Task
             userCodeClassLoader = createUserCodeClassloader();
             final ExecutionConfig executionConfig =
                     serializedExecutionConfig.deserializeValue(userCodeClassLoader.asClassLoader());
+            Configuration executionConfigConfiguration = executionConfig.toConfiguration();
 
-            if (executionConfig.getTaskCancellationInterval() >= 0) {
-                // override task cancellation interval from Flink config if set in ExecutionConfig
-                taskCancellationInterval = executionConfig.getTaskCancellationInterval();
-            }
+            // override task cancellation interval from Flink config if set in ExecutionConfig
+            taskCancellationInterval =
+                    executionConfigConfiguration
+                            .getOptional(TaskManagerOptions.TASK_CANCELLATION_INTERVAL)
+                            .orElse(taskCancellationInterval);
 
-            if (executionConfig.getTaskCancellationTimeout() >= 0) {
-                // override task cancellation timeout from Flink config if set in ExecutionConfig
-                taskCancellationTimeout = executionConfig.getTaskCancellationTimeout();
-            }
+            // override task cancellation timeout from Flink config if set in ExecutionConfig
+            taskCancellationTimeout =
+                    executionConfigConfiguration
+                            .getOptional(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
+                            .orElse(taskCancellationTimeout);
 
             if (isCanceledOrFailed()) {
                 throw new CancelTaskException();
@@ -682,6 +697,7 @@ public class Task
                             taskConfiguration,
                             userCodeClassLoader,
                             memoryManager,
+                            sharedResources,
                             ioManager,
                             broadcastVariableManager,
                             taskStateManager,
@@ -698,7 +714,8 @@ public class Task
                             taskManagerConfig,
                             metrics,
                             this,
-                            externalResourceInfoProvider);
+                            externalResourceInfoProvider,
+                            channelStateExecutorFactory);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable
@@ -1071,30 +1088,33 @@ public class Task
                         currentState,
                         newState);
             } else if (ExceptionUtils.findThrowable(cause, CancelTaskException.class).isPresent()) {
-                LOG.info(
-                        "{} ({}) switched from {} to {} due to CancelTaskException.",
-                        taskNameWithSubtask,
-                        executionId,
-                        currentState,
-                        newState);
-                LOG.debug(
-                        "{} ({}) switched from {} to {} due to CancelTaskException: {}",
-                        taskNameWithSubtask,
-                        executionId,
-                        currentState,
-                        newState,
-                        ExceptionUtils.stringifyException(cause));
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "{} ({}) switched from {} to {} due to CancelTaskException:",
+                            taskNameWithSubtask,
+                            executionId,
+                            currentState,
+                            newState,
+                            cause);
+                } else {
+                    LOG.info(
+                            "{} ({}) switched from {} to {} due to CancelTaskException.",
+                            taskNameWithSubtask,
+                            executionId,
+                            currentState,
+                            newState);
+                }
             } else {
                 // proper failure of the task. record the exception as the root
                 // cause
                 failureCause = cause;
                 LOG.warn(
-                        "{} ({}) switched from {} to {} with failure cause: {}",
+                        "{} ({}) switched from {} to {} with failure cause:",
                         taskNameWithSubtask,
                         executionId,
                         currentState,
                         newState,
-                        ExceptionUtils.stringifyException(cause));
+                        cause);
             }
 
             return true;

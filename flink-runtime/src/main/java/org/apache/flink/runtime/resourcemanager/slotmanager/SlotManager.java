@@ -25,14 +25,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -40,7 +38,7 @@ import java.util.concurrent.Executor;
  * their allocation and all pending slot requests. Whenever a new slot is registered or an allocated
  * slot is freed, then it tries to fulfill another pending slot request. Whenever there are not
  * enough slots available the slot manager will notify the resource manager about it via {@link
- * ResourceActions#allocateResource(WorkerResourceSpec)}.
+ * ResourceAllocator#declareResourceNeeded}.
  *
  * <p>In order to free resources and avoid resource leaks, idling task managers (task managers whose
  * slots are currently not used) and pending slot requests time out triggering their release and
@@ -54,15 +52,6 @@ public interface SlotManager extends AutoCloseable {
     int getNumberFreeSlots();
 
     int getNumberFreeSlotsOf(InstanceID instanceId);
-
-    /**
-     * Get number of workers SlotManager requested from {@link ResourceActions} that are not yet
-     * fulfilled.
-     *
-     * @return a map whose key set is all the unique resource specs of the pending workers, and the
-     *     corresponding value is number of pending workers of that resource spec.
-     */
-    Map<WorkerResourceSpec, Integer> getRequiredResources();
 
     ResourceProfile getRegisteredResource();
 
@@ -79,13 +68,15 @@ public interface SlotManager extends AutoCloseable {
      *
      * @param newResourceManagerId to use for communication with the task managers
      * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
-     * @param newResourceActions to use for resource (de-)allocations
+     * @param newResourceAllocator to use for resource (de-)allocations
+     * @param resourceEventListener to use for notify resource not enough
      * @param newBlockedTaskManagerChecker to query whether a task manager is blocked
      */
     void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions,
+            ResourceAllocator newResourceAllocator,
+            ResourceEventListener resourceEventListener,
             BlockedTaskManagerChecker newBlockedTaskManagerChecker);
 
     /** Suspends the component. This clears the internal state of the slot manager. */
@@ -114,10 +105,9 @@ public interface SlotManager extends AutoCloseable {
      * @param initialSlotReport for the new task manager
      * @param totalResourceProfile for the new task manager
      * @param defaultSlotResourceProfile for the new task manager
-     * @return True if the task manager has not been registered before and is registered
-     *     successfully; otherwise false
+     * @return The result of task manager registration
      */
-    boolean registerTaskManager(
+    RegistrationResult registerTaskManager(
             TaskExecutorConnection taskExecutorConnection,
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
@@ -158,4 +148,11 @@ public interface SlotManager extends AutoCloseable {
      * changed.
      */
     void triggerResourceRequirementsCheck();
+
+    /** The result of task manager registration. */
+    enum RegistrationResult {
+        SUCCESS, // task manager has not been registered before and is registered successfully
+        IGNORED, // task manager has been registered before and is ignored
+        REJECTED, // task manager is rejected and should be disconnected
+    }
 }

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -50,10 +49,9 @@ public class InternalTimersSnapshot<K, N> {
             @Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 
         Preconditions.checkNotNull(keySerializer);
-        this.keySerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(keySerializer);
+        this.keySerializerSnapshot = keySerializer.snapshotConfiguration();
         Preconditions.checkNotNull(namespaceSerializer);
-        this.namespaceSerializerSnapshot =
-                TypeSerializerUtils.snapshotBackwardsCompatible(namespaceSerializer);
+        this.namespaceSerializerSnapshot = namespaceSerializer.snapshotConfiguration();
 
         this.eventTimeTimers = eventTimeTimers;
         this.processingTimeTimers = processingTimeTimers;

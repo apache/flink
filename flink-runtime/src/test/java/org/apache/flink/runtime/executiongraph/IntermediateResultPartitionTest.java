@@ -55,28 +55,7 @@ public class IntermediateResultPartitionTest {
             TestingUtils.defaultExecutorExtension();
 
     @Test
-    void testPipelinedPartitionConsumable() throws Exception {
-        IntermediateResult result = createResult(ResultPartitionType.PIPELINED, 2);
-        IntermediateResultPartition partition1 = result.getPartitions()[0];
-        IntermediateResultPartition partition2 = result.getPartitions()[1];
-
-        // Not consumable on init
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isFalse();
-
-        // Partition 1 consumable after data are produced
-        partition1.markDataProduced();
-        assertThat(partition1.isConsumable()).isTrue();
-        assertThat(partition2.isConsumable()).isFalse();
-
-        // Not consumable if failover happens
-        result.resetForNewExecution();
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isFalse();
-    }
-
-    @Test
-    void testBlockingPartitionConsumable() throws Exception {
+    void testPartitionDataAllProduced() throws Exception {
         IntermediateResult result = createResult(ResultPartitionType.BLOCKING, 2);
         IntermediateResultPartition partition1 = result.getPartitions()[0];
         IntermediateResultPartition partition2 = result.getPartitions()[1];
@@ -84,27 +63,27 @@ public class IntermediateResultPartitionTest {
         ConsumedPartitionGroup consumedPartitionGroup =
                 partition1.getConsumedPartitionGroups().get(0);
 
-        // Not consumable on init
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isFalse();
+        // Not all data produced on init
+        assertThat(partition1.hasDataAllProduced()).isFalse();
+        assertThat(partition2.hasDataAllProduced()).isFalse();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
 
-        // Not consumable if only one partition is FINISHED
+        // Finished partition has produced all data
         partition1.markFinished();
-        assertThat(partition1.isConsumable()).isTrue();
-        assertThat(partition2.isConsumable()).isFalse();
+        assertThat(partition1.hasDataAllProduced()).isTrue();
+        assertThat(partition2.hasDataAllProduced()).isFalse();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
 
-        // Consumable after all partitions are FINISHED
+        // Finished partition has produced all data
         partition2.markFinished();
-        assertThat(partition1.isConsumable()).isTrue();
-        assertThat(partition2.isConsumable()).isTrue();
+        assertThat(partition1.hasDataAllProduced()).isTrue();
+        assertThat(partition2.hasDataAllProduced()).isTrue();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isTrue();
 
-        // Not consumable if failover happens
+        // Not all data produced if failover happens
         result.resetForNewExecution();
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isFalse();
+        assertThat(partition1.hasDataAllProduced()).isFalse();
+        assertThat(partition2.hasDataAllProduced()).isFalse();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
     }
 
@@ -117,38 +96,39 @@ public class IntermediateResultPartitionTest {
         ConsumedPartitionGroup consumedPartitionGroup =
                 partition1.getConsumedPartitionGroups().get(0);
 
-        // Not consumable on init
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isFalse();
+        // Not all data data produced on init
+        assertThat(partition1.hasDataAllProduced()).isFalse();
+        assertThat(partition2.hasDataAllProduced()).isFalse();
 
-        // Not consumable if partition1 is FINISHED
+        // Finished partition has produced all data
         partition1.markFinished();
         assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(1);
-        assertThat(partition1.isConsumable()).isTrue();
-        assertThat(partition2.isConsumable()).isFalse();
+        assertThat(partition1.hasDataAllProduced()).isTrue();
+        assertThat(partition2.hasDataAllProduced()).isFalse();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
 
-        // Reset the result and mark partition2 FINISHED, the result should still not be consumable
+        // Reset the result and mark partition2 FINISHED, partition1's hasDataAllProduced should be
+        // false, partition2's hasDataAllProduced should be true
         result.resetForNewExecution();
         assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(2);
         partition2.markFinished();
         assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(1);
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isTrue();
+        assertThat(partition1.hasDataAllProduced()).isFalse();
+        assertThat(partition2.hasDataAllProduced()).isTrue();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
 
-        // Consumable after all partitions are FINISHED
+        // All partition finished.
         partition1.markFinished();
         assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(0);
-        assertThat(partition1.isConsumable()).isTrue();
-        assertThat(partition2.isConsumable()).isTrue();
+        assertThat(partition1.hasDataAllProduced()).isTrue();
+        assertThat(partition2.hasDataAllProduced()).isTrue();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isTrue();
 
-        // Not consumable again if failover happens
+        // Not all data produced and not all partition finished again if failover happens
         result.resetForNewExecution();
         assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(2);
-        assertThat(partition1.isConsumable()).isFalse();
-        assertThat(partition2.isConsumable()).isFalse();
+        assertThat(partition1.hasDataAllProduced()).isFalse();
+        assertThat(partition2.hasDataAllProduced()).isFalse();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
     }
 

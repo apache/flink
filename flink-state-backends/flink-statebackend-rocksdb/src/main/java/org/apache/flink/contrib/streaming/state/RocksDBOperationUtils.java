@@ -19,14 +19,13 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -52,10 +51,6 @@ import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.
 /** Utils for RocksDB Operations. */
 public class RocksDBOperationUtils {
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBOperationUtils.class);
-
-    private static final String MANAGED_MEMORY_RESOURCE_ID = "state-rocks-managed-memory";
-
-    private static final String FIXED_SLOT_MEMORY_RESOURCE_ID = "state-rocks-fixed-slot-memory";
 
     public static RocksDB openDB(
             String path,
@@ -256,42 +251,23 @@ public class RocksDBOperationUtils {
 
     @Nullable
     public static OpaqueMemoryResource<RocksDBSharedResources> allocateSharedCachesIfConfigured(
-            RocksDBMemoryConfiguration memoryConfig,
-            MemoryManager memoryManager,
+            RocksDBMemoryConfiguration jobMemoryConfig,
+            Environment env,
             double memoryFraction,
-            Logger logger)
+            Logger logger,
+            RocksDBMemoryControllerUtils.RocksDBMemoryFactory rocksDBMemoryFactory)
             throws IOException {
 
-        if (!memoryConfig.isUsingFixedMemoryPerSlot() && !memoryConfig.isUsingManagedMemory()) {
-            return null;
-        }
-
-        final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
-        final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
-        final boolean usingPartitionedIndexFilters = memoryConfig.isUsingPartitionedIndexFilters();
-
-        final LongFunctionWithException<RocksDBSharedResources, Exception> allocator =
-                (size) ->
-                        RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(
-                                size,
-                                writeBufferRatio,
-                                highPriorityPoolRatio,
-                                usingPartitionedIndexFilters);
-
         try {
-            if (memoryConfig.isUsingFixedMemoryPerSlot()) {
-                assert memoryConfig.getFixedMemoryPerSlot() != null;
-
-                logger.info("Getting fixed-size shared cache for RocksDB.");
-                return memoryManager.getExternalSharedMemoryResource(
-                        FIXED_SLOT_MEMORY_RESOURCE_ID,
-                        allocator,
-                        memoryConfig.getFixedMemoryPerSlot().getBytes());
-            } else {
-                logger.info("Getting managed memory shared cache for RocksDB.");
-                return memoryManager.getSharedMemoryResourceForManagedMemory(
-                        MANAGED_MEMORY_RESOURCE_ID, allocator, memoryFraction);
+            RocksDBSharedResourcesFactory factory =
+                    RocksDBSharedResourcesFactory.from(jobMemoryConfig, env);
+            if (factory == null) {
+                return null;
             }
+
+            return factory.create(
+                    jobMemoryConfig, env, memoryFraction, logger, rocksDBMemoryFactory);
+
         } catch (Exception e) {
             throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
         }

@@ -18,76 +18,72 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
-import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMetaInfo;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.Objects;
+import java.util.Set;
 
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-import static java.util.UUID.randomUUID;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHANNEL_STATE_SHARED_STREAM_EXCEPTION;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Writes channel state for a specific checkpoint-subtask-attempt triple. */
+/** Writes channel state for multiple subtasks of the same checkpoint. */
 @NotThreadSafe
 class ChannelStateCheckpointWriter {
     private static final Logger LOG = LoggerFactory.getLogger(ChannelStateCheckpointWriter.class);
 
     private final DataOutputStream dataStream;
     private final CheckpointStateOutputStream checkpointStream;
-    private final ChannelStateWriteResult result;
-    private final Map<InputChannelInfo, StateContentMetaInfo> inputChannelOffsets = new HashMap<>();
-    private final Map<ResultSubpartitionInfo, StateContentMetaInfo> resultSubpartitionOffsets =
-            new HashMap<>();
+
+    /**
+     * Indicates whether the current checkpoints of all subtasks have exception. If it's not null,
+     * the checkpoint will fail.
+     */
+    private Throwable throwable;
+
     private final ChannelStateSerializer serializer;
     private final long checkpointId;
-    private boolean allInputsReceived = false;
-    private boolean allOutputsReceived = false;
     private final RunnableWithException onComplete;
-    private final int subtaskIndex;
-    private String taskName;
+
+    // Subtasks that have not yet register writer result.
+    private final Set<SubtaskID> subtasksToRegister;
+
+    private final Map<SubtaskID, ChannelStatePendingResult> pendingResults = new HashMap<>();
 
     ChannelStateCheckpointWriter(
-            String taskName,
-            int subtaskIndex,
-            CheckpointStartRequest startCheckpointItem,
+            Set<SubtaskID> subtasks,
+            long checkpointId,
             CheckpointStreamFactory streamFactory,
             ChannelStateSerializer serializer,
             RunnableWithException onComplete)
             throws Exception {
         this(
-                taskName,
-                subtaskIndex,
-                startCheckpointItem.getCheckpointId(),
-                startCheckpointItem.getTargetResult(),
+                subtasks,
+                checkpointId,
                 streamFactory.createCheckpointStateOutputStream(EXCLUSIVE),
                 serializer,
                 onComplete);
@@ -95,38 +91,25 @@ class ChannelStateCheckpointWriter {
 
     @VisibleForTesting
     ChannelStateCheckpointWriter(
-            String taskName,
-            int subtaskIndex,
+            Set<SubtaskID> subtasks,
             long checkpointId,
-            ChannelStateWriteResult result,
             CheckpointStateOutputStream stream,
             ChannelStateSerializer serializer,
             RunnableWithException onComplete) {
-        this(
-                taskName,
-                subtaskIndex,
-                checkpointId,
-                result,
-                serializer,
-                onComplete,
-                stream,
-                new DataOutputStream(stream));
+        this(subtasks, checkpointId, serializer, onComplete, stream, new DataOutputStream(stream));
     }
 
     @VisibleForTesting
     ChannelStateCheckpointWriter(
-            String taskName,
-            int subtaskIndex,
+            Set<SubtaskID> subtasks,
             long checkpointId,
-            ChannelStateWriteResult result,
             ChannelStateSerializer serializer,
             RunnableWithException onComplete,
             CheckpointStateOutputStream checkpointStateOutputStream,
             DataOutputStream dataStream) {
-        this.taskName = taskName;
-        this.subtaskIndex = subtaskIndex;
+        checkArgument(!subtasks.isEmpty(), "The subtasks cannot be empty.");
+        this.subtasksToRegister = new HashSet<>(subtasks);
         this.checkpointId = checkpointId;
-        this.result = checkNotNull(result);
         this.checkpointStream = checkNotNull(checkpointStateOutputStream);
         this.serializer = checkNotNull(serializer);
         this.dataStream = checkNotNull(dataStream);
@@ -134,22 +117,67 @@ class ChannelStateCheckpointWriter {
         runWithChecks(() -> serializer.writeHeader(dataStream));
     }
 
-    void writeInput(InputChannelInfo info, Buffer buffer) {
-        write(
-                inputChannelOffsets,
-                info,
-                buffer,
-                !allInputsReceived,
-                "ChannelStateCheckpointWriter#writeInput");
+    void registerSubtaskResult(
+            SubtaskID subtaskID, ChannelStateWriter.ChannelStateWriteResult result) {
+        // The writer shouldn't register any subtask after writer has exception or is done,
+        checkState(!isDone(), "The write is done.");
+        Preconditions.checkState(
+                !pendingResults.containsKey(subtaskID),
+                "The subtask %s has already been register before.",
+                subtaskID);
+        subtasksToRegister.remove(subtaskID);
+
+        ChannelStatePendingResult pendingResult =
+                new ChannelStatePendingResult(
+                        subtaskID.getSubtaskIndex(), checkpointId, result, serializer);
+        pendingResults.put(subtaskID, pendingResult);
     }
 
-    void writeOutput(ResultSubpartitionInfo info, Buffer buffer) {
-        write(
-                resultSubpartitionOffsets,
-                info,
-                buffer,
-                !allOutputsReceived,
-                "ChannelStateCheckpointWriter#writeOutput");
+    void releaseSubtask(SubtaskID subtaskID) throws Exception {
+        if (subtasksToRegister.remove(subtaskID)) {
+            // If all checkpoint of other subtasks of this writer are completed, and
+            // writer is waiting for the last subtask. After the last subtask is finished,
+            // the writer should be completed.
+            tryFinishResult();
+        }
+    }
+
+    void writeInput(
+            JobVertexID jobVertexID, int subtaskIndex, InputChannelInfo info, Buffer buffer) {
+        try {
+            if (isDone()) {
+                return;
+            }
+            ChannelStatePendingResult pendingResult =
+                    getChannelStatePendingResult(jobVertexID, subtaskIndex);
+            write(
+                    pendingResult.getInputChannelOffsets(),
+                    info,
+                    buffer,
+                    !pendingResult.isAllInputsReceived(),
+                    "ChannelStateCheckpointWriter#writeInput");
+        } finally {
+            buffer.recycleBuffer();
+        }
+    }
+
+    void writeOutput(
+            JobVertexID jobVertexID, int subtaskIndex, ResultSubpartitionInfo info, Buffer buffer) {
+        try {
+            if (isDone()) {
+                return;
+            }
+            ChannelStatePendingResult pendingResult =
+                    getChannelStatePendingResult(jobVertexID, subtaskIndex);
+            write(
+                    pendingResult.getResultSubpartitionOffsets(),
+                    info,
+                    buffer,
+                    !pendingResult.isAllOutputsReceived(),
+                    "ChannelStateCheckpointWriter#writeOutput");
+        } finally {
+            buffer.recycleBuffer();
+        }
     }
 
     private <K> void write(
@@ -158,140 +186,91 @@ class ChannelStateCheckpointWriter {
             Buffer buffer,
             boolean precondition,
             String action) {
-        try {
-            if (result.isDone()) {
-                return;
-            }
-            runWithChecks(
-                    () -> {
-                        checkState(precondition);
-                        long offset = checkpointStream.getPos();
-                        try (AutoCloseable ignored =
-                                NetworkActionsLogger.measureIO(action, buffer)) {
-                            serializer.writeData(dataStream, buffer);
-                        }
-                        long size = checkpointStream.getPos() - offset;
-                        offsets.computeIfAbsent(key, unused -> new StateContentMetaInfo())
-                                .withDataAdded(offset, size);
-                        NetworkActionsLogger.tracePersist(
-                                action, buffer, taskName, key, checkpointId);
-                    });
-        } finally {
-            buffer.recycleBuffer();
+        runWithChecks(
+                () -> {
+                    checkState(precondition);
+                    long offset = checkpointStream.getPos();
+                    try (AutoCloseable ignored = NetworkActionsLogger.measureIO(action, buffer)) {
+                        serializer.writeData(dataStream, buffer);
+                    }
+                    long size = checkpointStream.getPos() - offset;
+                    offsets.computeIfAbsent(key, unused -> new StateContentMetaInfo())
+                            .withDataAdded(offset, size);
+                    NetworkActionsLogger.tracePersist(action, buffer, key, checkpointId);
+                });
+    }
+
+    void completeInput(JobVertexID jobVertexID, int subtaskIndex) throws Exception {
+        if (isDone()) {
+            return;
         }
+        getChannelStatePendingResult(jobVertexID, subtaskIndex).completeInput();
+        tryFinishResult();
     }
 
-    void completeInput() throws Exception {
-        LOG.debug("complete input, output completed: {}", allOutputsReceived);
-        complete(!allInputsReceived, () -> allInputsReceived = true);
+    void completeOutput(JobVertexID jobVertexID, int subtaskIndex) throws Exception {
+        if (isDone()) {
+            return;
+        }
+        getChannelStatePendingResult(jobVertexID, subtaskIndex).completeOutput();
+        tryFinishResult();
     }
 
-    void completeOutput() throws Exception {
-        LOG.debug("complete output, input completed: {}", allInputsReceived);
-        complete(!allOutputsReceived, () -> allOutputsReceived = true);
-    }
+    public void tryFinishResult() throws Exception {
+        if (!subtasksToRegister.isEmpty()) {
+            // Some subtasks are not registered yet
+            return;
+        }
+        for (ChannelStatePendingResult result : pendingResults.values()) {
+            if (result.isAllInputsReceived() && result.isAllOutputsReceived()) {
+                continue;
+            }
+            // Some subtasks did not receive all buffers
+            return;
+        }
 
-    private void complete(boolean precondition, RunnableWithException complete) throws Exception {
-        if (result.isDone()) {
+        if (isDone()) {
             // likely after abort - only need to set the flag run onComplete callback
-            doComplete(precondition, complete, onComplete);
+            doComplete(onComplete);
         } else {
-            runWithChecks(
-                    () ->
-                            doComplete(
-                                    precondition,
-                                    complete,
-                                    onComplete,
-                                    this::finishWriteAndResult));
+            runWithChecks(() -> doComplete(onComplete, this::finishWriteAndResult));
         }
     }
 
     private void finishWriteAndResult() throws IOException {
-        if (inputChannelOffsets.isEmpty() && resultSubpartitionOffsets.isEmpty()) {
+        StreamStateHandle stateHandle = null;
+        if (checkpointStream.getPos() == serializer.getHeaderLength()) {
             dataStream.close();
-            result.inputChannelStateHandles.complete(emptyList());
-            result.resultSubpartitionStateHandles.complete(emptyList());
-            return;
+        } else {
+            dataStream.flush();
+            stateHandle = checkpointStream.closeAndGetHandle();
         }
-        dataStream.flush();
-        StreamStateHandle underlying = checkpointStream.closeAndGetHandle();
-        complete(
-                underlying,
-                result.inputChannelStateHandles,
-                inputChannelOffsets,
-                HandleFactory.INPUT_CHANNEL);
-        complete(
-                underlying,
-                result.resultSubpartitionStateHandles,
-                resultSubpartitionOffsets,
-                HandleFactory.RESULT_SUBPARTITION);
+        for (ChannelStatePendingResult result : pendingResults.values()) {
+            result.finishResult(stateHandle);
+        }
     }
 
-    private void doComplete(
-            boolean precondition,
-            RunnableWithException complete,
-            RunnableWithException... callbacks)
-            throws Exception {
-        Preconditions.checkArgument(precondition);
-        complete.run();
-        if (allInputsReceived && allOutputsReceived) {
-            for (RunnableWithException callback : callbacks) {
-                callback.run();
+    private void doComplete(RunnableWithException... callbacks) throws Exception {
+        for (RunnableWithException callback : callbacks) {
+            callback.run();
+        }
+    }
+
+    public boolean isDone() {
+        if (throwable != null) {
+            return true;
+        }
+        for (ChannelStatePendingResult result : pendingResults.values()) {
+            if (result.isDone()) {
+                return true;
             }
         }
-    }
-
-    private <I, H extends AbstractChannelStateHandle<I>> void complete(
-            StreamStateHandle underlying,
-            CompletableFuture<Collection<H>> future,
-            Map<I, StateContentMetaInfo> offsets,
-            HandleFactory<I, H> handleFactory)
-            throws IOException {
-        final Collection<H> handles = new ArrayList<>();
-        for (Map.Entry<I, StateContentMetaInfo> e : offsets.entrySet()) {
-            handles.add(createHandle(handleFactory, underlying, e.getKey(), e.getValue()));
-        }
-        future.complete(handles);
-        LOG.debug(
-                "channel state write completed, checkpointId: {}, handles: {}",
-                checkpointId,
-                handles);
-    }
-
-    private <I, H extends AbstractChannelStateHandle<I>> H createHandle(
-            HandleFactory<I, H> handleFactory,
-            StreamStateHandle underlying,
-            I channelInfo,
-            StateContentMetaInfo contentMetaInfo)
-            throws IOException {
-        Optional<byte[]> bytes =
-                underlying.asBytesIfInMemory(); // todo: consider restructuring channel state and
-        // removing this method:
-        // https://issues.apache.org/jira/browse/FLINK-17972
-        if (bytes.isPresent()) {
-            StreamStateHandle extracted =
-                    new ByteStreamStateHandle(
-                            randomUUID().toString(),
-                            serializer.extractAndMerge(bytes.get(), contentMetaInfo.getOffsets()));
-            return handleFactory.create(
-                    subtaskIndex,
-                    channelInfo,
-                    extracted,
-                    singletonList(serializer.getHeaderLength()),
-                    extracted.getStateSize());
-        } else {
-            return handleFactory.create(
-                    subtaskIndex,
-                    channelInfo,
-                    underlying,
-                    contentMetaInfo.getOffsets(),
-                    contentMetaInfo.getSize());
-        }
+        return false;
     }
 
     private void runWithChecks(RunnableWithException r) {
         try {
-            checkState(!result.isDone(), "result is already completed", result);
+            checkState(!isDone(), "results are already completed", pendingResults.values());
             r.run();
         } catch (Exception e) {
             fail(e);
@@ -301,8 +280,38 @@ class ChannelStateCheckpointWriter {
         }
     }
 
-    public void fail(Throwable e) {
-        result.fail(e);
+    /**
+     * The throwable is just used for specific subtask that triggered the failure. Other subtasks
+     * should fail by {@link CHANNEL_STATE_SHARED_STREAM_EXCEPTION}.
+     */
+    public void fail(JobVertexID jobVertexID, int subtaskIndex, Throwable throwable) {
+        if (isDone()) {
+            return;
+        }
+        this.throwable = throwable;
+
+        ChannelStatePendingResult result =
+                pendingResults.get(SubtaskID.of(jobVertexID, subtaskIndex));
+        if (result != null) {
+            result.fail(throwable);
+        }
+        failResultAndCloseStream(
+                new CheckpointException(CHANNEL_STATE_SHARED_STREAM_EXCEPTION, throwable));
+    }
+
+    public void fail(Throwable throwable) {
+        if (isDone()) {
+            return;
+        }
+        this.throwable = throwable;
+
+        failResultAndCloseStream(throwable);
+    }
+
+    public void failResultAndCloseStream(Throwable e) {
+        for (ChannelStatePendingResult result : pendingResults.values()) {
+            result.fail(e);
+        }
         try {
             checkpointStream.close();
         } catch (Exception closeException) {
@@ -315,18 +324,59 @@ class ChannelStateCheckpointWriter {
         }
     }
 
-    private interface HandleFactory<I, H extends AbstractChannelStateHandle<I>> {
-        H create(
-                int subtaskIndex,
-                I info,
-                StreamStateHandle underlying,
-                List<Long> offsets,
-                long size);
+    @Nonnull
+    private ChannelStatePendingResult getChannelStatePendingResult(
+            JobVertexID jobVertexID, int subtaskIndex) {
+        SubtaskID subtaskID = SubtaskID.of(jobVertexID, subtaskIndex);
+        ChannelStatePendingResult pendingResult = pendingResults.get(subtaskID);
+        checkNotNull(pendingResult, "The subtask[%s] is not registered yet", subtaskID);
+        return pendingResult;
+    }
+}
 
-        HandleFactory<InputChannelInfo, InputChannelStateHandle> INPUT_CHANNEL =
-                InputChannelStateHandle::new;
+/** A identification for subtask. */
+class SubtaskID {
 
-        HandleFactory<ResultSubpartitionInfo, ResultSubpartitionStateHandle> RESULT_SUBPARTITION =
-                ResultSubpartitionStateHandle::new;
+    private final JobVertexID jobVertexID;
+    private final int subtaskIndex;
+
+    private SubtaskID(JobVertexID jobVertexID, int subtaskIndex) {
+        this.jobVertexID = jobVertexID;
+        this.subtaskIndex = subtaskIndex;
+    }
+
+    public JobVertexID getJobVertexID() {
+        return jobVertexID;
+    }
+
+    public int getSubtaskIndex() {
+        return subtaskIndex;
+    }
+
+    public static SubtaskID of(JobVertexID jobVertexID, int subtaskIndex) {
+        return new SubtaskID(jobVertexID, subtaskIndex);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SubtaskID subtaskID = (SubtaskID) o;
+        return subtaskIndex == subtaskID.subtaskIndex
+                && Objects.equals(jobVertexID, subtaskID.jobVertexID);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(jobVertexID, subtaskIndex);
+    }
+
+    @Override
+    public String toString() {
+        return "SubtaskID{" + "jobVertexID=" + jobVertexID + ", subtaskIndex=" + subtaskIndex + '}';
     }
 }

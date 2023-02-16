@@ -21,11 +21,9 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
@@ -41,15 +39,14 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultMultipleComponentLeaderElectionService}. */
-@ExtendWith(TestLoggerExtension.class)
 class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @RegisterExtension
-    public final TestingFatalErrorHandlerExtension fatalErrorHandlerExtension =
+    final TestingFatalErrorHandlerExtension fatalErrorHandlerExtension =
             new TestingFatalErrorHandlerExtension();
 
     @Test
-    public void isLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
+    void isLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
 
@@ -90,7 +87,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void notLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
+    void notLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
 
@@ -122,7 +119,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void unregisteredEventHandlersAreNotNotified() throws Exception {
+    void unregisteredEventHandlersAreNotNotified() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
 
@@ -146,7 +143,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void newlyRegisteredEventHandlersAreInformedAboutLeadership() throws Exception {
+    void newlyRegisteredEventHandlersAreInformedAboutLeadership() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
@@ -167,7 +164,52 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void allKnownLeaderInformationCallsEventHandlers() throws Exception {
+    public void testLeaderSessionIdMatchesBetweenComponents() throws Exception {
+        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
+                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+
+        try {
+            final Component preLeadershipGrantedComponent =
+                    new Component(
+                            "test-component-0",
+                            new SimpleTestingLeaderElectionEventListener(),
+                            LeaderInformation.empty());
+            final Component postLeadershipGrantedComponent =
+                    new Component(
+                            "test-component-1",
+                            new SimpleTestingLeaderElectionEventListener(),
+                            LeaderInformation.empty());
+
+            leaderElectionService.registerLeaderElectionEventHandler(
+                    preLeadershipGrantedComponent.getComponentId(),
+                    preLeadershipGrantedComponent.getLeaderElectionEventListener());
+
+            leaderElectionDriver.grantLeadership();
+
+            leaderElectionService.registerLeaderElectionEventHandler(
+                    postLeadershipGrantedComponent.getComponentId(),
+                    postLeadershipGrantedComponent.getLeaderElectionEventListener());
+
+            final UUID preGrantLeaderInformation =
+                    preLeadershipGrantedComponent
+                            .getLeaderElectionEventListener()
+                            .getLeaderSessionID();
+
+            final UUID postGrantLeaderInformation =
+                    postLeadershipGrantedComponent
+                            .getLeaderElectionEventListener()
+                            .getLeaderSessionID();
+
+            assertThat(preGrantLeaderInformation).isEqualTo(postGrantLeaderInformation);
+        } finally {
+            leaderElectionService.close();
+        }
+    }
+
+    @Test
+    void allKnownLeaderInformationCallsEventHandlers() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
@@ -207,7 +249,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    public void allKnownLeaderInformationDoesNotBlock() throws Exception {
+    void allKnownLeaderInformationDoesNotBlock() throws Exception {
         final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
                 TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
@@ -321,27 +363,32 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     private static final class SimpleTestingLeaderElectionEventListener
             implements LeaderElectionEventHandler {
 
-        private boolean hasLeadership;
+        /**
+         * {@code currentLeaderSessionId} is set if the current LeaderElection client is select as
+         * the leader by the HA backend.
+         */
+        @Nullable private UUID currentLeaderSessionId;
 
+        /** {@code leaderInformation} is set if the leader information in the HA backend changes. */
         @Nullable private LeaderInformation leaderInformation;
 
         SimpleTestingLeaderElectionEventListener() {
-            hasLeadership = false;
+            currentLeaderSessionId = null;
             leaderInformation = null;
         }
 
         public boolean hasLeadership() {
-            return hasLeadership;
+            return currentLeaderSessionId != null;
         }
 
         @Override
         public void onGrantLeadership(UUID newLeaderSessionId) {
-            hasLeadership = true;
+            currentLeaderSessionId = newLeaderSessionId;
         }
 
         @Override
         public void onRevokeLeadership() {
-            hasLeadership = false;
+            currentLeaderSessionId = null;
             leaderInformation = null;
         }
 
@@ -353,6 +400,11 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
         @Nullable
         LeaderInformation getLeaderInformation() {
             return leaderInformation;
+        }
+
+        @Nullable
+        UUID getLeaderSessionID() {
+            return currentLeaderSessionId;
         }
     }
 }

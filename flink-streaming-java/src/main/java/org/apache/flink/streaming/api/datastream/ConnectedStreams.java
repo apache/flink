@@ -452,7 +452,8 @@ public class ConnectedStreams<IN1, IN2> {
                         functionName,
                         operatorFactory,
                         outTypeInfo,
-                        environment.getParallelism());
+                        environment.getParallelism(),
+                        false);
 
         TypeInformation<?> keyType = null;
         if (inputStream1 instanceof KeyedStream) {

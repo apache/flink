@@ -189,19 +189,21 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
 
         private final String table;
         private final List<String> dynamicFilterPartitionKeys;
-        private final List<HiveTablePartition> partitions;
+        // The binary HiveTablePartition list, serialize it manually at compile time to avoid
+        // deserializing it in TaskManager during runtime.
+        private final List<byte[]> partitionBytes;
         private final String hiveVersion;
         private final JobConfWrapper jobConfWrapper;
 
         public Provider(
                 String table,
                 List<String> dynamicFilterPartitionKeys,
-                List<HiveTablePartition> partitions,
+                List<byte[]> partitionBytes,
                 String hiveVersion,
                 JobConfWrapper jobConfWrapper) {
             this.table = checkNotNull(table);
             this.dynamicFilterPartitionKeys = checkNotNull(dynamicFilterPartitionKeys);
-            this.partitions = checkNotNull(partitions);
+            this.partitionBytes = checkNotNull(partitionBytes);
             this.hiveVersion = checkNotNull(hiveVersion);
             this.jobConfWrapper = checkNotNull(jobConfWrapper);
         }
@@ -211,7 +213,7 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
             return new HiveSourceDynamicFileEnumerator(
                     table,
                     dynamicFilterPartitionKeys,
-                    partitions,
+                    HivePartitionUtils.deserializeHiveTablePartition(partitionBytes),
                     hiveVersion,
                     jobConfWrapper.conf());
         }

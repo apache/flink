@@ -24,7 +24,7 @@
             <td><h5>python.executable</h5></td>
             <td style="word-wrap: break-word;">"python"</td>
             <td>String</td>
-            <td>Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0), Pip (version &gt;= 20.3) and SetupTools (version &gt;= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".</td>
+            <td>Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.7+, Apache Beam (version == 2.43.0), Pip (version &gt;= 20.3) and SetupTools (version &gt;= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".</td>
         </tr>
         <tr>
             <td><h5>python.execution-mode</h5></td>
@@ -40,13 +40,13 @@
         </tr>
         <tr>
             <td><h5>python.fn-execution.arrow.batch.size</h5></td>
-            <td style="word-wrap: break-word;">10000</td>
+            <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
             <td>The maximum number of elements to include in an arrow batch for Python user-defined function execution. The arrow batch size should not exceed the bundle size. Otherwise, the bundle size will be used as the arrow batch size.</td>
         </tr>
         <tr>
             <td><h5>python.fn-execution.bundle.size</h5></td>
-            <td style="word-wrap: break-word;">100000</td>
+            <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
             <td>The maximum number of elements to include in a bundle for Python user-defined function execution. The elements are processed asynchronously. One bundle of elements are processed before processing the next bundle of elements. A larger value can improve the throughput, but at the cost of more memory usage and higher latency.</td>
         </tr>

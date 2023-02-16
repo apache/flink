@@ -19,16 +19,18 @@ package org.apache.flink.tools.ci.utils.dependency;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
+import org.apache.flink.tools.ci.utils.shared.DependencyTree;
+import org.apache.flink.tools.ci.utils.shared.ParserUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Stack;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,10 +40,12 @@ import java.util.stream.Stream;
 public class DependencyParser {
 
     private static final Pattern DEPENDENCY_COPY_NEXT_MODULE_PATTERN =
-            Pattern.compile(".*maven-dependency-plugin:[^:]+:copy .* @ ([^ _]+)(_[0-9.]+)? --.*");
+            Pattern.compile(
+                    ".*maven-dependency-plugin:[^:]+:copy .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     private static final Pattern DEPENDENCY_TREE_NEXT_MODULE_PATTERN =
-            Pattern.compile(".*maven-dependency-plugin:[^:]+:tree .* @ ([^ _]+)(_[0-9.]+)? --.*");
+            Pattern.compile(
+                    ".*maven-dependency-plugin:[^:]+:tree .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     /** See {@link DependencyParserTreeTest} for examples. */
     private static final Pattern DEPENDENCY_TREE_ITEM_PATTERN =
@@ -81,7 +85,7 @@ public class DependencyParser {
      * Parses the output of a Maven build where {@code dependency:tree} was used, and returns a set
      * of dependencies for each module.
      */
-    public static Map<String, Set<Dependency>> parseDependencyTreeOutput(Path buildOutput)
+    public static Map<String, DependencyTree> parseDependencyTreeOutput(Path buildOutput)
             throws IOException {
         return processLines(buildOutput, DependencyParser::parseDependencyTreeOutput);
     }
@@ -95,53 +99,38 @@ public class DependencyParser {
 
     @VisibleForTesting
     static Map<String, Set<Dependency>> parseDependencyCopyOutput(Stream<String> lines) {
-        return parseDependencyOutput(
+        return ParserUtils.parsePluginOutput(
                 lines,
                 DEPENDENCY_COPY_NEXT_MODULE_PATTERN,
                 DependencyParser::parseCopyDependencyBlock);
     }
 
     @VisibleForTesting
-    static Map<String, Set<Dependency>> parseDependencyTreeOutput(Stream<String> lines) {
-        return parseDependencyOutput(
+    static Map<String, DependencyTree> parseDependencyTreeOutput(Stream<String> lines) {
+        return ParserUtils.parsePluginOutput(
                 lines,
                 DEPENDENCY_TREE_NEXT_MODULE_PATTERN,
                 DependencyParser::parseTreeDependencyBlock);
     }
 
-    private static Map<String, Set<Dependency>> parseDependencyOutput(
-            Stream<String> lines,
-            Pattern executionLinePattern,
-            Function<Iterator<String>, Set<Dependency>> blockParser) {
-        final Map<String, Set<Dependency>> result = new LinkedHashMap<>();
-
-        final Iterator<String> iterator = lines.iterator();
-
-        while (iterator.hasNext()) {
-            Matcher moduleMatcher = executionLinePattern.matcher(iterator.next());
-            while (!moduleMatcher.find()) {
-                if (iterator.hasNext()) {
-                    moduleMatcher = executionLinePattern.matcher(iterator.next());
-                } else {
-                    return result;
-                }
-            }
-            final String currentModule = moduleMatcher.group(1);
-
-            if (!iterator.hasNext()) {
-                throw new IllegalStateException("Expected more output from the dependency-plugin.");
-            }
-
-            result.put(currentModule, blockParser.apply(iterator));
-        }
-        return result;
-    }
-
     private static Set<Dependency> parseCopyDependencyBlock(Iterator<String> block) {
-        return parseDependencyBlock(block, DependencyParser::parseCopyDependency);
+        final Set<Dependency> dependencies = new LinkedHashSet<>();
+
+        Optional<Dependency> parsedDependency = parseCopyDependency(block.next());
+        while (parsedDependency.isPresent()) {
+            dependencies.add(parsedDependency.get());
+
+            if (block.hasNext()) {
+                parsedDependency = parseCopyDependency(block.next());
+            } else {
+                parsedDependency = Optional.empty();
+            }
+        }
+
+        return dependencies;
     }
 
-    private static Set<Dependency> parseTreeDependencyBlock(Iterator<String> block) {
+    private static DependencyTree parseTreeDependencyBlock(Iterator<String> block) {
         // discard one line, which only contains the current module name
         block.next();
 
@@ -149,19 +138,36 @@ public class DependencyParser {
             throw new IllegalStateException("Expected more output from the dependency-plugin.");
         }
 
-        return parseDependencyBlock(block, DependencyParser::parseTreeDependency);
-    }
+        final DependencyTree dependencies = new DependencyTree();
 
-    private static Set<Dependency> parseDependencyBlock(
-            Iterator<String> block, Function<String, Optional<Dependency>> lineItemParser) {
-        final Set<Dependency> dependencies = new LinkedHashSet<>();
-
-        Optional<Dependency> parsedDependency = lineItemParser.apply(block.next());
+        final Stack<Dependency> parentStack = new Stack<>();
+        final Stack<Integer> treeDepthStack = new Stack<>();
+        String line = block.next();
+        Optional<Dependency> parsedDependency = parseTreeDependency(line);
         while (parsedDependency.isPresent()) {
-            dependencies.add(parsedDependency.get());
+            int treeDepth = getDepth(line);
+
+            while (!treeDepthStack.isEmpty() && treeDepth <= treeDepthStack.peek()) {
+                parentStack.pop();
+                treeDepthStack.pop();
+            }
+
+            final Dependency dependency = parsedDependency.get();
+
+            if (parentStack.isEmpty()) {
+                dependencies.addDirectDependency(dependency);
+            } else {
+                dependencies.addTransitiveDependencyTo(dependency, parentStack.peek());
+            }
+
+            if (treeDepthStack.isEmpty() || treeDepth > treeDepthStack.peek()) {
+                treeDepthStack.push(treeDepth);
+                parentStack.push(dependency);
+            }
 
             if (block.hasNext()) {
-                parsedDependency = lineItemParser.apply(block.next());
+                line = block.next();
+                parsedDependency = parseTreeDependency(line);
             } else {
                 parsedDependency = Optional.empty();
             }
@@ -181,7 +187,8 @@ public class DependencyParser {
                 Dependency.create(
                         dependencyMatcher.group("groupId"),
                         dependencyMatcher.group("artifactId"),
-                        dependencyMatcher.group("version")));
+                        dependencyMatcher.group("version"),
+                        dependencyMatcher.group("classifier")));
     }
 
     @VisibleForTesting
@@ -196,7 +203,26 @@ public class DependencyParser {
                         dependencyMatcher.group("groupId"),
                         dependencyMatcher.group("artifactId"),
                         dependencyMatcher.group("version"),
+                        dependencyMatcher.group("classifier"),
                         dependencyMatcher.group("scope"),
                         dependencyMatcher.group("optional") != null));
+    }
+
+    /**
+     * The depths returned by this method do NOT return a continuous sequence.
+     *
+     * <pre>
+     * +- org.apache.flink:...
+     * |  +- org.apache.flink:...
+     * |  |  \- org.apache.flink:...
+     * ...
+     * </pre>
+     */
+    private static int getDepth(String line) {
+        final int level = line.indexOf('+');
+        if (level != -1) {
+            return level;
+        }
+        return line.indexOf('\\');
     }
 }

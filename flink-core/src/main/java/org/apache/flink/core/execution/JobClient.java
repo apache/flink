@@ -114,4 +114,7 @@ public interface JobClient {
 
     /** Returns the {@link JobExecutionResult result of the job execution} of the submitted job. */
     CompletableFuture<JobExecutionResult> getJobExecutionResult();
+
+    /** The client reports the heartbeat to the dispatcher for aliveness. */
+    default void reportHeartbeat(long expiredTimestamp) {}
 }

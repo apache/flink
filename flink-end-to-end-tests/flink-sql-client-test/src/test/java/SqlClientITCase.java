@@ -261,8 +261,20 @@ public class SqlClientITCase {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
 
+        final int numPartitions = 1;
+        final short replicationFactor = 1;
         try (AdminClient admin = AdminClient.create(props)) {
-            admin.createTopics(Collections.singletonList(new NewTopic(topic, 1, (short) 1)));
+            admin.createTopics(
+                            Collections.singletonList(
+                                    new NewTopic(topic, numPartitions, replicationFactor)))
+                    .all()
+                    .get();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Fail to create topic [%s partitions: %d replicas: %d].",
+                            topic, numPartitions, replicationFactor),
+                    e);
         }
 
         try (Producer<Bytes, String> producer =
@@ -278,10 +290,18 @@ public class SqlClientITCase {
         File tempOutputFile = new File(tempDir, "records.out");
         String tempOutputFilepath = tempOutputFile.toString();
         GenericContainer<?> taskManager = flink.getTaskManagers().get(0);
-        Thread.sleep(5000); // prevent NotFoundException: Status 404
-        taskManager.copyFileFromContainer(resultFilePath, tempOutputFilepath);
-
-        int numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(tempOutputFile);
+        int numberOfResultRecords;
+        while (true) {
+            Thread.sleep(50); // prevent NotFoundException: Status 404
+            try {
+                taskManager.copyFileFromContainer(resultFilePath, tempOutputFilepath);
+                numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(tempOutputFile);
+                if (numberOfResultRecords == expectedNumberOfRecords) {
+                    break;
+                }
+            } catch (Exception ignored) {
+            }
+        }
         assertThat(numberOfResultRecords).isEqualTo(expectedNumberOfRecords);
     }
 

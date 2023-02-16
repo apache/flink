@@ -29,14 +29,12 @@ import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
@@ -51,7 +49,6 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ZooKeeperMultipleComponentLeaderElectionDriver}. */
-@ExtendWith(TestLoggerExtension.class)
 class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
@@ -61,7 +58,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             new EachCallbackWrapper<>(zooKeeperExtension);
 
     @Test
-    public void testElectionDriverGainsLeadershipAtStartup() throws Exception {
+    void testElectionDriverGainsLeadershipAtStartup() throws Exception {
         new Context() {
             {
                 runTest(
@@ -73,7 +70,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testElectionDriverLosesLeadership() throws Exception {
+    void testElectionDriverLosesLeadership() throws Exception {
         new Context() {
             {
                 runTest(
@@ -87,7 +84,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testPublishLeaderInformation() throws Exception {
+    void testPublishLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -122,7 +119,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testPublishEmptyLeaderInformation() throws Exception {
+    void testPublishEmptyLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -161,7 +158,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testNonLeaderCannotPublishLeaderInformation() throws Exception {
+    void testNonLeaderCannotPublishLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -198,7 +195,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testLeaderInformationChange() throws Exception {
+    void testLeaderInformationChange() throws Exception {
         new Context() {
             {
                 runTest(
@@ -233,7 +230,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testLeaderElectionWithMultipleDrivers() throws Exception {
+    void testLeaderElectionWithMultipleDrivers() throws Exception {
         final CuratorFrameworkWithUnhandledErrorListener curatorFramework = startCuratorFramework();
 
         try {
@@ -290,7 +287,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testLeaderConnectionInfoNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
+    void testLeaderConnectionInfoNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
             throws Exception {
         new Context() {
             {

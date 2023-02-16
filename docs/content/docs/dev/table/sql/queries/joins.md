@@ -143,7 +143,7 @@ CREATE TABLE orders (
     price       DECIMAL(32,2),
     currency    STRING,
     order_time  TIMESTAMP(3),
-    WATERMARK FOR order_time AS order_time
+    WATERMARK FOR order_time AS order_time - INTERVAL '15' SECOND
 ) WITH (/* ... */);
 
 -- Define a versioned table of currency rates. 
@@ -154,7 +154,7 @@ CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
     update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
-    WATERMARK FOR update_time AS update_time,
+    WATERMARK FOR update_time AS update_time - INTERVAL '15' SECOND,
     PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
    'connector' = 'kafka',
@@ -165,7 +165,7 @@ CREATE TABLE currency_rates (
 SELECT 
      order_id,
      price,
-     currency,
+     orders.currency,
      conversion_rate,
      order_time
 FROM orders
@@ -179,7 +179,9 @@ o_002     12.51  EUR       1.10             12:06:00
 
 ```
 
-**Note:** The event-time temporal join is triggered by a watermark from the left and right sides; please ensure both sides of the join have set watermark correctly.
+**Note:** The event-time temporal join is triggered by a watermark from the left and right sides. 
+The `INTERVAL` time subtraction is used to wait for late events in order to make sure the join will meet the expectation. 
+Please ensure both sides of the join have set watermark correctly.
 
 **Note:** The event-time temporal join requires the primary key contained in the equivalence condition of the temporal join condition, e.g., The primary key `currency_rates.currency` of table `currency_rates` to be constrained in the condition `orders.currency = currency_rates.currency`.
 

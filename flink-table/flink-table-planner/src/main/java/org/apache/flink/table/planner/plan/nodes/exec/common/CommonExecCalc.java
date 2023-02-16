@@ -110,6 +110,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(CALC_TRANSFORMATION, config),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

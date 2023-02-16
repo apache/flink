@@ -142,7 +142,10 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
                 null,
                 CACHE_PRODUCER_OPERATOR_NAME);
 
-        streamGraph.setParallelism(cacheTransformation.getId(), input.getParallelism());
+        streamGraph.setParallelism(
+                cacheTransformation.getId(),
+                input.getParallelism(),
+                input.isParallelismConfigured());
         streamGraph.setMaxParallelism(cacheTransformation.getId(), input.getMaxParallelism());
     }
 
@@ -161,7 +164,9 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
                 outputType,
                 CACHE_CONSUMER_OPERATOR_NAME);
         streamGraph.setParallelism(
-                transformation.getId(), transformation.getTransformationToCache().getParallelism());
+                transformation.getId(),
+                transformation.getTransformationToCache().getParallelism(),
+                transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(
                 transformation.getId(),
                 transformation.getTransformationToCache().getMaxParallelism());

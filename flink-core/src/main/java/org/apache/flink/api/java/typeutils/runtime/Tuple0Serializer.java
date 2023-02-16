@@ -15,9 +15,6 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.core.memory.DataInputView;
@@ -27,8 +24,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 @Internal
-public class Tuple0Serializer extends TupleSerializer<Tuple0>
-        implements SelfResolvingTypeSerializer<Tuple0> {
+public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
     private static final long serialVersionUID = 1278813169022975971L;
 
@@ -120,14 +116,5 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0>
     @Override
     public String toString() {
         return "Tuple0Serializer";
-    }
-
-    @Override
-    public TypeSerializerSchemaCompatibility<Tuple0>
-            resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-                    TypeSerializerConfigSnapshot<Tuple0> deprecatedConfigSnapshot) {
-
-        Tuple0SerializerSnapshot snapshot = new Tuple0SerializerSnapshot();
-        return snapshot.resolveSchemaCompatibility(this);
     }
 }

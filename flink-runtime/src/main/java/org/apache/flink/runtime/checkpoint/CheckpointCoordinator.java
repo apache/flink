@@ -906,7 +906,7 @@ public class CheckpointCoordinator {
             return CompletableFuture.completedFuture(null);
         }
 
-        final long checkpointID = checkpoint.getCheckpointId();
+        final long checkpointID = checkpoint.getCheckpointID();
         final long timestamp = checkpoint.getCheckpointTimestamp();
 
         final CompletableFuture<Void> masterStateCompletableFuture = new CompletableFuture<>();
@@ -1567,7 +1567,7 @@ public class CheckpointCoordinator {
     private void dropSubsumedCheckpoints(long checkpointId) {
         abortPendingCheckpoints(
                 checkpoint ->
-                        checkpoint.getCheckpointId() < checkpointId && checkpoint.canBeSubsumed(),
+                        checkpoint.getCheckpointID() < checkpointId && checkpoint.canBeSubsumed(),
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_SUBSUMED));
     }
 
@@ -2156,10 +2156,10 @@ public class CheckpointCoordinator {
             } finally {
                 sendAbortedMessages(
                         pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
-                        pendingCheckpoint.getCheckpointId(),
+                        pendingCheckpoint.getCheckpointID(),
                         pendingCheckpoint.getCheckpointTimestamp());
-                pendingCheckpoints.remove(pendingCheckpoint.getCheckpointId());
-                rememberRecentCheckpointId(pendingCheckpoint.getCheckpointId());
+                pendingCheckpoints.remove(pendingCheckpoint.getCheckpointID());
+                rememberRecentCheckpointId(pendingCheckpoint.getCheckpointID());
                 scheduleTriggerRequest();
             }
         }
@@ -2203,7 +2203,7 @@ public class CheckpointCoordinator {
                 if (!pendingCheckpoint.isDisposed()) {
                     LOG.info(
                             "Checkpoint {} of job {} expired before completing.",
-                            pendingCheckpoint.getCheckpointId(),
+                            pendingCheckpoint.getCheckpointID(),
                             job);
 
                     abortPendingCheckpoint(

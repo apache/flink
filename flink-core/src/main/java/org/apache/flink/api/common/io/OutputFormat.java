@@ -62,9 +62,22 @@ public interface OutputFormat<IT> extends Serializable {
      * @param taskNumber The number of the parallel instance.
      * @param numTasks The number of parallel tasks.
      * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
+     * @deprecated Use {@link #open(InitializationContext)} instead
      */
-    void open(int taskNumber, int numTasks) throws IOException;
+    @Deprecated
+    default void open(int taskNumber, int numTasks) throws IOException {}
 
+    /**
+     * Opens a parallel instance of the output format to store the result of its parallel instance.
+     *
+     * <p>When this method is called, the output format it guaranteed to be configured.
+     *
+     * @param context The context to get task parallel infos.
+     * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
+     */
+    default void open(InitializationContext context) throws IOException {
+        open(context.getTaskNumber(), context.getNumTasks());
+    }
     /**
      * Adds a record to the output.
      *
@@ -85,4 +98,30 @@ public interface OutputFormat<IT> extends Serializable {
      * @throws IOException Thrown, if the input could not be closed properly.
      */
     void close() throws IOException;
+
+    /** The context exposes some runtime info for initializing output format. */
+    @Public
+    interface InitializationContext {
+        /**
+         * Gets the parallelism with which the parallel task runs.
+         *
+         * @return The parallelism with which the parallel task runs.
+         */
+        int getNumTasks();
+
+        /**
+         * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+         * parallelism-1 (parallelism as returned by {@link #getNumTasks()}).
+         *
+         * @return The index of the parallel subtask.
+         */
+        int getTaskNumber();
+
+        /**
+         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+         *
+         * @return Attempt number of the subtask.
+         */
+        int getAttemptNumber();
+    }
 }

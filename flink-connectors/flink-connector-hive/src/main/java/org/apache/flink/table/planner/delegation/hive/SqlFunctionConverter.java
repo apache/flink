@@ -22,7 +22,7 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBetween;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlTimestampFunction;
+import org.apache.flink.table.planner.functions.sql.FlinkTimestampWithPrecisionDynamicFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -43,6 +43,7 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlCastFunction;
 import org.apache.calcite.sql.fun.SqlMonotonicBinaryOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -94,8 +95,12 @@ public class SqlFunctionConverter extends RexShuttle {
             RelDataType type = call.getType();
             return builder.makeCall(type, convertedOp, visitList(operands, update));
         } else {
-            if (convertedOp instanceof FlinkSqlTimestampFunction) {
-                // flink's current_timestamp has different type from hive's, convert it to a literal
+            if (convertedOp instanceof FlinkTimestampWithPrecisionDynamicFunction
+                    && convertedOp
+                            .getName()
+                            .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_TIMESTAMP.getName())) {
+                // flink's current_timestamp(no localtimestamp or now or current_row_timestamp in
+                // hive built-in functions) has different type from hive's, convert it to a literal
                 Timestamp currentTS =
                         ((HiveSessionState) SessionState.get()).getHiveParserCurrentTS();
                 HiveShim hiveShim = HiveParserUtils.getSessionHiveShim();

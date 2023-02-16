@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -45,18 +46,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class DefaultSlotPoolServiceSchedulerFactoryTest {
 
     @Test
-    public void testFallsBackToDefaultSchedulerIfBatchJob() {
+    public void testFallsBackToDefaultSchedulerIfAdaptiveSchedulerInBatchJob() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                        configuration, JobType.BATCH);
+                        configuration, JobType.BATCH, true);
 
         assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
-                .isInstanceOf(DefaultSchedulerFactory.class);
+                .isInstanceOf(AdaptiveBatchSchedulerFactory.class);
         assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
-                .isEqualTo(JobManagerOptions.SchedulerType.Default);
+                .isEqualTo(JobManagerOptions.SchedulerType.AdaptiveBatch);
     }
 
     @Test
@@ -66,12 +67,64 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                        configuration, JobType.STREAMING);
+                        configuration, JobType.STREAMING, false);
 
         assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
                 .isInstanceOf(AdaptiveSchedulerFactory.class);
         assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
                 .isEqualTo(JobManagerOptions.SchedulerType.Adaptive);
+    }
+
+    @Test
+    public void testFallBackSchedulerWithAdaptiveSchedulerTestProperty() {
+        String propertyValue = saveAdaptiveSchedulerTestPropertyValue();
+        System.setProperty("flink.tests.enable-adaptive-scheduler", "true");
+
+        DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
+                DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                        new Configuration(), JobType.BATCH, true);
+
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(AdaptiveBatchSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.AdaptiveBatch);
+
+        defaultSlotPoolServiceSchedulerFactory =
+                DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                        new Configuration(), JobType.STREAMING, false);
+
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(AdaptiveSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.Adaptive);
+
+        restoreAdaptiveSchedulerTestPropertiesValue(propertyValue);
+    }
+
+    @Test
+    public void testFallBackSchedulerWithoutAdaptiveSchedulerTestProperty() {
+        String propertyValue = saveAdaptiveSchedulerTestPropertyValue();
+        System.clearProperty("flink.tests.enable-adaptive-scheduler");
+
+        DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
+                DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                        new Configuration(), JobType.BATCH, true);
+
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(AdaptiveBatchSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.AdaptiveBatch);
+
+        defaultSlotPoolServiceSchedulerFactory =
+                DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
+                        new Configuration(), JobType.STREAMING, false);
+
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory())
+                .isInstanceOf(DefaultSchedulerFactory.class);
+        assertThat(defaultSlotPoolServiceSchedulerFactory.getSchedulerType())
+                .isEqualTo(JobManagerOptions.SchedulerType.Default);
+
+        restoreAdaptiveSchedulerTestPropertiesValue(propertyValue);
     }
 
     @ParameterizedTest
@@ -95,5 +148,17 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
                         true,
                         JobType.STREAMING,
                         PreferredAllocationRequestSlotMatchingStrategy.INSTANCE));
+    }
+
+    private String saveAdaptiveSchedulerTestPropertyValue() {
+        return (String) System.getProperty("flink.tests.enable-adaptive-scheduler");
+    }
+
+    private void restoreAdaptiveSchedulerTestPropertiesValue(String savedPropertyValue) {
+        if (savedPropertyValue == null) {
+            System.clearProperty("flink.tests.enable-adaptive-scheduler");
+        } else {
+            System.setProperty("flink.tests.enable-adaptive-scheduler", savedPropertyValue);
+        }
     }
 }

@@ -15,10 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 import unittest
-
-import pytest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
@@ -134,7 +131,6 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
     pass
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class PyFlinkEmbeddedThreadTests(UserDefinedTableFunctionTests, PyFlinkStreamTableTestCase):
     def setUp(self):
         super(PyFlinkEmbeddedThreadTests, self).setUp()
@@ -152,7 +148,7 @@ class MultiEmit(TableFunction, unittest.TestCase):
             yield x, i
 
 
-@udtf(result_types=[DataTypes.BIGINT()])
+@udtf(result_types=['bigint'])
 def identity(x):
     if x is not None:
         from pyflink.common import Row

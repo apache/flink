@@ -135,14 +135,14 @@ object FlinkStreamRuleSets {
 
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
-    // push a filter into a join
+    // push a filter into a join (which isn't an event time temporal join)
     FlinkFilterJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
     FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
-    CoreRules.FILTER_PROJECT_TRANSPOSE,
+    FlinkFilterProjectTransposeRule.INSTANCE,
     // push a filter past a setop
     CoreRules.FILTER_SET_OP_TRANSPOSE,
     CoreRules.FILTER_MERGE
@@ -217,14 +217,14 @@ object FlinkStreamRuleSets {
     // merge filter to MultiJoin
     CoreRules.FILTER_MULTI_JOIN_MERGE,
     // merge join to MultiJoin
-    CoreRules.JOIN_TO_MULTI_JOIN
+    FlinkJoinToMultiJoinRule.INSTANCE
   )
 
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
     // join reorder
-    CoreRules.MULTI_JOIN_OPTIMIZE
+    FlinkJoinReorderRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
@@ -280,7 +280,7 @@ object FlinkStreamRuleSets {
     DecomposeGroupingSetsRule.INSTANCE,
 
     // calc rules
-    CoreRules.FILTER_CALC_MERGE,
+    FlinkFilterCalcMergeRule.INSTANCE,
     CoreRules.PROJECT_CALC_MERGE,
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,

@@ -28,7 +28,7 @@ under the License.
 
 User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
 
-**NOTE:** Python UDF execution requires Python version (3.6, 3.7, 3.8 or 3.9) with PyFlink installed. It's required on both the client side and the cluster side. 
+**NOTE:** Python UDF execution requires Python version (3.7, 3.8, 3.9 or 3.10) with PyFlink installed. It's required on both the client side and the cluster side. 
 
 ## Scalar Functions
 
@@ -55,13 +55,13 @@ class HashCode(ScalarFunction):
 settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
-hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
+hash_code = udf(HashCode(), result_type='BIGINT')
 
 # use the Python function in Python Table API
 my_table.select(col("string"), col("bigint"), hash_code(col("bigint")), call(hash_code, col("bigint")))
 
 # use the Python function in SQL API
-table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type='BIGINT'))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 ```
 
@@ -109,25 +109,25 @@ class Add(ScalarFunction):
 add = udf(Add(), result_type=DataTypes.BIGINT())
 
 # option 2: Python function
-@udf(result_type=DataTypes.BIGINT())
+@udf(result_type='BIGINT')
 def add(i, j):
   return i + j
 
 # option 3: lambda function
-add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
+add = udf(lambda i, j: i + j, result_type='BIGINT')
 
 # option 4: callable function
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
-add = udf(CallableAdd(), result_type=DataTypes.BIGINT())
+add = udf(CallableAdd(), result_type='BIGINT')
 
 # option 5: partial function
 def partial_add(i, j, k):
   return i + j + k
 
-add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
+add = udf(functools.partial(partial_add, k=1), result_type='BIGINT')
 
 # register the Python function
 table_env.create_temporary_function("add", add)
@@ -162,14 +162,14 @@ table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
 # register the Python Table Function
-split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
+split = udtf(Split(), result_types=['STRING', 'INT'])
 
 # use the Python Table Function in Python Table API
 my_table.join_lateral(split(col("a")).alias("word", "length"))
 my_table.left_outer_join_lateral(split(col("a")).alias("word", "length"))
 
 # use the Python Table function in SQL API
-table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+table_env.create_temporary_function("split", udtf(Split(), result_types=['STRING', 'INT']))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
@@ -222,18 +222,18 @@ Like Python scalar functions, you can use the above five ways to define Python T
 
 ```python
 # option 1: generator function
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def generator_func(x):
       yield 1
       yield 2
 
 # option 2: return iterator
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def iterator_func(x):
       return range(5)
 
 # option 3: return iterable
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def iterable_func(x):
       result = [1, 2, 3]
       return result
@@ -302,12 +302,10 @@ class WeightedAvg(AggregateFunction):
         accumulator[1] -= weight
         
     def get_result_type(self):
-        return DataTypes.BIGINT()
+        return 'BIGINT'
         
     def get_accumulator_type(self):
-        return DataTypes.ROW([
-            DataTypes.FIELD("f0", DataTypes.BIGINT()), 
-            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+        return 'ROW<f0 BIGINT, f1 BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()
@@ -477,11 +475,10 @@ class Top2(TableAggregateFunction):
                 accumulator[1] = row[0]
 
     def get_accumulator_type(self):
-        return DataTypes.ARRAY(DataTypes.BIGINT())
+        return 'ARRAY<BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+        return 'ROW<a BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()

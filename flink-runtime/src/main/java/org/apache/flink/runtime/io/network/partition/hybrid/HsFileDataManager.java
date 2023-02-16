@@ -152,8 +152,11 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     }
 
     /** This method only called by result partition to create subpartitionFileReader. */
-    public HsDataView registerNewSubpartition(
-            int subpartitionId, HsSubpartitionViewInternalOperations operation) throws IOException {
+    public HsDataView registerNewConsumer(
+            int subpartitionId,
+            HsConsumerId consumerId,
+            HsSubpartitionConsumerInternalOperations operation)
+            throws IOException {
         synchronized (lock) {
             checkState(!isReleased, "HsFileDataManager is already released.");
             lazyInitialize();
@@ -161,6 +164,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
             HsSubpartitionFileReader subpartitionReader =
                     fileReaderFactory.createFileReader(
                             subpartitionId,
+                            consumerId,
                             dataFileChannel,
                             operation,
                             dataIndex,
@@ -175,7 +179,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         }
     }
 
-    public void deleteShuffleFile() {
+    public void closeDataIndexAndDeleteShuffleFile() {
+        dataIndex.close();
         IOUtils.deleteFileQuietly(dataFilePath);
     }
 
@@ -203,8 +208,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
             failSubpartitionReaders(
                     pendingReaders,
                     new IllegalStateException("Result partition has been already released."));
-            // delete the shuffle file only when no reader is reading now.
-            releaseFuture.thenRun(this::deleteShuffleFile);
+            // close data index and delete shuffle file only when no reader is reading now.
+            releaseFuture.thenRun(this::closeDataIndexAndDeleteShuffleFile);
         }
     }
 

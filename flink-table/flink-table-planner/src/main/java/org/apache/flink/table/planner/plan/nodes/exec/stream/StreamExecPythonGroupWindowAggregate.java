@@ -425,7 +425,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                 createTransformationMeta(PYTHON_GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     private OneInputTransformation<RowData, RowData>
@@ -469,7 +470,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                         PYTHON_GROUP_WINDOW_AGGREGATE_TRANSFORMATION, pythonNodeConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

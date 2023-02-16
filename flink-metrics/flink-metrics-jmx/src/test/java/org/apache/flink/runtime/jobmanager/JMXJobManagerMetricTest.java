@@ -21,12 +21,10 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.jmx.JMXReporterFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -75,11 +73,8 @@ class JMXJobManagerMetricTest {
     private static Configuration getConfiguration() {
         Configuration flinkConfiguration = new Configuration();
 
-        flinkConfiguration.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                JMXReporterFactory.class.getName());
+        MetricOptions.forReporter(flinkConfiguration, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, JMXReporterFactory.class.getName());
         flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 
         return flinkConfiguration;
@@ -98,17 +93,7 @@ class JMXJobManagerMetricTest {
 
             final JobCheckpointingSettings jobCheckpointingSettings =
                     new JobCheckpointingSettings(
-                            new CheckpointCoordinatorConfiguration(
-                                    500,
-                                    500,
-                                    50,
-                                    5,
-                                    CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                                    true,
-                                    false,
-                                    0,
-                                    0),
-                            null);
+                            CheckpointCoordinatorConfiguration.builder().build(), null);
 
             final JobGraph jobGraph =
                     JobGraphBuilder.newStreamingJobGraphBuilder()

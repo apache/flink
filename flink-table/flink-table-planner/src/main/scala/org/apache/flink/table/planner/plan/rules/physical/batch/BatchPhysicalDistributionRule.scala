@@ -19,21 +19,16 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDistribution
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /** Rule that matches [[FlinkLogicalDistribution]]. */
-class BatchPhysicalDistributionRule
-  extends ConverterRule(
-    classOf[FlinkLogicalDistribution],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecDistributionRule") {
+class BatchPhysicalDistributionRule(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val logicalDistribution = rel.asInstanceOf[FlinkLogicalDistribution]
@@ -61,5 +56,10 @@ class BatchPhysicalDistributionRule
 }
 
 object BatchPhysicalDistributionRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalDistributionRule
+  val INSTANCE: RelOptRule = new BatchPhysicalDistributionRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalDistribution],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchExecDistributionRule"))
 }

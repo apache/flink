@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
@@ -66,6 +67,27 @@ public class MetricOptions {
                             "An optional list of reporter names. If configured, only reporters whose name matches"
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
+
+    /**
+     * Returns a view over the given configuration via which options can be set/retrieved for the
+     * given reporter.
+     *
+     * <pre>
+     *     Configuration config = ...
+     *     MetricOptions.forReporter(config, "my_reporter")
+     *         .set(MetricOptions.REPORTER_INTERVAL, Duration.ofSeconds(10))
+     *         ...
+     * </pre>
+     *
+     * @param configuration backing configuration
+     * @param reporterName reporter name
+     * @return view over configuration
+     */
+    @Experimental
+    public static Configuration forReporter(Configuration configuration, String reporterName) {
+        return new DelegatingConfiguration(
+                configuration, ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + ".");
+    }
 
     /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
     @Deprecated

@@ -25,8 +25,10 @@ public class AlterTableRenameOperation extends AlterTableOperation {
     private final ObjectIdentifier newTableIdentifier;
 
     public AlterTableRenameOperation(
-            ObjectIdentifier tableIdentifier, ObjectIdentifier newTableIdentifier) {
-        super(tableIdentifier);
+            ObjectIdentifier tableIdentifier,
+            ObjectIdentifier newTableIdentifier,
+            boolean ignoreIfNotExists) {
+        super(tableIdentifier, ignoreIfNotExists);
         this.newTableIdentifier = newTableIdentifier;
     }
 
@@ -37,7 +39,9 @@ public class AlterTableRenameOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         return String.format(
-                "ALTER TABLE %s RENAME TO %s",
-                tableIdentifier.asSummaryString(), newTableIdentifier.asSummaryString());
+                "ALTER TABLE %s%s RENAME TO %s",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                newTableIdentifier.asSummaryString());
     }
 }

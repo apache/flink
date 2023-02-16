@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-dist_${scala.binary.version}</artifactId>
@@ -33,7 +33,6 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<zookeeper.optional.version>3.6.3</zookeeper.optional.version>
 		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
@@ -628,25 +627,6 @@ under the License.
 							<outputDirectory>${project.build.directory}/temporary/java11_exclusive</outputDirectory>
 						</configuration>
 					</execution>
-					<execution>
-						<id>copy-zk-jars</id>
-						<phase>process-resources</phase>
-						<goals>
-							<goal>copy</goal>
-						</goals>
-						<configuration>
-							<artifactItems>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-shaded-zookeeper-3</artifactId>
-									<version>${zookeeper.optional.version}-${flink.shaded.version}</version>
-									<type>jar</type>
-									<overWrite>true</overWrite>
-								</artifactItem>
-							</artifactItems>
-							<outputDirectory>${project.build.directory}/temporary</outputDirectory>
-						</configuration>
-					</execution>
 				</executions>
 			</plugin>
 
@@ -702,17 +682,13 @@ under the License.
 								<excludes>
 									<!-- log4j 2 is bundled separately from the flink-dist jar -->
 									<exclude>org.apache.logging.log4j:*</exclude>
-									<!-- Bundled separately so that users can easily switch between ZK 3.4/3.5-->
-									<exclude>org.apache.flink:flink-shaded-zookeeper-3</exclude>
 								</excludes>
 							</artifactSet>
 						</configuration>
 					</execution>
 					<execution>
 						<!--
-						Disable inherited shade-flink to prevent the Shade plugin from changing the project.basedir. The basedir
-						is changed by the Shade plugin when dependencyReducedPomLocation is set to a different location than the
-						original basedir. We do that in the root pom.xml.
+						Historic artifact; shade-dist execution should be renamed.
 						-->
 						<id>shade-flink</id>
 						<phase>none</phase>

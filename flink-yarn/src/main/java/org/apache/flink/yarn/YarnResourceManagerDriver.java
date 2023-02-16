@@ -73,6 +73,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Phaser;
 import java.util.stream.Collectors;
@@ -276,6 +277,53 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         } else {
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
+
+            requestResourceFuture.whenComplete(
+                    (ignore, t) -> {
+                        if (t instanceof CancellationException) {
+                            try {
+                                final Queue<CompletableFuture<YarnWorkerNode>>
+                                        pendingRequestResourceFutures =
+                                                requestResourceFutures.getOrDefault(
+                                                        taskExecutorProcessSpec,
+                                                        new LinkedList<>());
+                                Preconditions.checkState(
+                                        pendingRequestResourceFutures.remove(
+                                                requestResourceFuture));
+                                log.info(
+                                        "cancelling pending request with priority {}, remaining {} pending container requests.",
+                                        priority,
+                                        pendingRequestResourceFutures.size());
+                                int pendingRequestsSizeBeforeCancel =
+                                        pendingRequestResourceFutures.size() + 1;
+                                final Iterator<AMRMClient.ContainerRequest>
+                                        pendingContainerRequestIterator =
+                                                getPendingRequestsAndCheckConsistency(
+                                                                priority,
+                                                                resource,
+                                                                pendingRequestsSizeBeforeCancel)
+                                                        .iterator();
+
+                                Preconditions.checkState(pendingContainerRequestIterator.hasNext());
+
+                                final AMRMClient.ContainerRequest pendingRequest =
+                                        pendingContainerRequestIterator.next();
+                                removeContainerRequest(pendingRequest);
+
+                                if (pendingRequestResourceFutures.isEmpty()) {
+                                    requestResourceFutures.remove(taskExecutorProcessSpec);
+                                }
+
+                                if (getNumRequestedNotAllocatedWorkers() <= 0) {
+                                    resourceManagerClient.setHeartbeatInterval(
+                                            yarnHeartbeatIntervalMillis);
+                                }
+                            } catch (Throwable unhandledError) {
+                                getResourceEventHandler().onError(unhandledError);
+                            }
+                        }
+                    });
+
             addContainerRequest(resource, priority);
 
             // make sure we transmit the request fast and receive fast news of granted allocations
@@ -373,8 +421,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                 requestResourceFutures.remove(taskExecutorProcessSpec);
             }
 
-            startTaskExecutorInContainerAsync(
-                    container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
+            requestResourceFuture.complete(new YarnWorkerNode(container, resourceId));
+            startTaskExecutorInContainerAsync(container, taskExecutorProcessSpec, resourceId);
             removeContainerRequest(pendingRequest);
 
             numAccepted++;
@@ -420,8 +468,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private void startTaskExecutorInContainerAsync(
             Container container,
             TaskExecutorProcessSpec taskExecutorProcessSpec,
-            ResourceID resourceId,
-            CompletableFuture<YarnWorkerNode> requestResourceFuture) {
+            ResourceID resourceId) {
         final CompletableFuture<ContainerLaunchContext> containerLaunchContextFuture =
                 FutureUtils.supplyAsync(
                         () ->
@@ -436,10 +483,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                         (context, exception) -> {
                             if (exception == null) {
                                 nodeManagerClient.startContainerAsync(container, context);
-                                requestResourceFuture.complete(
-                                        new YarnWorkerNode(container, resourceId));
                             } else {
-                                requestResourceFuture.completeExceptionally(exception);
+                                getResourceEventHandler()
+                                        .onWorkerTerminated(resourceId, exception.getMessage());
                             }
                             return null;
                         },

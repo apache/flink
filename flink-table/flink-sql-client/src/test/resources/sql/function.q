@@ -43,7 +43,7 @@ show user functions;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 # run a query to verify the registered UDF works
@@ -197,7 +197,7 @@ show user functions;
 # test alter function
 # ==========================================================================
 
-alter function func11 as 'org.apache.flink.table.client.gateway.local.LocalExecutorITCase$TestScalaFunction';
+alter function func11 as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
 [INFO] Execute statement succeed.
 !info
 
@@ -208,7 +208,7 @@ create temporary function tmp_func as 'LowerUDF';
 !info
 
 # should throw unsupported error
-alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.LocalExecutorITCase$TestScalaFunction';
+alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Alter temporary catalog function is not supported
 !error
@@ -219,8 +219,12 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 # ==========================================================================
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] The specified jar is removed from session classloader.
+[INFO] Execute statement succeed.
 !info
+
+SHOW JARS;
+Empty set
+!ok
 
 create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
@@ -272,7 +276,7 @@ show user functions;
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] The specified jar is removed from session classloader.
+[INFO] Execute statement succeed.
 !info
 
 SHOW JARS;

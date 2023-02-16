@@ -85,6 +85,8 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_ID_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.COMPLETED_CHECKPOINT_FILE_SUFFIX;
+import static org.apache.flink.kubernetes.utils.Constants.DNS_POLICY_DEFAULT;
+import static org.apache.flink.kubernetes.utils.Constants.DNS_POLICY_HOSTNETWORK;
 import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
@@ -485,6 +487,24 @@ public class KubernetesUtils {
             resolvedValue = valueOfConfigOptionOrDefault;
         }
         return resolvedValue;
+    }
+
+    /**
+     * Resolve the DNS policy defined value. Return DNS_POLICY_HOSTNETWORK if host network enabled.
+     * If not, check whether there is a DNS policy overridden in pod template.
+     *
+     * @param dnsPolicy DNS policy defined in pod template spec
+     * @param hostNetworkEnabled Host network enabled or not
+     * @return the resolved value
+     */
+    public static String resolveDNSPolicy(String dnsPolicy, boolean hostNetworkEnabled) {
+        if (hostNetworkEnabled) {
+            return DNS_POLICY_HOSTNETWORK;
+        }
+        if (!StringUtils.isNullOrWhitespaceOnly(dnsPolicy)) {
+            return dnsPolicy;
+        }
+        return DNS_POLICY_DEFAULT;
     }
 
     /**

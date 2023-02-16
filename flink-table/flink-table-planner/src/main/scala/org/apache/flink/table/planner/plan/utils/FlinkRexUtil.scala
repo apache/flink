@@ -23,12 +23,14 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
@@ -39,7 +41,7 @@ import org.apache.calcite.util._
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
-import java.util.Optional
+import java.util.{Optional, TimeZone}
 import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
@@ -213,8 +215,8 @@ object FlinkRexUtil {
     val binaryComparisonExprReduced =
       sameExprMerged.accept(new BinaryComparisonExprReducer(rexBuilder))
 
-    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, executor)
-    rexSimplify.simplify(binaryComparisonExprReduced)
+    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, executor)
+    rexSimplify.simplifyUnknownAs(binaryComparisonExprReduced, RexUnknownAs.falseIf(true))
   }
 
   val BINARY_COMPARISON: util.Set[SqlKind] = util.EnumSet.of(
@@ -313,7 +315,7 @@ object FlinkRexUtil {
    * @return
    *   InputRef HashSet.
    */
-  private[flink] def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
+  def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
     val set = new util.HashSet[RexInputRef]
     node.accept(new RexVisitorImpl[Void](true) {
       override def visitInputRef(inputRef: RexInputRef): Void = {
@@ -588,23 +590,13 @@ object FlinkRexUtil {
   }
 
   /**
-   * Returns whether a given expression is deterministic in streaming scenario, differs from
-   * calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions.
+   * Returns the non-deterministic call name for a given expression. Use java [[Optional]] for
+   * scala-free goal.
    */
-  def isDeterministicInStreaming(e: RexNode): Boolean = {
-    !getNonDeterministicCallNameInStreaming(e).isPresent
-  }
-
-  /**
-   * Returns the non-deterministic call name for a given expression in streaming scenario, differs
-   * from calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions. Use java
-   * [[Optional]] for scala-free goal.
-   */
-  def getNonDeterministicCallNameInStreaming(e: RexNode): Optional[String] = try {
+  def getNonDeterministicCallName(e: RexNode): Optional[String] = try {
     val visitor = new RexVisitorImpl[Void](true) {
       override def visitCall(call: RexCall): Void = {
-        // dynamic function call is also non-deterministic to streaming
-        if (!call.getOperator.isDeterministic || call.getOperator.isDynamicFunction) {
+        if (!call.getOperator.isDeterministic) {
           throw new Util.FoundOne(call.getOperator.getName)
         }
         super.visitCall(call)
@@ -619,20 +611,44 @@ object FlinkRexUtil {
   }
 
   /**
-   * Returns whether a given [[RexProgram]] is deterministic in streaming scenario, differs from
-   * calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions.
+   * Returns whether a given [[RexProgram]] is deterministic.
    * @return
-   *   true if any expression of the program is not deterministic in streaming
+   *   false if any expression of the program is not deterministic
    */
-  def isDeterministicInStreaming(rexProgram: RexProgram): Boolean = try {
+  def isDeterministic(rexProgram: RexProgram): Boolean = try {
     if (null != rexProgram.getCondition) {
       val rexCondi = rexProgram.expandLocalRef(rexProgram.getCondition)
-      if (!isDeterministicInStreaming(rexCondi)) {
+      if (!RexUtil.isDeterministic(rexCondi)) {
         return false
       }
     }
     val projects = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
-    projects.forall(isDeterministicInStreaming)
+    projects.forall(RexUtil.isDeterministic)
+  }
+
+  /**
+   * Return convertible rex nodes and unconverted rex nodes extracted from the filter expression.
+   */
+  def extractPredicates(
+      inputNames: Array[String],
+      filterExpression: RexNode,
+      rel: RelNode,
+      rexBuilder: RexBuilder): (Array[RexNode], Array[RexNode]) = {
+    val context = ShortcutUtils.unwrapContext(rel)
+    val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(rel);
+    val converter =
+      new RexNodeToExpressionConverter(
+        rexBuilder,
+        inputNames,
+        context.getFunctionCatalog,
+        context.getCatalogManager,
+        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)));
+
+    RexNodeExtractor.extractConjunctiveConditions(
+      filterExpression,
+      maxCnfNodeCount,
+      rexBuilder,
+      converter);
   }
 }
 

@@ -613,9 +613,7 @@ public class NFACompiler {
                     proceedState,
                     takeCondition,
                     getIgnoreCondition(currentPattern),
-                    currentPattern
-                            .getQuantifier()
-                            .hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
+                    isPatternOptional(currentPattern));
         }
 
         /**
@@ -659,14 +657,17 @@ public class NFACompiler {
          * pattern, the optional status depends on the group pattern.
          */
         private boolean isPatternOptional(Pattern<T, ?> pattern) {
-            if (headOfGroup(pattern)) {
-                return isCurrentGroupPatternFirstOfLoop()
-                        && currentGroupPattern
-                                .getQuantifier()
-                                .hasProperty(Quantifier.QuantifierProperty.OPTIONAL);
-            } else {
-                return pattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL);
+            return pattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL);
+        }
+
+        private boolean isHeadOfOptionalGroupPattern(Pattern<T, ?> pattern) {
+            if (!headOfGroup(pattern)) {
+                return false;
             }
+            return isCurrentGroupPatternFirstOfLoop()
+                    && currentGroupPattern
+                            .getQuantifier()
+                            .hasProperty(Quantifier.QuantifierProperty.OPTIONAL);
         }
 
         /**
@@ -719,11 +720,7 @@ public class NFACompiler {
             // if no element accepted the previous nots are still valid.
             final IterativeCondition<T> proceedCondition = getTrueFunction();
 
-            // for the first state of a group pattern, its PROCEED edge should point to the
-            // following state of
-            // that group pattern and the edge will be added at the end of creating the NFA for that
-            // group pattern
-            if (isOptional && !headOfGroup(currentPattern)) {
+            if (isOptional) {
                 if (currentPattern
                         .getQuantifier()
                         .hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
@@ -748,7 +745,7 @@ public class NFACompiler {
 
             if (ignoreCondition != null) {
                 final State<T> ignoreState;
-                if (isOptional) {
+                if (isOptional || isHeadOfOptionalGroupPattern(currentPattern)) {
                     ignoreState = createState(State.StateType.Normal, false);
                     ignoreState.addTake(sink, takeCondition);
                     ignoreState.addIgnore(ignoreCondition);

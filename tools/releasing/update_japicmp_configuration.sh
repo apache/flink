@@ -34,18 +34,18 @@ fi
 #     There is a master branch with a version X.Y-SNAPSHOT, with a japicmp reference version of X.(Y-1).0 .
 #   Release flow:
 #     - update the master to X.(Y+1)-SNAPSHOT, but keep the reference version intact since X.Y.0 is not released (yet)
-#     - create X.Y-SNAPSHOT branch, but keep the reference version intact since X.Y.0 is not released (yet)
+#     - create snapshot branch for X.Y-SNAPSHOT (i.e. release-X.Y), but keep the reference version intact since X.Y.0 is not released (yet)
 #     - release X.Y.0
-#     - update the japicmp reference version of both master and X.Y-SNAPSHOT to X.Y.0
-#     - enable stronger compatibility constraints for X.Y-SNAPSHOT to ensure compatibility for PublicEvolving
+#     - update the japicmp reference version of both master and the snapshot branch for X.Y-SNAPSHOT to X.Y.0
+#     - enable stronger compatibility constraints for X.Y-SNAPSHOT in the snapshot branch to ensure compatibility for PublicEvolving
 # Scenario B) New minor release X.Y.Z
 #   Premise:
-#     There is a snapshot branch with a version X.Y-SNAPSHOT, with a japicmp reference version of X.Y.(Z-1)
+#     There is a snapshot branch release-X.Y having a version X.Y-SNAPSHOT, with a japicmp reference version of X.Y.(Z-1)
 #   Release flow:
-#     - create X.Y.Z-rc branch
+#     - create X.Y.Z-rc* branch
 #     - update the japicmp reference version of X.Y.Z to X.Y.(Z-1)
 #     - release X.Y.Z
-#     - update the japicmp reference version of X.Y-SNAPSHOT to X.Y.Z
+#     - update the japicmp reference version of X.Y-SNAPSHOT (in the snapshot branch release-X.Y) to X.Y.Z
 
 POM=../pom.xml
 function enable_public_evolving_compatibility_checks() {

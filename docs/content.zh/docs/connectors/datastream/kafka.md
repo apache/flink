@@ -450,7 +450,7 @@ Kafka source 的源读取器扩展了 ```SourceReaderBase```，并使用单线�
 
 ## Kafka SourceFunction
 {{< hint warning >}}
-`FlinkKafkaConsumer` 已被弃用并将在 Flink 1.15 中移除，请改用 ```KafkaSource```。
+`FlinkKafkaConsumer` 已被弃用并将在 Flink 1.17 中移除，请改用 ```KafkaSource```。
 {{< /hint >}}
 
 如需参考，请参阅 Flink 1.13 [文档](https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction)。
@@ -603,7 +603,7 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 
 2. 将 `KafkaClient` 追加到 `security.kerberos.login.contexts`：这告诉 Flink 将配置的 Kerberos 票据提供给 Kafka 登录上下文以用于 Kafka 身份验证。
 
-一旦启用了基于 Kerberos 的 Flink 安全性后，只需在提供的属性配置中包含以下两个设置（通过传递给内部 Kafka 客户端），即可使用 Flink Kafka Consumer 或 Producer 向 Kafk a进行身份验证：
+一旦启用了基于 Kerberos 的 Flink 安全性后，只需在提供的属性配置中包含以下两个设置（通过传递给内部 Kafka 客户端），即可使用 Flink Kafka Consumer 或 Producer 向 Kafka进行身份验证：
 
 - 将 `security.protocol` 设置为 `SASL_PLAINTEXT`（默认为 `NONE`）：用于与 Kafka broker 进行通信的协议。使用独立 Flink 部署时，也可以使用 `SASL_SSL`；请在[此处](https://kafka.apache.org/documentation/#security_configclients)查看如何为 SSL 配置 Kafka 客户端。
 - 将 `sasl.kerberos.service.name` 设置为 `kafka`（默认为 `kafka`）：此值应与用于 Kafka broker 配置的 `sasl.kerberos.service.name` 相匹配。客户端和服务器配置之间的服务名称不匹配将导致身份验证失败。

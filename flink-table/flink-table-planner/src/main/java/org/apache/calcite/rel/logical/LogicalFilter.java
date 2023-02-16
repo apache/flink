@@ -50,7 +50,7 @@ import java.util.Set;
  * the latest calcite.
  */
 public final class LogicalFilter extends Filter {
-    private final com.google.common.collect.ImmutableSet<CorrelationId> variablesSet;
+    private final ImmutableSet<CorrelationId> variablesSet;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -72,7 +72,7 @@ public final class LogicalFilter extends Filter {
             List<RelHint> hints,
             RelNode child,
             RexNode condition,
-            com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
+            ImmutableSet<CorrelationId> variablesSet) {
         super(cluster, traitSet, hints, child, condition);
         this.variablesSet = Objects.requireNonNull(variablesSet, "variablesSet");
     }
@@ -83,14 +83,14 @@ public final class LogicalFilter extends Filter {
             RelTraitSet traitSet,
             RelNode child,
             RexNode condition,
-            ImmutableSet<CorrelationId> variablesSet) {
+            com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
         this(cluster, traitSet, ImmutableList.of(), child, condition, variablesSet);
     }
 
     @Deprecated // to be removed before 2.0
     public LogicalFilter(
             RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode condition) {
-        this(cluster, traitSet, child, condition, com.google.common.collect.ImmutableSet.of());
+        this(cluster, traitSet, child, condition, ImmutableSet.of());
     }
 
     @Deprecated // to be removed before 2.0

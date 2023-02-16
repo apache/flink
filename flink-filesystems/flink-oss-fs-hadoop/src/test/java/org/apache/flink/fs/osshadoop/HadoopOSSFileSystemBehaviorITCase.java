@@ -25,44 +25,44 @@ import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.oss.OSSTestCredentials;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 import java.util.UUID;
 
 /** An implementation of the {@link FileSystemBehaviorTestSuite} for the OSS file system. */
-public class HadoopOSSFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
+class HadoopOSSFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         OSSTestCredentials.assumeCredentialsAvailable();
 
         final Configuration conf = new Configuration();
         conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
         conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
         conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
-        FileSystem.initialize(conf);
+        FileSystem.initialize(conf, null);
     }
 
     @Override
-    public FileSystem getFileSystem() throws Exception {
+    protected FileSystem getFileSystem() throws Exception {
         return getBasePath().getFileSystem();
     }
 
     @Override
-    public Path getBasePath() throws Exception {
+    protected Path getBasePath() throws Exception {
         return new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
     }
 
     @Override
-    public FileSystemKind getFileSystemKind() {
+    protected FileSystemKind getFileSystemKind() {
         return FileSystemKind.OBJECT_STORE;
     }
 
-    @AfterClass
-    public static void clearFsConfig() throws IOException {
-        FileSystem.initialize(new Configuration());
+    @AfterAll
+    static void clearFsConfig() throws IOException {
+        FileSystem.initialize(new Configuration(), null);
     }
 }

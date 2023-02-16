@@ -33,6 +33,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 @Internal
 public abstract class PhysicalTransformation<T> extends Transformation<T> {
 
+    private boolean supportsConcurrentExecutionAttempts = true;
+
     /**
      * Creates a new {@code Transformation} with the given name, output type and parallelism.
      *
@@ -45,6 +47,33 @@ public abstract class PhysicalTransformation<T> extends Transformation<T> {
         super(name, outputType, parallelism);
     }
 
+    /**
+     * Creates a new {@code Transformation} with the given name, output type and parallelism.
+     *
+     * @param name The name of the {@code Transformation}, this will be shown in Visualizations and
+     *     the Log
+     * @param outputType The output type of this {@code Transformation}
+     * @param parallelism The parallelism of this {@code Transformation}
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
+     */
+    PhysicalTransformation(
+            String name,
+            TypeInformation<T> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
+    }
+
     /** Sets the chaining strategy of this {@code Transformation}. */
     public abstract void setChainingStrategy(ChainingStrategy strategy);
+
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        return supportsConcurrentExecutionAttempts;
+    }
+
+    public void setSupportsConcurrentExecutionAttempts(
+            boolean supportsConcurrentExecutionAttempts) {
+        this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
+    }
 }

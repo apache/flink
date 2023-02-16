@@ -65,7 +65,9 @@ public class PeriodicStreamingJob {
         DataStream<Tuple> rows = sEnv.addSource(generator);
 
         DataStream<Tuple> result =
-                rows.keyBy(1).window(TumblingProcessingTimeWindows.of(Time.seconds(5))).sum(0);
+                rows.keyBy(tuple -> tuple.getField(1))
+                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .sum(0);
 
         result.writeAsText(outputPath + "/result.txt", FileSystem.WriteMode.OVERWRITE)
                 .setParallelism(1);

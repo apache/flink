@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FinalizeOnMaster.FinalizationContext;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -119,7 +120,7 @@ public class InputOutputFormatVertex extends JobVertex {
     }
 
     @Override
-    public void finalizeOnMaster(InitializeOnMasterContext context) throws Exception {
+    public void finalizeOnMaster(FinalizeOnMasterContext context) throws Exception {
         final ClassLoader loader = context.getClassLoader();
         final InputOutputFormatContainer formatContainer = initInputOutputformatContainer(loader);
 
@@ -149,7 +150,19 @@ public class InputOutputFormatVertex extends JobVertex {
 
                 if (outputFormat instanceof FinalizeOnMaster) {
                     int executionParallelism = context.getExecutionParallelism();
-                    ((FinalizeOnMaster) outputFormat).finalizeGlobal(executionParallelism);
+                    ((FinalizeOnMaster) outputFormat)
+                            .finalizeGlobal(
+                                    new FinalizationContext() {
+                                        @Override
+                                        public int getParallelism() {
+                                            return executionParallelism;
+                                        }
+
+                                        @Override
+                                        public int getFinishedAttempt(int subtaskIndex) {
+                                            return context.getFinishedAttempt(subtaskIndex);
+                                        }
+                                    });
                 }
             }
         } finally {

@@ -89,11 +89,9 @@ paths:
                 $ref: '#/components/schemas/JarListInfo'
   /jars/upload:
     post:
-      description: "Uploads a jar to the cluster. The jar must be sent as multi-part\
-        \ data. Make sure that the \"Content-Type\" header is set to \"application/x-java-archive\"\
-        , as some http libraries do not add the header by default.\nUsing 'curl' you\
-        \ can upload a jar via 'curl -X POST -H \"Expect:\" -F \"jarfile=@path/to/flink-job.jar\"\
-        \ http://hostname:port/jars/upload'."
+      description: |-
+        Uploads a jar to the cluster. The jar must be sent as multi-part data. Make sure that the "Content-Type" header is set to "application/x-java-archive", as some http libraries do not add the header by default.
+        Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@path/to/flink-job.jar" http://hostname:port/jars/upload'.
       operationId: uploadJar
       requestBody:
         content:
@@ -617,6 +615,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/clientHeartbeat:
+    patch:
+      description: Report the jobClient's aliveness.
+      operationId: triggerHeartbeat
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobClientHeartbeatRequestBody'
+      responses:
+        "202":
+          description: The request was successful.
   /jobs/{jobid}/config:
     get:
       description: Returns the configuration of a job.
@@ -712,7 +729,7 @@ paths:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobs/{jobid}/jobmanager/environment:
     get:
-      description: Returns the jobmanager's environment variables of a specific job.
+      description: Returns the jobmanager's environment of a specific job.
       operationId: getJobManagerJobEnvironment
       parameters:
       - name: jobid
@@ -1058,13 +1075,21 @@ paths:
         style: form
         schema:
           $ref: '#/components/schemas/Type'
+      - name: subtaskindex
+        in: query
+        description: Positive integer value that identifies a subtask.
+        required: false
+        style: form
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobVertexFlameGraph'
+                $ref: '#/components/schemas/VertexFlameGraph'
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
@@ -1721,6 +1746,8 @@ components:
         processed_data:
           type: integer
           format: int64
+        savepointFormat:
+          type: string
         state_size:
           type: integer
           format: int64
@@ -1886,18 +1913,6 @@ components:
         total:
           type: integer
           format: int64
-    CurrentAttempts:
-      type: object
-      properties:
-        currentAttempts:
-          uniqueItems: true
-          type: array
-          items:
-            type: integer
-            format: int32
-        representativeAttempt:
-          type: integer
-          format: int32
     DashboardConfiguration:
       type: object
       properties:
@@ -1929,19 +1944,8 @@ components:
           type: array
           items:
             type: string
-        environment:
-          type: array
-          items:
-            $ref: '#/components/schemas/EnvironmentVariableItem'
         jvm:
           $ref: '#/components/schemas/JVMInfo'
-    EnvironmentVariableItem:
-      type: object
-      properties:
-        key:
-          type: string
-        value:
-          type: string
     ExceptionInfo:
       type: object
       properties:
@@ -1950,6 +1954,8 @@ components:
         location:
           type: string
         stacktrace:
+          type: string
+        taskManagerId:
           type: string
         taskName:
           type: string
@@ -1980,6 +1986,8 @@ components:
         location:
           type: string
         task:
+          type: string
+        taskManagerId:
           type: string
         timestamp:
           type: integer
@@ -2136,6 +2144,10 @@ components:
       properties:
         entryClass:
           type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
         jobId:
           $ref: '#/components/schemas/JobID'
         parallelism:
@@ -2154,6 +2166,10 @@ components:
           type: boolean
         entryClass:
           type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
         jobId:
           $ref: '#/components/schemas/JobID'
         parallelism:
@@ -2198,6 +2214,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserTaskAccumulator'
+    JobClientHeartbeatRequestBody:
+      type: object
+      properties:
+        expiredTimestamp:
+          type: integer
+          format: int64
     JobConfigInfo:
       type: object
       properties:
@@ -2210,36 +2232,27 @@ components:
     JobDetails:
       type: object
       properties:
-        currentExecutionAttempts:
-          type: object
-          additionalProperties:
-            type: object
-            additionalProperties:
-              $ref: '#/components/schemas/CurrentAttempts'
         duration:
           type: integer
           format: int64
-        endTime:
+        end-time:
           type: integer
           format: int64
-        jobId:
+        jid:
           $ref: '#/components/schemas/JobID'
-        jobName:
+        last-modification:
+          type: integer
+          format: int64
+        name:
           type: string
-        lastUpdateTime:
+        start-time:
           type: integer
           format: int64
-        numTasks:
-          type: integer
-          format: int32
-        startTime:
-          type: integer
-          format: int64
-        status:
+        state:
           $ref: '#/components/schemas/JobStatus'
-        tasksPerState:
-          type: array
-          items:
+        tasks:
+          type: object
+          additionalProperties:
             type: integer
             format: int32
     JobDetailsInfo:
@@ -2440,14 +2453,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
-    JobVertexFlameGraph:
-      type: object
-      properties:
-        data:
-          $ref: '#/components/schemas/Node'
-        endTimestamp:
-          type: integer
-          format: int64
     JobVertexID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2619,6 +2624,8 @@ components:
         location:
           type: string
         stacktrace:
+          type: string
+        taskManagerId:
           type: string
         taskName:
           type: string
@@ -3191,3 +3198,11 @@ components:
       enum:
       - deprecated
       - ok
+    VertexFlameGraph:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Node'
+        endTimestamp:
+          type: integer
+          format: int64

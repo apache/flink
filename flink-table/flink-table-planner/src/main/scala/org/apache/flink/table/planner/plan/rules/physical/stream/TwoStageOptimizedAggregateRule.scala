@@ -59,11 +59,15 @@ class TwoStageOptimizedAggregateRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = unwrapTableConfig(call)
-    val agg: StreamPhysicalGroupAggregate = call.rel(0)
-    val realInput: RelNode = call.rel(2)
+    val isMiniBatchEnabled = tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val isTwoPhaseEnabled = getAggPhaseStrategy(tableConfig) != AggregatePhaseStrategy.ONE_PHASE
 
+    isMiniBatchEnabled && isTwoPhaseEnabled && matchesTwoStage(call.rel(0), call.rel(2))
+  }
+
+  def matchesTwoStage(agg: StreamPhysicalGroupAggregate, realInput: RelNode): Boolean = {
     val needRetraction = !ChangelogPlanUtils.isInsertOnly(realInput.asInstanceOf[StreamPhysicalRel])
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
     val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
       agg.grouping.length,
@@ -79,11 +83,6 @@ class TwoStageOptimizedAggregateRule
       needRetraction,
       isStateBackendDataViews = true
     )
-
-    val isMiniBatchEnabled = tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
-    val isTwoPhaseEnabled = getAggPhaseStrategy(tableConfig) != AggregatePhaseStrategy.ONE_PHASE
-
-    isMiniBatchEnabled && isTwoPhaseEnabled &&
     AggregateUtil.doAllSupportPartialMerge(aggInfoList.aggInfos) &&
     !isInputSatisfyRequiredDistribution(realInput, agg.grouping)
   }

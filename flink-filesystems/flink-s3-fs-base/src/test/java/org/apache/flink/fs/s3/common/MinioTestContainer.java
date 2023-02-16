@@ -101,7 +101,7 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
     }
 
     private String getHttpEndpoint() {
-        return String.format("http://%s:%s", getContainerIpAddress(), getMappedPort(DEFAULT_PORT));
+        return String.format("http://%s:%s", getHost(), getMappedPort(DEFAULT_PORT));
     }
 
     /**

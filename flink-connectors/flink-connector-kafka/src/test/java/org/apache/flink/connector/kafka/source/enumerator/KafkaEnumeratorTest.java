@@ -558,23 +558,4 @@ public class KafkaEnumeratorTest {
             context.runNextOneTimeCallable();
         }
     }
-
-    // -------------- private class ----------------
-
-    private static class BlockingClosingContext
-            extends MockSplitEnumeratorContext<KafkaPartitionSplit> {
-
-        public BlockingClosingContext(int parallelism) {
-            super(parallelism);
-        }
-
-        @Override
-        public void close() {
-            try {
-                Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-                // let it go.
-            }
-        }
-    }
 }

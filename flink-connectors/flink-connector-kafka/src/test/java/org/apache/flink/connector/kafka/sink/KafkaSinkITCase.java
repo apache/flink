@@ -67,11 +67,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -99,7 +95,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -427,31 +422,19 @@ public class KafkaSinkITCase extends TestLogger {
         return standardProps;
     }
 
-    private static Consumer<byte[], byte[]> createTestConsumer(
-            String topic, Properties properties) {
-        final Properties consumerConfig = new Properties();
-        consumerConfig.putAll(properties);
-        consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        final KafkaConsumer<byte[], byte[]> kafkaConsumer = new KafkaConsumer<>(consumerConfig);
-        kafkaConsumer.subscribe(Collections.singletonList(topic));
-        return kafkaConsumer;
-    }
-
     private void createTestTopic(String topic, int numPartitions, short replicationFactor)
             throws ExecutionException, InterruptedException, TimeoutException {
         final CreateTopicsResult result =
                 admin.createTopics(
                         Collections.singletonList(
                                 new NewTopic(topic, numPartitions, replicationFactor)));
-        result.all().get(1, TimeUnit.MINUTES);
+        result.all().get();
     }
 
     private void deleteTestTopic(String topic)
             throws ExecutionException, InterruptedException, TimeoutException {
         final DeleteTopicsResult result = admin.deleteTopics(Collections.singletonList(topic));
-        result.all().get(1, TimeUnit.MINUTES);
+        result.all().get();
     }
 
     private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(

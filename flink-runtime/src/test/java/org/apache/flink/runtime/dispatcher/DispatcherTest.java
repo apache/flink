@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -87,6 +89,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
@@ -1029,6 +1033,44 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get();
 
         InstantiationUtil.serializeObject(multipleJobsDetails);
+    }
+
+    @Test
+    public void testOverridingJobVertexParallelisms() throws Exception {
+        JobVertex v1 = new JobVertex("v1");
+        v1.setParallelism(1);
+        JobVertex v2 = new JobVertex("v2");
+        v2.setParallelism(2);
+        JobVertex v3 = new JobVertex("v3");
+        v3.setParallelism(3);
+        jobGraph = new JobGraph(jobGraph.getJobID(), "job", v1, v2, v3);
+
+        configuration.set(
+                PipelineOptions.PARALLELISM_OVERRIDES,
+                ImmutableMap.of(
+                        v1.getID().toHexString(), "10",
+                        // v2 is omitted
+                        v3.getID().toHexString(), "42",
+                        // unknown vertex added
+                        new JobVertexID().toHexString(), "23"));
+
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new ExpectedJobIdJobManagerRunnerFactory(
+                                jobId, createdJobManagerRunnerLatch));
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        Assert.assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 1);
+        Assert.assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
+        Assert.assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 3);
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        Assert.assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 10);
+        Assert.assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
+        Assert.assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 42);
     }
 
     private JobManagerRunner runningJobManagerRunnerWithJobStatus(

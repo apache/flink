@@ -183,26 +183,6 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
     }
 
     @Test
-    public void triggerConcurrentCheckpoints() throws Exception {
-        final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
-        final OperatorCoordinatorHolder holder =
-                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
-
-        triggerAndCompleteCheckpoint(holder, 1111L);
-        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1337));
-        triggerAndCompleteCheckpoint(holder, 1112L);
-        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1338));
-        assertThat(tasks.getSentEventsForSubtask(0)).isEmpty();
-
-        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1111L));
-        assertThat(tasks.getSentEventsForSubtask(0)).containsExactly(new TestOperatorEvent(1337));
-
-        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1112L));
-        assertThat(tasks.getSentEventsForSubtask(0))
-                .containsExactly(new TestOperatorEvent(1337), new TestOperatorEvent(1338));
-    }
-
-    @Test
     public void takeCheckpointAfterSuccessfulCheckpoint() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =

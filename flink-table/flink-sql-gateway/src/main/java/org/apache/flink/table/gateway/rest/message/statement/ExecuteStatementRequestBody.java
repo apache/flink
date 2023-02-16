@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.statement;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -27,7 +28,7 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-/** {@link RequestBody} for execute a statement. */
+/** {@link RequestBody} for executing a statement. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExecuteStatementRequestBody implements RequestBody {
 
@@ -46,6 +47,11 @@ public class ExecuteStatementRequestBody implements RequestBody {
     @Nullable
     private final Map<String, String> executionConfig;
 
+    public ExecuteStatementRequestBody(String statement) {
+        this(statement, 0L, null);
+    }
+
+    @JsonCreator
     public ExecuteStatementRequestBody(
             @JsonProperty(FIELD_NAME_STATEMENT) String statement,
             @Nullable @JsonProperty(FIELD_NAME_EXECUTION_TIMEOUT) Long timeout,

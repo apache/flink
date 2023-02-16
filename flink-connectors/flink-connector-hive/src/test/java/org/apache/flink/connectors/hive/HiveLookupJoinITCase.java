@@ -358,6 +358,26 @@ public class HiveLookupJoinITCase {
     }
 
     @Test
+    public void testLookupJoinWithLookUpSourceProjectPushDown() throws Exception {
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        batchEnv.useCatalog(hiveCatalog.getName());
+        batchEnv.executeSql(
+                        "insert overwrite bounded_table values (1,'a',10),(2,'b',22),(3,'c',33)")
+                .await();
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        TableImpl flinkTable =
+                (TableImpl)
+                        tableEnv.sqlQuery(
+                                "select b.x, b.z from "
+                                        + " default_catalog.default_database.probe as p "
+                                        + " join bounded_table for system_time as of p.p as b on p.x=b.x");
+        List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, 10], +I[1, 10], +I[2, 22], +I[2, 22], +I[3, 33]]");
+    }
+
+    @Test
     public void testLookupJoinTableWithColumnarStorage() throws Exception {
         // constructs test data, as the DEFAULT_SIZE of VectorizedColumnBatch is 2048, we should
         // write as least 2048 records to the test table.

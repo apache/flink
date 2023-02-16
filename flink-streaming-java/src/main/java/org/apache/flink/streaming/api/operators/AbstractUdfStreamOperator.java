@@ -47,7 +47,8 @@ import static java.util.Objects.requireNonNull;
  */
 @PublicEvolving
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
-        extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
+        extends AbstractStreamOperator<OUT>
+        implements OutputTypeConfigurable<OUT>, UserFunctionProvider<F> {
 
     private static final long serialVersionUID = 1L;
 

@@ -20,13 +20,17 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.GateBuffersSpec;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Map;
+import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.createGateBuffersSpec;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utils to calculate network memory requirement of a vertex from network configuration and details
@@ -86,25 +90,37 @@ public class NettyShuffleUtils {
     public static int computeNetworkBuffersForAnnouncing(
             final int numBuffersPerChannel,
             final int numFloatingBuffersPerGate,
+            final Optional<Integer> maxRequiredBuffersPerGate,
             final int sortShuffleMinParallelism,
             final int sortShuffleMinBuffers,
-            final int numTotalInputChannels,
-            final int numTotalInputGates,
+            final Map<IntermediateDataSetID, Integer> inputChannelNums,
+            final Map<IntermediateDataSetID, Integer> partitionReuseCount,
             final Map<IntermediateDataSetID, Integer> subpartitionNums,
+            final Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes,
             final Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
-        // Each input channel will retain N exclusive network buffers, N = numBuffersPerChannel.
-        // Each input gate is guaranteed to have a number of floating buffers.
-        int requirementForInputs =
-                getNetworkBuffersPerInputChannel(numBuffersPerChannel) * numTotalInputChannels
-                        + getMinMaxFloatingBuffersPerInputGate(numFloatingBuffersPerGate).getRight()
-                                * numTotalInputGates;
+        int requirementForInputs = 0;
+        for (IntermediateDataSetID dataSetId : inputChannelNums.keySet()) {
+            int numChannels = inputChannelNums.get(dataSetId);
+            ResultPartitionType inputPartitionType = inputPartitionTypes.get(dataSetId);
+            checkNotNull(inputPartitionType);
+
+            int numSingleGateBuffers =
+                    getNumBuffersToAnnounceForInputGate(
+                            inputPartitionType,
+                            numBuffersPerChannel,
+                            numFloatingBuffersPerGate,
+                            maxRequiredBuffersPerGate,
+                            numChannels);
+            checkState(partitionReuseCount.containsKey(dataSetId));
+            requirementForInputs += numSingleGateBuffers * partitionReuseCount.get(dataSetId);
+        }
 
         int requirementForOutputs = 0;
         for (IntermediateDataSetID dataSetId : subpartitionNums.keySet()) {
             int numSubs = subpartitionNums.get(dataSetId);
-            checkArgument(partitionTypes.containsKey(dataSetId));
             ResultPartitionType partitionType = partitionTypes.get(dataSetId);
+            checkNotNull(partitionType);
 
             requirementForOutputs +=
                     getNumBuffersToAnnounceForResultPartition(
@@ -117,6 +133,22 @@ public class NettyShuffleUtils {
         }
 
         return requirementForInputs + requirementForOutputs;
+    }
+
+    private static int getNumBuffersToAnnounceForInputGate(
+            ResultPartitionType type,
+            int configuredNetworkBuffersPerChannel,
+            int floatingNetworkBuffersPerGate,
+            Optional<Integer> maxRequiredBuffersPerGate,
+            int numInputChannels) {
+        GateBuffersSpec gateBuffersSpec =
+                createGateBuffersSpec(
+                        maxRequiredBuffersPerGate,
+                        configuredNetworkBuffersPerChannel,
+                        floatingNetworkBuffersPerGate,
+                        type,
+                        numInputChannels);
+        return gateBuffersSpec.targetTotalBuffersPerGate();
     }
 
     private static int getNumBuffersToAnnounceForResultPartition(

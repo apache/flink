@@ -119,9 +119,7 @@ public class DeploymentOptions {
                                     .linebreak()
                                     .linebreak()
                                     .text(
-                                            "Currently, this list is limited to '%s' only.",
-                                            TextElement.text(
-                                                    PipelineOptions.GLOBAL_JOB_PARAMETERS.key()))
+                                            "Currently changes that are not backed by the Configuration class are always allowed.")
                                     .build());
 
     @Experimental

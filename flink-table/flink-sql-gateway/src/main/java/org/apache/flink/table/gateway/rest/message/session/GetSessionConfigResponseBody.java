@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.session;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -34,6 +35,7 @@ public class GetSessionConfigResponseBody implements ResponseBody {
     @JsonProperty(FIELD_PROPERTIES)
     private final Map<String, String> properties;
 
+    @JsonCreator
     public GetSessionConfigResponseBody(
             @JsonProperty(FIELD_PROPERTIES) Map<String, String> properties) {
         this.properties = properties;

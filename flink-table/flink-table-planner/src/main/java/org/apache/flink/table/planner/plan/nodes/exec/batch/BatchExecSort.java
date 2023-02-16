@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sort.SortOperator;
@@ -43,7 +44,8 @@ import java.util.Collections;
  *
  * <p>This node will output all data rather than `limit` records.
  */
-public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
+public class BatchExecSort extends ExecNodeBase<RowData>
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final SortSpec sortSpec;
 
@@ -89,6 +91,7 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
                 inputTransform.getParallelism(),
-                sortMemory);
+                sortMemory,
+                false);
     }
 }

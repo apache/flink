@@ -18,18 +18,20 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.util.TestCounter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utils for hybrid shuffle mode. */
 public class HybridShuffleTestUtils {
@@ -39,9 +41,6 @@ public class HybridShuffleTestUtils {
             int subpartitionId, int... bufferIndexes) {
         List<BufferIndexAndChannel> bufferIndexAndChannels = new ArrayList<>();
         for (int bufferIndex : bufferIndexes) {
-            MemorySegment segment =
-                    MemorySegmentFactory.allocateUnpooledSegment(MEMORY_SEGMENT_SIZE);
-            NetworkBuffer buffer = new NetworkBuffer(segment, (ignore) -> {});
             bufferIndexAndChannels.add(new BufferIndexAndChannel(bufferIndex, subpartitionId));
         }
         return bufferIndexAndChannels;
@@ -72,5 +71,39 @@ public class HybridShuffleTestUtils {
 
     public static HsOutputMetrics createTestingOutputMetrics() {
         return new HsOutputMetrics(new TestCounter(), new TestCounter());
+    }
+
+    public static InternalRegion createSingleUnreleasedRegion(
+            int firstBufferIndex, long firstBufferOffset, int numBuffersPerRegion) {
+        return new InternalRegion(
+                firstBufferIndex,
+                firstBufferOffset,
+                numBuffersPerRegion,
+                new boolean[numBuffersPerRegion]);
+    }
+
+    public static List<InternalRegion> createAllUnreleasedRegions(
+            int firstBufferIndex, long firstBufferOffset, int numBuffersPerRegion, int numRegions) {
+        List<InternalRegion> regions = new ArrayList<>();
+        int bufferIndex = firstBufferIndex;
+        long bufferOffset = firstBufferOffset;
+        for (int i = 0; i < numRegions; i++) {
+            regions.add(
+                    new InternalRegion(
+                            bufferIndex,
+                            bufferOffset,
+                            numBuffersPerRegion,
+                            new boolean[numBuffersPerRegion]));
+            bufferIndex += numBuffersPerRegion;
+            bufferOffset += bufferOffset;
+        }
+        return regions;
+    }
+
+    public static void assertRegionEquals(InternalRegion expected, InternalRegion region) {
+        assertThat(region.getFirstBufferIndex()).isEqualTo(expected.getFirstBufferIndex());
+        assertThat(region.getFirstBufferOffset()).isEqualTo(expected.getFirstBufferOffset());
+        assertThat(region.getNumBuffers()).isEqualTo(region.getNumBuffers());
+        assertThat(region.getReleased()).isEqualTo(region.getReleased());
     }
 }

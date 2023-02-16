@@ -736,10 +736,11 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b,
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[w0$o0 AS rk, d])
       +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, w0$o0])
-         +- Sort(orderBy=[d ASC, e ASC])
-            +- Exchange(distribution=[hash[d]])
-               +- Calc(select=[d, e])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[d ASC, e ASC])
+               +- Exchange(distribution=[hash[d]])
+                  +- Calc(select=[d, e])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1167,11 +1168,12 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b,
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
       +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window#0=[MIN(e) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, w0$o0, w1$o0])
-         +- Sort(orderBy=[f ASC, d ASC])
-            +- Exchange(distribution=[hash[f]])
-               +- OverAggregate(window#0=[MAX(d) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[d, e, f, w0$o0])
-                  +- Exchange(distribution=[single])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[f ASC, d ASC])
+               +- Exchange(distribution=[hash[f]])
+                  +- OverAggregate(window#0=[MAX(d) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[d, e, f, w0$o0])
+                     +- Exchange(distribution=[single])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

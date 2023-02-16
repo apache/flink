@@ -54,7 +54,7 @@ public class SqlChangeColumn extends SqlAlterTable {
             @Nullable SqlIdentifier after,
             boolean first,
             @Nullable SqlNodeList properties) {
-        super(pos, tableName);
+        super(pos, tableName, false);
         if (after != null && first) {
             throw new IllegalArgumentException("FIRST and AFTER cannot be set at the same time");
         }

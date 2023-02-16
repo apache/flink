@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory.IDENTIFIER;
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getSqlGatewayRestOptionFullName;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getSqlGatewayRestOptionFullName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

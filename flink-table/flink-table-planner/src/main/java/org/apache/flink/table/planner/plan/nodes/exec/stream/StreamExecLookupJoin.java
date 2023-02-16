@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -53,7 +54,8 @@ import java.util.Map;
         producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {
+public class StreamExecLookupJoin extends CommonExecLookupJoin
+        implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
 
     public static final String FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY =

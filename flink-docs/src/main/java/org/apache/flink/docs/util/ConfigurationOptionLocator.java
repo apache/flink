@@ -74,15 +74,6 @@ public class ConfigurationOptionLocator {
                 new OptionsClassLocation(
                         "flink-table/flink-sql-client", "org.apache.flink.table.client.config"),
                 new OptionsClassLocation(
-                        "flink-connectors/flink-connector-pulsar",
-                        "org.apache.flink.connector.pulsar.common.config"),
-                new OptionsClassLocation(
-                        "flink-connectors/flink-connector-pulsar",
-                        "org.apache.flink.connector.pulsar.source"),
-                new OptionsClassLocation(
-                        "flink-connectors/flink-connector-pulsar",
-                        "org.apache.flink.connector.pulsar.sink"),
-                new OptionsClassLocation(
                         "flink-libraries/flink-cep", "org.apache.flink.cep.configuration"),
                 new OptionsClassLocation(
                         "flink-dstl/flink-dstl-dfs", "org.apache.flink.changelog.fs"),

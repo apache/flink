@@ -52,7 +52,7 @@ public abstract class CommonPhysicalMatchRule extends ConverterRule {
 
     public CommonPhysicalMatchRule(
             Class<? extends RelNode> clazz, RelTrait in, RelTrait out, String descriptionPrefix) {
-        super(clazz, in, out, descriptionPrefix);
+        super(Config.INSTANCE.as(Config.class).withConversion(clazz, in, out, descriptionPrefix));
     }
 
     @Override

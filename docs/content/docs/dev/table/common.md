@@ -35,6 +35,12 @@ Structure of Table API and SQL Programs
 
 The following code example shows the common structure of Table API and SQL programs.
 
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
+
 {{< tabs "0727d1e7-3f22-4eba-a25f-6a554b6a1359" >}}
 {{< tab "Java" >}}
 ```java

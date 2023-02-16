@@ -110,6 +110,56 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_DISTINCT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 3},
+                                new Integer[] {null, 1, 2, 3, 4, 5, 4, 3, 2, 1, null},
+                                null,
+                                new String[] {"Hello", "Hello", "Hello"},
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull(),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        .testResult(
+                                $("f0").arrayDistinct(),
+                                "ARRAY_DISTINCT(f0)",
+                                new Integer[] {1, 2, 3},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f1").arrayDistinct(),
+                                "ARRAY_DISTINCT(f1)",
+                                new Integer[] {null, 1, 2, 3, 4, 5},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f2").arrayDistinct(),
+                                "ARRAY_DISTINCT(f2)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f3").arrayDistinct(),
+                                "ARRAY_DISTINCT(f3)",
+                                new String[] {"Hello"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        .testResult(
+                                $("f4").arrayDistinct(),
+                                "ARRAY_DISTINCT(f4)",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
     }
 }

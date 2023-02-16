@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.AggregatedTable;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
@@ -476,9 +477,9 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public String explain(ExplainDetail... extraDetails) {
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
         return tableEnvironment.explainInternal(
-                Collections.singletonList(getQueryOperation()), extraDetails);
+                Collections.singletonList(getQueryOperation()), format, extraDetails);
     }
 
     @Override

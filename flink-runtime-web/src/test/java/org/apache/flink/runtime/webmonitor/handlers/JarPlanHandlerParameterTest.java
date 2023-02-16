@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
@@ -38,10 +42,16 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for the parameter handling of the {@link JarPlanHandler}. */
 class JarPlanHandlerParameterTest
         extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
     private static JarPlanHandler handler;
+    private static final Configuration FLINK_CONFIGURATION =
+            new Configuration()
+                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
+                    .set(CoreOptions.DEFAULT_PARALLELISM, 57);
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
@@ -120,16 +130,31 @@ class JarPlanHandlerParameterTest
                 getProgramArgsString(programArgsParType),
                 getProgramArgsList(programArgsParType),
                 PARALLELISM,
+                null,
                 null);
     }
 
     @Override
     JarPlanRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarPlanRequestBody(null, null, null, null, jobId);
+        return new JarPlanRequestBody(null, null, null, null, jobId, null);
+    }
+
+    @Override
+    JarPlanRequestBody getJarRequestWithConfiguration() {
+        return new JarPlanRequestBody(null, null, null, null, null, FLINK_CONFIGURATION.toMap());
     }
 
     @Override
     void handleRequest(HandlerRequest<JarPlanRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
+    }
+
+    @Override
+    void validateGraphWithFlinkConfig(JobGraph jobGraph) {
+        final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
+        assertThat(executionConfig.getParallelism())
+                .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
+        assertThat(executionConfig.getTaskCancellationTimeout())
+                .isEqualTo(FLINK_CONFIGURATION.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT));
     }
 }

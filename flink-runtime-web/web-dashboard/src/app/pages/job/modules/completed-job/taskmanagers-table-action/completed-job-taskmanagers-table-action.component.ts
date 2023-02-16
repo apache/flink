@@ -16,20 +16,27 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, Input, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { filter, mergeMap, take, takeUntil } from 'rxjs/operators';
 
+import { TableAggregatedMetricsComponent } from '@flink-runtime-web/components/table-aggregated-metrics/table-aggregated-metrics.component';
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobOverviewTaskManagersTableAction } from '@flink-runtime-web/pages/job/overview/taskmanagers/table-action/taskmanagers-table-action.component';
 import { TaskManagerService } from '@flink-runtime-web/services';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'flink-completed-job-taskmanagers-table-action',
   templateUrl: './completed-job-taskmanagers-table-action.component.html',
   styleUrls: ['./completed-job-taskmanagers-table-action.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent],
+  standalone: true
 })
 export class CompletedJobTaskmanagersTableActionComponent
   implements OnInit, OnDestroy, JobOverviewTaskManagersTableAction

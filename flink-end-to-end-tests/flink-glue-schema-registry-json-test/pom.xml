@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -33,12 +33,43 @@ under the License.
 
 	<properties>
 		<aws.sdk.version>1.12.276</aws.sdk.version>
-		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
+		<aws.sdkv2.version>2.19.14</aws.sdkv2.version>
 		<kotlin.version>1.7.10</kotlin.version>
 	</properties>
 
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-core</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-annotations</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-metrics-core</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-connector-aws-base</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-connector-base</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-table-common</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
 			<dependency>
 				<groupId>software.amazon.awssdk</groupId>
 				<artifactId>bom</artifactId>
@@ -131,29 +162,28 @@ under the License.
 			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
 
+		<!-- Temporary: The tests need to be refactored to remove these dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kinesis</artifactId>
-			<version>${project.version}</version>
+			<version>1.16.0</version>
 		</dependency>
-
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kinesis</artifactId>
+			<version>1.16.0</version>
+			<type>test-jar</type>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
-			<version>${project.version}</version>
+			<version>1.16.0</version>
 			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-base</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kinesis</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>

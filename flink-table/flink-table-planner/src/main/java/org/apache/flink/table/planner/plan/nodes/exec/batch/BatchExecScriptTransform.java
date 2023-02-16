@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.runtime.script.ScriptTransformIOInfo;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -40,7 +41,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for ScripTransform. */
 public class BatchExecScriptTransform extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     // currently, only Hive dialect supports ScriptTransform,
     // so make the class name of the operator constructed from this ExecNode a static field
@@ -86,7 +87,8 @@ public class BatchExecScriptTransform extends ExecNodeBase<RowData>
                 getDescription(),
                 SimpleOperatorFactory.of(scriptOperator),
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     @SuppressWarnings("unchecked")

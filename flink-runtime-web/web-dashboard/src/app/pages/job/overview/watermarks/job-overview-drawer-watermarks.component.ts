@@ -16,12 +16,20 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import { catchError, map, mergeMap, takeUntil } from 'rxjs/operators';
 
+import {
+  HumanizeWatermarkPipe,
+  HumanizeWatermarkToDatetimePipe
+} from '@flink-runtime-web/components/humanize-watermark.pipe';
 import { MetricsService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -34,7 +42,9 @@ interface WatermarkData {
   selector: 'flink-job-overview-drawer-watermarks',
   templateUrl: './job-overview-drawer-watermarks.component.html',
   styleUrls: ['./job-overview-drawer-watermarks.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule],
+  standalone: true
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   public readonly trackBySubtaskIndex = (_: number, node: { subTaskIndex: number; watermark: number }): number =>

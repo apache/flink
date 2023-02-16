@@ -24,14 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalE
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /** Rule that converts [[FlinkLogicalExpand]] to [[StreamPhysicalExpand]]. */
-class StreamPhysicalExpandRule
-  extends ConverterRule(
-    classOf[FlinkLogicalExpand],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalExpandRule") {
+class StreamPhysicalExpandRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[FlinkLogicalExpand]
@@ -47,5 +43,10 @@ class StreamPhysicalExpandRule
 }
 
 object StreamPhysicalExpandRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalExpandRule
+  val INSTANCE: RelOptRule = new StreamPhysicalExpandRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalExpand],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalExpandRule"))
 }

@@ -396,6 +396,23 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testInsertOverwrite() throws Exception {
+        tableEnv.executeSql("create table T1(a int, b string)");
+        tableEnv.executeSql("insert into T1 values(1, 'v1')").await();
+        tableEnv.executeSql("create table T2(a int, b string) partitioned by (dt string)");
+        tableEnv.executeSql(
+                        "insert overwrite table default.T2 partition (dt = '2023-01-01') select * from default.T1")
+                .await();
+        List<Row> rows = queryResult(tableEnv.sqlQuery("select * from T2"));
+        assertThat(rows.toString()).isEqualTo("[+I[1, v1, 2023-01-01]]");
+        tableEnv.executeSql(
+                        "insert overwrite table default.T2 partition (dt = '2023-01-01') select * from default.T1")
+                .await();
+        rows = queryResult(tableEnv.sqlQuery("select * from T2"));
+        assertThat(rows.toString()).isEqualTo("[+I[1, v1, 2023-01-01]]");
+    }
+
+    @Test
     public void testAlterTable() throws Exception {
         tableEnv.executeSql("create table tbl (x int) tblproperties('k1'='v1')");
         tableEnv.executeSql("alter table tbl rename to tbl1");
@@ -1287,7 +1304,7 @@ public class HiveDialectITCase {
     private void verifyUnsupportedOperation(String ddl) {
         assertThatThrownBy(() -> tableEnv.executeSql(ddl))
                 .isInstanceOf(ValidationException.class)
-                .getCause()
+                .cause()
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

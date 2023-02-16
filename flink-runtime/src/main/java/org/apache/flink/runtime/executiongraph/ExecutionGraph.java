@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -125,6 +126,15 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults();
 
     /**
+     * Gets the intermediate result partition by the given partition ID, or throw an exception if
+     * the partition is not found.
+     *
+     * @param id of the intermediate result partition
+     * @return intermediate result partition
+     */
+    IntermediateResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID id);
+
+    /**
      * Merges all accumulator results from the tasks previously executed in the Executions.
      *
      * @return The accumulator map
@@ -203,6 +213,15 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
+    default void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp)
+            throws JobException {
+        initializeJobVertex(
+                ejv,
+                createTimestamp,
+                VertexInputInfoComputationUtils.computeVertexInputInfos(
+                        ejv, getAllIntermediateResults()::get));
+    }
+
     /**
      * Initialize the given execution job vertex, mainly includes creating execution vertices
      * according to the parallelism, and connecting to the predecessors.
@@ -210,8 +229,13 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      * @param ejv The execution job vertex that needs to be initialized.
      * @param createTimestamp The timestamp for creating execution vertices, used to initialize the
      *     first Execution with.
+     * @param jobVertexInputInfos The input infos of this job vertex.
      */
-    void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp) throws JobException;
+    void initializeJobVertex(
+            ExecutionJobVertex ejv,
+            long createTimestamp,
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
+            throws JobException;
 
     /**
      * Notify that some job vertices have been newly initialized, execution graph will try to update

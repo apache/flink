@@ -815,7 +815,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call).generate(ctx, operands, resultType)
 
-          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS =>
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS |
+              BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS =>
             val left = operands.head
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)

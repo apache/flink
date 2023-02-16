@@ -23,10 +23,9 @@ import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
 import org.apache.flink.tools.ci.utils.deploy.DeployParser;
 import org.apache.flink.tools.ci.utils.notice.NoticeContents;
 import org.apache.flink.tools.ci.utils.notice.NoticeParser;
+import org.apache.flink.tools.ci.utils.shade.ShadeParser;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,12 +42,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -61,13 +61,6 @@ public class NoticeFileChecker {
     private static final List<String> MODULES_DEFINING_EXCESS_DEPENDENCIES =
             loadFromResources("modules-defining-excess-dependencies.modulelist");
 
-    // pattern for maven shade plugin
-    private static final Pattern SHADE_NEXT_MODULE_PATTERN =
-            Pattern.compile(
-                    ".*:shade \\((shade-flink|shade-dist|default)\\) @ ([^ _]+)(_[0-9.]+)? --.*");
-    private static final Pattern SHADE_INCLUDE_MODULE_PATTERN =
-            Pattern.compile(".*Including ([^:]+):([^:]+):jar:([^ ]+) in the shaded jar");
-
     // Examples:
     // "- org.apache.htrace:htrace-core:3.1.0-incubating"
     // or
@@ -78,9 +71,9 @@ public class NoticeFileChecker {
 
     static int run(File buildResult, Path root) throws IOException {
         // parse included dependencies from build output
-        final Multimap<String, Dependency> modulesWithBundledDependencies =
-                combine(
-                        parseModulesFromBuildResult(buildResult),
+        final Map<String, Set<Dependency>> modulesWithBundledDependencies =
+                combineAndFilterFlinkDependencies(
+                        ShadeParser.parseShadeOutput(buildResult.toPath()),
                         DependencyParser.parseDependencyCopyOutput(buildResult.toPath()));
 
         final Set<String> deployedModules = DeployParser.parseDeployOutput(buildResult);
@@ -117,7 +110,7 @@ public class NoticeFileChecker {
 
     @VisibleForTesting
     static int run(
-            Multimap<String, Dependency> modulesWithBundledDependencies,
+            Map<String, Set<Dependency>> modulesWithBundledDependencies,
             Set<String> deployedModules,
             Map<String, Optional<NoticeContents>> noticeFiles)
             throws IOException {
@@ -138,16 +131,19 @@ public class NoticeFileChecker {
             // TODO: this doesn't work for modules requiring a NOTICE that are bundled indirectly
             // TODO: via another non-deployed module
             boolean bundledByDeployedModule =
-                    modulesWithBundledDependencies.entries().stream()
+                    modulesWithBundledDependencies.entrySet().stream()
                             .filter(
                                     entry ->
-                                            entry.getValue()
-                                                    .getArtifactId()
-                                                    .equals(moduleSkippingDeployment))
+                                            entry.getValue().stream()
+                                                    .map(Dependency::getArtifactId)
+                                                    .anyMatch(
+                                                            artifactId ->
+                                                                    artifactId.equals(
+                                                                            moduleSkippingDeployment)))
                             .anyMatch(entry -> !modulesSkippingDeployment.contains(entry.getKey()));
 
             if (!bundledByDeployedModule) {
-                modulesWithBundledDependencies.removeAll(moduleSkippingDeployment);
+                modulesWithBundledDependencies.remove(moduleSkippingDeployment);
             } else {
                 LOG.debug(
                         "Including module {} in license checks, despite not being deployed, because it is bundled by another deployed module.",
@@ -171,27 +167,36 @@ public class NoticeFileChecker {
         return severeIssueCount;
     }
 
-    private static Multimap<String, Dependency> combine(
-            Multimap<String, Dependency> modulesWithBundledDependencies,
+    private static Map<String, Set<Dependency>> combineAndFilterFlinkDependencies(
+            Map<String, Set<Dependency>> modulesWithBundledDependencies,
             Map<String, Set<Dependency>> modulesWithCopiedDependencies) {
-        modulesWithCopiedDependencies.forEach(
-                (module, copiedDependencies) -> {
-                    copiedDependencies.stream()
-                            .filter(
-                                    dependency ->
-                                            !dependency.getGroupId().contains("org.apache.flink"))
-                            .forEach(
-                                    dependency ->
-                                            modulesWithBundledDependencies.put(module, dependency));
-                });
-        return modulesWithBundledDependencies;
+
+        final Map<String, Set<Dependency>> combinedAndFiltered = new LinkedHashMap<>();
+
+        Stream.concat(
+                        modulesWithBundledDependencies.entrySet().stream(),
+                        modulesWithCopiedDependencies.entrySet().stream())
+                .forEach(
+                        (entry) -> {
+                            final Set<Dependency> dependencies =
+                                    combinedAndFiltered.computeIfAbsent(
+                                            entry.getKey(), ignored -> new LinkedHashSet<>());
+
+                            for (Dependency dependency : entry.getValue()) {
+                                if (!dependency.getGroupId().contains("org.apache.flink")) {
+                                    dependencies.add(dependency);
+                                }
+                            }
+                        });
+
+        return combinedAndFiltered;
     }
 
     private static int ensureRequiredNoticeFiles(
-            Multimap<String, Dependency> modulesWithShadedDependencies,
+            Map<String, Set<Dependency>> modulesWithShadedDependencies,
             Collection<String> modulesWithNoticeFile) {
         int severeIssueCount = 0;
-        Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
+        Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keySet());
         shadingModules.removeAll(modulesWithNoticeFile);
         for (String moduleWithoutNotice : shadingModules) {
             if (modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
@@ -220,7 +225,7 @@ public class NoticeFileChecker {
     }
 
     private static int checkNoticeFileAndLogProblems(
-            Multimap<String, Dependency> modulesWithShadedDependencies,
+            Map<String, Set<Dependency>> modulesWithShadedDependencies,
             String moduleName,
             @Nullable NoticeContents noticeContents)
             throws IOException {
@@ -255,7 +260,7 @@ public class NoticeFileChecker {
 
     @VisibleForTesting
     static Map<Severity, List<String>> checkNoticeFile(
-            Multimap<String, Dependency> modulesWithShadedDependencies,
+            Map<String, Set<Dependency>> modulesWithShadedDependencies,
             String moduleName,
             @Nullable NoticeContents noticeContents) {
 
@@ -287,7 +292,8 @@ public class NoticeFileChecker {
 
             // find all dependencies missing from NOTICE file
             Collection<Dependency> expectedDependencies =
-                    modulesWithShadedDependencies.get(moduleName).stream()
+                    modulesWithShadedDependencies.getOrDefault(moduleName, Collections.emptySet())
+                            .stream()
                             .filter(
                                     dependency ->
                                             !dependency.getGroupId().equals("org.apache.flink"))
@@ -358,38 +364,6 @@ public class NoticeFileChecker {
                                     && file.getName(nameCount - 1).toString().equals("NOTICE");
                         })
                 .collect(Collectors.toList());
-    }
-
-    private static Multimap<String, Dependency> parseModulesFromBuildResult(File buildResult)
-            throws IOException {
-        Multimap<String, Dependency> result = ArrayListMultimap.create();
-
-        try (Stream<String> lines = Files.lines(buildResult.toPath())) {
-            // String line;
-            String currentShadeModule = null;
-            for (String line : (Iterable<String>) lines::iterator) {
-                Matcher nextShadeModuleMatcher = SHADE_NEXT_MODULE_PATTERN.matcher(line);
-                if (nextShadeModuleMatcher.find()) {
-                    currentShadeModule = nextShadeModuleMatcher.group(2);
-                }
-
-                if (currentShadeModule != null) {
-                    Matcher includeMatcher = SHADE_INCLUDE_MODULE_PATTERN.matcher(line);
-                    if (includeMatcher.find()) {
-                        String groupId = includeMatcher.group(1);
-                        String artifactId = includeMatcher.group(2);
-                        String version = includeMatcher.group(3);
-                        result.put(
-                                currentShadeModule,
-                                Dependency.create(groupId, artifactId, version));
-                    }
-                }
-                if (line.contains("Replacing original artifact with shaded artifact")) {
-                    currentShadeModule = null;
-                }
-            }
-        }
-        return result;
     }
 
     private static List<String> loadFromResources(String fileName) {

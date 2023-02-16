@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Public;
 /**
  * A {@code LocatedFileStatus} is a {@link FileStatus} that contains additionally the location
  * information of the file directly. The information is accessible through the {@link
- * #getBlockLocations()} ()} method.
+ * #getBlockLocations()} method.
  *
  * <p>This class eagerly communicates the block information (including locations) when that
  * information is readily (or cheaply) available. That way users can avoid an additional call to

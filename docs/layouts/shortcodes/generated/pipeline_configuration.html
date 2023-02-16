@@ -22,7 +22,7 @@
         </tr>
         <tr>
             <td><h5>pipeline.auto-watermark-interval</h5></td>
-            <td style="word-wrap: break-word;">0 ms</td>
+            <td style="word-wrap: break-word;">200 ms</td>
             <td>Duration</td>
             <td>The interval of the automatic watermark emission. Watermarks are used throughout the streaming system to keep track of the progress of time. They are used, for example, for time based windowing.</td>
         </tr>
@@ -81,10 +81,16 @@
             <td>A semicolon-separated list of the jars to package with the job jars to be sent to the cluster. These have to be valid paths.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.jobvertex-parallelism-overrides</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>A parallelism override map (jobVertexId -&gt; parallelism) which will be used to update the parallelism of the corresponding job vertices of submitted JobGraphs.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
+            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state. Changing the value explicitly when recovery from original job will lead to state incompatibility.</td>
         </tr>
         <tr>
             <td><h5>pipeline.name</h5></td>

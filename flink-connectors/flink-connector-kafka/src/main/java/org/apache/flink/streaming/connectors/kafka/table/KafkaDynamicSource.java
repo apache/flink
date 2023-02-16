@@ -25,12 +25,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
@@ -149,6 +151,21 @@ public class KafkaDynamicSource
      */
     protected final long startupTimestampMillis;
 
+    /** The bounded mode for the contained consumer (default is an unbounded data stream). */
+    protected final BoundedMode boundedMode;
+
+    /**
+     * Specific end offsets; only relevant when bounded mode is {@link
+     * BoundedMode#SPECIFIC_OFFSETS}.
+     */
+    protected final Map<KafkaTopicPartition, Long> specificBoundedOffsets;
+
+    /**
+     * The bounded timestamp to locate partition offsets; only relevant when bounded mode is {@link
+     * BoundedMode#TIMESTAMP}.
+     */
+    protected final long boundedTimestampMillis;
+
     /** Flag to determine source mode. In upsert mode, it will keep the tombstone message. * */
     protected final boolean upsertMode;
 
@@ -167,6 +184,9 @@ public class KafkaDynamicSource
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
+            BoundedMode boundedMode,
+            Map<KafkaTopicPartition, Long> specificBoundedOffsets,
+            long boundedTimestampMillis,
             boolean upsertMode,
             String tableIdentifier) {
         // Format attributes
@@ -200,6 +220,12 @@ public class KafkaDynamicSource
                 Preconditions.checkNotNull(
                         specificStartupOffsets, "Specific offsets must not be null.");
         this.startupTimestampMillis = startupTimestampMillis;
+        this.boundedMode =
+                Preconditions.checkNotNull(boundedMode, "Bounded mode must not be null.");
+        this.specificBoundedOffsets =
+                Preconditions.checkNotNull(
+                        specificBoundedOffsets, "Specific bounded offsets must not be null.");
+        this.boundedTimestampMillis = boundedTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
     }
@@ -314,6 +340,9 @@ public class KafkaDynamicSource
                         startupMode,
                         specificStartupOffsets,
                         startupTimestampMillis,
+                        boundedMode,
+                        specificBoundedOffsets,
+                        boundedTimestampMillis,
                         upsertMode,
                         tableIdentifier);
         copy.producedDataType = producedDataType;
@@ -350,6 +379,9 @@ public class KafkaDynamicSource
                 && startupMode == that.startupMode
                 && Objects.equals(specificStartupOffsets, that.specificStartupOffsets)
                 && startupTimestampMillis == that.startupTimestampMillis
+                && boundedMode == that.boundedMode
+                && Objects.equals(specificBoundedOffsets, that.specificBoundedOffsets)
+                && boundedTimestampMillis == that.boundedTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy);
@@ -363,8 +395,8 @@ public class KafkaDynamicSource
                 physicalDataType,
                 keyDecodingFormat,
                 valueDecodingFormat,
-                keyProjection,
-                valueProjection,
+                Arrays.hashCode(keyProjection),
+                Arrays.hashCode(valueProjection),
                 keyPrefix,
                 topics,
                 topicPattern,
@@ -372,6 +404,9 @@ public class KafkaDynamicSource
                 startupMode,
                 specificStartupOffsets,
                 startupTimestampMillis,
+                boundedMode,
+                specificBoundedOffsets,
+                boundedTimestampMillis,
                 upsertMode,
                 tableIdentifier,
                 watermarkStrategy);
@@ -424,6 +459,30 @@ public class KafkaDynamicSource
             case TIMESTAMP:
                 kafkaSourceBuilder.setStartingOffsets(
                         OffsetsInitializer.timestamp(startupTimestampMillis));
+                break;
+        }
+
+        switch (boundedMode) {
+            case UNBOUNDED:
+                kafkaSourceBuilder.setUnbounded(new NoStoppingOffsetsInitializer());
+                break;
+            case LATEST:
+                kafkaSourceBuilder.setBounded(OffsetsInitializer.latest());
+                break;
+            case GROUP_OFFSETS:
+                kafkaSourceBuilder.setBounded(OffsetsInitializer.committedOffsets());
+                break;
+            case SPECIFIC_OFFSETS:
+                Map<TopicPartition, Long> offsets = new HashMap<>();
+                specificBoundedOffsets.forEach(
+                        (tp, offset) ->
+                                offsets.put(
+                                        new TopicPartition(tp.getTopic(), tp.getPartition()),
+                                        offset));
+                kafkaSourceBuilder.setBounded(OffsetsInitializer.offsets(offsets));
+                break;
+            case TIMESTAMP:
+                kafkaSourceBuilder.setBounded(OffsetsInitializer.timestamp(boundedTimestampMillis));
                 break;
         }
 

@@ -304,9 +304,10 @@ object GenerateUtils {
       // as they're not cheap to construct. For the other types, the return term is directly
       // the literal value
       case CHAR | VARCHAR =>
-        val str = literalValue.asInstanceOf[BinaryStringData]
-        val field = ctx.addReusableEscapedStringConstant(EncodingUtils.escapeJava(str.toString))
-        generateNonNullLiteral(literalType, field, str)
+        val escapedValue =
+          EncodingUtils.escapeJava(literalValue.asInstanceOf[BinaryStringData].toString)
+        val field = ctx.addReusableEscapedStringConstant(escapedValue)
+        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
 
       case BINARY | VARBINARY =>
         val bytesVal = literalValue.asInstanceOf[Array[Byte]]

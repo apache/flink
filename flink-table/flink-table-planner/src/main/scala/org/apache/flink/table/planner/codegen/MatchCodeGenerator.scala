@@ -46,6 +46,7 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
@@ -673,8 +674,11 @@ class MatchCodeGenerator(
             a.sqlAggFunction,
             false,
             false,
+            false,
             a.exprIndices,
             -1,
+            null,
+            RelCollations.EMPTY,
             a.resultType,
             a.sqlAggFunction.getName))
 

@@ -20,11 +20,9 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -32,11 +30,9 @@ import org.apache.flink.util.InstantiationUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -275,134 +271,6 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
                     new EnumSerializer<>(enumClass, reconfiguredEnums);
             return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
                     reconfiguredSerializer);
-        }
-    }
-
-    /**
-     * Configuration snapshot of a serializer for enumerations.
-     *
-     * <p>Configuration contains the enum class, and an array of the enum's constants that existed
-     * when the configuration snapshot was taken.
-     *
-     * @param <T> the enum type.
-     */
-    @Deprecated
-    public static final class EnumSerializerConfigSnapshot<T extends Enum<T>>
-            extends GenericTypeSerializerConfigSnapshot<T> {
-
-        private static final int VERSION = 2;
-
-        private List<String> enumConstants;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        @SuppressWarnings("unused")
-        public EnumSerializerConfigSnapshot() {}
-
-        @Override
-        public void write(DataOutputView out) throws IOException {
-            super.write(out);
-
-            out.writeInt(enumConstants.size());
-            for (String enumConstant : enumConstants) {
-                out.writeUTF(enumConstant);
-            }
-        }
-
-        @Override
-        public void read(DataInputView in) throws IOException {
-            super.read(in);
-
-            if (getReadVersion() == 1) {
-                try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
-                    try {
-                        T[] legacyEnumConstants =
-                                InstantiationUtil.deserializeObject(
-                                        inViewWrapper, getUserCodeClassLoader());
-                        this.enumConstants = buildEnumConstantsList(legacyEnumConstants);
-                    } catch (ClassNotFoundException e) {
-                        throw new IOException(
-                                "The requested enum class cannot be found in classpath.", e);
-                    } catch (IllegalArgumentException e) {
-                        throw new IOException(
-                                "A previously existing enum constant of "
-                                        + getTypeClass().getName()
-                                        + " no longer exists.",
-                                e);
-                    }
-                }
-            } else if (getReadVersion() == VERSION) {
-                int numEnumConstants = in.readInt();
-
-                this.enumConstants = new ArrayList<>(numEnumConstants);
-                for (int i = 0; i < numEnumConstants; i++) {
-                    enumConstants.add(in.readUTF());
-                }
-            } else {
-                throw new IOException(
-                        "Cannot deserialize EnumSerializerConfigSnapshot with version "
-                                + getReadVersion());
-            }
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-
-            Class<T> enumClass = getTypeClass();
-
-            @SuppressWarnings("unchecked")
-            T[] previousEnums = (T[]) Array.newInstance(enumClass, enumConstants.size());
-
-            for (int i = 0; i < enumConstants.size(); i++) {
-                String enumName = enumConstants.get(i);
-                try {
-                    previousEnums[i] = Enum.valueOf(enumClass, enumName);
-                } catch (IllegalArgumentException e) {
-                    throw new RuntimeException(
-                            "Could not create a restore serializer for enum "
-                                    + enumClass
-                                    + ". Probably because an enum value was removed.");
-                }
-            }
-            return new EnumSerializerSnapshot<>(enumClass, previousEnums)
-                    .resolveSchemaCompatibility(newSerializer);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public int[] getCompatibleVersions() {
-            return new int[] {VERSION, 1};
-        }
-
-        List<String> getEnumConstants() {
-            return enumConstants;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return super.equals(obj)
-                    && enumConstants.equals(
-                            ((EnumSerializerConfigSnapshot) obj).getEnumConstants());
-        }
-
-        @Override
-        public int hashCode() {
-            return super.hashCode() * 31 + enumConstants.hashCode();
-        }
-
-        private static <T extends Enum<T>> List<String> buildEnumConstantsList(
-                T[] enumConstantsArr) {
-            List<String> res = new ArrayList<>(enumConstantsArr.length);
-
-            for (T enumConstant : enumConstantsArr) {
-                res.add(enumConstant.name());
-            }
-
-            return res;
         }
     }
 

@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 import io.prometheus.client.exporter.HTTPServer;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Iterator;
 
 /** {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus. */
@@ -46,8 +47,7 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
         while (ports.hasNext()) {
             port = ports.next();
             try {
-                // internally accesses CollectorRegistry.defaultRegistry
-                httpServer = new HTTPServer(port);
+                httpServer = new HTTPServer(new InetSocketAddress(port), this.registry);
                 log.info("Started PrometheusReporter HTTP server on port {}.", port);
                 break;
             } catch (IOException ioe) { // assume port conflict

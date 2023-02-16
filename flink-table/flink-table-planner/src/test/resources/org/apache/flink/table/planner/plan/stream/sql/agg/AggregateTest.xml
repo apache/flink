@@ -236,6 +236,86 @@ GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCountStart">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(*) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStartWithMetadata">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(*) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStartWithMetadataOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(*) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[], metadata=[cnt]]], fields=[cnt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStartWithNestedRow">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(*) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[nested], metadata=[]]], fields=[nested])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFilteredColumnIntervalValidation">
     <Resource name="sql">
       <![CDATA[

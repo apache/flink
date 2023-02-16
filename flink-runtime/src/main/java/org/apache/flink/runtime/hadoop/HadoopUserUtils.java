@@ -29,4 +29,10 @@ public class HadoopUserUtils {
     public static boolean isProxyUser(UserGroupInformation ugi) {
         return ugi.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.PROXY;
     }
+
+    public static boolean hasUserKerberosAuthMethod(UserGroupInformation ugi) {
+        return UserGroupInformation.isSecurityEnabled()
+                && ugi.getAuthenticationMethod()
+                        == UserGroupInformation.AuthenticationMethod.KERBEROS;
+    }
 }

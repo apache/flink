@@ -125,10 +125,7 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
 
     val baos = new ByteArrayOutputStream()
     val output = new DataOutputViewStreamWrapper(baos)
-    TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-      output,
-      snapshot,
-      enumValueSerializer)
+    TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(output, snapshot)
 
     output.close()
     baos.close()
@@ -138,10 +135,8 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
 
     val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
 
-    val snapshot2 = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-      input,
-      classLoader2,
-      enumValueSerializer)
+    val snapshot2 = TypeSerializerSnapshotSerializationUtil
+      .readSerializerSnapshot[Enumeration#Value](input, classLoader2)
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)

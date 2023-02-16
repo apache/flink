@@ -52,9 +52,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
-import org.apache.flink.runtime.security.token.DelegationTokenConverter;
+import org.apache.flink.runtime.security.token.DefaultDelegationTokenManager;
+import org.apache.flink.runtime.security.token.DelegationTokenContainer;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.security.token.KerberosDelegationTokenManager;
+import org.apache.flink.runtime.security.token.hadoop.HadoopDelegationTokenConverter;
+import org.apache.flink.runtime.security.token.hadoop.KerberosLoginProvider;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
@@ -113,7 +115,6 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1150,26 +1151,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
-        // New delegation token framework
         if (configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN)) {
-            setTokensFor(amContainer);
-        }
-        // Old delegation token framework
-        if (UserGroupInformation.isSecurityEnabled()) {
-            LOG.info("Adding delegation token to the AM container.");
-            final List<Path> pathsToObtainToken = new ArrayList<>();
-            boolean fetchToken =
-                    configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
-            if (fetchToken) {
-                List<Path> yarnAccessList =
-                        ConfigUtils.decodeListFromConfig(
-                                configuration,
-                                SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS,
-                                Path::new);
-                pathsToObtainToken.addAll(yarnAccessList);
-                pathsToObtainToken.addAll(fileUploader.getRemotePaths());
+            KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+            if (kerberosLoginProvider.isLoginPossible()) {
+                setTokensFor(amContainer);
+            } else {
+                LOG.info(
+                        "Cannot use kerberos delegation token manager, no valid kerberos credentials provided.");
             }
-            Utils.setTokensFor(amContainer, pathsToObtainToken, yarnConfiguration, fetchToken);
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
@@ -1306,13 +1295,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private void setTokensFor(ContainerLaunchContext containerLaunchContext) throws Exception {
         LOG.info("Adding delegation tokens to the AM container.");
 
-        Credentials credentials = new Credentials();
-
         DelegationTokenManager delegationTokenManager =
-                new KerberosDelegationTokenManager(flinkConfiguration, null, null);
-        delegationTokenManager.obtainDelegationTokens(credentials);
+                new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
+        DelegationTokenContainer container = new DelegationTokenContainer();
+        delegationTokenManager.obtainDelegationTokens(container);
 
-        ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
+        // This is here for backward compatibility to make log aggregation work
+        Credentials credentials = new Credentials();
+        for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
+            if (e.getKey().equals("hadoopfs")) {
+                credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+            }
+        }
+        ByteBuffer tokens = ByteBuffer.wrap(HadoopDelegationTokenConverter.serialize(credentials));
         containerLaunchContext.setTokens(tokens);
 
         LOG.info("Delegation tokens added to the AM container.");

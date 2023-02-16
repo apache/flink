@@ -54,11 +54,9 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -84,8 +82,7 @@ import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionP
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ParquetColumnarRowInputFormat}. */
-@RunWith(Parameterized.class)
-public class ParquetColumnarRowInputFormatTest {
+class ParquetColumnarRowInputFormatTest {
 
     private static final LocalDateTime BASE_TIME = LocalDateTime.now();
     private static final org.apache.flink.configuration.Configuration EMPTY_CONF =
@@ -129,21 +126,15 @@ public class ParquetColumnarRowInputFormatTest {
                     new MapType(new IntType(), new BooleanType()),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private File folder;
 
-    private final int rowGroupSize;
-
-    @Parameterized.Parameters(name = "rowGroupSize-{0}")
     public static Collection<Integer> parameters() {
         return Arrays.asList(10, 1000);
     }
 
-    public ParquetColumnarRowInputFormatTest(int rowGroupSize) {
-        this.rowGroupSize = rowGroupSize;
-    }
-
-    @Test
-    public void testTypesReadWithSplits() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testTypesReadWithSplits(int rowGroupSize) throws IOException {
         int number = 10000;
         List<Integer> values = new ArrayList<>(number);
         Random random = new Random();
@@ -152,11 +143,12 @@ public class ParquetColumnarRowInputFormatTest {
             values.add(v % 10 == 0 ? null : v);
         }
 
-        innerTestTypes(values);
+        innerTestTypes(folder, values, rowGroupSize);
     }
 
-    @Test
-    public void testDictionary() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testDictionary(int rowGroupSize) throws IOException {
         int number = 10000;
         List<Integer> values = new ArrayList<>(number);
         Random random = new Random();
@@ -170,11 +162,12 @@ public class ParquetColumnarRowInputFormatTest {
             values.add(v == 0 ? null : v);
         }
 
-        innerTestTypes(values);
+        innerTestTypes(folder, values, rowGroupSize);
     }
 
-    @Test
-    public void testPartialDictionary() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testPartialDictionary(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 10000;
         List<Integer> values = new ArrayList<>(number);
@@ -189,11 +182,12 @@ public class ParquetColumnarRowInputFormatTest {
             values.add(v == 0 ? null : v);
         }
 
-        innerTestTypes(values);
+        innerTestTypes(folder, values, rowGroupSize);
     }
 
-    @Test
-    public void testContinuousRepetition() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testContinuousRepetition(int rowGroupSize) throws IOException {
         int number = 10000;
         List<Integer> values = new ArrayList<>(number);
         Random random = new Random();
@@ -204,11 +198,12 @@ public class ParquetColumnarRowInputFormatTest {
             }
         }
 
-        innerTestTypes(values);
+        innerTestTypes(folder, values, rowGroupSize);
     }
 
-    @Test
-    public void testLargeValue() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testLargeValue(int rowGroupSize) throws IOException {
         int number = 10000;
         List<Integer> values = new ArrayList<>(number);
         Random random = new Random();
@@ -217,11 +212,12 @@ public class ParquetColumnarRowInputFormatTest {
             values.add(v % 10 == 0 ? null : v);
         }
 
-        innerTestTypes(values);
+        innerTestTypes(folder, values, rowGroupSize);
     }
 
-    @Test
-    public void testProjection() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testProjection(int rowGroupSize) throws IOException {
         int number = 1000;
         List<RowData> records = new ArrayList<>(number);
         for (int i = 0; i < number; i++) {
@@ -229,7 +225,7 @@ public class ParquetColumnarRowInputFormatTest {
             records.add(newRow(v));
         }
 
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
+        Path testPath = createTempParquetFile(folder, records, rowGroupSize);
         // test reader
         LogicalType[] fieldTypes =
                 new LogicalType[] {new DoubleType(), new TinyIntType(), new IntType()};
@@ -256,8 +252,9 @@ public class ParquetColumnarRowInputFormatTest {
                 });
     }
 
-    @Test
-    public void testProjectionReadUnknownField() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testProjectionReadUnknownField(int rowGroupSize) throws IOException {
         int number = 1000;
         List<RowData> records = new ArrayList<>(number);
         for (int i = 0; i < number; i++) {
@@ -265,7 +262,7 @@ public class ParquetColumnarRowInputFormatTest {
             records.add(newRow(v));
         }
 
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), records, rowGroupSize);
+        Path testPath = createTempParquetFile(folder, records, rowGroupSize);
 
         // test reader
         LogicalType[] fieldTypes =
@@ -297,8 +294,9 @@ public class ParquetColumnarRowInputFormatTest {
                 });
     }
 
-    @Test
-    public void testPartitionValues() throws IOException {
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testPartitionValues(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 1000;
         List<RowData> records = new ArrayList<>(number);
@@ -306,8 +304,6 @@ public class ParquetColumnarRowInputFormatTest {
             Integer v = i;
             records.add(newRow(v));
         }
-
-        File root = TEMPORARY_FOLDER.newFolder();
 
         List<String> partitionKeys =
                 Arrays.asList(
@@ -332,7 +328,7 @@ public class ParquetColumnarRowInputFormatTest {
         partSpec.put("f45", "f45");
 
         String partPath = generatePartitionPath(partSpec);
-        Path testPath = createTempParquetFile(new File(root, partPath), records, rowGroupSize);
+        Path testPath = createTempParquetFile(new File(folder, partPath), records, rowGroupSize);
 
         innerTestPartitionValues(testPath, partitionKeys, false);
 
@@ -343,14 +339,15 @@ public class ParquetColumnarRowInputFormatTest {
         }
 
         partPath = generatePartitionPath(partSpec);
-        testPath = createTempParquetFile(new File(root, partPath), records, rowGroupSize);
+        testPath = createTempParquetFile(new File(folder, partPath), records, rowGroupSize);
 
         innerTestPartitionValues(testPath, partitionKeys, true);
     }
 
-    private void innerTestTypes(List<Integer> records) throws IOException {
+    private void innerTestTypes(File folder, List<Integer> records, int rowGroupSize)
+            throws IOException {
         List<RowData> rows = records.stream().map(this::newRow).collect(Collectors.toList());
-        Path testPath = createTempParquetFile(TEMPORARY_FOLDER.newFolder(), rows, rowGroupSize);
+        Path testPath = createTempParquetFile(folder, rows, rowGroupSize);
 
         // test reading and splitting
         long fileLen = testPath.getFileSystem().getFileStatus(testPath).getLen();
@@ -475,7 +472,7 @@ public class ParquetColumnarRowInputFormatTest {
                         assertThat(row.isNullAt(31)).isTrue();
                         assertThat(row.isNullAt(32)).isTrue();
                     } else {
-                        assertThat(row.getString(0).toString()).isEqualTo("" + v);
+                        assertThat(row.getString(0)).hasToString("" + v);
                         assertThat(row.getBoolean(1)).isEqualTo(v % 2 == 0);
                         assertThat(row.getByte(2)).isEqualTo(v.byteValue());
                         assertThat(row.getShort(3)).isEqualTo(v.shortValue());
@@ -516,7 +513,7 @@ public class ParquetColumnarRowInputFormatTest {
                                 .isEqualTo(BigDecimal.valueOf(v));
                         assertThat(row.getDecimal(14, 20, 0).toBigDecimal())
                                 .isEqualTo(BigDecimal.valueOf(v));
-                        assertThat(row.getArray(15).getString(0).toString()).isEqualTo("" + v);
+                        assertThat(row.getArray(15).getString(0)).hasToString("" + v);
                         assertThat(row.getArray(16).getBoolean(0)).isEqualTo(v % 2 == 0);
                         assertThat(row.getArray(17).getByte(0)).isEqualTo(v.byteValue());
                         assertThat(row.getArray(18).getShort(0)).isEqualTo(v.shortValue());
@@ -539,10 +536,9 @@ public class ParquetColumnarRowInputFormatTest {
                         assertThat(row.getArray(29).getDecimal(0, 20, 0))
                                 .isEqualTo(
                                         DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0));
-                        assertThat(row.getMap(30).valueArray().getString(0).toString())
-                                .isEqualTo("" + v);
+                        assertThat(row.getMap(30).valueArray().getString(0)).hasToString("" + v);
                         assertThat(row.getMap(31).valueArray().getBoolean(0)).isEqualTo(v % 2 == 0);
-                        assertThat(row.getRow(32, 2).getString(0).toString()).isEqualTo("" + v);
+                        assertThat(row.getRow(32, 2).getString(0)).hasToString("" + v);
                         assertThat(row.getRow(32, 2).getInt(1)).isEqualTo(v.intValue());
                     }
                     cnt.incrementAndGet();
@@ -746,7 +742,7 @@ public class ParquetColumnarRowInputFormatTest {
                                 .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(25), 15, 0));
                         assertThat(row.getDecimal(14, 20, 0))
                                 .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(26), 20, 0));
-                        assertThat(row.getString(15).toString()).isEqualTo("f45");
+                        assertThat(row.getString(15)).hasToString("f45");
                     }
                     cnt.incrementAndGet();
                 });

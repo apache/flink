@@ -36,7 +36,7 @@ public class PythonOptions {
     public static final ConfigOption<Integer> MAX_BUNDLE_SIZE =
             ConfigOptions.key("python.fn-execution.bundle.size")
                     .intType()
-                    .defaultValue(100000)
+                    .defaultValue(1000)
                     .withDescription(
                             "The maximum number of elements to include in a bundle for Python "
                                     + "user-defined function execution. The elements are processed asynchronously. "
@@ -57,7 +57,7 @@ public class PythonOptions {
     public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE =
             ConfigOptions.key("python.fn-execution.arrow.batch.size")
                     .intType()
-                    .defaultValue(10000)
+                    .defaultValue(1000)
                     .withDescription(
                             "The maximum number of elements to include in an arrow batch for Python "
                                     + "user-defined function execution. The arrow batch size should not exceed the "
@@ -146,8 +146,8 @@ public class PythonOptions {
                     .defaultValue("python")
                     .withDescription(
                             "Specify the path of the python interpreter used to execute the python "
-                                    + "UDF worker. The python UDF worker depends on Python 3.6+, Apache Beam "
-                                    + "(version == 2.38.0), Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
+                                    + "UDF worker. The python UDF worker depends on Python 3.7+, Apache Beam "
+                                    + "(version == 2.43.0), Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                                     + "Please ensure that the specified environment meets the above requirements. The "
                                     + "option is equivalent to the command line option \"-pyexec\".");
 

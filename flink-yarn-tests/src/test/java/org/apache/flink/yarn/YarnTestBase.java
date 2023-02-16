@@ -42,6 +42,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -75,6 +76,7 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -169,7 +171,13 @@ public abstract class YarnTestBase {
         // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
         Pattern.compile("Exception on heartbeat"),
         Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
-        Pattern.compile("java\\.lang\\.InterruptedException")
+        Pattern.compile("java\\.lang\\.InterruptedException"),
+
+        // this can happen if the hbase delegation token provider is not available
+        Pattern.compile("ClassNotFoundException : \"org.apache.hadoop.hbase.HBaseConfiguration\""),
+
+        // This happens in YARN shutdown
+        Pattern.compile("Rejected TaskExecutor registration at the ResourceManager")
     };
 
     // Temp directory which is deleted after the unit test.
@@ -221,6 +229,9 @@ public abstract class YarnTestBase {
         YARN_CONFIGURATION.setFloat(
                 YarnConfiguration.NM_MAX_PER_DISK_UTILIZATION_PERCENTAGE, 99.0F);
         YARN_CONFIGURATION.set(YarnConfiguration.YARN_APPLICATION_CLASSPATH, getYarnClasspath());
+        YARN_CONFIGURATION.setInt(
+                YarnConfiguration.RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_MS, 1000);
+        YARN_CONFIGURATION.setInt(YarnConfiguration.RESOURCEMANAGER_CONNECT_MAX_WAIT_MS, 5000);
     }
 
     /**
@@ -235,7 +246,7 @@ public abstract class YarnTestBase {
             File classPathFile =
                     TestUtils.findFile(start, (dir, name) -> name.equals("yarn.classpath"));
             return FileUtils.readFileToString(
-                    classPathFile); // potential NPE is supposed to be fatal
+                    classPathFile, StandardCharsets.UTF_8); // potential NPE is supposed to be fatal
         } catch (Throwable t) {
             LOG.error(
                     "Error while getting YARN classpath in {}",
@@ -473,7 +484,10 @@ public abstract class YarnTestBase {
      */
     public static void ensureNoProhibitedStringInLogFiles(
             final String[] prohibited, final Pattern[] whitelisted) {
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        File cwd =
+                new File(
+                        GenericTestUtils.getTestDir(),
+                        YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         assertThat(cwd).exists();
         assertThat(cwd).isDirectory();
 
@@ -601,10 +615,15 @@ public abstract class YarnTestBase {
     public static boolean verifyStringsInNamedLogFiles(
             final String[] mustHave, final ApplicationId applicationId, final String fileName) {
         final List<String> mustHaveList = Arrays.asList(mustHave);
-        final File cwd = new File("target", YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        final File cwd =
+                new File(
+                        GenericTestUtils.getTestDir(),
+                        YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         if (!cwd.exists() || !cwd.isDirectory()) {
+            LOG.debug("Directory doesn't exist: {}", cwd.getAbsolutePath());
             return false;
         }
+        LOG.debug("Directory exist: {}", cwd.getAbsolutePath());
 
         final File foundFile =
                 TestUtils.findFile(
@@ -659,8 +678,12 @@ public abstract class YarnTestBase {
 
     public static boolean verifyTokenKindInContainerCredentials(
             final Collection<String> tokens, final String containerId) throws IOException {
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        File cwd =
+                new File(
+                        GenericTestUtils.getTestDir(),
+                        YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         if (!cwd.exists() || !cwd.isDirectory()) {
+            LOG.info("Directory doesn't exist: {}", cwd.getAbsolutePath());
             return false;
         }
 
@@ -694,7 +717,10 @@ public abstract class YarnTestBase {
     }
 
     public static String getContainerIdByLogName(String logName) {
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+        File cwd =
+                new File(
+                        GenericTestUtils.getTestDir(),
+                        YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         File containerLog =
                 TestUtils.findFile(
                         cwd.getAbsolutePath(),

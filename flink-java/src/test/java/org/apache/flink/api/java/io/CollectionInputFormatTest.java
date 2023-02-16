@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.memory.DataInputView;
@@ -381,7 +381,7 @@ class CollectionInputFormatTest {
         }
 
         @Override
-        public TypeSerializerConfigSnapshot<ElementType> snapshotConfiguration() {
+        public TypeSerializerSnapshot<ElementType> snapshotConfiguration() {
             throw new UnsupportedOperationException();
         }
     }

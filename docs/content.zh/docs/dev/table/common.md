@@ -37,6 +37,12 @@ Table API 和 SQL 程序的结构
 
 所有用于批处理和流处理的 Table API 和 SQL 程序都遵循相同的模式。下面的代码示例展示了 Table API 和 SQL 程序的通用结构。
 
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
+
 {{< tabs "62be8916-7ab4-4831-bd19-05c591181835" >}}
 {{< tab "Java" >}}
 ```java

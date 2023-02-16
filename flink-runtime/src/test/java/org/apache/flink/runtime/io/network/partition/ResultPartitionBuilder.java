@@ -47,6 +47,8 @@ public class ResultPartitionBuilder {
 
     private int numTargetKeyGroups = 1;
 
+    private boolean isBroadcast = false;
+
     private ResultPartitionManager partitionManager = new ResultPartitionManager();
 
     private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
@@ -82,6 +84,10 @@ public class ResultPartitionBuilder {
     private String compressionCodec = "LZ4";
 
     private int maxOverdraftBuffersPerGate = 5;
+
+    private int hybridShuffleSpilledIndexSegmentSize = 256;
+
+    private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
 
     public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
         this.partitionIndex = partitionIndex;
@@ -211,6 +217,24 @@ public class ResultPartitionBuilder {
         return this;
     }
 
+    public ResultPartitionBuilder setBroadcast(boolean broadcast) {
+        isBroadcast = broadcast;
+        return this;
+    }
+
+    public ResultPartitionBuilder setHybridShuffleNumRetainedInMemoryRegionsMax(
+            long hybridShuffleNumRetainedInMemoryRegionsMax) {
+        this.hybridShuffleNumRetainedInMemoryRegionsMax =
+                hybridShuffleNumRetainedInMemoryRegionsMax;
+        return this;
+    }
+
+    public ResultPartitionBuilder setHybridShuffleSpilledIndexSegmentSize(
+            int hybridShuffleSpilledIndexSegmentSize) {
+        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+        return this;
+    }
+
     public ResultPartition build() {
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(
@@ -229,7 +253,9 @@ public class ResultPartitionBuilder {
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
                         sslEnabled,
-                        maxOverdraftBuffersPerGate);
+                        maxOverdraftBuffersPerGate,
+                        hybridShuffleSpilledIndexSegmentSize,
+                        hybridShuffleNumRetainedInMemoryRegionsMax);
 
         SupplierWithException<BufferPool, IOException> factory =
                 bufferPoolFactory.orElseGet(
@@ -244,6 +270,7 @@ public class ResultPartitionBuilder {
                 partitionType,
                 numberOfSubpartitions,
                 numTargetKeyGroups,
+                isBroadcast,
                 factory);
     }
 }

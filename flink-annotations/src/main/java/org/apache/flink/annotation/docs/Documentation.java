@@ -72,6 +72,7 @@ public final class Documentation {
 
         public static final String SECURITY_SSL = "security_ssl";
         public static final String SECURITY_AUTH_KERBEROS = "security_auth_kerberos";
+        public static final String SECURITY_DELEGATION_TOKEN = "security_delegation_token";
         public static final String SECURITY_AUTH_ZOOKEEPER = "security_auth_zk";
 
         public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";

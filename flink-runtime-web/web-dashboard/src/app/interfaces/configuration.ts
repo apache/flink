@@ -23,7 +23,6 @@ export interface JvmInfo {
 }
 
 export interface EnvironmentInfo {
-  environment: Array<{ key: string; value: string }>;
   jvm: JvmInfo;
   classpath: string[];
 }

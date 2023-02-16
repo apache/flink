@@ -29,6 +29,7 @@ import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -92,7 +93,7 @@ public class MiniDispatcherTest extends TestLogger {
     private final TestingResourceManagerGateway resourceManagerGateway =
             new TestingResourceManagerGateway();
 
-    private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+    private final HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
 
     private final ExecutionGraphInfoStore executionGraphInfoStore =
             new MemoryExecutionGraphInfoStore();

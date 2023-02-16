@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -34,9 +35,16 @@ class AvailableInputsLocationsRetriever implements InputsLocationsRetriever {
     }
 
     @Override
-    public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
+    public Collection<ConsumedPartitionGroup> getConsumedPartitionGroups(
             ExecutionVertexID executionVertexId) {
-        return inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
+        return inputsLocationsRetriever.getConsumedPartitionGroups(executionVertexId);
+    }
+
+    @Override
+    public Collection<ExecutionVertexID> getProducersOfConsumedPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        return inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                consumedPartitionGroup);
     }
 
     @Override

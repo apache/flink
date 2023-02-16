@@ -94,6 +94,12 @@ public class AWSConfigConstants {
     public static final String AWS_PROFILE_NAME = profileName(AWS_CREDENTIALS_PROVIDER);
 
     /**
+     * The AWS endpoint for the STS (derived from the AWS region setting if not set) to use if
+     * credential provider type is set to be ASSUME_ROLE.
+     */
+    public static final String AWS_ROLE_STS_ENDPOINT = roleStsEndpoint(AWS_CREDENTIALS_PROVIDER);
+
+    /**
      * The role ARN to use when credential provider type is set to ASSUME_ROLE or
      * WEB_IDENTITY_TOKEN.
      */
@@ -168,6 +174,10 @@ public class AWSConfigConstants {
 
     public static String roleCredentialsProvider(String prefix) {
         return prefix + ".role.provider";
+    }
+
+    public static String roleStsEndpoint(String prefix) {
+        return prefix + ".role.stsEndpoint";
     }
 
     public static String webIdentityTokenFile(String prefix) {

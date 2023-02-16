@@ -101,11 +101,11 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
             ParquetMetadata footer =
                     readFooter(new Configuration(), path, range(0, Long.MAX_VALUE));
             if (configure) {
-                assertThat(footer.getBlocks().get(0).getColumns().get(0).getCodec().toString())
-                        .isEqualTo("GZIP");
+                assertThat(footer.getBlocks().get(0).getColumns().get(0).getCodec())
+                        .hasToString("GZIP");
             } else {
-                assertThat(footer.getBlocks().get(0).getColumns().get(0).getCodec().toString())
-                        .isEqualTo("SNAPPY");
+                assertThat(footer.getBlocks().get(0).getColumns().get(0).getCodec())
+                        .hasToString("SNAPPY");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

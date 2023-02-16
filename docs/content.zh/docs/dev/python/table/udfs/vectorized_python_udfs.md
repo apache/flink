@@ -34,7 +34,7 @@ under the License.
 向量化用户自定义函数的定义，与[非向量化用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})具有相似的方式，
 用户只需要在调用 `udf` 或者 `udaf` 装饰器时添加一个额外的参数 `func_type="pandas"`，将其标记为一个向量化用户自定义函数即可。
 
-**注意:** 要执行 Python 向量化自定义函数，客户端和集群端都需要安装 Python 3.6 以上版本(3.6、3.7 或 3.8)，并安装 PyFlink。
+**注意:** 要执行 Python 向量化自定义函数，客户端和集群端都需要安装 Python 3.7 以上版本(3.7、3.8、3.9 或 3.10)，并安装 PyFlink。
 
 ## 向量化标量函数
 
@@ -49,11 +49,11 @@ under the License.
 以下示例显示了如何定义自己的向量化 Python 标量函数，该函数计算两列的总和，并在查询中使用它：
 
 ```python
-from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table import TableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import col
 from pyflink.table.udf import udf
 
-@udf(result_type=DataTypes.BIGINT(), func_type="pandas")
+@udf(result_type='BIGINT', func_type="pandas")
 def add(i, j):
   return i + j
 
@@ -85,12 +85,12 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 and `Over Window Aggregation` 使用它:
 
 ```python
-from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table import TableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import col, lit
 from pyflink.table.udf import udaf
 from pyflink.table.window import Tumble
 
-@udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
+@udaf(result_type='FLOAT', func_type="pandas")
 def mean_udaf(v):
     return v.mean()
 
@@ -126,7 +126,6 @@ table_env.sql_query("""
 以下示例显示了多种定义向量化 Python 聚合函数的方式。该函数需要两个类型为 bigint 的参数作为输入参数，并返回它们的最大值的和作为结果。
 
 ```python
-from pyflink.table import DataTypes
 from pyflink.table.udf import AggregateFunction, udaf
 
 # 方式一：扩展基类 `AggregateFunction`
@@ -152,26 +151,26 @@ class MaxAdd(AggregateFunction):
             result += arg.max()
         accumulator.append(result)
 
-max_add = udaf(MaxAdd(), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(MaxAdd(), result_type='BIGINT', func_type="pandas")
 
 # 方式二：普通 Python 函数
-@udaf(result_type=DataTypes.BIGINT(), func_type="pandas")
+@udaf(result_type='BIGINT', func_type="pandas")
 def max_add(i, j):
   return i.max() + j.max()
 
 # 方式三：lambda 函数
-max_add = udaf(lambda i, j: i.max() + j.max(), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(lambda i, j: i.max() + j.max(), result_type='BIGINT', func_type="pandas")
 
 # 方式四：callable 函数
 class CallableMaxAdd(object):
   def __call__(self, i, j):
     return i.max() + j.max()
 
-max_add = udaf(CallableMaxAdd(), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(CallableMaxAdd(), result_type='BIGINT', func_type="pandas")
 
 # 方式五：partial 函数
 def partial_max_add(i, j, k):
   return i.max() + j.max() + k
   
-max_add = udaf(functools.partial(partial_max_add, k=1), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(functools.partial(partial_max_add, k=1), result_type='BIGINT', func_type="pandas")
 ```

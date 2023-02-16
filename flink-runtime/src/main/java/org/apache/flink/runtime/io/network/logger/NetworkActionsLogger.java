@@ -97,11 +97,10 @@ public class NetworkActionsLogger {
     }
 
     public static void tracePersist(
-            String action, Buffer buffer, String taskName, Object channelInfo, long checkpointId) {
+            String action, Buffer buffer, Object channelInfo, long checkpointId) {
         if (LOG.isTraceEnabled()) {
             LOG.trace(
-                    "[{}] {} {}, checkpoint {} @ {}",
-                    taskName,
+                    "{} {}, checkpoint {} @ {}",
                     action,
                     buffer.toDebugString(INCLUDE_HASH),
                     checkpointId,

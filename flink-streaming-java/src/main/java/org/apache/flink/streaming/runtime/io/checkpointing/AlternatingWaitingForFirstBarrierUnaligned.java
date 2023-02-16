@@ -40,7 +40,7 @@ final class AlternatingWaitingForFirstBarrierUnaligned implements BarrierHandler
     }
 
     @Override
-    public BarrierHandlerState alignmentTimeout(
+    public BarrierHandlerState alignedCheckpointTimeout(
             Controller controller, CheckpointBarrier checkpointBarrier) {
         // ignore already processing unaligned checkpoints
         return this;

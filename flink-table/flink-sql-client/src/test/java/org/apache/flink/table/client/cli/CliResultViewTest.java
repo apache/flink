@@ -19,37 +19,23 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
-import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.result.ChangelogResult;
+import org.apache.flink.table.client.gateway.result.MaterializedResult;
+import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.operations.ModifyOperation;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
-import org.apache.flink.table.utils.DateTimeUtils;
 
-import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
-import org.jline.utils.AttributedString;
 import org.junit.jupiter.api.Test;
 
-import javax.annotation.Nullable;
-
-import java.io.File;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -96,34 +82,23 @@ class CliResultViewTest {
         final CountDownLatch cancellationCounterLatch =
                 new CountDownLatch(expectedCancellationCount);
 
-        final MockExecutor executor = new MockExecutor(typedResult, cancellationCounterLatch);
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
-        String sessionId = executor.openSession("test-session");
         ResolvedSchema schema =
                 ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING()));
         final ResultDescriptor descriptor =
-                new ResultDescriptor(
-                        "result-id",
-                        schema,
-                        false,
-                        testConfig,
-                        new RowDataToStringConverterImpl(
-                                schema.toPhysicalRowDataType(),
-                                DateTimeUtils.UTC_ZONE.toZoneId(),
-                                Thread.currentThread().getContextClassLoader(),
-                                false));
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
 
-        try (CliClient cli =
-                new TestingCliClient(
-                        TerminalUtils.createDumbTerminal(),
-                        sessionId,
-                        executor,
-                        File.createTempFile("history", "tmp").toPath(),
-                        null)) {
+        try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             Thread resultViewRunner =
-                    new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
+                    new Thread(
+                            new TestingCliResultView(
+                                    terminal,
+                                    descriptor,
+                                    isTableMode,
+                                    typedResult,
+                                    cancellationCounterLatch));
             resultViewRunner.start();
 
             if (!resultViewRunner.isInterrupted()) {
@@ -140,132 +115,34 @@ class CliResultViewTest {
                 .isTrue();
     }
 
-    private static final class MockExecutor implements Executor {
-
-        private final TypedResult<?> typedResult;
-        private final CountDownLatch cancellationCounter;
-        private static final Configuration defaultConfig = new Configuration();
-
-        public MockExecutor(TypedResult<?> typedResult, CountDownLatch cancellationCounter) {
-            this.typedResult = typedResult;
-            this.cancellationCounter = cancellationCounter;
-        }
-
-        @Override
-        public void start() throws SqlExecutionException {
-            // do nothing
-        }
-
-        @Override
-        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
-            return sessionId;
-        }
-
-        @Override
-        public void closeSession(String sessionId) throws SqlExecutionException {
-            // do nothing
-        }
-
-        @Override
-        public Map<String, String> getSessionConfigMap(String sessionId)
-                throws SqlExecutionException {
-            return defaultConfig.toMap();
-        }
-
-        @Override
-        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-            return defaultConfig;
-        }
-
-        @Override
-        public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
-
-        @Override
-        public void resetSessionProperty(String sessionId, String key)
-                throws SqlExecutionException {}
-
-        @Override
-        public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {}
-
-        @Override
-        public Operation parseStatement(String sessionId, String statement)
-                throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public List<String> completeStatement(String sessionId, String statement, int position) {
-            return null;
-        }
-
-        @Override
-        public TableResultInternal executeOperation(String sessionId, Operation operation)
-                throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public TableResultInternal executeModifyOperations(
-                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-                throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
-                throws SqlExecutionException {
-            return (TypedResult<List<RowData>>) typedResult;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-                throws SqlExecutionException {
-            return (TypedResult<Integer>) typedResult;
-        }
-
-        @Override
-        public List<RowData> retrieveResultPage(String resultId, int page)
-                throws SqlExecutionException {
-            return Collections.singletonList(new GenericRowData(1));
-        }
-
-        @Override
-        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
-            cancellationCounter.countDown();
-        }
-
-        @Override
-        public void removeJar(String sessionId, String jarUrl) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public Optional<String> stopJob(
-                String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
-                throws SqlExecutionException {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-    }
-
     private static final class TestingCliResultView implements Runnable {
 
-        private final CliResultView realResultView;
+        private final CliResultView<?> realResultView;
 
+        @SuppressWarnings("unchecked")
         public TestingCliResultView(
-                CliClient client, ResultDescriptor descriptor, boolean isTableMode) {
+                Terminal terminal,
+                ResultDescriptor descriptor,
+                boolean isTableMode,
+                TypedResult<?> typedResult,
+                CountDownLatch cancellationCounterLatch) {
 
             if (isTableMode) {
-                realResultView = new TestingCliTableResultView(client, descriptor);
+                realResultView =
+                        new CliTableResultView(
+                                terminal,
+                                descriptor,
+                                new TestMaterializedResult(
+                                        (TypedResult<Integer>) typedResult,
+                                        cancellationCounterLatch));
             } else {
-                realResultView = new TestingCliChangelogResultView(client, descriptor);
+                realResultView =
+                        new CliChangelogResultView(
+                                terminal,
+                                descriptor,
+                                new TestChangelogResult(
+                                        (TypedResult<List<RowData>>) typedResult,
+                                        cancellationCounterLatch));
             }
         }
 
@@ -275,57 +152,52 @@ class CliResultViewTest {
         }
     }
 
-    private static class TestingCliChangelogResultView extends CliChangelogResultView {
+    private static class TestMaterializedResult implements MaterializedResult {
 
-        public TestingCliChangelogResultView(CliClient client, ResultDescriptor resultDescriptor) {
-            super(client, resultDescriptor);
+        private final CountDownLatch cancellationCounter;
+        private final TypedResult<Integer> typedResult;
+
+        public TestMaterializedResult(
+                TypedResult<Integer> typedResult, CountDownLatch cancellationCounterLatch) {
+            this.typedResult = typedResult;
+            this.cancellationCounter = cancellationCounterLatch;
         }
 
         @Override
-        protected List<AttributedString> computeMainHeaderLines() {
-            return Collections.emptyList();
+        public void close() {
+            cancellationCounter.countDown();
+        }
+
+        @Override
+        public TypedResult<Integer> snapshot(int pageSize) {
+            return typedResult;
+        }
+
+        @Override
+        public List<RowData> retrievePage(int page) {
+            return Collections.singletonList(new GenericRowData(1));
         }
     }
 
-    private static class TestingCliTableResultView extends CliTableResultView {
+    private static class TestChangelogResult implements ChangelogResult {
 
-        public TestingCliTableResultView(CliClient client, ResultDescriptor resultDescriptor) {
-            super(client, resultDescriptor);
+        private final TypedResult<List<RowData>> typedResult;
+        private final CountDownLatch cancellationCounter;
+
+        public TestChangelogResult(
+                TypedResult<List<RowData>> typedResult, CountDownLatch cancellationCounter) {
+            this.typedResult = typedResult;
+            this.cancellationCounter = cancellationCounter;
         }
 
         @Override
-        protected List<AttributedString> computeMainHeaderLines() {
-            return Collections.emptyList();
-        }
-    }
-
-    private static class TestingCliClient extends CliClient {
-
-        private final Terminal terminal;
-
-        public TestingCliClient(
-                Terminal terminal,
-                String sessionId,
-                Executor executor,
-                Path historyFilePath,
-                @Nullable MaskingCallback inputTransformer) {
-            super(() -> terminal, sessionId, executor, historyFilePath, inputTransformer);
-            this.terminal = terminal;
+        public TypedResult<List<RowData>> retrieveChanges() {
+            return typedResult;
         }
 
         @Override
-        public Terminal getTerminal() {
-            return terminal;
-        }
-
-        @Override
-        public boolean isPlainTerminal() {
-            return true;
-        }
-
-        @Override
-        public void clearTerminal() {
-            // do nothing
+        public void close() {
+            cancellationCounter.countDown();
         }
     }
 }

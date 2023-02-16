@@ -245,7 +245,7 @@ Please consider application mode to launch a dedicated cluster per-job on YARN.
 Formerly, a Flink Job Cluster was also known as a Flink Cluster in `job (or per-job) mode`.
 {{< /hint >}}
 {{< hint info >}}
-Flink Job Clusters are only supperted with YARN.
+Flink Job Clusters are only supported with YARN.
 {{< /hint >}}
 
 {{< top >}}

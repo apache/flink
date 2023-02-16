@@ -26,6 +26,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -50,6 +51,8 @@ public class MiniClusterConfiguration {
 
     private final MiniCluster.HaServices haServices;
 
+    @Nullable private final PluginManager pluginManager;
+
     // ------------------------------------------------------------------------
     //  Construction
     // ------------------------------------------------------------------------
@@ -59,12 +62,14 @@ public class MiniClusterConfiguration {
             int numTaskManagers,
             RpcServiceSharing rpcServiceSharing,
             @Nullable String commonBindAddress,
-            MiniCluster.HaServices haServices) {
+            MiniCluster.HaServices haServices,
+            @Nullable PluginManager pluginManager) {
         this.numTaskManagers = numTaskManagers;
         this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
         this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
         this.commonBindAddress = commonBindAddress;
         this.haServices = haServices;
+        this.pluginManager = pluginManager;
     }
 
     private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
@@ -98,6 +103,11 @@ public class MiniClusterConfiguration {
 
     public RpcServiceSharing getRpcServiceSharing() {
         return rpcServiceSharing;
+    }
+
+    @Nullable
+    public PluginManager getPluginManager() {
+        return pluginManager;
     }
 
     public int getNumTaskManagers() {
@@ -176,6 +186,7 @@ public class MiniClusterConfiguration {
         @Nullable private String commonBindAddress = null;
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
         private boolean useRandomPorts = false;
+        @Nullable private PluginManager pluginManager;
 
         public Builder setConfiguration(Configuration configuration1) {
             this.configuration = Preconditions.checkNotNull(configuration1);
@@ -212,6 +223,11 @@ public class MiniClusterConfiguration {
             return this;
         }
 
+        public Builder setPluginManager(PluginManager pluginManager) {
+            this.pluginManager = Preconditions.checkNotNull(pluginManager);
+            return this;
+        }
+
         public MiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
             modifiedConfiguration.setInteger(
@@ -234,7 +250,8 @@ public class MiniClusterConfiguration {
                     numTaskManagers,
                     rpcServiceSharing,
                     commonBindAddress,
-                    haServices);
+                    haServices,
+                    pluginManager);
         }
     }
 }

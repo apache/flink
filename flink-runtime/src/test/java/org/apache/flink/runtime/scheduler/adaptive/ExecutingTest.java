@@ -48,6 +48,8 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
+import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
@@ -1020,6 +1022,18 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
+        public MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public boolean isNonFinishedHybridPartitionShouldBeUnknown() {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
         public ExecutionGraphID getExecutionGraphID() {
             return new ExecutionGraphID();
         }
@@ -1027,6 +1041,13 @@ public class ExecutingTest extends TestLogger {
         @Override
         public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
                 IntermediateDataSetID intermediateResultPartition) {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public JobVertexInputInfo getJobVertexInputInfo(
+                JobVertexID jobVertexId, IntermediateDataSetID resultId) {
             throw new UnsupportedOperationException(
                     "This method is not supported by the MockInternalExecutionGraphAccessor.");
         }

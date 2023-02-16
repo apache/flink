@@ -6,12 +6,12 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.amazonaws:aws-java-sdk-core:1.11.951
-- com.amazonaws:aws-java-sdk-dynamodb:1.11.951
-- com.amazonaws:aws-java-sdk-kms:1.11.951
-- com.amazonaws:aws-java-sdk-s3:1.11.951
-- com.amazonaws:aws-java-sdk-sts:1.11.951
-- com.amazonaws:jmespath-java:1.11.951
+- com.amazonaws:aws-java-sdk-core:1.12.319
+- com.amazonaws:aws-java-sdk-dynamodb:1.12.319
+- com.amazonaws:aws-java-sdk-kms:1.12.319
+- com.amazonaws:aws-java-sdk-s3:1.12.319
+- com.amazonaws:aws-java-sdk-sts:1.12.319
+- com.amazonaws:jmespath-java:1.12.319
 - com.facebook.airlift:configuration:0.201
 - com.facebook.airlift:log:0.201
 - com.facebook.airlift:stats:0.201
@@ -38,8 +38,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.alluxio:alluxio-shaded-client:2.7.3
 - org.apache.commons:commons-compress:1.21
 - org.apache.commons:commons-configuration2:2.1.1
-- org.apache.commons:commons-lang3:3.3.2
-- org.apache.commons:commons-text:1.4
+- org.apache.commons:commons-lang3:3.12.0
+- org.apache.commons:commons-text:1.10.0
 - org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
 - org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
 - org.apache.hadoop:hadoop-annotations:3.3.4

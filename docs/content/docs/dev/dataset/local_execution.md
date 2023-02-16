@@ -97,7 +97,7 @@ The `LocalEnvironment` allows also to pass custom configuration values to Flink.
 
 ```java
 Configuration conf = new Configuration();
-conf.setFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, 0.5f);
+conf.set(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.5f);
 final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 ```
 

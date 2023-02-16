@@ -47,6 +47,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nonnull;
 
@@ -359,6 +360,9 @@ public class AsyncWaitOperator<IN, OUT>
             if (inFlightDelayRetryHandlers.size() > 0) {
                 for (RetryableResultHandlerDelegator delegator : inFlightDelayRetryHandlers) {
                     assert delegator.delayedRetryTimer != null;
+                    // cancel delayedRetryTimer timer first
+                    delegator.cancelRetryTimer();
+
                     // fire an attempt intermediately not rely on successfully canceling the retry
                     // timer for two reasons: 1. cancel retry timer can not be 100% safe 2. there's
                     // protection for repeated retries
@@ -409,11 +413,21 @@ public class AsyncWaitOperator<IN, OUT>
     private void tryOnce(RetryableResultHandlerDelegator resultHandlerDelegator) throws Exception {
         // increment current attempt number
         resultHandlerDelegator.currentAttempts++;
-
         // fire a new attempt
         userFunction.asyncInvoke(
                 resultHandlerDelegator.resultHandler.inputRecord.getValue(),
                 resultHandlerDelegator);
+    }
+
+    /** Utility method to register timeout timer. */
+    private ScheduledFuture<?> registerTimer(
+            ProcessingTimeService processingTimeService,
+            long timeout,
+            ThrowingConsumer<Void, Exception> callback) {
+        final long timeoutTimestamp = timeout + processingTimeService.getCurrentProcessingTime();
+
+        return processingTimeService.registerTimer(
+                timeoutTimestamp, timestamp -> callback.accept(null));
     }
 
     /** A delegator holds the real {@link ResultHandler} to handle retries. */
@@ -430,7 +444,7 @@ public class AsyncWaitOperator<IN, OUT>
         /**
          * A guard similar to ResultHandler#complete to prevent repeated complete calls from
          * ill-written AsyncFunction. This flag indicates a retry is in-flight, new retry will be
-         * rejected if it is ture, and it will be reset to false after the retry fired.
+         * rejected if it is true, and it will be reset to false after the retry fired.
          */
         private final AtomicBoolean retryAwaiting = new AtomicBoolean(false);
 
@@ -442,8 +456,29 @@ public class AsyncWaitOperator<IN, OUT>
             this.processingTimeService = processingTimeService;
         }
 
-        public void registerTimeout(long timeout) {
-            resultHandler.registerTimeout(processingTimeService, timeout);
+        private void registerTimeout(long timeout) {
+            resultHandler.timeoutTimer =
+                    registerTimer(processingTimeService, timeout, t -> timerTriggered());
+        }
+
+        private void cancelRetryTimer() {
+            if (delayedRetryTimer != null) {
+                // do not interrupt task thread, just try to cancel the timer
+                delayedRetryTimer.cancel(false);
+            }
+        }
+
+        /** Rewrite the timeout process to deal with retry state. */
+        private void timerTriggered() throws Exception {
+            if (!resultHandler.completed.get()) {
+                // cancel delayed retry timer first
+                cancelRetryTimer();
+
+                // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
+                retryAwaiting.set(false);
+
+                userFunction.timeout(resultHandler.inputRecord.getValue(), this);
+            }
         }
 
         @Override
@@ -451,13 +486,10 @@ public class AsyncWaitOperator<IN, OUT>
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
-                // ignore repeated call(s)
-                if (!retryAwaiting.compareAndSet(false, true)) {
-                    return;
-                }
-
                 processRetryInMailBox(results, null);
             } else {
+                cancelRetryTimer();
+
                 resultHandler.complete(results);
             }
         }
@@ -465,13 +497,10 @@ public class AsyncWaitOperator<IN, OUT>
         @Override
         public void completeExceptionally(Throwable error) {
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
-                // ignore repeated call(s)
-                if (!retryAwaiting.compareAndSet(false, true)) {
-                    return;
-                }
-
                 processRetryInMailBox(null, error);
             } else {
+                cancelRetryTimer();
+
                 resultHandler.completeExceptionally(error);
             }
         }
@@ -481,6 +510,11 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void processRetry(Collection<OUT> results, Throwable error) {
+            // ignore repeated call(s) and only called in main thread can be safe
+            if (!retryAwaiting.compareAndSet(false, true)) {
+                return;
+            }
+
             boolean satisfy =
                     (null != results && retryResultPredicate.test(results))
                             || (null != error && retryExceptionPredicate.test(error));
@@ -519,11 +553,10 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void doRetry() throws Exception {
-            // fire the retry
-            tryOnce(this);
-
-            // reset for next possible retry
-            retryAwaiting.set(false);
+            // fire a retry only when it is in awaiting state, otherwise timeout may already happen
+            if (retryAwaiting.compareAndSet(true, false)) {
+                tryOnce(this);
+            }
         }
     }
 
@@ -610,12 +643,7 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void registerTimeout(ProcessingTimeService processingTimeService, long timeout) {
-            final long timeoutTimestamp =
-                    timeout + processingTimeService.getCurrentProcessingTime();
-
-            timeoutTimer =
-                    processingTimeService.registerTimer(
-                            timeoutTimestamp, timestamp -> timerTriggered());
+            timeoutTimer = registerTimer(processingTimeService, timeout, t -> timerTriggered());
         }
 
         private void timerTriggered() throws Exception {

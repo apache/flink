@@ -44,7 +44,10 @@ The SQL Client is bundled in the regular Flink distribution and thus runnable ou
 ```
 ### Starting the SQL Client CLI
 
-The SQL Client scripts are also located in the binary directory of Flink. [In the future](#limitations--future), a user will have two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported, and default mode is `embedded`. You can start the CLI by calling:
+The SQL Client scripts are also located in the binary directory of Flink. Users have two options for starting the SQL Client CLI, either by starting an embedded standalone process or by connecting to a remote [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+SQL Client default mode is `embedded`. 
+
+You can start the CLI in embedded mode by calling:
 
 ```bash
 ./bin/sql-client.sh
@@ -54,7 +57,17 @@ or explicitly use `embedded` mode:
 
 ```bash
 ./bin/sql-client.sh embedded
+``` 
+
+For gateway mode, you can start the CLI by calling:
+
+```bash
+./bin/sql-client.sh gateway --endpoint <gateway address>
 ```
+
+In the gateway mode, the CLI submits the SQL to the specified remote gateway to execute statements.
+
+<span class="label label-danger">Note</span> SQL Client only supports connecting to the [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) since version v2.
 
 See [SQL Client startup options](#sql-client-startup-options) below for more details.
 
@@ -74,7 +87,7 @@ FROM
 GROUP BY name;
 ```
 
-The SQL client will retrieve the results from the cluster and visualize them (you can close the result view by pressing the `Q` key):
+The SQL Client will retrieve the results from the cluster and visualize them (you can close the result view by pressing the `Q` key):
 
 ```text
 +-------+-----+
@@ -91,9 +104,43 @@ The `SET` command allows you to tune the job execution and the sql client behavi
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job.
 The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
+### Key-strokes
+
+There is a list of available key-strokes in SQL Client
+
+| Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                                                            |
+|:---------------------------------|------------------|:---------------------------------------------------------------------------------------|
+| `alt-b`, `ctrl+⍇`                | `Esc-b`          | Backward word                                                                          |
+| `alt-f`, `Ctrl+⍈`                | `Esc-f`          | Forward word                                                                           |
+| `alt-c`                          | `Esc-c`          | Capitalize word                                                                        |
+| `alt-l`                          | `Esc-l`          | Lowercase word                                                                         |
+| `alt-u`                          | `Esc-u`          | Uppercase word                                                                         |
+| `alt-d`                          | `Esc-d`          | Kill word                                                                              |
+| `alt-n`                          | `Esc-n`          | History search forward (behaves same as down line from history in case of empty input) |
+| `alt-p`                          | `Esc-p`          | History search backward (behaves same as up line from history in case of empty input)  |
+| `alt-t`                          | `Esc-t`          | Transpose words                                                                        |
+| `ctrl-a`                         | `⌘-a`            | To the beginning of line                                                               |
+| `ctrl-e`                         | `⌘-e`            | To the end of line                                                                     |
+| `ctrl-b`                         | `⌘-b`            | Backward char                                                                          |
+| `ctrl-f`                         | `⌘-f`            | Forward char                                                                           |
+| `ctrl-d`                         | `⌘-d`            | Delete char                                                                            |
+| `ctrl-h`                         | `⌘-h`            | Backward delete char                                                                   |
+| `ctrl-t`                         | `⌘-t`            | Transpose chars                                                                        |
+| `ctrl-i`                         | `⌘-i`            | Invoke completion                                                                      |
+| `ctrl-j`                         | `⌘-j`            | Submit a query                                                                         |
+| `ctrl-m`                         | `⌘-m`            | Submit a query                                                                         |
+| `ctrl-k`                         | `⌘-k`            | Kill the line to the right from the cursor                                             |
+| `ctrl-w`                         | `⌘-w`            | Kill the line to the left from the cursor                                              |
+| `ctrl-u`                         | `⌘-u`            | Kill the whole line                                                                    |
+| `ctrl-l`                         | `⌘-l`            | Clear screen                                                                           |
+| `ctrl-n`                         | `⌘-n`            | Down line from history                                                                 |
+| `ctrl-p`                         | `⌘-p`            | Up line from history                                                                   |
+| `ctrl-r`                         | `⌘-r`            | History incremental search backward                                                    |
+| `ctrl-s`                         | `⌘-s`            | History incremental search forward                                                     |
+
 ### Getting help
 
-The documentation of the SQL client commands can be accessed by typing the `HELP` command.
+The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
 
 See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
 
@@ -107,123 +154,185 @@ Configuration
 The SQL Client can be started with the following optional CLI commands. They are discussed in detail in the subsequent paragraphs.
 
 ```text
-./bin/sql-client.sh --help
+./sql-client [MODE] [OPTIONS]
+
+The following options are available:
 
 Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-         -f,--file <script file>               Script file that should be executed.
-                                               In this mode, the client will not
-                                               open an interactive terminal.
-         -h,--help                             Show the help message with
-                                               descriptions of all options.
-         -hist,--history <History file path>   The file which you want to save the
-                                               command history into. If not
-                                               specified, we will auto-generate one
-                                               under your user's home directory.
-         -i,--init <initialization file>       Script file that used to init the
-                                               session context. If get error in
-                                               execution, the sql client will exit.
-                                               Notice it's not allowed to add query
-                                               or insert into the init file.
-         -j,--jar <JAR file>                   A JAR file to be imported into the
-                                               session. The file might contain
-                                               user-defined classes needed for the
-                                               execution of statements such as
-                                               functions, table sources, or sinks.
-                                               Can be used multiple times.
-         -l,--library <JAR directory>          A JAR file directory with which every
-                                               new session is initialized. The files
-                                               might contain user-defined classes
-                                               needed for the execution of
-                                               statements such as functions, table
-                                               sources, or sinks. Can be used
-                                               multiple times.
-         -pyarch,--pyArchives <arg>            Add python archive files for job. The
-                                               archive files will be extracted to
-                                               the working directory of python UDF
-                                               worker. For each archive file, a
-                                               target directory be specified. If the
-                                               target directory name is specified,
-                                               the archive file will be extracted to
-                                               a directory with the
-                                               specified name. Otherwise, the
-                                               archive file will be extracted to a
-                                               directory with the same name of the
-                                               archive file. The files uploaded via
-                                               this option are accessible via
-                                               relative path. '#' could be used as
-                                               the separator of the archive file
-                                               path and the target directory name.
-                                               Comma (',') could be used as the
-                                               separator to specify multiple archive
-                                               files. This option can be used to
-                                               upload the virtual environment, the
-                                               data files used in Python UDF (e.g.:
-                                               --pyArchives
-                                               file:///tmp/py37.zip,file:///tmp/data
-                                               .zip#data --pyExecutable
-                                               py37.zip/py37/bin/python). The data
-                                               files could be accessed in Python
-                                               UDF, e.g.: f = open('data/data.txt',
-                                               'r').
-         -pyexec,--pyExecutable <arg>          Specify the path of the python
-                                               interpreter used to execute the
-                                               python UDF worker (e.g.:
-                                               --pyExecutable
-                                               /usr/local/bin/python3). The python
-                                               UDF worker depends on Python 3.6+,
-                                               Apache Beam (version == 2.38.0), Pip
-                                               (version >= 20.3) and SetupTools
-                                               (version >= 37.0.0). Please ensure
-                                               that the specified environment meets
-                                               the above requirements.
-         -pyfs,--pyFiles <pythonFiles>         Attach custom files for job.
-                                               The standard resource file suffixes
-                                               such as .py/.egg/.zip/.whl or
-                                               directory are all supported. These
-                                               files will be added to the PYTHONPATH
-                                               of both the local client and the
-                                               remote python UDF worker. Files
-                                               suffixed with .zip will be extracted
-                                               and added to PYTHONPATH. Comma (',')
-                                               could be used as the separator to
-                                               specify multiple files (e.g.:
-                                               --pyFiles
-                                               file:///tmp/myresource.zip,hdfs:///$n
-                                               amenode_address/myresource2.zip).
-         -pyreq,--pyRequirements <arg>         Specify a requirements.txt file which
-                                               defines the third-party dependencies.
-                                               These dependencies will be installed
-                                               and added to the PYTHONPATH of the
-                                               python UDF worker. A directory which
-                                               contains the installation packages of
-                                               these dependencies could be specified
-                                               optionally. Use '#' as the separator
-                                               if the optional parameter exists
-                                               (e.g.: --pyRequirements
-                                               file:///tmp/requirements.txt#file:///
-                                               tmp/cached_dir).
-         -s,--session <session identifier>     The identifier for a session.
-                                               'default' is the default identifier.
-         -u,--update <SQL update statement>    Deprecated Experimental (for testing
-                                               only!) feature: Instructs the SQL
-                                               Client to immediately execute the
-                                               given update statement after starting
-                                               up. The process is shut down after
-                                               the statement has been submitted to
-                                               the cluster and returns an
-                                               appropriate return code. Currently,
-                                               this feature is only supported for
-                                               INSERT INTO statements that declare
-                                               the target sink table.Please use
-                                               option -f to submit update statement.
+     -f,--file <script file>                    Script file that should be
+                                                executed. In this mode, the
+                                                client will not open an
+                                                interactive terminal.
+     -h,--help                                  Show the help message with
+                                                descriptions of all options.
+     -hist,--history <History file path>        The file which you want to save
+                                                the command history into. If not
+                                                specified, we will auto-generate
+                                                one under your user's home
+                                                directory.
+     -i,--init <initialization file>            Script file that used to init
+                                                the session context. If get
+                                                error in execution, the sql
+                                                client will exit. Notice it's
+                                                not allowed to add query or
+                                                insert into the init file.
+     -j,--jar <JAR file>                        A JAR file to be imported into
+                                                the session. The file might
+                                                contain user-defined classes
+                                                needed for the execution of
+                                                statements such as functions,
+                                                table sources, or sinks. Can be
+                                                used multiple times.
+     -l,--library <JAR directory>               A JAR file directory with which
+                                                every new session is
+                                                initialized. The files might
+                                                contain user-defined classes
+                                                needed for the execution of
+                                                statements such as functions,
+                                                table sources, or sinks. Can be
+                                                used multiple times.
+     -pyarch,--pyArchives <arg>                 Add python archive files for
+                                                job. The archive files will be
+                                                extracted to the working
+                                                directory of python UDF worker.
+                                                For each archive file, a target
+                                                directory be specified. If the
+                                                target directory name is
+                                                specified, the archive file will
+                                                be extracted to a directory with
+                                                the specified name. Otherwise,
+                                                the archive file will be
+                                                extracted to a directory with
+                                                the same name of the archive
+                                                file. The files uploaded via
+                                                this option are accessible via
+                                                relative path. '#' could be used
+                                                as the separator of the archive
+                                                file path and the target
+                                                directory name. Comma (',')
+                                                could be used as the separator
+                                                to specify multiple archive
+                                                files. This option can be used
+                                                to upload the virtual
+                                                environment, the data files used
+                                                in Python UDF (e.g.,
+                                                --pyArchives
+                                                file:///tmp/py37.zip,file:///tmp
+                                                /data.zip#data --pyExecutable
+                                                py37.zip/py37/bin/python). The
+                                                data files could be accessed in
+                                                Python UDF, e.g.: f =
+                                                open('data/data.txt', 'r').
+     -pyclientexec,--pyClientExecutable <arg>   The path of the Python
+                                                interpreter used to launch the
+                                                Python process when submitting
+                                                the Python jobs via "flink run"
+                                                or compiling the Java/Scala jobs
+                                                containing Python UDFs.
+     -pyexec,--pyExecutable <arg>               Specify the path of the python
+                                                interpreter used to execute the
+                                                python UDF worker (e.g.:
+                                                --pyExecutable
+                                                /usr/local/bin/python3). The
+                                                python UDF worker depends on
+                                                Python 3.7+, Apache Beam
+                                                (version == 2.43.0), Pip
+                                                (version >= 20.3) and SetupTools
+                                                (version >= 37.0.0). Please
+                                                ensure that the specified
+                                                environment meets the above
+                                                requirements.
+     -pyfs,--pyFiles <pythonFiles>              Attach custom files for job. The
+                                                standard resource file suffixes
+                                                such as .py/.egg/.zip/.whl or
+                                                directory are all supported.
+                                                These files will be added to the
+                                                PYTHONPATH of both the local
+                                                client and the remote python UDF
+                                                worker. Files suffixed with .zip
+                                                will be extracted and added to
+                                                PYTHONPATH. Comma (',') could be
+                                                used as the separator to specify
+                                                multiple files (e.g., --pyFiles
+                                                file:///tmp/myresource.zip,hdfs:
+                                                ///$namenode_address/myresource2
+                                                .zip).
+     -pyreq,--pyRequirements <arg>              Specify a requirements.txt file
+                                                which defines the third-party
+                                                dependencies. These dependencies
+                                                will be installed and added to
+                                                the PYTHONPATH of the python UDF
+                                                worker. A directory which
+                                                contains the installation
+                                                packages of these dependencies
+                                                could be specified optionally.
+                                                Use '#' as the separator if the
+                                                optional parameter exists (e.g.,
+                                                --pyRequirements
+                                                file:///tmp/requirements.txt#fil
+                                                e:///tmp/cached_dir).
+     -s,--session <session identifier>          The identifier for a session.
+                                                'default' is the default
+                                                identifier.
+     -u,--update <SQL update statement>         Deprecated Experimental (for
+                                                testing only!) feature:
+                                                Instructs the SQL Client to
+                                                immediately execute the given
+                                                update statement after starting
+                                                up. The process is shut down
+                                                after the statement has been
+                                                submitted to the cluster and
+                                                returns an appropriate return
+                                                code. Currently, this feature is
+                                                only supported for INSERT INTO
+                                                statements that declare the
+                                                target sink table.Please use
+                                                option -f to submit update
+                                                statement.
+
+
+Mode "gateway" mode connects to the SQL gateway for submission.
+
+  Syntax: gateway [OPTIONS]
+  "gateway" mode options:
+     -e,--endpoint <SQL Gateway address>   The address of the remote SQL Gateway
+                                           to connect.
+     -f,--file <script file>               Script file that should be executed.
+                                           In this mode, the client will not
+                                           open an interactive terminal.
+     -h,--help                             Show the help message with
+                                           descriptions of all options.
+     -hist,--history <History file path>   The file which you want to save the
+                                           command history into. If not
+                                           specified, we will auto-generate one
+                                           under your user's home directory.
+     -i,--init <initialization file>       Script file that used to init the
+                                           session context. If get error in
+                                           execution, the sql client will exit.
+                                           Notice it's not allowed to add query
+                                           or insert into the init file.
+     -s,--session <session identifier>     The identifier for a session.
+                                           'default' is the default identifier.
+     -u,--update <SQL update statement>    Deprecated Experimental (for testing
+                                           only!) feature: Instructs the SQL
+                                           Client to immediately execute the
+                                           given update statement after starting
+                                           up. The process is shut down after
+                                           the statement has been submitted to
+                                           the cluster and returns an
+                                           appropriate return code. Currently,
+                                           this feature is only supported for
+                                           INSERT INTO statements that declare
+                                           the target sink table.Please use
+                                           option -f to submit update statement.
 ```
 
 ### SQL Client Configuration
 
-You can configure the SQL client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
+You can configure the SQL Client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
 
 ```sql
 SET 'key' = 'value';
@@ -231,7 +340,7 @@ SET 'key' = 'value';
 
 {{< generated/sql_client_configuration >}}
 
-### SQL client result modes
+### SQL Client result modes
 
 The CLI supports **three modes** for maintaining and visualizing results.
 
@@ -428,7 +537,7 @@ information on how to configure connector and format dependencies.
 
 {{< top >}}
 
-Use SQL Client to submit job
+Usage
 ----------------------------
 
 SQL Client allows users to submit jobs either within the interactive command line or using `-f` option to execute sql file.
@@ -641,7 +750,11 @@ Cluster ID: StandaloneClusterId
 Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 ```
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the
+running Flink job after submission. The CLI process can be shutdown after the submission without
+affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
+use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
+or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
 
 However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
@@ -703,11 +816,35 @@ Flink SQL> RESET pipeline.name;
 
 If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
 
-{{< top >}}
+### Monitoring Job Status
 
-Limitations & Future
---------------------
+SQL Client supports to list jobs status in the cluster through `SHOW JOBS` statements.
 
-The current SQL Client only supports embedded mode. In the future, the community plans to extend its functionality by providing a REST-based SQL Client Gateway, see more in [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) and [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway).
+```sql
+Flink SQL> SHOW JOBS;
++----------------------------------+---------------+----------+-------------------------+
+|                           job id |      job name |   status |              start time |
++----------------------------------+---------------+----------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c | kafka-to-hive |  RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+---------------+----------+-------------------------+
+```
+
+### Terminating a Job
+
+SQL Client supports to stop jobs with or without savepoints through `STOP JOB` statements.
+
+```sql
+Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
++-----------------------------------------+
+|                          savepoint path |
++-----------------------------------------+
+| file:/tmp/savepoint-3addd4-0b224d9311e6 |
++-----------------------------------------+
+```
+
+The savepoint path could be specified with [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 
+either in the cluster configuration or session configuration (the latter would take precedence).
+
+For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
 {{< top >}}

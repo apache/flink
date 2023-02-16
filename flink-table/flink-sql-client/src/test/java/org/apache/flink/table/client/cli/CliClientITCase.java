@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.context.DefaultContext;
-import org.apache.flink.table.client.gateway.local.LocalExecutor;
+import org.apache.flink.table.client.gateway.SingleSessionManager;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.service.context.DefaultContext;
+import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -42,6 +43,7 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -55,6 +57,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -98,12 +101,24 @@ class CliClientITCase {
     @TempDir private static Path tempFolder;
 
     @RegisterExtension
+    @Order(1)
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(4)
                             .build());
+
+    @RegisterExtension
+    @Order(2)
+    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+            new SqlGatewayServiceExtension(
+                    MINI_CLUSTER_RESOURCE::getClientConfiguration, SingleSessionManager::new);
+
+    @RegisterExtension
+    @Order(3)
+    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     static Stream<String> sqlPaths() throws Exception {
         String first = "sql/table.q";
@@ -194,26 +209,27 @@ class CliClientITCase {
         final String sqlContent = String.join("", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        Collections.emptyList(),
                         new Configuration(configuration)
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
                                         ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
-                        Collections.singletonList(new DefaultCLI()));
-        final Executor executor = new LocalExecutor(defaultContext);
+                        Collections.emptyList());
+
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        String sessionId = executor.openSession("test-session");
 
-        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+        try (final Executor executor =
+                        Executor.create(
+                                defaultContext,
+                                InetSocketAddress.createUnresolved(
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
+                                "test-session");
+                Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
-                                () -> terminal,
-                                sessionId,
-                                executor,
-                                historyPath,
-                                HideSqlStatement.INSTANCE)) {
+                                () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
             client.executeInInteractiveMode();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);
@@ -362,6 +378,17 @@ class CliClientITCase {
                 Result result = results.get(i);
                 String content =
                         TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
+
+                int removedChatNumber = result.content.length() - content.length();
+                String borderLineStart = "+-";
+                String columnStart = "|";
+                for (int j = 0; j < removedChatNumber; j++) {
+                    borderLineStart += "-";
+                    columnStart += " ";
+                }
+                content = content.replaceAll("\\" + borderLineStart, "+-");
+                content = content.replace(columnStart, "|");
+
                 out.append(content).append(result.highestTag.tag).append("\n");
             }
         }

@@ -73,13 +73,13 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
     }
 
     @Override
-    public List<Integer> getNextBufferIndexToConsume() {
+    public List<Integer> getNextBufferIndexToConsume(HsConsumerId consumerId) {
         return getNextBufferIndexToConsumeSupplier.get();
     }
 
     @Override
     public Deque<BufferIndexAndChannel> getBuffersInOrder(
-            int subpartitionId, SpillStatus spillStatus, ConsumeStatus consumeStatus) {
+            int subpartitionId, SpillStatus spillStatus, ConsumeStatusWithId consumeStatusWithId) {
         Deque<BufferIndexAndChannel> buffersInOrder = new ArrayDeque<>();
 
         List<BufferIndexAndChannel> subpartitionBuffers = allBuffers.get(subpartitionId);
@@ -90,7 +90,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
         for (int i = 0; i < subpartitionBuffers.size(); i++) {
             if (isBufferSatisfyStatus(
                     spillStatus,
-                    consumeStatus,
+                    consumeStatusWithId,
                     spillBufferIndexes
                             .getOrDefault(subpartitionId, Collections.emptySet())
                             .contains(i),
@@ -124,7 +124,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
 
     private static boolean isBufferSatisfyStatus(
             SpillStatus spillStatus,
-            ConsumeStatus consumeStatus,
+            ConsumeStatusWithId consumeStatusWithId,
             boolean isSpill,
             boolean isConsumed) {
         boolean isNeeded = true;
@@ -136,7 +136,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
                 isNeeded = isSpill;
                 break;
         }
-        switch (consumeStatus) {
+        switch (consumeStatusWithId.status) {
             case NOT_CONSUMED:
                 isNeeded &= !isConsumed;
                 break;

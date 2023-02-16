@@ -30,7 +30,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -113,9 +113,9 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                 final HttpRequest httpRequest = (HttpRequest) msg;
                 LOG.trace(
                         "Received request. URL:{} Method:{}",
-                        httpRequest.getUri(),
-                        httpRequest.getMethod());
-                if (httpRequest.getMethod().equals(HttpMethod.POST)) {
+                        httpRequest.uri(),
+                        httpRequest.method());
+                if (httpRequest.method().equals(HttpMethod.POST)) {
                     if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
                         LOG.trace("Initializing multipart file upload.");
                         checkState(currentHttpPostRequestDecoder == null);
@@ -189,18 +189,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                     if (currentJsonPayload != null) {
                         currentHttpRequest
                                 .headers()
-                                .set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
+                                .set(HttpHeaderNames.CONTENT_LENGTH, currentJsonPayload.length);
                         currentHttpRequest
                                 .headers()
-                                .set(
-                                        HttpHeaders.Names.CONTENT_TYPE,
-                                        RestConstants.REST_CONTENT_TYPE);
+                                .set(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
                         ctx.fireChannelRead(currentHttpRequest);
                         ctx.fireChannelRead(
                                 httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
                     } else {
-                        currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-                        currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
+                        currentHttpRequest.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+                        currentHttpRequest.headers().remove(HttpHeaderNames.CONTENT_TYPE);
                         ctx.fireChannelRead(currentHttpRequest);
                         ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
                     }
@@ -260,7 +258,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
     }
 
     public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
-        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndRemove())
+        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndSet(null))
                 .orElse(FileUploads.EMPTY);
     }
 }

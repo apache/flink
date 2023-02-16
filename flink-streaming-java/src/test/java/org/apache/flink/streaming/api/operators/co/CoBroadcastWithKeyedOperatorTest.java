@@ -54,6 +54,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.assignKeyToParallelOperator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -556,9 +557,11 @@ public class CoBroadcastWithKeyedOperatorTest {
                                 3,
                                 2,
                                 operatorSubtaskState3)) {
-            testHarness1.processElement1(new StreamRecord<>("trigger"));
-            testHarness2.processElement1(new StreamRecord<>("trigger"));
-            testHarness3.processElement1(new StreamRecord<>("trigger"));
+
+            // Since there is a keyed operator, we should follow the key partition rules.
+            testHarness1.processElement1(new StreamRecord<>(findValidTriggerKey(testHarness1)));
+            testHarness2.processElement1(new StreamRecord<>(findValidTriggerKey(testHarness2)));
+            testHarness3.processElement1(new StreamRecord<>(findValidTriggerKey(testHarness3)));
 
             Queue<?> output1 = testHarness1.getOutput();
             Queue<?> output2 = testHarness2.getOutput();
@@ -659,8 +662,9 @@ public class CoBroadcastWithKeyedOperatorTest {
                                 1,
                                 operatorSubtaskState2)) {
 
-            testHarness1.processElement1(new StreamRecord<>("trigger"));
-            testHarness2.processElement1(new StreamRecord<>("trigger"));
+            // Since there is a keyed operator, we should follow the key partition rules.
+            testHarness1.processElement1(new StreamRecord<>(findValidTriggerKey(testHarness1)));
+            testHarness2.processElement1(new StreamRecord<>(findValidTriggerKey(testHarness2)));
 
             Queue<?> output1 = testHarness1.getOutput();
             Queue<?> output2 = testHarness2.getOutput();
@@ -677,6 +681,27 @@ public class CoBroadcastWithKeyedOperatorTest {
                 assertTrue(expected.contains(rec.getValue()));
             }
         }
+    }
+
+    /**
+     * Find a valid key for a subtask of a keyed stream, following the key partition rules.
+     *
+     * @param harness the test harness for the subtask.
+     * @return a valid key for the subtask.
+     */
+    private String findValidTriggerKey(AbstractStreamOperatorTestHarness<?> harness) {
+        int subtask = harness.getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+        int maxParallelism =
+                harness.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
+        int parallelism = harness.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
+
+        // find the right input element for this subtask
+        int element = 0;
+        while (assignKeyToParallelOperator(Integer.toString(element), maxParallelism, parallelism)
+                != subtask) {
+            element++;
+        }
+        return Integer.toString(element);
     }
 
     private static class TestFunctionWithOutput

@@ -143,6 +143,11 @@ public class NumberSequenceSourceTest {
         public UserCodeClassLoader getUserCodeClassLoader() {
             return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
         }
+
+        @Override
+        public int currentParallelism() {
+            return 1;
+        }
     }
 
     private static final class TestingReaderOutput<E> implements ReaderOutput<E> {

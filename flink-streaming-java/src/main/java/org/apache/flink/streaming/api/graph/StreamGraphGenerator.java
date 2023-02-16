@@ -28,10 +28,12 @@ import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -98,6 +100,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -307,6 +310,8 @@ public class StreamGraphGenerator {
 
     public StreamGraph generate() {
         streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+        streamGraph.setAutoParallelismEnabled(
+                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED));
         streamGraph.setEnableCheckpointsAfterTasksFinish(
                 configuration.get(
                         ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
@@ -322,6 +327,15 @@ public class StreamGraphGenerator {
         streamGraph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         setFineGrainedGlobalStreamExchangeMode(streamGraph);
+
+        Optional<JobManagerOptions.SchedulerType> schedulerTypeOptional =
+                executionConfig.getSchedulerType();
+        boolean dynamic =
+                shouldExecuteInBatchMode
+                        && schedulerTypeOptional.orElse(
+                                        JobManagerOptions.SchedulerType.AdaptiveBatch)
+                                == JobManagerOptions.SchedulerType.AdaptiveBatch;
+        streamGraph.setDynamic(dynamic);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {

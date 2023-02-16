@@ -20,7 +20,6 @@ package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.operations.Operation;
 
 import java.util.Optional;
 
@@ -29,22 +28,12 @@ import java.util.Optional;
 public interface SqlCommandParser {
 
     /**
-     * Parses given command statement.
-     *
-     * @param command the sql client command to evaluate.
-     * @return the optional value of {@link Operation} parsed. It would be empty when the command is
-     *     "" or ";".
-     * @throws SqlExecutionException if any error happen while parsing or validating the command.
-     */
-    Optional<Operation> parseCommand(String command) throws SqlExecutionException;
-
-    /**
      * Parses given statement.
      *
      * @param statement the sql client input to evaluate.
-     * @return the optional value of {@link StatementType} parsed. It would be empty when the
-     *     statement is "" or ";".
+     * @return the optional value of {@link Command} parsed. It would be empty when the statement is
+     *     "" or ";".
      * @throws SqlExecutionException if any error happen while parsing or validating the statement.
      */
-    Optional<StatementType> parseStatement(String statement) throws SqlExecutionException;
+    Optional<Command> parseStatement(String statement);
 }

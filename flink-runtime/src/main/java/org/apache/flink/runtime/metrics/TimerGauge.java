@@ -32,9 +32,21 @@ import org.apache.flink.util.clock.SystemClock;
  * happen in a couple of hours, the returned value will account for this ongoing measurement.
  */
 public class TimerGauge implements Gauge<Long>, View {
+
+    private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
+
     private final Clock clock;
 
-    private long previousCount;
+    /** The time-span over which the average is calculated. */
+    private final int timeSpanInSeconds;
+    /** Circular array containing the history of values. */
+    private final long[] values;
+    /** The index in the array for the current time. */
+    private int idx = 0;
+
+    private boolean fullWindow = false;
+
+    private long currentValue;
     private long currentCount;
     private long currentMeasurementStartTS;
     /**
@@ -50,11 +62,24 @@ public class TimerGauge implements Gauge<Long>, View {
     private long accumulatedCount;
 
     public TimerGauge() {
-        this(SystemClock.getInstance());
+        this(DEFAULT_TIME_SPAN_IN_SECONDS);
+    }
+
+    public TimerGauge(int timeSpanInSeconds) {
+        this(SystemClock.getInstance(), timeSpanInSeconds);
     }
 
     public TimerGauge(Clock clock) {
+        this(clock, DEFAULT_TIME_SPAN_IN_SECONDS);
+    }
+
+    public TimerGauge(Clock clock, int timeSpanInSeconds) {
         this.clock = clock;
+        this.timeSpanInSeconds =
+                Math.max(
+                        timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS),
+                        UPDATE_INTERVAL_SECONDS);
+        this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS];
     }
 
     public synchronized void markStart() {
@@ -89,15 +114,32 @@ public class TimerGauge implements Gauge<Long>, View {
             currentMaxSingleMeasurement =
                     Math.max(currentMaxSingleMeasurement, now - currentMeasurementStartTS);
         }
-        previousCount = Math.max(Math.min(currentCount / UPDATE_INTERVAL_SECONDS, 1000), 0);
+        updateCurrentValue();
         previousMaxSingleMeasurement = currentMaxSingleMeasurement;
         currentCount = 0;
         currentMaxSingleMeasurement = 0;
     }
 
+    private void updateCurrentValue() {
+        if (idx == values.length - 1) {
+            fullWindow = true;
+        }
+        values[idx] = currentCount;
+        idx = (idx + 1) % values.length;
+
+        int maxIndex = fullWindow ? values.length : idx;
+        long totalTime = 0;
+        for (int i = 0; i < maxIndex; i++) {
+            totalTime += values[i];
+        }
+
+        currentValue =
+                Math.max(Math.min(totalTime / (UPDATE_INTERVAL_SECONDS * maxIndex), 1000), 0);
+    }
+
     @Override
     public synchronized Long getValue() {
-        return previousCount;
+        return currentValue;
     }
 
     /**

@@ -129,8 +129,8 @@ public class CsvTableSink implements AppendStreamTableSink<Row> {
             sink.setParallelism(numFiles);
         } else {
             // if file number is not set, use input parallelism to make it chained.
-            csvRows.setParallelism(dataStream.getParallelism());
-            sink.setParallelism(dataStream.getParallelism());
+            csvRows.getTransformation().setParallelism(dataStream.getParallelism(), false);
+            sink.getTransformation().setParallelism(dataStream.getParallelism(), false);
         }
 
         sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));

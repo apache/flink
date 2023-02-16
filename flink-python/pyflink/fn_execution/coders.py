@@ -21,20 +21,28 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 import pytz
-from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 
+from pyflink import fn_execution
+
+if fn_execution.PYFLINK_CYTHON_ENABLED:
+    try:
+        from pyflink.fn_execution import coder_impl_fast as coder_impl
+    except:
+        from pyflink.fn_execution import coder_impl_slow as coder_impl
+        fn_execution.PYFLINK_CYTHON_ENABLED = False
+else:
+    from pyflink.fn_execution import coder_impl_slow as coder_impl
+
+from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
     TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
     MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo, \
     ExternalTypeInfo
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType
+    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType, \
+    BinaryType, NullType
 
-try:
-    from pyflink.fn_execution import coder_impl_fast as coder_impl
-except:
-    from pyflink.fn_execution import coder_impl_slow as coder_impl
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
@@ -124,9 +132,11 @@ class LengthPrefixBaseCoder(ABC):
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DOUBLE:
             return DoubleType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
-            return VarCharType(0x7fffffff, field_type.nullable)
+            return VarCharType(field_type.var_char_info.length, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.BINARY:
+            return BinaryType(field_type.binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
-            return VarBinaryType(0x7fffffff, field_type.nullable)
+            return VarBinaryType(field_type.var_binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
             return DecimalType(field_type.decimal_info.precision,
                                field_type.decimal_info.scale,
@@ -148,6 +158,12 @@ class LengthPrefixBaseCoder(ABC):
             return RowType(
                 [RowField(f.name, cls._to_data_type(f.type), f.description)
                  for f in field_type.row_schema.fields], field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.MAP:
+            return MapType(cls._to_data_type(field_type.map_info.key_type),
+                           cls._to_data_type(field_type.map_info.value_type),
+                           field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.NULL:
+            return NullType()
         else:
             raise ValueError("field_type %s is not supported." % field_type)
 

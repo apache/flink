@@ -24,55 +24,59 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.IterableUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ExecutionGraphToInputsLocationsRetrieverAdapter}. */
-public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLogger {
+class ExecutionGraphToInputsLocationsRetrieverAdapterTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    /** Tests that can get the producers of consumed result partitions. */
     @Test
-    public void testGetConsumedResultPartitionsProducers() throws Exception {
+    void testGetConsumedPartitionGroupsAndProducers() throws Exception {
         final JobVertex producer1 = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex producer2 = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex consumer = ExecutionGraphTestUtils.createNoOpVertex(1);
-        consumer.connectNewDataSetAsInput(
-                producer1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        consumer.connectNewDataSetAsInput(
-                producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        final IntermediateDataSet dataSet1 =
+                consumer.connectNewDataSetAsInput(
+                                producer1,
+                                DistributionPattern.ALL_TO_ALL,
+                                ResultPartitionType.PIPELINED)
+                        .getSource();
+        final IntermediateDataSet dataSet2 =
+                consumer.connectNewDataSetAsInput(
+                                producer2,
+                                DistributionPattern.ALL_TO_ALL,
+                                ResultPartitionType.PIPELINED)
+                        .getSource();
 
         final ExecutionGraph eg =
                 ExecutionGraphTestUtils.createExecutionGraph(
-                        EXECUTOR_RESOURCE.getExecutor(), producer1, producer2, consumer);
+                        EXECUTOR_EXTENSION.getExecutor(), producer1, producer2, consumer);
         final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -80,28 +84,49 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
         ExecutionVertexID evIdOfProducer2 = new ExecutionVertexID(producer2.getID(), 0);
         ExecutionVertexID evIdOfConsumer = new ExecutionVertexID(consumer.getID(), 0);
 
-        Collection<Collection<ExecutionVertexID>> producersOfProducer1 =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(evIdOfProducer1);
-        Collection<Collection<ExecutionVertexID>> producersOfProducer2 =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(evIdOfProducer2);
-        Collection<Collection<ExecutionVertexID>> producersOfConsumer =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(evIdOfConsumer);
+        Collection<ConsumedPartitionGroup> consumedPartitionGroupsOfProducer1 =
+                inputsLocationsRetriever.getConsumedPartitionGroups(evIdOfProducer1);
+        Collection<ConsumedPartitionGroup> consumedPartitionGroupsOfProducer2 =
+                inputsLocationsRetriever.getConsumedPartitionGroups(evIdOfProducer2);
+        Collection<ConsumedPartitionGroup> consumedPartitionGroupsOfConsumer =
+                inputsLocationsRetriever.getConsumedPartitionGroups(evIdOfConsumer);
 
-        assertThat(producersOfProducer1, is(empty()));
-        assertThat(producersOfProducer2, is(empty()));
-        assertThat(producersOfConsumer, hasSize(2));
-        assertThat(producersOfConsumer, hasItem(Collections.singletonList(evIdOfProducer1)));
-        assertThat(producersOfConsumer, hasItem(Collections.singletonList(evIdOfProducer2)));
+        IntermediateResultPartitionID partitionId1 =
+                new IntermediateResultPartitionID(dataSet1.getId(), 0);
+        IntermediateResultPartitionID partitionId2 =
+                new IntermediateResultPartitionID(dataSet2.getId(), 0);
+        assertThat(consumedPartitionGroupsOfProducer1).isEmpty();
+        assertThat(consumedPartitionGroupsOfProducer2).isEmpty();
+        assertThat(consumedPartitionGroupsOfConsumer).hasSize(2);
+        assertThat(
+                        consumedPartitionGroupsOfConsumer.stream()
+                                .flatMap(IterableUtils::toStream)
+                                .collect(Collectors.toSet()))
+                .containsExactlyInAnyOrder(partitionId1, partitionId2);
+
+        for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroupsOfConsumer) {
+            if (consumedPartitionGroup.getFirst().equals(partitionId1)) {
+                assertThat(
+                                inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                                        consumedPartitionGroup))
+                        .containsExactly(evIdOfProducer1);
+            } else {
+                assertThat(
+                                inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                                        consumedPartitionGroup))
+                        .containsExactly(evIdOfProducer2);
+            }
+        }
     }
 
     /** Tests that it will get empty task manager location if vertex is not scheduled. */
     @Test
-    public void testGetEmptyTaskManagerLocationIfVertexNotScheduled() throws Exception {
+    void testGetEmptyTaskManagerLocationIfVertexNotScheduled() throws Exception {
         final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
         final ExecutionGraph eg =
                 ExecutionGraphTestUtils.createExecutionGraph(
-                        EXECUTOR_RESOURCE.getExecutor(), jobVertex);
+                        EXECUTOR_EXTENSION.getExecutor(), jobVertex);
         final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -109,19 +134,19 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
         Optional<CompletableFuture<TaskManagerLocation>> taskManagerLocation =
                 inputsLocationsRetriever.getTaskManagerLocation(executionVertexId);
 
-        assertFalse(taskManagerLocation.isPresent());
+        assertThat(taskManagerLocation).isNotPresent();
     }
 
     /** Tests that it can get the task manager location in an Execution. */
     @Test
-    public void testGetTaskManagerLocationWhenScheduled() throws Exception {
+    void testGetTaskManagerLocationWhenScheduled() throws Exception {
         final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
         final TestingLogicalSlot testingLogicalSlot =
                 new TestingLogicalSlotBuilder().createTestingLogicalSlot();
         final ExecutionGraph eg =
                 ExecutionGraphTestUtils.createExecutionGraph(
-                        EXECUTOR_RESOURCE.getExecutor(), jobVertex);
+                        EXECUTOR_EXTENSION.getExecutor(), jobVertex);
         final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
@@ -133,12 +158,12 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
         Optional<CompletableFuture<TaskManagerLocation>> taskManagerLocationOptional =
                 inputsLocationsRetriever.getTaskManagerLocation(executionVertexId);
 
-        assertTrue(taskManagerLocationOptional.isPresent());
+        assertThat(taskManagerLocationOptional).isPresent();
 
         final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture =
                 taskManagerLocationOptional.get();
-        assertThat(
-                taskManagerLocationFuture.get(), is(testingLogicalSlot.getTaskManagerLocation()));
+        assertThat(taskManagerLocationFuture.get())
+                .isEqualTo(testingLogicalSlot.getTaskManagerLocation());
     }
 
     /**
@@ -146,21 +171,21 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
      * execution.
      */
     @Test
-    public void testGetNonExistingExecutionVertexWillThrowException() throws Exception {
+    void testGetNonExistingExecutionVertexWillThrowException() throws Exception {
         final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
         final ExecutionGraph eg =
                 ExecutionGraphTestUtils.createExecutionGraph(
-                        EXECUTOR_RESOURCE.getExecutor(), jobVertex);
+                        EXECUTOR_EXTENSION.getExecutor(), jobVertex);
         final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
         ExecutionVertexID invalidExecutionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-        try {
-            inputsLocationsRetriever.getTaskManagerLocation(invalidExecutionVertexId);
-            fail("Should throw exception if execution vertex doesn't exist!");
-        } catch (IllegalStateException expected) {
-            // expect this exception
-        }
+        assertThatThrownBy(
+                        () ->
+                                inputsLocationsRetriever.getTaskManagerLocation(
+                                        invalidExecutionVertexId),
+                        "Should throw exception if execution vertex doesn't exist!")
+                .isInstanceOf(IllegalStateException.class);
     }
 }

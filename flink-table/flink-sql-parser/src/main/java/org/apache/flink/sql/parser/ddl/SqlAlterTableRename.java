@@ -29,7 +29,7 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME TO [[catalogName.]
+ * ALTER TABLE [IF EXISTS] [[catalogName.] dataBasesName].tableName RENAME TO [[catalogName.]
  * dataBasesName].newTableName.
  */
 public class SqlAlterTableRename extends SqlAlterTable {
@@ -37,9 +37,17 @@ public class SqlAlterTableRename extends SqlAlterTable {
     private final SqlIdentifier newTableIdentifier;
 
     public SqlAlterTableRename(
-            SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier newTableName) {
-        super(pos, tableName);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlIdentifier newTableName,
+            boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
         this.newTableIdentifier = requireNonNull(newTableName, "new tableName should not be null");
+    }
+
+    public SqlAlterTableRename(
+            SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier newTableName) {
+        this(pos, tableName, newTableName, false);
     }
 
     @Override

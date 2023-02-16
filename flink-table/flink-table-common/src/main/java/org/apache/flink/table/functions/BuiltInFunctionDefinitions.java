@@ -45,6 +45,7 @@ import org.apache.flink.util.Preconditions;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -165,6 +166,18 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_DISTINCT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_DISTINCT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("haystack"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.ARRAY))))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayDistinctFunction")
+                    .build();
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
@@ -1013,6 +1026,25 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    /**
+     * Special "+" operator used internally for implementing native hive SUM/AVG aggregations on a
+     * Decimal type. Here is used to prevent the normal {@link #PLUS} from overriding the special
+     * calculation for precision and scale needed by the aggregate function. {@link
+     * LogicalTypeMerging#findAdditionDecimalType} will add 1 to the precision of the plus result
+     * type, but for hive we just keep the precision as input type.
+     */
+    public static final BuiltInFunctionDefinition HIVE_AGG_DECIMAL_PLUS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("HIVE_AGG_DECIMAL_PLUS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.DECIMAL),
+                                    logical(LogicalTypeRoot.DECIMAL)))
+                    .outputTypeStrategy(SpecificTypeStrategies.HIVE_AGG_DECIMAL_PLUS)
+                    .runtimeProvided()
+                    .build();
+
     /** Combines numeric subtraction and "datetime - interval" arithmetic. */
     public static final BuiltInFunctionDefinition MINUS =
             BuiltInFunctionDefinition.newBuilder()
@@ -1436,6 +1468,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("currentDatabase")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(STRING().notNull()))
+                    .notDeterministic()
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -1464,9 +1497,23 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(explicit(TIME().notNull()))
                     .build();
 
+    public static final BuiltInFunctionDefinition LOCAL_TIME =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("localTime")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(explicit(TIME().notNull()))
+                    .build();
+
     public static final BuiltInFunctionDefinition CURRENT_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTimestamp")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
+                    .build();
+
+    public static final BuiltInFunctionDefinition NOW =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("now")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
                     .build();
@@ -1476,13 +1523,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("currentRowTimestamp")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
-                    .build();
-
-    public static final BuiltInFunctionDefinition LOCAL_TIME =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("localTime")
-                    .kind(SCALAR)
-                    .outputTypeStrategy(explicit(TIME().notNull()))
+                    .notDeterministic()
                     .build();
 
     public static final BuiltInFunctionDefinition LOCAL_TIMESTAMP =

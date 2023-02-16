@@ -148,6 +148,15 @@ public class KafkaWriterITCase {
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
 
+            // elements for which the serializer returns null should be silently skipped
+            writer.write(null, SINK_WRITER_CONTEXT);
+            timeService.trigger();
+            assertThat(numBytesOut.getCount()).isEqualTo(0L);
+            assertThat(numRecordsOut.getCount()).isEqualTo(0);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
+            assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
+
+            // but elements for which a non-null producer record is returned should count
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
             assertThat(numRecordsOut.getCount()).isEqualTo(1);
@@ -466,6 +475,11 @@ public class KafkaWriterITCase {
         }
 
         @Override
+        public int getAttemptNumber() {
+            return 0;
+        }
+
+        @Override
         public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
         }
@@ -491,6 +505,10 @@ public class KafkaWriterITCase {
         @Override
         public ProducerRecord<byte[], byte[]> serialize(
                 Integer element, KafkaSinkContext context, Long timestamp) {
+            if (element == null) {
+                // in general, serializers should be allowed to skip invalid elements
+                return null;
+            }
             return new ProducerRecord<>(topic, ByteBuffer.allocate(4).putInt(element).array());
         }
     }

@@ -335,7 +335,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         createTransformationMeta(RANK_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         RowDataKeySelector selector =

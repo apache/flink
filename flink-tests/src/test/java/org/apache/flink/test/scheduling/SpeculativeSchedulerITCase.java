@@ -19,11 +19,17 @@
 package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.GenericInputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -31,6 +37,8 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -41,6 +49,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -49,6 +58,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +67,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -64,6 +76,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -131,7 +144,7 @@ class SpeculativeSchedulerITCase {
     @Test
     void testBlockSlowNodeInSpeculativeExecution() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.BLOCK_SLOW_NODE_DURATION, Duration.ofMinutes(1));
+        configuration.set(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION, Duration.ofMinutes(1));
         JobClient client = executeJobAsync(configuration, this::setupJobWithSlowMap);
 
         assertThatThrownBy(
@@ -159,6 +172,45 @@ class SpeculativeSchedulerITCase {
         executeJob(this::setupJobWithSlowNewSource);
         waitUntilJobArchived();
         checkResults();
+    }
+
+    @Test
+    public void testSpeculativeSlowSink() throws Exception {
+        executeJob(this::setupSpeculativeSlowSink);
+        waitUntilJobArchived();
+
+        checkResults();
+
+        // no speculative executions for committer
+        assertThat(DummyCommitter.attempts.get()).isEqualTo(parallelism);
+        // there is a speculative execution for writer
+        assertThat(DummyCommitter.foundSpeculativeWriter).isTrue();
+    }
+
+    @Test
+    public void testNonSpeculativeSlowSinkFunction() throws Exception {
+        executeJob(this::setupNonSpeculativeSlowSinkFunction);
+        waitUntilJobArchived();
+
+        checkResults();
+    }
+
+    @Test
+    public void testSpeculativeSlowSinkFunction() throws Exception {
+        executeJob(this::setupSpeculativeSlowSinkFunction);
+        waitUntilJobArchived();
+
+        checkResults();
+    }
+
+    @Test
+    public void testSpeculativeOutputFormatSink() throws Exception {
+        executeJob(this::setupSlowOutputFormatSink);
+        waitUntilJobArchived();
+
+        checkResults();
+
+        assertThat(DummySpeculativeOutputFormat.foundSpeculativeAttempt).isTrue();
     }
 
     private void checkResults() {
@@ -202,12 +254,10 @@ class SpeculativeSchedulerITCase {
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
         // for speculative execution
-        configuration.set(
-                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
-        configuration.set(JobManagerOptions.SPECULATIVE_ENABLED, true);
+        configuration.set(BatchExecutionOptions.SPECULATIVE_ENABLED, true);
         // for testing, does not block node by default
-        if (!configuration.contains(JobManagerOptions.BLOCK_SLOW_NODE_DURATION)) {
-            configuration.set(JobManagerOptions.BLOCK_SLOW_NODE_DURATION, Duration.ZERO);
+        if (!configuration.contains(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION)) {
+            configuration.set(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION, Duration.ZERO);
         }
         configuration.set(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER, 1.0);
         configuration.set(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO, 0.2);
@@ -216,13 +266,13 @@ class SpeculativeSchedulerITCase {
 
         // for adaptive parallelism
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM,
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 MAX_PARALLELISM);
-        configuration.set(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM, 1);
+        configuration.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM, 1);
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM, MAX_PARALLELISM);
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, MAX_PARALLELISM);
         configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
                 MemorySize.parse("150kb"));
 
         return configuration;
@@ -289,6 +339,56 @@ class SpeculativeSchedulerITCase {
                         WatermarkStrategy.noWatermarks(),
                         "source");
         addSink(source);
+    }
+
+    private void setupSpeculativeSlowSink(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("sourceGroup");
+        source.sinkTo(new SpeculativeSink())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("sinkGroup");
+    }
+
+    private void setupNonSpeculativeSlowSinkFunction(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("sourceGroup");
+        source.addSink(new NonSpeculativeSinkFunction())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("sinkGroup");
+    }
+
+    private void setupSpeculativeSlowSinkFunction(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("sourceGroup");
+        source.addSink(new SpeculativeSinkFunction())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("sinkGroup");
+    }
+
+    private void setupSlowOutputFormatSink(StreamExecutionEnvironment env) {
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(parallelism)
+                        .name("source")
+                        .slotSharingGroup("group1");
+
+        source.rebalance()
+                .writeUsingOutputFormat(new DummySpeculativeOutputFormat())
+                .setParallelism(parallelism)
+                .name("sink")
+                .slotSharingGroup("group3");
     }
 
     private void addSink(DataStream<Long> dataStream) {
@@ -418,6 +518,207 @@ class SpeculativeSchedulerITCase {
         @Override
         public void finish() {
             numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+        }
+    }
+
+    private static class SpeculativeSink
+            implements TwoPhaseCommittingSink<Long, Tuple3<Integer, Integer, Map<Long, Long>>>,
+                    SupportsConcurrentExecutionAttempts {
+
+        @Override
+        public PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>>
+                createWriter(InitContext context) {
+            return new DummyPrecommittingSinkWriter(
+                    context.getSubtaskId(), context.getAttemptNumber());
+        }
+
+        @Override
+        public Committer<Tuple3<Integer, Integer, Map<Long, Long>>> createCommitter() {
+            return new DummyCommitter();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Tuple3<Integer, Integer, Map<Long, Long>>>
+                getCommittableSerializer() {
+            return new SimpleVersionedSerializer<Tuple3<Integer, Integer, Map<Long, Long>>>() {
+                @Override
+                public int getVersion() {
+                    return 0;
+                }
+
+                @Override
+                public byte[] serialize(Tuple3<Integer, Integer, Map<Long, Long>> obj)
+                        throws IOException {
+                    return InstantiationUtil.serializeObject(obj);
+                }
+
+                @Override
+                public Tuple3<Integer, Integer, Map<Long, Long>> deserialize(
+                        int version, byte[] serialized) throws IOException {
+                    try {
+                        return InstantiationUtil.deserializeObject(
+                                serialized, Thread.currentThread().getContextClassLoader());
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+        }
+    }
+
+    private static class DummyPrecommittingSinkWriter
+            implements PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> {
+
+        private final int subTaskIndex;
+
+        private final int attemptNumber;
+
+        public DummyPrecommittingSinkWriter(int subTaskIndex, int attemptNumber) {
+            this.subTaskIndex = subTaskIndex;
+            this.attemptNumber = attemptNumber;
+        }
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void write(Long value, Context context) throws IOException, InterruptedException {
+            numberCountResult.merge(value, 1L, Long::sum);
+            maybeSleep();
+        }
+
+        @Override
+        public void flush(boolean endOfInput) {}
+
+        @Override
+        public Collection<Tuple3<Integer, Integer, Map<Long, Long>>> prepareCommit() {
+            return Collections.singleton(Tuple3.of(subTaskIndex, attemptNumber, numberCountResult));
+        }
+
+        @Override
+        public void close() throws Exception {}
+    }
+
+    private static class DummyCommitter
+            implements Committer<Tuple3<Integer, Integer, Map<Long, Long>>> {
+
+        private static AtomicBoolean blocked = new AtomicBoolean(false);
+        private static AtomicInteger attempts = new AtomicInteger(0);
+
+        private static volatile boolean foundSpeculativeWriter;
+
+        public DummyCommitter() {
+            attempts.incrementAndGet();
+        }
+
+        @Override
+        public void commit(
+                Collection<CommitRequest<Tuple3<Integer, Integer, Map<Long, Long>>>> committables)
+                throws InterruptedException {
+
+            for (CommitRequest<Tuple3<Integer, Integer, Map<Long, Long>>> request : committables) {
+                Tuple3<Integer, Integer, Map<Long, Long>> committable = request.getCommittable();
+                numberCountResults.put(committable.f0, committable.f2);
+                // attempt number larger than 0
+                if (committable.f1 > 0) {
+                    foundSpeculativeWriter = true;
+                }
+            }
+
+            if (!blocked.getAndSet(true)) {
+                Thread.sleep(5000);
+            }
+        }
+
+        @Override
+        public void close() throws Exception {}
+    }
+
+    private static class NonSpeculativeSinkFunction extends RichSinkFunction<Long> {
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void invoke(Long value, Context context) throws Exception {
+            if (slowTaskCounter.getAndDecrement() > 0) {
+                Thread.sleep(5000);
+            }
+            numberCountResult.merge(value, 1L, Long::sum);
+        }
+
+        @Override
+        public void finish() {
+            if (getRuntimeContext().getAttemptNumber() == 0) {
+                numberCountResults.put(
+                        getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+            }
+        }
+    }
+
+    private static class SpeculativeSinkFunction extends RichSinkFunction<Long>
+            implements SupportsConcurrentExecutionAttempts {
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void invoke(Long value, Context context) throws Exception {
+            numberCountResult.merge(value, 1L, Long::sum);
+            maybeSleep();
+        }
+
+        @Override
+        public void finish() {
+            numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+        }
+    }
+
+    /** Outputs format which waits for the previous mapper. */
+    private static class DummySpeculativeOutputFormat
+            implements OutputFormat<Long>, FinalizeOnMaster, SupportsConcurrentExecutionAttempts {
+
+        private static final long serialVersionUID = 1L;
+
+        private static volatile boolean foundSpeculativeAttempt;
+
+        private int taskNumber;
+
+        private boolean taskFailed;
+
+        private final Map<Long, Long> numberCountResult = new HashMap<>();
+
+        @Override
+        public void configure(Configuration parameters) {}
+
+        @Override
+        public void open(InitializationContext context) throws IOException {
+            taskNumber = context.getTaskNumber();
+        }
+
+        @Override
+        public void writeRecord(Long value) throws IOException {
+            try {
+                numberCountResult.merge(value, 1L, Long::sum);
+                if (taskNumber == 0) {
+                    maybeSleep();
+                }
+            } catch (Throwable t) {
+                taskFailed = true;
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (!taskFailed) {
+                numberCountResults.put(taskNumber, numberCountResult);
+            }
+        }
+
+        @Override
+        public void finalizeGlobal(FinalizationContext context) throws IOException {
+            for (int i = 0; i < context.getParallelism(); i++) {
+                if (context.getFinishedAttempt(i) != 0) {
+                    foundSpeculativeAttempt = true;
+                }
+            }
         }
     }
 

@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.{Intersect, SetOp}
 import org.apache.calcite.rel.logical.LogicalIntersect
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -59,12 +60,7 @@ class FlinkLogicalIntersect(
 
 }
 
-private class FlinkLogicalIntersectConverter
-  extends ConverterRule(
-    classOf[LogicalIntersect],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalIntersectConverter") {
+private class FlinkLogicalIntersectConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val intersect = rel.asInstanceOf[LogicalIntersect]
@@ -76,7 +72,12 @@ private class FlinkLogicalIntersectConverter
 }
 
 object FlinkLogicalIntersect {
-  val CONVERTER: ConverterRule = new FlinkLogicalIntersectConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalIntersectConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalIntersect],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalIntersectConverter"))
 
   def create(inputs: util.List[RelNode], all: Boolean): FlinkLogicalIntersect = {
     val cluster = inputs.get(0).getCluster

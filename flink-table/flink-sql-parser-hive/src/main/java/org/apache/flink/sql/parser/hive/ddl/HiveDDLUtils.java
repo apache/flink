@@ -40,7 +40,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.util.NlsString;
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -450,7 +450,8 @@ public class HiveDDLUtils {
             if (literal instanceof SqlCharStringLiteral) {
                 SqlCharStringLiteral stringLiteral = (SqlCharStringLiteral) literal;
                 String unescaped =
-                        StringEscapeUtils.unescapeJava(stringLiteral.getNlsString().getValue());
+                        StringEscapeUtils.unescapeJava(
+                                stringLiteral.getValueAs(NlsString.class).getValue());
                 return SqlLiteral.createCharString(unescaped, stringLiteral.getParserPosition());
             }
             return literal;

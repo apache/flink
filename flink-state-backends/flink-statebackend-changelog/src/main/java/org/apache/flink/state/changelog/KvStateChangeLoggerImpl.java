@@ -19,7 +19,8 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -78,21 +79,25 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
     }
 
     @Override
-    protected void serializeValue(Value value, DataOutputViewStreamWrapper out) throws IOException {
+    protected void serializeValue(Value value, DataOutputView out) throws IOException {
         valueSerializer.serialize(value, out);
     }
 
     @Override
-    protected void serializeScope(Ns ns, DataOutputViewStreamWrapper out) throws IOException {
+    protected void serializeScope(Ns ns, DataOutputView out) throws IOException {
         keySerializer.serialize(keyContext.getCurrentKey(), out);
         namespaceSerializer.serialize(ns, out);
     }
 
-    protected void writeDefaultValueAndTtl(DataOutputViewStreamWrapper out) throws IOException {
+    protected void writeDefaultValueAndTtl(DataOutputView out) throws IOException {
         out.writeBoolean(ttlConfig.isEnabled());
         if (ttlConfig.isEnabled()) {
-            try (ObjectOutputStream o = new ObjectOutputStream(out)) {
-                o.writeObject(ttlConfig);
+            try (ByteArrayOutputStreamWithPos outputStreamWithPos =
+                            new ByteArrayOutputStreamWithPos();
+                    ObjectOutputStream objectOutputStream =
+                            new ObjectOutputStream(outputStreamWithPos)) {
+                objectOutputStream.writeObject(ttlConfig);
+                out.write(outputStreamWithPos.toByteArray());
             }
         }
         out.writeBoolean(defaultValue != null);

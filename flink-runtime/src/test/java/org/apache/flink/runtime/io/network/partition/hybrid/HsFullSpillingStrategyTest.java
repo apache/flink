@@ -32,7 +32,6 @@ import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createBufferIndexAndChannelsList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for {@link HsFullSpillingStrategy}. */
 class HsFullSpillingStrategyTest {
@@ -103,25 +102,10 @@ class HsFullSpillingStrategyTest {
         final int subpartition1 = 0;
         final int subpartition2 = 1;
 
-        final int progress1 = 10;
-        final int progress2 = 20;
-
         List<BufferIndexAndChannel> subpartitionBuffers1 =
-                createBufferIndexAndChannelsList(
-                        subpartition1,
-                        progress1,
-                        progress1 + 2,
-                        progress1 + 4,
-                        progress1 + 6,
-                        progress1 + 8);
+                createBufferIndexAndChannelsList(subpartition1, 1, 2, 3, 4, 5);
         List<BufferIndexAndChannel> subpartitionBuffers2 =
-                createBufferIndexAndChannelsList(
-                        subpartition2,
-                        progress2 + 1,
-                        progress2 + 3,
-                        progress2 + 5,
-                        progress2 + 7,
-                        progress2 + 9);
+                createBufferIndexAndChannelsList(subpartition2, 1, 2, 3, 4, 5);
 
         TestingSpillingInfoProvider spillInfoProvider =
                 TestingSpillingInfoProvider.builder()
@@ -129,15 +113,11 @@ class HsFullSpillingStrategyTest {
                         .addSubpartitionBuffers(subpartition1, subpartitionBuffers1)
                         .addSubpartitionBuffers(subpartition2, subpartitionBuffers2)
                         .addSpillBuffers(subpartition1, Arrays.asList(0, 1, 2, 3))
-                        .addConsumedBuffers(subpartition1, Arrays.asList(0, 1))
                         .addSpillBuffers(subpartition2, Arrays.asList(1, 2, 3))
-                        .addConsumedBuffers(subpartition2, Arrays.asList(0, 1))
                         .setGetNumTotalUnSpillBuffersSupplier(
                                 () -> (int) (10 * NUM_BUFFERS_TRIGGER_SPILLING_RATIO))
                         .setGetNumTotalRequestedBuffersSupplier(() -> 10)
                         .setGetPoolSizeSupplier(() -> 10)
-                        .setGetNextBufferIndexToConsumeSupplier(
-                                () -> Arrays.asList(progress1, progress2))
                         .build();
 
         Decision decision = spillStrategy.decideActionWithGlobalInfo(spillInfoProvider);
@@ -151,45 +131,11 @@ class HsFullSpillingStrategyTest {
         assertThat(decision.getBufferToSpill()).isEqualTo(expectedSpillBuffers);
 
         Map<Integer, List<BufferIndexAndChannel>> expectedReleaseBuffers = new HashMap<>();
-        // all consumed spill buffers should release.
         expectedReleaseBuffers.put(
-                subpartition1, new ArrayList<>(subpartitionBuffers1.subList(0, 2)));
-        // priority higher buffers should release.
-        expectedReleaseBuffers.get(subpartition1).addAll(subpartitionBuffers1.subList(3, 4));
-        // all consumed spill buffers should release.
+                subpartition1, new ArrayList<>(subpartitionBuffers1.subList(0, 3)));
         expectedReleaseBuffers.put(
-                subpartition2, new ArrayList<>(subpartitionBuffers2.subList(1, 2)));
-        // priority higher buffers should release.
-        expectedReleaseBuffers.get(subpartition2).addAll(subpartitionBuffers2.subList(2, 4));
+                subpartition2, new ArrayList<>(subpartitionBuffers2.subList(1, 4)));
         assertThat(decision.getBufferToRelease()).isEqualTo(expectedReleaseBuffers);
-    }
-
-    /** All consumed buffers that already spill should release regardless of the release ratio. */
-    @Test
-    void testDecideActionWithGlobalInfoAllConsumedSpillBufferShouldRelease() {
-        final int subpartitionId = 0;
-        List<BufferIndexAndChannel> subpartitionBuffers =
-                createBufferIndexAndChannelsList(subpartitionId, 0, 1, 2, 3, 4);
-
-        final int poolSize = 5;
-        TestingSpillingInfoProvider spillInfoProvider =
-                TestingSpillingInfoProvider.builder()
-                        .setGetNumSubpartitionsSupplier(() -> 1)
-                        .addSubpartitionBuffers(subpartitionId, subpartitionBuffers)
-                        .addSpillBuffers(subpartitionId, Arrays.asList(0, 1, 2, 3, 4))
-                        .addConsumedBuffers(subpartitionId, Arrays.asList(0, 1, 2, 3))
-                        .setGetNumTotalUnSpillBuffersSupplier(() -> 0)
-                        .setGetNumTotalRequestedBuffersSupplier(() -> poolSize)
-                        .setGetPoolSizeSupplier(() -> poolSize)
-                        .build();
-
-        int numReleaseBuffer = (int) (poolSize * FULL_SPILL_RELEASE_RATIO);
-        Decision decision = spillStrategy.decideActionWithGlobalInfo(spillInfoProvider);
-        assertThat(decision.getBufferToSpill()).isEmpty();
-        assertThat(decision.getBufferToRelease())
-                .containsOnly(entry(subpartitionId, subpartitionBuffers.subList(0, 4)))
-                .extractingByKey(subpartitionId)
-                .satisfies((buffers) -> assertThat(buffers).hasSizeGreaterThan(numReleaseBuffer));
     }
 
     @Test

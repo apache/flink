@@ -39,6 +39,7 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 import org.apache.calcite.util.mapping.Mappings.TargetMapping;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,11 +63,11 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  * supported types in the aggregation function again.
  */
 @Internal
+@Value.Enclosing
 public class WrapJsonAggFunctionArgumentsRule
         extends RelRule<WrapJsonAggFunctionArgumentsRule.Config> {
 
-    public static final RelOptRule INSTANCE =
-            Config.EMPTY.as(Config.class).onJsonAggregateFunctions().toRule();
+    public static final RelOptRule INSTANCE = new WrapJsonAggFunctionArgumentsRule(Config.DEFAULT);
 
     /** Marker hint that a call has already been transformed. */
     private static final RelHint MARKER_HINT =
@@ -165,7 +166,13 @@ public class WrapJsonAggFunctionArgumentsRule
     // ---------------------------------------------------------------------------------------------
 
     /** Configuration for {@link WrapJsonAggFunctionArgumentsRule}. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
+        Config DEFAULT =
+                ImmutableWrapJsonAggFunctionArgumentsRule.Config.builder()
+                        .build()
+                        .as(Config.class)
+                        .onJsonAggregateFunctions();
 
         @Override
         default RelOptRule toRule() {

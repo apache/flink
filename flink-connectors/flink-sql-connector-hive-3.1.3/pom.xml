@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-connector-hive-3.1.3_${scala.binary.version}</artifactId>
@@ -67,6 +67,14 @@ under the License.
 					<groupId>org.apache.avro</groupId>
 					<artifactId>avro</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -98,7 +106,21 @@ under the License.
 					<groupId>org.apache.avro</groupId>
 					<artifactId>avro-mapred</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libfb303</artifactId>
+			<version>0.9.3</version>
 		</dependency>
 
 		<!-- avro is included in hive-exec. we use the same dependencies but with a different version -->
@@ -151,8 +173,8 @@ under the License.
 										<exclude>avro/shaded/com/google/**</exclude>
 										<exclude>org/apache/avro/**</exclude>
 										<exclude>META-INF/maven/org.apache.avro/**</exclude>
-										<exclude>org/apache/hadoop/hive/conf/HiveConf*</exclude>
-										<exclude>org/apache/hadoop/hive/metastore/HiveMetaStoreClient*</exclude>
+										<exclude>org/apache/hadoop/hive/conf/HiveConf.class</exclude>
+										<exclude>org/apache/hadoop/hive/metastore/HiveMetaStoreClient.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -160,6 +182,7 @@ under the License.
 								<includes>
 									<include>org.apache.flink:flink-connector-hive_${scala.binary.version}</include>
 									<include>org.apache.hive:hive-exec</include>
+									<include>org.apache.thrift:libfb303</include>
 									<include>org.antlr:antlr-runtime</include>
 									<include>org.apache.avro:avro</include>
 									<include>org.apache.avro:avro-mapred</include>

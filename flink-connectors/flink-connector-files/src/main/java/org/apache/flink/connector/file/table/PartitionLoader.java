@@ -75,8 +75,18 @@ public class PartitionLoader implements Closeable {
         this.policies = policies;
     }
 
-    /** Load a single partition. */
-    public void loadPartition(LinkedHashMap<String, String> partSpec, List<Path> srcDirs)
+    /**
+     * Load a single partition.
+     *
+     * @param partSpec the specification for the single partition
+     * @param srcPaths the paths for the files used to load to the single partition
+     * @param srcPathIsDir whether the every path in {@param srcPaths} is directory or not. If true,
+     *     it will load the files under the directory of the every path. If false, every path in
+     *     {@param srcPaths} is considered as single file, and it will load the single file for
+     *     every path.
+     */
+    public void loadPartition(
+            LinkedHashMap<String, String> partSpec, List<Path> srcPaths, boolean srcPathIsDir)
             throws Exception {
         Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
         Path path =
@@ -86,14 +96,22 @@ public class PartitionLoader implements Closeable {
                                         metaStore.getLocationPath(),
                                         generatePartitionPath(partSpec)));
 
-        overwriteAndMoveFiles(srcDirs, path);
+        overwriteAndMoveFiles(srcPaths, path, srcPathIsDir);
         commitPartition(partSpec, path);
     }
 
-    /** Load a non-partition files to output path. */
-    public void loadNonPartition(List<Path> srcDirs) throws Exception {
+    /**
+     * Load a non-partition files to output path.
+     *
+     * @param srcPaths the paths for the files used to load to the single partition
+     * @param srcPathIsDir whether the every path in {@param srcPaths} is directory or not. If true,
+     *     it will load the files under the directory of the every path. If false, every path in
+     *     {@param srcPaths} is considered as single file, and it will load the single file for
+     *     every path.
+     */
+    public void loadNonPartition(List<Path> srcPaths, boolean srcPathIsDir) throws Exception {
         Path tableLocation = metaStore.getLocationPath();
-        overwriteAndMoveFiles(srcDirs, tableLocation);
+        overwriteAndMoveFiles(srcPaths, tableLocation, srcPathIsDir);
         commitPartition(new LinkedHashMap<>(), tableLocation);
         metaStore.finishWritingTable(tableLocation);
     }
@@ -125,12 +143,13 @@ public class PartitionLoader implements Closeable {
         commitPartition(partSpec, path);
     }
 
-    private void overwriteAndMoveFiles(List<Path> srcDirs, Path destDir) throws Exception {
+    private void overwriteAndMoveFiles(List<Path> srcPaths, Path destDir, boolean srcPathIsDir)
+            throws Exception {
         FileSystem destFileSystem = destDir.getFileSystem();
         boolean dirSuccessExist = destFileSystem.exists(destDir) || destFileSystem.mkdirs(destDir);
         Preconditions.checkState(dirSuccessExist, "Failed to create dest path " + destDir);
         overwrite(destDir);
-        moveFiles(srcDirs, destDir);
+        moveFiles(srcPaths, destDir, srcPathIsDir);
     }
 
     private void overwrite(Path destDir) throws Exception {
@@ -148,23 +167,35 @@ public class PartitionLoader implements Closeable {
     }
 
     /** Moves files from srcDir to destDir. */
-    private void moveFiles(List<Path> srcDirs, Path destDir) throws Exception {
-        for (Path srcDir : srcDirs) {
-            if (!srcDir.equals(destDir)) {
-                FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
-                if (srcFiles != null) {
-                    for (FileStatus srcFile : srcFiles) {
-                        Path srcPath = srcFile.getPath();
-                        Path destPath = new Path(destDir, srcPath.getName());
-                        // if it's not to move to local file system, just rename it
-                        if (!isToLocal) {
-                            fs.rename(srcPath, destPath);
-                        } else {
-                            FileUtils.copy(srcPath, destPath, true);
+    private void moveFiles(List<Path> srcPaths, Path destDir, boolean srcPathIsDir)
+            throws Exception {
+        if (srcPathIsDir) {
+            // if the src path is still a directory, list the directory to get the files that needed
+            // to be moved.
+            for (Path srcDir : srcPaths) {
+                if (!srcDir.equals(destDir)) {
+                    FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
+                    if (srcFiles != null) {
+                        for (FileStatus srcFile : srcFiles) {
+                            moveFile(srcFile.getPath(), destDir);
                         }
                     }
                 }
             }
+        } else {
+            for (Path srcPath : srcPaths) {
+                moveFile(srcPath, destDir);
+            }
+        }
+    }
+
+    private void moveFile(Path srcPath, Path destDir) throws Exception {
+        Path destPath = new Path(destDir, srcPath.getName());
+        // if it's not to move to local file system, just rename it
+        if (!isToLocal) {
+            fs.rename(srcPath, destPath);
+        } else {
+            FileUtils.copy(srcPath, destPath, true);
         }
     }
 

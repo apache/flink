@@ -24,6 +24,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
@@ -42,7 +43,6 @@ import javax.annotation.Nullable;
 import java.net.URI;
 import java.time.Duration;
 
-import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
@@ -65,86 +65,76 @@ public class CheckpointConfig implements java.io.Serializable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointConfig.class);
 
-    /** The default checkpoint mode: exactly once. */
-    public static final CheckpointingMode DEFAULT_MODE = CheckpointingMode.EXACTLY_ONCE;
-
-    /** The default timeout of a checkpoint attempt: 10 minutes. */
-    public static final long DEFAULT_TIMEOUT = 10 * 60 * 1000;
-
-    /** The default minimum pause to be made between checkpoints: none. */
-    public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS = 0;
-
-    /** The default limit of concurrently happening checkpoints: one. */
-    public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
-
-    public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
-
-    /** Default id of checkpoint for which in-flight data should be ignored on recovery. */
-    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA = -1;
-
-    // ------------------------------------------------------------------------
-
-    /** Checkpointing mode (exactly-once vs. at-least-once). */
-    private CheckpointingMode checkpointingMode = DEFAULT_MODE;
-
-    /** Periodic checkpoint triggering interval. */
-    private long checkpointInterval = -1; // disabled
-
-    /** Maximum time checkpoint may take before being discarded. */
-    private long checkpointTimeout = DEFAULT_TIMEOUT;
-
-    /** Minimal pause between checkpointing attempts. */
-    private long minPauseBetweenCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS;
-
-    /** Maximum number of checkpoint attempts in progress at the same time. */
-    private int maxConcurrentCheckpoints = DEFAULT_MAX_CONCURRENT_CHECKPOINTS;
-
-    /** Flag to force checkpointing in iterative jobs. */
-    private boolean forceCheckpointing;
-
-    /** Flag to force checkpointing in iterative jobs. */
-    private boolean forceUnalignedCheckpoints;
-
-    /** Flag to enable unaligned checkpoints. */
-    private boolean unalignedCheckpointsEnabled;
-
-    /** Id of checkpoint for which in-flight data should be ignored on recovery. */
-    private long checkpointIdOfIgnoredInFlightData =
-            DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
-
-    /** The delay from the start of checkpoint after which AC switches to UC. */
-    private Duration alignedCheckpointTimeout =
-            ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT.defaultValue();
-
-    /** Flag to enable approximate local recovery. */
-    private boolean approximateLocalRecovery;
-
-    /** Cleanup behaviour for persistent checkpoints. */
-    private ExternalizedCheckpointCleanup externalizedCheckpointCleanup =
-            ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT.defaultValue();
+    @Deprecated
+    /**
+     * The default checkpoint mode: exactly once.
+     *
+     * @deprecated This field is no longer used. Please use {@link
+     *     ExecutionCheckpointingOptions.CHECKPOINTING_MODE} instead.
+     */
+    public static final CheckpointingMode DEFAULT_MODE =
+            ExecutionCheckpointingOptions.CHECKPOINTING_MODE.defaultValue();
 
     /**
-     * Task would not fail if there is an error in their checkpointing.
+     * The default timeout of a checkpoint attempt: 10 minutes.
      *
-     * <p>{@link #tolerableCheckpointFailureNumber} would always overrule this deprecated field if
-     * they have conflicts.
-     *
-     * @deprecated Use {@link #tolerableCheckpointFailureNumber}.
+     * @deprecated This field is no longer used. Please use {@link
+     *     ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT} instead.
      */
-    @Deprecated private boolean failOnCheckpointingErrors = true;
+    @Deprecated
+    public static final long DEFAULT_TIMEOUT =
+            ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue().toMillis();
 
     /**
-     * Determines the threshold that we tolerance declined checkpoint failure number. The default
-     * value is -1 meaning undetermined and not set via {@link
-     * #setTolerableCheckpointFailureNumber(int)}.
+     * The default minimum pause to be made between checkpoints: none.
+     *
+     * @deprecated This field is no longer used. Please use {@link
+     *     ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS} instead.
      */
-    private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
+    @Deprecated
+    public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS =
+            ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS.defaultValue().toMillis();
+
+    /**
+     * The default limit of concurrently happening checkpoints: one.
+     *
+     * @deprecated This field is no longer used. Please use {@link
+     *     ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS} instead.
+     */
+    @Deprecated
+    public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS =
+            ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue();
+
+    /** @deprecated This field is no longer used. */
+    @Deprecated public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
+
+    /**
+     * Default id of checkpoint for which in-flight data should be ignored on recovery.
+     *
+     * @deprecated This field is no longer used. Please use {@link
+     *     ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
+     */
+    @Deprecated
+    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
+            ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA
+                    .defaultValue()
+                    .intValue();
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * In the long run, this field should be somehow merged with the {@link Configuration} from
+     * {@link StreamExecutionEnvironment}.
+     */
+    private final Configuration configuration;
 
     /**
      * The checkpoint storage for this application. This field is marked as transient because it may
      * contain user-code.
+     *
+     * @deprecated this should be moved somehow to {@link #configuration}.
      */
-    private transient CheckpointStorage storage;
+    @Deprecated private transient CheckpointStorage storage;
 
     /**
      * Creates a deep copy of the provided {@link CheckpointConfig}.
@@ -154,30 +144,19 @@ public class CheckpointConfig implements java.io.Serializable {
     public CheckpointConfig(final CheckpointConfig checkpointConfig) {
         checkNotNull(checkpointConfig);
 
-        this.checkpointInterval = checkpointConfig.checkpointInterval;
-        this.checkpointingMode = checkpointConfig.checkpointingMode;
-        this.checkpointTimeout = checkpointConfig.checkpointTimeout;
-        this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
-        this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
-        this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
-        this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
-        this.alignedCheckpointTimeout = checkpointConfig.alignedCheckpointTimeout;
-        this.approximateLocalRecovery = checkpointConfig.isApproximateLocalRecoveryEnabled();
-        this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
-        this.forceCheckpointing = checkpointConfig.forceCheckpointing;
-        this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
+        this.configuration = new Configuration(checkpointConfig.configuration);
         this.storage = checkpointConfig.getCheckpointStorage();
-        this.checkpointIdOfIgnoredInFlightData =
-                checkpointConfig.getCheckpointIdOfIgnoredInFlightData();
     }
 
-    public CheckpointConfig() {}
+    public CheckpointConfig() {
+        configuration = new Configuration();
+    }
 
     // ------------------------------------------------------------------------
 
     /** Disables checkpointing. */
     public void disableCheckpointing() {
-        this.checkpointInterval = -1;
+        configuration.removeConfig(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL);
     }
 
     /**
@@ -186,7 +165,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return True if checkpointing is enables, false otherwise.
      */
     public boolean isCheckpointingEnabled() {
-        return checkpointInterval > 0;
+        return getCheckpointInterval() > 0;
     }
 
     /**
@@ -195,7 +174,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The checkpointing mode.
      */
     public CheckpointingMode getCheckpointingMode() {
-        return checkpointingMode;
+        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE);
     }
 
     /**
@@ -204,7 +183,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @param checkpointingMode The checkpointing mode.
      */
     public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
-        this.checkpointingMode = requireNonNull(checkpointingMode);
+        configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, checkpointingMode);
     }
 
     /**
@@ -216,7 +195,10 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The checkpoint interval, in milliseconds.
      */
     public long getCheckpointInterval() {
-        return checkpointInterval;
+        return configuration
+                .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
+                .map(Duration::toMillis)
+                .orElse(-1L);
     }
 
     /**
@@ -235,7 +217,9 @@ public class CheckpointConfig implements java.io.Serializable {
                             "Checkpoint interval must be larger than or equal to %s ms",
                             MINIMAL_CHECKPOINT_TIME));
         }
-        this.checkpointInterval = checkpointInterval;
+        configuration.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                Duration.ofMillis(checkpointInterval));
     }
 
     /**
@@ -244,7 +228,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The checkpoint timeout, in milliseconds.
      */
     public long getCheckpointTimeout() {
-        return checkpointTimeout;
+        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT).toMillis();
     }
 
     /**
@@ -259,7 +243,9 @@ public class CheckpointConfig implements java.io.Serializable {
                             "Checkpoint timeout must be larger than or equal to %s ms",
                             MINIMAL_CHECKPOINT_TIME));
         }
-        this.checkpointTimeout = checkpointTimeout;
+        configuration.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT,
+                Duration.ofMillis(checkpointTimeout));
     }
 
     /**
@@ -271,7 +257,9 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The minimal pause before the next checkpoint is triggered.
      */
     public long getMinPauseBetweenCheckpoints() {
-        return minPauseBetweenCheckpoints;
+        return configuration
+                .get(ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS)
+                .toMillis();
     }
 
     /**
@@ -290,7 +278,9 @@ public class CheckpointConfig implements java.io.Serializable {
         if (minPauseBetweenCheckpoints < 0) {
             throw new IllegalArgumentException("Pause value must be zero or positive");
         }
-        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        configuration.set(
+                ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS,
+                Duration.ofMillis(minPauseBetweenCheckpoints));
     }
 
     /**
@@ -302,7 +292,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The maximum number of concurrent checkpoint attempts.
      */
     public int getMaxConcurrentCheckpoints() {
-        return maxConcurrentCheckpoints;
+        return configuration.get(ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS);
     }
 
     /**
@@ -318,7 +308,8 @@ public class CheckpointConfig implements java.io.Serializable {
             throw new IllegalArgumentException(
                     "The maximum number of concurrent attempts must be at least one.");
         }
-        this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+        configuration.set(
+                ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, maxConcurrentCheckpoints);
     }
 
     /**
@@ -331,7 +322,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     @PublicEvolving
     public boolean isForceCheckpointing() {
-        return forceCheckpointing;
+        return configuration.get(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING);
     }
 
     /**
@@ -344,7 +335,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     @PublicEvolving
     public void setForceCheckpointing(boolean forceCheckpointing) {
-        this.forceCheckpointing = forceCheckpointing;
+        configuration.set(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING, forceCheckpointing);
     }
 
     /**
@@ -354,7 +345,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public boolean isForceUnalignedCheckpoints() {
-        return forceUnalignedCheckpoints;
+        return configuration.get(ExecutionCheckpointingOptions.FORCE_UNALIGNED);
     }
 
     /**
@@ -365,7 +356,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public void setForceUnalignedCheckpoints(boolean forceUnalignedCheckpoints) {
-        this.forceUnalignedCheckpoints = forceUnalignedCheckpoints;
+        configuration.set(ExecutionCheckpointingOptions.FORCE_UNALIGNED, forceUnalignedCheckpoints);
     }
 
     /**
@@ -379,7 +370,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated
     public boolean isFailOnCheckpointingErrors() {
-        return failOnCheckpointingErrors;
+        return getTolerableCheckpointFailureNumber() == 0;
     }
 
     /**
@@ -397,19 +388,21 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated
     public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
-        if (tolerableCheckpointFailureNumber != UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
+        if (configuration
+                .getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
+                .isPresent()) {
             LOG.warn(
-                    "Since tolerableCheckpointFailureNumber has been configured as {}, deprecated #setFailOnCheckpointingErrors(boolean) "
-                            + "method would not take any effect and please use #setTolerableCheckpointFailureNumber(int) method to "
+                    "Since ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER has been configured as {}, deprecated "
+                            + "#setFailOnCheckpointingErrors(boolean) method would not take any effect and please use "
+                            + "#setTolerableCheckpointFailureNumber(int) method to "
                             + "determine your expected behaviour when checkpoint errors on task side.",
-                    tolerableCheckpointFailureNumber);
+                    getTolerableCheckpointFailureNumber());
             return;
         }
-        this.failOnCheckpointingErrors = failOnCheckpointingErrors;
         if (failOnCheckpointingErrors) {
-            this.tolerableCheckpointFailureNumber = 0;
+            setTolerableCheckpointFailureNumber(0);
         } else {
-            this.tolerableCheckpointFailureNumber = UNLIMITED_TOLERABLE_FAILURE_NUMBER;
+            setTolerableCheckpointFailureNumber(UNLIMITED_TOLERABLE_FAILURE_NUMBER);
         }
     }
 
@@ -417,15 +410,14 @@ public class CheckpointConfig implements java.io.Serializable {
      * Get the defined number of consecutive checkpoint failures that will be tolerated, before the
      * whole job is failed over.
      *
-     * <p>If the {@link #tolerableCheckpointFailureNumber} has not been configured, this method
-     * would return 0 which means the checkpoint failure manager would not tolerate any declined
-     * checkpoint failure.
+     * <p>If the {@link ExecutionCheckpointingOptions#TOLERABLE_FAILURE_NUMBER} has not been
+     * configured, this method would return 0 which means the checkpoint failure manager would not
+     * tolerate any declined checkpoint failure.
      */
     public int getTolerableCheckpointFailureNumber() {
-        if (tolerableCheckpointFailureNumber == UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
-            return 0;
-        }
-        return tolerableCheckpointFailureNumber;
+        return configuration
+                .getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
+                .orElse(0);
     }
 
     /**
@@ -438,7 +430,9 @@ public class CheckpointConfig implements java.io.Serializable {
             throw new IllegalArgumentException(
                     "The tolerable failure checkpoint number must be non-negative.");
         }
-        this.tolerableCheckpointFailureNumber = tolerableCheckpointFailureNumber;
+        configuration.set(
+                ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER,
+                tolerableCheckpointFailureNumber);
     }
 
     /**
@@ -458,13 +452,13 @@ public class CheckpointConfig implements java.io.Serializable {
      * (terminating with job status {@link JobStatus#CANCELED}).
      *
      * <p>The target directory for externalized checkpoints is configured via {@link
-     * org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
+     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
      *
      * @param cleanupMode Externalized checkpoint clean-up behaviour.
      */
     @PublicEvolving
     public void setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup cleanupMode) {
-        this.externalizedCheckpointCleanup = checkNotNull(cleanupMode);
+        configuration.set(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT, cleanupMode);
     }
 
     /**
@@ -484,7 +478,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * (terminating with job status {@link JobStatus#CANCELED}).
      *
      * <p>The target directory for externalized checkpoints is configured via {@link
-     * org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
+     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
      *
      * @param cleanupMode Externalized checkpoint clean-up behaviour.
      * @deprecated use {@link #setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup)}
@@ -493,7 +487,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     @Deprecated
     public void enableExternalizedCheckpoints(ExternalizedCheckpointCleanup cleanupMode) {
-        this.externalizedCheckpointCleanup = checkNotNull(cleanupMode);
+        setExternalizedCheckpointCleanup(cleanupMode);
     }
 
     /**
@@ -503,7 +497,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public boolean isExternalizedCheckpointsEnabled() {
-        return externalizedCheckpointCleanup
+        return getExternalizedCheckpointCleanup()
                 != ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS;
     }
 
@@ -515,14 +509,14 @@ public class CheckpointConfig implements java.io.Serializable {
      * becomes independent of the current throughput as checkpoint barriers are effectively not
      * embedded into the stream of data anymore.
      *
-     * <p>Unaligned checkpoints can only be enabled if {@link #checkpointingMode} is {@link
-     * CheckpointingMode#EXACTLY_ONCE}.
+     * <p>Unaligned checkpoints can only be enabled if {@link
+     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE} is {@link CheckpointingMode#EXACTLY_ONCE}.
      *
      * @param enabled Flag to indicate whether unaligned are enabled.
      */
     @PublicEvolving
     public void enableUnalignedCheckpoints(boolean enabled) {
-        unalignedCheckpointsEnabled = enabled;
+        configuration.set(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
     }
 
     /**
@@ -533,8 +527,8 @@ public class CheckpointConfig implements java.io.Serializable {
      * becomes independent of the current throughput as checkpoint barriers are effectively not
      * embedded into the stream of data anymore.
      *
-     * <p>Unaligned checkpoints can only be enabled if {@link #checkpointingMode} is {@link
-     * CheckpointingMode#EXACTLY_ONCE}.
+     * <p>Unaligned checkpoints can only be enabled if {@link
+     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE} is {@link CheckpointingMode#EXACTLY_ONCE}.
      */
     @PublicEvolving
     public void enableUnalignedCheckpoints() {
@@ -548,26 +542,26 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public boolean isUnalignedCheckpointsEnabled() {
-        return unalignedCheckpointsEnabled;
+        return configuration.get(ExecutionCheckpointingOptions.ENABLE_UNALIGNED);
     }
 
     /**
-     * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
+     * Only relevant if {@link #isUnalignedCheckpointsEnabled} is enabled.
      *
-     * <p>If {@link #alignedCheckpointTimeout} has value equal to <code>0</code>, checkpoints will
-     * always start unaligned.
+     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to
+     * <code>0</code>, checkpoints will always start unaligned.
      *
-     * <p>If {@link #alignedCheckpointTimeout} has value greater then <code>0</code>, checkpoints
-     * will start aligned. If during checkpointing, checkpoint start delay exceeds this {@link
-     * #alignedCheckpointTimeout}, alignment will timeout and checkpoint will start working as
-     * unaligned checkpoint.
+     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value greater then
+     * <code>0</code>, checkpoints will start aligned. If during checkpointing, checkpoint start
+     * delay exceeds this {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT},
+     * alignment will timeout and checkpoint will start working as unaligned checkpoint.
      *
      * @deprecated Use {@link #setAlignedCheckpointTimeout(Duration)} instead.
      */
     @Deprecated
     @PublicEvolving
     public void setAlignmentTimeout(Duration alignmentTimeout) {
-        this.alignedCheckpointTimeout = alignmentTimeout;
+        setAlignedCheckpointTimeout(alignmentTimeout);
     }
 
     /**
@@ -578,7 +572,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     @PublicEvolving
     public Duration getAlignmentTimeout() {
-        return alignedCheckpointTimeout;
+        return getAlignedCheckpointTimeout();
     }
 
     /**
@@ -588,23 +582,49 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public Duration getAlignedCheckpointTimeout() {
-        return alignedCheckpointTimeout;
+        return configuration.get(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT);
     }
 
     /**
-     * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
+     * Only relevant if {@link ExecutionCheckpointingOptions.ENABLE_UNALIGNED} is enabled.
      *
-     * <p>If {@link #alignedCheckpointTimeout} has value equal to <code>0</code>, checkpoints will
-     * always start unaligned.
+     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to
+     * <code>0</code>, checkpoints will
      *
-     * <p>If {@link #alignedCheckpointTimeout} has value greater then <code>0</code>, checkpoints
-     * will start aligned. If during checkpointing, checkpoint start delay exceeds this {@link
-     * #alignedCheckpointTimeout}, alignment will timeout and checkpoint will start working as
-     * unaligned checkpoint.
+     * <p>always start unaligned.
+     *
+     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value greater then
+     * <code>0</code>, checkpoints will start aligned. If during checkpointing, checkpoint start
+     * delay exceeds this {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT},
+     * alignment will timeout and checkpoint will start working as unaligned checkpoint.
      */
     @PublicEvolving
     public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
-        this.alignedCheckpointTimeout = alignedCheckpointTimeout;
+        configuration.set(
+                ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
+    }
+
+    /**
+     * @return the number of subtasks to share the same channel state file, as configured via {@link
+     *     #setMaxSubtasksPerChannelStateFile(int)} or {@link
+     *     ExecutionCheckpointingOptions#UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE}.
+     */
+    @PublicEvolving
+    public int getMaxSubtasksPerChannelStateFile() {
+        return configuration.get(
+                ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE);
+    }
+
+    /**
+     * The number of subtasks to share the same channel state file. If {@link
+     * ExecutionCheckpointingOptions#UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE} has value equal
+     * to <code>1</code>, each subtask will create a new channel state file.
+     */
+    @PublicEvolving
+    public void setMaxSubtasksPerChannelStateFile(int maxSubtasksPerChannelStateFile) {
+        configuration.set(
+                ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
+                maxSubtasksPerChannelStateFile);
     }
 
     /**
@@ -614,7 +634,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public boolean isApproximateLocalRecoveryEnabled() {
-        return approximateLocalRecovery;
+        return configuration.get(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY);
     }
 
     /**
@@ -633,7 +653,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public void enableApproximateLocalRecovery(boolean enabled) {
-        approximateLocalRecovery = enabled;
+        configuration.set(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY, enabled);
     }
 
     /**
@@ -644,7 +664,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
-        return externalizedCheckpointCleanup;
+        return configuration.get(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT);
     }
 
     /**
@@ -732,7 +752,9 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public void setCheckpointIdOfIgnoredInFlightData(long checkpointIdOfIgnoredInFlightData) {
-        this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
+        configuration.set(
+                ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA,
+                checkpointIdOfIgnoredInFlightData);
     }
 
     /**
@@ -741,7 +763,8 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public long getCheckpointIdOfIgnoredInFlightData() {
-        return checkpointIdOfIgnoredInFlightData;
+        return configuration.get(
+                ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
     }
 
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
@@ -842,10 +865,23 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT)
                 .ifPresent(this::setAlignedCheckpointTimeout);
         configuration
+                .getOptional(
+                        ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE)
+                .ifPresent(this::setMaxSubtasksPerChannelStateFile);
+        configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointStorage);
+    }
+
+    /**
+     * @return A copy of internal {@link #configuration}. Note it is missing all options that are
+     *     stored as plain java fields in {@link CheckpointConfig}, for example {@link #storage}.
+     */
+    @Internal
+    public Configuration toConfiguration() {
+        return new Configuration(configuration);
     }
 }

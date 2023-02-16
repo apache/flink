@@ -32,7 +32,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -60,7 +59,6 @@ class CompressionFactoryITCase {
     private final List<String> testData = Arrays.asList("line1", "line2", "line3");
 
     @Test
-    @Timeout(20)
     void testWriteCompressedFile(@TempDir java.nio.file.Path tmpDir) throws Exception {
         final File folder = tmpDir.toFile();
         final Path testPath = Path.fromLocalFile(folder);

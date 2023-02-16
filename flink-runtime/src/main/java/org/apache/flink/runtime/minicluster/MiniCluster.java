@@ -89,8 +89,9 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.security.token.DefaultDelegationTokenManagerFactory;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.security.token.KerberosDelegationTokenManagerFactory;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -198,6 +199,9 @@ public class MiniCluster implements AutoCloseableAsync {
 
     @GuardedBy("lock")
     private DelegationTokenManager delegationTokenManager;
+
+    @GuardedBy("lock")
+    private DelegationTokenReceiverRepository delegationTokenReceiverRepository;
 
     @GuardedBy("lock")
     private BlobCacheService blobCacheService;
@@ -428,11 +432,15 @@ public class MiniCluster implements AutoCloseableAsync {
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
                 delegationTokenManager =
-                        KerberosDelegationTokenManagerFactory.create(
-                                getClass().getClassLoader(),
+                        DefaultDelegationTokenManagerFactory.create(
                                 configuration,
+                                miniClusterConfiguration.getPluginManager(),
                                 commonRpcService.getScheduledExecutor(),
                                 ioExecutor);
+
+                delegationTokenReceiverRepository =
+                        new DelegationTokenReceiverRepository(
+                                configuration, miniClusterConfiguration.getPluginManager());
 
                 blobCacheService =
                         BlobUtils.createBlobCacheService(
@@ -752,7 +760,8 @@ public class MiniCluster implements AutoCloseableAsync {
                             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                             workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
                             taskManagerTerminatingFatalErrorHandlerFactory.create(
-                                    taskManagers.size()));
+                                    taskManagers.size()),
+                            delegationTokenReceiverRepository);
 
             taskExecutor.start();
             taskManagers.add(taskExecutor);
@@ -1103,7 +1112,8 @@ public class MiniCluster implements AutoCloseableAsync {
             Configuration config, long maximumMessageSizeInBytes) {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
-                ReporterSetup.fromConfiguration(config, null));
+                ReporterSetup.fromConfiguration(
+                        config, miniClusterConfiguration.getPluginManager()));
     }
 
     /**
@@ -1341,6 +1351,13 @@ public class MiniCluster implements AutoCloseableAsync {
                         metaInfoMapFuture ->
                                 metaInfoMapFuture.thenApply(
                                         metaInfoMap -> new HashSet<>(metaInfoMap.keySet())));
+    }
+
+    public CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.reportJobClientHeartbeat(
+                                jobId, expiredTimestamp, rpcTimeout));
     }
 
     /** Internal factory for {@link RpcService}. */

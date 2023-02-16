@@ -34,10 +34,11 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpUtil;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
@@ -58,8 +59,8 @@ import java.nio.channels.FileChannel;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -119,7 +120,7 @@ public class HandlerUtils {
 
         return sendErrorResponse(
                 channelHandlerContext,
-                HttpHeaders.isKeepAlive(httpRequest),
+                HttpUtil.isKeepAlive(httpRequest),
                 errorMessage,
                 statusCode,
                 headers);
@@ -175,7 +176,7 @@ public class HandlerUtils {
 
         return sendResponse(
                 channelHandlerContext,
-                HttpHeaders.isKeepAlive(httpRequest),
+                HttpUtil.isKeepAlive(httpRequest),
                 message,
                 statusCode,
                 headers);
@@ -205,12 +206,12 @@ public class HandlerUtils {
         }
 
         if (keepAlive) {
-            response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
         }
 
         byte[] buf = message.getBytes(ConfigConstants.DEFAULT_CHARSET);
         ByteBuf b = Unpooled.copiedBuffer(buf);
-        HttpHeaders.setContentLength(response, buf.length);
+        HttpUtil.setContentLength(response, buf.length);
 
         // write the initial line and the header.
         channelHandlerContext.write(response);
@@ -247,10 +248,10 @@ public class HandlerUtils {
                 HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
                 response.headers().set(CONTENT_TYPE, "text/plain");
 
-                if (HttpHeaders.isKeepAlive(httpRequest)) {
-                    response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                if (HttpUtil.isKeepAlive(httpRequest)) {
+                    response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
                 }
-                HttpHeaders.setContentLength(response, fileLength);
+                HttpUtil.setContentLength(response, fileLength);
 
                 // write the initial line and the header.
                 ctx.write(response);
@@ -283,7 +284,7 @@ public class HandlerUtils {
                 }
 
                 // close the connection, if no keep-alive is needed
-                if (!HttpHeaders.isKeepAlive(httpRequest)) {
+                if (!HttpUtil.isKeepAlive(httpRequest)) {
                     lastContentFuture.addListener(ChannelFutureListener.CLOSE);
                 }
             } catch (IOException ex) {

@@ -70,7 +70,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -106,6 +106,7 @@ stages:
           stage_name: cron_snapshot_deployment
           environment: PROFILE=""
           container: flink-build-container
+          jdk: 8
       - template: jobs-template.yml
         parameters:
           stage_name: cron_azure
@@ -113,7 +114,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -124,7 +125,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dinclude_hadoop_aws -Dflink.hadoop.version=3.1.3 -Phadoop3-tests,hive3"
+          environment: PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -135,7 +136,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Djdk11 -Pjava11-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 11
@@ -146,7 +147,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Penable-adaptive-scheduler"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Penable-adaptive-scheduler"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -161,5 +162,5 @@ stages:
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
           container: flink-build-container

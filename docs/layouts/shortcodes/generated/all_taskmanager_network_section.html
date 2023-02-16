@@ -33,6 +33,18 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max</h5></td>
+            <td style="word-wrap: break-word;">1048576</td>
+            <td>Long</td>
+            <td>Controls the max number of hybrid retained regions in memory.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.spill-index-segment-size</h5></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>Integer</td>
+            <td>Controls the segment size(in bytes) of hybrid spilled file data index.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -72,13 +84,13 @@
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
-            <td>Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/input channel) in the credit-based flow control model. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization. The minimum valid value that can be configured is 0. When 0 buffers-per-channel is configured, the exclusive network buffers used per downstream incoming channel will be 0, but for each upstream outgoing channel, max(1, configured value) will be used. In other words we ensure that, for performance reasons, there is at least one buffer per outgoing channel regardless of the configuration.</td>
+            <td>Number of exclusive network buffers for each outgoing/incoming channel (subpartition/input channel) in the credit-based flow control model. For the outgoing channel(subpartition), this value is the effective exclusive buffers per channel. For the incoming channel(input channel), this value is the max number of exclusive buffers per channel, the number of effective exclusive network buffers per channel is dynamically calculated from taskmanager.network.memory.read-buffer.required-per-gate.max and the effective range is from 0 to the configured value. The minimum valid value for the option is 0. When the option is configured as 0, the exclusive network buffers used by downstream incoming channel will be 0, but for each upstream outgoing channel, max(1, configured value) will be used. In other words, we ensure that, for performance reasons, at least one buffer is used per outgoing channel regardless of the configuration.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>
             <td style="word-wrap: break-word;">8</td>
             <td>Integer</td>
-            <td>Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels. The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.</td>
+            <td>Number of floating network buffers for each outgoing/incoming gate (result partition/input gate). In credit-based flow control mode, this indicates how many floating credits are shared among all the channels. The floating buffers can help relieve back-pressure caused by unbalanced data distribution among the subpartitions. For the outgoing gate(result partition), this value is the effective floating buffers per gate. For the incoming gate(input gate), this value is a recommended number of floating buffers, the number of effective floating network buffers per gate is dynamically calculated from taskmanager.network.memory.read-buffer.required-per-gate.max and the range of effective floating buffers is from 0 to (parallelism - 1).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.max-buffers-per-channel</h5></td>
@@ -91,6 +103,12 @@
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
             <td>Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers will be used when the subtask cannot apply to the normal buffers  due to back pressure, while subtask is performing an action that can not be interrupted in the middle,  like serializing a large record, flatMap operator producing multiple records for one single input record or processing time timer producing large output. In situations like that system will allow subtask to request overdraft buffers, so that the subtask can finish such uninterruptible action, without blocking unaligned checkpoints for long period of time. Overdraft buffers are provided on best effort basis only if the system has some unused buffers available. Subtask that has used overdraft buffers won't be allowed to process any more records until the overdraft buffers are returned to the pool.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.read-buffer.required-per-gate.max</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The maximum number of network read buffers that are required by an input gate. (An input gate is responsible for reading data from all subtasks of an upstream task.) The number of buffers needed by an input gate is dynamically calculated in runtime, depending on various factors (e.g., the parallelism of the upstream task). Among the calculated number of needed buffers, the part below this configured value is required, while the excess part, if any, is optional. A task will fail if the required buffers cannot be obtained in runtime. A task will not fail due to not obtaining optional buffers, but may suffer a performance reduction. If not explicitly configured, the default value is Integer.MAX_VALUE for streaming workloads, and 1000 for batch workloads. If explicitly configured, the configured value should be at least 1.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.netty.client.connectTimeoutSec</h5></td>

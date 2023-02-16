@@ -687,7 +687,7 @@ public class FutureUtils {
      * the Futures in the conjunction fails.
      *
      * <p>The advantage of using the ConjunctFuture over chaining all the futures (such as via
-     * {@link CompletableFuture#thenCombine(CompletionStage, BiFunction)} )}) is that ConjunctFuture
+     * {@link CompletableFuture#thenCombine(CompletionStage, BiFunction)}) is that ConjunctFuture
      * also tracks how many of the Futures are already complete.
      */
     public abstract static class ConjunctFuture<T> extends CompletableFuture<T> {

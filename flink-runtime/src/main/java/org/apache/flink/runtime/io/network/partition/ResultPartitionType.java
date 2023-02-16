@@ -91,16 +91,14 @@ public enum ResultPartitionType {
      *
      * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
      *
-     * <p>HYBRID_FULL partitions can be consumed repeatedly, but it does not support concurrent
-     * consumption. So re-consumable is false, but double calculation can be avoided during
+     * <p>HYBRID_FULL partitions is re-consumable, so double calculation can be avoided during
      * failover.
      */
-    // TODO support re-consumable for HYBRID_FULL resultPartitionType.
-    HYBRID_FULL(false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER),
+    HYBRID_FULL(true, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER),
 
     /**
-     * HYBRID_SELECTIVE partitions are similar to {@link #HYBRID_FULL} partitions, but it cannot be
-     * consumed repeatedly.
+     * HYBRID_SELECTIVE partitions are similar to {@link #HYBRID_FULL} partitions, but it is not
+     * re-consumable.
      */
     HYBRID_SELECTIVE(
             false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
@@ -188,6 +186,21 @@ public enum ResultPartitionType {
      */
     public boolean isBlockingOrBlockingPersistentResultPartition() {
         return this == BLOCKING || this == BLOCKING_PERSISTENT;
+    }
+
+    /**
+     * {@link #isHybridResultPartition()} is used to judge whether it is the specified {@link
+     * #HYBRID_FULL} or {@link #HYBRID_SELECTIVE} resultPartitionType.
+     *
+     * <p>this method suitable for judgment conditions related to the specific implementation of
+     * {@link ResultPartitionType}.
+     *
+     * <p>this method not related to data consumption and partition release. As for the logic
+     * related to partition release, use {@link #isReleaseByScheduler()} instead, and as consume
+     * type, use {@link #mustBePipelinedConsumed()} or {@link #canBePipelinedConsumed()} instead.
+     */
+    public boolean isHybridResultPartition() {
+        return this == HYBRID_FULL || this == HYBRID_SELECTIVE;
     }
 
     /**

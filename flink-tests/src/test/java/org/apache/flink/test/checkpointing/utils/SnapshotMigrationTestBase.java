@@ -162,7 +162,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
          * @param snapshotType Specifies the snapshot type.
          * @param flinkVersions A collection of {@link FlinkVersion}.
          * @return A collection of {@link SnapshotSpec} that differ only by means of {@link
-         *     FlinkVersion} FlinkVersion}.
+         *     FlinkVersion}.
          */
         public static Collection<SnapshotSpec> withVersions(
                 String stateBackendType,
@@ -268,6 +268,11 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
 
         ClusterClient<?> client = miniClusterResource.getClusterClient();
+
+        // TODO [FLINK-29802] Remove this after ChangelogStateBackend supports native savepoint.
+        if (snapshotType == SnapshotType.SAVEPOINT_NATIVE) {
+            env.enableChangelogStateBackend(false);
+        }
 
         // Submit the job
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();

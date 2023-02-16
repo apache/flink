@@ -58,8 +58,6 @@ public class ProtoToRowConverter {
     public ProtoToRowConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
         try {
-            String outerPrefix =
-                    PbFormatUtils.getOuterProtoPrefix(formatConfig.getMessageClassName());
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
             Class<?> messageClass =
@@ -67,7 +65,7 @@ public class ProtoToRowConverter {
                             formatConfig.getMessageClassName(),
                             true,
                             Thread.currentThread().getContextClassLoader());
-            String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor, outerPrefix);
+            String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor);
             if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
                 // pb3 always read default values
                 formatConfig =
@@ -78,7 +76,7 @@ public class ProtoToRowConverter {
                                 formatConfig.getWriteNullStringLiterals());
             }
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
-            PbFormatContext pbFormatContext = new PbFormatContext(outerPrefix, formatConfig);
+            PbFormatContext pbFormatContext = new PbFormatContext(formatConfig);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();

@@ -19,24 +19,16 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -65,12 +57,10 @@ public class InternalTimersSnapshotReaderWriters {
 
         switch (version) {
             case NO_VERSION:
-                return new InternalTimersSnapshotWriterPreVersioned<>(
-                        timersSnapshot, keySerializer, namespaceSerializer);
-
             case 1:
-                return new InternalTimersSnapshotWriterV1<>(
-                        timersSnapshot, keySerializer, namespaceSerializer);
+                throw new IllegalStateException(
+                        "Since Flink 1.17 not versioned (<= Flink 1.4.0) and version 1 (< Flink 1.8.0) of "
+                                + "InternalTimersSnapshotWriter is no longer supported.");
 
             case InternalTimerServiceSerializationProxy.VERSION:
                 return new InternalTimersSnapshotWriterV2<>(
@@ -147,52 +137,6 @@ public class InternalTimersSnapshotReaderWriters {
         }
     }
 
-    private static class InternalTimersSnapshotWriterPreVersioned<K, N>
-            extends AbstractInternalTimersSnapshotWriter<K, N> {
-
-        public InternalTimersSnapshotWriterPreVersioned(
-                InternalTimersSnapshot<K, N> timersSnapshot,
-                TypeSerializer<K> keySerializer,
-                TypeSerializer<N> namespaceSerializer) {
-            super(timersSnapshot, keySerializer, namespaceSerializer);
-        }
-
-        @Override
-        protected void writeKeyAndNamespaceSerializers(DataOutputView out) throws IOException {
-            // the pre-versioned format only serializes the serializers, without their configuration
-            // snapshots
-            try (ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos()) {
-                InstantiationUtil.serializeObject(stream, keySerializer);
-                InstantiationUtil.serializeObject(stream, namespaceSerializer);
-
-                out.write(stream.getBuf(), 0, stream.getPosition());
-            }
-        }
-    }
-
-    private static class InternalTimersSnapshotWriterV1<K, N>
-            extends AbstractInternalTimersSnapshotWriter<K, N> {
-
-        public InternalTimersSnapshotWriterV1(
-                InternalTimersSnapshot<K, N> timersSnapshot,
-                TypeSerializer<K> keySerializer,
-                TypeSerializer<N> namespaceSerializer) {
-            super(timersSnapshot, keySerializer, namespaceSerializer);
-        }
-
-        @Override
-        protected void writeKeyAndNamespaceSerializers(DataOutputView out) throws IOException {
-            // write key / namespace serializers, and their configuration snapshots
-            TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
-                    out,
-                    Arrays.asList(
-                            Tuple2.of(keySerializer, timersSnapshot.getKeySerializerSnapshot()),
-                            Tuple2.of(
-                                    namespaceSerializer,
-                                    timersSnapshot.getNamespaceSerializerSnapshot())));
-        }
-    }
-
     private static class InternalTimersSnapshotWriterV2<K, N>
             extends AbstractInternalTimersSnapshotWriter<K, N> {
 
@@ -223,10 +167,10 @@ public class InternalTimersSnapshotReaderWriters {
 
         switch (version) {
             case NO_VERSION:
-                return new InternalTimersSnapshotReaderPreVersioned<>(userCodeClassLoader);
-
             case 1:
-                return new InternalTimersSnapshotReaderV1<>(userCodeClassLoader);
+                throw new UnsupportedOperationException(
+                        "Since Flink 1.17 not versioned (<= Flink 1.4.0) and version 1 (< Flink 1.8.0) of "
+                                + "InternalTimersSnapshotReader is no longer supported.");
 
             case InternalTimerServiceSerializationProxy.VERSION:
                 return new InternalTimersSnapshotReaderV2<>(userCodeClassLoader);
@@ -303,60 +247,6 @@ public class InternalTimersSnapshotReaderWriters {
             restoredTimersSnapshot.setProcessingTimeTimers(restoredProcessingTimers);
 
             return restoredTimersSnapshot;
-        }
-    }
-
-    private static class InternalTimersSnapshotReaderPreVersioned<K, N>
-            extends AbstractInternalTimersSnapshotReader<K, N> {
-
-        public InternalTimersSnapshotReaderPreVersioned(ClassLoader userCodeClassLoader) {
-            super(userCodeClassLoader);
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        protected void restoreKeyAndNamespaceSerializers(
-                InternalTimersSnapshot<K, N> restoredTimersSnapshot, DataInputView in)
-                throws IOException {
-
-            DataInputViewStream dis = new DataInputViewStream(in);
-            try {
-                final TypeSerializer<K> keySerializer =
-                        InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true);
-                final TypeSerializer<N> namespaceSerializer =
-                        InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true);
-
-                restoredTimersSnapshot.setKeySerializerSnapshot(
-                        new BackwardsCompatibleSerializerSnapshot<>(keySerializer));
-                restoredTimersSnapshot.setNamespaceSerializerSnapshot(
-                        new BackwardsCompatibleSerializerSnapshot<>(namespaceSerializer));
-            } catch (ClassNotFoundException exception) {
-                throw new IOException(exception);
-            }
-        }
-    }
-
-    private static class InternalTimersSnapshotReaderV1<K, N>
-            extends AbstractInternalTimersSnapshotReader<K, N> {
-
-        public InternalTimersSnapshotReaderV1(ClassLoader userCodeClassLoader) {
-            super(userCodeClassLoader);
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        protected void restoreKeyAndNamespaceSerializers(
-                InternalTimersSnapshot<K, N> restoredTimersSnapshot, DataInputView in)
-                throws IOException {
-
-            List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs =
-                    TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-                            in, userCodeClassLoader);
-
-            restoredTimersSnapshot.setKeySerializerSnapshot(
-                    (TypeSerializerSnapshot<K>) serializersAndConfigs.get(0).f1);
-            restoredTimersSnapshot.setNamespaceSerializerSnapshot(
-                    (TypeSerializerSnapshot<N>) serializersAndConfigs.get(1).f1);
         }
     }
 

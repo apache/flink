@@ -58,7 +58,7 @@ public enum ProtoUtils {
                         RunnerApi.FunctionSpec.newBuilder()
                                 .setUrn(FLINK_CODER_URN)
                                 .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf
+                                        org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf
                                                 .ByteString.copyFrom(
                                                 coderInfoDescriptor.toByteArray()))
                                 .build())
@@ -134,6 +134,7 @@ public enum ProtoUtils {
     // function utilities
 
     public static FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto(
+            RuntimeContext runtimeContext,
             PythonFunctionInfo[] userDefinedFunctions,
             boolean isMetricEnabled,
             boolean isProfileEnabled) {
@@ -144,6 +145,16 @@ public enum ProtoUtils {
         }
         builder.setMetricEnabled(isMetricEnabled);
         builder.setProfileEnabled(isProfileEnabled);
+        builder.addAllJobParameters(
+                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
+                        .stream()
+                        .map(
+                                entry ->
+                                        FlinkFnApi.JobParameter.newBuilder()
+                                                .setKey(entry.getKey())
+                                                .setValue(entry.getValue())
+                                                .build())
+                        .collect(Collectors.toList()));
         return builder.build();
     }
 
@@ -259,8 +270,7 @@ public enum ProtoUtils {
                                         .entrySet().stream()
                                         .map(
                                                 entry ->
-                                                        FlinkFnApi.UserDefinedDataStreamFunction
-                                                                .JobParameter.newBuilder()
+                                                        FlinkFnApi.JobParameter.newBuilder()
                                                                 .setKey(entry.getKey())
                                                                 .setValue(entry.getValue())
                                                                 .build())
@@ -269,8 +279,7 @@ public enum ProtoUtils {
                                 internalParameters.entrySet().stream()
                                         .map(
                                                 entry ->
-                                                        FlinkFnApi.UserDefinedDataStreamFunction
-                                                                .JobParameter.newBuilder()
+                                                        FlinkFnApi.JobParameter.newBuilder()
                                                                 .setKey(entry.getKey())
                                                                 .setValue(entry.getValue())
                                                                 .build())

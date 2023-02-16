@@ -21,8 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeInput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeOutput;
@@ -65,18 +67,37 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
             1000; // includes max-concurrent-checkpoints + checkpoints to be aborted (scheduled via
     // mailbox)
 
+    private final JobVertexID jobVertexID;
+
+    private final int subtaskIndex;
+
     private final String taskName;
+
     private final ChannelStateWriteRequestExecutor executor;
     private final ConcurrentMap<Long, ChannelStateWriteResult> results;
     private final int maxCheckpoints;
+
+    private final AtomicBoolean wasClosed = new AtomicBoolean(false);
 
     /**
      * Creates a {@link ChannelStateWriterImpl} with {@link #DEFAULT_MAX_CHECKPOINTS} as {@link
      * #maxCheckpoints}.
      */
     public ChannelStateWriterImpl(
-            String taskName, int subtaskIndex, CheckpointStorageWorkerView streamFactoryResolver) {
-        this(taskName, subtaskIndex, streamFactoryResolver, DEFAULT_MAX_CHECKPOINTS);
+            JobVertexID jobVertexID,
+            String taskName,
+            int subtaskIndex,
+            CheckpointStorage checkpointStorage,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
+            int maxSubtasksPerChannelStateFile) {
+        this(
+                jobVertexID,
+                taskName,
+                subtaskIndex,
+                checkpointStorage,
+                DEFAULT_MAX_CHECKPOINTS,
+                channelStateExecutorFactory,
+                maxSubtasksPerChannelStateFile);
     }
 
     /**
@@ -84,34 +105,41 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
      * {@link ChannelStateSerializer}, and a {@link ChannelStateWriteRequestExecutorImpl}.
      *
      * @param taskName
-     * @param streamFactoryResolver a factory to obtain output stream factory for a given checkpoint
+     * @param checkpointStorage a factory to obtain output stream factory for a given checkpoint
      * @param maxCheckpoints maximum number of checkpoints to be written currently or finished but
      *     not taken yet.
      */
     ChannelStateWriterImpl(
+            JobVertexID jobVertexID,
             String taskName,
             int subtaskIndex,
-            CheckpointStorageWorkerView streamFactoryResolver,
-            int maxCheckpoints) {
+            CheckpointStorage checkpointStorage,
+            int maxCheckpoints,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
+            int maxSubtasksPerChannelStateFile) {
         this(
+                jobVertexID,
                 taskName,
+                subtaskIndex,
                 new ConcurrentHashMap<>(maxCheckpoints),
-                new ChannelStateWriteRequestExecutorImpl(
-                        taskName,
-                        new ChannelStateWriteRequestDispatcherImpl(
-                                taskName,
-                                subtaskIndex,
-                                streamFactoryResolver,
-                                new ChannelStateSerializerImpl())),
+                channelStateExecutorFactory.getOrCreateExecutor(
+                        jobVertexID,
+                        subtaskIndex,
+                        checkpointStorage,
+                        maxSubtasksPerChannelStateFile),
                 maxCheckpoints);
     }
 
     ChannelStateWriterImpl(
+            JobVertexID jobVertexID,
             String taskName,
+            int subtaskIndex,
             ConcurrentMap<Long, ChannelStateWriteResult> results,
             ChannelStateWriteRequestExecutor executor,
             int maxCheckpoints) {
+        this.jobVertexID = jobVertexID;
         this.taskName = taskName;
+        this.subtaskIndex = subtaskIndex;
         this.results = results;
         this.maxCheckpoints = maxCheckpoints;
         this.executor = executor;
@@ -135,6 +163,8 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                                             maxCheckpoints));
                             enqueue(
                                     new CheckpointStartRequest(
+                                            jobVertexID,
+                                            subtaskIndex,
                                             checkpointId,
                                             result,
                                             checkpointOptions.getTargetLocation()),
@@ -158,7 +188,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 checkpointId,
                 info,
                 startSeqNum);
-        enqueue(write(checkpointId, info, iterator), false);
+        enqueue(write(jobVertexID, subtaskIndex, checkpointId, info, iterator), false);
     }
 
     @Override
@@ -171,7 +201,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 info,
                 startSeqNum,
                 data == null ? 0 : data.length);
-        enqueue(write(checkpointId, info, data), false);
+        enqueue(write(jobVertexID, subtaskIndex, checkpointId, info, data), false);
     }
 
     @Override
@@ -187,27 +217,29 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 checkpointId,
                 info,
                 startSeqNum);
-        enqueue(write(checkpointId, info, dataFuture), false);
+        enqueue(write(jobVertexID, subtaskIndex, checkpointId, info, dataFuture), false);
     }
 
     @Override
     public void finishInput(long checkpointId) {
         LOG.debug("{} finishing input data, checkpoint {}", taskName, checkpointId);
-        enqueue(completeInput(checkpointId), false);
+        enqueue(completeInput(jobVertexID, subtaskIndex, checkpointId), false);
     }
 
     @Override
     public void finishOutput(long checkpointId) {
         LOG.debug("{} finishing output data, checkpoint {}", taskName, checkpointId);
-        enqueue(completeOutput(checkpointId), false);
+        enqueue(completeOutput(jobVertexID, subtaskIndex, checkpointId), false);
     }
 
     @Override
     public void abort(long checkpointId, Throwable cause, boolean cleanup) {
         LOG.debug("{} aborting, checkpoint {}", taskName, checkpointId);
-        enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), true); // abort already started
         enqueue(
-                ChannelStateWriteRequest.abort(checkpointId, cause),
+                ChannelStateWriteRequest.abort(jobVertexID, subtaskIndex, checkpointId, cause),
+                true); // abort already started
+        enqueue(
+                ChannelStateWriteRequest.abort(jobVertexID, subtaskIndex, checkpointId, cause),
                 false); // abort enqueued but not started
         if (cleanup) {
             results.remove(checkpointId);
@@ -230,15 +262,14 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
         return results.get(checkpointId);
     }
 
-    public void open() {
-        executor.start();
-    }
-
     @Override
     public void close() throws IOException {
-        LOG.debug("close, dropping checkpoints {}", results.keySet());
-        results.clear();
-        executor.close();
+        if (wasClosed.compareAndSet(false, true)) {
+            LOG.debug("close, dropping checkpoints {}", results.keySet());
+            results.clear();
+            enqueue(ChannelStateWriteRequest.releaseSubtask(jobVertexID, subtaskIndex), false);
+            executor.releaseSubtask(jobVertexID, subtaskIndex);
+        }
     }
 
     private void enqueue(ChannelStateWriteRequest request, boolean atTheFront) {

@@ -226,9 +226,9 @@ function install_miniconda() {
 # Install some kinds of py env.
 function install_py_env() {
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
-        py_env=("3.9")
+        py_env=("3.10")
     else
-        py_env=("3.6" "3.7" "3.8" "3.9")
+        py_env=("3.7" "3.8" "3.9" "3.10")
     fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
@@ -328,7 +328,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==3.1.0 Docutils==0.17.1 "Jinja2<3.1.0" 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==4.5.0 importlib-metadata==4.4.0 Docutils==0.17.1 pydata_sphinx_theme==0.11.0 sphinx_mdinclude==0.5.3 "Jinja2<3.1.0" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\
@@ -403,7 +403,7 @@ function install_environment() {
     fi
 
     # step-3 install python environment which includes
-    # 3.6 3.7 3.8 3.9
+    # 3.7 3.8 3.9 3.10
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -584,7 +584,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py39"
+    LATEST_PYTHON="py310"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -789,7 +789,7 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python -s basic        =>  install environment with basic components.
-  ./lint-python -s py_env       =>  install environment with python env(3.6,3.7,3.8,3.9).
+  ./lint-python -s py_env       =>  install environment with python env(3.7,3.8,3.9,3.10).
   ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
   ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python -s tox -f       =>  reinstall environment with tox.

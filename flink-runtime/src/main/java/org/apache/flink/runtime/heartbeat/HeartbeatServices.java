@@ -21,7 +21,6 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -30,35 +29,7 @@ import org.slf4j.Logger;
  * HeartbeatServices gives access to all services needed for heartbeating. This includes the
  * creation of heartbeat receivers and heartbeat senders.
  */
-public class HeartbeatServices {
-
-    /** Heartbeat interval for the created services. */
-    protected final long heartbeatInterval;
-
-    /** Heartbeat timeout for the created services. */
-    protected final long heartbeatTimeout;
-
-    protected final int failedRpcRequestsUntilUnreachable;
-
-    public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
-        this(heartbeatInterval, heartbeatTimeout, -1);
-    }
-
-    public HeartbeatServices(
-            long heartbeatInterval, long heartbeatTimeout, int failedRpcRequestsUntilUnreachable) {
-        Preconditions.checkArgument(
-                0L < heartbeatInterval, "The heartbeat interval must be larger than 0.");
-        Preconditions.checkArgument(
-                heartbeatInterval <= heartbeatTimeout,
-                "The heartbeat timeout should be larger or equal than the heartbeat interval.");
-        Preconditions.checkArgument(
-                failedRpcRequestsUntilUnreachable > 0 || failedRpcRequestsUntilUnreachable == -1,
-                "The number of failed heartbeat RPC requests has to be larger than 0 or -1 (deactivated).");
-
-        this.heartbeatInterval = heartbeatInterval;
-        this.heartbeatTimeout = heartbeatTimeout;
-        this.failedRpcRequestsUntilUnreachable = failedRpcRequestsUntilUnreachable;
-    }
+public interface HeartbeatServices {
 
     /**
      * Creates a heartbeat manager which does not actively send heartbeats.
@@ -72,20 +43,11 @@ public class HeartbeatServices {
      * @param <O> Type of the outgoing payload
      * @return A new HeartbeatManager instance
      */
-    public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
+    <I, O> HeartbeatManager<I, O> createHeartbeatManager(
             ResourceID resourceId,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
-            Logger log) {
-
-        return new HeartbeatManagerImpl<>(
-                heartbeatTimeout,
-                failedRpcRequestsUntilUnreachable,
-                resourceId,
-                heartbeatListener,
-                mainThreadExecutor,
-                log);
-    }
+            Logger log);
 
     /**
      * Creates a heartbeat manager which actively sends heartbeats to monitoring targets.
@@ -100,21 +62,11 @@ public class HeartbeatServices {
      * @param <O> Type of the outgoing payload
      * @return A new HeartbeatManager instance which actively sends heartbeats
      */
-    public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
+    <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
             ResourceID resourceId,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
-            Logger log) {
-
-        return new HeartbeatManagerSenderImpl<>(
-                heartbeatInterval,
-                heartbeatTimeout,
-                failedRpcRequestsUntilUnreachable,
-                resourceId,
-                heartbeatListener,
-                mainThreadExecutor,
-                log);
-    }
+            Logger log);
 
     /**
      * Creates an HeartbeatServices instance from a {@link Configuration}.
@@ -122,7 +74,7 @@ public class HeartbeatServices {
      * @param configuration Configuration to be used for the HeartbeatServices creation
      * @return An HeartbeatServices instance created from the given configuration
      */
-    public static HeartbeatServices fromConfiguration(Configuration configuration) {
+    static HeartbeatServices fromConfiguration(Configuration configuration) {
         long heartbeatInterval = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
 
         long heartbeatTimeout = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
@@ -130,7 +82,11 @@ public class HeartbeatServices {
         int failedRpcRequestsUntilUnreachable =
                 configuration.get(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD);
 
-        return new HeartbeatServices(
+        return new HeartbeatServicesImpl(
                 heartbeatInterval, heartbeatTimeout, failedRpcRequestsUntilUnreachable);
+    }
+
+    static HeartbeatServices noOp() {
+        return NoOpHeartbeatServices.getInstance();
     }
 }

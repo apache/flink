@@ -136,7 +136,8 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
                             "Order-Enforcer",
                             new ExecutionOrderEnforcerOperatorFactory<>(),
                             transformation.getOutputType(),
-                            transformation.getParallelism());
+                            transformation.getParallelism(),
+                            false);
             multipleInputTransformation.addInput(dynamicFilteringInputTransform);
             multipleInputTransformation.addInput(transformation);
 

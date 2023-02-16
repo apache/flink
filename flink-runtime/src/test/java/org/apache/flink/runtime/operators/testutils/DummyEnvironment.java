@@ -28,6 +28,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -72,6 +74,8 @@ public class DummyEnvironment implements Environment {
     private final AccumulatorRegistry accumulatorRegistry;
     private UserCodeClassLoader userClassLoader;
     private final Configuration taskConfiguration = new Configuration();
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
+            new ChannelStateWriteRequestExecutorFactory(jobId);
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -162,6 +166,11 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public MemoryManager getMemoryManager() {
+        return null;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
         return null;
     }
 
@@ -261,5 +270,10 @@ public class DummyEnvironment implements Environment {
     @Override
     public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
         return new NoOpTaskOperatorEventGateway();
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 }

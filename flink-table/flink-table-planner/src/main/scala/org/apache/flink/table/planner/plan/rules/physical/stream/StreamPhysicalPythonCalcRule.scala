@@ -25,16 +25,12 @@ import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConverters._
 
 /** Rule that converts [[FlinkLogicalCalc]] to [[StreamPhysicalPythonCalc]]. */
-class StreamPhysicalPythonCalcRule
-  extends ConverterRule(
-    classOf[FlinkLogicalCalc],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalPythonCalcRule") {
+class StreamPhysicalPythonCalcRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
@@ -57,5 +53,10 @@ class StreamPhysicalPythonCalcRule
 }
 
 object StreamPhysicalPythonCalcRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalPythonCalcRule
+  val INSTANCE: RelOptRule = new StreamPhysicalPythonCalcRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalCalc],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalPythonCalcRule"))
 }

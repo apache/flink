@@ -367,11 +367,11 @@ Currently, users are able to submit a PyFlink job via the CLI. It does not requi
 JAR file path or the entry main class, which is different from the Java job submission.
 
 {{< hint info >}}
-When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.6+.
+When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.7+.
 {{< /hint >}}
 ```bash
 $ python --version
-# the version printed here must be 3.6+
+# the version printed here must be 3.7+
 ```
 
 The following commands show different PyFlink job submission use-cases:
@@ -428,11 +428,13 @@ $ ./bin/flink run-application -t yarn-application \
       -pyarch shipfiles/venv.zip \
       -pyclientexec venv.zip/venv/bin/python3 \
       -pyexec venv.zip/venv/bin/python3 \
-      -py shipfiles/word_count.py
+      -pyfs shipfiles \
+      -pym word_count
 ```
 <span class="label label-info">Note</span> It assumes that the Python dependencies needed to execute the job are already placed in the directory `/path/to/shipfiles`. For example, it should contain venv.zip and word_count.py for the above example.
 
-<span class="label label-info">Note</span> As it executes the job on the JobManager in YARN application mode, the paths specified in `-pyarch` and `-py` are paths relative to `shipfiles` which is the directory name of the shipped files.
+<span class="label label-info">Note</span> As it executes the job on the JobManager in YARN application mode, the paths specified in `-pyarch` and `-pyfs` are paths relative to `shipfiles` which is the directory name of the shipped files.
+It's suggested to use `-pym` to specify the program entrypoint instead of `-py` as it's impossible to know either the absolute path, or the relative path of the entrypoint program.
 
 <span class="label label-info">Note</span> The archive files specified via `-pyarch` will be distributed to the TaskManagers through blob server where the file size limit is 2 GB.
 If the size of an archive file is more than 2 GB, you could upload it to a distributed file system and then use the path in the command line option `-pyarch`.
@@ -520,7 +522,7 @@ related options. Here's an overview of all the Python related options for the ac
             <td>
                 Specify the path of the python interpreter used to execute the python UDF worker
                 (e.g.: --pyExecutable /usr/local/bin/python3).
-                The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0),
+                The python UDF worker depends on Python 3.7+, Apache Beam (version == 2.43.0),
                 Pip (version >= 20.3) and SetupTools (version >= 37.0.0).
                 Please ensure that the specified environment meets the above requirements.
             </td>

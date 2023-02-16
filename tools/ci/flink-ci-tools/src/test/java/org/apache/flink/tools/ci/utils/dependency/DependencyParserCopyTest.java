@@ -34,7 +34,7 @@ class DependencyParserCopyTest {
         return Stream.of(
                 "[INFO] --- maven-dependency-plugin:3.2.0:copy (copy) @ m1 ---",
                 "[INFO] Configured Artifact: external:dependency1:2.1:jar",
-                "[INFO] Configured Artifact: external:dependency4:2.4:jar",
+                "[INFO] Configured Artifact: external:dependency4:classifier:2.4:jar",
                 "[INFO] Copying dependency1-2.1.jar to /some/path/dependency1-2.1.jar",
                 "[INFO] Copying dependency4-2.4.jar to /some/path/dependency4-2.4.jar",
                 "[INFO]",
@@ -51,10 +51,10 @@ class DependencyParserCopyTest {
         assertThat(dependenciesByModule).containsOnlyKeys("m1", "m2");
         assertThat(dependenciesByModule.get("m1"))
                 .containsExactlyInAnyOrder(
-                        Dependency.create("external", "dependency1", "2.1"),
-                        Dependency.create("external", "dependency4", "2.4"));
+                        Dependency.create("external", "dependency1", "2.1", null),
+                        Dependency.create("external", "dependency4", "2.4", "classifier"));
         assertThat(dependenciesByModule.get("m2"))
-                .containsExactlyInAnyOrder(Dependency.create("internal", "m1", "1.1"));
+                .containsExactlyInAnyOrder(Dependency.create("internal", "m1", "1.1", null));
     }
 
     @Test
@@ -106,6 +106,16 @@ class DependencyParserCopyTest {
         assertThat(
                         DependencyParser.parseCopyDependency(
                                 "[INFO] Configured Artifact: external:dependency1:1.0:pom"))
-                .hasValue(Dependency.create("external", "dependency1", "1.0"));
+                .hasValue(Dependency.create("external", "dependency1", "1.0", null));
+    }
+
+    @Test
+    void testCopyLineParsingClassifier() {
+        assertThat(
+                        DependencyParser.parseCopyDependency(
+                                "[INFO] Configured Artifact: external:dependency1:some_classifier:1.0:jar"))
+                .hasValueSatisfying(
+                        dependency ->
+                                assertThat(dependency.getClassifier()).hasValue("some_classifier"));
     }
 }

@@ -137,6 +137,7 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
                 createTransformationDescription(config),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(outputRowType),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

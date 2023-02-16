@@ -1480,6 +1480,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
+    def array_distinct(self) -> 'Expression':
+        """
+        Returns an array with unique elements.
+        If the array itself is null, the function will return null. Keeps ordering of elements.
+        """
+        return _binary_op("arrayDistinct")(self)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

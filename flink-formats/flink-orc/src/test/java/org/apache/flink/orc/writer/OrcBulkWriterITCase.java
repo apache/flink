@@ -28,12 +28,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.util.Arrays;
@@ -41,17 +39,14 @@ import java.util.List;
 import java.util.Properties;
 
 /** Integration test for writing data in ORC bulk format using StreamingFileSink. */
-public class OrcBulkWriterITCase extends TestLogger {
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+class OrcBulkWriterITCase {
 
     private final String schema = "struct<_col0:string,_col1:int>";
     private final List<Record> testData =
             Arrays.asList(new Record("Sourav", 41), new Record("Saul", 35), new Record("Kim", 31));
 
     @Test
-    public void testOrcBulkWriter() throws Exception {
-        final File outDir = TEMPORARY_FOLDER.newFolder();
+    void testOrcBulkWriter(@TempDir File outDir) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");

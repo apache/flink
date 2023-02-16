@@ -192,6 +192,11 @@ class PrintSinkTest {
         }
 
         @Override
+        public int getAttemptNumber() {
+            return 0;
+        }
+
+        @Override
         public SinkWriterMetricGroup metricGroup() {
             return InternalSinkWriterMetricGroup.mock(new UnregisteredMetricsGroup());
         }

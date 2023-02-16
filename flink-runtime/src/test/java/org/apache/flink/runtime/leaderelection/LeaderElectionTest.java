@@ -24,20 +24,20 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderSe
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.curator.test.TestingServer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -45,84 +45,63 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for leader election. */
-@RunWith(Parameterized.class)
-public class LeaderElectionTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class LeaderElectionTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-    @Rule
-    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
-            new TestingFatalErrorHandlerResource();
+    @RegisterExtension
+    private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerExtension();
 
-    enum LeaderElectionType {
-        ZooKeeper,
-        Embedded,
-        Standalone
+    @Parameters(name = "Leader election: {0}")
+    public static Collection<ServiceClass> parameters() {
+        return Arrays.asList(
+                new ZooKeeperServiceClass(),
+                new EmbeddedServiceClass(),
+                new StandaloneServiceClass());
     }
 
-    @Parameterized.Parameters(name = "Leader election: {0}")
-    public static Collection<LeaderElectionType> parameters() {
-        return Arrays.asList(LeaderElectionType.values());
+    @Parameter public ServiceClass serviceClass;
+
+    @BeforeEach
+    void setup() throws Exception {
+        serviceClass.setup(testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
     }
 
-    private final ServiceClass serviceClass;
-
-    public LeaderElectionTest(LeaderElectionType leaderElectionType) {
-        switch (leaderElectionType) {
-            case ZooKeeper:
-                serviceClass = new ZooKeeperServiceClass();
-                break;
-            case Embedded:
-                serviceClass = new EmbeddedServiceClass();
-                break;
-            case Standalone:
-                serviceClass = new StandaloneServiceClass();
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        String.format("Unknown leader election type: %s.", leaderElectionType));
-        }
-    }
-
-    @Before
-    public void setup() throws Exception {
-        serviceClass.setup(testingFatalErrorHandlerResource.getFatalErrorHandler());
-    }
-
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         serviceClass.teardown();
     }
 
-    @Test
-    public void testHasLeadership() throws Exception {
+    @TestTemplate
+    void testHasLeadership() throws Exception {
         final LeaderElectionService leaderElectionService =
                 serviceClass.createLeaderElectionService();
         final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
         try {
-            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
+            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID())).isFalse();
 
             leaderElectionService.start(manualLeaderContender);
 
             final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
-            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isTrue();
+            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID())).isFalse();
 
             leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isTrue();
 
             leaderElectionService.stop();
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(false));
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isFalse();
         } finally {
             manualLeaderContender.rethrowError();
         }
@@ -181,17 +160,15 @@ public class LeaderElectionTest extends TestLogger {
 
         private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
-        private Configuration configuration;
-
         @Override
-        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
+        public void setup(FatalErrorHandler fatalErrorHandler) {
             try {
                 testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
             } catch (Exception e) {
                 throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
             }
 
-            configuration = new Configuration();
+            final Configuration configuration = new Configuration();
 
             configuration.setString(
                     HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
@@ -215,7 +192,7 @@ public class LeaderElectionTest extends TestLogger {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() throws Exception {
+        public LeaderElectionService createLeaderElectionService() {
             return ZooKeeperUtils.createLeaderElectionService(
                     curatorFrameworkWrapper.asCuratorFramework());
         }
@@ -238,7 +215,7 @@ public class LeaderElectionTest extends TestLogger {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() throws Exception {
+        public LeaderElectionService createLeaderElectionService() {
             return embeddedLeaderService.createLeaderElectionService();
         }
     }
@@ -246,17 +223,17 @@ public class LeaderElectionTest extends TestLogger {
     private static final class StandaloneServiceClass implements ServiceClass {
 
         @Override
-        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
+        public void setup(FatalErrorHandler fatalErrorHandler) {
             // noop
         }
 
         @Override
-        public void teardown() throws Exception {
+        public void teardown() {
             // noop
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() throws Exception {
+        public LeaderElectionService createLeaderElectionService() {
             return new StandaloneLeaderElectionService();
         }
     }

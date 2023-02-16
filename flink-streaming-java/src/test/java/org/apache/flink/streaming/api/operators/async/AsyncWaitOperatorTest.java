@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -72,15 +72,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -1239,9 +1240,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
             expectedOutput.add(new StreamRecord<>(8, initialTime + 4));
             expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
 
-            Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
-            while (testHarness.getOutput().size() < expectedOutput.size()
-                    && deadline.hasTimeLeft()) {
+            while (testHarness.getOutput().size() < expectedOutput.size()) {
                 testHarness.processAll();
                 //noinspection BusyWait
                 Thread.sleep(100);
@@ -1257,6 +1256,78 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         testHarness.getOutput(),
                         new StreamRecordComparator());
             }
+        }
+    }
+
+    /**
+     * Test the AsyncWaitOperator with an always-timeout async function under unordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeWithTimeoutFunctionUnorderedWithRetry() throws Exception {
+        testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.UNORDERED);
+    }
+
+    /**
+     * Test the AsyncWaitOperator with an always-timeout async function under ordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeWithTimeoutFunctionOrderedWithRetry() throws Exception {
+        testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.ORDERED);
+    }
+
+    private void testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode mode)
+            throws Exception {
+
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        AsyncRetryStrategy exceptionRetryStrategy =
+                new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(5, 100L)
+                        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+                        .build();
+        AlwaysTimeoutWithDefaultValueAsyncFunction asyncFunction =
+                new AlwaysTimeoutWithDefaultValueAsyncFunction();
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        asyncFunction, TIMEOUT, 10, mode, exceptionRetryStrategy))
+                        .build()) {
+
+            final long initialTime = 0L;
+            final Queue<Object> expectedOutput = new ArrayDeque<>();
+
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+
+            expectedOutput.add(new StreamRecord<>(-1, initialTime + 1));
+            expectedOutput.add(new StreamRecord<>(-1, initialTime + 2));
+
+            while (testHarness.getOutput().size() < expectedOutput.size()) {
+                testHarness.processAll();
+                //noinspection BusyWait
+                Thread.sleep(100);
+            }
+
+            if (mode == AsyncDataStream.OutputMode.ORDERED) {
+                TestHarnessUtil.assertOutputEquals(
+                        "ORDERED Output was not correct.", expectedOutput, testHarness.getOutput());
+            } else {
+                TestHarnessUtil.assertOutputEqualsSorted(
+                        "UNORDERED Output was not correct.",
+                        expectedOutput,
+                        testHarness.getOutput(),
+                        new StreamRecordComparator());
+            }
+
+            // verify the elements' try count never beyond 2 (use <= instead of == to avoid unstable
+            // case when test machine under high load)
+            assertTrue(asyncFunction.getTryCount(1) <= 2);
+            assertTrue(asyncFunction.getTryCount(2) <= 2);
         }
     }
 
@@ -1326,5 +1397,45 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 new AsyncWaitOperatorFactory<>(
                         function, timeout, capacity, outputMode, asyncRetryStrategy),
                 IntSerializer.INSTANCE);
+    }
+
+    private static class AlwaysTimeoutWithDefaultValueAsyncFunction
+            extends RichAsyncFunction<Integer, Integer> {
+
+        private static final long serialVersionUID = 1L;
+
+        private static Map<Integer, Integer> tryCounts = new HashMap<>();
+
+        @VisibleForTesting
+        public int getTryCount(Integer item) {
+            return tryCounts.getOrDefault(item, 0);
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            tryCounts = new HashMap<>();
+        }
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(501L);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        resultFuture.completeExceptionally(new Exception("Dummy error"));
+                    });
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            // collect a default value -1 when timeout
+            resultFuture.complete(Collections.singletonList(-1));
+        }
     }
 }

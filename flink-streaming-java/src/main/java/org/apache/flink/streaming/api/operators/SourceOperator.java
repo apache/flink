@@ -59,6 +59,7 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -190,6 +191,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final boolean allowUnalignedSourceSplits;
 
+    private final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -199,7 +202,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             ProcessingTimeService timeService,
             Configuration configuration,
             String localHostname,
-            boolean emitProgressiveWatermarks) {
+            boolean emitProgressiveWatermarks,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
 
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -212,6 +216,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
         this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
         this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
+        this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
     }
 
     @Override
@@ -297,6 +302,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             }
                         };
                     }
+
+                    @Override
+                    public int currentParallelism() {
+                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);
@@ -328,6 +338,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         // restore the state if necessary.
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
         if (!splits.isEmpty()) {
+            LOG.info("Restoring state for {} split(s) to reader.", splits.size());
             sourceReader.addSplits(splits);
         }
 
@@ -397,10 +408,17 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         // short circuit the hot path. Without this short circuit (READING handled in the
         // switch/case) InputBenchmark.mapSink was showing a performance regression.
-        if (operatingMode == OperatingMode.READING) {
-            return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+        if (operatingMode != OperatingMode.READING) {
+            return emitNextNotReading(output);
         }
-        return emitNextNotReading(output);
+
+        InputStatus status;
+        do {
+            status = sourceReader.pollNext(currentMainOutput);
+        } while (status == InputStatus.MORE_AVAILABLE
+                && canEmitBatchOfRecords.check()
+                && !shouldWaitForAlignment());
+        return convertToInternalStatus(status);
     }
 
     private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {

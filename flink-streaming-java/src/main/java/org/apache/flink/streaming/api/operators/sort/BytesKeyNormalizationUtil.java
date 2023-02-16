@@ -71,7 +71,7 @@ final class BytesKeyNormalizationUtil {
     private static void putBytesArray(MemorySegment target, int offset, int numBytes, byte[] data) {
         for (int i = 0; i < numBytes; i++) {
             // We're converting the signed byte in data into an unsigned representation.
-            // A Java byte goes from -127 to 128, i.e. is signed. By subtracting -127 (MIN_VALUE)
+            // A Java byte goes from -128 to 127, i.e. is signed. By subtracting -128 (MIN_VALUE)
             // here we're shifting the number to be from 0 to 255. The normalized key sorter sorts
             // bytes as "unsigned", so we need to convert here to maintain a correct ordering.
             int highByte = data[i] & 0xff;

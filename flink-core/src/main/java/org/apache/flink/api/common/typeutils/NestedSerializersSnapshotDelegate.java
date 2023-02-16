@@ -19,13 +19,11 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,7 +57,7 @@ public class NestedSerializersSnapshotDelegate {
 
     /** Constructor to create a snapshot for writing. */
     public NestedSerializersSnapshotDelegate(TypeSerializer<?>... serializers) {
-        this.nestedSnapshots = TypeSerializerUtils.snapshotBackwardsCompatible(serializers);
+        this.nestedSnapshots = TypeSerializerUtils.snapshot(serializers);
     }
 
     /** Constructor to create a snapshot during deserialization. */
@@ -177,24 +175,6 @@ public class NestedSerializersSnapshotDelegate {
         for (int i = 0; i < numSnapshots; i++) {
             nestedSnapshots[i] = TypeSerializerSnapshot.readVersionedSnapshot(in, cl);
         }
-
-        return new NestedSerializersSnapshotDelegate(nestedSnapshots);
-    }
-
-    /**
-     * Reads the composite snapshot of all the contained serializers in a way that is compatible
-     * with Version 1 of the deprecated {@link CompositeTypeSerializerConfigSnapshot}.
-     */
-    public static NestedSerializersSnapshotDelegate legacyReadNestedSerializerSnapshots(
-            DataInputView in, ClassLoader cl) throws IOException {
-        @SuppressWarnings("deprecation")
-        final List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndSnapshots =
-                TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, cl);
-
-        final TypeSerializerSnapshot<?>[] nestedSnapshots =
-                serializersAndSnapshots.stream()
-                        .map(t -> t.f1)
-                        .toArray(TypeSerializerSnapshot<?>[]::new);
 
         return new NestedSerializersSnapshotDelegate(nestedSnapshots);
     }
