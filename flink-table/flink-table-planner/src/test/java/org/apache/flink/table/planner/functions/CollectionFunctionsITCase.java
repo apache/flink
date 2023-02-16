@@ -160,6 +160,49 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_SIZE)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 3},
+                                new Integer[] {null, 1, 2, 3, 4, 5, 4, 3, 2, 1, null},
+                                null,
+                                new String[] {"Hello", "Hello", "Hello"},
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull(),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        .testResult(
+                                $("f0").arraySize(),
+                                "ARRAY_SIZE(f0)",
+                                3,
+                                DataTypes.INT().nullable())
+                        .testResult(
+                                $("f1").arraySize(),
+                                "ARRAY_SIZE(f1)",
+                                11,
+                                DataTypes.INT().nullable())
+                        .testResult(
+                                $("f2").arraySize(),
+                                "ARRAY_SIZE(f2)",
+                                null,
+                                DataTypes.INT().nullable())
+                        // ARRAY<STRING> NOT NULL
+                        .testResult(
+                                $("f3").arraySize(), "ARRAY_SIZE(f3)", 3, DataTypes.INT().notNull())
+                        .testResult(
+                                $("f4").arraySize(),
+                                "ARRAY_SIZE(f4)",
+                                5,
+                                DataTypes.INT().nullable()));
     }
 }

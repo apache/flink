@@ -56,6 +56,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_SIZE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -1357,6 +1358,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayDistinct() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_DISTINCT, toExpr()));
+    }
+
+    /**
+     * Returns the size of an array.
+     *
+     * <p>If the array itself is null, the function will return null.
+     */
+    public OutType arraySize() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_SIZE, toExpr()));
     }
 
     // Time definition

@@ -178,6 +178,21 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayDistinctFunction")
                     .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_SIZE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_SIZE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("haystack"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.ARRAY))))
+                    .outputTypeStrategy(
+                            nullableIfArgs(ConstantArgumentCount.of(0), explicit(DataTypes.INT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArraySizeFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
