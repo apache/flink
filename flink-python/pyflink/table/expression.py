@@ -1487,6 +1487,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayDistinct")(self)
 
+    def array_remove(self, needle) -> 'Expression':
+        """
+        Remove all elements that equal to element from array.
+        If the array itself is null, the function will return null.
+        """
+        return _binary_op("arrayRemove")(self, needle)
+
     def array_size(self) -> 'Expression':
         """
         Returns the size of an array.
