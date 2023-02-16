@@ -1270,14 +1270,18 @@ public class CheckpointCoordinator {
             if (!props.isSavepoint()) {
                 lastSubsumed =
                         addCompletedCheckpointToStoreAndSubsumeOldest(
-                                checkpointId,
-                                completedCheckpoint,
-                                pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo());
+                                checkpointId, completedCheckpoint, pendingCheckpoint);
             } else {
                 lastSubsumed = null;
             }
 
+            pendingCheckpoint.getCompletionFuture().complete(completedCheckpoint);
             reportCompletedCheckpoint(completedCheckpoint);
+        } catch (Exception exception) {
+            // For robustness reasons, we need catch exception and try marking the checkpoint
+            // completed.
+            pendingCheckpoint.getCompletionFuture().completeExceptionally(exception);
+            throw exception;
         } finally {
             pendingCheckpoints.remove(checkpointId);
             scheduleTriggerRequest();
@@ -1398,8 +1402,10 @@ public class CheckpointCoordinator {
     private CompletedCheckpoint addCompletedCheckpointToStoreAndSubsumeOldest(
             long checkpointId,
             CompletedCheckpoint completedCheckpoint,
-            List<ExecutionVertex> tasksToAbort)
+            PendingCheckpoint pendingCheckpoint)
             throws CheckpointException {
+        List<ExecutionVertex> tasksToAbort =
+                pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo();
         try {
             final CompletedCheckpoint subsumedCheckpoint =
                     completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
@@ -1409,6 +1415,7 @@ public class CheckpointCoordinator {
             this.forceFullSnapshot = false;
             return subsumedCheckpoint;
         } catch (Exception exception) {
+            pendingCheckpoint.getCompletionFuture().completeExceptionally(exception);
             if (exception instanceof PossibleInconsistentStateException) {
                 LOG.warn(
                         "An error occurred while writing checkpoint {} to the underlying metadata"
