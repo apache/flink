@@ -168,8 +168,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private static List<Map.Entry<SlotSharingGroupId, Integer>>
             sortSlotSharingGroupsByDesiredParallelism(JobInformation jobInformation) {
 
-        return getMaxParallelismForSlotSharingGroups(jobInformation.getVertices())
-                .entrySet()
+        return getMaxParallelismForSlotSharingGroups(jobInformation.getVertices()).entrySet()
                 .stream()
                 .sorted(Comparator.comparingInt(Map.Entry::getValue))
                 .collect(Collectors.toList());
