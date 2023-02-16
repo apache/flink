@@ -180,7 +180,7 @@ public class StreamMultipleInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig,
+                            taskManagerConfig,
                             executionConfig);
 
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
