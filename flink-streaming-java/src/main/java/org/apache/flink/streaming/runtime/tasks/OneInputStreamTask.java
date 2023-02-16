@@ -149,7 +149,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                         ManagedMemoryUseCase.OPERATOR,
                         getEnvironment().getTaskConfiguration(),
                         userCodeClassLoader),
-                getJobConfiguration(),
+                getEnvironment().getTaskManagerInfo().getConfiguration(),
                 this,
                 getExecutionConfig());
     }
