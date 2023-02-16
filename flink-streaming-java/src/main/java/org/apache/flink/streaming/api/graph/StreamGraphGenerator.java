@@ -310,11 +310,6 @@ public class StreamGraphGenerator {
 
     public StreamGraph generate() {
         streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
-        streamGraph.setAutoParallelismEnabled(
-                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED));
-        streamGraph.setEnableCheckpointsAfterTasksFinish(
-                configuration.get(
-                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
@@ -368,6 +363,11 @@ public class StreamGraphGenerator {
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
         graph.setVertexNameIncludeIndexPrefix(
                 configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));
+        graph.setAutoParallelismEnabled(
+                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED));
+        graph.setEnableCheckpointsAfterTasksFinish(
+                configuration.get(
+                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
