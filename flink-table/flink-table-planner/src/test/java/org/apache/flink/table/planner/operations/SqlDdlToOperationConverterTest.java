@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -436,6 +437,54 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
                                                         .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .build()),
+                                        withOptions(
+                                                entry("connector.type", "kafka"),
+                                                entry("format.type", "json")))));
+    }
+
+    @Test
+    public void testCreateTableLikeViewWithFullPath() {
+        Map<String, String> sourceProperties = new HashMap<>();
+        sourceProperties.put("connector.type", "kafka");
+        sourceProperties.put("format.type", "json");
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .build(),
+                        null,
+                        Collections.emptyList(),
+                        sourceProperties);
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+        Schema viewSchema = Schema.newBuilder().column("f0_v", DataTypes.INT().notNull()).build();
+        CatalogView catalogView =
+                CatalogView.of(
+                        viewSchema,
+                        null,
+                        "select f0 as f0_v from sourceTable",
+                        "select f0 as f0_v from `builtin`.`default`.sourceTable",
+                        sourceProperties);
+
+        catalogManager.createTemporaryTable(
+                catalogView, ObjectIdentifier.of("builtin", "default", "sourceView"), false);
+        final String sql =
+                "create table mytable like `builtin`.`default`.sourceView (\n"
+                        + "    INCLUDING  ALL\n"
+                        + ")";
+        Operation operation = parseAndConvert(sql);
+
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0_v", DataTypes.INT().notNull())
                                                         .build()),
                                         withOptions(
                                                 entry("connector.type", "kafka"),
