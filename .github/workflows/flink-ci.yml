@@ -25,6 +25,9 @@ jobs:
 
       - run: |
           ./fentik-build.sh --package
+          pushd fentik-docker
+          ./build-docker.sh
+          popd
         env:
            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

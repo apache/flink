@@ -1,0 +1,3 @@
+Build Fentik Flink Docker images for use with k8s.
+The Dockerfile was adapted from the official Flink images:
+https://github.com/apache/flink-docker/blob/e348fd602cfe038402aeb574d1956762f4175af0/1.16/scala_2.12-java11-ubuntu/Dockerfile
