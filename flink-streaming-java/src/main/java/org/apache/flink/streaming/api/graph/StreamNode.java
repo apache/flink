@@ -128,8 +128,8 @@ public class StreamNode {
 
     public void addInEdge(StreamEdge inEdge) {
         checkState(
-                outEdges.stream().noneMatch(inEdge::equals),
-                "Adding not unique edge = %s to existing outEdges = %s",
+                inEdges.stream().noneMatch(inEdge::equals),
+                "Adding not unique edge = %s to existing inEdges = %s",
                 inEdge,
                 inEdges);
         if (inEdge.getTargetId() != getId()) {
