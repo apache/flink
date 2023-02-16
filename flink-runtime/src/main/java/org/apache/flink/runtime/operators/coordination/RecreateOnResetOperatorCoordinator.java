@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -227,6 +228,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         @Override
         public OperatorID getOperatorId() {
             return context.getOperatorId();
+        }
+
+        @Override
+        public OperatorCoordinatorMetricGroup metricGroup() {
+            return context.metricGroup();
         }
 
         @Override

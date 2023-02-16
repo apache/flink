@@ -44,6 +44,7 @@ import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_G
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_HISTOGRAM;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_METER;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JM;
+import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JM_OPERATOR;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JOB;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_OPERATOR;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_TASK;
@@ -247,6 +248,7 @@ public class MetricStore {
             TaskMetricStore task;
             SubtaskMetricStore subtask;
             ComponentMetricStore attempt;
+            ComponentMetricStore jmOperator;
             boolean isRepresentativeAttempt;
 
             String name = info.scope.isEmpty() ? metric.name : info.scope + "." + metric.name;
@@ -354,6 +356,18 @@ public class MetricStore {
                                         + name,
                                 metric);
                     }
+                    break;
+                case INFO_CATEGORY_JM_OPERATOR:
+                    QueryScopeInfo.JobManagerOperatorQueryScopeInfo jmOperatorInfo =
+                            (QueryScopeInfo.JobManagerOperatorQueryScopeInfo) info;
+                    job = jobs.computeIfAbsent(jmOperatorInfo.jobID, k -> new JobMetricStore());
+                    task =
+                            job.tasks.computeIfAbsent(
+                                    jmOperatorInfo.vertexID, k -> new TaskMetricStore());
+                    jmOperator =
+                            task.jmOperators.computeIfAbsent(
+                                    jmOperatorInfo.operatorName, k -> new ComponentMetricStore());
+                    addMetric(jmOperator.metrics, name, metric);
                     break;
                 default:
                     LOG.debug("Invalid metric dump category: " + info.getCategory());
@@ -483,15 +497,19 @@ public class MetricStore {
     @ThreadSafe
     public static class TaskMetricStore extends ComponentMetricStore {
         private final Map<Integer, SubtaskMetricStore> subtasks;
+        private final Map<String, ComponentMetricStore> jmOperators;
 
         private TaskMetricStore() {
-            this(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+            this(new ConcurrentHashMap<>(), new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
         }
 
         private TaskMetricStore(
-                Map<String, String> metrics, Map<Integer, SubtaskMetricStore> subtasks) {
+                Map<String, String> metrics,
+                Map<Integer, SubtaskMetricStore> subtasks,
+                Map<String, ComponentMetricStore> jmOperators) {
             super(metrics);
             this.subtasks = checkNotNull(subtasks);
+            this.jmOperators = checkNotNull(jmOperators);
         }
 
         public SubtaskMetricStore getSubtaskMetricStore(int subtaskIndex) {
@@ -506,12 +524,18 @@ public class MetricStore {
             subtasks.keySet().retainAll(activeSubtasks);
         }
 
+        public ComponentMetricStore getJobManagerOperatorMetricStores(String operatorName) {
+            return jmOperators.get(operatorName);
+        }
+
         private static TaskMetricStore unmodifiable(TaskMetricStore source) {
             if (source == null) {
                 return null;
             }
             return new TaskMetricStore(
-                    unmodifiableMap(source.metrics), unmodifiableMap(source.subtasks));
+                    unmodifiableMap(source.metrics),
+                    unmodifiableMap(source.subtasks),
+                    unmodifiableMap(source.jmOperators));
         }
     }
 

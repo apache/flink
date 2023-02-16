@@ -19,10 +19,15 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerOperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -111,17 +116,20 @@ public class OperatorCoordinatorHolder
 
     private final IncompleteFuturesTracker unconfirmedEvents;
 
+    private final TaskInformation taskInformation;
     private final int operatorParallelism;
     private final int operatorMaxParallelism;
 
     private GlobalFailureHandler globalFailureHandler;
     private ComponentMainThreadExecutor mainThreadExecutor;
+    private OperatorCoordinatorMetricGroup operatorCoordinatorMetricGroup;
 
     private OperatorCoordinatorHolder(
             final OperatorID operatorId,
             final OperatorCoordinator coordinator,
             final LazyInitializedCoordinatorContext context,
             final SubtaskAccess.SubtaskAccessFactory taskAccesses,
+            final TaskInformation taskInformation,
             final int operatorParallelism,
             final int operatorMaxParallelism) {
 
@@ -131,6 +139,7 @@ public class OperatorCoordinatorHolder
         this.taskAccesses = checkNotNull(taskAccesses);
         this.operatorParallelism = operatorParallelism;
         this.operatorMaxParallelism = operatorMaxParallelism;
+        this.taskInformation = taskInformation;
 
         this.subtaskGatewayMap = new HashMap<>();
         this.unconfirmedEvents = new IncompleteFuturesTracker();
@@ -138,12 +147,22 @@ public class OperatorCoordinatorHolder
 
     public void lazyInitialize(
             GlobalFailureHandler globalFailureHandler,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
 
         this.globalFailureHandler = globalFailureHandler;
         this.mainThreadExecutor = mainThreadExecutor;
+        JobManagerOperatorMetricGroup parentMetricGroup =
+                jobManagerJobMetricGroup.getOrAddOperator(
+                        taskInformation.getJobVertexId(),
+                        taskInformation.getTaskName(),
+                        operatorId,
+                        context.operatorName);
+        this.operatorCoordinatorMetricGroup =
+                new InternalOperatorCoordinatorMetricGroup(parentMetricGroup);
 
-        context.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+        context.lazyInitialize(
+                globalFailureHandler, mainThreadExecutor, operatorCoordinatorMetricGroup);
 
         setupAllSubtaskGateways();
     }
@@ -463,7 +482,8 @@ public class OperatorCoordinatorHolder
             ExecutionJobVertex jobVertex,
             ClassLoader classLoader,
             CoordinatorStore coordinatorStore,
-            boolean supportsConcurrentExecutionAttempts)
+            boolean supportsConcurrentExecutionAttempts,
+            TaskInformation taskInformation)
             throws Exception {
 
         try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
@@ -483,7 +503,8 @@ public class OperatorCoordinatorHolder
                     jobVertex.getParallelism(),
                     jobVertex.getMaxParallelism(),
                     taskAccesses,
-                    supportsConcurrentExecutionAttempts);
+                    supportsConcurrentExecutionAttempts,
+                    taskInformation);
         }
     }
 
@@ -497,7 +518,8 @@ public class OperatorCoordinatorHolder
             final int operatorParallelism,
             final int operatorMaxParallelism,
             final SubtaskAccess.SubtaskAccessFactory taskAccesses,
-            final boolean supportsConcurrentExecutionAttempts)
+            final boolean supportsConcurrentExecutionAttempts,
+            final TaskInformation taskInformation)
             throws Exception {
 
         final LazyInitializedCoordinatorContext context =
@@ -516,6 +538,7 @@ public class OperatorCoordinatorHolder
                 coordinator,
                 context,
                 taskAccesses,
+                taskInformation,
                 operatorParallelism,
                 operatorMaxParallelism);
     }
@@ -548,6 +571,7 @@ public class OperatorCoordinatorHolder
 
         private GlobalFailureHandler globalFailureHandler;
         private Executor schedulerExecutor;
+        private OperatorCoordinatorMetricGroup metricGroup;
 
         private volatile boolean failed;
 
@@ -566,9 +590,13 @@ public class OperatorCoordinatorHolder
             this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
         }
 
-        void lazyInitialize(GlobalFailureHandler globalFailureHandler, Executor schedulerExecutor) {
+        void lazyInitialize(
+                GlobalFailureHandler globalFailureHandler,
+                Executor schedulerExecutor,
+                OperatorCoordinatorMetricGroup metricGroup) {
             this.globalFailureHandler = checkNotNull(globalFailureHandler);
             this.schedulerExecutor = checkNotNull(schedulerExecutor);
+            this.metricGroup = metricGroup;
         }
 
         void unInitialize() {
@@ -591,6 +619,11 @@ public class OperatorCoordinatorHolder
         @Override
         public OperatorID getOperatorId() {
             return operatorId;
+        }
+
+        @Override
+        public OperatorCoordinatorMetricGroup metricGroup() {
+            return metricGroup;
         }
 
         @Override

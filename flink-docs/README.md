@@ -37,7 +37,7 @@ The documentation must be regenerated whenever
 
 ## Configuration documentation
 
-The `ConfigOptionsDocGenerator` can be use to generate a reference of `ConfigOptions`. By default, a separate file is generated for each `*Options` class found in `org.apache.flink.configuration` and `org.apache.flink.yarn.configuration`. The `@ConfigGroups` annotation can be used to generate multiple files from a single class.
+The `ConfigOptionsDocGenerator` can be used to generate a reference of `ConfigOptions`. By default, a separate file is generated for each `*Options` class found in `org.apache.flink.configuration` and `org.apache.flink.yarn.configuration`. The `@ConfigGroups` annotation can be used to generate multiple files from a single class.
 
 To integrate an `*Options` class from another package, add another module-package argument pair to `ConfigurationOptionLocator#LOCATIONS`.
 

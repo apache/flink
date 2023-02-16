@@ -109,6 +109,11 @@ class MetricFetcherTest {
                                     .metrics
                                     .get("2.opname.abc.oc"))
                     .isEqualTo("1");
+            assertThat(
+                            store.getTaskMetricStore(jobID.toString(), "taskid")
+                                    .getJobManagerOperatorMetricStores("opname")
+                                    .getMetric("abc.joc"))
+                    .isEqualTo("3");
         }
     }
 
@@ -121,9 +126,11 @@ class MetricFetcherTest {
 
         SimpleCounter c1 = new SimpleCounter();
         SimpleCounter c2 = new SimpleCounter();
+        SimpleCounter c3 = new SimpleCounter();
 
         c1.inc(1);
         c2.inc(2);
+        c3.inc(3);
 
         counters.put(
                 c1,
@@ -137,6 +144,12 @@ class MetricFetcherTest {
                         new QueryScopeInfo.TaskQueryScopeInfo(
                                 jobID.toString(), "taskid", 2, 0, "abc"),
                         "tc"));
+        counters.put(
+                c3,
+                new Tuple2<>(
+                        new QueryScopeInfo.JobManagerOperatorQueryScopeInfo(
+                                jobID.toString(), "taskid", "opname", "abc"),
+                        "joc"));
         meters.put(
                 new Meter() {
                     @Override
