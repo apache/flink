@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_KEYTAB;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_PRINCIPAL;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +58,7 @@ public class KerberosLoginProviderITCase {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertFalse(kerberosLoginProvider.isLoginPossible());
+            assertFalse(kerberosLoginProvider.isLoginPossible(true));
         }
     }
 
@@ -71,7 +72,7 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(false);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertFalse(kerberosLoginProvider.isLoginPossible());
+            assertFalse(kerberosLoginProvider.isLoginPossible(true));
         }
     }
 
@@ -88,7 +89,7 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertTrue(kerberosLoginProvider.isLoginPossible());
+            assertTrue(kerberosLoginProvider.isLoginPossible(true));
         }
     }
 
@@ -104,12 +105,12 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertTrue(kerberosLoginProvider.isLoginPossible());
+            assertTrue(kerberosLoginProvider.isLoginPossible(true));
         }
     }
 
     @Test
-    public void isLoginPossibleMustThrowExceptionWithProxyUser() {
+    public void isLoginPossibleMustThrowExceptionWithNoProxyUserSupport() {
         Configuration configuration = new Configuration();
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
@@ -121,7 +122,24 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             assertThrows(
-                    UnsupportedOperationException.class, kerberosLoginProvider::isLoginPossible);
+                    UnsupportedOperationException.class,
+                    () -> kerberosLoginProvider.isLoginPossible(false));
+        }
+    }
+
+    @Test
+    public void isLoginPossibleMustReturnTrueWithProxyUserSupport() throws IOException {
+        Configuration configuration = new Configuration();
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            when(userGroupInformation.getAuthenticationMethod())
+                    .thenReturn(UserGroupInformation.AuthenticationMethod.PROXY);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            assertTrue(kerberosLoginProvider.isLoginPossible(true));
         }
     }
 
@@ -137,7 +155,7 @@ public class KerberosLoginProviderITCase {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            kerberosLoginProvider.doLogin();
+            kerberosLoginProvider.doLogin(true);
             ugi.verify(() -> UserGroupInformation.loginUserFromKeytab(anyString(), anyString()));
         }
     }
@@ -153,13 +171,13 @@ public class KerberosLoginProviderITCase {
             when(userGroupInformation.hasKerberosCredentials()).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            kerberosLoginProvider.doLogin();
+            kerberosLoginProvider.doLogin(true);
             ugi.verify(() -> UserGroupInformation.loginUserFromSubject(null));
         }
     }
 
     @Test
-    public void doLoginMustThrowExceptionWithProxyUser() {
+    public void doLoginMustThrowExceptionWithNoProxyUserSupport() {
         Configuration configuration = new Configuration();
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
@@ -169,7 +187,25 @@ public class KerberosLoginProviderITCase {
                     .thenReturn(UserGroupInformation.AuthenticationMethod.PROXY);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertThrows(UnsupportedOperationException.class, kerberosLoginProvider::doLogin);
+            assertThrows(
+                    UnsupportedOperationException.class,
+                    () -> kerberosLoginProvider.doLogin(false));
+        }
+    }
+
+    @Test
+    public void doLoginMustNotThrowExceptionWithProxyUserSupport() {
+        Configuration configuration = new Configuration();
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            when(userGroupInformation.getAuthenticationMethod())
+                    .thenReturn(UserGroupInformation.AuthenticationMethod.PROXY);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            assertDoesNotThrow(
+                    () -> kerberosLoginProvider.doLogin(true), "Proxy user is not supported");
         }
     }
 
@@ -210,7 +246,7 @@ public class KerberosLoginProviderITCase {
     }
 
     @Test
-    public void doLoginAndReturnUGIMustThrowExceptionWithProxyUser() {
+    public void doLoginAndReturnUGIMustThrowExceptionWithNoProxyUserSupport() {
         Configuration configuration = new Configuration();
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 

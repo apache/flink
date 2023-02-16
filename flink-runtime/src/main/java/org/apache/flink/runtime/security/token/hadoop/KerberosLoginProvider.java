@@ -59,7 +59,7 @@ public class KerberosLoginProvider {
         this.useTicketCache = securityConfiguration.useTicketCache();
     }
 
-    public boolean isLoginPossible() throws IOException {
+    public boolean isLoginPossible(boolean supportProxyUser) throws IOException {
         if (UserGroupInformation.isSecurityEnabled()) {
             LOG.debug("Security is enabled");
         } else {
@@ -77,6 +77,8 @@ public class KerberosLoginProvider {
                 LOG.debug("Login from ticket cache is possible");
                 return true;
             }
+        } else if (supportProxyUser) {
+            return true;
         } else {
             throwProxyUserNotSupported();
         }
@@ -89,7 +91,7 @@ public class KerberosLoginProvider {
     /**
      * Does kerberos login and sets current user. Must be called when isLoginPossible returns true.
      */
-    public void doLogin() throws IOException {
+    public void doLogin(boolean supportProxyUser) throws IOException {
         if (principal != null) {
             LOG.info(
                     "Attempting to login to KDC using principal: {} keytab: {}", principal, keytab);
@@ -99,6 +101,8 @@ public class KerberosLoginProvider {
             LOG.info("Attempting to load user's ticket cache");
             UserGroupInformation.loginUserFromSubject(null);
             LOG.info("Loaded user's ticket cache successfully");
+        } else if (supportProxyUser) {
+            LOG.info("Delegation token fetch is managed and therefore login is managed");
         } else {
             throwProxyUserNotSupported();
         }

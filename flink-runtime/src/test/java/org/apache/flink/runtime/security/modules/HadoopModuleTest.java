@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import org.apache.hadoop.security.UserGroupInformation;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -50,5 +52,18 @@ class HadoopModuleTest {
         hadoopModule.stopTGTRenewal();
 
         verify(userGroupInformation, times(1)).checkTGTAndReloginFromKeytab();
+    }
+
+    @Test
+    public void hadoopProxyUserSetWithDelegationTokensEnabledShouldThrow() {
+        Configuration flinkConf = new Configuration();
+        flinkConf.set(SecurityOptions.DELEGATION_TOKENS_ENABLED, true);
+        SecurityConfiguration securityConf = new SecurityConfiguration(flinkConf);
+        org.apache.hadoop.conf.Configuration hadoopConf =
+                new org.apache.hadoop.conf.Configuration();
+        System.setProperty("HADOOP_PROXY_USER", "test");
+        HadoopModule hadoopModule = new HadoopModule(securityConf, hadoopConf);
+        Assertions.assertThrows(
+                SecurityModule.SecurityInstallException.class, hadoopModule::install);
     }
 }
