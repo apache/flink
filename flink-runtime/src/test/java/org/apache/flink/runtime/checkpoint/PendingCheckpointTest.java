@@ -205,7 +205,7 @@ class PendingCheckpointTest {
         pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
         assertThat(pending.areTasksFullyAcknowledged()).isTrue();
         pending.finalizeCheckpoint(new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
-        assertThat(future.isDone()).isTrue();
+        assertThat(future.isDone()).isFalse();
 
         // Finalize (missing ACKs)
         PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(props);

@@ -25,16 +25,19 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -71,6 +74,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelecti
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
@@ -84,6 +88,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.TestingShuffleMaster;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -830,6 +835,75 @@ public class DefaultSchedulerTest extends TestLogger {
         scheduler.updateTaskExecutionState(createFailedTaskExecutionState(attemptId));
         taskRestartExecutor.triggerScheduledTasks();
         assertThat(masterHook.getRestoreCount()).isOne();
+    }
+
+    @Test
+    void testTriggerCheckpointAndCompletedAfterStore() throws Exception {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        enableCheckpointing(jobGraph);
+
+        final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
+
+        CompletedCheckpointStore store =
+                TestingCompletedCheckpointStore.builder()
+                        .withGetAllCheckpointsSupplier(Collections::emptyList)
+                        .withAddCheckpointAndSubsumeOldestOneFunction(
+                                (ignoredCompletedCheckpoint,
+                                        ignoredCheckpointsCleaner,
+                                        ignoredPostCleanup) -> {
+                                    throw new RuntimeException(
+                                            "Throw exception when add checkpoint to store.");
+                                })
+                        .withGetSharedStateRegistrySupplier(SharedStateRegistryImpl::new)
+                        .build();
+
+        ComponentMainThreadExecutor mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        new DirectScheduledExecutorService());
+        final DefaultScheduler scheduler;
+        scheduler =
+                createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setCheckpointRecoveryFactory(
+                                new TestingCheckpointRecoveryFactory(
+                                        store, new StandaloneCheckpointIDCounter()))
+                        .build();
+        mainThreadExecutor.execute(scheduler::startScheduling);
+
+        final ArchivedExecutionVertex onlyExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+        final ExecutionAttemptID attemptId =
+                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+        transitionToRunning(scheduler, attemptId);
+
+        final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+
+        // complete one checkpoint for state restore
+        CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture =
+                checkpointCoordinator.triggerCheckpoint(false);
+        checkpointTriggeredLatch.await();
+
+        final long checkpointId =
+                checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
+        OneShotLatch latch = new OneShotLatch();
+        executor.execute(
+                () -> {
+                    try {
+                        final AcknowledgeCheckpoint acknowledgeCheckpoint =
+                                new AcknowledgeCheckpoint(
+                                        jobGraph.getJobID(), attemptId, checkpointId);
+                        checkpointCoordinator.receiveAcknowledgeMessage(
+                                acknowledgeCheckpoint, "Unknown location");
+                    } catch (Exception e) {
+                        latch.trigger();
+                    }
+                });
+
+        latch.await();
+        assertThat(checkpointCompletableFuture).isCompletedExceptionally();
     }
 
     @Test
