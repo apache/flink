@@ -20,7 +20,6 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.testjar.TestJob;
-import org.apache.flink.client.testjar.TestJobInfo;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
@@ -169,7 +168,7 @@ public class JarManifestParserTest {
                 JarManifestParser.findFirstManifestAttribute(
                         TestJob.getTestJobJar(), PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
 
-        assertThat(optionalValue).get().isEqualTo(TestJobInfo.TEST_JAR_JOB_CLASS);
+        assertThat(optionalValue).get().isEqualTo("org.apache.flink.client.testjar.TestJob");
     }
 
     private File createJarFileWithManifest(Map<String, String> manifest) throws IOException {
