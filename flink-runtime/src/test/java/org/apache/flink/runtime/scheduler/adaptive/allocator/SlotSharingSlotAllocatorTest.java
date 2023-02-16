@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -132,6 +133,40 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         assertThat(
                 maxParallelismForVertices.get(vertex3.getJobVertexID()),
                 is(vertex3.getParallelism()));
+    }
+
+    @Test
+    public void testDetermineParallelismWithVariedParallelism() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION);
+        final SlotSharingGroup slotSharingGroup1 = new SlotSharingGroup();
+        final JobInformation.VertexInformation vertex11 =
+                new TestVertexInformation(new JobVertexID(), 4, slotSharingGroup1);
+        final JobInformation.VertexInformation vertex12 =
+                new TestVertexInformation(new JobVertexID(), 1, slotSharingGroup1);
+        final JobInformation.VertexInformation vertex2 =
+                new TestVertexInformation(new JobVertexID(), 2, new SlotSharingGroup());
+
+        TestJobInformation testJobInformation =
+                new TestJobInformation(Arrays.asList(vertex11, vertex12, vertex2));
+
+        Map<JobVertexID, Integer> maxParallelismForVertices =
+                slotAllocator
+                        .determineParallelism(
+                                testJobInformation,
+                                getSlots(vertex11.getParallelism() + vertex2.getParallelism()))
+                        .get()
+                        .getMaxParallelismForVertices();
+
+        Assertions.assertThat(maxParallelismForVertices.get(vertex11.getJobVertexID()))
+                .isEqualTo(vertex11.getParallelism());
+        Assertions.assertThat(maxParallelismForVertices.get(vertex12.getJobVertexID()))
+                .isEqualTo(vertex12.getParallelism());
+        Assertions.assertThat(maxParallelismForVertices.get(vertex2.getJobVertexID()))
+                .isEqualTo(vertex2.getParallelism());
     }
 
     @Test
@@ -242,6 +277,11 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         @Override
         public VertexInformation getVertexInformation(JobVertexID jobVertexId) {
             return vertexIdToInformation.get(jobVertexId);
+        }
+
+        @Override
+        public Iterable<VertexInformation> getVertices() {
+            return vertexIdToInformation.values();
         }
     }
 

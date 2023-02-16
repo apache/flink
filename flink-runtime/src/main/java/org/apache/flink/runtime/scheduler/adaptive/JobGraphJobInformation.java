@@ -73,6 +73,7 @@ public class JobGraphJobInformation implements JobInformation {
         return jobGraph.getCheckpointingSettings();
     }
 
+    @Override
     public Iterable<JobInformation.VertexInformation> getVertices() {
         return Iterables.transform(
                 jobGraph.getVertices(), (vertex) -> getVertexInformation(vertex.getID()));
