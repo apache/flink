@@ -33,6 +33,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
@@ -1090,7 +1091,7 @@ public class NotPatternITCase extends TestLogger {
         inputEvents.add(new StreamRecord<>(c2, 10));
 
         Pattern<Event, ?> pattern =
-                Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipToNext())
+                Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipPastLastEvent())
                         .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .allowCombinations()
@@ -1104,15 +1105,10 @@ public class NotPatternITCase extends TestLogger {
 
         NFATestHarness harness =
                 NFATestHarness.forNFA(nfa)
-                        .withAfterMatchSkipStrategy(AfterMatchSkipStrategy.skipToNext())
+                        .withAfterMatchSkipStrategy(AfterMatchSkipStrategy.skipPastLastEvent())
                         .build();
         final List<List<Event>> matches = harness.feedRecords(inputEvents);
 
-        comparePatterns(
-                matches,
-                Lists.newArrayList(
-                        Lists.newArrayList(a1, a2, a3, c1),
-                        Lists.newArrayList(a2, a3, c1),
-                        Lists.newArrayList(a3, c1)));
+        comparePatterns(matches, Collections.singletonList(Lists.newArrayList(a1, a2, a3, c1)));
     }
 }
