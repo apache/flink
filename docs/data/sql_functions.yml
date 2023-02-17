@@ -617,6 +617,9 @@ collection:
   - sql: ARRAY_DISTINCT(haystack)
     table: haystack.arrayDistinct()
     description: Returns an array with unique elements. If the array itself is null, the function will return null. Keeps ordering of elements.
+  - sql: ARRAY_UNION(array1, array2)
+    table: haystack.arrayUnion(array)
+    description: Returns an array of the elements in the union of array1 and array2, without duplicates. If both of the array are null, the function will return null.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]

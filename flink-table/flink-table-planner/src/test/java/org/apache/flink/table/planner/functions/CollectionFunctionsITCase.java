@@ -21,12 +21,17 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.array;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
 class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
@@ -160,6 +165,119 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_UNION)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2},
+                                new Integer[] {null, null, 1},
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Integer[][] {
+                                    new Integer[] {1, null, 3}, new Integer[] {0}, new Integer[] {1}
+                                },
+                                new Map[] {
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                    null
+                                },
+                                null)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())),
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // ARRAY<INT>
+                        .testResult(
+                                $("f0").arrayUnion(new Integer[] {2, 3}),
+                                "ARRAY_UNION(f0, ARRAY[2, 3])",
+                                new Integer[] {1, 2, 3},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                //                                lit(null, DataTypes.BOOLEAN())
+                                $("f0").arrayUnion(
+                                                lit(null, DataTypes.ARRAY(DataTypes.INT()))
+                                                        .tryCast(DataTypes.ARRAY(DataTypes.INT()))),
+                                "ARRAY_UNION(f0, cast(null as integer array))",
+                                new Integer[] {1, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // ARRAY<INT> of null value
+                        .testResult(
+                                $("f1").arrayUnion(new Integer[] {null, 2}),
+                                "ARRAY_UNION(f1, ARRAY[NULL, 2])",
+                                new Integer[] {null, 1, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f2").arrayUnion(array(row(false, LocalDate.of(1990, 10, 14)))),
+                                "ARRAY_UNION(f2, ARRAY[(FALSE, DATE '1990-10-14')])",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null,
+                                    Row.of(false, LocalDate.of(1990, 10, 14))
+                                },
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.DATE()))
+                                        .nullable())
+                        // ARRAY<ARRAY<INT>>
+                        .testResult(
+                                $("f3").arrayUnion(
+                                                new Integer[][] {
+                                                    new Integer[] {1, null, 3}, new Integer[] {2}
+                                                }),
+                                "ARRAY_UNION(f3, ARRAY[ARRAY[1, NULL, 3], array[2]])",
+                                new Integer[][] {
+                                    new Integer[] {1, null, 3},
+                                    new Integer[] {0},
+                                    new Integer[] {1},
+                                    new Integer[] {2}
+                                },
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()).nullable()))
+                        // ARRAY<Map<INT, STRING>> with null elements
+                        .testResult(
+                                $("f4").arrayUnion(
+                                                array(
+                                                        CollectionUtil.map(
+                                                                entry(5, "e"), entry(6, "f")))),
+                                "ARRAY_UNION(f4, ARRAY[MAP[5, 'e', 6, 'f']])",
+                                new Map[] {
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                    null,
+                                    CollectionUtil.map(entry(5, "e"), entry(6, "f"))
+                                },
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                                        .nullable())
+                        .testResult(
+                                $("f5").arrayUnion(new String[] {"a", "b"}),
+                                "ARRAY_UNION(f5, ARRAY['a', 'b'])",
+                                new String[] {"a", "b"},
+                                DataTypes.ARRAY(DataTypes.STRING()).nullable())
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_UNION(f0, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_UNION(array1 <ARRAY>, array2 <ARRAY>)")
+                        .testTableApiValidationError(
+                                $("f0").arrayUnion(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_UNION(array1 <ARRAY>, array2 <ARRAY>)")
+                        // unmatched array type
+                        // TODO refer to calcite ARRAY_CONCAT.
+                        .testSqlValidationError(
+                                "ARRAY_UNION(f0, ARRAY['a', 'b'])",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_UNION(array1 <ARRAY>, array2 <ARRAY>)")
+                        .testTableApiValidationError(
+                                $("f0").arrayUnion(new String[] {"a", "b"}),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_UNION(array1 <ARRAY>, array2 <ARRAY>)"));
     }
 }

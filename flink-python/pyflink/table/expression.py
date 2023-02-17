@@ -1487,6 +1487,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayDistinct")(self)
 
+    def array_union(self, array) -> 'Expression':
+        """
+        Returns an array of the elements in the union of array1 and array2, without duplicates.
+        If both of the array are null, the function will return null.
+        """
+        return _binary_op("arrayUnion")(self, array)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

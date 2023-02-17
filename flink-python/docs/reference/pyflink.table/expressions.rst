@@ -226,6 +226,7 @@ advanced type helper functions
     Expression.element
     Expression.array_contains
     Expression.array_distinct
+    Expression.array_union
 
 
 time definition functions
