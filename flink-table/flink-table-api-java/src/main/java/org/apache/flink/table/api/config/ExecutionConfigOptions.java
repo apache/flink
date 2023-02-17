@@ -160,7 +160,7 @@ public class ExecutionConfigOptions {
                             Description.builder()
                                     .text(
                                             "In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. "
-                                                    + "FLINK will auto add a keyed shuffle by default when the sink's parallelism differs from upstream operator and upstream is append only. "
+                                                    + "FLINK will auto add a keyed shuffle by default when the sink parallelism differs from upstream operator and sink parallelism is not 1."
                                                     + "This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve "
                                                     + "the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an "
                                                     + "upsert source with primary key definition which truly reflect the records evolution).")
