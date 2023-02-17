@@ -42,6 +42,7 @@ import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -502,11 +503,11 @@ public class CEPOperatorTest extends TestLogger {
 
             harness.processElement(new StreamRecord<>(startEvent, 1L));
             harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
-            harness.processElement(new StreamRecord<Event>(middleEvent, 4L));
+            harness.processElement(new StreamRecord<>(middleEvent, 4L));
             harness.processElement(new StreamRecord<>(endEvent, 4L));
 
             // verify the number of invocations NFA is updated
-            Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
+            Mockito.verify(nfaOperatorStateSpy, Mockito.times(2)).update(Mockito.any());
 
             // get and verify the output
             Queue<Object> result = harness.getOutput();
@@ -548,11 +549,11 @@ public class CEPOperatorTest extends TestLogger {
 
             harness.processElement(new StreamRecord<>(startEvent, 1L));
             harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
-            harness.processElement(new StreamRecord<Event>(middleEvent, 4L));
+            harness.processElement(new StreamRecord<>(middleEvent, 4L));
             harness.processElement(new StreamRecord<>(endEvent, 4L));
 
             // verify the number of invocations NFA is updated
-            Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
+            Mockito.verify(nfaOperatorStateSpy, Mockito.times(2)).update(Mockito.any());
 
             // get and verify the output
             Queue<Object> result = harness.getOutput();
@@ -1159,6 +1160,44 @@ public class CEPOperatorTest extends TestLogger {
             verifyWatermark(harness.getOutput().poll(), 6L);
         } finally {
             harness.close();
+        }
+    }
+
+    @Test
+    public void testKeyedCEPOperatorStateCleaning() throws Exception {
+        CepOperator<Event, Integer, Map<String, List<Event>>> operator =
+                CepOperatorTestUtilities.getKeyedCepOperator(false, new SimpleNFAFactory());
+
+        try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+                CepOperatorTestUtilities.getCepTestHarness(operator)) {
+            harness.open();
+
+            final ValueState<?> nfaOperatorState =
+                    (ValueState<?>) Whitebox.getInternalState(operator, "computationStates");
+            final ValueState<?> nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
+            final AbstractHeapState<?, ?, ?> heapState =
+                    (AbstractHeapState<?, ?, ?>) nfaOperatorState;
+            Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
+
+            Event startEvent = new Event(42, "c", 1.0);
+            SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
+            Event endEvent = new Event(42, "b", 1.0);
+
+            harness.processElement(new StreamRecord<>(startEvent, 1L));
+            harness.processElement(new StreamRecord<>(middleEvent, 2L));
+            harness.processElement(new StreamRecord<>(endEvent, 3L));
+            harness.processWatermark(4L);
+
+            // State for this key should be cleaned after all partial matches finished
+            assertTrue(heapState.getStateTable().isEmpty());
+
+            harness.processElement(new StreamRecord<>(startEvent, 4L));
+            harness.processElement(new StreamRecord<>(middleEvent, 5L));
+            harness.processElement(new StreamRecord<>(endEvent, 6L));
+            harness.processWatermark(20L);
+
+            // State for this key should be cleaned after all partial matches timed-out
+            assertTrue(heapState.getStateTable().isEmpty());
         }
     }
 

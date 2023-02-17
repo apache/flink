@@ -378,7 +378,13 @@ public class CepOperator<IN, KEY, OUT>
         if (nfaState.isStateChanged()) {
             nfaState.resetStateChanged();
             nfaState.resetNewStartPartialMatch();
-            computationStates.update(nfaState);
+            // Clear state when only start state left (currently there's only one start state)
+            // Completed matches should also be empty when only start state left in partial matches
+            if (nfaState.getPartialMatches().size() == 1) {
+                computationStates.clear();
+            } else {
+                computationStates.update(nfaState);
+            }
         }
     }
 
