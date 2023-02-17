@@ -67,7 +67,7 @@ object HashAggCodeGenerator {
   val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD: ConfigOption[JLong] =
     key("table.exec.local-hash-agg.adaptive.sampling-threshold")
       .longType()
-      .defaultValue(Long.box(5000000L))
+      .defaultValue(Long.box(500000L))
       .withDescription(
         s"""
            |If adaptive local hash aggregation is enabled, this value defines how 
@@ -76,7 +76,7 @@ object HashAggCodeGenerator {
            |for the local aggregate. The higher the sampling threshold, the more accurate 
            |the distinct value rate is. But as the sampling threshold increases, local 
            |aggregation is meaningless when the distinct values rate is low. 
-           |The default value is 5000000.
+           |The default value is 500000.
            |""".stripMargin)
 
   @Experimental
