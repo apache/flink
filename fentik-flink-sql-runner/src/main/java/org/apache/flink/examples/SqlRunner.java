@@ -42,7 +42,7 @@ public class SqlRunner {
         if (args.length != 1) {
             throw new Exception("Exactly one argument is expected.");
         }
-        var script = FileUtils.readFileUtf8(new File(args[0]));
+        var script = args[0];
         var statements = parseStatements(script);
 
         var tableEnv = TableEnvironment.create(new Configuration());
