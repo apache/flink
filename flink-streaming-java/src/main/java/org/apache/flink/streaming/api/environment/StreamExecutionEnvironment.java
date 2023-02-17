@@ -149,11 +149,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class StreamExecutionEnvironment implements AutoCloseable {
 
-    private static final List<CollectResultIterator<?>> collectIterators = new ArrayList<>();
+    private static final List<CollectResultIterator<?>> collectIterators =
+            Collections.synchronizedList(new ArrayList<>());
 
     @Internal
     public void registerCollectIterator(CollectResultIterator<?> iterator) {
-        collectIterators.add(iterator);
+        synchronized (collectIterators) {
+            collectIterators.add(iterator);
+        }
     }
 
     /**
@@ -2199,8 +2202,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         try {
             JobClient jobClient = jobClientFuture.get();
             jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
-            collectIterators.forEach(iterator -> iterator.setJobClient(jobClient));
-            collectIterators.clear();
+            synchronized (collectIterators) {
+                collectIterators.forEach(iterator -> iterator.setJobClient(jobClient));
+                collectIterators.clear();
+            }
             return jobClient;
         } catch (ExecutionException executionException) {
             final Throwable strippedException =
