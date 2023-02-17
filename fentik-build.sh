@@ -15,6 +15,7 @@ GIT_SHA=$(git log -n 1 --format="%H" .)
 
 MVN_INSTALL="mvn install -DskipTests -Dfast -s maven-unblock-http-repos.xml"
 $MVN_INSTALL -f fentik-udf
+$MVN_INSTALL -f fentik-flink-sql-runner
 $MVN_INSTALL -f fentik-rescale-savepoint
 $MVN_INSTALL
 
@@ -22,6 +23,7 @@ $MVN_INSTALL
 cp ./flink-connectors/flink-sql-connector-kafka/target/flink-sql-connector-kafka-${FLINK_VER}.jar $LIB_DIR
 cp ./flink-table/flink-table-runtime/target/flink-table-runtime-${FLINK_VER}.jar  $LIB_DIR
 cp ./fentik-udf/target/fentik-sql-functions-0.1.0.jar $LIB_DIR
+cp ./fentik-flink-sql-runner/target/fentik-flink-sql-runner-0.1.0.jar $OPT_DIR
 cp ./fentik-rescale-savepoint/target/fentik-rescale-savepoint-0.2.0.jar $OPT_DIR
 
 mkdir -p $FLINK_DIR/plugins/s3-fs-presto
