@@ -21,11 +21,13 @@ package org.apache.flink.fs.gs.writer;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,29 +36,30 @@ import java.util.Collection;
 import java.util.Random;
 
 import static org.apache.flink.fs.gs.TestUtils.RANDOM_SEED;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link GSChecksumWriteChannel}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class GSChecksumWriteChannelTest {
 
     /* The sizes of each buffer of bytes used for writing. */
-    @Parameterized.Parameter(value = 0)
+    @Parameter(value = 0)
     public int[] bufferSizes;
 
     /* The start positions in write buffers. */
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public int[] writeStarts;
 
     /* The length of each write. */
-    @Parameterized.Parameter(value = 2)
+    @Parameter(value = 2)
     public int[] writeLengths;
 
-    @Parameterized.Parameter(value = 3)
+    @Parameter(value = 3)
     public String description;
 
-    @Parameterized.Parameters(name = "{3}")
+    @Parameters(name = "{3}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -91,7 +94,7 @@ public class GSChecksumWriteChannelTest {
 
     private GSBlobIdentifier blobIdentifier;
 
-    @Before
+    @BeforeEach
     public void before() throws IOException {
         Random random = new Random();
         random.setSeed(RANDOM_SEED);
@@ -124,7 +127,7 @@ public class GSChecksumWriteChannelTest {
      *
      * @throws IOException On storage failure.
      */
-    @Test
+    @TestTemplate
     public void shouldWriteProperly() throws IOException {
 
         MockBlobStorage blobStorage = new MockBlobStorage();
@@ -152,7 +155,7 @@ public class GSChecksumWriteChannelTest {
      *
      * @throws IOException On checksum failure.
      */
-    @Test(expected = IOException.class)
+    @TestTemplate
     public void shouldThrowOnChecksumMismatch() throws IOException {
 
         MockBlobStorage blobStorage = new MockBlobStorage();
@@ -170,6 +173,6 @@ public class GSChecksumWriteChannelTest {
         }
 
         // close the write, this also validates the checksum
-        checksumWriteChannel.close();
+        assertThatThrownBy(() -> checksumWriteChannel.close()).isInstanceOf(IOException.class);
     }
 }

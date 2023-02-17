@@ -46,7 +46,7 @@ public class AbstractS3DelegationTokenReceiverTest {
     }
 
     @Test
-    public void updateHadoopConfigShouldSetProviderWhenEmpty() {
+    void updateHadoopConfigShouldSetProviderWhenEmpty() {
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
         hadoopConfiguration.set(PROVIDER_CONFIG_NAME, "");
@@ -57,7 +57,7 @@ public class AbstractS3DelegationTokenReceiverTest {
     }
 
     @Test
-    public void updateHadoopConfigShouldPrependProviderWhenNotEmpty() {
+    void updateHadoopConfigShouldPrependProviderWhenNotEmpty() {
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
         hadoopConfiguration.set(PROVIDER_CONFIG_NAME, PROVIDER_CLASS_NAME);
@@ -69,7 +69,7 @@ public class AbstractS3DelegationTokenReceiverTest {
     }
 
     @Test
-    public void updateHadoopConfigShouldNotAddProviderWhenAlreadyExists() {
+    void updateHadoopConfigShouldNotAddProviderWhenAlreadyExists() {
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
         hadoopConfiguration.set(PROVIDER_CONFIG_NAME, DynamicTemporaryAWSCredentialsProvider.NAME);
@@ -80,7 +80,7 @@ public class AbstractS3DelegationTokenReceiverTest {
     }
 
     @Test
-    public void updateHadoopConfigShouldNotUpdateRegionWhenNotConfigured() {
+    void updateHadoopConfigShouldNotUpdateRegionWhenNotConfigured() {
         AbstractS3DelegationTokenReceiver receiver = createReceiver();
         receiver.init(new Configuration());
 
@@ -91,7 +91,7 @@ public class AbstractS3DelegationTokenReceiverTest {
     }
 
     @Test
-    public void updateHadoopConfigShouldUpdateRegionWhenConfigured() {
+    void updateHadoopConfigShouldUpdateRegionWhenConfigured() {
         AbstractS3DelegationTokenReceiver receiver = createReceiver();
         Configuration configuration = new Configuration();
         configuration.setString(CONFIG_PREFIX + ".s3.region", REGION);

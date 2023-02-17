@@ -24,11 +24,10 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -43,13 +42,13 @@ import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
 
 /** Abstract integration test class for implementations of hadoop file system. */
-public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
+public abstract class AbstractHadoopFileSystemITTest {
 
     protected static FileSystem fs;
     protected static Path basePath;
     protected static long consistencyToleranceNS;
 
-    public static void checkPathExistence(
+    private static void checkPathExistence(
             Path path, boolean expectedExists, long consistencyToleranceNS)
             throws IOException, InterruptedException {
         if (consistencyToleranceNS == 0) {
@@ -66,7 +65,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
     }
 
     @Test
-    public void testSimpleFileWriteAndRead() throws Exception {
+    void testSimpleFileWriteAndRead() throws Exception {
         final String testLine = "Hello Upload!";
 
         final Path path = new Path(basePath, "test.txt");
@@ -95,7 +94,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
     }
 
     @Test
-    public void testDirectoryListing() throws Exception {
+    void testDirectoryListing() throws Exception {
         final Path directory = new Path(basePath, "testdir/");
 
         // directory must not yet exist
@@ -140,8 +139,8 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
         }
     }
 
-    @AfterClass
-    public static void teardown() throws IOException, InterruptedException {
+    @AfterAll
+    static void teardown() throws IOException, InterruptedException {
         try {
             if (fs != null) {
                 cleanupDirectoryWithRetry(fs, basePath, consistencyToleranceNS);
@@ -151,7 +150,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
         }
     }
 
-    public static void cleanupDirectoryWithRetry(
+    private static void cleanupDirectoryWithRetry(
             FileSystem fs, Path path, long consistencyToleranceNS)
             throws IOException, InterruptedException {
         fs.delete(path, true);
@@ -160,6 +159,6 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
             fs.delete(path, true);
             Thread.sleep(50L);
         }
-        Assert.assertFalse(fs.exists(path));
+        Assertions.assertFalse(fs.exists(path));
     }
 }

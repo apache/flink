@@ -29,7 +29,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.facebook.presto.hive.s3.PrestoS3FileSystem;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -45,7 +45,7 @@ import static org.junit.Assert.assertTrue;
 public class PrestoS3FileSystemTest {
 
     @Test
-    public void testConfigPropagation() throws Exception {
+    void testConfigPropagation() throws Exception {
         final Configuration conf = new Configuration();
 
         conf.set(AbstractS3FileSystemFactory.ACCESS_KEY, "test_access_key_id");
@@ -58,7 +58,7 @@ public class PrestoS3FileSystemTest {
     }
 
     @Test
-    public void testDynamicConfigProvider() throws Exception {
+    void testDynamicConfigProvider() throws Exception {
         final Configuration conf = new Configuration();
 
         conf.setString(
@@ -73,7 +73,7 @@ public class PrestoS3FileSystemTest {
     }
 
     @Test
-    public void testConfigPropagationWithPrestoPrefix() throws Exception {
+    void testConfigPropagationWithPrestoPrefix() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString("presto.s3.access-key", "test_access_key_id");
         conf.setString("presto.s3.secret-key", "test_secret_access_key");
@@ -85,7 +85,7 @@ public class PrestoS3FileSystemTest {
     }
 
     @Test
-    public void testConfigPropagationAlternateStyle() throws Exception {
+    void testConfigPropagationAlternateStyle() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString("s3.access.key", "test_access_key_id");
         conf.setString("s3.secret.key", "test_secret_access_key");
@@ -97,7 +97,7 @@ public class PrestoS3FileSystemTest {
     }
 
     @Test
-    public void testShadingOfAwsCredProviderConfig() {
+    void testShadingOfAwsCredProviderConfig() {
         final Configuration conf = new Configuration();
         conf.setString(
                 "presto.s3.credentials-provider",

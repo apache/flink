@@ -19,11 +19,13 @@
 package org.apache.flink.fs.gs.utils;
 
 import org.apache.flink.fs.gs.TestUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -35,26 +37,27 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test construction of Storage instance in GSFileSystemFactory. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ConfigUtilsStorageTest {
 
     /* The test case description. */
-    @Parameterized.Parameter(value = 0)
-    public String description;
+    public @Parameter String description;
 
     /* The value to use for the GOOGLE_APPLICATION_CREDENTIALS environment variable. */
-    @Parameterized.Parameter(value = 1)
-    public @Nullable String envGoogleApplicationCredentials;
+    @Parameter(value = 1)
+    @Nullable
+    public String envGoogleApplicationCredentials;
 
     /* The Hadoop config. */
-    @Parameterized.Parameter(value = 2)
+    @Parameter(value = 2)
     public org.apache.hadoop.conf.Configuration hadoopConfig;
 
     /* The expected credentials file to use. */
-    @Parameterized.Parameter(value = 3)
-    public @Nullable String expectedCredentialsFilePath;
+    @Parameter(value = 3)
+    @Nullable
+    public String expectedCredentialsFilePath;
 
-    @Parameterized.Parameters(name = "description={0}")
+    @Parameters(name = "description={0}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -124,8 +127,8 @@ public class ConfigUtilsStorageTest {
                 });
     }
 
-    @Test
-    public void shouldProperlyCreateStorageCredentials() {
+    @TestTemplate
+    void shouldProperlyCreateStorageCredentials() {
 
         // populate this if we store credentials in the testing context
         Optional<GoogleCredentials> expectedCredentials = Optional.empty();

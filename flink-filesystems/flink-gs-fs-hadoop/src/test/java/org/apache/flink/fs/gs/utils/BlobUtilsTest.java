@@ -22,40 +22,44 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link BlobUtils}. */
-public class BlobUtilsTest {
+class BlobUtilsTest {
 
     @Test
-    public void shouldParseValidUri() {
+    void shouldParseValidUri() {
         GSBlobIdentifier blobIdentifier = BlobUtils.parseUri(URI.create("gs://bucket/foo/bar"));
         assertEquals("bucket", blobIdentifier.bucketName);
         assertEquals("foo/bar", blobIdentifier.objectName);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldFailToParseUriBadScheme() {
-        BlobUtils.parseUri(URI.create("s3://bucket/foo/bar"));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldFailToParseUriMissingBucketName() {
-        BlobUtils.parseUri(URI.create("gs:///foo/bar"));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldFailToParseUriMissingObjectName() {
-        BlobUtils.parseUri(URI.create("gs://bucket/"));
+    @Test
+    void shouldFailToParseUriBadScheme() {
+        assertThatThrownBy(() -> BlobUtils.parseUri(URI.create("s3://bucket/foo/bar")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void shouldUseTemporaryBucketNameIfSpecified() {
+    void shouldFailToParseUriMissingBucketName() {
+        assertThatThrownBy(() -> BlobUtils.parseUri(URI.create("gs:///foo/bar")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldFailToParseUriMissingObjectName() {
+        assertThatThrownBy(() -> BlobUtils.parseUri(URI.create("gs://bucket/")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldUseTemporaryBucketNameIfSpecified() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, "temp");
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
@@ -66,7 +70,7 @@ public class BlobUtilsTest {
     }
 
     @Test
-    public void shouldUseIdentifierBucketNameNameIfTemporaryBucketNotSpecified() {
+    void shouldUseIdentifierBucketNameNameIfTemporaryBucketNotSpecified() {
         Configuration flinkConfig = new Configuration();
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
@@ -76,7 +80,7 @@ public class BlobUtilsTest {
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryObjectPartialName() {
+    void shouldProperlyConstructTemporaryObjectPartialName() {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String partialName = BlobUtils.getTemporaryObjectPartialName(identifier);
@@ -84,7 +88,7 @@ public class BlobUtilsTest {
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryObjectName() {
+    void shouldProperlyConstructTemporaryObjectName() {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
         UUID temporaryObjectId = UUID.fromString("f09c43e5-ea49-4537-a406-0586f8f09d47");
 
@@ -93,7 +97,7 @@ public class BlobUtilsTest {
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryObjectNameWithEntropy() {
+    void shouldProperlyConstructTemporaryObjectNameWithEntropy() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(GSFileSystemOptions.ENABLE_FILESINK_ENTROPY, Boolean.TRUE);
 
@@ -108,7 +112,8 @@ public class BlobUtilsTest {
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryBlobIdentifierWithDefaultBucket() {
+    void shouldProperlyConstructTemporaryBlobIdentifierWithDefaultBucket() {
+
         Configuration flinkConfig = new Configuration();
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
@@ -123,7 +128,7 @@ public class BlobUtilsTest {
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryBlobIdentifierWithTemporaryBucket() {
+    void shouldProperlyConstructTemporaryBlobIdentifierWithTemporaryBucket() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, "temp");
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);

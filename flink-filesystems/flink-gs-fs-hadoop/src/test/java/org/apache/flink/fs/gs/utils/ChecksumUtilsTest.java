@@ -18,15 +18,15 @@
 
 package org.apache.flink.fs.gs.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link ChecksumUtils}. */
-public class ChecksumUtilsTest {
+class ChecksumUtilsTest {
 
     @Test
-    public void shouldConvertToStringChecksum() {
+    void shouldConvertToStringChecksum() {
         assertEquals("AAAwOQ==", ChecksumUtils.convertChecksumToString(12345));
         assertEquals("AADUMQ==", ChecksumUtils.convertChecksumToString(54321));
     }

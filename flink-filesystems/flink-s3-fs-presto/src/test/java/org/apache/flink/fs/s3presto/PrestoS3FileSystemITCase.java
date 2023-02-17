@@ -26,19 +26,15 @@ import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import com.amazonaws.SdkClientException;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import static com.facebook.presto.hive.s3.S3ConfigurationUpdater.S3_USE_INSTANCE_CREDENTIALS;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Unit tests for the S3 file system support via Presto's {@link
@@ -48,20 +44,12 @@ import static org.junit.Assert.fail;
  * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency
  * guarantees</a> and what the {@link com.facebook.presto.hive.s3.PrestoS3FileSystem} offers.
  */
-@RunWith(Parameterized.class)
-public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
-
-    @Parameterized.Parameter public String scheme;
-
-    @Parameterized.Parameters(name = "Scheme = {0}")
-    public static List<String> parameters() {
-        return Arrays.asList("s3", "s3p");
-    }
+class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         S3TestCredentials.assumeCredentialsAvailable();
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
@@ -79,7 +67,7 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
     }
 
     @Test
-    public void testConfigKeysForwarding() throws Exception {
+    void testConfigKeysForwarding() throws Exception {
         final Path path = basePath;
 
         // access without credentials should fail

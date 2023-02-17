@@ -30,10 +30,9 @@ import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,26 +49,27 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 /** Tests for the {@link RecoverableMultiPartUploadImpl}. */
-public class RecoverableMultiPartUploadImplTest {
+class RecoverableMultiPartUploadImplTest {
 
     private static final int BUFFER_SIZE = 10;
 
     private static final String TEST_OBJECT_NAME = "TEST-OBJECT";
 
+    @TempDir File temporaryFolder;
+
     private StubMultiPartUploader stubMultiPartUploader;
 
     private RecoverableMultiPartUploadImpl multiPartUploadUnderTest;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Before
-    public void before() throws IOException {
+    @BeforeEach
+    void before() throws IOException {
         stubMultiPartUploader = new StubMultiPartUploader();
         multiPartUploadUnderTest =
                 RecoverableMultiPartUploadImpl.newUpload(
@@ -77,7 +77,7 @@ public class RecoverableMultiPartUploadImplTest {
     }
 
     @Test
-    public void singlePartUploadShouldBeIncluded() throws IOException {
+    void singlePartUploadShouldBeIncluded() throws IOException {
         final byte[] part = bytesOf("hello world");
 
         uploadPart(part);
@@ -86,7 +86,7 @@ public class RecoverableMultiPartUploadImplTest {
     }
 
     @Test
-    public void incompletePartShouldBeUploadedAsIndividualObject() throws IOException {
+    void incompletePartShouldBeUploadedAsIndividualObject() throws IOException {
         final byte[] incompletePart = bytesOf("Hi!");
 
         uploadObject(incompletePart);
@@ -95,7 +95,7 @@ public class RecoverableMultiPartUploadImplTest {
     }
 
     @Test
-    public void multiplePartAndObjectUploadsShouldBeIncluded() throws IOException {
+    void multiplePartAndObjectUploadsShouldBeIncluded() throws IOException {
         final byte[] firstCompletePart = bytesOf("hello world");
         final byte[] secondCompletePart = bytesOf("hello again");
         final byte[] thirdIncompletePart = bytesOf("!!!");
@@ -113,7 +113,7 @@ public class RecoverableMultiPartUploadImplTest {
     }
 
     @Test
-    public void multiplePartAndObjectUploadsShouldBeReflectedInRecoverable() throws IOException {
+    void multiplePartAndObjectUploadsShouldBeReflectedInRecoverable() throws IOException {
         final byte[] firstCompletePart = bytesOf("hello world");
         final byte[] secondCompletePart = bytesOf("hello again");
         final byte[] thirdIncompletePart = bytesOf("!!!");
@@ -128,7 +128,7 @@ public class RecoverableMultiPartUploadImplTest {
     }
 
     @Test
-    public void s3RecoverableReflectsTheLatestPartialObject() throws IOException {
+    void s3RecoverableReflectsTheLatestPartialObject() throws IOException {
         final byte[] incompletePartOne = bytesOf("AB");
         final byte[] incompletePartTwo = bytesOf("ABC");
 
@@ -140,13 +140,14 @@ public class RecoverableMultiPartUploadImplTest {
                 not(equalTo(recoverableOne.incompleteObjectName())));
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void uploadingNonClosedFileAsCompleteShouldThroughException() throws IOException {
+    @Test
+    void uploadingNonClosedFileAsCompleteShouldThroughException() throws IOException {
         final byte[] incompletePart = bytesOf("!!!");
 
         final RefCountedBufferingFileStream incompletePartFile = writeContent(incompletePart);
 
-        multiPartUploadUnderTest.uploadPart(incompletePartFile);
+        assertThatThrownBy(() -> multiPartUploadUnderTest.uploadPart(incompletePartFile))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     // --------------------------------- Matchers ---------------------------------
@@ -323,7 +324,7 @@ public class RecoverableMultiPartUploadImplTest {
     }
 
     private RefCountedBufferingFileStream writeContent(byte[] content) throws IOException {
-        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
+        final File newFile = new File(temporaryFolder, ".tmp_" + UUID.randomUUID());
         final OutputStream out =
                 Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 

@@ -25,8 +25,6 @@ import org.apache.flink.core.fs.RefCountedBufferingFileStream;
 import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.fs.osshadoop.writer.OSSRecoverableMultipartUpload;
 
-import org.junit.rules.TemporaryFolder;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -82,7 +80,7 @@ public class OSSTestUtils {
 
     public static void uploadPart(
             OSSRecoverableMultipartUpload uploader,
-            final TemporaryFolder temporaryFolder,
+            final File temporaryFolder,
             final byte[] content)
             throws IOException {
         RefCountedBufferingFileStream partFile = writeData(temporaryFolder, content);
@@ -92,9 +90,9 @@ public class OSSTestUtils {
         uploader.uploadPart(partFile);
     }
 
-    public static RefCountedBufferingFileStream writeData(
-            TemporaryFolder temporaryFolder, byte[] content) throws IOException {
-        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
+    public static RefCountedBufferingFileStream writeData(File temporaryFolder, byte[] content)
+            throws IOException {
+        final File newFile = new File(temporaryFolder, ".tmp_" + UUID.randomUUID());
         final OutputStream out =
                 Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 

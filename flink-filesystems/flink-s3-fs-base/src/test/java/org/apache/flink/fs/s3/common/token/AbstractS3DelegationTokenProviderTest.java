@@ -48,13 +48,13 @@ public class AbstractS3DelegationTokenProviderTest {
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnFalseWithoutCredentials() {
+    void delegationTokensRequiredShouldReturnFalseWithoutCredentials() {
         provider.init(new Configuration());
         assertFalse(provider.delegationTokensRequired());
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnTrueWithCredentials() {
+    void delegationTokensRequiredShouldReturnTrueWithCredentials() {
         Configuration configuration = new Configuration();
         configuration.setString(CONFIG_PREFIX + ".s3.region", REGION);
         configuration.setString(CONFIG_PREFIX + ".s3.access-key", ACCESS_KEY_ID);

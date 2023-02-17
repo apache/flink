@@ -19,10 +19,12 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,22 +32,21 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test recoverable writer serializer. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class GSCommitRecoverableSerializerTest {
 
-    @Parameterized.Parameter(value = 0)
-    public String bucketName;
+    @Parameter public String bucketName;
 
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public String objectName;
 
-    @Parameterized.Parameter(value = 2)
+    @Parameter(value = 2)
     public int componentCount;
 
-    @Parameterized.Parameters(name = "bucketName={0}, objectName={1}, componentCount={2}")
+    @Parameters(name = "bucketName={0}, objectName={1}, componentCount={2}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -60,7 +61,7 @@ public class GSCommitRecoverableSerializerTest {
                 });
     }
 
-    @Test
+    @TestTemplate
     public void shouldSerdeState() throws IOException {
 
         // create the state

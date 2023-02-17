@@ -21,7 +21,7 @@ package org.apache.flink.fs.osshadoop.writer;
 import com.aliyun.oss.model.PartETag;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ import java.util.Objects;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link OSSRecoverableSerializer}. */
-public class OSSRecoverableSerializerTest {
+class OSSRecoverableSerializerTest {
 
     private final OSSRecoverableSerializer serializer = OSSRecoverableSerializer.INSTANCE;
 
@@ -45,7 +45,7 @@ public class OSSRecoverableSerializerTest {
     private static final String ETAG_PREFIX = "TEST-ETAG-";
 
     @Test
-    public void testSerializeEmptyOSSRecoverable() throws IOException {
+    void testSerializeEmptyOSSRecoverable() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(false);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
@@ -55,7 +55,7 @@ public class OSSRecoverableSerializerTest {
     }
 
     @Test
-    public void testSerializeOSSRecoverableOnlyWithIncompleteObject() throws IOException {
+    void testSerializeOSSRecoverableOnlyWithIncompleteObject() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(true);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
@@ -65,7 +65,7 @@ public class OSSRecoverableSerializerTest {
     }
 
     @Test
-    public void testSerializeOSSRecoverableWithIncompleteObject() throws IOException {
+    void testSerializeOSSRecoverableWithIncompleteObject() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(true, 2, 4, 6);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
@@ -75,7 +75,7 @@ public class OSSRecoverableSerializerTest {
     }
 
     @Test
-    public void testSerializeOSSRecoverableWithoutIncompleteObject() throws IOException {
+    void testSerializeOSSRecoverableWithoutIncompleteObject() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(false, 2, 4, 6);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);

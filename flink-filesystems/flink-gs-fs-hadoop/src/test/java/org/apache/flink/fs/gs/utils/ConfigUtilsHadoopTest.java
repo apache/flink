@@ -20,13 +20,15 @@ package org.apache.flink.fs.gs.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.TestUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.MapDifference;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Maps;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -39,34 +41,33 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test construction of Hadoop config in GSFileSystemFactory. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ConfigUtilsHadoopTest {
 
     /* The test case description. */
-    @Parameterized.Parameter(value = 0)
-    public String description;
+    @Parameter public String description;
 
     /* The value to use for the HADOOP_CONF_DIR environment variable. */
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public @Nullable String envHadoopConfDir;
 
     /* The value to use for the Flink config. */
-    @Parameterized.Parameter(value = 2)
+    @Parameter(value = 2)
     public Configuration flinkConfig;
 
     /* The Hadoop resources to load from the config dir. */
-    @Parameterized.Parameter(value = 3)
+    @Parameter(value = 3)
     public org.apache.hadoop.conf.Configuration loadedHadoopConfig;
 
     /* The expected Hadoop configuration directory. */
-    @Parameterized.Parameter(value = 4)
+    @Parameter(value = 4)
     public String expectedHadoopConfigDir;
 
     /* The expected Hadoop configuration. */
-    @Parameterized.Parameter(value = 5)
+    @Parameter(value = 5)
     public org.apache.hadoop.conf.Configuration expectedHadoopConfig;
 
-    @Parameterized.Parameters(name = "description={0}")
+    @Parameters(name = "description={0}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -253,7 +254,7 @@ public class ConfigUtilsHadoopTest {
                 });
     }
 
-    @Test
+    @TestTemplate
     public void shouldProperlyCreateHadoopConfig() {
 
         // construct the testing config context

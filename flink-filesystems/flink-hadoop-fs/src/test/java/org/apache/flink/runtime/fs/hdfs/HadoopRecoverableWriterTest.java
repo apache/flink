@@ -28,17 +28,19 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.AfterAll;
+
+import org.junit.jupiter.api.Assumptions;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 
-import static org.assertj.core.api.Assumptions.assumeThat;
-
 /** Tests for the {@link HadoopRecoverableWriter}. */
 class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     @TempDir private static java.nio.file.Path tempFolder;
+
 
     private static MiniDFSCluster hdfsCluster;
 
@@ -49,12 +51,15 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     @BeforeAll
     static void testHadoopVersion() {
-        assumeThat(HadoopUtils.isMinHadoopVersion(2, 6)).isTrue();
+        Assumptions.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 6));
     }
 
     @BeforeAll
     static void verifyOS() {
-        assumeThat(OperatingSystem.isWindows()).isFalse();
+        Assumptions.assumeFalse(
+                OperatingSystem.isWindows(),
+                "HDFS cluster cannot be started on Windows without extensions.");
+
     }
 
     @BeforeAll

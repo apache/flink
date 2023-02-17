@@ -24,8 +24,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.oss.OSSTestCredentials;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -36,12 +36,12 @@ import static junit.framework.TestCase.assertEquals;
  * Unit tests for the OSS file system support via AliyunOSSFileSystem. These tests do actually read
  * from or write to OSS.
  */
-public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
+class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         OSSTestCredentials.assumeCredentialsAvailable();
 
         final Configuration conf = new Configuration();
@@ -55,7 +55,7 @@ public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
     }
 
     @Test
-    public void testShadedConfigurations() {
+    void testShadedConfigurations() {
         final Configuration conf = new Configuration();
         conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
         conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());

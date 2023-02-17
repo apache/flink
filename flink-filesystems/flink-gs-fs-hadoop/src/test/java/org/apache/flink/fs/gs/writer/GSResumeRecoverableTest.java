@@ -19,11 +19,13 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,26 +33,25 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link GSResumeRecoverable}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class GSResumeRecoverableTest {
 
-    @Parameterized.Parameter(value = 0)
-    public int position;
+    @Parameter public int position;
 
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public boolean closed;
 
-    @Parameterized.Parameter(value = 2)
+    @Parameter(value = 2)
     public List<UUID> componentObjectIds;
 
-    @Parameterized.Parameter(value = 3)
+    @Parameter(value = 3)
     public String temporaryBucketName;
 
-    @Parameterized.Parameters(
-            name = "position={0}, closed={1}, componentObjectIds={2}, temporaryBucketName={3}")
+    @Parameters(name = "position={0}, closed={1}, componentObjectIds={2}, temporaryBucketName={3}")
     public static Collection<Object[]> data() {
 
         ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
@@ -83,12 +84,12 @@ public class GSResumeRecoverableTest {
 
     private GSBlobIdentifier blobIdentifier;
 
-    @Before
+    @BeforeEach
     public void before() {
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
     }
 
-    @Test
+    @TestTemplate
     public void shouldConstructProperly() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
@@ -99,18 +100,22 @@ public class GSResumeRecoverableTest {
     }
 
     /** Ensure that the list of component object ids cannot be added to. */
-    @Test(expected = UnsupportedOperationException.class)
+    @TestTemplate
     public void shouldNotAddComponentId() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
-        resumeRecoverable.componentObjectIds.add(UUID.randomUUID());
+
+        assertThatThrownBy(() -> resumeRecoverable.componentObjectIds.add(UUID.randomUUID()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Ensure that component object ids can't be updated. */
-    @Test(expected = UnsupportedOperationException.class)
+    @TestTemplate
     public void shouldNotModifyComponentId() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
-        resumeRecoverable.componentObjectIds.set(0, UUID.randomUUID());
+
+        assertThatThrownBy(() -> resumeRecoverable.componentObjectIds.set(0, UUID.randomUUID()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

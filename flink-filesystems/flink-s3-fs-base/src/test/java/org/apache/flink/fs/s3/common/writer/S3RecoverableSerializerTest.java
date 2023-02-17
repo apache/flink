@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import com.amazonaws.services.s3.model.PartETag;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ import java.util.Objects;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link S3RecoverableSerializer}. */
-public class S3RecoverableSerializerTest {
+class S3RecoverableSerializerTest {
 
     private final S3RecoverableSerializer serializer = S3RecoverableSerializer.INSTANCE;
 
@@ -45,7 +45,7 @@ public class S3RecoverableSerializerTest {
     private static final String ETAG_PREFIX = "TEST-ETAG-";
 
     @Test
-    public void serializeEmptyS3Recoverable() throws IOException {
+    void serializeEmptyS3Recoverable() throws IOException {
         S3Recoverable originalEmptyRecoverable = createTestS3Recoverable(false);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
@@ -55,7 +55,7 @@ public class S3RecoverableSerializerTest {
     }
 
     @Test
-    public void serializeS3RecoverableWithoutIncompleteObject() throws IOException {
+    void serializeS3RecoverableWithoutIncompleteObject() throws IOException {
         S3Recoverable originalNoIncompletePartRecoverable = createTestS3Recoverable(false, 1, 5, 9);
 
         byte[] serializedRecoverable = serializer.serialize(originalNoIncompletePartRecoverable);
@@ -67,7 +67,7 @@ public class S3RecoverableSerializerTest {
     }
 
     @Test
-    public void serializeS3RecoverableOnlyWithIncompleteObject() throws IOException {
+    void serializeS3RecoverableOnlyWithIncompleteObject() throws IOException {
         S3Recoverable originalOnlyIncompletePartRecoverable = createTestS3Recoverable(true);
 
         byte[] serializedRecoverable = serializer.serialize(originalOnlyIncompletePartRecoverable);
@@ -80,7 +80,7 @@ public class S3RecoverableSerializerTest {
     }
 
     @Test
-    public void serializeS3RecoverableWithCompleteAndIncompleteParts() throws IOException {
+    void serializeS3RecoverableWithCompleteAndIncompleteParts() throws IOException {
         S3Recoverable originalFullRecoverable = createTestS3Recoverable(true, 1, 5, 9);
 
         byte[] serializedRecoverable = serializer.serialize(originalFullRecoverable);

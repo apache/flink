@@ -23,15 +23,15 @@ import org.apache.flink.util.InstantiationUtil;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
-import org.junit.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link DynamicTemporaryAWSCredentialsProvider}. */
-public class DynamicTemporaryAWSCredentialsProviderTest {
+class DynamicTemporaryAWSCredentialsProviderTest {
 
     private static final String ACCESS_KEY_ID = "testAccessKeyId";
     private static final String SECRET_ACCESS_KEY = "testSecretAccessKey";
@@ -48,7 +48,7 @@ public class DynamicTemporaryAWSCredentialsProviderTest {
     }
 
     @Test
-    public void getCredentialsShouldThrowExceptionWhenNoCredentials() {
+    void getCredentialsShouldThrowExceptionWhenNoCredentials() {
         DynamicTemporaryAWSCredentialsProvider provider =
                 new DynamicTemporaryAWSCredentialsProvider();
 
@@ -56,7 +56,7 @@ public class DynamicTemporaryAWSCredentialsProviderTest {
     }
 
     @Test
-    public void getCredentialsShouldStoreCredentialsWhenCredentialsProvided() throws Exception {
+    void getCredentialsShouldStoreCredentialsWhenCredentialsProvided() throws Exception {
         DynamicTemporaryAWSCredentialsProvider provider =
                 new DynamicTemporaryAWSCredentialsProvider();
         Credentials credentials =

@@ -21,10 +21,9 @@ package org.apache.flink.fs.s3.common;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
@@ -32,13 +31,13 @@ import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests that the file system factory picks up the entropy configuration properly. */
-public class S3EntropyFsFactoryTest extends TestLogger {
+class S3EntropyFsFactoryTest {
 
     @Test
-    public void testEntropyInjectionConfig() throws Exception {
+    void testEntropyInjectionConfig() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString("s3.entropy.key", "__entropy__");
         conf.setInteger("s3.entropy.length", 7);
@@ -56,7 +55,7 @@ public class S3EntropyFsFactoryTest extends TestLogger {
      * first path from multiple paths in config.
      */
     @Test
-    public void testMultipleTempDirsConfig() throws Exception {
+    void testMultipleTempDirsConfig() throws Exception {
         final Configuration conf = new Configuration();
         String dir1 = "/tmp/dir1";
         String dir2 = "/tmp/dir2";
