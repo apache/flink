@@ -75,11 +75,10 @@ We recommend users patch their own Hive to fix them.
 
 ## Use Native Hive Aggregate Functions
 
-If [HiveModule]({{< ref "docs/dev/table/modules" >}}#hivemodule) is loaded with a higher priority than CoreModule, Flink will try to use the Hive built-in function first. And then for Hive built-in aggregation function,
-Flink currently uses sort-based aggregation strategy. Compared to hash-based aggregation strategy, the performance is worse, so from Flink 1.17, we have implemented some of Hive's aggregation functions natively in Flink.
-
-These functions will use the hash-agg strategy and code gen for the fixed-length aggregate buffer to improve performance. Otherwise, sort-agg strategy will be chosen. Currently, only five functions are supported, namely sum/count/avg/min/max, 
-and more aggregation functions will be supported in the future. Users can use the native aggregation function by turning on the option `table.exec.hive.native-agg-function.enabled`, which brings significant performance improvement to the job.
+If [HiveModule]({{< ref "docs/dev/table/modules" >}}#hivemodule) is loaded with a higher priority than CoreModule, Flink will try to use the Hive built-in function first. And then for Hive built-in aggregation functions,
+Flink can only use the sort-based aggregation operator now. Therefore, from Flink 1.17, we have introduced some native hive aggregation functions, which can be executed using a hash-based aggregation operator.
+Currently, only five functions are supported, namely sum/count/avg/min/max, and more aggregation functions will be supported in the future. User can use the native aggregation function by turning on
+the option `table.exec.hive.native-agg-function.enabled`, which brings significant performance improvement to the job.
 
 <table class="table table-bordered">
   <thead>
@@ -95,12 +94,12 @@ and more aggregation functions will be supported in the future. Users can use th
         <td><h5>table.exec.hive.native-agg-function.enabled</h5></td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>Enabling to use native aggregate function which use hash-agg strategy that can improve the aggregation performance after loading HiveModule. This is a job-level option, user can enable it per-job.</td>
+        <td>Enabling to use native aggregation functions, hash-based aggregation strategy could be used that can improve the aggregation performance. This is a job-level option.</td>
     </tr>
   </tbody>
 </table>
 
-<span class="label label-danger">Attention</span> The ability of the native aggregate functions doesn't fully align with Hive built-in aggregation functions now, for example, some data types are not supported. If performance is not a bottleneck, you don't need to turn on this option.
+<span class="label label-danger">Attention</span> The ability of the native aggregation functions doesn't fully align with Hive built-in aggregation functions now, for example, some data types are not supported. If performance is not a bottleneck, you don't need to turn on this option.
 
 ## Hive User Defined Functions
 
