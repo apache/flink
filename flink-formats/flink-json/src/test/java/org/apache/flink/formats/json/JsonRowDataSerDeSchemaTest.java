@@ -78,6 +78,7 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
@@ -207,6 +208,57 @@ class JsonRowDataSerDeSchemaTest {
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
         assertThat(serializedJson).containsExactly(actualBytes);
+    }
+
+    /** Tests the deserialization time. */
+    @org.junit.Test
+    public void testTimeStampDeserialization() throws Exception {
+        Timestamp timestamp1 = Timestamp.valueOf("1990-10-14 12:12:43.123");
+        Timestamp timestamp2 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
+        Instant instantWithLocalZone =
+                LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789)
+                        .atOffset(ZoneOffset.of("Z"))
+                        .toInstant();
+        Timestamp timestampWithLocalZone = Timestamp.from(instantWithLocalZone);
+        Instant instantWithLocalZone13L =
+                LocalDateTime.ofEpochSecond(1676601580L, 0, ZoneOffset.of("Z"))
+                        .toInstant(ZoneOffset.of("Z"));
+        Timestamp timestampWith13L = Timestamp.from(instantWithLocalZone13L);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("timestamp1", "1990-10-14T12:12:43.123");
+        root.put("timestamp2", "1990-10-14T12:12:43.123456789");
+        root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
+        root.put("timestampWith13L", "2023-02-17T10:39:40.000");
+
+        byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+        DataType dataType =
+                ROW(
+                        FIELD("timestamp1", TIMESTAMP(3)),
+                        FIELD("timestamp2", TIMESTAMP(9)),
+                        FIELD("timestampWithLocalZone", TIMESTAMP(9)),
+                        FIELD("timestampWith13L", TIMESTAMP(3)));
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        rowType,
+                        InternalTypeInfo.of(rowType),
+                        false,
+                        false,
+                        TimestampFormat.ISO_8601);
+
+        Row expected = new Row(4);
+        expected.setField(0, timestamp1.toLocalDateTime());
+        expected.setField(1, timestamp2.toLocalDateTime());
+        expected.setField(2, timestampWithLocalZone.toLocalDateTime());
+        expected.setField(3, timestampWith13L.toLocalDateTime());
+
+        RowData rowData = deserializationSchema.deserialize(serializedJson);
+        Row actual = convertToExternal(rowData, dataType);
+        assertEquals(expected, actual);
     }
 
     /**
