@@ -218,9 +218,7 @@ public final class Utils {
 
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
-
-        Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
-        for (Token<? extends TokenIdentifier> token : usrTok) {
+        for (Token<? extends TokenIdentifier> token : currUsr.getCredentials().getAllTokens()) {
             LOG.info("Adding user token " + token.getService() + " with " + token);
             credentials.addToken(token.getService(), token);
         }
