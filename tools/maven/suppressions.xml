@@ -60,9 +60,6 @@ under the License.
 		<suppress
 			files="[\\/]target[\\/]"
 			checks=".*"/>
-		<suppress
-			files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]glue[\\/]schema[\\/]registry[\\/]User.java"
-			checks=".*"/>
 		<!-- suppress check for copied hive code -->
 		<suppress files="org[\\/]apache[\\/]hadoop[\\/]hive[\\/].*.java" checks=".*"/>
 		<suppress files="org[\\/]apache[\\/]hive[\\/]service[\\/]rpc[\\/]thrift[\\/].*.java" checks=".*"/>

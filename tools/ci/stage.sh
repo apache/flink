@@ -102,8 +102,6 @@ flink-formats,\
 flink-formats/flink-format-common,\
 flink-formats/flink-avro-confluent-registry,\
 flink-formats/flink-sql-avro-confluent-registry,\
-flink-formats/flink-avro-glue-schema-registry,\
-flink-formats/flink-json-glue-schema-registry,\
 flink-formats/flink-avro,\
 flink-formats/flink-sql-avro,\
 flink-formats/flink-compress,\
