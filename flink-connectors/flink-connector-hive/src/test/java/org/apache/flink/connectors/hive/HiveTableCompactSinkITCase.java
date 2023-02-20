@@ -77,7 +77,7 @@ public class HiveTableCompactSinkITCase {
                         + ") TBLPROPERTIES ("
                         + " 'auto-compaction' = 'true', "
                         + " 'compaction.small-files.avg-size' = '1b', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
+                        + " 'sink.parallelism' = '4'" // set sink parallelism = 4
                         + ")");
         tableEnv.executeSql(
                         "insert into src values ('k1', 'v1'), ('k2', 'v2'),"
@@ -100,7 +100,7 @@ public class HiveTableCompactSinkITCase {
                         + " value string"
                         + ") TBLPROPERTIES ("
                         + " 'auto-compaction' = 'true', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
+                        + " 'sink.parallelism' = '4'" // set sink parallelism = 4
                         + ")");
         tableEnv.executeSql(
                         "insert into src values ('k1', 'v1'), ('k2', 'v2'),"
@@ -166,7 +166,7 @@ public class HiveTableCompactSinkITCase {
                         + ") partitioned by (p int) TBLPROPERTIES ("
                         + " 'auto-compaction' = 'true', "
                         + " 'compaction.small-files.avg-size' = '9b', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
+                        + " 'sink.parallelism' = '4'" // set sink parallelism = 4
                         + ")");
 
         tableEnv.executeSql(
