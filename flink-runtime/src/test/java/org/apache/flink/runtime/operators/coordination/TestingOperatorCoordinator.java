@@ -31,6 +31,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiConsumer;
 
 /** A simple testing implementation of the {@link OperatorCoordinator}. */
 public class TestingOperatorCoordinator implements OperatorCoordinator {
@@ -54,6 +55,8 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
     private final BlockingQueue<OperatorEvent> receivedOperatorEvents;
 
     private final Map<Integer, SubtaskGateway> subtaskGateways;
+
+    private BiConsumer<Long, byte[]> resetToCheckpointConsumer;
 
     private boolean started;
     private boolean closed;
@@ -121,6 +124,9 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     @Override
     public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) {
+        if (resetToCheckpointConsumer != null) {
+            resetToCheckpointConsumer.accept(checkpointId, checkpointData);
+        }
         lastRestoredCheckpointId = checkpointId;
         lastRestoredCheckpointState = checkpointData == null ? NULL_RESTORE_VALUE : checkpointData;
     }
@@ -179,6 +185,10 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public boolean hasCompleteCheckpoint() throws InterruptedException {
         return !lastCheckpointComplete.isEmpty();
+    }
+
+    public void setResetToCheckpointConsumer(BiConsumer<Long, byte[]> resetToCheckpointConsumer) {
+        this.resetToCheckpointConsumer = resetToCheckpointConsumer;
     }
 
     // ------------------------------------------------------------------------
