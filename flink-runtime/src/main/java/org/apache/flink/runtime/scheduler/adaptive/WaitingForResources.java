@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.Clock;
@@ -53,6 +54,9 @@ class WaitingForResources implements State, ResourceConsumer {
 
     @Nullable private ScheduledFuture<?> resourceTimeoutFuture;
 
+    @Nullable private final ExecutionGraph previousExecutionGraph;
+
+    @VisibleForTesting
     WaitingForResources(
             Context context,
             Logger log,
@@ -65,17 +69,18 @@ class WaitingForResources implements State, ResourceConsumer {
                 desiredResources,
                 initialResourceAllocationTimeout,
                 resourceStabilizationTimeout,
-                SystemClock.getInstance());
+                SystemClock.getInstance(),
+                null);
     }
 
-    @VisibleForTesting
     WaitingForResources(
             Context context,
             Logger log,
             ResourceCounter desiredResources,
             Duration initialResourceAllocationTimeout,
             Duration resourceStabilizationTimeout,
-            Clock clock) {
+            Clock clock,
+            @Nullable ExecutionGraph previousExecutionGraph) {
         this.context = Preconditions.checkNotNull(context);
         this.log = Preconditions.checkNotNull(log);
         this.desiredResources = Preconditions.checkNotNull(desiredResources);
@@ -97,6 +102,7 @@ class WaitingForResources implements State, ResourceConsumer {
                     context.runIfState(
                             this, this::resourceTimeout, initialResourceAllocationTimeout);
         }
+        this.previousExecutionGraph = previousExecutionGraph;
         context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
     }
 
@@ -175,7 +181,7 @@ class WaitingForResources implements State, ResourceConsumer {
     }
 
     private void createExecutionGraphWithAvailableResources() {
-        context.goToCreatingExecutionGraph();
+        context.goToCreatingExecutionGraph(previousExecutionGraph);
     }
 
     /** Context of the {@link WaitingForResources} state. */
@@ -227,18 +233,21 @@ class WaitingForResources implements State, ResourceConsumer {
         private final ResourceCounter desiredResources;
         private final Duration initialResourceAllocationTimeout;
         private final Duration resourceStabilizationTimeout;
+        @Nullable private final ExecutionGraph previousExecutionGraph;
 
         public Factory(
                 Context context,
                 Logger log,
                 ResourceCounter desiredResources,
                 Duration initialResourceAllocationTimeout,
-                Duration resourceStabilizationTimeout) {
+                Duration resourceStabilizationTimeout,
+                ExecutionGraph previousExecutionGraph) {
             this.context = context;
             this.log = log;
             this.desiredResources = desiredResources;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+            this.previousExecutionGraph = previousExecutionGraph;
         }
 
         public Class<WaitingForResources> getStateClass() {
@@ -251,7 +260,14 @@ class WaitingForResources implements State, ResourceConsumer {
                     log,
                     desiredResources,
                     initialResourceAllocationTimeout,
-                    resourceStabilizationTimeout);
+                    resourceStabilizationTimeout,
+                    SystemClock.getInstance(),
+                    previousExecutionGraph);
         }
+    }
+
+    @Nullable
+    public ExecutionGraph getPreviousExecutionGraph() {
+        return previousExecutionGraph;
     }
 }

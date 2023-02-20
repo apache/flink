@@ -60,12 +60,15 @@ public class CreatingExecutionGraph implements State {
     private final Logger logger;
     private final OperatorCoordinatorHandlerFactory operatorCoordinatorHandlerFactory;
 
+    private final @Nullable ExecutionGraph previousExecutionGraph;
+
     public CreatingExecutionGraph(
             Context context,
             CompletableFuture<ExecutionGraphWithVertexParallelism>
                     executionGraphWithParallelismFuture,
             Logger logger,
-            OperatorCoordinatorHandlerFactory operatorCoordinatorFactory) {
+            OperatorCoordinatorHandlerFactory operatorCoordinatorFactory,
+            ExecutionGraph previousExecutionGraph1) {
         this.context = context;
         this.logger = logger;
         this.operatorCoordinatorHandlerFactory = operatorCoordinatorFactory;
@@ -81,6 +84,7 @@ public class CreatingExecutionGraph implements State {
                                     Duration.ZERO);
                             return null;
                         }));
+        previousExecutionGraph = previousExecutionGraph1;
     }
 
     private void handleExecutionGraphCreation(
@@ -143,7 +147,7 @@ public class CreatingExecutionGraph implements State {
             } else {
                 logger.debug(
                         "Failed to reserve and assign the required slots. Waiting for new resources.");
-                context.goToWaitingForResources();
+                context.goToWaitingForResources(previousExecutionGraph);
             }
         }
     }
@@ -302,16 +306,20 @@ public class CreatingExecutionGraph implements State {
         private final CompletableFuture<ExecutionGraphWithVertexParallelism>
                 executionGraphWithParallelismFuture;
 
+        private final @Nullable ExecutionGraph previousExecutionGraph;
+
         private final Logger log;
 
         Factory(
                 Context context,
                 CompletableFuture<ExecutionGraphWithVertexParallelism>
                         executionGraphWithParallelismFuture,
-                Logger log) {
+                Logger log,
+                @Nullable ExecutionGraph previousExecutionGraph) {
             this.context = context;
             this.executionGraphWithParallelismFuture = executionGraphWithParallelismFuture;
             this.log = log;
+            this.previousExecutionGraph = previousExecutionGraph;
         }
 
         @Override
@@ -325,7 +333,8 @@ public class CreatingExecutionGraph implements State {
                     context,
                     executionGraphWithParallelismFuture,
                     log,
-                    DefaultOperatorCoordinatorHandler::new);
+                    DefaultOperatorCoordinatorHandler::new,
+                    previousExecutionGraph);
         }
     }
 
