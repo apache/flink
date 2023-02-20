@@ -58,6 +58,8 @@ public class TestingAbstractInvokables {
     /**
      * Basic receiver {@link AbstractInvokable} which verifies the sent elements from the {@link
      * Sender}.
+     *
+     * <p>This invokable must not run with a higher parallelism than {@link Sender}.
      */
     public static class Receiver extends AbstractInvokable {
 
