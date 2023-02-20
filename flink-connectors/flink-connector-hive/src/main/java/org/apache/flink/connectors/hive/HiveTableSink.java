@@ -123,6 +123,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSink.class);
 
+    public static final String BATCH_COMPACT_WRITER_OP_NAME = "batch_writer";
+
     private final boolean fallbackMappedReader;
     private final boolean fallbackMappedWriter;
     private final JobConf jobConf;
@@ -384,6 +386,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             Optional<Integer> compactParallelismOptional =
                     conf.getOptional(FileSystemConnectorOptions.COMPACTION_PARALLELISM);
             int compactParallelism = compactParallelismOptional.orElse(sinkParallelism);
+            boolean compactParallelismConfigured =
+                    compactParallelismOptional.isPresent()
+                            ||
+                            // if only sink parallelism is set, compact operator should follow this
+                            // setting. that means its parallelism equals to sink and marked as
+                            // configured to disable auto parallelism inference.
+                            sinkParallelismConfigured;
             return createBatchCompactSink(
                     dataStream,
                     converter,
@@ -403,7 +412,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                     sinkParallelism,
                     compactParallelism,
                     sinkParallelismConfigured,
-                    compactParallelismOptional.isPresent());
+                    compactParallelismConfigured);
         } else {
             return createBatchNoCompactSink(
                     dataStream,
@@ -470,7 +479,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
         DataStream<CoordinatorInput> writerDataStream =
                 map.transform(
-                        "batch_compact_writer",
+                        BATCH_COMPACT_WRITER_OP_NAME,
                         TypeInformation.of(CoordinatorInput.class),
                         new BatchFileWriter<>(
                                 fsFactory,
