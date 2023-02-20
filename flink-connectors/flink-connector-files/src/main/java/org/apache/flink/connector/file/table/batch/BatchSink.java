@@ -52,6 +52,11 @@ import java.util.LinkedHashMap;
 /** Helper for creating batch file sink. */
 @Internal
 public class BatchSink {
+
+    public static final String COORDINATOR_OP_NAME = "compact-coordinator";
+
+    public static final String COMPACT_OP_NAME = "compact-operator";
+
     private BatchSink() {}
 
     public static DataStreamSink<Row> createBatchNoCompactSink(
@@ -100,14 +105,14 @@ public class BatchSink {
         SingleOutputStreamOperator<CompactMessages.CompactOutput> transform =
                 dataStream
                         .transform(
-                                "coordinator",
+                                COORDINATOR_OP_NAME,
                                 TypeInformation.of(CompactMessages.CoordinatorOutput.class),
                                 new BatchCompactCoordinator(
                                         fsSupplier, compactAverageSize, compactTargetSize))
                         .setParallelism(1)
                         .setMaxParallelism(1)
                         .transform(
-                                "compact",
+                                COMPACT_OP_NAME,
                                 TypeInformation.of(CompactMessages.CompactOutput.class),
                                 new BatchCompactOperator<>(fsSupplier, readFactory, writerFactory));
         transform
