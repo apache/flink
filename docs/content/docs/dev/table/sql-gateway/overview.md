@@ -59,7 +59,7 @@ whether the REST Endpoint is available.
 
 ```bash
 $ curl http://localhost:8083/v1/info
-{"productName":"Apache Flink","version":"1.16-SNAPSHOT"}
+{"productName":"Apache Flink","version":"{{< version >}}"}
 ```
 
 ### Running SQL Queries
