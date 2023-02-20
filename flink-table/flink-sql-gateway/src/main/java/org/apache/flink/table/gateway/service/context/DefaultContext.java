@@ -125,8 +125,17 @@ public class DefaultContext {
 
     // -------------------------------------------------------------------------------------------
 
+    /**
+     * Build the {@link DefaultContext} from flink-conf.yaml, dynamic configuration and users
+     * specified jars.
+     *
+     * @param dynamicConfig user specified configuration.
+     * @param dependencies user specified jars
+     * @param discoverExecutionConfig flag whether to load the execution configuration and python
+     *     configuration.
+     */
     public static DefaultContext load(
-            Configuration dynamicConfig, List<URL> dependencies, boolean discoverPythonDependency) {
+            Configuration dynamicConfig, List<URL> dependencies, boolean discoverExecutionConfig) {
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
@@ -142,10 +151,12 @@ public class DefaultContext {
         FileSystem.initialize(
                 configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
-        if (discoverPythonDependency) {
-            dependencies = new ArrayList<>(dependencies);
-            dependencies.addAll(discoverPythonDependencies());
+        if (!discoverExecutionConfig) {
+            return new DefaultContext(configuration, dependencies);
         }
+
+        List<URL> dependenciesWithPythonJar = new ArrayList<>(dependencies);
+        dependenciesWithPythonJar.addAll(discoverPythonDependencies());
 
         Options commandLineOptions = collectCommandLineOptions(commandLines);
 
@@ -160,7 +171,7 @@ public class DefaultContext {
                     "Could not load available CLI with Environment Deployment entry.", e);
         }
 
-        return new DefaultContext(configuration, dependencies);
+        return new DefaultContext(configuration, dependenciesWithPythonJar);
     }
 
     private static List<URL> discoverPythonDependencies() {
