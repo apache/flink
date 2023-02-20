@@ -67,7 +67,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             context,
                             new CompletableFuture<>(),
                             log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                            null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -86,7 +87,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             context,
                             new CompletableFuture<>(),
                             log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                            null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -105,7 +107,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             context,
                             new CompletableFuture<>(),
                             log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                            null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -125,7 +128,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     context,
                     executionGraphWithVertexParallelismFuture,
                     log,
-                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                    null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -146,7 +150,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     context,
                     executionGraphWithVertexParallelismFuture,
                     log,
-                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                    null);
 
             context.setTryToAssignSlotsFunction(
                     ignored -> CreatingExecutionGraph.AssignmentResult.notPossible());
@@ -167,7 +172,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     context,
                     executionGraphWithVertexParallelismFuture,
                     log,
-                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                    null);
 
             final StateTrackingMockExecutionGraph executionGraph =
                     new StateTrackingMockExecutionGraph();
@@ -197,7 +203,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     (executionGraph, errorHandler) -> {
                         operatorCoordinatorGlobalFailureHandlerRef.set(errorHandler);
                         return new TestingOperatorCoordinatorHandler();
-                    });
+                    },
+                    null);
 
             final StateTrackingMockExecutionGraph executionGraph =
                     new StateTrackingMockExecutionGraph();
@@ -318,7 +325,7 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        public void goToWaitingForResources() {
+        public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
             waitingForResourcesStateValidator.validateInput(null);
             hadStateTransitionHappened = true;
         }

@@ -25,6 +25,8 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -58,7 +60,7 @@ public interface StateTransitions {
     interface ToCreatingExecutionGraph extends StateTransitions {
 
         /** Transitions into the {@link CreatingExecutionGraph} state. */
-        void goToCreatingExecutionGraph();
+        void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph);
     }
 
     /** Interface covering transition to the {@link Executing} state. */
@@ -164,6 +166,6 @@ public interface StateTransitions {
     interface ToWaitingForResources extends StateTransitions {
 
         /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources();
+        void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph);
     }
 }

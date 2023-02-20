@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
@@ -157,7 +158,8 @@ public class WaitingForResourcesTest extends TestLogger {
                             RESOURCE_COUNTER,
                             initialResourceTimeout,
                             stabilizationTimeout,
-                            ctx.getClock());
+                            ctx.getClock(),
+                            null);
             // sufficient resources available
             ctx.setHasDesiredResources(() -> false);
             ctx.setHasSufficientResources(() -> true);
@@ -191,7 +193,8 @@ public class WaitingForResourcesTest extends TestLogger {
                             RESOURCE_COUNTER,
                             initialResourceTimeout,
                             stabilizationTimeout,
-                            ctx.getClock());
+                            ctx.getClock(),
+                            null);
 
             ctx.setHasDesiredResources(() -> false);
 
@@ -515,7 +518,7 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public void goToCreatingExecutionGraph() {
+        public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
             creatingExecutionGraphStateValidator.validateInput(null);
             hasStateTransition = true;
         }
