@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
@@ -51,12 +52,17 @@ public class DefaultContextUtils {
         } else {
             libDirs = Collections.emptyList();
         }
-        return DefaultContext.load(
-                options.getPythonConfiguration(), discoverDependencies(jars, libDirs), true);
+        Configuration pythonConfiguration = options.getPythonConfiguration();
+        pythonConfiguration.addAll(
+                ConfigurationUtils.createConfiguration(options.getSessionConfig()));
+        return DefaultContext.load(pythonConfiguration, discoverDependencies(jars, libDirs), true);
     }
 
     public static DefaultContext buildDefaultContext(CliOptions.GatewayCliOptions options) {
-        return DefaultContext.load(new Configuration(), Collections.emptyList(), false);
+        return DefaultContext.load(
+                ConfigurationUtils.createConfiguration(options.getSessionConfig()),
+                Collections.emptyList(),
+                false);
     }
     // --------------------------------------------------------------------------------------------
 

@@ -3,7 +3,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-     -c,--conf <session config item[key=val]>   The config item[key=val] for a
+     -D <session dynamic config key=val>        The dynamic config key=val for a
                                                 session.
      -f,--file <script file>                    Script file that should be
                                                 executed. In this mode, the

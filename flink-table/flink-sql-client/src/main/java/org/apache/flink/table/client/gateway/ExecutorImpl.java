@@ -78,10 +78,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -111,16 +109,8 @@ public class ExecutorImpl implements Executor {
     private final SessionHandle sessionHandle;
 
     public ExecutorImpl(
-            DefaultContext defaultContext,
-            InetSocketAddress gatewayAddress,
-            String sessionId,
-            Map<String, String> dynamicConfig) {
-        this(
-                defaultContext,
-                gatewayAddress,
-                sessionId,
-                HEARTBEAT_INTERVAL_MILLISECONDS,
-                dynamicConfig);
+            DefaultContext defaultContext, InetSocketAddress gatewayAddress, String sessionId) {
+        this(defaultContext, gatewayAddress, sessionId, HEARTBEAT_INTERVAL_MILLISECONDS);
     }
 
     @VisibleForTesting
@@ -128,8 +118,7 @@ public class ExecutorImpl implements Executor {
             DefaultContext defaultContext,
             InetSocketAddress gatewayAddress,
             String sessionId,
-            long heartbeatInterval,
-            Map<String, String> dynamicConfig) {
+            long heartbeatInterval) {
         this.registry = new AutoCloseableRegistry();
         try {
             this.gatewayAddress = gatewayAddress;
@@ -147,14 +136,12 @@ public class ExecutorImpl implements Executor {
                     "Open session to {} with connection version: {}.",
                     gatewayAddress,
                     connectionVersion);
-            Map<String, String> sessionConfig =
-                    new HashMap<>(defaultContext.getFlinkConfig().toMap());
-            sessionConfig.putAll(dynamicConfig);
             OpenSessionResponseBody response =
                     sendRequest(
                                     OpenSessionHeaders.getInstance(),
                                     EmptyMessageParameters.getInstance(),
-                                    new OpenSessionRequestBody(sessionId, sessionConfig))
+                                    new OpenSessionRequestBody(
+                                            sessionId, defaultContext.getFlinkConfig().toMap()))
                             .get();
             this.sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
             registry.registerCloseable(this::closeSession);

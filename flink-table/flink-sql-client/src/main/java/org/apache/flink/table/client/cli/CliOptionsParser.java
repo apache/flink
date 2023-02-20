@@ -29,7 +29,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -37,10 +36,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
@@ -69,12 +65,12 @@ public class CliOptionsParser {
                     .build();
 
     public static final Option OPTION_SESSION_CONFIG =
-            Option.builder("c")
+            Option.builder("D")
                     .required(false)
-                    .longOpt("conf")
-                    .numberOfArgs(1)
-                    .argName("session config item[key=val]")
-                    .desc("The config item[key=val] for a session.")
+                    .numberOfArgs(2)
+                    .valueSeparator('=')
+                    .argName("session dynamic config key=val")
+                    .desc("The dynamic config key=val for a session.")
                     .build();
 
     public static final Option OPTION_INIT_FILE =
@@ -272,7 +268,7 @@ public class CliOptionsParser {
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     getPythonConfiguration(line),
-                    getSessionConfig(line));
+                    line.getOptionProperties(OPTION_SESSION_CONFIG.getOpt()));
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
@@ -294,7 +290,7 @@ public class CliOptionsParser {
                                     line.getOptionValue(
                                             CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt()))
                             : null,
-                    getSessionConfig(line));
+                    line.getOptionProperties(OPTION_SESSION_CONFIG.getOpt()));
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
@@ -372,21 +368,5 @@ public class CliOptionsParser {
                 | InvocationTargetException e) {
             throw new SqlClientException("Failed to parse the Python command line options.", e);
         }
-    }
-
-    private static Map<String, String> getSessionConfig(CommandLine line) {
-        if (!line.hasOption(OPTION_SESSION_CONFIG.getOpt())) {
-            return Collections.emptyMap();
-        }
-
-        Map<String, String> sessionConf = new HashMap<>();
-        for (String confString : line.getOptionValues(OPTION_SESSION_CONFIG.getOpt())) {
-            String[] items = StringUtils.splitByWholeSeparator(confString, "=");
-            if (items.length != 2) {
-                throw new IllegalArgumentException("The config item must be key=val");
-            }
-            sessionConf.put(StringUtils.trim(items[0]), StringUtils.trim(items[1]));
-        }
-        return sessionConf;
     }
 }

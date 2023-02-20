@@ -225,8 +225,7 @@ class CliClientITCase {
                                 InetSocketAddress.createUnresolved(
                                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
                                         SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
-                                "test-session",
-                                new HashMap<>());
+                                "test-session");
                 Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(

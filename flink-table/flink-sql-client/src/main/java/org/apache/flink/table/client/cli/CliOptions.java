@@ -25,8 +25,8 @@ import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Command line options to configure the SQL client. Arguments that have not been specified by the
@@ -40,7 +40,7 @@ public class CliOptions {
     private final URL sqlFile;
     private final String updateStatement;
     private final String historyFilePath;
-    private final Map<String, String> sessionConfig;
+    private final Properties sessionConfig;
 
     private CliOptions(
             boolean isPrintHelp,
@@ -49,7 +49,7 @@ public class CliOptions {
             URL sqlFile,
             String updateStatement,
             String historyFilePath,
-            Map<String, String> sessionConfig) {
+            Properties sessionConfig) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
         this.initFile = initFile;
@@ -83,7 +83,7 @@ public class CliOptions {
         return updateStatement;
     }
 
-    public Map<String, String> getSessionConfig() {
+    public Properties getSessionConfig() {
         return sessionConfig;
     }
 
@@ -105,7 +105,7 @@ public class CliOptions {
                 List<URL> jars,
                 List<URL> libraryDirs,
                 Configuration pythonConfiguration,
-                Map<String, String> sessionConfig) {
+                Properties sessionConfig) {
             super(
                     isPrintHelp,
                     sessionId,
@@ -145,7 +145,7 @@ public class CliOptions {
                 String updateStatement,
                 String historyFilePath,
                 @Nullable InetSocketAddress gatewayAddress,
-                Map<String, String> sessionConfig) {
+                Properties sessionConfig) {
             super(
                     isPrintHelp,
                     sessionId,

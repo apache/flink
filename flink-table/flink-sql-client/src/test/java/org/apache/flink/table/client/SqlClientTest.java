@@ -108,7 +108,7 @@ class SqlClientTest {
 
     @Test
     void testEmbeddedWithConfigOptions() throws Exception {
-        String[] args = new String[] {"embedded", "--conf", "key1=val1", "--conf", "key2=val2"};
+        String[] args = new String[] {"embedded", "-D", "key1=val1", "-D", "key2=val2"};
         String output = runSqlClient(args, "SET;\nQUIT;\n", false);
         assertThat(output).contains("key1", "val1", "key2", "val2");
     }
