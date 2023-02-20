@@ -141,15 +141,15 @@ CREATE TABLE datagen (
     <tr>
       <td><h5>fields.#.start</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>(Type of field)</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>Long</td>
       <td>序列生成器的起始值。</td>
     </tr>
     <tr>
       <td><h5>fields.#.end</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>(Type of field)</td>
+      <td style="word-wrap: break-word;">Integer.MAX_VALUE</td>
+      <td>Long</td>
       <td>序列生成器的结束值。</td>
     </tr>
     </tbody>

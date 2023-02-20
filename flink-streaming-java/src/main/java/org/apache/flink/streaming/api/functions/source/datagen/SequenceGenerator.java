@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -116,6 +117,16 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         Preconditions.checkArgument(left >= 0);
         Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
         return (int) (left / right);
+    }
+
+    @VisibleForTesting
+    public long getStart() {
+        return start;
+    }
+
+    @VisibleForTesting
+    public long getEnd() {
+        return end;
     }
 
     public static SequenceGenerator<Long> longGenerator(long start, long end) {

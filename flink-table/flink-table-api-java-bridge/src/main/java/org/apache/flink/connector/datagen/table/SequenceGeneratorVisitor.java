@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -82,25 +81,11 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
         ConfigOptions.OptionBuilder startKey = key(startKeyStr);
         ConfigOptions.OptionBuilder endKey = key(endKeyStr);
 
-        config.getOptional(startKey.stringType().noDefaultValue())
-                .orElseThrow(
-                        () ->
-                                new ValidationException(
-                                        "Could not find required property '"
-                                                + startKeyStr
-                                                + "' for sequence generator."));
-        config.getOptional(endKey.stringType().noDefaultValue())
-                .orElseThrow(
-                        () ->
-                                new ValidationException(
-                                        "Could not find required property '"
-                                                + endKeyStr
-                                                + "' for sequence generator."));
-
-        this.intStart = startKey.intType().noDefaultValue();
-        this.intEnd = endKey.intType().noDefaultValue();
-        this.longStart = startKey.longType().noDefaultValue();
-        this.longEnd = endKey.longType().noDefaultValue();
+        // Under sequence, if end and start are not set, the default value is used
+        this.intStart = startKey.intType().defaultValue(0);
+        this.intEnd = endKey.intType().defaultValue(Integer.MAX_VALUE);
+        this.longStart = startKey.longType().defaultValue(0L);
+        this.longEnd = endKey.longType().defaultValue((long) Integer.MAX_VALUE);
     }
 
     @Override
