@@ -35,8 +35,6 @@ import java.lang.reflect.Field;
 import java.net.URI;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Unit tests for the S3 file system support via Presto's PrestoS3FileSystem. These tests do not
@@ -107,9 +105,8 @@ public class PrestoS3FileSystemTest {
         configLoader.setFlinkConfig(conf);
 
         org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
-        assertEquals(
-                "com.amazonaws.auth.ContainerCredentialsProvider",
-                hadoopConfig.get("presto.s3.credentials-provider"));
+        assertThat(hadoopConfig.get("presto.s3.credentials-provider"))
+                .isEqualTo("com.amazonaws.auth.ContainerCredentialsProvider");
     }
 
     // ------------------------------------------------------------------------
@@ -119,15 +116,14 @@ public class PrestoS3FileSystemTest {
     private static void validateBasicCredentials(FileSystem fs) throws Exception {
         try (PrestoS3FileSystem prestoFs = getPrestoFileSystem(fs)) {
             AWSCredentialsProvider provider = getAwsCredentialsProvider(prestoFs);
-            assertTrue(provider instanceof AWSStaticCredentialsProvider);
+            assertThat(provider).isInstanceOf(AWSStaticCredentialsProvider.class);
         }
     }
 
     private static PrestoS3FileSystem getPrestoFileSystem(FileSystem fs) {
-        assertTrue(fs instanceof FlinkS3FileSystem);
-
+        assertThat(fs).isInstanceOf(FlinkS3FileSystem.class);
         org.apache.hadoop.fs.FileSystem hadoopFs = ((FlinkS3FileSystem) fs).getHadoopFileSystem();
-        assertTrue(hadoopFs instanceof PrestoS3FileSystem);
+        assertThat(hadoopFs).isInstanceOf(PrestoS3FileSystem.class);
         return (PrestoS3FileSystem) hadoopFs;
     }
 

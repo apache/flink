@@ -28,9 +28,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.AfterAll;
-
 import org.junit.jupiter.api.Assumptions;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,7 +39,6 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     @TempDir private static java.nio.file.Path tempFolder;
 
-
     private static MiniDFSCluster hdfsCluster;
 
     /** The cached file system instance. */
@@ -51,7 +48,7 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     @BeforeAll
     static void testHadoopVersion() {
-        Assumptions.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 6));
+        Assumptions.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
     }
 
     @BeforeAll
@@ -59,7 +56,6 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
         Assumptions.assumeFalse(
                 OperatingSystem.isWindows(),
                 "HDFS cluster cannot be started on Windows without extensions.");
-
     }
 
     @BeforeAll

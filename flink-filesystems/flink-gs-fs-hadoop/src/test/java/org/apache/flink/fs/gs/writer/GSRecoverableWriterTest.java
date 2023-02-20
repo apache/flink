@@ -38,11 +38,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test {@link GSRecoverableWriter}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -104,12 +101,12 @@ public class GSRecoverableWriterTest {
 
     @TestTemplate
     public void testRequiresCleanupOfRecoverableState() {
-        assertFalse(writer.requiresCleanupOfRecoverableState());
+        assertThat(writer.requiresCleanupOfRecoverableState()).isFalse();
     }
 
     @TestTemplate
     public void testSupportsResume() {
-        assertTrue(writer.supportsResume());
+        assertThat(writer.supportsResume()).isTrue();
     }
 
     @TestTemplate
@@ -117,7 +114,7 @@ public class GSRecoverableWriterTest {
         Path path = new Path("gs://foo/bar");
         GSRecoverableFsDataOutputStream stream =
                 (GSRecoverableFsDataOutputStream) writer.open(path);
-        assertNotNull(stream);
+        assertThat(stream).isNotNull();
     }
 
     @TestTemplate
@@ -143,33 +140,33 @@ public class GSRecoverableWriterTest {
 
     @TestTemplate
     public void testCleanupRecoverableState() {
-        assertTrue(writer.cleanupRecoverableState(resumeRecoverable));
+        assertThat(writer.cleanupRecoverableState(resumeRecoverable)).isTrue();
     }
 
     @TestTemplate
     public void testRecover() throws IOException {
         GSRecoverableFsDataOutputStream stream =
                 (GSRecoverableFsDataOutputStream) writer.recover(resumeRecoverable);
-        assertEquals(position, stream.getPos());
+        assertThat(stream.getPos()).isEqualTo(position);
     }
 
     @TestTemplate
     public void testRecoverForCommit() {
         GSRecoverableWriterCommitter committer =
                 (GSRecoverableWriterCommitter) writer.recoverForCommit(commitRecoverable);
-        assertEquals(options, committer.options);
-        assertEquals(commitRecoverable, committer.recoverable);
+        assertThat(committer.options).isEqualTo(options);
+        assertThat(committer.recoverable).isEqualTo(commitRecoverable);
     }
 
     @TestTemplate
     public void testGetCommitRecoverableSerializer() {
         Object serializer = writer.getCommitRecoverableSerializer();
-        assertEquals(GSCommitRecoverableSerializer.class, serializer.getClass());
+        assertThat(serializer.getClass()).isEqualTo(GSCommitRecoverableSerializer.class);
     }
 
     @TestTemplate
     public void testGetResumeRecoverableSerializer() {
         Object serializer = writer.getResumeRecoverableSerializer();
-        assertEquals(GSResumeRecoverableSerializer.class, serializer.getClass());
+        assertThat(serializer.getClass()).isEqualTo(GSResumeRecoverableSerializer.class);
     }
 }

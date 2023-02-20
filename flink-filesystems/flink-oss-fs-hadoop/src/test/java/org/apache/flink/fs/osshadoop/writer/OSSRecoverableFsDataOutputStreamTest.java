@@ -36,7 +36,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link OSSRecoverableFsDataOutputStream}. */
@@ -95,7 +95,7 @@ class OSSRecoverableFsDataOutputStreamTest {
         committer.commit();
 
         // will not create empty object
-        assertFalse(fs.exists(objectPath));
+        assertThat(fs.exists(objectPath)).isFalse();
     }
 
     @Test
@@ -114,7 +114,7 @@ class OSSRecoverableFsDataOutputStreamTest {
         fsDataOutputStream.close();
 
         // close without commit will not upload current part
-        assertFalse(fs.exists(objectPath));
+        assertThat(fs.exists(objectPath)).isFalse();
     }
 
     @Test

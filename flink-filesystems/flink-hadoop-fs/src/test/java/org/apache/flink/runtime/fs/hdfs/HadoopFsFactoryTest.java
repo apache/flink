@@ -20,14 +20,13 @@ package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.FileSystem;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests that validate the behavior of the Hadoop File System Factory. */
 class HadoopFsFactoryTest {
@@ -39,22 +38,19 @@ class HadoopFsFactoryTest {
         HadoopFsFactory factory = new HadoopFsFactory();
         FileSystem fs = factory.create(uri);
 
-        assertEquals(uri.getScheme(), fs.getUri().getScheme());
-        assertEquals(uri.getAuthority(), fs.getUri().getAuthority());
-        assertEquals(uri.getPort(), fs.getUri().getPort());
+        assertThat(fs.getUri().getScheme()).isEqualTo(uri.getScheme());
+        assertThat(fs.getUri().getAuthority()).isEqualTo(uri.getAuthority());
+        assertThat(fs.getUri().getPort()).isEqualTo(uri.getPort());
     }
 
     @Test
-    void testCreateHadoopFsWithMissingAuthority() throws Exception {
+    void testCreateHadoopFsWithMissingAuthority() {
         final URI uri = URI.create("hdfs:///my/path");
 
         HadoopFsFactory factory = new HadoopFsFactory();
 
-        try {
-            factory.create(uri);
-            Assertions.fail("should have failed with an exception");
-        } catch (IOException e) {
-            assertTrue(e.getMessage().contains("authority"));
-        }
+        assertThatThrownBy(() -> factory.create(uri))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("authority");
     }
 }

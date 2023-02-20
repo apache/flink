@@ -43,10 +43,8 @@ import java.util.Collection;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test {@link GSRecoverableWriterCommitter}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -139,10 +137,10 @@ public class GSRecoverableWriterCommitterTest {
         committer.commit();
 
         // there should be exactly one blob left, the final blob identifier. validate its contents.
-        assertEquals(1, blobStorage.blobs.size());
+        assertThat(blobStorage.blobs.size()).isEqualTo(1);
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
-        assertNotNull(blobValue);
-        assertArrayEquals(expectedBytes.toByteArray(), blobValue.content);
+        assertThat(blobValue).isNotNull();
+        assertThat(blobValue.content).isEqualTo(expectedBytes.toByteArray());
     }
 
     /**

@@ -26,7 +26,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -35,11 +34,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Abstract integration test class for implementations of hadoop file system. */
 public abstract class AbstractHadoopFileSystemITTest {
@@ -53,7 +49,7 @@ public abstract class AbstractHadoopFileSystemITTest {
             throws IOException, InterruptedException {
         if (consistencyToleranceNS == 0) {
             // strongly consistency
-            assertEquals(expectedExists, fs.exists(path));
+            assertThat(fs.exists(path)).isEqualTo(expectedExists);
         } else {
             // eventually consistency
             checkPathEventualExistence(fs, path, expectedExists, consistencyToleranceNS);
@@ -84,7 +80,7 @@ public abstract class AbstractHadoopFileSystemITTest {
                     InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
                     BufferedReader reader = new BufferedReader(ir)) {
                 String line = reader.readLine();
-                assertEquals(testLine, line);
+                assertThat(line).isEqualTo(testLine);
             }
         } finally {
             fs.delete(path, false);
@@ -98,16 +94,16 @@ public abstract class AbstractHadoopFileSystemITTest {
         final Path directory = new Path(basePath, "testdir/");
 
         // directory must not yet exist
-        assertFalse(fs.exists(directory));
+        assertThat(fs.exists(directory)).isFalse();
 
         try {
             // create directory
-            assertTrue(fs.mkdirs(directory));
+            assertThat(fs.mkdirs(directory)).isTrue();
 
             checkEmptyDirectory(directory);
 
             // directory empty
-            assertEquals(0, fs.listStatus(directory).length);
+            assertThat(fs.listStatus(directory).length).isEqualTo(0);
 
             // create some files
             final int numFiles = 3;
@@ -124,15 +120,15 @@ public abstract class AbstractHadoopFileSystemITTest {
             }
 
             FileStatus[] files = fs.listStatus(directory);
-            assertNotNull(files);
-            assertEquals(3, files.length);
+            assertThat(files).isNotNull();
+            assertThat(files.length).isEqualTo(3);
 
             for (FileStatus status : files) {
-                assertFalse(status.isDir());
+                assertThat(status.isDir()).isFalse();
             }
 
             // now that there are files, the directory must exist
-            assertTrue(fs.exists(directory));
+            assertThat(fs.exists(directory)).isTrue();
         } finally {
             // clean up
             cleanupDirectoryWithRetry(fs, directory, consistencyToleranceNS);
@@ -159,6 +155,6 @@ public abstract class AbstractHadoopFileSystemITTest {
             fs.delete(path, true);
             Thread.sleep(50L);
         }
-        Assertions.assertFalse(fs.exists(path));
+        assertThat(fs.exists(path)).isFalse();
     }
 }

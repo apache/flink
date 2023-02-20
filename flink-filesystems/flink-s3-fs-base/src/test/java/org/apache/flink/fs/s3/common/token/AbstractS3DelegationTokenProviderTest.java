@@ -24,8 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AbstractS3DelegationTokenProvider}. */
 public class AbstractS3DelegationTokenProviderTest {
@@ -50,7 +49,7 @@ public class AbstractS3DelegationTokenProviderTest {
     @Test
     void delegationTokensRequiredShouldReturnFalseWithoutCredentials() {
         provider.init(new Configuration());
-        assertFalse(provider.delegationTokensRequired());
+        assertThat(provider.delegationTokensRequired()).isFalse();
     }
 
     @Test
@@ -61,6 +60,6 @@ public class AbstractS3DelegationTokenProviderTest {
         configuration.setString(CONFIG_PREFIX + ".s3.secret-key", SECRET_ACCESS_KEY);
         provider.init(configuration);
 
-        assertTrue(provider.delegationTokensRequired());
+        assertThat(provider.delegationTokensRequired()).isTrue();
     }
 }

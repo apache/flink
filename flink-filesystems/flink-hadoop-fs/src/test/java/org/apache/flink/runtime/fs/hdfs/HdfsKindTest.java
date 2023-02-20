@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for extracting the {@link FileSystemKind} from file systems that Flink accesses through
@@ -40,19 +40,21 @@ class HdfsKindTest {
     @Test
     void testHdfsKind() throws IOException {
         final FileSystem fs = new Path("hdfs://localhost:55445/my/file").getFileSystem();
-        assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
+        assertThat(fs.getKind()).isEqualTo(FileSystemKind.FILE_SYSTEM);
     }
 
     @Test
     void testS3fileSystemSchemes() {
-        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3"));
-        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3n"));
-        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3a"));
-        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("EMRFS"));
+        assertThat(HadoopFileSystem.getKindForScheme("s3")).isEqualTo(FileSystemKind.OBJECT_STORE);
+        assertThat(HadoopFileSystem.getKindForScheme("s3n")).isEqualTo(FileSystemKind.OBJECT_STORE);
+        assertThat(HadoopFileSystem.getKindForScheme("s3a")).isEqualTo(FileSystemKind.OBJECT_STORE);
+        assertThat(HadoopFileSystem.getKindForScheme("EMRFS"))
+                .isEqualTo(FileSystemKind.OBJECT_STORE);
     }
 
     @Test
     void testViewFs() {
-        assertEquals(FileSystemKind.FILE_SYSTEM, HadoopFileSystem.getKindForScheme("viewfs"));
+        assertThat(HadoopFileSystem.getKindForScheme("viewfs"))
+                .isEqualTo(FileSystemKind.FILE_SYSTEM);
     }
 }

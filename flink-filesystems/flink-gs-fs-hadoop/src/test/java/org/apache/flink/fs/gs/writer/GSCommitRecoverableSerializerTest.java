@@ -32,7 +32,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test recoverable writer serializer. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -80,12 +80,12 @@ public class GSCommitRecoverableSerializerTest {
                 (GSCommitRecoverable) serializer.deserialize(serializer.getVersion(), serialized);
 
         // check that states match
-        assertEquals(bucketName, deserializedState.finalBlobIdentifier.bucketName);
-        assertEquals(objectName, deserializedState.finalBlobIdentifier.objectName);
-        assertEquals(componentCount, deserializedState.componentObjectIds.size());
+        assertThat(deserializedState.finalBlobIdentifier.bucketName).isEqualTo(bucketName);
+        assertThat(deserializedState.finalBlobIdentifier.objectName).isEqualTo(objectName);
+        assertThat(deserializedState.componentObjectIds.size()).isEqualTo(componentCount);
         for (int i = 0; i < componentCount; i++) {
-            assertEquals(
-                    state.componentObjectIds.get(i), deserializedState.componentObjectIds.get(i));
+            assertThat(deserializedState.componentObjectIds.get(i))
+                    .isEqualTo(state.componentObjectIds.get(i));
         }
     }
 }

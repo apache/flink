@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ServiceLoader;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** This test validates that the S3 file system registers both under s3:// and s3a://. */
 class HadoopS3FileSystemsSchemesTest {

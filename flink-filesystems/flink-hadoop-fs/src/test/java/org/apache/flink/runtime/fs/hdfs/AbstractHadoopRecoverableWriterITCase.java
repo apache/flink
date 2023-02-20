@@ -30,7 +30,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -48,6 +47,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Abstract integration test class for implementations of hadoop recoverable writer. */
@@ -124,9 +124,9 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         final java.nio.file.Path localTmpDir = Paths.get(defaultTmpDir);
 
         // delete local tmp dir.
-        Assertions.assertTrue(Files.exists(localTmpDir));
+        assertThat(Files.exists(localTmpDir)).isTrue();
         try (Stream<java.nio.file.Path> files = Files.list(localTmpDir)) {
-            Assertions.assertEquals(0L, files.count());
+            assertThat(files.count()).isEqualTo(0L);
         }
         Files.delete(localTmpDir);
 
@@ -162,7 +162,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         stream.write(bytesOf(testData1));
         stream.closeForCommit().commit();
 
-        Assertions.assertEquals(testData1, getContentsOfFile(path));
+        assertThat(getContentsOfFile(path)).isEqualTo(testData1);
     }
 
     @Test
@@ -177,7 +177,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         stream.write(bytesOf(testData2));
         stream.closeForCommit().commit();
 
-        Assertions.assertEquals(testData1 + testData2, getContentsOfFile(path));
+        assertThat(getContentsOfFile(path)).isEqualTo(testData1 + testData2);
     }
 
     @Test
@@ -194,10 +194,11 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         // still the data is there as we have not deleted them from the tmp object
         final String content =
                 getContentsOfFile(new Path('/' + getIncompleteObjectName(recoverable)));
-        Assertions.assertEquals(testData1, content);
+
+        assertThat(content).isEqualTo(testData1);
 
         boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
-        Assertions.assertTrue(successfullyDeletedState);
+        assertThat(successfullyDeletedState).isTrue();
 
         assertThatThrownBy(
                         () -> {
@@ -232,13 +233,14 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         // still the data is there as we have not deleted them from the tmp object
         final String content =
                 getContentsOfFile(new Path('/' + getIncompleteObjectName(recoverable)));
-        Assertions.assertEquals(testData1, content);
+
+        assertThat(content).isEqualTo(testData1);
 
         boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
-        Assertions.assertTrue(successfullyDeletedState);
+        assertThat(successfullyDeletedState).isTrue();
 
         boolean unsuccessfulDeletion = writer.cleanupRecoverableState(recoverable);
-        Assertions.assertFalse(unsuccessfulDeletion);
+        assertThat(unsuccessfulDeletion).isFalse();
     }
 
     // ----------------------- Test Recovery -----------------------
@@ -277,7 +279,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
                 newWriter.recoverForCommit(recoveredRecoverable);
         committer.commitAfterRecovery();
 
-        Assertions.assertEquals(testData1 + testData2, getContentsOfFile(path));
+        assertThat(getContentsOfFile(path)).isEqualTo(testData1 + testData2);
     }
 
     private static final String INIT_EMPTY_PERSIST = "EMPTY";
@@ -381,7 +383,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         recoveredStream.write(bytesOf(thirdItemToWrite));
         recoveredStream.closeForCommit().commit();
 
-        Assertions.assertEquals(expectedFinalContents, getContentsOfFile(path));
+        assertThat(getContentsOfFile(path)).isEqualTo(expectedFinalContents);
     }
 
     // -------------------------- Test Utilities --------------------------

@@ -27,8 +27,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DynamicTemporaryAWSCredentialsProvider}. */
 class DynamicTemporaryAWSCredentialsProviderTest {
@@ -52,7 +52,7 @@ class DynamicTemporaryAWSCredentialsProviderTest {
         DynamicTemporaryAWSCredentialsProvider provider =
                 new DynamicTemporaryAWSCredentialsProvider();
 
-        assertThrows(NoAwsCredentialsException.class, provider::getCredentials);
+        assertThatThrownBy(provider::getCredentials).isInstanceOf(NoAwsCredentialsException.class);
     }
 
     @Test
@@ -72,8 +72,9 @@ class DynamicTemporaryAWSCredentialsProviderTest {
         receiver.onNewTokensObtained(InstantiationUtil.serializeObject(credentials));
         BasicSessionCredentials returnedCredentials =
                 (BasicSessionCredentials) provider.getCredentials();
-        assertEquals(returnedCredentials.getAWSAccessKeyId(), credentials.getAccessKeyId());
-        assertEquals(returnedCredentials.getAWSSecretKey(), credentials.getSecretAccessKey());
-        assertEquals(returnedCredentials.getSessionToken(), credentials.getSessionToken());
+        assertThat(returnedCredentials.getAWSAccessKeyId()).isEqualTo(credentials.getAccessKeyId());
+        assertThat(returnedCredentials.getAWSSecretKey())
+                .isEqualTo(credentials.getSecretAccessKey());
+        assertThat(returnedCredentials.getSessionToken()).isEqualTo(credentials.getSessionToken());
     }
 }

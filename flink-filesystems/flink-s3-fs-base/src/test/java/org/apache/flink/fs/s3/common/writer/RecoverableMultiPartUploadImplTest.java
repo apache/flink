@@ -28,8 +28,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.UploadPartResult;
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -49,11 +48,8 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
 
 /** Tests for the {@link RecoverableMultiPartUploadImpl}. */
 class RecoverableMultiPartUploadImplTest {
@@ -82,7 +78,7 @@ class RecoverableMultiPartUploadImplTest {
 
         uploadPart(part);
 
-        assertThat(stubMultiPartUploader, hasMultiPartUploadWithPart(1, part));
+        assertThatHasMultiPartUploadWithPart(stubMultiPartUploader, part, 1);
     }
 
     @Test
@@ -91,7 +87,7 @@ class RecoverableMultiPartUploadImplTest {
 
         uploadObject(incompletePart);
 
-        assertThat(stubMultiPartUploader, hasUploadedObject(incompletePart));
+        assertThatHasUploadedObject(stubMultiPartUploader, incompletePart);
     }
 
     @Test
@@ -104,12 +100,9 @@ class RecoverableMultiPartUploadImplTest {
         uploadPart(secondCompletePart);
         uploadObject(thirdIncompletePart);
 
-        assertThat(
-                stubMultiPartUploader,
-                allOf(
-                        hasMultiPartUploadWithPart(1, firstCompletePart),
-                        hasMultiPartUploadWithPart(2, secondCompletePart),
-                        hasUploadedObject(thirdIncompletePart)));
+        assertThatHasMultiPartUploadWithPart(stubMultiPartUploader, firstCompletePart, 1);
+        assertThatHasMultiPartUploadWithPart(stubMultiPartUploader, secondCompletePart, 2);
+        assertThatHasUploadedObject(stubMultiPartUploader, thirdIncompletePart);
     }
 
     @Test
@@ -123,8 +116,8 @@ class RecoverableMultiPartUploadImplTest {
 
         final S3Recoverable recoverable = uploadObject(thirdIncompletePart);
 
-        assertThat(
-                recoverable, isEqualTo(thirdIncompletePart, firstCompletePart, secondCompletePart));
+        assertThatIsEqualTo(
+                recoverable, thirdIncompletePart, firstCompletePart, secondCompletePart);
     }
 
     @Test
@@ -135,9 +128,8 @@ class RecoverableMultiPartUploadImplTest {
         S3Recoverable recoverableOne = uploadObject(incompletePartOne);
         S3Recoverable recoverableTwo = uploadObject(incompletePartTwo);
 
-        assertThat(
-                recoverableTwo.incompleteObjectName(),
-                not(equalTo(recoverableOne.incompleteObjectName())));
+        assertThat(recoverableTwo.incompleteObjectName())
+                .isNotEqualTo(recoverableOne.incompleteObjectName());
     }
 
     @Test
@@ -150,101 +142,56 @@ class RecoverableMultiPartUploadImplTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
-    // --------------------------------- Matchers ---------------------------------
-
-    private static TypeSafeMatcher<StubMultiPartUploader> hasMultiPartUploadWithPart(
-            final int partNo, final byte[] content) {
-
-        final TestUploadPartResult expectedCompletePart =
+    private static void assertThatHasMultiPartUploadWithPart(
+            StubMultiPartUploader actual, byte[] content, int partNo) {
+        TestUploadPartResult expectedCompletePart =
                 createUploadPartResult(TEST_OBJECT_NAME, partNo, content);
 
-        return new TypeSafeMatcher<StubMultiPartUploader>() {
+        final List<TestUploadPartResult> actualCompleteParts = actual.getCompletePartsUploaded();
 
-            @Override
-            protected boolean matchesSafely(StubMultiPartUploader testMultipartUploader) {
-                final List<TestUploadPartResult> actualCompleteParts =
-                        testMultipartUploader.getCompletePartsUploaded();
-
-                for (TestUploadPartResult result : actualCompleteParts) {
-                    if (result.equals(expectedCompletePart)) {
-                        return true;
-                    }
-                }
-                return false;
+        for (TestUploadPartResult result : actualCompleteParts) {
+            if (result.equals(expectedCompletePart)) {
+                return;
             }
+        }
 
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a TestMultiPartUploader with complete part=")
-                        .appendValue(expectedCompletePart);
-            }
-        };
+        Assertions.fail(
+                "Expected multipart upload with part number "
+                        + partNo
+                        + " and specific content to be present, but it was not found among the uploaded parts.");
     }
 
-    private static TypeSafeMatcher<StubMultiPartUploader> hasUploadedObject(final byte[] content) {
-
-        final TestPutObjectResult expectedIncompletePart =
+    private static void assertThatHasUploadedObject(StubMultiPartUploader actual, byte[] content) {
+        TestPutObjectResult expectedIncompletePart =
                 createPutObjectResult(TEST_OBJECT_NAME, content);
 
-        return new TypeSafeMatcher<StubMultiPartUploader>() {
+        final List<TestPutObjectResult> actualIncompleteParts = actual.getIncompletePartsUploaded();
 
-            @Override
-            protected boolean matchesSafely(StubMultiPartUploader testMultipartUploader) {
-                final List<TestPutObjectResult> actualIncompleteParts =
-                        testMultipartUploader.getIncompletePartsUploaded();
-
-                for (TestPutObjectResult result : actualIncompleteParts) {
-                    if (result.equals(expectedIncompletePart)) {
-                        return true;
-                    }
-                }
-                return false;
+        for (TestPutObjectResult result : actualIncompleteParts) {
+            if (result.equals(expectedIncompletePart)) {
+                return;
             }
+        }
 
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a TestMultiPartUploader with complete parts=")
-                        .appendValue(expectedIncompletePart);
-            }
-        };
+        Assertions.fail(
+                "Expected multipart upload with specific content to be present, "
+                        + "but it was not found among the uploaded parts.");
     }
 
-    private static TypeSafeMatcher<S3Recoverable> isEqualTo(
-            byte[] incompletePart, byte[]... completeParts) {
-        return new TypeSafeMatcher<S3Recoverable>() {
+    private static void assertThatIsEqualTo(
+            S3Recoverable actualRecoverable, byte[] incompletePart, byte[]... completeParts) {
+        S3Recoverable expectedRecoverable = createS3Recoverable(incompletePart, completeParts);
 
-            private final S3Recoverable expectedRecoverable =
-                    createS3Recoverable(incompletePart, completeParts);
+        assertThat(actualRecoverable.getObjectName())
+                .isEqualTo(expectedRecoverable.getObjectName());
+        assertThat(actualRecoverable.uploadId()).isEqualTo(expectedRecoverable.uploadId());
+        assertThat(actualRecoverable.numBytesInParts())
+                .isEqualTo(expectedRecoverable.numBytesInParts());
+        assertThat(actualRecoverable.incompleteObjectLength())
+                .isEqualTo(expectedRecoverable.incompleteObjectLength());
 
-            @Override
-            protected boolean matchesSafely(S3Recoverable actualRecoverable) {
-
-                return Objects.equals(
-                                expectedRecoverable.getObjectName(),
-                                actualRecoverable.getObjectName())
-                        && Objects.equals(
-                                expectedRecoverable.uploadId(), actualRecoverable.uploadId())
-                        && expectedRecoverable.numBytesInParts()
-                                == actualRecoverable.numBytesInParts()
-                        && expectedRecoverable.incompleteObjectLength()
-                                == actualRecoverable.incompleteObjectLength()
-                        && compareLists(expectedRecoverable.parts(), actualRecoverable.parts());
-            }
-
-            private boolean compareLists(final List<PartETag> first, final List<PartETag> second) {
-                return Arrays.equals(
-                        first.stream().map(PartETag::getETag).toArray(),
-                        second.stream().map(PartETag::getETag).toArray());
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText(
-                        expectedRecoverable + " with ignored LAST_PART_OBJECT_NAME.");
-            }
-        };
+        assertThat(actualRecoverable.parts().stream().map(PartETag::getETag).toArray())
+                .isEqualTo(expectedRecoverable.parts().stream().map(PartETag::getETag).toArray());
     }
 
     // ---------------------------------- Test Methods -------------------------------------------

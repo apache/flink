@@ -23,7 +23,7 @@ import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the S3 file system support via Hadoop's {@link
@@ -42,9 +42,8 @@ class HadoopS3FileSystemTest {
         configLoader.setFlinkConfig(conf);
 
         org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
-        assertEquals(
-                "com.amazonaws.auth.ContainerCredentialsProvider",
-                hadoopConfig.get("fs.s3a.aws.credentials.provider"));
+        assertThat(hadoopConfig.get("fs.s3a.aws.credentials.provider"))
+                .isEqualTo("com.amazonaws.auth.ContainerCredentialsProvider");
     }
 
     // ------------------------------------------------------------------------
@@ -88,7 +87,7 @@ class HadoopS3FileSystemTest {
 
         org.apache.hadoop.conf.Configuration hadoopConf = configLoader.getOrLoadHadoopConfig();
 
-        assertEquals(accessKey, hadoopConf.get("fs.s3a.access.key", null));
-        assertEquals(secretKey, hadoopConf.get("fs.s3a.secret.key", null));
+        assertThat(hadoopConf.get("fs.s3a.access.key", null)).isEqualTo(accessKey);
+        assertThat(hadoopConf.get("fs.s3a.secret.key", null)).isEqualTo(secretKey);
     }
 }

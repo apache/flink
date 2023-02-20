@@ -38,7 +38,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test construction of Hadoop config in GSFileSystemFactory. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -279,8 +279,8 @@ public class ConfigUtilsHadoopTest {
         Map<String, String> hadoopConfigMap = TestUtils.hadoopConfigToMap(hadoopConfig);
         MapDifference<String, String> difference =
                 Maps.difference(expectedHadoopConfigMap, hadoopConfigMap);
-        assertEquals(Collections.EMPTY_MAP, difference.entriesDiffering());
-        assertEquals(Collections.EMPTY_MAP, difference.entriesOnlyOnLeft());
-        assertEquals(Collections.EMPTY_MAP, difference.entriesOnlyOnRight());
+        assertThat(difference.entriesDiffering()).isEqualTo(Collections.EMPTY_MAP);
+        assertThat(difference.entriesOnlyOnLeft()).isEqualTo(Collections.EMPTY_MAP);
+        assertThat(difference.entriesOnlyOnRight()).isEqualTo(Collections.EMPTY_MAP);
     }
 }

@@ -36,9 +36,8 @@ import java.util.Collection;
 import java.util.Random;
 
 import static org.apache.flink.fs.gs.TestUtils.RANDOM_SEED;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link GSChecksumWriteChannel}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -139,7 +138,7 @@ public class GSChecksumWriteChannelTest {
         for (int i = 0; i < byteBuffers.length; i++) {
             int writtenCount =
                     checksumWriteChannel.write(byteBuffers[i], writeStarts[i], writeLengths[i]);
-            assertEquals(writeLengths[i], writtenCount);
+            assertThat(writtenCount).isEqualTo(writeLengths[i]);
         }
 
         // close the write, this also validates the checksum
@@ -147,7 +146,7 @@ public class GSChecksumWriteChannelTest {
 
         // read the value out of storage, the bytes should match
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
-        assertArrayEquals(expectedWrittenBytes, blobValue.content);
+        assertThat(blobValue.content).isEqualTo(expectedWrittenBytes);
     }
 
     /**
@@ -169,7 +168,7 @@ public class GSChecksumWriteChannelTest {
 
             int writtenCount =
                     checksumWriteChannel.write(byteBuffers[i], writeStarts[i], writeLengths[i]);
-            assertEquals(writeLengths[i], writtenCount);
+            assertThat(writtenCount).isEqualTo(writeLengths[i]);
         }
 
         // close the write, this also validates the checksum

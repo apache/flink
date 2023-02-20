@@ -34,7 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test construction of Storage instance in GSFileSystemFactory. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -150,6 +150,6 @@ public class ConfigUtilsStorageTest {
         Optional<GoogleCredentials> loadedCredentials =
                 ConfigUtils.getStorageCredentials(hadoopConfig, configContext);
 
-        assertEquals(expectedCredentials, loadedCredentials);
+        assertThat(loadedCredentials).isEqualTo(expectedCredentials);
     }
 }

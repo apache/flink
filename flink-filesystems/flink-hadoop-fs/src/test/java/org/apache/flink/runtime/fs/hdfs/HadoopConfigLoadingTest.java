@@ -33,8 +33,7 @@ import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests that validate the loading of the Hadoop configuration, relative to entries in the Flink
@@ -51,7 +50,7 @@ class HadoopConfigLoadingTest {
         org.apache.hadoop.conf.Configuration hadoopConf =
                 HadoopUtils.getHadoopConfiguration(new Configuration());
 
-        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
     @Test
@@ -75,11 +74,11 @@ class HadoopConfigLoadingTest {
         org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
 
         // contains extra entries
-        assertEquals(v1, hadoopConf.get(k1, null));
-        assertEquals(v2, hadoopConf.get(k2, null));
+        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
+        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
 
         // also contains classpath defaults
-        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
     @Test
@@ -102,11 +101,11 @@ class HadoopConfigLoadingTest {
         org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
 
         // contains extra entries
-        assertEquals(v1, hadoopConf.get(k1, null));
-        assertEquals(v2, hadoopConf.get(k2, null));
+        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
+        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
 
         // also contains classpath defaults
-        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
     @Test
@@ -128,8 +127,8 @@ class HadoopConfigLoadingTest {
         final File hadoopHomeConf = new File(hadoopHome, "conf");
         final File hadoopHomeEtc = new File(hadoopHome, "etc/hadoop");
 
-        assertTrue(hadoopHomeConf.mkdirs());
-        assertTrue(hadoopHomeEtc.mkdirs());
+        assertThat(hadoopHomeConf.mkdirs()).isTrue();
+        assertThat(hadoopHomeEtc.mkdirs()).isTrue();
 
         final File file1 = new File(hadoopConfDir, "core-site.xml");
         final File file2 = new File(hadoopConfDir, "hdfs-site.xml");
@@ -159,15 +158,15 @@ class HadoopConfigLoadingTest {
         }
 
         // contains extra entries
-        assertEquals(v1, hadoopConf.get(k1, null));
-        assertEquals(v2, hadoopConf.get(k2, null));
-        assertEquals(v3, hadoopConf.get(k3, null));
-        assertEquals(v4, hadoopConf.get(k4, null));
-        assertEquals(v5, hadoopConf.get(k5, null));
-        assertEquals(v6, hadoopConf.get(k6, null));
+        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
+        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
+        assertThat(hadoopConf.get(k3, null)).isEqualTo(v3);
+        assertThat(hadoopConf.get(k4, null)).isEqualTo(v4);
+        assertThat(hadoopConf.get(k5, null)).isEqualTo(v5);
+        assertThat(hadoopConf.get(k6, null)).isEqualTo(v6);
 
         // also contains classpath defaults
-        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
     @Test
@@ -193,8 +192,8 @@ class HadoopConfigLoadingTest {
 
         final File hadoopHomeEtc = new File(hadoopHome, "etc/hadoop");
 
-        assertTrue(hadoopHomeConf.mkdirs());
-        assertTrue(hadoopHomeEtc.mkdirs());
+        assertThat(hadoopHomeConf.mkdirs()).isTrue();
+        assertThat(hadoopHomeEtc.mkdirs()).isTrue();
 
         final File file1 = new File(hadoopConfDir, "core-site.xml");
         final File file2 = new File(hadoopConfEntryDir, "core-site.xml");
@@ -248,14 +247,14 @@ class HadoopConfigLoadingTest {
         }
 
         // contains extra entries
-        assertEquals(v1, hadoopConf.get(k1, null));
-        assertEquals(v2, hadoopConf.get(k2, null));
-        assertEquals(v3, hadoopConf.get(k3, null));
-        assertEquals(v4, hadoopConf.get(k4, null));
-        assertEquals(v5, hadoopConf.get(k5, null));
+        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
+        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
+        assertThat(hadoopConf.get(k3, null)).isEqualTo(v3);
+        assertThat(hadoopConf.get(k4, null)).isEqualTo(v4);
+        assertThat(hadoopConf.get(k5, null)).isEqualTo(v5);
 
         // also contains classpath defaults
-        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
     @Test
@@ -287,14 +286,14 @@ class HadoopConfigLoadingTest {
         org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
 
         // contains extra entries
-        assertEquals(v1, hadoopConf.get(k1, null));
-        assertEquals(v2, hadoopConf.get(k2, null));
-        assertEquals(v3, hadoopConf.get(k3, null));
-        assertEquals(v4, hadoopConf.get(k4, null));
-        assertTrue(hadoopConf.get(k5) == null);
+        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
+        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
+        assertThat(hadoopConf.get(k3, null)).isEqualTo(v3);
+        assertThat(hadoopConf.get(k4, null)).isEqualTo(v4);
+        assertThat(hadoopConf.get(k5)).isNull();
 
         // also contains classpath defaults
-        assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
+        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
     private static void printConfig(File file, String key, String value) throws IOException {

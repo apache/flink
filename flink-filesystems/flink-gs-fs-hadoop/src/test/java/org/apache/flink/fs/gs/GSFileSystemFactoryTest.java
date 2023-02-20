@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GSFileSystemFactory}. */
 public class GSFileSystemFactoryTest {
@@ -36,6 +36,6 @@ public class GSFileSystemFactoryTest {
         factory.configure(flinkConfig);
 
         String gsStorageClientHost = factory.getStorage().getOptions().getHost();
-        assertEquals(gsStorageClientHost, "http://240.0.0.0:12345");
+        assertThat(gsStorageClientHost).isEqualTo("http://240.0.0.0:12345");
     }
 }

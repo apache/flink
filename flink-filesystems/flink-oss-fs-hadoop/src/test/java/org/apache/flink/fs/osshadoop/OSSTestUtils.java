@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.SplittableRandom;
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** OSS test utility class. */
 public class OSSTestUtils {
@@ -62,7 +62,7 @@ public class OSSTestUtils {
         for (byte[] bytes : expectContents) {
             out.write(bytes);
         }
-        assertEquals(out.toString(), actualContent);
+        assertThat(actualContent).isEqualTo(out.toString());
     }
 
     public static void objectContentEquals(FileSystem fs, Path objectPath, byte[]... expectContents)

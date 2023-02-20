@@ -33,8 +33,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link GSResumeRecoverable}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -93,10 +93,10 @@ public class GSResumeRecoverableTest {
     public void shouldConstructProperly() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
-        assertEquals(blobIdentifier, resumeRecoverable.finalBlobIdentifier);
-        assertEquals(position, resumeRecoverable.position);
-        assertEquals(closed, resumeRecoverable.closed);
-        assertEquals(componentObjectIds, resumeRecoverable.componentObjectIds);
+        assertThat(resumeRecoverable.finalBlobIdentifier).isEqualTo(blobIdentifier);
+        assertThat(resumeRecoverable.position).isEqualTo(position);
+        assertThat(resumeRecoverable.closed).isEqualTo(closed);
+        assertThat(resumeRecoverable.componentObjectIds).isEqualTo(componentObjectIds);
     }
 
     /** Ensure that the list of component object ids cannot be added to. */

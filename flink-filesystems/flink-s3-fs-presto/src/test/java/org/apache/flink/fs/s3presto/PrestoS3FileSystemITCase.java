@@ -33,8 +33,8 @@ import java.io.IOException;
 import java.util.UUID;
 
 import static com.facebook.presto.hive.s3.S3ConfigurationUpdater.S3_USE_INSTANCE_CREDENTIALS;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for the S3 file system support via Presto's {@link
@@ -63,7 +63,7 @@ class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
         // check for uniqueness of the test directory
         // directory must not yet exist
-        assertFalse(fs.exists(basePath));
+        assertThat(fs.exists(basePath)).isFalse();
     }
 
     @Test
@@ -77,11 +77,8 @@ class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
             FileSystem.initialize(conf);
 
-            try {
-                path.getFileSystem().exists(path);
-                fail("should fail with an exception");
-            } catch (SdkClientException ignored) {
-            }
+            assertThatThrownBy(() -> path.getFileSystem().exists(path))
+                    .isInstanceOf(SdkClientException.class);
         }
 
         // standard Presto-style credential keys

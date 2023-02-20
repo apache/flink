@@ -29,7 +29,7 @@ import org.junit.jupiter.api.BeforeAll;
 import java.io.IOException;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the S3 file system support via Hadoop's {@link
@@ -58,6 +58,6 @@ class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
         // check for uniqueness of the test directory
         // directory must not yet exist
-        assertFalse(fs.exists(basePath));
+        assertThat(fs.exists(basePath)).isFalse();
     }
 }

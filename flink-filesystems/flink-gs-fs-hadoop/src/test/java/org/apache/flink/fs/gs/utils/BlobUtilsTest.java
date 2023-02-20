@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test {@link BlobUtils}. */
 class BlobUtilsTest {
@@ -36,8 +36,8 @@ class BlobUtilsTest {
     @Test
     void shouldParseValidUri() {
         GSBlobIdentifier blobIdentifier = BlobUtils.parseUri(URI.create("gs://bucket/foo/bar"));
-        assertEquals("bucket", blobIdentifier.bucketName);
-        assertEquals("foo/bar", blobIdentifier.objectName);
+        assertThat(blobIdentifier.bucketName).isEqualTo("bucket");
+        assertThat(blobIdentifier.objectName).isEqualTo("foo/bar");
     }
 
     @Test
@@ -66,7 +66,7 @@ class BlobUtilsTest {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String bucketName = BlobUtils.getTemporaryBucketName(identifier, options);
-        assertEquals("temp", bucketName);
+        assertThat(bucketName).isEqualTo("temp");
     }
 
     @Test
@@ -76,7 +76,7 @@ class BlobUtilsTest {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String bucketName = BlobUtils.getTemporaryBucketName(identifier, options);
-        assertEquals("foo", bucketName);
+        assertThat(bucketName).isEqualTo("foo");
     }
 
     @Test
@@ -84,7 +84,7 @@ class BlobUtilsTest {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String partialName = BlobUtils.getTemporaryObjectPartialName(identifier);
-        assertEquals(".inprogress/foo/bar/", partialName);
+        assertThat(partialName).isEqualTo(".inprogress/foo/bar/");
     }
 
     @Test
@@ -93,7 +93,8 @@ class BlobUtilsTest {
         UUID temporaryObjectId = UUID.fromString("f09c43e5-ea49-4537-a406-0586f8f09d47");
 
         String partialName = BlobUtils.getTemporaryObjectName(identifier, temporaryObjectId);
-        assertEquals(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47", partialName);
+        assertThat(partialName)
+                .isEqualTo(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47");
     }
 
     @Test
@@ -106,9 +107,9 @@ class BlobUtilsTest {
 
         String partialName =
                 BlobUtils.getTemporaryObjectNameWithEntropy(identifier, temporaryObjectId);
-        assertEquals(
-                "f09c43e5-ea49-4537-a406-0586f8f09d47.inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
-                partialName);
+        assertThat(
+                        "f09c43e5-ea49-4537-a406-0586f8f09d47.inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47")
+                .isEqualTo(partialName);
     }
 
     @Test
@@ -121,10 +122,9 @@ class BlobUtilsTest {
 
         GSBlobIdentifier temporaryBlobIdentifier =
                 BlobUtils.getTemporaryBlobIdentifier(identifier, temporaryObjectId, options);
-        assertEquals("foo", temporaryBlobIdentifier.bucketName);
-        assertEquals(
-                ".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
-                temporaryBlobIdentifier.objectName);
+        assertThat(temporaryBlobIdentifier.bucketName).isEqualTo("foo");
+        assertThat(temporaryBlobIdentifier.objectName)
+                .isEqualTo(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47");
     }
 
     @Test
@@ -137,9 +137,8 @@ class BlobUtilsTest {
 
         GSBlobIdentifier temporaryBlobIdentifier =
                 BlobUtils.getTemporaryBlobIdentifier(identifier, temporaryObjectId, options);
-        assertEquals("temp", temporaryBlobIdentifier.bucketName);
-        assertEquals(
-                ".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
-                temporaryBlobIdentifier.objectName);
+        assertThat(temporaryBlobIdentifier.bucketName).isEqualTo("temp");
+        assertThat(temporaryBlobIdentifier.objectName)
+                .isEqualTo(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47");
     }
 }

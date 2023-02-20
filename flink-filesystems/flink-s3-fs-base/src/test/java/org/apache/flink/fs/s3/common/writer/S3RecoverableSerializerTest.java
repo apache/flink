@@ -19,17 +19,13 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import com.amazonaws.services.s3.model.PartETag;
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link S3RecoverableSerializer}. */
 class S3RecoverableSerializerTest {
@@ -51,7 +47,7 @@ class S3RecoverableSerializerTest {
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
         S3Recoverable copiedEmptyRecoverable = serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(originalEmptyRecoverable, isEqualTo(copiedEmptyRecoverable));
+        assertThatIsEqualTo(originalEmptyRecoverable, copiedEmptyRecoverable);
     }
 
     @Test
@@ -62,8 +58,7 @@ class S3RecoverableSerializerTest {
         S3Recoverable copiedNoIncompletePartRecoverable =
                 serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(
-                originalNoIncompletePartRecoverable, isEqualTo(copiedNoIncompletePartRecoverable));
+        assertThatIsEqualTo(originalNoIncompletePartRecoverable, copiedNoIncompletePartRecoverable);
     }
 
     @Test
@@ -74,9 +69,8 @@ class S3RecoverableSerializerTest {
         S3Recoverable copiedOnlyIncompletePartRecoverable =
                 serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(
-                originalOnlyIncompletePartRecoverable,
-                isEqualTo(copiedOnlyIncompletePartRecoverable));
+        assertThatIsEqualTo(
+                originalOnlyIncompletePartRecoverable, copiedOnlyIncompletePartRecoverable);
     }
 
     @Test
@@ -86,44 +80,22 @@ class S3RecoverableSerializerTest {
         byte[] serializedRecoverable = serializer.serialize(originalFullRecoverable);
         S3Recoverable copiedFullRecoverable = serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(originalFullRecoverable, isEqualTo(copiedFullRecoverable));
+        assertThatIsEqualTo(originalFullRecoverable, copiedFullRecoverable);
     }
 
-    // --------------------------------- Matchers ---------------------------------
-
-    private static TypeSafeMatcher<S3Recoverable> isEqualTo(S3Recoverable expectedRecoverable) {
-        return new TypeSafeMatcher<S3Recoverable>() {
-
-            @Override
-            protected boolean matchesSafely(S3Recoverable actualRecoverable) {
-
-                return Objects.equals(
-                                expectedRecoverable.getObjectName(),
-                                actualRecoverable.getObjectName())
-                        && Objects.equals(
-                                expectedRecoverable.uploadId(), actualRecoverable.uploadId())
-                        && expectedRecoverable.numBytesInParts()
-                                == actualRecoverable.numBytesInParts()
-                        && Objects.equals(
-                                expectedRecoverable.incompleteObjectName(),
-                                actualRecoverable.incompleteObjectName())
-                        && expectedRecoverable.incompleteObjectLength()
-                                == actualRecoverable.incompleteObjectLength()
-                        && compareLists(expectedRecoverable.parts(), actualRecoverable.parts());
-            }
-
-            private boolean compareLists(final List<PartETag> first, final List<PartETag> second) {
-                return Arrays.equals(
-                        first.stream().map(PartETag::getETag).toArray(),
-                        second.stream().map(PartETag::getETag).toArray());
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText(
-                        expectedRecoverable + " with ignored LAST_PART_OBJECT_NAME.");
-            }
-        };
+    private static void assertThatIsEqualTo(
+            S3Recoverable actualRecoverable, S3Recoverable expectedRecoverable) {
+        assertThat(actualRecoverable.getObjectName())
+                .isEqualTo(expectedRecoverable.getObjectName());
+        assertThat(actualRecoverable.uploadId()).isEqualTo(expectedRecoverable.uploadId());
+        assertThat(actualRecoverable.numBytesInParts())
+                .isEqualTo(expectedRecoverable.numBytesInParts());
+        assertThat(actualRecoverable.incompleteObjectName())
+                .isEqualTo(expectedRecoverable.incompleteObjectName());
+        assertThat(actualRecoverable.incompleteObjectLength())
+                .isEqualTo(expectedRecoverable.incompleteObjectLength());
+        assertThat(actualRecoverable.parts().stream().map(PartETag::getETag).toArray())
+                .isEqualTo(expectedRecoverable.parts().stream().map(PartETag::getETag).toArray());
     }
 
     // --------------------------------- Test Utils ---------------------------------

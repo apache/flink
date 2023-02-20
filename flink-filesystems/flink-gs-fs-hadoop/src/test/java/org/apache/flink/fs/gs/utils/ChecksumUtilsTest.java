@@ -20,14 +20,14 @@ package org.apache.flink.fs.gs.utils;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link ChecksumUtils}. */
 class ChecksumUtilsTest {
 
     @Test
     void shouldConvertToStringChecksum() {
-        assertEquals("AAAwOQ==", ChecksumUtils.convertChecksumToString(12345));
-        assertEquals("AADUMQ==", ChecksumUtils.convertChecksumToString(54321));
+        assertThat(ChecksumUtils.convertChecksumToString(12345)).isEqualTo("AAAwOQ==");
+        assertThat(ChecksumUtils.convertChecksumToString(54321)).isEqualTo("AADUMQ==");
     }
 }

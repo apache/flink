@@ -27,9 +27,7 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.jupiter.api.Assertions;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -53,8 +51,7 @@ import java.util.Optional;
 import java.util.SplittableRandom;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link S3RecoverableFsDataOutputStream}. */
 class S3RecoverableFsDataOutputStreamTest {
@@ -94,7 +91,8 @@ class S3RecoverableFsDataOutputStreamTest {
         RecoverableFsDataOutputStream.Committer committer = streamUnderTest.closeForCommit();
         committer.commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
@@ -102,7 +100,7 @@ class S3RecoverableFsDataOutputStreamTest {
         RecoverableFsDataOutputStream.Committer committer = streamUnderTest.closeForCommit();
         committer.commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(new byte[0]));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(new byte[0]);
     }
 
     @Test
@@ -111,7 +109,7 @@ class S3RecoverableFsDataOutputStreamTest {
 
         streamUnderTest.close();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("")));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf(""));
     }
 
     @Test
@@ -122,7 +120,8 @@ class S3RecoverableFsDataOutputStreamTest {
 
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
@@ -134,7 +133,7 @@ class S3RecoverableFsDataOutputStreamTest {
         }
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(testDataBuffers));
+        assertThatHasContent(multipartUploadUnderTest, testDataBuffers);
     }
 
     @Test
@@ -146,7 +145,7 @@ class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest = reopenStreamUnderTestAfterRecovery();
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello")));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf("hello"));
     }
 
     @Test
@@ -163,7 +162,8 @@ class S3RecoverableFsDataOutputStreamTest {
 
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
@@ -184,7 +184,7 @@ class S3RecoverableFsDataOutputStreamTest {
 
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("abcde")));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf("abcde"));
     }
 
     @Test
@@ -197,7 +197,7 @@ class S3RecoverableFsDataOutputStreamTest {
         }
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(testDataBuffers));
+        assertThatHasContent(multipartUploadUnderTest, testDataBuffers);
     }
 
     @Test
@@ -211,7 +211,8 @@ class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf("world"));
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
@@ -226,7 +227,8 @@ class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
@@ -240,7 +242,8 @@ class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
@@ -251,7 +254,7 @@ class S3RecoverableFsDataOutputStreamTest {
     @Test
     void closeForCommitOnClosedStreamShouldFail() throws IOException {
         streamUnderTest.closeForCommit().commit();
-        assertThatThrownBy(() -> streamUnderTest.closeForCommit().commit())
+        Assertions.assertThatThrownBy(() -> streamUnderTest.closeForCommit().commit())
                 .isInstanceOf(IOException.class);
     }
 
@@ -260,8 +263,11 @@ class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf("hello"));
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.sync();
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
-        assertThatThrownBy(
+
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
+
+        Assertions.assertThatThrownBy(
                         () ->
                                 streamUnderTest.write(
                                         randomBuffer(
@@ -333,34 +339,15 @@ class S3RecoverableFsDataOutputStreamTest {
         long bytesRead =
                 new FileInputStream(inputFile)
                         .read(content, 0, MathUtils.checkedDownCast(inputFile.length()));
-        Assertions.assertEquals(file.getPos(), bytesRead);
+
+        assertThat(bytesRead).isEqualTo(file.getPos());
+
         return content;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
-    // Matchers
-    // ------------------------------------------------------------------------------------------------------------
-
-    private static TypeSafeMatcher<TestMultipartUpload> hasContent(final byte[] expectedContent) {
-        return new TypeSafeMatcher<TestMultipartUpload>() {
-            @Override
-            protected boolean matchesSafely(TestMultipartUpload testMultipartUpload) {
-                return Arrays.equals(testMultipartUpload.getPublishedContents(), expectedContent);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a TestMultipartUpload with contents='")
-                        .appendValue(expectedContent)
-                        .appendText("'");
-            }
-        };
-    }
-
-    private static TypeSafeMatcher<TestMultipartUpload> hasContent(
-            final Collection<byte[]> expectedContents) throws IOException {
-
+    private static void assertThatHasContent(
+            TestMultipartUpload testMultipartUpload, Collection<byte[]> expectedContents)
+            throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         for (byte[] c : expectedContents) {
             stream.write(c);
@@ -368,20 +355,7 @@ class S3RecoverableFsDataOutputStreamTest {
 
         byte[] expectedContent = stream.toByteArray();
 
-        return new TypeSafeMatcher<TestMultipartUpload>() {
-            @Override
-            protected boolean matchesSafely(TestMultipartUpload testMultipartUpload) {
-                return Arrays.equals(testMultipartUpload.getPublishedContents(), expectedContent);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a TestMultipartUpload with contents='")
-                        .appendValue(expectedContent)
-                        .appendText("'");
-            }
-        };
+        assertThat(testMultipartUpload.getPublishedContents()).isEqualTo(expectedContent);
     }
 
     // ------------------------------------------------------------------------------------------------------------

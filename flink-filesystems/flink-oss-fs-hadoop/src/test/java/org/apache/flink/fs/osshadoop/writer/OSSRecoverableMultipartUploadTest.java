@@ -41,9 +41,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link OSSRecoverableMultipartUpload}. */
@@ -147,12 +145,12 @@ class OSSRecoverableMultipartUploadTest {
 
         OSSRecoverable ossRecoverable = uploader.getRecoverable(partFile);
 
-        assertEquals(ossRecoverable.getPartETags().size(), 2);
-        assertNotNull(ossRecoverable.getLastPartObject());
-        assertEquals(ossRecoverable.getLastPartObjectLength(), 1026);
-        assertEquals(ossRecoverable.getNumBytesInParts(), 2 * 1024 * 1024 + 20);
-        assertEquals(ossRecoverable.getUploadId(), uploadId);
-        assertEquals(ossRecoverable.getObjectName(), ossAccessor.pathToObject(objectPath));
+        assertThat(ossRecoverable.getPartETags().size()).isEqualTo(2);
+        assertThat(ossRecoverable.getLastPartObject()).isNotNull();
+        assertThat(ossRecoverable.getLastPartObjectLength()).isEqualTo(1026);
+        assertThat(ossRecoverable.getNumBytesInParts()).isEqualTo(2 * 1024 * 1024 + 20);
+        assertThat(ossRecoverable.getUploadId()).isEqualTo(uploadId);
+        assertThat(ossRecoverable.getObjectName()).isEqualTo(ossAccessor.pathToObject(objectPath));
 
         ossAccessor.completeMultipartUpload(
                 ossAccessor.pathToObject(objectPath), uploadId, completeParts);
@@ -180,7 +178,8 @@ class OSSRecoverableMultipartUploadTest {
         partFile.close();
         OSSRecoverable recoverableTwo = uploader.getRecoverable(partFile);
 
-        assertFalse(recoverableOne.getLastPartObject().equals(recoverableTwo.getLastPartObject()));
+        assertThat(recoverableOne.getLastPartObject())
+                .isNotEqualTo(recoverableTwo.getLastPartObject());
     }
 
     @Test

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the OSS file system support via AliyunOSSFileSystem. These tests do actually read
@@ -68,13 +68,15 @@ class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
         ossfsFactory.configure(conf);
         org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
         // shaded
-        assertEquals(
-                "org.apache.flink.fs.osshadoop.shaded.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
-                configuration.get("fs.oss.credentials.provider"));
+        assertThat(configuration.get("fs.oss.credentials.provider"))
+                .isEqualTo(
+                        "org.apache.flink.fs.osshadoop.shaded.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider");
         // should not shaded
-        assertEquals(OSSTestCredentials.getOSSEndpoint(), configuration.get("fs.oss.endpoint"));
-        assertEquals(OSSTestCredentials.getOSSAccessKey(), configuration.get("fs.oss.accessKeyId"));
-        assertEquals(
-                OSSTestCredentials.getOSSSecretKey(), configuration.get("fs.oss.accessKeySecret"));
+        assertThat(configuration.get("fs.oss.endpoint"))
+                .isEqualTo(OSSTestCredentials.getOSSEndpoint());
+        assertThat(configuration.get("fs.oss.accessKeyId"))
+                .isEqualTo(OSSTestCredentials.getOSSAccessKey());
+        assertThat(configuration.get("fs.oss.accessKeySecret"))
+                .isEqualTo(OSSTestCredentials.getOSSSecretKey());
     }
 }

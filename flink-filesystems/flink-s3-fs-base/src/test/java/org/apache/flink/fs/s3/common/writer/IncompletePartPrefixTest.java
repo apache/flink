@@ -18,9 +18,9 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -42,7 +42,8 @@ class IncompletePartPrefixTest {
     void emptyInitialNameShouldSucceed() {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("");
-        Assertions.assertEquals("_tmp_", objectNamePrefix);
+
+        assertThat(objectNamePrefix).isEqualTo("_tmp_");
     }
 
     @Test
@@ -50,14 +51,16 @@ class IncompletePartPrefixTest {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(
                         "no_slash_path");
-        Assertions.assertEquals("_no_slash_path_tmp_", objectNamePrefix);
+
+        assertThat(objectNamePrefix).isEqualTo("_no_slash_path_tmp_");
     }
 
     @Test
     void nameWithOnlySlashShouldSucceed() {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("/");
-        Assertions.assertEquals("/_tmp_", objectNamePrefix);
+
+        assertThat(objectNamePrefix).isEqualTo("/_tmp_");
     }
 
     @Test
@@ -65,6 +68,7 @@ class IncompletePartPrefixTest {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(
                         "/root/home/test-file");
-        Assertions.assertEquals("/root/home/_test-file_tmp_", objectNamePrefix);
+
+        assertThat(objectNamePrefix).isEqualTo("/root/home/_test-file_tmp_");
     }
 }

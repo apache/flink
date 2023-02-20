@@ -47,8 +47,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test for {@link org.apache.hadoop.fs.viewfs.ViewFileSystem} support. */
 class HadoopViewFileSystemTruncateTest {
@@ -67,14 +67,14 @@ class HadoopViewFileSystemTruncateTest {
 
     @BeforeAll
     static void testHadoopVersion() {
-        assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+        assumeThat(HadoopUtils.isMinHadoopVersion(2, 7)).isTrue();
     }
 
     @BeforeAll
     static void verifyOS() {
-        assumeTrue(
-                !OperatingSystem.isWindows(),
-                "HDFS cluster cannot be started on Windows without extensions.");
+        assumeThat(OperatingSystem.isWindows())
+                .describedAs("HDFS cluster cannot be started on Windows without extensions.")
+                .isFalse();
     }
 
     @BeforeAll
@@ -165,7 +165,7 @@ class HadoopViewFileSystemTruncateTest {
                 InputStreamReader ir = new InputStreamReader(in, UTF_8);
                 BufferedReader reader = new BufferedReader(ir)) {
             final String line = reader.readLine();
-            assertEquals(expectedContent, line);
+            assertThat(line).isEqualTo(expectedContent);
         }
     }
 }
