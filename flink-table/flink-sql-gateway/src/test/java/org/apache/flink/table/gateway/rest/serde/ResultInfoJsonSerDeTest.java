@@ -120,8 +120,8 @@ class ResultInfoJsonSerDeTest {
     @EnumSource(RowFormat.class)
     void testResultInfoSerDeWithNullValues(RowFormat rowFormat) throws Exception {
         List<Integer> positions =
-                IntStream.range(0, 18)
-                        .mapToObj(i -> new Random().nextInt(18))
+                IntStream.range(0, 21)
+                        .mapToObj(i -> new Random().nextInt(21))
                         .collect(Collectors.toList());
 
         serDeTest(

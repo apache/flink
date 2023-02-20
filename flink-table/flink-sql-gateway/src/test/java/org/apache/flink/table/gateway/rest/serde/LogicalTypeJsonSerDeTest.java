@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -48,6 +49,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 
@@ -229,6 +231,25 @@ class LogicalTypeJsonSerDeTest {
         // ignore nullable for NullType
         testTypes.add(new NullType());
 
+        // interval types
+        testTypes.add(new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH));
+        testTypes.add(
+                new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH));
+        testTypes.add(new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR));
+
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY));
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR));
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE));
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND));
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR));
+        testTypes.add(
+                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE));
+        testTypes.add(
+                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND));
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.MINUTE));
+        testTypes.add(
+                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND));
+        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.SECOND));
         return testTypes;
     }
 
