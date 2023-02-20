@@ -44,10 +44,12 @@ import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,22 +59,23 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveTableFactory}. */
-public class HiveTableFactoryTest {
+@ExtendWith(TestLoggerExtension.class)
+class HiveTableFactoryTest {
     private static HiveCatalog catalog;
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         catalog = HiveTestUtils.createHiveCatalog();
         catalog.open();
     }
 
-    @AfterClass
-    public static void close() {
+    @AfterAll
+    static void close() {
         catalog.close();
     }
 
     @Test
-    public void testGenericTable() throws Exception {
+    void testGenericTable() throws Exception {
         final TableSchema schema =
                 TableSchema.builder()
                         .field("name", DataTypes.STRING())
@@ -111,7 +114,7 @@ public class HiveTableFactoryTest {
     }
 
     @Test
-    public void testHiveTable() throws Exception {
+    void testHiveTable() throws Exception {
         final ResolvedSchema schema =
                 ResolvedSchema.of(
                         Column.physical("name", DataTypes.STRING()),
