@@ -402,7 +402,12 @@ public class NFAITCase extends TestLogger {
         for (StreamRecord<Event> event : events) {
 
             Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f1;
+                    nfa.advanceTime(
+                                    sharedBufferAccessor,
+                                    nfaState,
+                                    event.getTimestamp(),
+                                    AfterMatchSkipStrategy.noSkip())
+                            .f1;
             Collection<Map<String, List<Event>>> matchedPatterns =
                     nfa.process(
                             sharedBufferAccessor,
@@ -467,7 +472,12 @@ public class NFAITCase extends TestLogger {
         for (StreamRecord<Event> event : events) {
 
             Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f1;
+                    nfa.advanceTime(
+                                    sharedBufferAccessor,
+                                    nfaState,
+                                    event.getTimestamp(),
+                                    AfterMatchSkipStrategy.noSkip())
+                            .f1;
             Collection<Map<String, List<Event>>> matchedPatterns =
                     nfa.process(
                             sharedBufferAccessor,
@@ -530,7 +540,12 @@ public class NFAITCase extends TestLogger {
 
         for (StreamRecord<Event> event : events) {
             Collection<Map<String, List<Event>>> pendingMatches =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f0;
+                    nfa.advanceTime(
+                                    sharedBufferAccessor,
+                                    nfaState,
+                                    event.getTimestamp(),
+                                    AfterMatchSkipStrategy.noSkip())
+                            .f0;
             resultingPendingMatches.addAll(pendingMatches);
             nfa.process(
                     sharedBufferAccessor,
@@ -2304,7 +2319,7 @@ public class NFAITCase extends TestLogger {
         nfaTestHarness.feedRecord(new StreamRecord<>(end1, 6));
 
         // pruning element
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
         assertEquals(1, nfaState.getPartialMatches().size());
         assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
@@ -2345,7 +2360,7 @@ public class NFAITCase extends TestLogger {
         nfaTestHarness.feedRecord(new StreamRecord<>(end1, 6));
 
         // pruning element
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
         assertEquals(1, nfaState.getPartialMatches().size());
         assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
@@ -2389,7 +2404,7 @@ public class NFAITCase extends TestLogger {
         nfaTestHarness.consumeRecord(new StreamRecord<>(end1, 6));
 
         // pruning element
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
         assertEquals(1, nfaState.getPartialMatches().size());
         assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
@@ -2425,7 +2440,7 @@ public class NFAITCase extends TestLogger {
         nfaTestHarness.consumeRecord(new StreamRecord<>(end1, 6));
 
         // pruning element
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
         assertEquals(1, nfaState.getPartialMatches().size());
         assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
@@ -2461,7 +2476,7 @@ public class NFAITCase extends TestLogger {
         nfaTestHarness.consumeRecord(new StreamRecord<>(end1, 6));
 
         // pruning element
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
         assertEquals(3, nfaState.getPartialMatches().size());
         assertEquals(
@@ -2826,7 +2841,8 @@ public class NFAITCase extends TestLogger {
                     AfterMatchSkipStrategy.noSkip(),
                     timerService);
             Mockito.verify(accessor, Mockito.never()).advanceTime(anyLong());
-            nfa.advanceTime(accessor, nfa.createInitialNFAState(), 2);
+            nfa.advanceTime(
+                    accessor, nfa.createInitialNFAState(), 2, AfterMatchSkipStrategy.noSkip());
             Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);
         }
     }
@@ -2857,7 +2873,7 @@ public class NFAITCase extends TestLogger {
         try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
             nfa.process(accessor, nfaState, a1, 1, AfterMatchSkipStrategy.noSkip(), timerService);
             nfa.process(accessor, nfaState, a2, 2, AfterMatchSkipStrategy.noSkip(), timerService);
-            nfa.advanceTime(accessor, nfaState, 4);
+            nfa.advanceTime(accessor, nfaState, 4, AfterMatchSkipStrategy.noSkip());
         }
 
         assertThat(
