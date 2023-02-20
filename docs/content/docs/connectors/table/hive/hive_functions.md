@@ -76,8 +76,8 @@ We recommend users patch their own Hive to fix them.
 ## Use Native Hive Aggregate Functions
 
 If [HiveModule]({{< ref "docs/dev/table/modules" >}}#hivemodule) is loaded with a higher priority than CoreModule, Flink will try to use the Hive built-in function first. And then for Hive built-in aggregation functions,
-Flink can only use the sort-based aggregation operator now. Therefore, from Flink 1.17, we have introduced some native hive aggregation functions, which can be executed using a hash-based aggregation operator.
-Currently, only five functions are supported, namely sum/count/avg/min/max, and more aggregation functions will be supported in the future. User can use the native aggregation function by turning on
+Flink can only use the sort-based aggregation operator now. From Flink 1.17, we have introduced some native hive aggregation functions, which can be executed using the hash-based aggregation operator.
+Currently, only five functions are supported, namely sum/count/avg/min/max, and more aggregation functions will be supported in the future. Users can use the native aggregation function by turning on
 the option `table.exec.hive.native-agg-function.enabled`, which brings significant performance improvement to the job.
 
 <table class="table table-bordered">
