@@ -377,6 +377,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         final Set<ExecutionVertexID> verticesToRestart =
                 executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
+        if (verticesToRestart.isEmpty()) {
+            return;
+        }
+
         removeVerticesFromRestartPending(verticesToRestart);
 
         resetForNewExecutions(verticesToRestart);
