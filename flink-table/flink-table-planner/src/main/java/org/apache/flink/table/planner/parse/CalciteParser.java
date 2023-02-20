@@ -77,7 +77,12 @@ public class CalciteParser {
             return parser.parseStmtList();
         } catch (SqlParseException e) {
             if (e.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(e.getMessage(), e);
+                throw new SqlParserEOFException(
+                        "Incomplete sql statement while parsing SQL: \n"
+                                + sql
+                                + "\n"
+                                + e.getMessage(),
+                        e);
             }
             throw new SqlParserException("SQL parse failed. \n" + sql + "\n" + e.getMessage(), e);
         }
