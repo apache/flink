@@ -223,6 +223,8 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
+     -D <session dynamic config key=val>        The dynamic config key=val for a
+                                                session.
      -f,--file <script file>                    Script file that should be
                                                 executed. In this mode, the
                                                 client will not open an
@@ -359,6 +361,8 @@ Mode "gateway" mode connects to the SQL gateway for submission.
 
   Syntax: gateway [OPTIONS]
   "gateway" mode options:
+     -D <session dynamic config key=val>   The dynamic config key=val for a
+                                           session.
      -e,--endpoint <SQL Gateway address>   The address of the remote SQL Gateway
                                            to connect.
      -f,--file <script file>               Script file that should be executed.
