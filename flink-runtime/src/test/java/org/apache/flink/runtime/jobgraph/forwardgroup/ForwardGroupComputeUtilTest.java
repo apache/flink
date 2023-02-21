@@ -16,7 +16,7 @@
  * limitations under the License
  */
 
-package org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup;
+package org.apache.flink.runtime.jobgraph.forwardgroup;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -36,7 +36,9 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Unit tests for {@link ForwardGroupComputeUtil}. */
+/**
+ * Unit tests for {@link org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil}.
+ */
 class ForwardGroupComputeUtilTest {
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
