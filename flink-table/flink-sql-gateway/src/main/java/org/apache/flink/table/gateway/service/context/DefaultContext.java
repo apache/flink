@@ -131,11 +131,14 @@ public class DefaultContext {
      *
      * @param dynamicConfig user specified configuration.
      * @param dependencies user specified jars
-     * @param discoverExecutionConfig flag whether to load the execution configuration and python
-     *     configuration.
+     * @param discoverExecutionConfig flag whether to load the execution configuration
+     * @param discoverPythonJar flag whetehr to load the python jar
      */
     public static DefaultContext load(
-            Configuration dynamicConfig, List<URL> dependencies, boolean discoverExecutionConfig) {
+            Configuration dynamicConfig,
+            List<URL> dependencies,
+            boolean discoverExecutionConfig,
+            boolean discoverPythonJar) {
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
@@ -151,27 +154,30 @@ public class DefaultContext {
         FileSystem.initialize(
                 configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
-        if (!discoverExecutionConfig) {
-            return new DefaultContext(configuration, dependencies);
+        if (discoverPythonJar) {
+            dependencies = new ArrayList<>(dependencies);
+            dependencies.addAll(discoverPythonDependencies());
         }
 
-        List<URL> dependenciesWithPythonJar = new ArrayList<>(dependencies);
-        dependenciesWithPythonJar.addAll(discoverPythonDependencies());
+        if (discoverExecutionConfig) {
+            Options commandLineOptions = collectCommandLineOptions(commandLines);
 
-        Options commandLineOptions = collectCommandLineOptions(commandLines);
-
-        try {
-            CommandLine deploymentCommandLine =
-                    CliFrontendParser.parse(commandLineOptions, new String[] {}, true);
-            configuration.addAll(
-                    createExecutionConfig(
-                            deploymentCommandLine, commandLineOptions, commandLines, dependencies));
-        } catch (Exception e) {
-            throw new SqlGatewayException(
-                    "Could not load available CLI with Environment Deployment entry.", e);
+            try {
+                CommandLine deploymentCommandLine =
+                        CliFrontendParser.parse(commandLineOptions, new String[] {}, true);
+                configuration.addAll(
+                        createExecutionConfig(
+                                deploymentCommandLine,
+                                commandLineOptions,
+                                commandLines,
+                                dependencies));
+            } catch (Exception e) {
+                throw new SqlGatewayException(
+                        "Could not load available CLI with Environment Deployment entry.", e);
+            }
         }
 
-        return new DefaultContext(configuration, dependenciesWithPythonJar);
+        return new DefaultContext(configuration, dependencies);
     }
 
     private static List<URL> discoverPythonDependencies() {
