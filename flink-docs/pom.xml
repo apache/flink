@@ -25,14 +25,25 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.13-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-docs</artifactId>
 	<name>Flink : Docs</name>
 
+	<properties>
+		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
+		<generated.static.dir>./docs/static/generated</generated.static.dir>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-swagger</artifactId>
+			<version>${flink.shaded.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-annotations</artifactId>
@@ -50,17 +61,17 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>
@@ -71,38 +82,33 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-client</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
+			<artifactId>flink-metrics-prometheus</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-influxdb_${scala.binary.version}</artifactId>
+			<artifactId>flink-metrics-influxdb</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<!-- necessary for loading the web-submission extension -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime-web</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
+			<artifactId>flink-yarn</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-mesos_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
+			<artifactId>flink-kubernetes</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -116,12 +122,18 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
+			<artifactId>flink-statebackend-rocksdb</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python_${scala.binary.version}</artifactId>
+			<artifactId>flink-python</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-cep</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -150,11 +162,30 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-dstl-dfs</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+
+        <dependency>
 			<!-- Used for parsing HTML -->
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
-			<version>1.11.2</version>
+			<version>1.15.3</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -229,9 +260,21 @@ under the License.
 								<configuration>
 									<target>
 										<mkdir dir="${rootDir}/${generated.docs.dir}"/>
-										<java classname="org.apache.flink.docs.rest.RestAPIDocGenerator" fork="true" failonerror="true">
+										<java classname="org.apache.flink.docs.rest.RuntimeRestAPIDocGenerator" fork="true" failonerror="true">
 											<classpath refid="maven.compile.classpath"/>
 											<arg value="${rootDir}/${generated.docs.dir}/"/>
+										</java>
+										<java classname="org.apache.flink.docs.rest.RuntimeOpenApiSpecGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath"/>
+											<arg value="${rootDir}/${generated.static.dir}/"/>
+										</java>
+										<java classname="org.apache.flink.docs.rest.SqlGatewayRestAPIDocGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath"/>
+											<arg value="${rootDir}/${generated.docs.dir}/"/>
+										</java>
+										<java classname="org.apache.flink.docs.rest.SqlGatewayOpenApiSpecGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath"/>
+											<arg value="${rootDir}/${generated.static.dir}/"/>
 										</java>
 									</target>
 								</configuration>

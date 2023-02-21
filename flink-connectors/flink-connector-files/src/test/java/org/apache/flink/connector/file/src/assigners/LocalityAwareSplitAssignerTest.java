@@ -21,7 +21,7 @@ package org.apache.flink.connector.file.src.assigners;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Calendar;
@@ -30,13 +30,10 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link LocalityAwareSplitAssigner}. */
-public class LocalityAwareSplitAssignerTest {
+class LocalityAwareSplitAssignerTest {
 
     private static final Path TEST_PATH =
             Path.fromLocalFile(new File(System.getProperty("java.io.tmpdir")));
@@ -44,7 +41,7 @@ public class LocalityAwareSplitAssignerTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testAssignmentWithNullHost() {
+    void testAssignmentWithNullHost() {
         final int numSplits = 50;
         final String[][] hosts = new String[][] {new String[] {"localhost"}, new String[0]};
 
@@ -58,18 +55,18 @@ public class LocalityAwareSplitAssignerTest {
         final LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
         while ((is = ia.getNext(null)).isPresent()) {
-            assertTrue(splits.remove(is.get()));
+            assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("").isPresent());
-        assertEquals(numSplits, ia.getNumberOfRemoteAssignments());
-        assertEquals(0, ia.getNumberOfLocalAssignments());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("")).isNotPresent();
+        assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numSplits);
+        assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
     }
 
     @Test
-    public void testAssignmentAllForSameHost() {
+    void testAssignmentAllForSameHost() {
         final int numSplits = 50;
 
         // load some splits
@@ -82,19 +79,19 @@ public class LocalityAwareSplitAssignerTest {
         LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
         while ((is = ia.getNext("testhost")).isPresent()) {
-            assertTrue(splits.remove(is.get()));
+            assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("").isPresent());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("")).isNotPresent();
 
-        assertEquals(0, ia.getNumberOfRemoteAssignments());
-        assertEquals(numSplits, ia.getNumberOfLocalAssignments());
+        assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
+        assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numSplits);
     }
 
     @Test
-    public void testAssignmentAllForRemoteHost() {
+    void testAssignmentAllForRemoteHost() {
         final String[] hosts = {"host1", "host1", "host1", "host2", "host2", "host3"};
         final int numSplits = 10 * hosts.length;
 
@@ -108,19 +105,19 @@ public class LocalityAwareSplitAssignerTest {
         final LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
         while ((is = ia.getNext("testhost")).isPresent()) {
-            assertTrue(splits.remove(is.get()));
+            assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("anotherHost").isPresent());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("anotherHost")).isNotPresent();
 
-        assertEquals(numSplits, ia.getNumberOfRemoteAssignments());
-        assertEquals(0, ia.getNumberOfLocalAssignments());
+        assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numSplits);
+        assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
     }
 
     @Test
-    public void testAssignmentSomeForRemoteHost() {
+    void testAssignmentSomeForRemoteHost() {
         // host1 reads all local
         // host2 reads 10 local and 10 remote
         // host3 reads all remote
@@ -151,20 +148,20 @@ public class LocalityAwareSplitAssignerTest {
         Optional<FileSourceSplit> is;
         int i = 0;
         while ((is = ia.getNext(hosts[i++ % hosts.length])).isPresent()) {
-            assertTrue(splits.remove(is.get()));
+            assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("anotherHost").isPresent());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("anotherHost")).isNotPresent();
 
-        assertEquals(numRemoteSplits, ia.getNumberOfRemoteAssignments());
-        assertEquals(numLocalSplits, ia.getNumberOfLocalAssignments());
+        assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numRemoteSplits);
+        assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numLocalSplits);
     }
 
     @SuppressWarnings("UnnecessaryLocalVariable")
     @Test
-    public void testAssignmentMultiLocalHost() {
+    void testAssignmentMultiLocalHost() {
         final String[] localHosts = {"local1", "local2", "local3"};
         final String[] remoteHosts = {"remote1", "remote2", "remote3"};
         final String[] requestingHosts = {"local3", "local2", "local1", "other"};
@@ -206,31 +203,31 @@ public class LocalityAwareSplitAssignerTest {
             final String host = requestingHosts[i % requestingHosts.length];
 
             final Optional<FileSourceSplit> ois = ia.getNext(host);
-            assertTrue(ois.isPresent());
+            assertThat(ois).isPresent();
 
             final FileSourceSplit is = ois.get();
-            assertTrue(splits.remove(is));
+            assertThat(splits.remove(is)).isTrue();
             // check priority of split
             if (host.equals(localHosts[0])) {
-                assertArrayEquals(is.hostnames(), oneLocalHost);
+                assertThat(is.hostnames()).isEqualTo(oneLocalHost);
             } else if (host.equals(localHosts[1])) {
-                assertArrayEquals(is.hostnames(), twoLocalHosts);
+                assertThat(is.hostnames()).isEqualTo(twoLocalHosts);
             } else if (host.equals(localHosts[2])) {
-                assertArrayEquals(is.hostnames(), threeLocalHosts);
+                assertThat(is.hostnames()).isEqualTo(threeLocalHosts);
             } else {
-                assertArrayEquals(is.hostnames(), noLocalHost);
+                assertThat(is.hostnames()).isEqualTo(noLocalHost);
             }
         }
         // check we had all
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("anotherHost").isPresent());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("anotherHost")).isNotPresent();
 
-        assertEquals(numRemoteSplits, ia.getNumberOfRemoteAssignments());
-        assertEquals(numLocalSplits, ia.getNumberOfLocalAssignments());
+        assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numRemoteSplits);
+        assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numLocalSplits);
     }
 
     @Test
-    public void testAssignmentMixedLocalHost() {
+    void testAssignmentMixedLocalHost() {
         final String[] hosts = {"host1", "host1", "host1", "host2", "host2", "host3"};
         final int numSplits = 10 * hosts.length;
 
@@ -245,19 +242,19 @@ public class LocalityAwareSplitAssignerTest {
         Optional<FileSourceSplit> is;
         int i = 0;
         while ((is = ia.getNext(hosts[i++ % hosts.length])).isPresent()) {
-            assertTrue(splits.remove(is.get()));
+            assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("anotherHost").isPresent());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("anotherHost")).isNotPresent();
 
-        assertEquals(0, ia.getNumberOfRemoteAssignments());
-        assertEquals(numSplits, ia.getNumberOfLocalAssignments());
+        assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
+        assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numSplits);
     }
 
     @Test
-    public void testAssignmentOfManySplitsRandomly() {
+    void testAssignmentOfManySplitsRandomly() {
         final long seed = Calendar.getInstance().getTimeInMillis();
 
         final int numSplits = 1000;
@@ -292,12 +289,12 @@ public class LocalityAwareSplitAssignerTest {
         for (int i = 0; i < numSplits; i++) {
             final Optional<FileSourceSplit> split =
                     ia.getNext(requestingHosts[rand.nextInt(requestingHosts.length)]);
-            assertTrue(split.isPresent());
-            assertTrue(splits.remove(split.get()));
+            assertThat(split).isPresent();
+            assertThat(splits.remove(split.get())).isTrue();
         }
 
-        assertTrue(splits.isEmpty());
-        assertFalse(ia.getNext("testHost").isPresent());
+        assertThat(splits).isEmpty();
+        assertThat(ia.getNext("testHost")).isNotPresent();
     }
 
     // ------------------------------------------------------------------------
@@ -305,6 +302,6 @@ public class LocalityAwareSplitAssignerTest {
     // ------------------------------------------------------------------------
 
     private static FileSourceSplit createSplit(int id, String... hosts) {
-        return new FileSourceSplit(String.valueOf(id), TEST_PATH, 0, 1024, hosts);
+        return new FileSourceSplit(String.valueOf(id), TEST_PATH, 0, 1024, 0, 1024, hosts);
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -62,7 +63,9 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     /** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
     private BufferBuilder broadcastBufferBuilder;
 
-    private TimerGauge backPressuredTimeMsPerSecond = new TimerGauge();
+    private TimerGauge hardBackPressuredTimeMsPerSecond = new TimerGauge();
+
+    private long totalWrittenBytes;
 
     public BufferWritingResultPartition(
             String owningTaskName,
@@ -91,9 +94,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public void setup() throws IOException {
-        super.setup();
-
+    protected void setupInternal() throws IOException {
         checkState(
                 bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
                 "Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for"
@@ -109,6 +110,17 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         }
 
         return totalBuffers;
+    }
+
+    @Override
+    public long getSizeOfQueuedBuffersUnsafe() {
+        long totalNumberOfBytes = 0;
+
+        for (ResultSubpartition subpartition : subpartitions) {
+            totalNumberOfBytes += Math.max(0, subpartition.getTotalNumberOfBytesUnsafe());
+        }
+
+        return totalWrittenBytes - totalNumberOfBytes;
     }
 
     @Override
@@ -139,6 +151,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        totalWrittenBytes += record.remaining();
+
         BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
         while (record.hasRemaining()) {
@@ -157,6 +171,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public void broadcastRecord(ByteBuffer record) throws IOException {
+        totalWrittenBytes += ((long) record.remaining() * numSubpartitions);
+
         BufferBuilder buffer = appendBroadcastDataForNewRecord(record);
 
         while (record.hasRemaining()) {
@@ -181,6 +197,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         try (BufferConsumer eventBufferConsumer =
                 EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
+            totalWrittenBytes += ((long) eventBufferConsumer.getWrittenBytes() * numSubpartitions);
             for (ResultSubpartition subpartition : subpartitions) {
                 // Retain the buffer so that it can be recycled by each channel of targetPartition
                 subpartition.add(eventBufferConsumer.copy(), 0);
@@ -189,9 +206,23 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        for (ResultSubpartition subpartition : subpartitions) {
+            subpartition.alignedBarrierTimeout(checkpointId);
+        }
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        for (ResultSubpartition subpartition : subpartitions) {
+            subpartition.abortCheckpoint(checkpointId, cause);
+        }
+    }
+
+    @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
-        backPressuredTimeMsPerSecond = metrics.getBackPressuredTimePerSecond();
+        hardBackPressuredTimeMsPerSecond = metrics.getHardBackPressuredTimePerSecond();
     }
 
     @Override
@@ -235,6 +266,23 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         }
     }
 
+    @Override
+    public void close() {
+        // We can not close these buffers in the release method because of the potential race
+        // condition. This close method will be only called from the Task thread itself.
+        if (broadcastBufferBuilder != null) {
+            broadcastBufferBuilder.close();
+            broadcastBufferBuilder = null;
+        }
+        for (int i = 0; i < unicastBufferBuilders.length; ++i) {
+            if (unicastBufferBuilders[i] != null) {
+                unicastBufferBuilders[i].close();
+                unicastBufferBuilders[i] = null;
+            }
+        }
+        super.close();
+    }
+
     private BufferBuilder appendUnicastDataForNewRecord(
             final ByteBuffer record, final int targetSubpartition) throws IOException {
         if (targetSubpartition < 0 || targetSubpartition > unicastBufferBuilders.length) {
@@ -244,12 +292,34 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         if (buffer == null) {
             buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            subpartitions[targetSubpartition].add(buffer.createBufferConsumerFromBeginning(), 0);
+            addToSubpartition(buffer, targetSubpartition, 0, record.remaining());
         }
 
         buffer.appendAndCommit(record);
 
         return buffer;
+    }
+
+    private void addToSubpartition(
+            BufferBuilder buffer,
+            int targetSubpartition,
+            int partialRecordLength,
+            int minDesirableBufferSize)
+            throws IOException {
+        int desirableBufferSize =
+                subpartitions[targetSubpartition].add(
+                        buffer.createBufferConsumerFromBeginning(), partialRecordLength);
+
+        resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
+    }
+
+    private void resizeBuffer(
+            BufferBuilder buffer, int desirableBufferSize, int minDesirableBufferSize) {
+        if (desirableBufferSize > 0) {
+            // !! If some of partial data has written already to this buffer, the result size can
+            // not be less than written value.
+            buffer.trim(Math.max(minDesirableBufferSize, desirableBufferSize));
+        }
     }
 
     private BufferBuilder appendUnicastDataForRecordContinuation(
@@ -263,8 +333,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // with a complete record.
         // !! The next two lines can not change order.
         final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
-        subpartitions[targetSubpartition].add(
-                buffer.createBufferConsumerFromBeginning(), partialRecordBytes);
+        addToSubpartition(buffer, targetSubpartition, partialRecordBytes, partialRecordBytes);
 
         return buffer;
     }
@@ -275,7 +344,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         if (buffer == null) {
             buffer = requestNewBroadcastBufferBuilder();
-            createBroadcastBufferConsumers(buffer, 0);
+            createBroadcastBufferConsumers(buffer, 0, record.remaining());
         }
 
         buffer.appendAndCommit(record);
@@ -293,17 +362,24 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // with a complete record.
         // !! The next two lines can not change order.
         final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
-        createBroadcastBufferConsumers(buffer, partialRecordBytes);
+        createBroadcastBufferConsumers(buffer, partialRecordBytes, partialRecordBytes);
 
         return buffer;
     }
 
-    private void createBroadcastBufferConsumers(BufferBuilder buffer, int partialRecordBytes)
+    private void createBroadcastBufferConsumers(
+            BufferBuilder buffer, int partialRecordBytes, int minDesirableBufferSize)
             throws IOException {
         try (final BufferConsumer consumer = buffer.createBufferConsumerFromBeginning()) {
+            int desirableBufferSize = Integer.MAX_VALUE;
             for (ResultSubpartition subpartition : subpartitions) {
-                subpartition.add(consumer.copy(), partialRecordBytes);
+                int subPartitionBufferSize = subpartition.add(consumer.copy(), partialRecordBytes);
+                desirableBufferSize =
+                        subPartitionBufferSize > 0
+                                ? Math.min(desirableBufferSize, subPartitionBufferSize)
+                                : desirableBufferSize;
             }
+            resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
         }
     }
 
@@ -333,10 +409,10 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             return bufferBuilder;
         }
 
-        backPressuredTimeMsPerSecond.markStart();
+        hardBackPressuredTimeMsPerSecond.markStart();
         try {
             bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
-            backPressuredTimeMsPerSecond.markEnd();
+            hardBackPressuredTimeMsPerSecond.markEnd();
             return bufferBuilder;
         } catch (InterruptedException e) {
             throw new IOException("Interrupted while waiting for buffer");
@@ -346,9 +422,12 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     private void finishUnicastBufferBuilder(int targetSubpartition) {
         final BufferBuilder bufferBuilder = unicastBufferBuilders[targetSubpartition];
         if (bufferBuilder != null) {
-            numBytesOut.inc(bufferBuilder.finish());
+            int bytes = bufferBuilder.finish();
+            resultPartitionBytes.inc(targetSubpartition, bytes);
+            numBytesOut.inc(bytes);
             numBuffersOut.inc();
             unicastBufferBuilders[targetSubpartition] = null;
+            bufferBuilder.close();
         }
     }
 
@@ -360,8 +439,11 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     private void finishBroadcastBufferBuilder() {
         if (broadcastBufferBuilder != null) {
-            numBytesOut.inc(broadcastBufferBuilder.finish() * numSubpartitions);
+            int bytes = broadcastBufferBuilder.finish();
+            resultPartitionBytes.incAll(bytes);
+            numBytesOut.inc(bytes * numSubpartitions);
             numBuffersOut.inc(numSubpartitions);
+            broadcastBufferBuilder.close();
             broadcastBufferBuilder = null;
         }
     }
@@ -375,8 +457,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @VisibleForTesting
-    public TimerGauge getBackPressuredTimeMsPerSecond() {
-        return backPressuredTimeMsPerSecond;
+    public TimerGauge getHardBackPressuredTimeMsPerSecond() {
+        return hardBackPressuredTimeMsPerSecond;
     }
 
     @VisibleForTesting

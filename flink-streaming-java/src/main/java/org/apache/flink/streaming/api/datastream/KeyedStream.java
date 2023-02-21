@@ -68,6 +68,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
@@ -299,8 +300,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     @Override
     public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
         DataStreamSink<T> result = super.addSink(sinkFunction);
-        result.getTransformation().setStateKeySelector(keySelector);
-        result.getTransformation().setStateKeyType(keyType);
+        result.getLegacyTransformation().setStateKeySelector(keySelector);
+        result.getLegacyTransformation().setStateKeyType(keyType);
         return result;
     }
 
@@ -443,7 +444,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
      * Perform a join over a time interval.
      *
      * @param <T1> The type parameter of the elements in the first streams
-     * @param <T2> The The type parameter of the elements in the second stream
+     * @param <T2> The type parameter of the elements in the second stream
      */
     @PublicEvolving
     public static class IntervalJoin<T1, T2, KEY> {
@@ -540,6 +541,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         private boolean lowerBoundInclusive;
         private boolean upperBoundInclusive;
 
+        private OutputTag<IN1> leftLateDataOutputTag;
+        private OutputTag<IN2> rightLateDataOutputTag;
+
         public IntervalJoined(
                 KeyedStream<IN1, KEY> left,
                 KeyedStream<IN2, KEY> right,
@@ -572,6 +576,28 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         @PublicEvolving
         public IntervalJoined<IN1, IN2, KEY> lowerBoundExclusive() {
             this.lowerBoundInclusive = false;
+            return this;
+        }
+
+        /**
+         * Send late arriving left-side data to the side output identified by the given {@link
+         * OutputTag}. Data is considered late after the watermark
+         */
+        @PublicEvolving
+        public IntervalJoined<IN1, IN2, KEY> sideOutputLeftLateData(OutputTag<IN1> outputTag) {
+            outputTag = left.getExecutionEnvironment().clean(outputTag);
+            this.leftLateDataOutputTag = outputTag;
+            return this;
+        }
+
+        /**
+         * Send late arriving right-side data to the side output identified by the given {@link
+         * OutputTag}. Data is considered late after the watermark
+         */
+        @PublicEvolving
+        public IntervalJoined<IN1, IN2, KEY> sideOutputRightLateData(OutputTag<IN2> outputTag) {
+            outputTag = right.getExecutionEnvironment().clean(outputTag);
+            this.rightLateDataOutputTag = outputTag;
             return this;
         }
 
@@ -630,6 +656,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                             upperBound,
                             lowerBoundInclusive,
                             upperBoundInclusive,
+                            leftLateDataOutputTag,
+                            rightLateDataOutputTag,
                             left.getType().createSerializer(left.getExecutionConfig()),
                             right.getType().createSerializer(right.getExecutionConfig()),
                             cleanedUdf);
@@ -748,7 +776,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                         transformation,
                         clean(reducer),
                         keySelector,
-                        getKeyType());
+                        getKeyType(),
+                        false);
 
         getExecutionEnvironment().addOperator(reduce);
 

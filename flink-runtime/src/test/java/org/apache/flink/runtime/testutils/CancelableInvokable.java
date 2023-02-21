@@ -36,6 +36,17 @@ public abstract class CancelableInvokable extends AbstractInvokable {
     }
 
     @Override
+    public void invoke() throws Exception {
+        try {
+            doInvoke();
+        } catch (Exception e) {
+            throw e;
+        }
+    }
+
+    protected abstract void doInvoke() throws Exception;
+
+    @Override
     public void cancel() {
         canceled = true;
     }

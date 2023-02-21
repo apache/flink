@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.stats;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Column statistics value of binary type. */
 public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDataBase {
@@ -53,5 +54,36 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
     public CatalogColumnStatisticsDataBinary copy() {
         return new CatalogColumnStatisticsDataBinary(
                 maxLength, avgLength, getNullCount(), new HashMap<>(getProperties()));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatisticsDataBinary that = (CatalogColumnStatisticsDataBinary) o;
+        return Objects.equals(maxLength, that.maxLength)
+                && Objects.equals(avgLength, that.avgLength)
+                && Objects.equals(getNullCount(), that.getNullCount());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(maxLength, avgLength, getNullCount());
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataBinary{"
+                + "maxLength="
+                + maxLength
+                + ", avgLength="
+                + avgLength
+                + ", nullCount="
+                + getNullCount()
+                + '}';
     }
 }

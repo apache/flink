@@ -26,18 +26,15 @@ import org.apache.flink.connector.file.src.testutils.TestingFileEnumerator;
 import org.apache.flink.connector.testutils.source.reader.TestingSplitEnumeratorContext;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Collections;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link ContinuousFileSplitEnumerator}. */
-public class ContinuousFileSplitEnumeratorTest {
+class ContinuousFileSplitEnumeratorTest {
 
     // this is no JUnit temporary folder, because we don't create actual files, we just
     // need some random file path.
@@ -46,7 +43,7 @@ public class ContinuousFileSplitEnumeratorTest {
     private static long splitId = 1L;
 
     @Test
-    public void testDiscoverSplitWhenNoReaderRegistered() throws Exception {
+    void testDiscoverSplitWhenNoReaderRegistered() throws Exception {
         final TestingFileEnumerator fileEnumerator = new TestingFileEnumerator();
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
@@ -57,11 +54,11 @@ public class ContinuousFileSplitEnumeratorTest {
         fileEnumerator.addSplits(split);
         context.triggerAllActions();
 
-        assertThat(enumerator.snapshotState().getSplits(), contains(split));
+        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
     }
 
     @Test
-    public void testDiscoverWhenReaderRegistered() throws Exception {
+    void testDiscoverWhenReaderRegistered() throws Exception {
         final TestingFileEnumerator fileEnumerator = new TestingFileEnumerator();
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
@@ -77,12 +74,12 @@ public class ContinuousFileSplitEnumeratorTest {
         fileEnumerator.addSplits(split);
         context.triggerAllActions();
 
-        assertThat(enumerator.snapshotState().getSplits(), empty());
-        assertThat(context.getSplitAssignments().get(2).getAssignedSplits(), contains(split));
+        assertThat(enumerator.snapshotState(1L).getSplits()).isEmpty();
+        assertThat(context.getSplitAssignments().get(2).getAssignedSplits()).contains(split);
     }
 
     @Test
-    public void testRequestingReaderUnavailableWhenSplitDiscovered() throws Exception {
+    void testRequestingReaderUnavailableWhenSplitDiscovered() throws Exception {
         final TestingFileEnumerator fileEnumerator = new TestingFileEnumerator();
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
@@ -101,8 +98,8 @@ public class ContinuousFileSplitEnumeratorTest {
         fileEnumerator.addSplits(split);
         context.triggerAllActions();
 
-        assertFalse(context.getSplitAssignments().containsKey(2));
-        assertThat(enumerator.snapshotState().getSplits(), contains(split));
+        assertThat(context.getSplitAssignments()).doesNotContainKey(2);
+        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
     }
 
     // ------------------------------------------------------------------------
@@ -111,7 +108,12 @@ public class ContinuousFileSplitEnumeratorTest {
 
     private static FileSourceSplit createRandomSplit() {
         return new FileSourceSplit(
-                String.valueOf(splitId++), Path.fromLocalFile(new File(TMP_DIR, "foo")), 0L, 0L);
+                String.valueOf(splitId++),
+                Path.fromLocalFile(new File(TMP_DIR, "foo")),
+                0L,
+                0L,
+                0L,
+                0L);
     }
 
     private static ContinuousFileSplitEnumerator createEnumerator(

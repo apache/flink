@@ -43,25 +43,26 @@ public class JobEdge implements java.io.Serializable {
     /** The channel rescaler that should be used for this job edge on upstream side. */
     private SubtaskStateMapper upstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
 
-    /** The data set at the source of the edge, may be null if the edge is not yet connected */
-    private IntermediateDataSet source;
-
-    /** The id of the source intermediate data set */
-    private IntermediateDataSetID sourceId;
+    /** The data set at the source of the edge, may be null if the edge is not yet connected. */
+    private final IntermediateDataSet source;
 
     /**
      * Optional name for the data shipping strategy (forward, partition hash, rebalance, ...), to be
-     * displayed in the JSON plan
+     * displayed in the JSON plan.
      */
     private String shipStrategyName;
 
+    private final boolean isBroadcast;
+
+    private boolean isForward;
+
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
-     * in the JSON plan
+     * in the JSON plan.
      */
     private String preProcessingOperationName;
 
-    /** Optional description of the caching inside an operator, to be displayed in the JSON plan */
+    /** Optional description of the caching inside an operator, to be displayed in the JSON plan. */
     private String operatorLevelCachingDescription;
 
     /**
@@ -70,36 +71,20 @@ public class JobEdge implements java.io.Serializable {
      * @param source The data set that is at the source of this edge.
      * @param target The operation that is at the target of this edge.
      * @param distributionPattern The pattern that defines how the connection behaves in parallel.
+     * @param isBroadcast Whether the source broadcasts data to the target.
      */
     public JobEdge(
-            IntermediateDataSet source, JobVertex target, DistributionPattern distributionPattern) {
+            IntermediateDataSet source,
+            JobVertex target,
+            DistributionPattern distributionPattern,
+            boolean isBroadcast) {
         if (source == null || target == null || distributionPattern == null) {
             throw new NullPointerException();
         }
         this.target = target;
         this.distributionPattern = distributionPattern;
         this.source = source;
-        this.sourceId = source.getId();
-    }
-
-    /**
-     * Constructs a new job edge that refers to an intermediate result via the Id, rather than
-     * directly through the intermediate data set structure.
-     *
-     * @param sourceId The id of the data set that is at the source of this edge.
-     * @param target The operation that is at the target of this edge.
-     * @param distributionPattern The pattern that defines how the connection behaves in parallel.
-     */
-    public JobEdge(
-            IntermediateDataSetID sourceId,
-            JobVertex target,
-            DistributionPattern distributionPattern) {
-        if (sourceId == null || target == null || distributionPattern == null) {
-            throw new NullPointerException();
-        }
-        this.target = target;
-        this.distributionPattern = distributionPattern;
-        this.sourceId = sourceId;
+        this.isBroadcast = isBroadcast;
     }
 
     /**
@@ -136,28 +121,7 @@ public class JobEdge implements java.io.Serializable {
      * @return The ID of the consumed data set.
      */
     public IntermediateDataSetID getSourceId() {
-        return sourceId;
-    }
-
-    public boolean isIdReference() {
-        return this.source == null;
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    public void connecDataSet(IntermediateDataSet dataSet) {
-        if (dataSet == null) {
-            throw new NullPointerException();
-        }
-        if (this.source != null) {
-            throw new IllegalStateException("The edge is already connected.");
-        }
-        if (!dataSet.getId().equals(sourceId)) {
-            throw new IllegalArgumentException(
-                    "The data set to connect does not match the sourceId.");
-        }
-
-        this.source = dataSet;
+        return source.getId();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -179,6 +143,21 @@ public class JobEdge implements java.io.Serializable {
      */
     public void setShipStrategyName(String shipStrategyName) {
         this.shipStrategyName = shipStrategyName;
+    }
+
+    /** Gets whether the edge is broadcast edge. */
+    public boolean isBroadcast() {
+        return isBroadcast;
+    }
+
+    /** Gets whether the edge is forward edge. */
+    public boolean isForward() {
+        return isForward;
+    }
+
+    /** Sets whether the edge is forward edge. */
+    public void setForward(boolean forward) {
+        isForward = forward;
     }
 
     /**
@@ -261,6 +240,6 @@ public class JobEdge implements java.io.Serializable {
 
     @Override
     public String toString() {
-        return String.format("%s --> %s [%s]", sourceId, target, distributionPattern.name());
+        return String.format("%s --> %s [%s]", source.getId(), target, distributionPattern.name());
     }
 }

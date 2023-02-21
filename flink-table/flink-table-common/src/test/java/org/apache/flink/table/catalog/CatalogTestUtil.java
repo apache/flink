@@ -28,112 +28,113 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.Map;
 
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * Utility class for catalog testing. TODO: Move util methods to CatalogTest and remove this class
  */
 public class CatalogTestUtil {
     public static void checkEquals(CatalogTable t1, CatalogTable t2) {
-        assertEquals(t1.getTableKind(), t2.getTableKind());
-        assertEquals(t1.getSchema(), t2.getSchema());
-        assertEquals(t1.getComment(), t2.getComment());
-        assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
-        assertEquals(t1.isPartitioned(), t2.isPartitioned());
-
-        assertEquals(
-                t1.getOptions().get(CatalogPropertiesUtil.IS_GENERIC),
-                t2.getOptions().get(CatalogPropertiesUtil.IS_GENERIC));
+        assertThat(t2.getTableKind()).isEqualTo(t1.getTableKind());
+        assertThat(t2.getSchema()).isEqualTo(t1.getSchema());
+        assertThat(t2.getComment()).isEqualTo(t1.getComment());
+        assertThat(t2.getPartitionKeys()).isEqualTo(t1.getPartitionKeys());
+        assertThat(t2.isPartitioned()).isEqualTo(t1.isPartitioned());
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.parseBoolean(t1.getOptions().get(CatalogPropertiesUtil.IS_GENERIC))) {
-            assertEquals(t1.getOptions(), t2.getOptions());
+        if (isHiveTable(t1.getOptions())) {
+            assertThat(
+                            t2.getOptions().keySet().stream()
+                                    .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)))
+                    .isTrue();
+            assertThat(t2.getOptions().entrySet().containsAll(t1.getOptions().entrySet())).isTrue();
         } else {
-            assertTrue(
-                    t2.getOptions().keySet().stream()
-                            .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
-            assertTrue(t2.getOptions().entrySet().containsAll(t1.getOptions().entrySet()));
+            assertThat(t2.getOptions()).isEqualTo(t1.getOptions());
         }
     }
 
     public static void checkEquals(CatalogView v1, CatalogView v2) {
-        assertEquals(v1.getTableKind(), v2.getTableKind());
-        assertEquals(v1.getSchema(), v1.getSchema());
-        assertEquals(v1.getComment(), v2.getComment());
-        assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
-        assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
+        assertThat(v2.getTableKind()).isEqualTo(v1.getTableKind());
+        assertThat(v1.getSchema()).isEqualTo(v1.getSchema());
+        assertThat(v2.getComment()).isEqualTo(v1.getComment());
+        assertThat(v2.getOriginalQuery()).isEqualTo(v1.getOriginalQuery());
+        assertThat(v2.getExpandedQuery()).isEqualTo(v1.getExpandedQuery());
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.parseBoolean(v1.getOptions().get(CatalogPropertiesUtil.IS_GENERIC))) {
-            assertEquals(v1.getOptions(), v2.getOptions());
+        if (isHiveTable(v1.getOptions())) {
+            assertThat(
+                            v2.getOptions().keySet().stream()
+                                    .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)))
+                    .isTrue();
+            assertThat(v2.getOptions().entrySet().containsAll(v1.getOptions().entrySet())).isTrue();
         } else {
-            assertTrue(
-                    v2.getOptions().keySet().stream()
-                            .noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
-            assertTrue(v2.getOptions().entrySet().containsAll(v1.getOptions().entrySet()));
+            assertThat(v2.getOptions()).isEqualTo(v1.getOptions());
         }
     }
 
     public static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
-        assertEquals(p1.getClass(), p2.getClass());
-        assertEquals(p1.getComment(), p2.getComment());
+        assertThat(p2.getClass()).isEqualTo(p1.getClass());
+        assertThat(p2.getComment()).isEqualTo(p1.getComment());
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.valueOf(p1.getProperties().get(CatalogPropertiesUtil.IS_GENERIC))) {
-            assertEquals(p1.getProperties(), p2.getProperties());
+        if (isHiveTable(p1.getProperties())) {
+            assertThat(p2.getProperties().entrySet().containsAll(p1.getProperties().entrySet()))
+                    .isTrue();
         } else {
-            assertTrue(p2.getProperties().entrySet().containsAll(p1.getProperties().entrySet()));
+            assertThat(p2.getProperties()).isEqualTo(p1.getProperties());
         }
     }
 
     public static void checkEquals(TableStats ts1, TableStats ts2) {
-        assertEquals(ts1.getRowCount(), ts2.getRowCount());
-        assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
+        assertThat(ts2.getRowCount()).isEqualTo(ts1.getRowCount());
+        assertThat(ts2.getColumnStats()).hasSize(ts1.getColumnStats().size());
     }
 
     public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
-        assertEquals(d1.getClass(), d2.getClass());
-        assertEquals(d1.getComment(), d2.getComment());
+        assertThat(d2.getClass()).isEqualTo(d1.getClass());
+        assertThat(d2.getComment()).isEqualTo(d1.getComment());
 
         // d2 should contain all properties of d1's, and may or may not contain extra properties
-        assertTrue(d2.getProperties().entrySet().containsAll(d1.getProperties().entrySet()));
+        assertThat(d2.getProperties().entrySet().containsAll(d1.getProperties().entrySet()))
+                .isTrue();
     }
 
     static void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {
-        assertEquals(ts1.getRowCount(), ts2.getRowCount());
-        assertEquals(ts1.getFileCount(), ts2.getFileCount());
-        assertEquals(ts1.getTotalSize(), ts2.getTotalSize());
-        assertEquals(ts1.getRawDataSize(), ts2.getRawDataSize());
-        assertEquals(ts1.getProperties(), ts2.getProperties());
+        assertThat(ts2.getRowCount()).isEqualTo(ts1.getRowCount());
+        assertThat(ts2.getFileCount()).isEqualTo(ts1.getFileCount());
+        assertThat(ts2.getTotalSize()).isEqualTo(ts1.getTotalSize());
+        assertThat(ts2.getRawDataSize()).isEqualTo(ts1.getRawDataSize());
+        assertThat(ts2.getProperties()).isEqualTo(ts1.getProperties());
     }
 
     static void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
         checkEquals(cs1.getColumnStatisticsData(), cs2.getColumnStatisticsData());
-        assertEquals(cs1.getProperties(), cs2.getProperties());
+        assertThat(cs2.getProperties()).isEqualTo(cs1.getProperties());
     }
 
     private static void checkEquals(
             Map<String, CatalogColumnStatisticsDataBase> m1,
             Map<String, CatalogColumnStatisticsDataBase> m2) {
-        assertEquals(m1.size(), m2.size());
+        assertThat(m2).hasSize(m1.size());
         for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : m2.entrySet()) {
-            assertTrue(m1.containsKey(entry.getKey()));
+            assertThat(m1).containsKey(entry.getKey());
             checkEquals(m2.get(entry.getKey()), entry.getValue());
         }
     }
 
     private static void checkEquals(
             CatalogColumnStatisticsDataBase v1, CatalogColumnStatisticsDataBase v2) {
-        assertEquals(v1.getClass(), v2.getClass());
+        assertThat(v2.getClass()).isEqualTo(v1.getClass());
         if (v1 instanceof CatalogColumnStatisticsDataBoolean) {
             checkEquals(
                     (CatalogColumnStatisticsDataBoolean) v1,
@@ -156,57 +157,61 @@ public class CatalogTestUtil {
 
     private static void checkEquals(
             CatalogColumnStatisticsDataBoolean v1, CatalogColumnStatisticsDataBoolean v2) {
-        assertEquals(v1.getFalseCount(), v2.getFalseCount());
-        assertEquals(v1.getTrueCount(), v2.getTrueCount());
-        assertEquals(v1.getNullCount(), v2.getNullCount());
-        assertEquals(v1.getProperties(), v2.getProperties());
+        assertThat(v2.getFalseCount()).isEqualTo(v1.getFalseCount());
+        assertThat(v2.getTrueCount()).isEqualTo(v1.getTrueCount());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
     }
 
     private static void checkEquals(
             CatalogColumnStatisticsDataLong v1, CatalogColumnStatisticsDataLong v2) {
-        assertEquals(v1.getMin(), v2.getMin());
-        assertEquals(v1.getMax(), v2.getMax());
-        assertEquals(v1.getNdv(), v2.getNdv());
-        assertEquals(v1.getNullCount(), v2.getNullCount());
-        assertEquals(v1.getProperties(), v2.getProperties());
+        assertThat(v2.getMin()).isEqualTo(v1.getMin());
+        assertThat(v2.getMax()).isEqualTo(v1.getMax());
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
     }
 
     private static void checkEquals(
             CatalogColumnStatisticsDataDouble v1, CatalogColumnStatisticsDataDouble v2) {
-        assertEquals(v1.getMin(), v2.getMin(), 0.05D);
-        assertEquals(v1.getMax(), v2.getMax(), 0.05D);
-        assertEquals(v1.getNdv(), v2.getNdv());
-        assertEquals(v1.getNullCount(), v2.getNullCount());
-        assertEquals(v1.getProperties(), v2.getProperties());
+        assertThat(v2.getMin()).isCloseTo(v1.getMin(), within(0.05D));
+        assertThat(v2.getMax()).isCloseTo(v1.getMax(), within(0.05D));
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
     }
 
     private static void checkEquals(
             CatalogColumnStatisticsDataString v1, CatalogColumnStatisticsDataString v2) {
-        assertEquals(v1.getMaxLength(), v2.getMaxLength());
-        assertEquals(v1.getAvgLength(), v2.getAvgLength(), 0.05D);
-        assertEquals(v1.getNdv(), v2.getNdv());
-        assertEquals(v1.getNullCount(), v2.getNullCount());
-        assertEquals(v1.getProperties(), v2.getProperties());
+        assertThat(v2.getMaxLength()).isEqualTo(v1.getMaxLength());
+        assertThat(v2.getAvgLength()).isCloseTo(v1.getAvgLength(), within(0.05D));
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
     }
 
     private static void checkEquals(
             CatalogColumnStatisticsDataBinary v1, CatalogColumnStatisticsDataBinary v2) {
-        assertEquals(v1.getMaxLength(), v2.getMaxLength());
-        assertEquals(v1.getAvgLength(), v2.getAvgLength(), 0.05D);
-        assertEquals(v1.getNullCount(), v2.getNullCount());
-        assertEquals(v1.getProperties(), v2.getProperties());
+        assertThat(v2.getMaxLength()).isEqualTo(v1.getMaxLength());
+        assertThat(v2.getAvgLength()).isCloseTo(v1.getAvgLength(), within(0.05D));
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
     }
 
     private static void checkEquals(
             CatalogColumnStatisticsDataDate v1, CatalogColumnStatisticsDataDate v2) {
         checkEquals(v1.getMin(), v2.getMin());
         checkEquals(v1.getMax(), v2.getMax());
-        assertEquals(v1.getNdv(), v2.getNdv());
-        assertEquals(v1.getNullCount(), v2.getNullCount());
-        assertEquals(v1.getProperties(), v2.getProperties());
+        assertThat(v2.getNdv()).isEqualTo(v1.getNdv());
+        assertThat(v2.getNullCount()).isEqualTo(v1.getNullCount());
+        assertThat(v2.getProperties()).isEqualTo(v1.getProperties());
     }
 
     private static void checkEquals(Date v1, Date v2) {
-        assertEquals(v1.getDaysSinceEpoch(), v2.getDaysSinceEpoch());
+        assertThat(v2.getDaysSinceEpoch()).isEqualTo(v1.getDaysSinceEpoch());
+    }
+
+    private static boolean isHiveTable(Map<String, String> properties) {
+        return "hive".equalsIgnoreCase(properties.get(FactoryUtil.CONNECTOR.key()));
     }
 }

@@ -36,7 +36,7 @@ public class SerializedThrowableSerializer extends StdSerializer<SerializedThrow
 
     static final String FIELD_NAME_STACK_TRACE = "stack-trace";
 
-    static final String FIELD_NAME_SERIALIZED_THROWABLE = "serialized-throwable";
+    public static final String FIELD_NAME_SERIALIZED_THROWABLE = "serialized-throwable";
 
     public SerializedThrowableSerializer() {
         super(SerializedThrowable.class);

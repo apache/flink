@@ -18,16 +18,22 @@ limitations under the License.
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /** A util class to help with a clean component shutdown. */
 public class ComponentClosingUtils {
+    private static Clock clock = SystemClock.getInstance();
 
     /** Utility class, not meant to be instantiated. */
     private ComponentClosingUtils() {}
@@ -95,8 +101,91 @@ public class ComponentClosingUtils {
         return future;
     }
 
-    static void abortThread(Thread t) {
-        // the abortion strategy is pretty simple here...
-        t.interrupt();
+    /**
+     * A util method that tries to shut down an {@link ExecutorService} elegantly within the given
+     * timeout. If the executor has not been shut down before it hits timeout or the thread is
+     * interrupted when waiting for the termination, a forceful shutdown will be attempted on the
+     * executor.
+     *
+     * @param executor the {@link ExecutorService} to shut down.
+     * @param timeout the timeout duration.
+     * @return true if the given executor has been successfully closed, false otherwise.
+     */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    public static boolean tryShutdownExecutorElegantly(ExecutorService executor, Duration timeout) {
+        try {
+            executor.shutdown();
+            executor.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ie) {
+            // Let it go.
+        }
+        if (!executor.isTerminated()) {
+            shutdownExecutorForcefully(executor, Duration.ZERO, false);
+        }
+        return executor.isTerminated();
+    }
+
+    /**
+     * Shutdown the given executor forcefully within the given timeout. The method returns if it is
+     * interrupted.
+     *
+     * @param executor the executor to shut down.
+     * @param timeout the timeout duration.
+     * @return true if the given executor is terminated, false otherwise.
+     */
+    public static boolean shutdownExecutorForcefully(ExecutorService executor, Duration timeout) {
+        return shutdownExecutorForcefully(executor, timeout, true);
+    }
+
+    /**
+     * Shutdown the given executor forcefully within the given timeout.
+     *
+     * @param executor the executor to shut down.
+     * @param timeout the timeout duration.
+     * @param interruptable when set to true, the method can be interrupted. Each interruption to
+     *     the thread results in another {@code ExecutorService.shutdownNow()} call to the shutting
+     *     down executor.
+     * @return true if the given executor is terminated, false otherwise.
+     */
+    public static boolean shutdownExecutorForcefully(
+            ExecutorService executor, Duration timeout, boolean interruptable) {
+        Deadline deadline = Deadline.fromNowWithClock(timeout, clock);
+        boolean isInterrupted = false;
+        do {
+            executor.shutdownNow();
+            try {
+                executor.awaitTermination(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                isInterrupted = interruptable;
+            }
+        } while (!isInterrupted && deadline.hasTimeLeft() && !executor.isTerminated());
+        return executor.isTerminated();
+    }
+
+    private static void abortThread(Thread t) {
+        // Try our best here to ensure the thread is aborted. Keep interrupting the
+        // thread for 10 times with 10 ms intervals. This helps handle the case
+        // where the shutdown sequence consists of a bunch of closeQuietly() calls
+        // that will swallow the InterruptedException so the thread to be aborted
+        // may block multiple times. If the thread is still alive after all the
+        // attempts, just let it go. The caller of closeAsyncWithTimeout() should
+        // have received a TimeoutException in this case.
+        int i = 0;
+        while (t.isAlive() && i < 10) {
+            t.interrupt();
+            i++;
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                // Let it go.
+            }
+        }
+    }
+
+    // ========= Method visible for testing ========
+
+    @VisibleForTesting
+    static void setClock(Clock clock) {
+        ComponentClosingUtils.clock = clock;
     }
 }

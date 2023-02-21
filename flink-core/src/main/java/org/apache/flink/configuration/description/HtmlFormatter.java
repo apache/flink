@@ -44,8 +44,8 @@ public class HtmlFormatter extends Formatter {
         String prefix = "";
         String suffix = "";
         if (styles.contains(TextElement.TextStyle.CODE)) {
-            prefix = "<span markdown=\"span\">`";
-            suffix = "`</span>";
+            prefix = "<code class=\"highlighter-rouge\">";
+            suffix = "</code>";
         }
         state.append(prefix);
         state.append(String.format(escapedFormat, elements));

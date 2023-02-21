@@ -18,17 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
-import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,22 +40,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.api.common.typeinfo.Types.INT;
+import static org.apache.flink.api.common.typeinfo.Types.LOCAL_DATE_TIME;
+import static org.apache.flink.api.common.typeinfo.Types.ROW_NAMED;
+import static org.apache.flink.api.common.typeinfo.Types.STRING;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.comparedWithKeyAndOrder;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Upsert-kafka IT cases. */
 @RunWith(Parameterized.class)
-public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
+public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
     private static final String AVRO_FORMAT = "avro";
-
-    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Parameterized.Parameter public String format;
 
@@ -67,25 +67,10 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         return new Object[] {JSON_FORMAT, CSV_FORMAT, AVRO_FORMAT};
     }
 
-    protected StreamExecutionEnvironment env;
-    protected StreamTableEnvironment tEnv;
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     private static final String USERS_TOPIC = "users";
     private static final String WORD_COUNT_TOPIC = "word_count";
-
-    @Before
-    public void setup() {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(4); // set default parallelism to 4
-        tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-    }
 
     @Test
     public void testAggregate() throws Exception {
@@ -122,6 +107,95 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     @Test
+    public void testBufferedUpsertSink() throws Exception {
+        final String topic = "buffered_upsert_topic_" + format;
+        createTestTopic(topic, 1, 1);
+        String bootstraps = getBootstrapServers();
+        env.setParallelism(1);
+
+        Table table =
+                tEnv.fromDataStream(
+                        env.fromElements(
+                                        Row.of(
+                                                1,
+                                                LocalDateTime.parse("2020-03-08T13:12:11.12"),
+                                                "payload 1"),
+                                        Row.of(
+                                                2,
+                                                LocalDateTime.parse("2020-03-09T13:12:11.12"),
+                                                "payload 2"),
+                                        Row.of(
+                                                3,
+                                                LocalDateTime.parse("2020-03-10T13:12:11.12"),
+                                                "payload 3"),
+                                        Row.of(
+                                                3,
+                                                LocalDateTime.parse("2020-03-11T13:12:11.12"),
+                                                "payload"))
+                                .returns(
+                                        ROW_NAMED(
+                                                new String[] {"k_id", "ts", "payload"},
+                                                INT,
+                                                LOCAL_DATE_TIME,
+                                                STRING)),
+                        Schema.newBuilder()
+                                .column("k_id", DataTypes.INT())
+                                .column("ts", DataTypes.TIMESTAMP(3))
+                                .column("payload", DataTypes.STRING())
+                                .watermark("ts", "ts")
+                                .build());
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE upsert_kafka (\n"
+                                + "  `k_id` INTEGER,\n"
+                                + "  `ts` TIMESTAMP(3),\n"
+                                + "  `payload` STRING,\n"
+                                + "  PRIMARY KEY (k_id) NOT ENFORCED"
+                                + ") WITH (\n"
+                                + "  'connector' = 'upsert-kafka',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'key.format' = '%s',\n"
+                                + "  'key.fields-prefix' = 'k_',\n"
+                                + "  'sink.buffer-flush.max-rows' = '2',\n"
+                                + "  'sink.buffer-flush.interval' = '100000',\n"
+                                + "  'value.format' = '%s',\n"
+                                + "  'value.fields-include' = 'EXCEPT_KEY'\n"
+                                + ")",
+                        topic, bootstraps, format, format);
+
+        tEnv.executeSql(createTable);
+
+        table.executeInsert("upsert_kafka").await();
+
+        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM upsert_kafka"), 3);
+        final List<Row> expected =
+                Arrays.asList(
+                        changelogRow(
+                                "+I",
+                                1,
+                                LocalDateTime.parse("2020-03-08T13:12:11.120"),
+                                "payload 1"),
+                        changelogRow(
+                                "+I",
+                                2,
+                                LocalDateTime.parse("2020-03-09T13:12:11.120"),
+                                "payload 2"),
+                        changelogRow(
+                                "+I",
+                                3,
+                                LocalDateTime.parse("2020-03-11T13:12:11.120"),
+                                "payload"));
+
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
+    @Test
     public void testSourceSinkWithKeyAndPartialValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
@@ -129,7 +203,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1); // use single partition to guarantee orders in tests
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // k_user_id and user_id have different data types to verify the correct mapping,
         // fields are reordered on purpose
@@ -212,7 +286,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                                 42,
                                 "payload"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -227,7 +301,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1); // use single partition to guarantee orders in tests
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // compared to the partial value test we cannot support both k_user_id and user_id in a full
         // value due to duplicate names after key prefix stripping,
@@ -307,7 +381,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                                 100L,
                                 "payload"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -315,7 +389,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     private void wordCountToUpsertKafka(String wordCountTable) throws Exception {
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // ------------- test data ---------------
 
@@ -465,7 +539,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     private void writeChangelogToUpsertKafkaWithMetadata(String userTable) throws Exception {
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // ------------- test data ---------------
 
@@ -709,7 +783,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 
         // we ignore the orders for easier comparing, as we already verified ordering in
         // testAggregate()
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
     }
 
     private void temporalJoinUpsertKafka(String userTable) throws Exception {
@@ -803,6 +877,6 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                                         format, userTable)),
                         7);
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
     }
 }

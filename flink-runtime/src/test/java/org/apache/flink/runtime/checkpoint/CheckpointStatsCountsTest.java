@@ -72,6 +72,13 @@ public class CheckpointStatsCountsTest {
         assertEquals(0, counts.getNumberOfInProgressCheckpoints());
         assertEquals(1, counts.getNumberOfCompletedCheckpoints());
         assertEquals(1, counts.getNumberOfFailedCheckpoints());
+
+        counts.incrementFailedCheckpointsWithoutInProgress();
+        assertEquals(1, counts.getNumberOfRestoredCheckpoints());
+        assertEquals(3, counts.getTotalNumberOfCheckpoints());
+        assertEquals(0, counts.getNumberOfInProgressCheckpoints());
+        assertEquals(1, counts.getNumberOfCompletedCheckpoints());
+        assertEquals(2, counts.getNumberOfFailedCheckpoints());
     }
 
     /**

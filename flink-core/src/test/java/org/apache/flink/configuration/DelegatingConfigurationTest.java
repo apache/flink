@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -80,7 +81,7 @@ public class DelegatingConfigurationTest {
     @Test
     public void testDelegationConfigurationWithNullPrefix() {
         Configuration backingConf = new Configuration();
-        backingConf.setValueInternal("test-key", "value");
+        backingConf.setValueInternal("test-key", "value", false);
 
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, null);
         Set<String> keySet = configuration.keySet();
@@ -97,7 +98,7 @@ public class DelegatingConfigurationTest {
          * Key matches the prefix
          */
         Configuration backingConf = new Configuration();
-        backingConf.setValueInternal(prefix + expectedKey, "value");
+        backingConf.setValueInternal(prefix + expectedKey, "value", false);
 
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
         Set<String> keySet = configuration.keySet();
@@ -109,7 +110,7 @@ public class DelegatingConfigurationTest {
          * Key does not match the prefix
          */
         backingConf = new Configuration();
-        backingConf.setValueInternal("test-key", "value");
+        backingConf.setValueInternal("test-key", "value", false);
 
         configuration = new DelegatingConfiguration(backingConf, prefix);
         keySet = configuration.keySet();
@@ -136,5 +137,14 @@ public class DelegatingConfigurationTest {
         }
         // Verification
         assertEquals(properties, mapProperties);
+    }
+
+    @Test
+    public void testSetReturnsDelegatingConfiguration() {
+        final Configuration conf = new Configuration();
+        final DelegatingConfiguration delegatingConf = new DelegatingConfiguration(conf, "prefix.");
+
+        Assertions.assertThat(delegatingConf.set(CoreOptions.DEFAULT_PARALLELISM, 1))
+                .isSameAs(delegatingConf);
     }
 }

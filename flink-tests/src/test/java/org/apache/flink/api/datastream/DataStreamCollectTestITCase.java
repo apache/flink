@@ -31,6 +31,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@code DataStream} collect methods.
@@ -106,5 +109,75 @@ public class DataStreamCollectTestITCase extends TestLogger {
                 "Failed to collect the correct number of elements from the stream",
                 1,
                 results.size());
+    }
+
+    @Test
+    public void testAsyncCollect() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        final DataStream<Integer> stream1 = env.fromElements(1, 2, 3, 4, 5);
+        final DataStream<Integer> stream2 = env.fromElements(6, 7, 8, 9, 10);
+
+        try (final CloseableIterator<Integer> iterator1 = stream1.collectAsync();
+                final CloseableIterator<Integer> iterator2 = stream2.collectAsync()) {
+            env.executeAsync();
+
+            for (int x = 1; x < 6; x++) {
+                assertThat(iterator1.hasNext()).isTrue();
+                assertThat(iterator1.next()).isEqualTo(x);
+            }
+
+            for (int x = 6; x < 11; x++) {
+                assertThat(iterator2.hasNext()).isTrue();
+                assertThat(iterator2.next()).isEqualTo(x);
+            }
+        }
+    }
+
+    @Test
+    public void testAsyncCollectWithCollector() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        final DataStream.Collector<Integer> collector1 = new DataStream.Collector<>();
+        final DataStream.Collector<Integer> collector2 = new DataStream.Collector<>();
+
+        defineWorkflowAndApplySink(
+                env,
+                stream -> stream.collectAsync(collector1),
+                stream -> stream.collectAsync(collector2));
+
+        try (final CloseableIterator<Integer> iterator1 = collector1.getOutput();
+                final CloseableIterator<Integer> iterator2 = collector2.getOutput()) {
+            env.executeAsync();
+
+            for (int x = 1; x < 6; x++) {
+                assertThat(iterator1.hasNext()).isTrue();
+                assertThat(iterator1.next()).isEqualTo(x);
+            }
+
+            for (int x = 6; x < 11; x++) {
+                assertThat(iterator2.hasNext()).isTrue();
+                assertThat(iterator2.next()).isEqualTo(x);
+            }
+        }
+    }
+
+    /**
+     * This method, while looking odd, was intentionally added to show-case what use-case {@link
+     * DataStream#collectAsync(DataStream.Collector)} serves (w.r.t. the Consumer).
+     *
+     * <p>If whatever refactoring you're thinking of doesn't support this method in a convenient way
+     * then you should reconsider it.
+     */
+    private static void defineWorkflowAndApplySink(
+            StreamExecutionEnvironment env,
+            Consumer<DataStream<Integer>> sink1Applier,
+            Consumer<DataStream<Integer>> sink2Applier) {
+
+        final DataStream<Integer> stream1 = env.fromElements(1, 2, 3, 4, 5);
+        final DataStream<Integer> stream2 = env.fromElements(6, 7, 8, 9, 10);
+
+        sink1Applier.accept(stream1);
+        sink2Applier.accept(stream2);
     }
 }

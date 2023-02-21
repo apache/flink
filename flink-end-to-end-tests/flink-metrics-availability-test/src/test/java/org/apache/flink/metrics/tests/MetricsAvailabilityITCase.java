@@ -19,13 +19,9 @@
 package org.apache.flink.metrics.tests;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobManagerMetricsHeaders;
@@ -36,19 +32,19 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsMess
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
@@ -60,13 +56,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /** End-to-end test for the availability of metrics. */
-@Category(TravisGroup1.class)
 public class MetricsAvailabilityITCase extends TestLogger {
 
     private static final String HOST = "localhost";
@@ -92,24 +85,23 @@ public class MetricsAvailabilityITCase extends TestLogger {
 
     @Test
     public void testReporter() throws Exception {
+        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(10));
         try (ClusterController ignored = dist.startCluster(1)) {
             final RestClient restClient =
-                    new RestClient(
-                            RestClientConfiguration.fromConfiguration(new Configuration()),
-                            scheduledExecutorService);
+                    new RestClient(new Configuration(), scheduledExecutorService);
 
-            checkJobManagerMetricAvailability(restClient);
+            checkJobManagerMetricAvailability(restClient, deadline);
 
-            final Collection<ResourceID> taskManagerIds = getTaskManagerIds(restClient);
+            final Collection<ResourceID> taskManagerIds = getTaskManagerIds(restClient, deadline);
 
             for (final ResourceID taskManagerId : taskManagerIds) {
-                checkTaskManagerMetricAvailability(restClient, taskManagerId);
+                checkTaskManagerMetricAvailability(restClient, taskManagerId, deadline);
             }
         }
     }
 
-    private static void checkJobManagerMetricAvailability(final RestClient restClient)
-            throws Exception {
+    private static void checkJobManagerMetricAvailability(
+            final RestClient restClient, final Deadline deadline) throws Exception {
         final JobManagerMetricsHeaders headers = JobManagerMetricsHeaders.getInstance();
         final JobManagerMetricsMessageParameters parameters =
                 headers.getUnresolvedMessageParameters();
@@ -120,11 +112,12 @@ public class MetricsAvailabilityITCase extends TestLogger {
                 () ->
                         restClient.sendRequest(
                                 HOST, PORT, headers, parameters, EmptyRequestBody.getInstance()),
-                getMetricNamePredicate("numRegisteredTaskManagers"));
+                getMetricNamePredicate("numRegisteredTaskManagers"),
+                deadline);
     }
 
-    private static Collection<ResourceID> getTaskManagerIds(final RestClient restClient)
-            throws Exception {
+    private static Collection<ResourceID> getTaskManagerIds(
+            final RestClient restClient, final Deadline deadline) throws Exception {
         final TaskManagersHeaders headers = TaskManagersHeaders.getInstance();
 
         final TaskManagersInfo response =
@@ -136,7 +129,8 @@ public class MetricsAvailabilityITCase extends TestLogger {
                                         headers,
                                         EmptyMessageParameters.getInstance(),
                                         EmptyRequestBody.getInstance()),
-                        taskManagersInfo -> !taskManagersInfo.getTaskManagerInfos().isEmpty());
+                        taskManagersInfo -> !taskManagersInfo.getTaskManagerInfos().isEmpty(),
+                        deadline);
 
         return response.getTaskManagerInfos().stream()
                 .map(TaskManagerInfo::getResourceId)
@@ -144,7 +138,8 @@ public class MetricsAvailabilityITCase extends TestLogger {
     }
 
     private static void checkTaskManagerMetricAvailability(
-            final RestClient restClient, final ResourceID taskManagerId) throws Exception {
+            final RestClient restClient, final ResourceID taskManagerId, final Deadline deadline)
+            throws Exception {
         final TaskManagerMetricsHeaders headers = TaskManagerMetricsHeaders.getInstance();
         final TaskManagerMetricsMessageParameters parameters =
                 headers.getUnresolvedMessageParameters();
@@ -156,13 +151,15 @@ public class MetricsAvailabilityITCase extends TestLogger {
                 () ->
                         restClient.sendRequest(
                                 HOST, PORT, headers, parameters, EmptyRequestBody.getInstance()),
-                getMetricNamePredicate("Status.Network.TotalMemorySegments"));
+                getMetricNamePredicate("Status.Network.TotalMemorySegments"),
+                deadline);
     }
 
     private static <X> X fetchMetric(
             final SupplierWithException<CompletableFuture<X>, IOException> clientOperation,
-            final Predicate<X> predicate)
-            throws InterruptedException, ExecutionException, TimeoutException {
+            final Predicate<X> predicate,
+            final Deadline deadline)
+            throws InterruptedException, ExecutionException {
         final CompletableFuture<X> responseFuture =
                 FutureUtils.retrySuccessfulWithDelay(
                         () -> {
@@ -172,12 +169,12 @@ public class MetricsAvailabilityITCase extends TestLogger {
                                 throw new RuntimeException(e);
                             }
                         },
-                        Time.seconds(1),
-                        Deadline.fromNow(Duration.ofSeconds(5)),
+                        Duration.ofMillis(100),
+                        deadline,
                         predicate,
                         new ScheduledExecutorServiceAdapter(scheduledExecutorService));
 
-        return responseFuture.get(30, TimeUnit.SECONDS);
+        return responseFuture.get();
     }
 
     private static Predicate<MetricCollectionResponseBody> getMetricNamePredicate(

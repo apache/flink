@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 
 import javax.annotation.Nonnull;
 
@@ -56,7 +56,7 @@ import java.util.Optional;
  *
  * <p>A batch is created with {@link #createBatch()} and consumed with {@link #tryTakeFromBatch()}.
  * Note that there is no blocking {@code takeFromBatch} as batches can only be created and consumed
- * from the * mailbox thread.
+ * from the mailbox thread.
  *
  * <p>Also note that a batch can only be created in the {@link MailboxProcessor#runMailboxLoop()}. A
  * batch must not be extended in any of the consuming methods as we may run into task input
@@ -125,7 +125,7 @@ public interface TaskMailbox {
     /**
      * Creates a batch of mails that can be taken with {@link #tryTakeFromBatch()}. The batch does
      * not affect {@link #tryTake(int)} and {@link #take(int)}; that is, they return the same mails
-     * even if no batch would have been created.
+     * even if no batch had been created.
      *
      * <p>The default batch is empty. Thus, this method must be invoked once before {@link
      * #tryTakeFromBatch()}.
@@ -226,6 +226,14 @@ public interface TaskMailbox {
      */
     @Nonnull
     State getState();
+
+    /**
+     * Returns the current number of mails in this mailbox. (This includes mails in the batch not
+     * processed yet.)
+     *
+     * @return number of mails in the mailbox.
+     */
+    int size();
 
     /**
      * Runs the given code exclusively on this mailbox. No synchronized operations can be run

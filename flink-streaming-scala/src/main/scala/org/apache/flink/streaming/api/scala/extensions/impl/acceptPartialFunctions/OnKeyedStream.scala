@@ -22,21 +22,26 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, KeyedStream}
 
 /**
-  * Wraps a keyed data stream, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param stream The wrapped data stream
-  * @tparam T The type of the data stream items
-  * @tparam K The type of key
-  */
+ * Wraps a keyed data stream, allowing to use anonymous partial functions to perform extraction of
+ * items in a tuple, case class instance or collection
+ *
+ * @param stream
+ *   The wrapped data stream
+ * @tparam T
+ *   The type of the data stream items
+ * @tparam K
+ *   The type of key
+ */
 class OnKeyedStream[T, K](stream: KeyedStream[T, K]) {
 
   /**
-    * Applies a reducer `fun` to the stream
-    *
-    * @param fun The reducing function to be applied on the keyed stream
-    * @return A data set of Ts
-    */
+   * Applies a reducer `fun` to the stream
+   *
+   * @param fun
+   *   The reducing function to be applied on the keyed stream
+   * @return
+   *   A data set of Ts
+   */
   @PublicEvolving
   def reduceWith(fun: (T, T) => T): DataStream[T] =
     stream.reduce(fun)

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -45,12 +44,14 @@ public class JarHandlers {
     final JarRunHandler runHandler;
     final JarDeleteHandler deleteHandler;
 
-    JarHandlers(final Path jarDir, final TestingDispatcherGateway restfulGateway) {
+    JarHandlers(
+            final Path jarDir,
+            final TestingDispatcherGateway restfulGateway,
+            final Executor executor) {
         final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
                 () -> CompletableFuture.completedFuture(restfulGateway);
         final Time timeout = Time.seconds(10);
         final Map<String, String> responseHeaders = Collections.emptyMap();
-        final Executor executor = TestingUtils.defaultExecutor();
 
         uploadHandler =
                 new JarUploadHandler(
@@ -105,12 +106,11 @@ public class JarHandlers {
 
     public static String uploadJar(
             JarUploadHandler handler, Path jar, RestfulGateway restfulGateway) throws Exception {
-        HandlerRequest<EmptyRequestBody, EmptyMessageParameters> uploadRequest =
-                new HandlerRequest<>(
+
+        HandlerRequest<EmptyRequestBody> uploadRequest =
+                HandlerRequest.create(
                         EmptyRequestBody.getInstance(),
                         EmptyMessageParameters.getInstance(),
-                        Collections.emptyMap(),
-                        Collections.emptyMap(),
                         Collections.singletonList(jar.toFile()));
         final JarUploadResponseBody uploadResponse =
                 handler.handleRequest(uploadRequest, restfulGateway).get();
@@ -119,8 +119,8 @@ public class JarHandlers {
 
     public static JarListInfo listJars(JarListHandler handler, RestfulGateway restfulGateway)
             throws Exception {
-        HandlerRequest<EmptyRequestBody, EmptyMessageParameters> listRequest =
-                new HandlerRequest<>(
+        HandlerRequest<EmptyRequestBody> listRequest =
+                HandlerRequest.create(
                         EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance());
         return handler.handleRequest(listRequest, restfulGateway).get();
     }
@@ -130,8 +130,8 @@ public class JarHandlers {
             throws Exception {
         JarPlanMessageParameters planParameters =
                 JarPlanGetHeaders.getInstance().getUnresolvedMessageParameters();
-        HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> planRequest =
-                new HandlerRequest<>(
+        HandlerRequest<JarPlanRequestBody> planRequest =
+                HandlerRequest.resolveParametersAndCreate(
                         new JarPlanRequestBody(),
                         planParameters,
                         Collections.singletonMap(
@@ -146,8 +146,8 @@ public class JarHandlers {
             throws Exception {
         final JarRunMessageParameters runParameters =
                 JarRunHeaders.getInstance().getUnresolvedMessageParameters();
-        HandlerRequest<JarRunRequestBody, JarRunMessageParameters> runRequest =
-                new HandlerRequest<>(
+        HandlerRequest<JarRunRequestBody> runRequest =
+                HandlerRequest.resolveParametersAndCreate(
                         new JarRunRequestBody(),
                         runParameters,
                         Collections.singletonMap(
@@ -162,8 +162,8 @@ public class JarHandlers {
             throws Exception {
         JarDeleteMessageParameters deleteParameters =
                 JarDeleteHeaders.getInstance().getUnresolvedMessageParameters();
-        HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> deleteRequest =
-                new HandlerRequest<>(
+        HandlerRequest<EmptyRequestBody> deleteRequest =
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         deleteParameters,
                         Collections.singletonMap(

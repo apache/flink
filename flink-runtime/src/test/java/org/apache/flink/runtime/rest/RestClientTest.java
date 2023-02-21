@@ -20,21 +20,24 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -43,6 +46,7 @@ import java.net.Socket;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -52,6 +56,9 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for {@link RestClient}. */
 public class RestClientTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final String unroutableIp = "240.0.0.0";
 
@@ -61,10 +68,7 @@ public class RestClientTest extends TestLogger {
     public void testConnectionTimeout() throws Exception {
         final Configuration config = new Configuration();
         config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
-        try (final RestClient restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(config),
-                        Executors.directExecutor())) {
+        try (final RestClient restClient = new RestClient(config, Executors.directExecutor())) {
             restClient
                     .sendRequest(
                             unroutableIp,
@@ -83,9 +87,7 @@ public class RestClientTest extends TestLogger {
     @Test
     public void testInvalidVersionRejection() throws Exception {
         try (final RestClient restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        Executors.directExecutor())) {
+                new RestClient(new Configuration(), Executors.directExecutor())) {
             CompletableFuture<EmptyResponseBody> invalidVersionResponse =
                     restClient.sendRequest(
                             unroutableIp,
@@ -94,7 +96,7 @@ public class RestClientTest extends TestLogger {
                             EmptyMessageParameters.getInstance(),
                             EmptyRequestBody.getInstance(),
                             Collections.emptyList(),
-                            RestAPIVersion.V0);
+                            RuntimeRestAPIVersion.V0);
             Assert.fail("The request should have been rejected due to a version mismatch.");
         } catch (IllegalArgumentException e) {
             // expected
@@ -108,16 +110,16 @@ public class RestClientTest extends TestLogger {
         config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
         try (final ServerSocket serverSocket = new ServerSocket(0);
                 final RestClient restClient =
-                        new RestClient(
-                                RestClientConfiguration.fromConfiguration(config),
-                                TestingUtils.defaultExecutor())) {
+                        new RestClient(config, EXECUTOR_RESOURCE.getExecutor())) {
 
             final String targetAddress = "localhost";
             final int targetPort = serverSocket.getLocalPort();
 
             // start server
             final CompletableFuture<Socket> socketCompletableFuture =
-                    CompletableFuture.supplyAsync(CheckedSupplier.unchecked(serverSocket::accept));
+                    CompletableFuture.supplyAsync(
+                            CheckedSupplier.unchecked(
+                                    () -> NetUtils.acceptWithoutTimeout(serverSocket)));
 
             final CompletableFuture<EmptyResponseBody> responseFuture =
                     restClient.sendRequest(
@@ -162,16 +164,16 @@ public class RestClientTest extends TestLogger {
 
         try (final ServerSocket serverSocket = new ServerSocket(0);
                 final RestClient restClient =
-                        new RestClient(
-                                RestClientConfiguration.fromConfiguration(config),
-                                TestingUtils.defaultExecutor())) {
+                        new RestClient(config, EXECUTOR_RESOURCE.getExecutor())) {
 
             final String targetAddress = "localhost";
             final int targetPort = serverSocket.getLocalPort();
 
             // start server
             final CompletableFuture<Socket> socketCompletableFuture =
-                    CompletableFuture.supplyAsync(CheckedSupplier.unchecked(serverSocket::accept));
+                    CompletableFuture.supplyAsync(
+                            CheckedSupplier.unchecked(
+                                    () -> NetUtils.acceptWithoutTimeout(serverSocket)));
 
             final CompletableFuture<EmptyResponseBody> responseFuture =
                     restClient.sendRequest(
@@ -206,7 +208,8 @@ public class RestClientTest extends TestLogger {
     }
 
     private static class TestMessageHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements RuntimeMessageHeaders<
+                    EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
         @Override
         public Class<EmptyRequestBody> getRequestClass() {

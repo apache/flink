@@ -17,22 +17,23 @@
  */
 package org.apache.flink.api.scala.operators
 
+import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.common.functions.MapPartitionFunction
+import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.util.Collector
+
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+
 import java.io.Serializable
 import java.lang
 
 import scala.collection.JavaConverters._
-
-import org.apache.flink.api.common.functions.MapPartitionFunction
-import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.apache.flink.util.Collector
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.Test
 
 @RunWith(classOf[Parameterized])
 class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -46,7 +47,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(4)
+      .map(x => x)
+      .setParallelism(4)
       .sortPartition(1, Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple3Checker))
       .distinct()
@@ -64,9 +66,10 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get5TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(2)
+      .map(x => x)
+      .setParallelism(2)
       .sortPartition(4, Order.ASCENDING)
-        .sortPartition(2, Order.DESCENDING)
+      .sortPartition(2, Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple5Checker))
       .distinct()
       .collect()
@@ -83,7 +86,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(4)
+      .map(x => x)
+      .setParallelism(4)
       .sortPartition("_2", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple3Checker))
       .distinct()
@@ -101,9 +105,10 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get5TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(2)
+      .map(x => x)
+      .setParallelism(2)
       .sortPartition("_5", Order.ASCENDING)
-        .sortPartition("_3", Order.DESCENDING)
+      .sortPartition("_3", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple5Checker))
       .distinct()
       .collect()
@@ -120,9 +125,10 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(3)
+      .map(x => x)
+      .setParallelism(3)
       .sortPartition("_1._2", Order.ASCENDING)
-        .sortPartition("_2", Order.DESCENDING)
+      .sortPartition("_2", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new NestedTupleChecker))
       .distinct()
       .collect()
@@ -139,9 +145,10 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.getMixedPojoDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(3)
+      .map(x => x)
+      .setParallelism(3)
       .sortPartition("nestedTupleWithCustom._2.myString", Order.ASCENDING)
-        .sortPartition("number", Order.DESCENDING)
+      .sortPartition("number", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new PojoChecker))
       .distinct()
       .collect()
@@ -158,7 +165,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val result = ds
-      .sortPartition(1, Order.DESCENDING).setParallelism(3)
+      .sortPartition(1, Order.DESCENDING)
+      .setParallelism(3)
       .mapPartition(new OrderCheckMapper(new Tuple3Checker))
       .distinct()
       .collect()
@@ -174,7 +182,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(4)
+      .map(x => x)
+      .setParallelism(4)
       .sortPartition(_._2, Order.ASCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple3AscendingChecker))
       .distinct()
@@ -191,7 +200,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(4)
+      .map(x => x)
+      .setParallelism(4)
       .sortPartition(x => (x._2, x._1), Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple3Checker))
       .distinct()
@@ -208,7 +218,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val result = ds
-      .map { x => x }.setParallelism(4)
+      .map(x => x)
+      .setParallelism(4)
       .sortPartition(x => (x._2, x._1), Order.DESCENDING)
       .sortPartition(0, Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple3Checker))
@@ -252,8 +263,8 @@ class NestedTupleChecker extends OrderChecker[((Int, Int), String)] {
 class PojoChecker extends OrderChecker[CollectionDataSets.POJO] {
   def inOrder(t1: CollectionDataSets.POJO, t2: CollectionDataSets.POJO): Boolean = {
     t1.nestedTupleWithCustom._2.myString.compareTo(t2.nestedTupleWithCustom._2.myString) < 0 ||
-      t1.nestedTupleWithCustom._2.myString.compareTo(t2.nestedTupleWithCustom._2.myString) == 0 &&
-        t1.number >= t2.number
+    t1.nestedTupleWithCustom._2.myString.compareTo(t2.nestedTupleWithCustom._2.myString) == 0 &&
+    t1.number >= t2.number
   }
 }
 
@@ -264,8 +275,7 @@ class OrderCheckMapper[T](checker: OrderChecker[T])
     val it = values.iterator()
     if (!it.hasNext) {
       out.collect(new Tuple1(true))
-    }
-    else {
+    } else {
       var last: T = it.next()
       while (it.hasNext) {
         val next: T = it.next()

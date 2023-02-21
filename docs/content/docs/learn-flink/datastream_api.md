@@ -29,7 +29,7 @@ to get started writing streaming applications.
 
 ## What can be Streamed?
 
-Flink's DataStream APIs for Java and Scala will let you stream anything they can serialize. Flink's
+Flink's DataStream APIs will let you stream anything they can serialize. Flink's
 own serializer is used for
 
 - basic types, i.e., String, Long, Integer, Boolean, Array
@@ -70,7 +70,7 @@ Example:
 public class Person {
     public String name;  
     public Integer age;  
-    public Person() {};  
+    public Person() {}
     public Person(String name, Integer age) {  
         . . .
     }
@@ -79,11 +79,17 @@ public class Person {
 Person person = new Person("Fred Flintstone", 35);
 ```
 
-Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/schema_evolution" >}}#pojo-types).
+Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types).
 
 ### Scala tuples and case classes
 
 These work just as you'd expect.
+
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
 
 {{< top >}}
 
@@ -122,7 +128,7 @@ public class Example {
     public static class Person {
         public String name;
         public Integer age;
-        public Person() {};
+        public Person() {}
 
         public Person(String name, Integer age) {
             this.name = name;
@@ -199,7 +205,7 @@ The output looks something like this
 
 where 1> and 2> indicate which sub-task (i.e., thread) produced the output.
 
-In production, commonly used sinks include the StreamingFileSink, various databases,
+In production, commonly used sinks include the FileSink, various databases,
 and several pub-sub systems.
 
 ### Debugging

@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link SimpleVersionedSerializerTypeSerializerProxy}. */
-public class SimpleVersionedSerializerTypeSerializerProxyTest extends SerializerTestBase<String> {
+class SimpleVersionedSerializerTypeSerializerProxyTest extends SerializerTestBase<String> {
 
     @Override
     protected TypeSerializer<String> createSerializer() {

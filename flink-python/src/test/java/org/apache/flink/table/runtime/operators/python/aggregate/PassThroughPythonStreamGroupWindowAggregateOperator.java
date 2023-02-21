@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.python.aggregate;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -28,7 +29,6 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -39,16 +39,15 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
-import org.apache.flink.table.planner.plan.logical.LogicalWindow;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.ProctimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -70,6 +69,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /** PassThroughPythonStreamGroupWindowAggregateOperator. */
@@ -87,7 +87,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
 
     private transient UpdatableRowData reusePythonTimerRowData;
     private transient UpdatableRowData reusePythonTimerData;
-    private transient LinkedBlockingQueue<byte[]> resultBuffer;
+    private transient LinkedBlockingQueue<Tuple2<String, byte[]>> resultBuffer;
     private Projection<RowData, BinaryRowData> groupKeyProjection;
     private Function<RowData, RowData> aggExtracter;
     private Function<TimeWindow, RowData> windowExtractor;
@@ -96,7 +96,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     private transient ByteArrayOutputStreamWithPos windowBaos;
     private transient DataOutputViewStreamWrapper windowBaosWrapper;
 
-    public PassThroughPythonStreamGroupWindowAggregateOperator(
+    protected PassThroughPythonStreamGroupWindowAggregateOperator(
             Configuration config,
             RowType inputType,
             RowType outputType,
@@ -107,23 +107,33 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             boolean countStarInserted,
             int inputTimeFieldIndex,
             WindowAssigner<TimeWindow> windowAssigner,
-            LogicalWindow window,
+            FlinkFnApi.GroupWindow.WindowType windowType,
+            boolean isRowTime,
+            boolean isTimeWindow,
+            long size,
+            long slide,
+            long gap,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties,
+            NamedWindowProperty[] namedProperties,
             ZoneId shiftTimeZone) {
         super(
                 config,
                 inputType,
                 outputType,
                 aggregateFunctions,
-                new DataViewUtils.DataViewSpec[0][0],
+                new DataViewSpec[0][0],
                 grouping,
                 indexOfCountStar,
                 generateUpdateBefore,
                 countStarInserted,
                 inputTimeFieldIndex,
                 windowAssigner,
-                window,
+                windowType,
+                isRowTime,
+                isTimeWindow,
+                size,
+                slide,
+                gap,
                 allowedLateness,
                 namedProperties,
                 shiftTimeZone);
@@ -187,30 +197,28 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
         return new PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
-                PythonTestUtils.createTestEnvironmentManager(),
+                PythonTestUtils.createTestProcessEnvironmentManager(),
                 userDefinedFunctionInputType,
                 userDefinedFunctionOutputType,
                 STREAM_GROUP_WINDOW_AGGREGATE_URN,
                 getUserDefinedFunctionsProto(),
-                FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
-                new HashMap<>(),
                 PythonTestUtils.createMockFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
                 this);
     }
 
-    private void buildWindow(PlannerNamedWindowProperty[] namedProperties) {
+    private void buildWindow(NamedWindowProperty[] namedProperties) {
         this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
         for (int i = 0; i < namedProperties.length; i++) {
-            PlannerWindowProperty namedProperty = namedProperties[i].getProperty();
-            if (namedProperty instanceof PlannerWindowStart) {
+            WindowProperty namedProperty = namedProperties[i].getProperty();
+            if (namedProperty instanceof WindowStart) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
-            } else if (namedProperty instanceof PlannerWindowEnd) {
+            } else if (namedProperty instanceof WindowEnd) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
-            } else if (namedProperty instanceof PlannerRowtimeAttribute) {
+            } else if (namedProperty instanceof RowtimeAttribute) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.ROW_TIME_ATTRIBUTE;
-            } else if (namedProperty instanceof PlannerProctimeAttribute) {
+            } else if (namedProperty instanceof ProctimeAttribute) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.PROC_TIME_ATTRIBUTE;
 
             } else {
@@ -288,7 +296,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
         }
     }
 
-    public void setResultBuffer(LinkedBlockingQueue<byte[]> resultBuffer) {
+    public void setResultBuffer(LinkedBlockingQueue<Tuple2<String, byte[]>> resultBuffer) {
         this.resultBuffer = resultBuffer;
     }
 
@@ -336,7 +344,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                     reuseJoinedRow.replace(windowAggResult, windowProperty);
                     reusePythonRowData.setField(1, reuseJoinedRow);
                     udfOutputTypeSerializer.serialize(reusePythonRowData, output);
-                    resultBuffer.add(output.getCopyOfBuffer());
+                    resultBuffer.add(Tuple2.of(OUTPUT_COLLECTION_ID, output.getCopyOfBuffer()));
                     break;
                 }
             }
@@ -368,7 +376,9 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                                 .collect(Collectors.toList()));
         final GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         name,
                         inputType,
                         forwardedFieldType,
@@ -419,7 +429,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
         windowBaos.reset();
         DataOutputSerializer output = new DataOutputSerializer(1);
         udfOutputTypeSerializer.serialize(reusePythonTimerRowData, output);
-        resultBuffer.add(output.getCopyOfBuffer());
+        resultBuffer.add(Tuple2.of(OUTPUT_COLLECTION_ID, output.getCopyOfBuffer()));
     }
 
     private void cleanWindowIfNeeded(RowData key, TimeWindow window, long currentTime)
@@ -440,7 +450,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             reuseJoinedRow.replace(windowAggResult, windowProperty);
             reusePythonRowData.setField(1, reuseJoinedRow);
             udfOutputTypeSerializer.serialize(reusePythonRowData, output);
-            resultBuffer.add(output.getCopyOfBuffer());
+            resultBuffer.add(Tuple2.of(OUTPUT_COLLECTION_ID, output.getCopyOfBuffer()));
             // 2. delete window timer
             if (windowAssigner.isEventTime()) {
                 deleteEventTimeTimer(key, window);

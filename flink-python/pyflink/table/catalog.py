@@ -20,6 +20,7 @@ from typing import Dict, List, Optional
 from py4j.java_gateway import java_import
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
@@ -468,6 +469,23 @@ class Catalog(object):
             j_catalog_table_statistics=self._j_catalog.getPartitionStatistics(
                 table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
+    def bulk_get_partition_statistics(self,
+                                      table_path: 'ObjectPath',
+                                      partition_specs: List['CatalogPartitionSpec']) \
+            -> List['CatalogTableStatistics']:
+        """
+        Get a list of statistics of given partitions.
+
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_specs: The list of :class:`CatalogPartitionSpec` of the given partitions.
+        :return: The statistics list of :class:`CatalogTableStatistics` of the given partitions.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException if the partition does not exist.
+        """
+        return [CatalogTableStatistics(j_catalog_table_statistics=p)
+                for p in self._j_catalog.bulkGetPartitionStatistics(table_path._j_object_path,
+                partition_specs)]
+
     def get_partition_column_statistics(self,
                                         table_path: 'ObjectPath',
                                         partition_spec: 'CatalogPartitionSpec') \
@@ -484,6 +502,23 @@ class Catalog(object):
         return CatalogColumnStatistics(
             j_catalog_column_statistics=self._j_catalog.getPartitionColumnStatistics(
                 table_path._j_object_path, partition_spec._j_catalog_partition_spec))
+
+    def bulk_get_partition_column_statistics(self,
+                                             table_path: 'ObjectPath',
+                                             partition_specs: List['CatalogPartitionSpec']) \
+            -> List['CatalogColumnStatistics']:
+        """
+        Get a list of the column statistics for the given partitions.
+
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_specs: The list of :class:`CatalogPartitionSpec` of the given partitions.
+        :return: The statistics list of :class:`CatalogTableStatistics` of the given partitions.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException if the partition does not exist.
+        """
+        return [CatalogColumnStatistics(j_catalog_column_statistics=p)
+                for p in self._j_catalog.bulkGetPartitionStatistics(
+                table_path._j_object_path, partition_specs)]
 
     def alter_table_statistics(self,
                                table_path: 'ObjectPath',
@@ -733,8 +768,21 @@ class CatalogBaseTable(object):
         Get the schema of the table.
 
         :return: Schema of the table/view.
+
+        . note:: Deprecated in 1.14. This method returns the deprecated TableSchema class. The old
+        class was a hybrid of resolved and unresolved schema information. It has been replaced by
+        the new Schema which is always unresolved and will be resolved by the framework later.
         """
         return TableSchema(j_table_schema=self._j_catalog_base_table.getSchema())
+
+    def get_unresolved_schema(self) -> Schema:
+        """
+        Returns the schema of the table or view.
+
+        The schema can reference objects from other catalogs and will be resolved and validated by
+        the framework when accessing the table or view.
+        """
+        return Schema(self._j_catalog_base_table.getUnresolvedSchema())
 
     def get_comment(self) -> str:
         """

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.UUID;
 
-public class ValueComparatorUUIDTest extends ComparatorTestBase<ValueID> {
+class ValueComparatorUUIDTest extends ComparatorTestBase<ValueID> {
     @Override
     protected TypeComparator<ValueID> createComparator(boolean ascending) {
         return new ValueComparator<>(ascending, ValueID.class);

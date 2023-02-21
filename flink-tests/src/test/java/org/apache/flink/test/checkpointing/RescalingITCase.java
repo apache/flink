@@ -26,24 +26,23 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -54,8 +53,13 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -68,6 +72,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -76,9 +81,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -87,16 +94,30 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class RescalingITCase extends TestLogger {
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     private static final int numTaskManagers = 2;
     private static final int slotsPerTaskManager = 2;
     private static final int numSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}")
-    public static Object[] data() {
-        return new Object[] {"filesystem", "rocksdb"};
+    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}")
+    public static Collection<Object[]> data() {
+        return Arrays.asList(
+                new Object[][] {
+                    {"filesystem", 2}, {"rocksdb", 0}, {"filesystem", 0}, {"rocksdb", 2}
+                });
     }
 
-    @Parameterized.Parameter public String backend;
+    public RescalingITCase(String backend, int buffersPerChannel) {
+        this.backend = backend;
+        this.buffersPerChannel = buffersPerChannel;
+    }
+
+    private final String backend;
+
+    private final int buffersPerChannel;
 
     private String currentBackend = null;
 
@@ -129,6 +150,8 @@ public class RescalingITCase extends TestLogger {
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
             config.setString(
                     CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+            config.setInteger(
+                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             cluster =
                     new MiniClusterWithClientResource(
@@ -223,7 +246,9 @@ public class RescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
+            CompletableFuture<String> savepointPathFuture =
+                    client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
@@ -293,21 +318,27 @@ public class RescalingITCase extends TestLogger {
             JobGraph jobGraph =
                     createJobGraphWithOperatorState(
                             parallelism, maxParallelism, OperatorCheckpointMethod.NON_PARTITIONED);
+            // make sure the job does not finish before we take the savepoint
+            StateSourceBase.canFinishLatch = new CountDownLatch(1);
 
             final JobID jobID = jobGraph.getJobID();
 
             client.submitJob(jobGraph).get();
 
             // wait until the operator is started
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
+            // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
-            CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+            CompletableFuture<String> savepointPathFuture =
+                    client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
+            // we took a savepoint, the job can finish now
+            StateSourceBase.canFinishLatch.countDown();
             client.cancel(jobID).get();
-
             while (!getRunningJobs(client).isEmpty()) {
                 Thread.sleep(50);
             }
@@ -366,6 +397,8 @@ public class RescalingITCase extends TestLogger {
 
             final JobID jobID = jobGraph.getJobID();
 
+            // make sure the job does not finish before we take the savepoint
+            StateSourceBase.canFinishLatch = new CountDownLatch(1);
             client.submitJob(jobGraph).get();
 
             // wait til the sources have emitted numberElements for each key and completed a
@@ -395,11 +428,15 @@ public class RescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
+            CompletableFuture<String> savepointPathFuture =
+                    client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
+            // we took a savepoint, the job can finish now
+            StateSourceBase.canFinishLatch.countDown();
             client.cancel(jobID).get();
 
             while (!getRunningJobs(client).isEmpty()) {
@@ -508,27 +545,35 @@ public class RescalingITCase extends TestLogger {
         try {
             JobGraph jobGraph =
                     createJobGraphWithOperatorState(parallelism, maxParallelism, checkpointMethod);
+            // make sure the job does not finish before we take the savepoint
+            StateSourceBase.canFinishLatch = new CountDownLatch(1);
 
             final JobID jobID = jobGraph.getJobID();
 
             client.submitJob(jobGraph).get();
 
             // wait until the operator is started
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
+            // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
             CompletableFuture<String> savepointPathFuture =
                     FutureUtils.retryWithDelay(
-                            () -> client.triggerSavepoint(jobID, null),
-                            (int) deadline.timeLeft().getSeconds() / 10,
-                            Time.seconds(10),
+                            () ->
+                                    client.triggerSavepoint(
+                                            jobID, null, SavepointFormatType.CANONICAL),
+                            new FixedRetryStrategy(
+                                    (int) deadline.timeLeft().getSeconds() / 10,
+                                    Duration.ofSeconds(10)),
                             (throwable) -> true,
-                            TestingUtils.defaultScheduledExecutor());
+                            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
+            // we took a savepoint, the job can finish now
+            StateSourceBase.canFinishLatch.countDown();
             client.cancel(jobID).get();
-
             while (!getRunningJobs(client).isEmpty()) {
                 Thread.sleep(50);
             }
@@ -586,7 +631,6 @@ public class RescalingITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.getConfig().setMaxParallelism(maxParallelism);
-        env.enableCheckpointing(Long.MAX_VALUE);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         StateSourceBase.workStartedLatch = new CountDownLatch(parallelism);
@@ -784,7 +828,7 @@ public class RescalingITCase extends TestLogger {
 
         private static final long serialVersionUID = 5273172591283191348L;
 
-        private static volatile CountDownLatch workCompletedLatch = new CountDownLatch(1);
+        private static CountDownLatch workCompletedLatch = new CountDownLatch(1);
 
         private transient ValueState<Integer> counter;
         private transient ValueState<Integer> sum;
@@ -851,7 +895,8 @@ public class RescalingITCase extends TestLogger {
     private static class StateSourceBase extends RichParallelSourceFunction<Integer> {
 
         private static final long serialVersionUID = 7512206069681177940L;
-        private static volatile CountDownLatch workStartedLatch = new CountDownLatch(1);
+        private static CountDownLatch workStartedLatch = new CountDownLatch(1);
+        private static CountDownLatch canFinishLatch = new CountDownLatch(0);
 
         protected volatile int counter = 0;
         protected volatile boolean running = true;
@@ -876,6 +921,8 @@ public class RescalingITCase extends TestLogger {
                     break;
                 }
             }
+
+            canFinishLatch.await();
         }
 
         @Override

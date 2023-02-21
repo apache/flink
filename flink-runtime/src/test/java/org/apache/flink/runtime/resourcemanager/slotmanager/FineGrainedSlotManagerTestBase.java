@@ -19,12 +19,12 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -34,25 +34,34 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base class for the tests of {@link FineGrainedSlotManager}. */
-public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
-    private static final Executor MAIN_THREAD_EXECUTOR = Executors.newSingleThreadExecutor();
+abstract class FineGrainedSlotManagerTestBase {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
+
     private static final long FUTURE_TIMEOUT_SECOND = 5;
     private static final long FUTURE_EXPECT_TIMEOUT_MS = 50;
     static final FlinkException TEST_EXCEPTION = new FlinkException("Test exception");
@@ -121,12 +130,12 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
     }
 
     static void assertFutureNotComplete(CompletableFuture<?> completableFuture) throws Exception {
-        try {
-            completableFuture.get(FUTURE_EXPECT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            fail("Expected to fail with a timeout.");
-        } catch (TimeoutException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                completableFuture.get(
+                                        FUTURE_EXPECT_TIMEOUT_MS, TimeUnit.MILLISECONDS),
+                        "Expected to fail with a timeout.")
+                .isInstanceOf(TimeoutException.class);
     }
 
     /** This class provides a self-contained context for each test case. */
@@ -136,18 +145,23 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
         private final TaskManagerTracker taskManagerTracker = new FineGrainedTaskManagerTracker();
         private final SlotStatusSyncer slotStatusSyncer =
                 new DefaultSlotStatusSyncer(Time.seconds(10L));
-        private final SlotManagerMetricGroup slotManagerMetricGroup =
+        private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
-        private final ScheduledExecutor scheduledExecutor = TestingUtils.defaultScheduledExecutor();
-        private final Executor mainThreadExecutor = MAIN_THREAD_EXECUTOR;
+        private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
+        private final ScheduledExecutor scheduledExecutor =
+                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
+        private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
         private FineGrainedSlotManager slotManager;
-        private long requirementCheckDelay = 0;
+        private Duration requirementCheckDelay = Duration.ZERO;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
 
-        final TestingResourceActionsBuilder resourceActionsBuilder =
-                new TestingResourceActionsBuilder();
+        final TestingResourceAllocatorBuilder resourceAllocatorBuilder =
+                new TestingResourceAllocatorBuilder();
+
+        final TestingResourceEventListenerBuilder resourceEventListenerBuilder =
+                new TestingResourceEventListenerBuilder();
         final SlotManagerConfigurationBuilder slotManagerConfigurationBuilder =
                 SlotManagerConfigurationBuilder.newBuilder();
 
@@ -167,12 +181,31 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
             return resourceManagerId;
         }
 
-        public void setRequirementCheckDelay(long requirementCheckDelay) {
+        public void setRequirementCheckDelay(Duration requirementCheckDelay) {
             this.requirementCheckDelay = requirementCheckDelay;
+        }
+
+        public void setSlotManagerMetricGroup(SlotManagerMetricGroup slotManagerMetricGroup) {
+            this.slotManagerMetricGroup = slotManagerMetricGroup;
+        }
+
+        public void setBlockedTaskManagerChecker(
+                BlockedTaskManagerChecker blockedTaskManagerChecker) {
+            this.blockedTaskManagerChecker = blockedTaskManagerChecker;
         }
 
         void runInMainThread(Runnable runnable) {
             mainThreadExecutor.execute(runnable);
+        }
+
+        void runInMainThreadAndWait(Runnable runnable) throws InterruptedException {
+            final OneShotLatch latch = new OneShotLatch();
+            mainThreadExecutor.execute(
+                    () -> {
+                        runnable.run();
+                        latch.trigger();
+                    });
+            latch.await();
         }
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
@@ -185,14 +218,15 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
                             taskManagerTracker,
                             slotStatusSyncer,
                             getResourceAllocationStrategy()
-                                    .orElse(resourceAllocationStrategyBuilder.build()),
-                            Time.milliseconds(requirementCheckDelay));
-            runInMainThread(
+                                    .orElse(resourceAllocationStrategyBuilder.build()));
+            runInMainThreadAndWait(
                     () ->
                             slotManager.start(
                                     resourceManagerId,
                                     mainThreadExecutor,
-                                    resourceActionsBuilder.build()));
+                                    resourceAllocatorBuilder.build(),
+                                    resourceEventListenerBuilder.build(),
+                                    blockedTaskManagerChecker));
 
             testMethod.run();
 

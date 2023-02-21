@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
+
 import org.junit.Test
 
 class OnKeyedStreamTest extends AcceptPFTestBase {
@@ -29,10 +30,9 @@ class OnKeyedStreamTest extends AcceptPFTestBase {
   @Test
   def testReduceWithOnTuple(): Unit = {
     val test =
-      keyedTuples.reduceWith {
-        case ((_, v1), (_, v2)) => 0 -> s"$v1 $v2"
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      keyedTuples.reduceWith { case ((_, v1), (_, v2)) => 0 -> s"$v1 $v2" }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "reduceWith should produce a SingleOutputStreamOperator")
   }
 
@@ -42,7 +42,8 @@ class OnKeyedStreamTest extends AcceptPFTestBase {
       keyedCaseObjects.reduceWith {
         case (KeyValuePair(_, v1), KeyValuePair(_, v2)) => KeyValuePair(0, s"$v1 $v2")
       }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "reduceWith should produce a SingleOutputStreamOperator")
   }
 }

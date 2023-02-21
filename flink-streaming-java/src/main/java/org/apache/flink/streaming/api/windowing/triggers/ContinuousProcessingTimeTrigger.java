@@ -50,18 +50,13 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     @Override
     public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx)
             throws Exception {
-        ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+        ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
 
         timestamp = ctx.getCurrentProcessingTime();
 
-        if (fireTimestamp.get() == null) {
-            long start = timestamp - (timestamp % interval);
-            long nextFireTimestamp = start + interval;
-
-            ctx.registerProcessingTimeTimer(nextFireTimestamp);
-
-            fireTimestamp.add(nextFireTimestamp);
-            return TriggerResult.CONTINUE;
+        if (fireTimestampState.get() == null) {
+            registerNextFireTimestamp(
+                    timestamp - (timestamp % interval), window, ctx, fireTimestampState);
         }
         return TriggerResult.CONTINUE;
     }
@@ -74,12 +69,11 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     @Override
     public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx)
             throws Exception {
-        ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+        ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
 
-        if (fireTimestamp.get().equals(time)) {
-            fireTimestamp.clear();
-            fireTimestamp.add(time + interval);
-            ctx.registerProcessingTimeTimer(time + interval);
+        if (fireTimestampState.get().equals(time)) {
+            fireTimestampState.clear();
+            registerNextFireTimestamp(time, window, ctx, fireTimestampState);
             return TriggerResult.FIRE;
         }
         return TriggerResult.CONTINUE;
@@ -140,5 +134,13 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
         public Long reduce(Long value1, Long value2) throws Exception {
             return Math.min(value1, value2);
         }
+    }
+
+    private void registerNextFireTimestamp(
+            long time, W window, TriggerContext ctx, ReducingState<Long> fireTimestampState)
+            throws Exception {
+        long nextFireTimestamp = Math.min(time + interval, window.maxTimestamp());
+        fireTimestampState.add(nextFireTimestamp);
+        ctx.registerProcessingTimeTimer(nextFireTimestamp);
     }
 }

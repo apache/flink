@@ -69,18 +69,17 @@ Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，
 
 - **ID**：已触发 checkpoint 的 ID。每个 checkpoint 的 ID 都会递增，从 1 开始。
 - **Status**：Checkpoint 的当前状态，可以是*正在进行（In Progress）*、*已完成（Completed）* 或*失败（Failed）*）。如果触发的检查点是一个保存点，你将看到一个  符号。
+- **Acknowledged**：已确认完成的子任务数量与总任务数量。
 - **Trigger Time**：在 JobManager 上发起 checkpoint 的时间。
 - **Latest Acknowledgement**：JobManager 接收到任何 subtask 的最新确认的时间（如果尚未收到确认，则不适用）。
 - **End to End Duration**：从触发时间戳到最后一次确认的持续时间（如果还没有收到确认，则不适用）。完整 checkpoint 的端到端持续时间由确认 checkpoint 的最后一个 subtask 确定。这个时间通常大于单个 subtask 实际 checkpoint state 所需的时间。
-- **Checkpointed Data Size**：所有已确认的 subtask 的 checkpoint 的数据大小。如果启用了增量 checkpoint，则此值为 checkpoint 数据的增量大小。
-- **Processed in-flight data**：在 checkpoint alignment 期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）对所有已确认的 subtask 处理的大约字节数。
-- **Persisted in-flight data**：在 checkpoint alignment 期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）对所有已确认的 subtask 持久化的字节数。仅当启用 unaligned checkpoint 时，此值大于 0。
+- **Checkpointed Data Size**: 在此次checkpoint的sync以及async阶段中持久化的数据量。如果启用了增量 checkpoint或者changelog，则此值可能会与全量checkpoint数据量产生区别。
+- **Full Checkpoint Data Size**: 所有已确认的 subtask 的 checkpoint 的全量数据大小。
+- **Processed (persisted) in-flight data**：在 checkpoint 对齐期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）所有已确认的 subtask 处理/持久化 的大约字节数。如果启用了 unaligned checkpoint，持久化的字节数可能会大于0。
 
 对于 subtask，有两个更详细的统计信息可用。
 
-<center>
-  <img src="{% link /fig/checkpoint_monitoring-history-subtasks.png %}" width="700px" alt="Checkpoint Monitoring: History">
-</center>
+{{< img src="/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History">}}
 
 - **Sync Duration**：Checkpoint 同步部分的持续时间。这包括 operator 的快照状态，并阻塞 subtask 上的所有其他活动（处理记录、触发计时器等）。
 - **Async Duration**：Checkpoint 的异步部分的持续时间。这包括将 checkpoint 写入设置的文件系统所需的时间。对于 unaligned checkpoint，这还包括 subtask 必须等待最后一个 checkpoint barrier 到达的时间（checkpoint alignment 持续时间）以及持久化数据所需的时间。
@@ -103,7 +102,7 @@ web.checkpoints.history: 15
 
 ### 摘要信息（Summary）选项卡
 
-摘要计算了所有已完成 checkpoint 的端到端持续时间、Checkpointed 数据大小和 checkpoint alignment 期间缓冲的字节数的简单 min/average/maximum 统计信息（有关这些内容的详细信息，请参见 [History](#history-tab)）。
+摘要计算了所有已完成 checkpoint 的端到端持续时间、增量/全量Checkpoint 数据大小和 checkpoint alignment 期间缓冲的字节数的简单 min/average/maximum 统计信息（有关这些内容的详细信息，请参见 [History](#history-tab)）。
 
 {{< img src="/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary" >}}
 

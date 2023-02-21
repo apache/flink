@@ -16,6 +16,43 @@
  * limitations under the License.
  */
 
-.pressure-badge {
-  margin-top: -4px;
+@import "theme";
+
+:host {
+  .left-margin {
+    margin-left: @margin-xss;
+  }
+
+  ::ng-deep {
+    .ant-table-row-indent {
+      padding-left: 0 !important;
+
+      & + .ant-table-row-expand-icon {
+        margin-top: 2px;
+      }
+    }
+
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+  }
+
+  flink-backpressure-badge,
+  flink-dynamic-host {
+    display: inline-block;
+    margin-left: @margin-xss;
+  }
 }

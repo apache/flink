@@ -43,10 +43,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * A class containing a special Kafka broker which has a log retention of only 250 ms. This way, we
@@ -130,7 +129,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
     private static boolean stopProducer = false;
 
     public void runAutoOffsetResetTest() throws Exception {
-        final String topic = "auto-offset-reset-test";
+        final String topic = "auto-offset-reset-test-" + UUID.randomUUID();
 
         final int parallelism = 1;
         final int elementsPerPartition = 50000;
@@ -226,69 +225,5 @@ public class KafkaShortRetentionTestBase implements Serializable {
         public TypeInformation<String> getProducedType() {
             return Types.STRING;
         }
-    }
-
-    /** Ensure that the consumer is properly failing if "auto.offset.reset" is set to "none". */
-    public void runFailOnAutoOffsetResetNone() throws Exception {
-        final String topic = "auto-offset-reset-none-test";
-        final int parallelism = 1;
-
-        kafkaServer.createTestTopic(topic, parallelism, 1);
-
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(parallelism);
-        env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-
-        // ----------- add consumer ----------
-
-        Properties customProps = new Properties();
-        customProps.putAll(standardProps);
-        customProps.putAll(secureProps);
-        customProps.setProperty(
-                "auto.offset.reset", "none"); // test that "none" leads to an exception
-        FlinkKafkaConsumerBase<String> source =
-                kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
-
-        DataStreamSource<String> consuming = env.addSource(source);
-        consuming.addSink(new DiscardingSink<String>());
-
-        try {
-            env.execute("Test auto offset reset none");
-        } catch (Throwable e) {
-            // check if correct exception has been thrown
-            if (!e.getCause()
-                    .getCause()
-                    .getMessage()
-                    .contains("Undefined offset with no reset policy for partition")) {
-                throw e;
-            }
-        }
-
-        kafkaServer.deleteTestTopic(topic);
-    }
-
-    public void runFailOnAutoOffsetResetNoneEager() throws Exception {
-        final String topic = "auto-offset-reset-none-test";
-        final int parallelism = 1;
-
-        kafkaServer.createTestTopic(topic, parallelism, 1);
-
-        // ----------- add consumer ----------
-
-        Properties customProps = new Properties();
-        customProps.putAll(standardProps);
-        customProps.putAll(secureProps);
-        customProps.setProperty(
-                "auto.offset.reset", "none"); // test that "none" leads to an exception
-
-        try {
-            kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
-            fail("should fail with an exception");
-        } catch (IllegalArgumentException e) {
-            // expected
-            assertTrue(e.getMessage().contains("none"));
-        }
-
-        kafkaServer.deleteTestTopic(topic);
     }
 }

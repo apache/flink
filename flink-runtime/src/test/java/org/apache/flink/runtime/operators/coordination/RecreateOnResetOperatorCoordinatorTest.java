@@ -30,48 +30,50 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link RecreateOnResetOperatorCoordinator}. */
 public class RecreateOnResetOperatorCoordinatorTest {
+
     private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
     private static final int NUM_SUBTASKS = 1;
 
     @Test
-    public void testQuiesceableContextNotQuiesced() throws TaskNotRunningException {
+    public void testQuiesceableContextForwardsProperties() {
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
         RecreateOnResetOperatorCoordinator.QuiesceableContext quiesceableContext =
                 new RecreateOnResetOperatorCoordinator.QuiesceableContext(context);
 
-        TestingEvent event = new TestingEvent();
-        quiesceableContext.sendEvent(event, 0);
-        quiesceableContext.failJob(new Exception());
-
-        assertEquals(OPERATOR_ID, quiesceableContext.getOperatorId());
-        assertEquals(NUM_SUBTASKS, quiesceableContext.currentParallelism());
-        assertEquals(Collections.singletonList(event), context.getEventsToOperatorBySubtaskId(0));
-        assertTrue(context.isJobFailed());
+        assertThat(quiesceableContext.getOperatorId()).isEqualTo(OPERATOR_ID);
+        assertThat(quiesceableContext.currentParallelism()).isEqualTo(NUM_SUBTASKS);
     }
 
     @Test
-    public void testQuiescedContext() throws TaskNotRunningException {
+    public void testQuiesceableContextNotQuiesced() {
+        MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        RecreateOnResetOperatorCoordinator.QuiesceableContext quiesceableContext =
+                new RecreateOnResetOperatorCoordinator.QuiesceableContext(context);
+
+        final Exception exception = new Exception();
+        quiesceableContext.failJob(exception);
+
+        assertThat(context.isJobFailed()).isTrue();
+        assertThat(context.getJobFailureReason()).isEqualTo(exception);
+    }
+
+    @Test
+    public void testQuiescedContext() {
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
         RecreateOnResetOperatorCoordinator.QuiesceableContext quiesceableContext =
                 new RecreateOnResetOperatorCoordinator.QuiesceableContext(context);
 
         quiesceableContext.quiesce();
-        quiesceableContext.sendEvent(new TestingEvent(), 0);
         quiesceableContext.failJob(new Exception());
 
-        assertEquals(OPERATOR_ID, quiesceableContext.getOperatorId());
-        assertEquals(NUM_SUBTASKS, quiesceableContext.currentParallelism());
-        assertTrue(context.getEventsToOperator().isEmpty());
-        assertFalse(context.isJobFailed());
+        assertThat(context.isJobFailed()).isFalse();
     }
 
     @Test
@@ -92,13 +94,14 @@ public class RecreateOnResetOperatorCoordinatorTest {
         // Use the checkpoint to ensure all the previous method invocation has succeeded.
         coordinator.waitForAllAsyncCallsFinish();
 
-        assertTrue(contextBeforeReset.isQuiesced());
-        assertNull(internalCoordinatorBeforeReset.getLastRestoredCheckpointState());
+        assertThat(contextBeforeReset.isQuiesced()).isTrue();
+        assertThat(internalCoordinatorBeforeReset.getLastRestoredCheckpointState()).isNull();
 
         TestingOperatorCoordinator internalCoordinatorAfterReset =
                 getInternalCoordinator(coordinator);
-        assertEquals(
-                stateToRestore, internalCoordinatorAfterReset.getLastRestoredCheckpointState());
+        assertThat(internalCoordinatorAfterReset.getLastRestoredCheckpointState())
+                .isEqualTo(stateToRestore);
+        assertThat(internalCoordinatorBeforeReset).isNotEqualTo(internalCoordinatorAfterReset);
     }
 
     @Test
@@ -124,8 +127,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
         final CountDownLatch blockOnCloseLatch = new CountDownLatch(1);
         // Let the user coordinator block on close.
         TestingCoordinatorProvider provider = new TestingCoordinatorProvider(blockOnCloseLatch);
-        MockOperatorCoordinatorContext context =
-                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        MockOperatorCoordinatorContext context = new MockOperatorCoordinatorContext(OPERATOR_ID, 2);
         RecreateOnResetOperatorCoordinator coordinator =
                 (RecreateOnResetOperatorCoordinator) provider.create(context, closingTimeoutMs);
 
@@ -142,13 +144,13 @@ public class RecreateOnResetOperatorCoordinatorTest {
         // The following method calls should be applied to the new internal
         // coordinator asynchronously because the current coordinator has not
         // been successfully closed yet.
-        coordinator.handleEventFromOperator(1, testingEvent);
-        coordinator.subtaskFailed(1, new Exception("Subtask Failure Exception."));
+        coordinator.handleEventFromOperator(1, 0, testingEvent);
+        coordinator.executionAttemptFailed(1, 0, new Exception("Subtask Failure Exception."));
         coordinator.notifyCheckpointComplete(completedCheckpointId);
 
         // The new coordinator should not have been created because the resetToCheckpoint()
         // should block on closing the current coordinator.
-        assertEquals(1, provider.getCreatedCoordinators().size());
+        assertThat(provider.getCreatedCoordinators()).hasSize(1);
 
         // Now unblock the closing of the current coordinator.
         blockOnCloseLatch.countDown();
@@ -162,19 +164,24 @@ public class RecreateOnResetOperatorCoordinatorTest {
         TestingOperatorCoordinator internalCoordinatorAfterReset =
                 getInternalCoordinator(coordinator);
         // The internal coordinator after reset should have triggered a new checkpoint.
-        assertEquals(checkpointFuture, internalCoordinatorAfterReset.getLastTriggeredCheckpoint());
+        assertThat(internalCoordinatorAfterReset.getLastTriggeredCheckpoint())
+                .isEqualTo(checkpointFuture);
         // The internal coordinator after reset should be the second coordinator created by the
         // provider.
-        assertEquals(provider.getCreatedCoordinators().get(1), internalCoordinatorAfterReset);
+        assertThat(internalCoordinatorAfterReset)
+                .isEqualTo(provider.getCreatedCoordinators().get(1));
         // The internal coordinator after reset should have been reset to the restored state.
-        assertEquals(restoredState, internalCoordinatorAfterReset.getLastRestoredCheckpointState());
+        assertThat(internalCoordinatorAfterReset.getLastRestoredCheckpointState())
+                .isEqualTo(restoredState);
         // The internal coordinator after reset should have received the testing event.
-        assertEquals(testingEvent, internalCoordinatorAfterReset.getNextReceivedOperatorEvent());
+        assertThat(internalCoordinatorAfterReset.getNextReceivedOperatorEvent())
+                .isEqualTo(testingEvent);
         // The internal coordinator after reset should have handled the failure of subtask 1.
-        assertEquals(Collections.singletonList(1), internalCoordinatorAfterReset.getFailedTasks());
+        assertThat(internalCoordinatorAfterReset.getFailedTasks())
+                .isEqualTo(Collections.singletonList(1));
         // The internal coordinator after reset should have the completedCheckpointId.
-        assertEquals(
-                completedCheckpointId, internalCoordinatorAfterReset.getLastCheckpointComplete());
+        assertThat(internalCoordinatorAfterReset.getLastCheckpointComplete())
+                .isEqualTo(completedCheckpointId);
     }
 
     @Test(timeout = 30000L)
@@ -191,8 +198,8 @@ public class RecreateOnResetOperatorCoordinatorTest {
         // Loop to get some interleaved method invocations on multiple instances
         // of active coordinators.
         for (int i = 0; i < numResets; i++) {
-            coordinator.handleEventFromOperator(1, new TestingEvent(i));
-            coordinator.subtaskFailed(i, new Exception());
+            coordinator.handleEventFromOperator(1, 0, new TestingEvent(i));
+            coordinator.executionAttemptFailed(i, 0, new Exception());
             CompletableFuture<byte[]> future = CompletableFuture.completedFuture(new byte[i]);
             coordinator.checkpointCoordinator(i, future);
             final int loop = i;
@@ -223,19 +230,31 @@ public class RecreateOnResetOperatorCoordinatorTest {
                     (TestingEvent) internalCoordinator.getNextReceivedOperatorEvent();
             List<Integer> failedTasks = internalCoordinator.getFailedTasks();
 
-            assertTrue(testingEvent == null || testingEvent.getId() == indexOfCoordinator);
-            assertTrue(
-                    failedTasks.isEmpty()
-                            || (failedTasks.size() == 1
-                                    && failedTasks.get(0) == indexOfCoordinator));
-            assertTrue(
-                    !internalCoordinator.hasCompleteCheckpoint()
-                            || internalCoordinator.getLastCheckpointComplete()
-                                    == indexOfCoordinator);
-            assertTrue(
-                    !internalCoordinator.hasTriggeredCheckpoint()
-                            || internalCoordinator.getLastTriggeredCheckpoint().get().length
-                                    == indexOfCoordinator);
+            final int finalIndexOfCoordinator = indexOfCoordinator;
+            assertThat(testingEvent)
+                    .satisfiesAnyOf(
+                            x -> assertThat(x).isNull(),
+                            x -> assertThat(x.getId()).isEqualTo(finalIndexOfCoordinator));
+            assertThat(failedTasks)
+                    .satisfiesAnyOf(
+                            x -> assertThat(x).isEmpty(),
+                            x ->
+                                    assertThat(x)
+                                            .hasSize(1)
+                                            .element(0)
+                                            .isEqualTo(finalIndexOfCoordinator));
+            assertThat(internalCoordinator)
+                    .satisfiesAnyOf(
+                            x -> assertThat(x.hasCompleteCheckpoint()).isFalse(),
+                            x ->
+                                    assertThat(x.getLastCheckpointComplete())
+                                            .isEqualTo(finalIndexOfCoordinator));
+            assertThat(internalCoordinator)
+                    .satisfiesAnyOf(
+                            x -> assertThat(x.hasTriggeredCheckpoint()).isFalse(),
+                            x ->
+                                    assertThat(x.getLastTriggeredCheckpoint().get())
+                                            .hasSize(finalIndexOfCoordinator));
         }
         coordinator.close();
         TestingOperatorCoordinator internalCoordinator = getInternalCoordinator(coordinator);
@@ -244,8 +263,6 @@ public class RecreateOnResetOperatorCoordinatorTest {
                 Duration.ofSeconds(5),
                 "Timed out when waiting for the coordinator to close.");
     }
-
-    public void testFailureInCreateCoordinator() {}
 
     // ---------------
 
@@ -262,9 +279,10 @@ public class RecreateOnResetOperatorCoordinatorTest {
 
     // ---------------
 
+    @SuppressWarnings("serial")
     private static class TestingCoordinatorProvider
             extends RecreateOnResetOperatorCoordinator.Provider {
-        private static final long serialVersionUID = 4184184580789587013L;
+
         private final CountDownLatch blockOnCloseLatch;
         private final List<TestingOperatorCoordinator> createdCoordinators;
 

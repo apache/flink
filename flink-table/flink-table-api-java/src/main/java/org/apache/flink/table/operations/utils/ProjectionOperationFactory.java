@@ -51,7 +51,6 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
 import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.extractNames;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utility class for creating valid {@link ProjectQueryOperation} operation. */
 @Internal
@@ -120,7 +119,7 @@ final class ProjectionOperationFactory {
      *
      * <ul>
      *   <li>{@link FieldReferenceExpression}, {@link TableReferenceExpression}, {@link
-     *       LocalReferenceExpression} and {@link BuiltInFunctionDefinitions#AS} are already named}
+     *       LocalReferenceExpression} and {@link BuiltInFunctionDefinitions#AS} are already named
      *   <li>{@link BuiltInFunctionDefinitions#CAST} use the name of underlying expression appended
      *       with the name of the type
      *   <li>{@link BuiltInFunctionDefinitions#GET} uses pattern <i>[underlying name][$fieldName]{1,
@@ -238,7 +237,7 @@ final class ProjectionOperationFactory {
             final LogicalType keyType = key.getOutputDataType().getLogicalType();
 
             final String keySuffix;
-            if (hasRoot(keyType, INTEGER)) {
+            if (keyType.is(INTEGER)) {
                 keySuffix =
                         "$_"
                                 + key.getValueAs(Integer.class)

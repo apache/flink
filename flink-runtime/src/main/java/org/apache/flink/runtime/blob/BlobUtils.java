@@ -18,33 +18,43 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** Utility class to work with blob data. */
 public class BlobUtils {
@@ -99,45 +109,90 @@ public class BlobUtils {
     }
 
     /**
-     * Creates a local storage directory for a blob service under the configuration parameter given
-     * by {@link BlobServerOptions#STORAGE_DIRECTORY}. If this is <tt>null</tt> or empty, we will
-     * fall back to Flink's temp directories (given by {@link
-     * org.apache.flink.configuration.CoreOptions#TMP_DIRS}) and choose one among them at random.
+     * Creates the {@link BlobServer} from the given configuration, fallback storage directory and
+     * blob store.
      *
-     * @param config Flink configuration
-     * @return a new local storage directory
-     * @throws IOException thrown if the local file storage cannot be created or is not usable
+     * @param configuration for the BlobServer
+     * @param fallbackStorageDirectory fallback storage directory that is used if no other directory
+     *     has been explicitly configured
+     * @param blobStore blob store to use for this blob server
+     * @return new blob server instance
+     * @throws IOException if we could not create the blob storage directory
      */
-    static File initLocalStorageDirectory(Configuration config) throws IOException {
+    public static BlobServer createBlobServer(
+            Configuration configuration,
+            Reference<File> fallbackStorageDirectory,
+            BlobStore blobStore)
+            throws IOException {
+        final Reference<File> storageDirectory =
+                createBlobStorageDirectory(configuration, fallbackStorageDirectory);
+        return new BlobServer(configuration, storageDirectory, blobStore);
+    }
 
-        String basePath = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
+    /**
+     * Creates the {@link BlobCacheService} from the given configuration, fallback storage
+     * directory, blob view and blob server address.
+     *
+     * @param configuration for the BlobCacheService
+     * @param fallbackStorageDirectory fallback storage directory
+     * @param blobView blob view
+     * @param serverAddress blob server address
+     * @return new blob cache service instance
+     * @throws IOException if we could not create the blob storage directory
+     */
+    public static BlobCacheService createBlobCacheService(
+            Configuration configuration,
+            Reference<File> fallbackStorageDirectory,
+            BlobView blobView,
+            @Nullable InetSocketAddress serverAddress)
+            throws IOException {
+        final Reference<File> storageDirectory =
+                createBlobStorageDirectory(configuration, fallbackStorageDirectory);
+        return new BlobCacheService(configuration, storageDirectory, blobView, serverAddress);
+    }
 
-        File baseDir;
+    static Reference<File> createBlobStorageDirectory(
+            Configuration configuration, @Nullable Reference<File> fallbackStorageDirectory)
+            throws IOException {
+        final String basePath = configuration.getString(BlobServerOptions.STORAGE_DIRECTORY);
+
+        File baseDir = null;
         if (StringUtils.isNullOrWhitespaceOnly(basePath)) {
-            final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(config);
-            baseDir = new File(tmpDirPaths[RANDOM.nextInt(tmpDirPaths.length)]);
+            if (fallbackStorageDirectory != null) {
+                baseDir = fallbackStorageDirectory.deref();
+
+                if (baseDir.mkdirs() || baseDir.exists()) {
+                    return fallbackStorageDirectory;
+                }
+            }
         } else {
             baseDir = new File(basePath);
-        }
 
-        File storageDir;
+            File storageDir;
 
-        // NOTE: although we will be using UUIDs, there may be collisions
-        int maxAttempts = 10;
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            storageDir =
-                    new File(baseDir, String.format("blobStore-%s", UUID.randomUUID().toString()));
+            // NOTE: although we will be using UUIDs, there may be collisions
+            int maxAttempts = 10;
+            for (int attempt = 0; attempt < maxAttempts; attempt++) {
+                storageDir = new File(baseDir, String.format("blobStore-%s", UUID.randomUUID()));
 
-            // Create the storage dir if it doesn't exist. Only return it when the operation was
-            // successful.
-            if (storageDir.mkdirs()) {
-                return storageDir;
+                // Create the storage dir if it doesn't exist. Only return it when the operation was
+                // successful.
+                if (storageDir.mkdirs()) {
+                    return Reference.owned(storageDir);
+                }
             }
         }
 
-        // max attempts exceeded to find a storage directory
-        throw new IOException(
-                "Could not create storage directory for BLOB store in '" + baseDir + "'.");
+        if (baseDir != null) {
+            throw new IOException(
+                    "Could not create storage directory for BLOB store in '" + baseDir + "'.");
+        } else {
+            throw new IOException(
+                    String.format(
+                            "Could not create storage directory for BLOB store because no storage directory has "
+                                    + "been specified under %s and no fallback storage directory provided.",
+                            BlobServerOptions.STORAGE_DIRECTORY.key()));
+        }
     }
 
     /**
@@ -357,32 +412,44 @@ public class BlobUtils {
             Logger log,
             @Nullable BlobStore blobStore)
             throws IOException {
+        internalMoveTempFileToStore(
+                incomingFile,
+                jobId,
+                blobKey,
+                storageFile,
+                log,
+                blobStore,
+                (source, target) -> Files.move(source.toPath(), target.toPath()));
+    }
 
+    @VisibleForTesting
+    static void internalMoveTempFileToStore(
+            File incomingFile,
+            @Nullable JobID jobId,
+            BlobKey blobKey,
+            File storageFile,
+            Logger log,
+            @Nullable BlobStore blobStore,
+            MoveFileOperation moveFileOperation)
+            throws IOException {
+
+        boolean success = false;
         try {
             // first check whether the file already exists
             if (!storageFile.exists()) {
-                try {
-                    // only move the file if it does not yet exist
-                    Files.move(incomingFile.toPath(), storageFile.toPath());
+                // persist the blob via the blob store
+                if (blobStore != null) {
+                    blobStore.put(incomingFile, jobId, blobKey);
+                }
 
+                try {
+                    moveFileOperation.moveFile(incomingFile, storageFile);
                     incomingFile = null;
 
                 } catch (FileAlreadyExistsException ignored) {
                     log.warn(
                             "Detected concurrent file modifications. This should only happen if multiple"
                                     + "BlobServer use the same storage directory.");
-                    // we cannot be sure at this point whether the file has already been uploaded to
-                    // the blob
-                    // store or not. Even if the blobStore might shortly be in an inconsistent
-                    // state, we have
-                    // to persist the blob. Otherwise we might not be able to recover the job.
-                }
-
-                if (blobStore != null) {
-                    // only the one moving the incoming file to its final destination is allowed to
-                    // upload the
-                    // file to the blob store
-                    blobStore.put(storageFile, jobId, blobKey);
                 }
             } else {
                 log.warn(
@@ -390,14 +457,18 @@ public class BlobUtils {
                         blobKey,
                         jobId);
             }
-            storageFile = null;
+            success = true;
         } finally {
-            // we failed to either create the local storage file or to upload it --> try to delete
-            // the local file
-            // while still having the write lock
-            if (storageFile != null && !storageFile.delete() && storageFile.exists()) {
-                log.warn("Could not delete the storage file {}.", storageFile);
+            if (!success) {
+                if (blobStore != null) {
+                    blobStore.delete(jobId, blobKey);
+                }
+
+                if (!storageFile.delete() && storageFile.exists()) {
+                    log.warn("Could not delete the storage file {}.", storageFile);
+                }
             }
+
             if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
                 log.warn(
                         "Could not delete the staging file {} for blob key {} and job {}.",
@@ -405,6 +476,164 @@ public class BlobUtils {
                         blobKey,
                         jobId);
             }
+        }
+    }
+
+    interface MoveFileOperation {
+        void moveFile(File source, File target) throws IOException;
+    }
+
+    public static byte[] calculateMessageDigest(File file) throws IOException {
+        final MessageDigest messageDigest = createMessageDigest();
+
+        final byte[] buffer = new byte[4096];
+
+        try (final FileInputStream fis = new FileInputStream(file)) {
+            while (true) {
+                final int bytesRead = fis.read(buffer, 0, buffer.length);
+
+                if (bytesRead == -1) {
+                    break;
+                }
+
+                messageDigest.update(buffer, 0, bytesRead);
+            }
+        }
+
+        return messageDigest.digest();
+    }
+
+    static void checkAndDeleteCorruptedBlobs(java.nio.file.Path storageDir, Logger log)
+            throws IOException {
+        for (Blob blob : listBlobsInDirectory(storageDir)) {
+            final BlobKey blobKey = blob.getBlobKey();
+            final java.nio.file.Path blobPath = blob.getPath();
+
+            final byte[] messageDigest = calculateMessageDigest(blobPath.toFile());
+
+            if (!Arrays.equals(blobKey.getHash(), messageDigest)) {
+                log.info(
+                        "Found corrupted blob {} under {}. Deleting this blob.", blobKey, blobPath);
+
+                try {
+                    FileUtils.deleteFileOrDirectory(blobPath.toFile());
+                } catch (IOException ioe) {
+                    log.debug("Could not delete the blob {}.", blobPath, ioe);
+                }
+            }
+        }
+    }
+
+    @Nonnull
+    static Collection<java.nio.file.Path> listBlobFilesInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return FileUtils.listFilesInDirectory(
+                directory, file -> file.getFileName().toString().startsWith(BLOB_FILE_PREFIX));
+    }
+
+    @Nonnull
+    static Collection<Blob<?>> listBlobsInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobFilesInDirectory(directory).stream()
+                .map(
+                        blobPath -> {
+                            final BlobKey blobKey =
+                                    BlobKey.fromString(
+                                            blobPath.getFileName()
+                                                    .toString()
+                                                    .substring(BLOB_FILE_PREFIX.length()));
+                            final String jobDirectory =
+                                    blobPath.getParent().getFileName().toString();
+
+                            @Nullable final JobID jobId;
+
+                            if (jobDirectory.equals(NO_JOB_DIR_PREFIX)) {
+                                jobId = null;
+                            } else if (jobDirectory.startsWith(JOB_DIR_PREFIX)) {
+                                jobId =
+                                        new JobID(
+                                                StringUtils.hexStringToByte(
+                                                        jobDirectory.substring(
+                                                                JOB_DIR_PREFIX.length())));
+                            } else {
+                                throw new IllegalStateException(
+                                        String.format("Unknown job path %s.", jobDirectory));
+                            }
+
+                            if (blobKey instanceof TransientBlobKey) {
+                                return new TransientBlob(
+                                        (TransientBlobKey) blobKey, blobPath, jobId);
+                            } else if (blobKey instanceof PermanentBlobKey) {
+                                return new PermanentBlob(
+                                        (PermanentBlobKey) blobKey, blobPath, jobId);
+                            } else {
+                                throw new IllegalStateException(
+                                        String.format(
+                                                "Unknown blob key format %s.", blobKey.getClass()));
+                            }
+                        })
+                .collect(Collectors.toList());
+    }
+
+    @Nonnull
+    static Collection<TransientBlob> listTransientBlobsInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .filter(blob -> blob.getBlobKey() instanceof TransientBlobKey)
+                .map(blob -> (TransientBlob) blob)
+                .collect(Collectors.toList());
+    }
+
+    @Nonnull
+    static Collection<PermanentBlob> listPermanentBlobsInDirectory(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .filter(blob -> blob.getBlobKey() instanceof PermanentBlobKey)
+                .map(blob -> (PermanentBlob) blob)
+                .collect(Collectors.toList());
+    }
+
+    static Set<JobID> listExistingJobs(java.nio.file.Path directory) throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .map(Blob::getJobId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    abstract static class Blob<T extends BlobKey> {
+        private final T blobKey;
+        private final java.nio.file.Path path;
+        @Nullable private final JobID jobId;
+
+        Blob(T blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
+            this.blobKey = blobKey;
+            this.path = path;
+            this.jobId = jobId;
+        }
+
+        public T getBlobKey() {
+            return blobKey;
+        }
+
+        public java.nio.file.Path getPath() {
+            return path;
+        }
+
+        @Nullable
+        public JobID getJobId() {
+            return jobId;
+        }
+    }
+
+    static final class TransientBlob extends Blob<TransientBlobKey> {
+        TransientBlob(TransientBlobKey blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
+            super(blobKey, path, jobId);
+        }
+    }
+
+    static final class PermanentBlob extends Blob<PermanentBlobKey> {
+        PermanentBlob(PermanentBlobKey blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
+            super(blobKey, path, jobId);
         }
     }
 }

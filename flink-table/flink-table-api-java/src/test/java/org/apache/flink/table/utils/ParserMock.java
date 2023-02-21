@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.utils;
 
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -39,7 +42,8 @@ public class ParserMock implements Parser {
     }
 
     @Override
-    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+    public ResolvedExpression parseSqlExpression(
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
         return null;
     }
 

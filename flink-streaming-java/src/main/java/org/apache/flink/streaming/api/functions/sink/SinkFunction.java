@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.Function;
 
 import java.io.Serializable;
@@ -48,6 +49,33 @@ public interface SinkFunction<IN> extends Function, Serializable {
     default void invoke(IN value, Context context) throws Exception {
         invoke(value);
     }
+
+    /**
+     * Writes the given watermark to the sink. This function is called for every watermark.
+     *
+     * <p>This method is intended for advanced sinks that propagate watermarks.
+     *
+     * @param watermark The watermark.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    default void writeWatermark(Watermark watermark) throws Exception {}
+
+    /**
+     * This method is called at the end of data processing.
+     *
+     * <p>The method is expected to flush all remaining buffered data. Exceptions will cause the
+     * pipeline to be recognized as failed, because the last data items are not processed properly.
+     * You may use this method to flush remaining buffered elements in the state into transactions
+     * which you can commit in the last checkpoint.
+     *
+     * <p><b>NOTE:</b>This method does not need to close any resources. You should release external
+     * resources in the {@link RichSinkFunction#close()} method.
+     *
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    default void finish() throws Exception {}
 
     /**
      * Context that {@link SinkFunction SinkFunctions } can use for getting additional data about an

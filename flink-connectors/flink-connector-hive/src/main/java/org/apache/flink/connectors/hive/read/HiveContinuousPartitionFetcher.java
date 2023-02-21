@@ -20,9 +20,9 @@ package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
-import org.apache.flink.table.filesystem.PartitionFetcher;
-import org.apache.flink.table.filesystem.PartitionFetcher.Context.ComparablePartitionValue;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
+import org.apache.flink.connector.file.table.PartitionFetcher;
+import org.apache.flink.connector.file.table.PartitionFetcher.Context.ComparablePartitionValue;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 

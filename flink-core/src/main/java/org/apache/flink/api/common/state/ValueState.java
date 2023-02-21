@@ -46,7 +46,7 @@ public interface ValueState<T> extends State {
      * independent state for each partition.
      *
      * <p>If you didn't specify a default value when creating the {@link ValueStateDescriptor} this
-     * will return {@code null} when to value was previously set using {@link #update(Object)}.
+     * will return {@code null} when no value was previously set using {@link #update(Object)}.
      *
      * @return The state value corresponding to the current input.
      * @throws IOException Thrown if the system cannot access the state.
@@ -56,8 +56,8 @@ public interface ValueState<T> extends State {
     /**
      * Updates the operator state accessible by {@link #value()} to the given value. The next time
      * {@link #value()} is called (for the same state partition) the returned state will represent
-     * the updated value. When a partitioned state is updated with null, the state for the current
-     * key will be removed and the default value is returned on the next access.
+     * the updated value. When a partitioned state is updated with {@code null}, the state for the
+     * current key will be removed and the default value is returned on the next access.
      *
      * @param value The new value for the state.
      * @throws IOException Thrown if the system cannot access the state.

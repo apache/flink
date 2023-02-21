@@ -44,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * elements if the sub-queues have set semantics.
  *
  * @param <T> the type of elements in the queue.
- * @param <PQ> type type of sub-queue used for each key-group partition.
+ * @param <PQ> the type of sub-queue used for each key-group partition.
  */
 public class KeyGroupPartitionedPriorityQueue<
                 T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>

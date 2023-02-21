@@ -43,7 +43,6 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
@@ -51,8 +50,6 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -70,6 +67,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
@@ -77,12 +75,15 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.INTERSECT;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.MINUS;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /** A builder for constructing validated {@link QueryOperation}s. */
 @Internal
 public final class OperationTreeBuilder {
 
-    private final TableConfig config;
+    private final TableConfig tableConfig;
+    private final ClassLoader userClassLoader;
     private final FunctionLookup functionCatalog;
     private final DataTypeFactory typeFactory;
     private final TableReferenceLookup tableReferenceLookup;
@@ -100,7 +101,8 @@ public final class OperationTreeBuilder {
     private final ValuesOperationFactory valuesOperationFactory;
 
     private OperationTreeBuilder(
-            TableConfig config,
+            TableConfig tableConfig,
+            ClassLoader userClassLoader,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
@@ -112,7 +114,8 @@ public final class OperationTreeBuilder {
             AggregateOperationFactory aggregateOperationFactory,
             JoinOperationFactory joinOperationFactory,
             ValuesOperationFactory valuesOperationFactory) {
-        this.config = config;
+        this.tableConfig = tableConfig;
+        this.userClassLoader = userClassLoader;
         this.functionCatalog = functionLookup;
         this.typeFactory = typeFactory;
         this.tableReferenceLookup = tableReferenceLookup;
@@ -128,14 +131,16 @@ public final class OperationTreeBuilder {
     }
 
     public static OperationTreeBuilder create(
-            TableConfig config,
+            TableConfig tableConfig,
+            ClassLoader userClassLoader,
             FunctionLookup functionCatalog,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
             SqlExpressionResolver sqlExpressionResolver,
             boolean isStreamingMode) {
         return new OperationTreeBuilder(
-                config,
+                tableConfig,
+                userClassLoader,
                 functionCatalog,
                 typeFactory,
                 tableReferenceLookup,
@@ -390,7 +395,8 @@ public final class OperationTreeBuilder {
     public ExpressionResolver.ExpressionResolverBuilder getResolverBuilder(
             QueryOperation... tableOperation) {
         return ExpressionResolver.resolverFor(
-                config,
+                tableConfig,
+                userClassLoader,
                 tableReferenceLookup,
                 functionCatalog,
                 typeFactory,
@@ -440,7 +446,7 @@ public final class OperationTreeBuilder {
         ExpressionResolver resolver = getResolver(child);
         ResolvedExpression resolvedExpression = resolveSingleExpression(condition, resolver);
         DataType conditionType = resolvedExpression.getOutputDataType();
-        if (!LogicalTypeChecks.hasRoot(conditionType.getLogicalType(), LogicalTypeRoot.BOOLEAN)) {
+        if (!conditionType.getLogicalType().is(BOOLEAN)) {
             throw new ValidationException(
                     "Filter operator requires a boolean expression as input,"
                             + " but $condition is of type "
@@ -467,38 +473,38 @@ public final class OperationTreeBuilder {
     }
 
     public QueryOperation map(Expression mapFunction, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final ResolvedExpression resolvedCall = resolveSingleExpression(mapFunction, resolver);
 
-        Expression resolvedMapFunction = mapFunction.accept(lookupResolver);
-
-        if (!ApiExpressionUtils.isFunctionOfKind(resolvedMapFunction, FunctionKind.SCALAR)) {
+        if (!isFunctionOfKind(resolvedCall, FunctionKind.SCALAR)) {
             throw new ValidationException(
                     "Only a scalar function can be used in the map operator.");
         }
 
+        final List<String> originFieldNames =
+                DataTypeUtils.flattenToNames(resolvedCall.getOutputDataType());
+
         Expression expandedFields =
-                unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction);
-        return project(Collections.singletonList(expandedFields), child, false);
+                unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedCall);
+        return alias(
+                originFieldNames.stream()
+                        .map(ApiExpressionUtils::unresolvedRef)
+                        .collect(Collectors.toList()),
+                project(Collections.singletonList(expandedFields), child, false));
     }
 
-    public QueryOperation flatMap(Expression tableFunction, QueryOperation child) {
+    public QueryOperation flatMap(Expression tableFunctionCall, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final ResolvedExpression resolvedCall =
+                resolveSingleExpression(tableFunctionCall, resolver);
 
-        Expression resolvedTableFunction = tableFunction.accept(lookupResolver);
-
-        if (!ApiExpressionUtils.isFunctionOfKind(resolvedTableFunction, FunctionKind.TABLE)) {
+        if (!isFunctionOfKind(resolvedCall, FunctionKind.TABLE)) {
             throw new ValidationException(
                     "Only a table function can be used in the flatMap operator.");
         }
 
-        FunctionDefinition functionDefinition =
-                ((UnresolvedCallExpression) resolvedTableFunction).getFunctionDefinition();
-        if (!(functionDefinition instanceof TableFunctionDefinition)) {
-            throw new ValidationException(
-                    "The new type inference for functions is not supported in the flatMap yet.");
-        }
-
-        TypeInformation<?> resultType =
-                ((TableFunctionDefinition) functionDefinition).getResultType();
-        List<String> originFieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultType));
+        final List<String> originFieldNames =
+                DataTypeUtils.flattenToNames(resolvedCall.getOutputDataType());
 
         List<String> childFields = child.getResolvedSchema().getColumnNames();
         Set<String> usedFieldNames = new HashSet<>(childFields);
@@ -510,7 +516,7 @@ public final class OperationTreeBuilder {
             args.add(valueLiteral(resultName));
         }
 
-        args.add(0, resolvedTableFunction);
+        args.add(0, tableFunctionCall);
         Expression renamedTableFunction =
                 unresolvedCall(BuiltInFunctionDefinitions.AS, args.toArray(new Expression[0]));
         QueryOperation joinNode =
@@ -577,7 +583,7 @@ public final class OperationTreeBuilder {
 
     public QueryOperation values(DataType rowType, Expression... expressions) {
         final ResolvedSchema valuesSchema;
-        if (LogicalTypeChecks.hasRoot(rowType.getLogicalType(), LogicalTypeRoot.ROW)) {
+        if (rowType.getLogicalType().is(ROW)) {
             valuesSchema = DataTypeUtils.expandCompositeTypeToSchema(rowType);
         } else {
             valuesSchema =
@@ -670,7 +676,7 @@ public final class OperationTreeBuilder {
         private Optional<AggregateWithAlias> getAggregate(
                 UnresolvedCallExpression unresolvedCall, List<String> aliases) {
             FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
-            if (ApiExpressionUtils.isFunctionOfKind(unresolvedCall, FunctionKind.AGGREGATE)) {
+            if (isFunctionOfKind(unresolvedCall, FunctionKind.AGGREGATE)) {
                 final List<String> fieldNames;
                 if (aliases.isEmpty()) {
                     if (functionDefinition instanceof AggregateFunctionDefinition) {
@@ -914,7 +920,7 @@ public final class OperationTreeBuilder {
 
         @Override
         public Void visit(UnresolvedCallExpression call) {
-            if (ApiExpressionUtils.isFunctionOfKind(call, FunctionKind.AGGREGATE)) {
+            if (isFunctionOfKind(call, FunctionKind.AGGREGATE)) {
                 throw new ValidationException(exceptionMessage);
             }
             call.getChildren().forEach(expr -> expr.accept(this));

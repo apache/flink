@@ -29,23 +29,38 @@ import java.util.concurrent.TimeUnit;
 public class TimeWindowTest {
     @Test
     public void testGetWindowStartWithOffset() {
-        // [0, 7), [7, 14), [14, 21)...
+        // [-21, -14), [-14, -7), [-7, 0), [0, 7), [7, 14), [14, 21)...
         long offset = 0;
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-8, offset, 7), -14);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-7, offset, 7), -7);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-6, offset, 7), -7);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-1, offset, 7), -7);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1, offset, 7), 0);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(6, offset, 7), 0);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(7, offset, 7), 7);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(8, offset, 7), 7);
 
-        // [-4, 3), [3, 10), [10, 17)...
+        // [-11, -4), [-4, 3), [3, 10), [10, 17)...
         offset = 3;
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-10, offset, 7), -11);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-9, offset, 7), -11);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-3, offset, 7), -4);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-2, offset, 7), -4);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-1, offset, 7), -4);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1, offset, 7), -4);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(2, offset, 7), -4);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(3, offset, 7), 3);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(9, offset, 7), 3);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(10, offset, 7), 10);
 
-        // [-2, 5), [5, 12), [12, 19)...
+        // [-16, -9), [-9, -2), [-2, 5), [5, 12), [12, 19)...
         offset = -2;
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-12, offset, 7), -16);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-7, offset, 7), -9);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-4, offset, 7), -9);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-3, offset, 7), -9);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(2, offset, 7), -2);
+        Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-1, offset, 7), -2);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1, offset, 7), -2);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-2, offset, 7), -2);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(3, offset, 7), -2);
@@ -53,7 +68,7 @@ public class TimeWindowTest {
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(7, offset, 7), 5);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(12, offset, 7), 12);
 
-        // for GMT+8:00
+        // for GMT+08:00
         offset = -TimeUnit.HOURS.toMillis(8);
         long size = TimeUnit.DAYS.toMillis(1);
         Assert.assertEquals(

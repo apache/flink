@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -27,6 +27,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 
 import javax.annotation.Nullable;
 
@@ -45,9 +46,10 @@ class TestingTaskExecutor extends TaskExecutor {
             HeartbeatServices heartbeatServices,
             TaskManagerMetricGroup taskManagerMetricGroup,
             @Nullable String metricQueryServiceAddress,
-            BlobCacheService blobCacheService,
+            TaskExecutorBlobService taskExecutorBlobService,
             FatalErrorHandler fatalErrorHandler,
-            TaskExecutorPartitionTracker partitionTracker) {
+            TaskExecutorPartitionTracker partitionTracker,
+            DelegationTokenReceiverRepository delegationTokenReceiverRepository) {
         super(
                 rpcService,
                 taskManagerConfiguration,
@@ -57,9 +59,10 @@ class TestingTaskExecutor extends TaskExecutor {
                 heartbeatServices,
                 taskManagerMetricGroup,
                 metricQueryServiceAddress,
-                blobCacheService,
+                taskExecutorBlobService,
                 fatalErrorHandler,
-                partitionTracker);
+                partitionTracker,
+                delegationTokenReceiverRepository);
     }
 
     @Override

@@ -27,7 +27,8 @@ public enum HttpMethodWrapper {
     GET(HttpMethod.GET),
     POST(HttpMethod.POST),
     DELETE(HttpMethod.DELETE),
-    PATCH(HttpMethod.PATCH);
+    PATCH(HttpMethod.PATCH),
+    PUT(HttpMethod.PUT);
 
     private HttpMethod nettyHttpMethod;
 

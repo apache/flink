@@ -18,14 +18,17 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.utils.PrintUtils;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.client.gateway.result.ChangelogResult;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.keymap.KeyMap;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -37,12 +40,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
-import static org.apache.flink.table.utils.PrintUtils.NULL_COLUMN;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -58,11 +61,26 @@ public class CliChangelogResultView
 
     private LocalTime lastRetrieval;
     private int scrolling;
+    private final ChangelogResult collectResult;
 
-    public CliChangelogResultView(CliClient client, ResultDescriptor resultDescriptor) {
-        super(client, resultDescriptor);
+    public CliChangelogResultView(Terminal terminal, ResultDescriptor resultDescriptor) {
+        this(terminal, resultDescriptor, resultDescriptor.createResult());
+    }
 
-        if (client.isPlainTerminal()) {
+    @VisibleForTesting
+    public CliChangelogResultView(
+            Terminal terminal, ResultDescriptor resultDescriptor, ChangelogResult collectResult) {
+        super(
+                terminal,
+                resultDescriptor,
+                PrintStyle.tableauWithTypeInferredColumnWidths(
+                        resultDescriptor.getResultSchema(),
+                        resultDescriptor.getRowDataStringConverter(),
+                        resultDescriptor.maxColumnWidth(),
+                        false,
+                        true));
+        this.collectResult = collectResult;
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
         } else {
             refreshInterval = DEFAULT_REFRESH_INTERVAL;
@@ -80,13 +98,8 @@ public class CliChangelogResultView
     }
 
     @Override
-    protected int computeColumnWidth(int idx) {
-        // change column has a fixed length
-        if (idx == 0) {
-            return 3;
-        } else {
-            return PrintUtils.MAX_COLUMN_WIDTH;
-        }
+    void cleanUpQuery() {
+        collectResult.close();
     }
 
     @Override
@@ -104,12 +117,9 @@ public class CliChangelogResultView
     @Override
     protected void refresh() {
         // retrieve change record
-        final TypedResult<List<Row>> result;
+        final TypedResult<List<RowData>> result;
         try {
-            result =
-                    client.getExecutor()
-                            .retrieveResultChanges(
-                                    client.getSessionId(), resultDescriptor.getResultId());
+            result = collectResult.retrieveChanges();
         } catch (SqlExecutionException e) {
             close(e);
             return;
@@ -125,11 +135,11 @@ public class CliChangelogResultView
                 stopRetrieval(false);
                 break;
             default:
-                List<Row> changes = result.getPayload();
+                List<RowData> changes = result.getPayload();
 
-                for (Row change : changes) {
+                for (RowData change : changes) {
                     // convert row
-                    final String[] row = PrintUtils.rowToString(change, NULL_COLUMN, true);
+                    final String[] row = tableauStyle.rowFieldsToString(change);
 
                     // update results
 
@@ -157,31 +167,11 @@ public class CliChangelogResultView
         final KeyMap<ResultChangelogOperation> keys = new KeyMap<>();
         keys.setAmbiguousTimeout(200); // make ESC quicker
         keys.bind(ResultChangelogOperation.QUIT, "q", "Q", esc(), ctrl('c'));
-        keys.bind(
-                ResultChangelogOperation.REFRESH,
-                "r",
-                "R",
-                key(client.getTerminal(), Capability.key_f5));
-        keys.bind(
-                ResultChangelogOperation.UP,
-                "w",
-                "W",
-                key(client.getTerminal(), Capability.key_up));
-        keys.bind(
-                ResultChangelogOperation.DOWN,
-                "s",
-                "S",
-                key(client.getTerminal(), Capability.key_down));
-        keys.bind(
-                ResultChangelogOperation.LEFT,
-                "a",
-                "A",
-                key(client.getTerminal(), Capability.key_left));
-        keys.bind(
-                ResultChangelogOperation.RIGHT,
-                "d",
-                "D",
-                key(client.getTerminal(), Capability.key_right));
+        keys.bind(ResultChangelogOperation.REFRESH, "r", "R", key(terminal, Capability.key_f5));
+        keys.bind(ResultChangelogOperation.UP, "w", "W", key(terminal, Capability.key_up));
+        keys.bind(ResultChangelogOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
+        keys.bind(ResultChangelogOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
+        keys.bind(ResultChangelogOperation.RIGHT, "d", "D", key(terminal, Capability.key_right));
         keys.bind(ResultChangelogOperation.OPEN, "o", "O", "\r");
         keys.bind(ResultChangelogOperation.INC_REFRESH, "+");
         keys.bind(ResultChangelogOperation.DEC_REFRESH, "-");
@@ -269,23 +259,19 @@ public class CliChangelogResultView
 
     @Override
     protected List<AttributedString> computeMainHeaderLines() {
-        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
-
         // add change column
-        schemaHeader.append(' ');
-        schemaHeader.style(AttributedStyle.DEFAULT.underline());
-        schemaHeader.append("op");
-        schemaHeader.style(AttributedStyle.DEFAULT);
+        List<String> columnNames = new ArrayList<>(columnWidths.length);
+        columnNames.add("op");
+        columnNames.addAll(resultDescriptor.getResultSchema().getColumnNames());
 
-        resultDescriptor
-                .getResultSchema()
-                .getColumnNames()
+        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
+        IntStream.range(0, columnNames.size())
                 .forEach(
-                        s -> {
+                        idx -> {
+                            schemaHeader.style(AttributedStyle.DEFAULT);
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
-                            schemaHeader.style(AttributedStyle.DEFAULT);
+                            normalizeColumn(schemaHeader, columnNames.get(idx), columnWidths[idx]);
                         });
 
         return Collections.singletonList(schemaHeader.toAttributedString());

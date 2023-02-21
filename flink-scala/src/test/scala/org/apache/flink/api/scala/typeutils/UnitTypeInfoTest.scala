@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
-/**
-  * Test for [[UnitTypeInfo]].
-  */
+/** Test for [[UnitTypeInfo]]. */
 class UnitTypeInfoTest extends TypeInformationTestBase[UnitTypeInfo] {
 
   override protected def getTestData: Array[UnitTypeInfo] = Array(

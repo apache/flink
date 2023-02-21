@@ -1,6 +1,6 @@
 ---
 title: DataStream API 简介
-weight: 2
+weight: 3
 type: docs
 ---
 <!--
@@ -28,7 +28,7 @@ under the License.
 
 ## 什么能被转化成流？
 
-Flink 的 Java 和 Scala DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
+Flink 的 Java DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
 
 - 基本类型，即 String、Long、Integer、Boolean、Array
 - 复合类型：Tuples、POJOs 和 Scala case classes
@@ -65,20 +65,26 @@ Integer age = person.f1;
 public class Person {
     public String name;  
     public Integer age;  
-    public Person() {};  
+    public Person() {}
     public Person(String name, Integer age) {  
         . . .
-    };  
+    }
 }  
 
 Person person = new Person("Fred Flintstone", 35);
 ```
 
-Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev/datastream/fault-tolerance/schema_evolution" >}}#pojo-types)。
+Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types)。
 
 ### Scala tuples 和 case classes
 
 如果你了解 Scala，那一定知道 tuple 和 case class。
+
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
 
 {{< top >}}
 
@@ -117,16 +123,16 @@ public class Example {
     public static class Person {
         public String name;
         public Integer age;
-        public Person() {};
+        public Person() {}
 
         public Person(String name, Integer age) {
             this.name = name;
             this.age = age;
-        };
+        }
 
         public String toString() {
             return this.name.toString() + ": age " + this.age.toString();
-        };
+        }
     }
 }
 ```
@@ -139,7 +145,7 @@ DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamEx
 
 注意，如果没有调用 execute()，应用就不会运行。
 
-<img src="{% link /fig/distributed-runtime.svg %}" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" />
+{{< img src="/fig/distributed-runtime.svg" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" >}}
 
 此分布式运行时取决于你的应用是否是可序列化的。它还要求所有依赖对集群中的每个节点均可用。
 
@@ -182,8 +188,7 @@ DataStream<String> lines = env.readTextFile("file:///path");
 
 1> 和 2> 指出输出来自哪个 sub-task（即 thread）
 
-In production, commonly used sinks include the StreamingFileSink, various databases,
-and several pub-sub systems.
+在生产中，常用的 sink 包括各种数据库和几个 pub-sub 系统。
 
 ### 调试
 

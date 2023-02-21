@@ -58,7 +58,7 @@ import java.util.regex.Pattern;
 
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
+import static org.apache.flink.shaded.guava30.com.google.common.base.Strings.emptyToNull;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -91,11 +91,13 @@ public class JarHandlerUtils {
         }
 
         public static <R extends JarRequestBody> JarHandlerContext fromRequest(
-                @Nonnull final HandlerRequest<R, ?> request,
+                @Nonnull final HandlerRequest<R> request,
                 @Nonnull final Path jarDir,
                 @Nonnull final Logger log)
                 throws RestHandlerException {
             final JarRequestBody requestBody = request.getRequestBody();
+
+            Configuration configuration = requestBody.getFlinkConfiguration();
 
             final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
             Path jarFile = jarDir.resolve(pathParameter);
@@ -116,7 +118,7 @@ public class JarHandlerUtils {
                     fromRequestBodyOrQueryParameter(
                             requestBody.getParallelism(),
                             () -> getQueryParameter(request, ParallelismQueryParameter.class),
-                            CoreOptions.DEFAULT_PARALLELISM.defaultValue(),
+                            configuration.get(CoreOptions.DEFAULT_PARALLELISM),
                             log);
 
             JobID jobId =
@@ -129,8 +131,14 @@ public class JarHandlerUtils {
             return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism, jobId);
         }
 
-        public void applyToConfiguration(final Configuration configuration) {
+        public void applyToConfiguration(
+                final Configuration configuration,
+                final HandlerRequest<? extends JarRequestBody> request) {
             checkNotNull(configuration);
+            checkNotNull(request);
+
+            Configuration restFlinkConfig = request.getRequestBody().getFlinkConfiguration();
+            configuration.addAll(restFlinkConfig);
 
             if (jobId != null) {
                 configuration.set(
@@ -184,11 +192,31 @@ public class JarHandlerUtils {
                 throw new CompletionException(e);
             }
         }
+
+        @VisibleForTesting
+        String getEntryClass() {
+            return entryClass;
+        }
+
+        @VisibleForTesting
+        List<String> getProgramArgs() {
+            return programArgs;
+        }
+
+        @VisibleForTesting
+        int getParallelism() {
+            return parallelism;
+        }
+
+        @VisibleForTesting
+        JobID getJobId() {
+            return jobId;
+        }
     }
 
     /** Parse program arguments in jar run or plan request. */
     private static <R extends JarRequestBody, M extends MessageParameters>
-            List<String> getProgramArgs(HandlerRequest<R, M> request, Logger log)
+            List<String> getProgramArgs(HandlerRequest<R> request, Logger log)
                     throws RestHandlerException {
         JarRequestBody requestBody = request.getRequestBody();
         @SuppressWarnings("deprecation")

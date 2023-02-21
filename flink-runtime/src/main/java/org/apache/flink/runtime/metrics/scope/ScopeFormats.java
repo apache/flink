@@ -30,6 +30,7 @@ public final class ScopeFormats {
     private final TaskManagerJobScopeFormat taskManagerJobFormat;
     private final TaskScopeFormat taskFormat;
     private final OperatorScopeFormat operatorFormat;
+    private final JobManagerOperatorScopeFormat jmOperatorFormat;
 
     // ------------------------------------------------------------------------
 
@@ -40,7 +41,8 @@ public final class ScopeFormats {
             String taskManagerFormat,
             String taskManagerJobFormat,
             String taskFormat,
-            String operatorFormat) {
+            String operatorFormat,
+            String jmOperatorFormat) {
         this.jobManagerFormat = new JobManagerScopeFormat(jobManagerFormat);
         this.jobManagerJobFormat =
                 new JobManagerJobScopeFormat(jobManagerJobFormat, this.jobManagerFormat);
@@ -49,6 +51,8 @@ public final class ScopeFormats {
                 new TaskManagerJobScopeFormat(taskManagerJobFormat, this.taskManagerFormat);
         this.taskFormat = new TaskScopeFormat(taskFormat, this.taskManagerJobFormat);
         this.operatorFormat = new OperatorScopeFormat(operatorFormat, this.taskFormat);
+        this.jmOperatorFormat =
+                new JobManagerOperatorScopeFormat(jmOperatorFormat, this.jobManagerJobFormat);
     }
 
     // ------------------------------------------------------------------------
@@ -79,6 +83,9 @@ public final class ScopeFormats {
         return this.operatorFormat;
     }
 
+    public JobManagerOperatorScopeFormat getJmOperatorFormat() {
+        return jmOperatorFormat;
+    }
     // ------------------------------------------------------------------------
     //  Parsing from Config
     // ------------------------------------------------------------------------
@@ -96,8 +103,15 @@ public final class ScopeFormats {
         String tmJobFormat = config.getString(MetricOptions.SCOPE_NAMING_TM_JOB);
         String taskFormat = config.getString(MetricOptions.SCOPE_NAMING_TASK);
         String operatorFormat = config.getString(MetricOptions.SCOPE_NAMING_OPERATOR);
+        String jmOperatorFormat = config.getString(MetricOptions.SCOPE_NAMING_JM_OPERATOR);
 
         return new ScopeFormats(
-                jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
+                jmFormat,
+                jmJobFormat,
+                tmFormat,
+                tmJobFormat,
+                taskFormat,
+                operatorFormat,
+                jmOperatorFormat);
     }
 }

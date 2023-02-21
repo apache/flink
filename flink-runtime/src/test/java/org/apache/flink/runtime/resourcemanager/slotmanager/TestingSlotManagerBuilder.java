@@ -18,19 +18,18 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 
-import java.util.Collections;
-import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /** Factory for {@link TestingSlotManager}. */
 public class TestingSlotManagerBuilder {
 
     private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
-    private Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier =
-            () -> Collections.emptyMap();
+    private Consumer<ResourceRequirements> processRequirementsConsumer = ignored -> {};
+    private Consumer<JobID> clearRequirementsConsumer = ignored -> {};
+    private Consumer<Void> triggerRequirementsCheckConsumer = ignored -> {};
 
     public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
@@ -38,14 +37,29 @@ public class TestingSlotManagerBuilder {
         return this;
     }
 
-    public TestingSlotManagerBuilder setGetRequiredResourcesSupplier(
-            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
-        this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
+    public TestingSlotManagerBuilder setProcessRequirementsConsumer(
+            Consumer<ResourceRequirements> processRequirementsConsumer) {
+        this.processRequirementsConsumer = processRequirementsConsumer;
+        return this;
+    }
+
+    public TestingSlotManagerBuilder setClearRequirementsConsumer(
+            Consumer<JobID> clearRequirementsConsumer) {
+        this.clearRequirementsConsumer = clearRequirementsConsumer;
+        return this;
+    }
+
+    public TestingSlotManagerBuilder setTriggerRequirementsCheckConsumer(
+            Consumer<Void> triggerRequirementsCheckConsumer) {
+        this.triggerRequirementsCheckConsumer = triggerRequirementsCheckConsumer;
         return this;
     }
 
     public TestingSlotManager createSlotManager() {
         return new TestingSlotManager(
-                setFailUnfulfillableRequestConsumer, getRequiredResourcesSupplier);
+                setFailUnfulfillableRequestConsumer,
+                processRequirementsConsumer,
+                clearRequirementsConsumer,
+                triggerRequirementsCheckConsumer);
     }
 }

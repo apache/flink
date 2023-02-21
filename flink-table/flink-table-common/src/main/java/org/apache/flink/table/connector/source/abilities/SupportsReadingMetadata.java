@@ -20,10 +20,11 @@ package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -60,7 +61,8 @@ import java.util.Map;
  * <p>The planner will select required metadata columns (i.e. perform projection push down) and will
  * call {@link #applyReadableMetadata(List, DataType)} with a list of metadata keys. An
  * implementation must ensure that metadata columns are appended at the end of the physical row in
- * the order of the provided list after the apply method has been called.
+ * the order of the provided list after the apply method has been called, e.g. using {@link
+ * JoinedRowData}.
  *
  * <p>Note: The final output data type emitted by a source changes from the physically produced data
  * type to a data type with metadata columns. {@link #applyReadableMetadata(List, DataType)} will
@@ -74,9 +76,14 @@ import java.util.Map;
  * casting to INT will be performed by the planner in a subsequent operation:
  *
  * <pre>{@code
- * // for t1 and t2
- * ROW < i INT, s STRING, d DOUBLE >                                              // physical output
- * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final output
+ * // physical output
+ * ROW < i INT, s STRING, d DOUBLE >
+ *
+ * // final output (i.e. produced type) for t1
+ * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
+ *
+ * // final output (i.e. produced type) for t2
+ * ROW < i INT, s STRING, d DOUBLE, myTimestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
  * }</pre>
  */
 @PublicEvolving
@@ -115,15 +122,36 @@ public interface SupportsReadingMetadata {
      * Provides a list of metadata keys that the produced {@link RowData} must contain as appended
      * metadata columns.
      *
-     * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
-     * describing the final output data type when creating {@link TypeInformation}. If the source
-     * implements {@link SupportsProjectionPushDown}, the projection is already considered in the
-     * given output data type.
+     * <p>Implementations of this method must be idempotent. The planner might call this method
+     * multiple times.
+     *
+     * <p>Note: Use the passed data type instead of {@link ResolvedSchema#toPhysicalRowDataType()}
+     * for describing the final output data type when creating {@link TypeInformation}. If the
+     * source implements {@link SupportsProjectionPushDown}, the projection is already considered in
+     * the given output data type, use the {@code producedDataType} provided by this method instead
+     * of the {@code producedDataType} provided by {@link
+     * SupportsProjectionPushDown#applyProjection(int[][], DataType)}.
      *
      * @param metadataKeys a subset of the keys returned by {@link #listReadableMetadata()}, ordered
      *     by the iteration order of returned map
-     * @param producedDataType the final output type of the source
+     * @param producedDataType the final output type of the source, it is intended to be only
+     *     forwarded and the planner will decide on the field names to avoid collisions
      * @see DecodingFormat#applyReadableMetadata(List)
      */
     void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType);
+
+    /**
+     * Defines whether projections can be applied to metadata columns.
+     *
+     * <p>This method is only called if the source does <em>not</em> implement {@link
+     * SupportsProjectionPushDown}. By default, the planner will only apply metadata columns which
+     * have actually been selected in the query regardless. By returning {@code false} instead the
+     * source can inform the planner to apply all metadata columns defined in the table's schema.
+     *
+     * <p>If the source implements {@link SupportsProjectionPushDown}, projections of metadata
+     * columns are always considered before calling {@link #applyReadableMetadata(List, DataType)}.
+     */
+    default boolean supportsMetadataProjection() {
+        return true;
+    }
 }

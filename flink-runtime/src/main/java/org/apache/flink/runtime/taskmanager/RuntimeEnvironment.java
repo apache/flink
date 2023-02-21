@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -39,16 +41,22 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** In implementation of the {@link Environment}. */
 public class RuntimeEnvironment implements Environment {
@@ -66,6 +74,7 @@ public class RuntimeEnvironment implements Environment {
     private final UserCodeClassLoader userCodeClassLoader;
 
     private final MemoryManager memManager;
+    private final SharedResources sharedResources;
     private final IOManager ioManager;
     private final BroadcastVariableManager bcVarManager;
     private final TaskStateManager taskStateManager;
@@ -92,6 +101,14 @@ public class RuntimeEnvironment implements Environment {
 
     private final Task containingTask;
 
+    @Nullable private MailboxExecutor mainMailboxExecutor;
+
+    @Nullable private ExecutorService asyncOperationsThreadPool;
+
+    @Nullable private CheckpointStorageAccess checkpointStorageAccess;
+
+    ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     // ------------------------------------------------------------------------
 
     public RuntimeEnvironment(
@@ -104,6 +121,7 @@ public class RuntimeEnvironment implements Environment {
             Configuration taskConfiguration,
             UserCodeClassLoader userCodeClassLoader,
             MemoryManager memManager,
+            SharedResources sharedResources,
             IOManager ioManager,
             BroadcastVariableManager bcVarManager,
             TaskStateManager taskStateManager,
@@ -120,7 +138,8 @@ public class RuntimeEnvironment implements Environment {
             TaskManagerRuntimeInfo taskManagerInfo,
             TaskMetricGroup metrics,
             Task containingTask,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -131,6 +150,7 @@ public class RuntimeEnvironment implements Environment {
         this.taskConfiguration = checkNotNull(taskConfiguration);
         this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
         this.memManager = checkNotNull(memManager);
+        this.sharedResources = checkNotNull(sharedResources);
         this.ioManager = checkNotNull(ioManager);
         this.bcVarManager = checkNotNull(bcVarManager);
         this.taskStateManager = checkNotNull(taskStateManager);
@@ -148,6 +168,7 @@ public class RuntimeEnvironment implements Environment {
         this.containingTask = containingTask;
         this.metrics = metrics;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
+        this.channelStateExecutorFactory = checkNotNull(channelStateExecutorFactory);
     }
 
     // ------------------------------------------------------------------------
@@ -205,6 +226,11 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public MemoryManager getMemoryManager() {
         return memManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return sharedResources;
     }
 
     @Override
@@ -306,5 +332,50 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public void failExternally(Throwable cause) {
         this.containingTask.failExternally(cause);
+    }
+
+    @Override
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
+        checkState(this.mainMailboxExecutor == null, "Can not set mainMailboxExecutor twice!");
+        this.mainMailboxExecutor = mainMailboxExecutor;
+    }
+
+    @Override
+    public MailboxExecutor getMainMailboxExecutor() {
+        return checkNotNull(
+                mainMailboxExecutor, "mainMailboxExecutor has not been initialized yet!");
+    }
+
+    @Override
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
+        checkState(
+                this.asyncOperationsThreadPool == null,
+                "Can not set asyncOperationsThreadPool twice!");
+        this.asyncOperationsThreadPool = executorService;
+    }
+
+    @Override
+    public ExecutorService getAsyncOperationsThreadPool() {
+        return checkNotNull(
+                asyncOperationsThreadPool,
+                "asyncOperationsThreadPool has not been initialized yet!");
+    }
+
+    @Override
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
+        checkState(
+                this.checkpointStorageAccess == null, "Can not set checkpointStorageAccess twice!");
+        this.checkpointStorageAccess = checkpointStorageAccess;
+    }
+
+    @Override
+    public CheckpointStorageAccess getCheckpointStorageAccess() {
+        return checkNotNull(
+                checkpointStorageAccess, "checkpointStorage has not been initialized yet!");
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 }

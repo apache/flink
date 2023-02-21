@@ -24,12 +24,11 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 
 import org.junit.Test;
 
@@ -44,6 +43,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUt
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -56,7 +56,7 @@ public class CheckpointMessagesTest {
         final Random rnd = new Random();
         try {
             AcknowledgeCheckpoint noState =
-                    new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), 569345L);
+                    new AcknowledgeCheckpoint(new JobID(), createExecutionAttemptId(), 569345L);
 
             KeyGroupRange keyGroupRange = KeyGroupRange.of(42, 42);
 
@@ -80,7 +80,7 @@ public class CheckpointMessagesTest {
             AcknowledgeCheckpoint withState =
                     new AcknowledgeCheckpoint(
                             new JobID(),
-                            new ExecutionAttemptID(),
+                            createExecutionAttemptId(),
                             87658976143L,
                             new CheckpointMetrics(),
                             checkpointStateHandles);
@@ -101,7 +101,7 @@ public class CheckpointMessagesTest {
         assertNotNull(copy.toString());
     }
 
-    private static class MyHandle implements StreamStateHandle {
+    private static class MyHandle implements TestStreamStateHandle {
 
         private static final long serialVersionUID = 8128146204128728332L;
 

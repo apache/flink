@@ -36,6 +36,7 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -106,7 +107,10 @@ public class KubernetesSessionCli {
                     FlinkKubeClientFactory.getInstance().fromConfiguration(configuration, "client");
 
             // Retrieve or create a session cluster.
-            if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {
+            if (clusterId != null
+                    && kubeClient
+                            .getService(ExternalServiceDecorator.getExternalServiceName(clusterId))
+                            .isPresent()) {
                 clusterClient = kubernetesClusterDescriptor.retrieve(clusterId).getClusterClient();
             } else {
                 clusterClient =

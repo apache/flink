@@ -31,13 +31,16 @@ public class BlobServerOptions {
     /** The config parameter defining the storage directory to be used by the blob server. */
     public static final ConfigOption<String> STORAGE_DIRECTORY =
             key("blob.storage.directory")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "The config parameter defining the storage directory to be used by the blob server.");
+                            "The config parameter defining the local storage directory to be used by the blob server. "
+                                    + "If not configured, then it will default to <WORKING_DIR>/blobStorage.");
 
     /** The config parameter defining number of retires for failed BLOB fetches. */
     public static final ConfigOption<Integer> FETCH_RETRIES =
             key("blob.fetch.retries")
+                    .intType()
                     .defaultValue(5)
                     .withDescription(
                             "The config parameter defining number of retires for failed BLOB fetches.");
@@ -48,6 +51,7 @@ public class BlobServerOptions {
      */
     public static final ConfigOption<Integer> FETCH_CONCURRENT =
             key("blob.fetch.num-concurrent")
+                    .intType()
                     .defaultValue(50)
                     .withDescription(
                             "The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.");
@@ -55,6 +59,7 @@ public class BlobServerOptions {
     /** The config parameter defining the backlog of BLOB fetches on the JobManager. */
     public static final ConfigOption<Integer> FETCH_BACKLOG =
             key("blob.fetch.backlog")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             Description.builder()
@@ -73,6 +78,7 @@ public class BlobServerOptions {
      */
     public static final ConfigOption<String> PORT =
             key("blob.server.port")
+                    .stringType()
                     .defaultValue("0")
                     .withDescription(
                             "The config parameter defining the server port of the blob service.");
@@ -80,6 +86,7 @@ public class BlobServerOptions {
     /** Flag to override ssl support for the blob service transport. */
     public static final ConfigOption<Boolean> SSL_ENABLED =
             key("blob.service.ssl.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Flag to override ssl support for the blob service transport.");
@@ -95,6 +102,7 @@ public class BlobServerOptions {
      */
     public static final ConfigOption<Long> CLEANUP_INTERVAL =
             key("blob.service.cleanup.interval")
+                    .longType()
                     .defaultValue(3_600L) // once per hour
                     .withDeprecatedKeys("library-cache-manager.cleanup.interval")
                     .withDescription(
@@ -103,6 +111,7 @@ public class BlobServerOptions {
     /** The minimum size for messages to be offloaded to the BlobServer. */
     public static final ConfigOption<Integer> OFFLOAD_MINSIZE =
             key("blob.offload.minsize")
+                    .intType()
                     .defaultValue(1_024 * 1_024) // 1MiB by default
                     .withDescription(
                             "The minimum size for messages to be offloaded to the BlobServer.");
@@ -110,12 +119,14 @@ public class BlobServerOptions {
     /** The socket timeout in milliseconds for the blob client. */
     public static final ConfigOption<Integer> SO_TIMEOUT =
             key("blob.client.socket.timeout")
+                    .intType()
                     .defaultValue(300_000)
                     .withDescription("The socket timeout in milliseconds for the blob client.");
 
     /** The connection timeout in milliseconds for the blob client. */
     public static final ConfigOption<Integer> CONNECT_TIMEOUT =
             key("blob.client.connect.timeout")
+                    .intType()
                     .defaultValue(0)
                     .withDescription("The connection timeout in milliseconds for the blob client.");
 }

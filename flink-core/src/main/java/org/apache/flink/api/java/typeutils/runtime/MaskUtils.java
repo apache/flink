@@ -27,10 +27,13 @@ import java.io.IOException;
 @Internal
 public final class MaskUtils {
 
-    @SuppressWarnings("UnusedAssignment")
     public static void writeMask(boolean[] mask, DataOutputView target) throws IOException {
-        final int len = mask.length;
+        writeMask(mask, mask.length, target);
+    }
 
+    @SuppressWarnings("UnusedAssignment")
+    public static void writeMask(boolean[] mask, int len, DataOutputView target)
+            throws IOException {
         int b = 0x00;
         int bytePos = 0;
 
@@ -57,10 +60,13 @@ public final class MaskUtils {
         }
     }
 
-    @SuppressWarnings("UnusedAssignment")
     public static void readIntoMask(DataInputView source, boolean[] mask) throws IOException {
-        final int len = mask.length;
+        readIntoMask(source, mask, mask.length);
+    }
 
+    @SuppressWarnings("UnusedAssignment")
+    public static void readIntoMask(DataInputView source, boolean[] mask, int len)
+            throws IOException {
         int b = 0x00;
         int bytePos = 0;
 
@@ -80,11 +86,15 @@ public final class MaskUtils {
         }
     }
 
-    @SuppressWarnings("UnusedAssignment")
     public static void readIntoAndCopyMask(
             DataInputView source, DataOutputView target, boolean[] mask) throws IOException {
-        final int len = mask.length;
+        readIntoAndCopyMask(source, target, mask, mask.length);
+    }
 
+    @SuppressWarnings("UnusedAssignment")
+    public static void readIntoAndCopyMask(
+            DataInputView source, DataOutputView target, boolean[] mask, int len)
+            throws IOException {
         int b = 0x00;
         int bytePos = 0;
 

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * A test for the {@link TypeSerializer TypeSerializers} used for {@link
  * FlinkKafkaProducer.NextTransactionalIdHint}.
  */
-public class NextTransactionalIdHintSerializerTest
+class NextTransactionalIdHintSerializerTest
         extends SerializerTestBase<FlinkKafkaProducer.NextTransactionalIdHint> {
 
     @Override

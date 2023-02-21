@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 
@@ -144,6 +145,10 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
         return sumAllSizes(stateObjects);
     }
 
+    public long getCheckpointedSize() {
+        return sumAllCheckpointedSizes(stateObjects);
+    }
+
     /** Returns true if this contains at least one {@link StateObject}. */
     public boolean hasState() {
         for (StateObject state : stateObjects) {
@@ -220,5 +225,20 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 
     private static long getSizeNullSafe(StateObject stateObject) {
         return stateObject != null ? stateObject.getStateSize() : 0L;
+    }
+
+    private static long sumAllCheckpointedSizes(Collection<? extends StateObject> stateObject) {
+        long size = 0L;
+        for (StateObject object : stateObject) {
+            size += getCheckpointedSizeNullSafe(object);
+        }
+
+        return size;
+    }
+
+    private static long getCheckpointedSizeNullSafe(StateObject stateObject) {
+        return stateObject instanceof CompositeStateHandle
+                ? ((CompositeStateHandle) stateObject).getCheckpointedSize()
+                : getSizeNullSafe(stateObject);
     }
 }

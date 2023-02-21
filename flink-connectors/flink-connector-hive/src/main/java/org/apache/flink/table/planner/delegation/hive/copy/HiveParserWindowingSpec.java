@@ -71,7 +71,7 @@ public class HiveParserWindowingSpec {
                 wFn.setWindowSpec(wdwSpec);
             }
 
-            // 2. A Window Spec with no Parition Spec, is Partitioned on a Constant(number 0)
+            // 2. A Window Spec with no Partition Spec, is Partitioned on a Constant(number 0)
             applyConstantPartition(wdwSpec);
 
             // 3. For missing Wdw Frames or for Frames with only a Start Boundary, completely

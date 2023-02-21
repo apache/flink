@@ -108,14 +108,6 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	MAPR=`cat allClasses | grep '^com/mapr' | wc -l`
-	if [ "$MAPR" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$MAPR' MapR classes in the dist jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
 	return 0
 }
 
@@ -149,32 +141,6 @@ EOF
 		echo "=============================================================================="
 		echo "${VARIANT}: Detected wrong content in services/org.apache.flink.core.fs.FileSystemFactory:"
 		echo "${FS_SERVICE_FILE_CLASSES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	return 0
-}
-
-# Check the elasticsearch connectors' fat jars for illegal or missing artifacts
-check_shaded_artifacts_connector_elasticsearch() {
-	VARIANT=$1
-	find flink-connectors/flink-connector-elasticsearch${VARIANT}/target/flink-connector-elasticsearch${VARIANT}*.jar ! -name "*-tests.jar" -exec jar tf {} \; > allClasses
-
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/streaming/connectors/elasticsearch/" -e "^org/apache/flink/streaming/connectors/elasticsearch${VARIANT}/" -e "^org/apache/flink/table/descriptors/" -e "^org/elasticsearch/" | grep '\.class$'`
-	if [ "$?" = "0" ]; then
-		echo "=============================================================================="
-		echo "Detected unshaded dependencies in flink-connector-elasticsearch${VARIANT}'s fat jar:"
-		echo "${UNSHADED_CLASSES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
-	if [ "$?" = "0" ]; then
-		echo "=============================================================================="
-		echo "Detected unshaded service files in flink-connector-elasticsearch${VARIANT}'s fat jar:"
-		echo "${UNSHADED_SERVICES}"
 		echo "=============================================================================="
 		return 1
 	fi

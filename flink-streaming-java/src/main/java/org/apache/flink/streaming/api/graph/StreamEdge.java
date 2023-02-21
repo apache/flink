@@ -18,7 +18,8 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
@@ -44,6 +45,15 @@ public class StreamEdge implements Serializable {
     private final int sourceId;
     private final int targetId;
 
+    /**
+     * Note that this field doesn't have to be unique among all {@link StreamEdge}s. It's enough if
+     * this field ensures that all logical instances of {@link StreamEdge} are unique, and {@link
+     * #hashCode()} are different and {@link #equals(Object)} returns false, for every possible pair
+     * of {@link StreamEdge}. Especially among two different {@link StreamEdge}s that are connecting
+     * the same pair of nodes.
+     */
+    private final int uniqueId;
+
     /** The type number of the input for co-tasks. */
     private final int typeNumber;
     /** The side-output tag (if any) of this {@link StreamEdge}. */
@@ -58,11 +68,13 @@ public class StreamEdge implements Serializable {
     /** The name of the operator in the target vertex. */
     private final String targetOperatorName;
 
-    private final ShuffleMode shuffleMode;
+    private final StreamExchangeMode exchangeMode;
 
     private long bufferTimeout;
 
     private boolean supportsUnalignedCheckpoints = true;
+
+    private final IntermediateDataSetID intermediateDatasetIdToProduce;
 
     public StreamEdge(
             StreamNode sourceVertex,
@@ -78,7 +90,9 @@ public class StreamEdge implements Serializable {
                 ALWAYS_FLUSH_BUFFER_TIMEOUT,
                 outputPartitioner,
                 outputTag,
-                ShuffleMode.UNDEFINED);
+                StreamExchangeMode.UNDEFINED,
+                0,
+                null);
     }
 
     public StreamEdge(
@@ -87,7 +101,9 @@ public class StreamEdge implements Serializable {
             int typeNumber,
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
-            ShuffleMode shuffleMode) {
+            StreamExchangeMode exchangeMode,
+            int uniqueId,
+            IntermediateDataSetID intermediateDatasetId) {
 
         this(
                 sourceVertex,
@@ -96,7 +112,9 @@ public class StreamEdge implements Serializable {
                 sourceVertex.getBufferTimeout(),
                 outputPartitioner,
                 outputTag,
-                shuffleMode);
+                exchangeMode,
+                uniqueId,
+                intermediateDatasetId);
     }
 
     public StreamEdge(
@@ -106,19 +124,31 @@ public class StreamEdge implements Serializable {
             long bufferTimeout,
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
-            ShuffleMode shuffleMode) {
+            StreamExchangeMode exchangeMode,
+            int uniqueId,
+            IntermediateDataSetID intermediateDatasetId) {
 
         this.sourceId = sourceVertex.getId();
         this.targetId = targetVertex.getId();
+        this.uniqueId = uniqueId;
         this.typeNumber = typeNumber;
         this.bufferTimeout = bufferTimeout;
         this.outputPartitioner = outputPartitioner;
         this.outputTag = outputTag;
         this.sourceOperatorName = sourceVertex.getOperatorName();
         this.targetOperatorName = targetVertex.getOperatorName();
-        this.shuffleMode = checkNotNull(shuffleMode);
+        this.exchangeMode = checkNotNull(exchangeMode);
+        this.intermediateDatasetIdToProduce = intermediateDatasetId;
         this.edgeId =
-                sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + outputPartitioner;
+                sourceVertex
+                        + "_"
+                        + targetVertex
+                        + "_"
+                        + typeNumber
+                        + "_"
+                        + outputPartitioner
+                        + "_"
+                        + uniqueId;
     }
 
     public int getSourceId() {
@@ -141,8 +171,8 @@ public class StreamEdge implements Serializable {
         return outputPartitioner;
     }
 
-    public ShuffleMode getShuffleMode() {
-        return shuffleMode;
+    public StreamExchangeMode getExchangeMode() {
+        return exchangeMode;
     }
 
     public void setPartitioner(StreamPartitioner<?> partitioner) {
@@ -194,10 +224,18 @@ public class StreamEdge implements Serializable {
                 + typeNumber
                 + ", outputPartitioner="
                 + outputPartitioner
+                + ", exchangeMode="
+                + exchangeMode
                 + ", bufferTimeout="
                 + bufferTimeout
                 + ", outputTag="
                 + outputTag
+                + ", uniqueId="
+                + uniqueId
                 + ')';
+    }
+
+    public IntermediateDataSetID getIntermediateDatasetIdToProduce() {
+        return intermediateDatasetIdToProduce;
     }
 }

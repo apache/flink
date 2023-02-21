@@ -32,11 +32,10 @@ import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -50,62 +49,57 @@ import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMapTes
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMapTestUtils.createEmptyStateMap;
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMapTestUtils.removeFromReferenceState;
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMapTestUtils.verifyState;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Test basic operations of {@link CopyOnWriteSkipListStateMap}. */
-public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
+class CopyOnWriteSkipListStateMapBasicOpTest {
     private final long namespace = 1L;
     private TestAllocator allocator;
     private CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         allocator = new TestAllocator(256);
         stateMap = createEmptyStateMap(0, 0.0f, allocator);
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         stateMap.close();
         IOUtils.closeQuietly(allocator);
     }
 
     /** Test initialization of state map. */
     @Test
-    public void testInitStateMap() {
-        assertTrue(stateMap.isEmpty());
-        assertEquals(0, stateMap.size());
-        assertEquals(0, stateMap.totalSize());
-        assertEquals(0, stateMap.getRequestCount());
-        assertTrue(stateMap.getLogicallyRemovedNodes().isEmpty());
-        assertEquals(0, stateMap.getHighestRequiredSnapshotVersionPlusOne());
-        assertEquals(0, stateMap.getHighestFinishedSnapshotVersion());
-        assertTrue(stateMap.getSnapshotVersions().isEmpty());
-        assertTrue(stateMap.getPruningValueNodes().isEmpty());
-        assertEquals(0, stateMap.getResourceGuard().getLeaseCount());
-        assertFalse(stateMap.getResourceGuard().isClosed());
-        assertFalse(stateMap.isClosed());
+    void testInitStateMap() {
+        assertThat(stateMap.isEmpty()).isTrue();
+        assertThat(stateMap.size()).isEqualTo(0);
+        assertThat(stateMap.totalSize()).isEqualTo(0);
+        assertThat(stateMap.getRequestCount()).isEqualTo(0);
+        assertThat(stateMap.getLogicallyRemovedNodes()).isEmpty();
+        assertThat(stateMap.getHighestRequiredSnapshotVersionPlusOne()).isEqualTo(0);
+        assertThat(stateMap.getHighestFinishedSnapshotVersion()).isEqualTo(0);
+        assertThat(stateMap.getSnapshotVersions()).isEmpty();
+        assertThat(stateMap.getPruningValueNodes()).isEmpty();
+        assertThat(stateMap.getResourceGuard().getLeaseCount()).isEqualTo(0);
+        assertThat(stateMap.getResourceGuard().isClosed()).isFalse();
+        assertThat(stateMap.isClosed()).isFalse();
 
-        assertNull(stateMap.get(0, 0L));
-        assertFalse(stateMap.containsKey(1, 2L));
-        assertNull(stateMap.removeAndGetOld(3, 4L));
-        assertFalse(stateMap.getKeys(-92L).iterator().hasNext());
-        assertEquals(0, stateMap.sizeOfNamespace(8L));
-        assertFalse(stateMap.iterator().hasNext());
-        assertFalse(stateMap.getStateIncrementalVisitor(100).hasNext());
+        assertThat(stateMap.get(0, 0L)).isNull();
+        assertThat(stateMap.containsKey(1, 2L)).isFalse();
+        assertThat(stateMap.removeAndGetOld(3, 4L)).isNull();
+        assertThat(stateMap.getKeys(-92L).iterator().hasNext()).isFalse();
+        assertThat(stateMap.sizeOfNamespace(8L)).isEqualTo(0);
+        assertThat(stateMap.iterator().hasNext()).isFalse();
+        assertThat(stateMap.getStateIncrementalVisitor(100).hasNext()).isFalse();
     }
 
     /** Test state put and get. */
     @Test
-    public void testPutAndGetState() {
+    void testPutAndGetState() {
         int totalSize = 0;
         // test put empty skip list and get
         totalSize = putAndVerify(2, "2", totalSize, true);
@@ -120,16 +114,16 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
     private int putAndVerify(int key, String state, int initTotalSize, boolean isNewKey) {
         stateMap.put(key, namespace, state);
         int totalSize = isNewKey ? initTotalSize + 1 : initTotalSize;
-        assertThat(stateMap.get(key, namespace), is(state));
-        assertThat(stateMap.size(), is(totalSize));
-        assertThat(stateMap.totalSize(), is(totalSize));
-        assertThat(allocator.getTotalSpaceNumber(), is(totalSize * 2));
+        assertThat(stateMap.get(key, namespace)).isEqualTo(state);
+        assertThat(stateMap.size()).isEqualTo(totalSize);
+        assertThat(stateMap.totalSize()).isEqualTo(totalSize);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(totalSize * 2);
         return totalSize;
     }
 
     /** Test state update (put existing key). */
     @Test
-    public void testUpdateState() {
+    void testUpdateState() {
         int totalSize = 3;
         for (int i = 1; i <= totalSize; i++) {
             stateMap.put(i, namespace, String.valueOf(i));
@@ -144,7 +138,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
 
     /** Test state putAndGetOld. */
     @Test
-    public void testPutAndGetOldState() {
+    void testPutAndGetOldState() {
         int totalSize = 0;
         // test put empty skip list and get
         totalSize = putAndGetOldVerify(2, "2", totalSize);
@@ -159,17 +153,17 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
     private int putAndGetOldVerify(int key, String state, int initTotalSize) {
         int totalSize = initTotalSize + 1;
         String oldState = stateMap.get(key, namespace);
-        assertThat(stateMap.putAndGetOld(key, namespace, state), is(oldState));
-        assertThat(stateMap.get(key, namespace), is(state));
-        assertThat(stateMap.size(), is(totalSize));
-        assertThat(stateMap.totalSize(), is(totalSize));
-        assertThat(allocator.getTotalSpaceNumber(), is(totalSize * 2));
+        assertThat(stateMap.putAndGetOld(key, namespace, state)).isEqualTo(oldState);
+        assertThat(stateMap.get(key, namespace)).isEqualTo(state);
+        assertThat(stateMap.size()).isEqualTo(totalSize);
+        assertThat(stateMap.totalSize()).isEqualTo(totalSize);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(totalSize * 2);
         return totalSize;
     }
 
     /** Test state remove. */
     @Test
-    public void testRemoveState() {
+    void testRemoveState() {
         int totalSize = 4;
         for (int i = 1; i <= totalSize; i++) {
             stateMap.put(i, namespace, String.valueOf(i));
@@ -189,16 +183,16 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
     private int removeAndVerify(int key, int initTotalSize, boolean keyExists) {
         stateMap.remove(key, namespace);
         int totalSize = keyExists ? initTotalSize - 1 : initTotalSize;
-        assertThat(stateMap.get(key, namespace), nullValue());
-        assertThat(stateMap.size(), is(totalSize));
-        assertThat(stateMap.totalSize(), is(totalSize));
-        assertThat(allocator.getTotalSpaceNumber(), is(totalSize * 2));
+        assertThat(stateMap.get(key, namespace)).isNull();
+        assertThat(stateMap.size()).isEqualTo(totalSize);
+        assertThat(stateMap.totalSize()).isEqualTo(totalSize);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(totalSize * 2);
         return totalSize;
     }
 
     /** Test state removeAndGetOld. */
     @Test
-    public void testRemoveAndGetOldState() {
+    void testRemoveAndGetOldState() {
         int totalSize = 4;
         for (int i = 1; i <= totalSize; i++) {
             stateMap.put(i, namespace, String.valueOf(i));
@@ -216,17 +210,17 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
     private int removeAndGetOldVerify(int key, int initTotalSize) {
         int totalSize = initTotalSize - 1;
         String oldState = stateMap.get(key, namespace);
-        assertThat(stateMap.removeAndGetOld(key, namespace), is(oldState));
-        assertThat(stateMap.get(key, namespace), nullValue());
-        assertThat(stateMap.size(), is(totalSize));
-        assertThat(stateMap.totalSize(), is(totalSize));
-        assertThat(allocator.getTotalSpaceNumber(), is(totalSize * 2));
+        assertThat(stateMap.removeAndGetOld(key, namespace)).isEqualTo(oldState);
+        assertThat(stateMap.get(key, namespace)).isNull();
+        assertThat(stateMap.size()).isEqualTo(totalSize);
+        assertThat(stateMap.totalSize()).isEqualTo(totalSize);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(totalSize * 2);
         return totalSize;
     }
 
     /** Test state transform with existing key. */
     @Test
-    public void testTransformExistingState() throws Exception {
+    void testTransformExistingState() throws Exception {
         final int key = 1;
         final String oldState = "1";
         final int delta = 1;
@@ -236,15 +230,15 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         stateMap.put(key, namespace, oldState);
         String expectedState = function.apply(oldState, delta);
         stateMap.transform(key, namespace, delta, function);
-        assertThat(stateMap.get(key, namespace), is(expectedState));
-        assertThat(stateMap.size(), is(1));
-        assertThat(stateMap.totalSize(), is(1));
-        assertThat(allocator.getTotalSpaceNumber(), is(2));
+        assertThat(stateMap.get(key, namespace)).isEqualTo(expectedState);
+        assertThat(stateMap.size()).isEqualTo(1);
+        assertThat(stateMap.totalSize()).isEqualTo(1);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(2);
     }
 
     /** Test state transform with new key. */
     @Test
-    public void testTransformAbsentState() throws Exception {
+    void testTransformAbsentState() throws Exception {
         final int key = 1;
         final int delta = 1;
         StateTransformationFunction<String, Integer> function =
@@ -252,27 +246,27 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
                         prevState == null ? String.valueOf(value) : prevState + value;
         String expectedState = function.apply(null, delta);
         stateMap.transform(key, namespace, delta, function);
-        assertThat(stateMap.get(key, namespace), is(expectedState));
-        assertThat(stateMap.size(), is(1));
-        assertThat(stateMap.totalSize(), is(1));
-        assertThat(allocator.getTotalSpaceNumber(), is(2));
+        assertThat(stateMap.get(key, namespace)).isEqualTo(expectedState);
+        assertThat(stateMap.size()).isEqualTo(1);
+        assertThat(stateMap.totalSize()).isEqualTo(1);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(2);
     }
 
     /** Test close of state map. */
     @Test
-    public void testCloseStateMap() {
+    void testCloseStateMap() {
         stateMap.close();
-        assertTrue(stateMap.isClosed());
-        assertThat(stateMap.size(), is(0));
-        assertThat(stateMap.totalSize(), is(0));
-        assertThat(allocator.getTotalSpaceNumber(), is(0));
+        assertThat(stateMap.isClosed()).isTrue();
+        assertThat(stateMap.size()).isEqualTo(0);
+        assertThat(stateMap.totalSize()).isEqualTo(0);
+        assertThat(allocator.getTotalSpaceNumber()).isEqualTo(0);
         // make sure double close won't cause problem
         stateMap.close();
     }
 
     /** Make sure exception will be thrown with allocation failure rather than swallowed. */
     @Test
-    public void testPutWithAllocationFailure() {
+    void testPutWithAllocationFailure() {
         Allocator exceptionalAllocator =
                 new Allocator() {
                     @Override
@@ -294,10 +288,9 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
                 };
         try (CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap =
                 createEmptyStateMap(0, 0.0f, exceptionalAllocator)) {
-            stateMap.put(1, 1L, "test-value");
-            fail("Should have thrown exception when space allocation fails");
-        } catch (FlinkRuntimeException e) {
-            // expected
+            assertThatThrownBy(() -> stateMap.put(1, 1L, "test-value"))
+                    .as("Should have thrown exception when space allocation fails")
+                    .isInstanceOf(FlinkRuntimeException.class);
         }
     }
 
@@ -307,7 +300,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
      * ByteBuffer.
      */
     @Test
-    public void testPutAndGetNodeWithNoneZeroOffset() {
+    void testPutAndGetNodeWithNoneZeroOffset() {
         final int key = 10;
         final long namespace = 0L;
         final String valueString = "test";
@@ -323,12 +316,12 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         byte[] value = skipListValueSerializer.serialize(valueString);
         stateMap.putValue(keySegment, 1, keyLen, value, false);
         String state = stateMap.getNode(keySegment, 1, keyLen);
-        assertThat(state, is(valueString));
+        assertThat(state).isEqualTo(valueString);
     }
 
     /** Test next/update/remove during global iteration of StateIncrementalVisitor. */
     @Test
-    public void testStateIncrementalVisitor() {
+    void testStateIncrementalVisitor() {
         // map to store expected states, namespace -> key -> state
         Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
 
@@ -350,7 +343,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
                 int key = stateEntry.getKey();
                 long namespace = stateEntry.getNamespace();
                 String state = stateEntry.getState();
-                assertEquals(state, stateMap.get(key, namespace));
+                assertThat(stateMap.get(key, namespace)).isEqualTo(state);
                 switch (op) {
                     case 0:
                         visitor.remove(stateEntry);
@@ -374,7 +367,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
 
     /** Test StateIncrementalVisitor with closed state map. */
     @Test
-    public void testStateIncrementalVisitorWithClosedStateMap() {
+    void testStateIncrementalVisitorWithClosedStateMap() {
         CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createEmptyStateMap();
         // put some states
         for (long namespace = 0; namespace < 15; namespace++) {
@@ -385,16 +378,16 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         }
         InternalKvState.StateIncrementalVisitor<Integer, Long, String> closedVisitor =
                 stateMap.getStateIncrementalVisitor(5);
-        assertTrue(closedVisitor.hasNext());
+        assertThat(closedVisitor.hasNext()).isTrue();
 
         stateMap.close();
         // the visitor will be invalid after state map is closed
-        assertFalse(closedVisitor.hasNext());
+        assertThat(closedVisitor.hasNext()).isFalse();
     }
 
     /** Test basic snapshot correctness. */
     @Test
-    public void testBasicSnapshot() {
+    void testBasicSnapshot() {
         // take an empty snapshot
         CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot =
                 stateMap.stateSnapshot();
@@ -404,78 +397,68 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         // take the 2nd snapshot with data
         CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 =
                 stateMap.stateSnapshot();
-        assertEquals(2, stateMap.getStateMapVersion());
-        assertEquals(2, stateMap.getHighestRequiredSnapshotVersionPlusOne());
-        assertEquals(1, stateMap.getSnapshotVersions().size());
-        assertThat(stateMap.getSnapshotVersions(), contains(2));
-        assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
+        assertThat(stateMap.getStateMapVersion()).isEqualTo(2);
+        assertThat(stateMap.getHighestRequiredSnapshotVersionPlusOne()).isEqualTo(2);
+        assertThat(stateMap.getSnapshotVersions()).hasSize(1);
+        assertThat(stateMap.getSnapshotVersions()).satisfies(matching(contains(2)));
+        assertThat(stateMap.getResourceGuard().getLeaseCount()).isEqualTo(1);
         snapshot2.release();
         stateMap.close();
     }
 
     /** Test snapshot empty state map. */
     @Test
-    public void testSnapshotEmptyStateMap() {
+    void testSnapshotEmptyStateMap() {
         // take snapshot on an empty state map
         CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot =
                 stateMap.stateSnapshot();
-        assertEquals(1, stateMap.getHighestRequiredSnapshotVersionPlusOne());
-        assertEquals(1, stateMap.getSnapshotVersions().size());
-        assertThat(stateMap.getSnapshotVersions(), contains(1));
-        assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
+        assertThat(stateMap.getHighestRequiredSnapshotVersionPlusOne()).isEqualTo(1);
+        assertThat(stateMap.getSnapshotVersions()).hasSize(1);
+        assertThat(stateMap.getSnapshotVersions()).satisfies(matching(contains(1)));
+        assertThat(stateMap.getResourceGuard().getLeaseCount()).isEqualTo(1);
         snapshot.release();
     }
 
     /** Test snapshot empty state map. */
     @Test
-    public void testSnapshotClosedStateMap() {
+    void testSnapshotClosedStateMap() {
         // close state map
         stateMap.close();
-        try {
-            stateMap.stateSnapshot();
-            fail(
-                    "Should have thrown exception when trying to snapshot an already closed state map.");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(() -> stateMap.stateSnapshot()).isInstanceOf(Exception.class);
     }
 
     /** Test snapshot release. */
     @Test
-    public void testReleaseSnapshot() {
+    void testReleaseSnapshot() {
         int expectedSnapshotVersion = 0;
         int round = 10;
         for (int i = 0; i < round; i++) {
-            assertEquals(expectedSnapshotVersion, stateMap.getStateMapVersion());
-            assertEquals(expectedSnapshotVersion, stateMap.getHighestFinishedSnapshotVersion());
+            assertThat(stateMap.getStateMapVersion()).isEqualTo(expectedSnapshotVersion);
+            assertThat(stateMap.getHighestFinishedSnapshotVersion())
+                    .isEqualTo(expectedSnapshotVersion);
             CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot =
                     stateMap.stateSnapshot();
             expectedSnapshotVersion++;
             snapshot.release();
-            assertEquals(0, stateMap.getHighestRequiredSnapshotVersionPlusOne());
-            assertTrue(stateMap.getSnapshotVersions().isEmpty());
-            assertEquals(0, stateMap.getResourceGuard().getLeaseCount());
+            assertThat(stateMap.getHighestRequiredSnapshotVersionPlusOne()).isEqualTo(0);
+            assertThat(stateMap.getSnapshotVersions()).isEmpty();
+            assertThat(stateMap.getResourceGuard().getLeaseCount()).isEqualTo(0);
         }
     }
 
     /** Test state map iterator illegal next call. */
     @Test
-    public void testStateMapIteratorIllegalNextInvocation() {
+    void testStateMapIteratorIllegalNextInvocation() {
         Iterator iterator = stateMap.iterator();
         while (iterator.hasNext()) {
             iterator.next();
         }
-        try {
-            iterator.next();
-            fail("Should have thrown NoSuchElementException.");
-        } catch (NoSuchElementException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> iterator.next()).isInstanceOf(NoSuchElementException.class);
     }
 
     /** Test state map iterator illegal next call. */
     @Test
-    public void testNamespaceNodeIteratorIllegalNextInvocation() {
+    void testNamespaceNodeIteratorIllegalNextInvocation() {
         SkipListKeySerializer<Integer, Long> skipListKeySerializer =
                 new SkipListKeySerializer<>(IntSerializer.INSTANCE, LongSerializer.INSTANCE);
         byte[] namespaceBytes = skipListKeySerializer.serializeNamespace(namespace);
@@ -485,17 +468,12 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
         while (iterator.hasNext()) {
             iterator.next();
         }
-        try {
-            iterator.next();
-            fail("Should have thrown NoSuchElementException.");
-        } catch (NoSuchElementException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> iterator.next()).isInstanceOf(NoSuchElementException.class);
     }
 
     /** Test snapshot node iterator illegal next call. */
     @Test
-    public void testSnapshotNodeIteratorIllegalNextInvocation() {
+    void testSnapshotNodeIteratorIllegalNextInvocation() {
         CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot =
                 stateMap.stateSnapshot();
         CopyOnWriteSkipListStateMapSnapshot.SnapshotNodeIterator iterator =
@@ -504,10 +482,7 @@ public class CopyOnWriteSkipListStateMapBasicOpTest extends TestLogger {
             iterator.next();
         }
         try {
-            iterator.next();
-            fail("Should have thrown NoSuchElementException.");
-        } catch (NoSuchElementException e) {
-            // expected
+            assertThatThrownBy(() -> iterator.next()).isInstanceOf(NoSuchElementException.class);
         } finally {
             snapshot.release();
         }

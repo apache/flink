@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
-import org.apache.flink.shaded.guava18.com.google.common.hash.Hashing;
+import org.apache.flink.shaded.guava30.com.google.common.hash.Hashing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -35,7 +35,7 @@ public final class OperatorIDGenerator {
      * Generate {@link OperatorID}'s from {@code uid}'s.
      *
      * <p>{@link
-     * org.apache.flink.streaming.api.graph.StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)})}
+     * org.apache.flink.streaming.api.graph.StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)}
      *
      * @param uid {@code DataStream} operator uid.
      * @return corresponding {@link OperatorID}

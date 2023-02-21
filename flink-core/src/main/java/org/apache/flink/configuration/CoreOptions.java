@@ -18,14 +18,17 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.ArrayUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -33,6 +36,16 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 @ConfigGroups(groups = {@ConfigGroup(name = "Environment", keyPrefix = "env")})
 public class CoreOptions {
+
+    @Internal
+    public static final String[] PARENT_FIRST_LOGGING_PATTERNS =
+            new String[] {
+                "org.slf4j",
+                "org.apache.log4j",
+                "org.apache.logging",
+                "org.apache.commons.logging",
+                "ch.qos.logback"
+            };
 
     // ------------------------------------------------------------------------
     //  Classloading Parameters
@@ -52,6 +65,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
     public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER =
             ConfigOptions.key("classloader.resolve-order")
+                    .stringType()
                     .defaultValue("child-first")
                     .withDescription(
                             "Defines the class resolution strategy when loading classes from user code, meaning whether to"
@@ -89,10 +103,26 @@ public class CoreOptions {
      * </ul>
      */
     @Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
-    public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
+    public static final ConfigOption<List<String>> ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
             ConfigOptions.key("classloader.parent-first-patterns.default")
-                    .defaultValue(
-                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback;org.xml;javax.xml;org.apache.xerces;org.w3c")
+                    .stringType()
+                    .asList()
+                    .defaultValues(
+                            ArrayUtils.concat(
+                                    new String[] {
+                                        "java.",
+                                        "scala.",
+                                        "org.apache.flink.",
+                                        "com.esotericsoftware.kryo",
+                                        "org.apache.hadoop.",
+                                        "javax.annotation.",
+                                        "org.xml",
+                                        "javax.xml",
+                                        "org.apache.xerces",
+                                        "org.w3c",
+                                        "org.rocksdb."
+                                    },
+                                    PARENT_FIRST_LOGGING_PATTERNS))
                     .withDeprecatedKeys("classloader.parent-first-patterns")
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
@@ -101,9 +131,11 @@ public class CoreOptions {
                                     + " recommend to use \"classloader.parent-first-patterns.additional\" instead.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
-    public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL =
+    public static final ConfigOption<List<String>> ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL =
             ConfigOptions.key("classloader.parent-first-patterns.additional")
-                    .defaultValue("")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against"
@@ -120,10 +152,10 @@ public class CoreOptions {
                             "Fail Flink JVM processes if 'OutOfMemoryError: Metaspace' is "
                                     + "thrown while trying to load a user code class.");
 
-    public static String[] getParentFirstLoaderPatterns(Configuration config) {
-        String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
-        String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
-        return parseParentFirstLoaderPatterns(base, append);
+    public static String[] getParentFirstLoaderPatterns(ReadableConfig config) {
+        List<String> base = config.get(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+        List<String> append = config.get(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+        return mergeListsToArray(base, append);
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
@@ -145,12 +177,16 @@ public class CoreOptions {
     @Documentation.ExcludeFromDocumentation(
             "Plugin classloader list is considered an implementation detail. "
                     + "Configuration only included in case to mitigate unintended side-effects of this young feature.")
-    public static final ConfigOption<String> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
+    public static final ConfigOption<List<String>> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
             ConfigOptions.key("plugin.classloader.parent-first-patterns.default")
                     .stringType()
-                    .defaultValue(
-                            "java.;scala.;org.apache.flink.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache"
-                                    + ".logging;org.apache.commons.logging;ch.qos.logback")
+                    .asList()
+                    .defaultValues(
+                            ArrayUtils.concat(
+                                    new String[] {
+                                        "java.", "org.apache.flink.", "javax.annotation."
+                                    },
+                                    PARENT_FIRST_LOGGING_PATTERNS))
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
@@ -160,27 +196,28 @@ public class CoreOptions {
     @Documentation.ExcludeFromDocumentation(
             "Plugin classloader list is considered an implementation detail. "
                     + "Configuration only included in case to mitigate unintended side-effects of this young feature.")
-    public static final ConfigOption<String> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL =
-            ConfigOptions.key("plugin.classloader.parent-first-patterns.additional")
-                    .stringType()
-                    .defaultValue("")
-                    .withDescription(
-                            "A (semicolon-separated) list of patterns that specifies which classes should always be"
-                                    + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
-                                    + " against the fully qualified class name. These patterns are appended to \""
-                                    + PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
-                                    + "\".");
+    public static final ConfigOption<List<String>>
+            PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL =
+                    ConfigOptions.key("plugin.classloader.parent-first-patterns.additional")
+                            .stringType()
+                            .asList()
+                            .defaultValues()
+                            .withDescription(
+                                    "A (semicolon-separated) list of patterns that specifies which classes should always be"
+                                            + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
+                                            + " against the fully qualified class name. These patterns are appended to \""
+                                            + PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key()
+                                            + "\".");
 
     public static String[] getPluginParentFirstLoaderPatterns(Configuration config) {
-        String base = config.getString(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
-        String append = config.getString(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
-        return parseParentFirstLoaderPatterns(base, append);
+        List<String> base = config.get(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+        List<String> append = config.get(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+        return mergeListsToArray(base, append);
     }
 
-    private static String[] parseParentFirstLoaderPatterns(String base, String append) {
-        Splitter splitter = Splitter.on(';').omitEmptyStrings();
-        return Iterables.toArray(
-                Iterables.concat(splitter.split(base), splitter.split(append)), String.class);
+    @Internal
+    public static String[] mergeListsToArray(List<String> base, List<String> append) {
+        return Iterables.toArray(Iterables.concat(base, append), String.class);
     }
 
     // ------------------------------------------------------------------------
@@ -188,9 +225,10 @@ public class CoreOptions {
     // ------------------------------------------------------------------------
 
     public static final ConfigOption<String> FLINK_JVM_OPTIONS =
-            ConfigOptions.key("env.java.opts")
+            ConfigOptions.key("env.java.opts.all")
                     .stringType()
                     .defaultValue("")
+                    .withDeprecatedKeys("env.java.opts")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -241,6 +279,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_LOG_DIR =
             ConfigOptions.key("env.log.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Defines the directory where the Flink logs are saved. It has to be an absolute path."
@@ -252,6 +291,7 @@ public class CoreOptions {
      */
     public static final ConfigOption<String> FLINK_PID_DIR =
             ConfigOptions.key("env.pid.dir")
+                    .stringType()
                     .defaultValue("/tmp")
                     .withDescription(
                             "Defines the directory where the flink-<host>-<process>.pid files are saved.");
@@ -263,7 +303,8 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<Integer> FLINK_LOG_MAX =
             ConfigOptions.key("env.log.max")
-                    .defaultValue(5)
+                    .intType()
+                    .defaultValue(10)
                     .withDescription("The maximum number of old log files to keep.");
 
     /**
@@ -273,6 +314,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_SSH_OPTIONS =
             ConfigOptions.key("env.ssh.opts")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Additional command line options passed to SSH clients when starting or stopping JobManager,"
@@ -286,6 +328,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_HADOOP_CONF_DIR =
             ConfigOptions.key("env.hadoop.conf.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Path to hadoop configuration directory. It is required to read HDFS and/or YARN"
@@ -298,6 +341,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_YARN_CONF_DIR =
             ConfigOptions.key("env.yarn.conf.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Path to yarn configuration directory. It is required to run flink on YARN. You can also"
@@ -310,6 +354,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_HBASE_CONF_DIR =
             ConfigOptions.key("env.hbase.conf.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Path to hbase configuration directory. It is required to read HBASE configuration."
@@ -324,10 +369,11 @@ public class CoreOptions {
      * the system's {@link java.io.File#pathSeparator}.
      */
     @Documentation.OverrideDefault(
-            "'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
+            "'LOCAL_DIRS' on Yarn. System.getProperty(\"java.io.tmpdir\") in standalone.")
     @Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
     public static final ConfigOption<String> TMP_DIRS =
             key("io.tmp.dirs")
+                    .stringType()
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDeprecatedKeys("taskmanager.tmp.dirs")
                     .withDescription(
@@ -339,6 +385,7 @@ public class CoreOptions {
 
     public static final ConfigOption<Integer> DEFAULT_PARALLELISM =
             ConfigOptions.key("parallelism.default")
+                    .intType()
                     .defaultValue(1)
                     .withDescription("Default parallelism for jobs.");
 
@@ -350,6 +397,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
     public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME =
             ConfigOptions.key("fs.default-scheme")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "The default filesystem scheme, used for paths that do not declare a scheme explicitly."
@@ -368,6 +416,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.DEPRECATED_FILE_SINKS)
     public static final ConfigOption<Boolean> FILESYTEM_DEFAULT_OVERRIDE =
             key("fs.overwrite-files")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Specifies whether file output writers should overwrite existing files by default. Set to"
@@ -380,6 +429,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.DEPRECATED_FILE_SINKS)
     public static final ConfigOption<Boolean> FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY =
             key("fs.output.always-create-directory")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "File writers running with a parallelism larger than one create a directory for the output"
@@ -394,7 +444,7 @@ public class CoreOptions {
      * open. Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimit(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.total").defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.total").intType().defaultValue(-1);
     }
 
     /**
@@ -402,7 +452,7 @@ public class CoreOptions {
      * Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimitIn(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.input").defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.input").intType().defaultValue(-1);
     }
 
     /**
@@ -410,7 +460,7 @@ public class CoreOptions {
      * Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimitOut(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.output").defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.output").intType().defaultValue(-1);
     }
 
     /**
@@ -419,7 +469,7 @@ public class CoreOptions {
      * connection becomes available. Unlimited timeout be default.
      */
     public static ConfigOption<Long> fileSystemConnectionLimitTimeout(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.timeout").defaultValue(0L);
+        return ConfigOptions.key("fs." + scheme + ".limit.timeout").longType().defaultValue(0L);
     }
 
     /**
@@ -430,6 +480,8 @@ public class CoreOptions {
      */
     public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(
             String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
+        return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout")
+                .longType()
+                .defaultValue(0L);
     }
 }

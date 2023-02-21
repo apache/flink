@@ -22,20 +22,17 @@ source "$(dirname "$0")"/common_yarn_docker.sh
 
 # Configure Flink dir before making tarball.
 INPUT_TYPE=${1:-default-input}
-EXPECTED_RESULT_LOG_CONTAINS=()
 case $INPUT_TYPE in
     (default-input)
         INPUT_ARGS=""
-        EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
     ;;
     (dummy-fs)
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
         INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
-        EXPECTED_RESULT_LOG_CONTAINS=("my,2" "dear,4" "world,4")
     ;;
     (*)
-        echo "Unknown input type $INPUT_TYPE"
+        echo "Unknown input type ${INPUT_TYPE}"
         exit 1
     ;;
 esac
@@ -49,37 +46,40 @@ OUTPUT_PATH=hdfs:///user/hadoop-user/wc-out-$RANDOM
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
 if docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-   /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
+   /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
    -yD taskmanager.memory.jvm-metaspace.size=128m \
-   /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
+   /home/hadoop-user/${FLINK_DIRNAME}/examples/streaming/WordCount.jar ${INPUT_ARGS} --output ${OUTPUT_PATH}";
 then
-    OUTPUT=$(get_output "$OUTPUT_PATH/*")
+    OUTPUT=$(get_output "${OUTPUT_PATH}/*/*")
+    echo "==== OUTPUT_BEGIN ===="
     echo "$OUTPUT"
+    echo "==== OUTPUT_END ===="
+
+    YARN_APPLICATION_LOGS=$(get_yarn_application_logs)
+    if [[ ! "${YARN_APPLICATION_LOGS}" =~ "Receive initial delegation tokens from resource manager" ]]; then
+        echo "YARN logs does not contain delegation token usage message as required"
+        exit 1
+    fi
 else
     echo "Running the job failed."
     exit 1
 fi
 
-for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
-    if [[ ! "$OUTPUT" =~ $expected_result ]]; then
-        echo "Output does not contain '$expected_result' as required"
-        exit 1
-    fi
-done
-
 echo "Running Job without configured keytab, the exception you see below is expected"
-docker exec master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+docker exec master bash -c "echo \"\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
 # verify that it doesn't work if we don't configure a keytab
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run \
+    /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run \
     -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
     -yD taskmanager.memory.jvm-metaspace.size=128m \
-    /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH" > stderrAndstdoutFile 2>&1
-OUTPUT=$(cat stderrAndstdoutFile)
+    /home/hadoop-user/${FLINK_DIRNAME}/examples/streaming/WordCount.jar --output ${OUTPUT_PATH}" > stderrAndstdoutFile 2>&1
+STD_ERR_AND_STD_OUT=$(cat stderrAndstdoutFile)
 rm stderrAndstdoutFile
-echo "$OUTPUT"
+echo "==== STD_ERR_AND_STD_OUT_BEGIN ===="
+echo "${STD_ERR_AND_STD_OUT}"
+echo "==== STD_ERR_AND_STD_OUT_END ===="
 
-if [[ ! "$OUTPUT" =~ "Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials" ]]; then
+if [[ ! "$STD_ERR_AND_STD_OUT" =~ "Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials" ]]; then
     echo "Output does not contain the Kerberos error message as required"
     exit 1
 fi

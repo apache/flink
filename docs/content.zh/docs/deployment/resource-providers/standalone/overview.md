@@ -69,7 +69,7 @@ Flink 需要 master 和所有 worker 节点设置 `JAVA_HOME` 环境变量，并
 
 ## Flink 设置
 
-前往 [下载页面]({{ site.zh_download_url }}) 获取可运行的软件包。
+前往 [下载页面]({{< downloads >}}) 获取可运行的软件包。
 
 在下载完最新的发布版本后，复制压缩文件到 master 节点并解压：
 
@@ -94,7 +94,7 @@ cd flink-*
 
 <div class="row">
   <div class="col-md-6 text-center">
-    <img src="/page/img/quickstart_cluster.png" style="width: 60%">
+    {{<img src="/fig/quickstart_cluster.png" style="width: 60%">}}
   </div>
 <div class="col-md-6">
   <div class="row">
@@ -157,7 +157,7 @@ bin/start-cluster.sh
 #### 添加 JobManager
 
 ```bash
-bin/jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all
+bin/jobmanager.sh ((start|start-foreground) [args] [webui-port])|stop|stop-all
 ```
 
 <a name="adding-a-taskmanager"></a>
@@ -183,9 +183,9 @@ In order to start an HA-cluster configure the *masters* file in `conf/masters`:
 - **masters file**: The *masters file* contains all hosts, on which JobManagers are started, and the ports to which the web user interface binds.
 
   <pre>
-jobManagerAddress1:webUIPort1
-[...]
-jobManagerAddressX:webUIPortX
+  jobManagerAddress1:webUIPort1
+  [...]
+  jobManagerAddressX:webUIPortX
   </pre>
 
 By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config.zh" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
@@ -195,17 +195,17 @@ By default, the job manager will pick a *random port* for inter process communic
 1. **Configure high availability mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
 
    <pre>
-high-availability: zookeeper
-high-availability.zookeeper.quorum: localhost:2181
-high-availability.zookeeper.path.root: /flink
-high-availability.cluster-id: /cluster_one # important: customize per cluster
-high-availability.storageDir: hdfs:///flink/recovery</pre>
+   high-availability.type: zookeeper
+   high-availability.zookeeper.quorum: localhost:2181
+   high-availability.zookeeper.path.root: /flink
+   high-availability.cluster-id: /cluster_one # important: customize per cluster
+   high-availability.storageDir: hdfs:///flink/recovery</pre>
 
 2. **Configure masters** in `conf/masters`:
 
    <pre>
-localhost:8081
-localhost:8082</pre>
+   localhost:8081
+   localhost:8082</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
 
@@ -214,28 +214,35 @@ localhost:8082</pre>
 4. **Start ZooKeeper quorum**:
 
    <pre>
-$ bin/start-zookeeper-quorum.sh
-Starting zookeeper daemon on host localhost.</pre>
+   $ bin/start-zookeeper-quorum.sh
+   Starting zookeeper daemon on host localhost.</pre>
 
 5. **Start an HA-cluster**:
 
    <pre>
-$ bin/start-cluster.sh
-Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
-Starting standalonesession daemon on host localhost.
-Starting standalonesession daemon on host localhost.
-Starting taskexecutor daemon on host localhost.</pre>
+   $ bin/start-cluster.sh
+   Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
+   Starting standalonesession daemon on host localhost.
+   Starting standalonesession daemon on host localhost.
+   Starting taskexecutor daemon on host localhost.</pre>
 
 6. **Stop ZooKeeper quorum and cluster**:
 
    <pre>
-$ bin/stop-cluster.sh
-Stopping taskexecutor daemon (pid: 7647) on localhost.
-Stopping standalonesession daemon (pid: 7495) on host localhost.
-Stopping standalonesession daemon (pid: 7349) on host localhost.
-$ bin/stop-zookeeper-quorum.sh
-Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
+   $ bin/stop-cluster.sh
+   Stopping taskexecutor daemon (pid: 7647) on localhost.
+   Stopping standalonesession daemon (pid: 7495) on host localhost.
+   Stopping standalonesession daemon (pid: 7349) on host localhost.
+   $ bin/stop-zookeeper-quorum.sh
+   Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
 
+### User jars & Classpath
+
+In Standalone mode, the following jars will be recognized as user-jars and included into user classpath:
+- Session Mode: The JAR file specified in startup command.
+- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 
 {{< top >}}

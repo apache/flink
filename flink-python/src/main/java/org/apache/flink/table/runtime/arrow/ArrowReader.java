@@ -19,15 +19,38 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.columnar.ColumnarRowData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
+import org.apache.flink.util.Preconditions;
 
-/**
- * Reader which deserialize the Arrow format data to the Flink rows.
- *
- * @param <OUT> Type of the deserialized row.
- */
+/** {@link ArrowReader} which read the underlying Arrow format data as {@link RowData}. */
 @Internal
-public interface ArrowReader<OUT> {
+public final class ArrowReader {
+
+    /**
+     * An array of vectors which are responsible for the deserialization of each column of the rows.
+     */
+    private final ColumnVector[] columnVectors;
+
+    /** Reusable row used to hold the deserialized result. */
+    private final ColumnarRowData reuseRow;
+
+    public ArrowReader(ColumnVector[] columnVectors) {
+        this.columnVectors = Preconditions.checkNotNull(columnVectors);
+        this.reuseRow = new ColumnarRowData();
+        this.reuseRow.setVectorizedColumnBatch(new VectorizedColumnBatch(columnVectors));
+    }
+
+    /** Gets the column vectors. */
+    public ColumnVector[] getColumnVectors() {
+        return columnVectors;
+    }
 
     /** Read the specified row from underlying Arrow format data. */
-    OUT read(int rowId);
+    public RowData read(int rowId) {
+        reuseRow.setRowId(rowId);
+        return reuseRow;
+    }
 }

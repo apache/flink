@@ -77,7 +77,7 @@ public abstract class StateMap<K, N, S> implements Iterable<StateEntry<K, N, S>>
 
     /**
      * Maps the specified key/namespace composite key to the specified value. This method should be
-     * preferred over {@link #putAndGetOld(K, N, S)} (Namespace, State)} when the caller is not
+     * preferred over {@link #putAndGetOld(K, N, S)} (key, Namespace, State) when the caller is not
      * interested in the old state.
      *
      * @param key the key. Not null.

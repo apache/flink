@@ -19,52 +19,31 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
-import org.apache.flink.table.api.internal.BatchTableEnvImpl;
-import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.planner.connectors.SelectTableSinkSchemaConverter;
-import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.BooleanFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.DateFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.DecimalFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.DoubleFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.FloatFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.RowArrowReader;
-import org.apache.flink.table.runtime.arrow.readers.RowFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.SmallIntFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.TimeFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.TimestampFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
-import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
-import org.apache.flink.table.runtime.arrow.sources.AbstractArrowTableSource;
 import org.apache.flink.table.runtime.arrow.sources.ArrowTableSource;
-import org.apache.flink.table.runtime.arrow.sources.RowArrowTableSource;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDateColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDecimalColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowDoubleColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowFloatColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowMapColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.ArrowNullColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowRowColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTimeColumnVector;
@@ -72,31 +51,18 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowTimestampColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
-import org.apache.flink.table.runtime.arrow.vectors.RowDataArrowReader;
 import org.apache.flink.table.runtime.arrow.writers.ArrayWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
+import org.apache.flink.table.runtime.arrow.writers.BinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.BooleanWriter;
 import org.apache.flink.table.runtime.arrow.writers.DateWriter;
 import org.apache.flink.table.runtime.arrow.writers.DecimalWriter;
 import org.apache.flink.table.runtime.arrow.writers.DoubleWriter;
 import org.apache.flink.table.runtime.arrow.writers.FloatWriter;
 import org.apache.flink.table.runtime.arrow.writers.IntWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowArrayWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowBigIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowBooleanWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowDateWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowDecimalWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowDoubleWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowFloatWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowRowWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowSmallIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowTimeWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowTimestampWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowTinyIntWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowVarBinaryWriter;
-import org.apache.flink.table.runtime.arrow.writers.RowVarCharWriter;
+import org.apache.flink.table.runtime.arrow.writers.MapWriter;
+import org.apache.flink.table.runtime.arrow.writers.NullWriter;
 import org.apache.flink.table.runtime.arrow.writers.RowWriter;
 import org.apache.flink.table.runtime.arrow.writers.SmallIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.TimeWriter;
@@ -107,7 +73,9 @@ import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -116,6 +84,8 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -127,8 +97,9 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.LinkedHashMultiset;
+import org.apache.flink.shaded.guava30.com.google.common.collect.LinkedHashMultiset;
 
 import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.BufferAllocator;
@@ -138,9 +109,11 @@ import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.NullVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeMicroVector;
 import org.apache.arrow.vector.TimeMilliVector;
@@ -153,6 +126,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.ipc.ReadChannel;
@@ -178,6 +152,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -239,80 +214,23 @@ public final class ArrowUtils {
             for (RowType.RowField field : rowType.getFields()) {
                 children.add(toArrowField(field.getName(), field.getType()));
             }
+        } else if (logicalType instanceof MapType) {
+            MapType mapType = (MapType) logicalType;
+            Preconditions.checkArgument(
+                    !mapType.getKeyType().isNullable(), "Map key type should be non-nullable");
+            children =
+                    Collections.singletonList(
+                            new Field(
+                                    "items",
+                                    new FieldType(false, ArrowType.Struct.INSTANCE, null),
+                                    Arrays.asList(
+                                            toArrowField("key", mapType.getKeyType()),
+                                            toArrowField("value", mapType.getValueType()))));
         }
         return new Field(fieldName, fieldType, children);
     }
 
     /** Creates an {@link ArrowWriter} for the specified {@link VectorSchemaRoot}. */
-    public static ArrowWriter<Row> createRowArrowWriter(VectorSchemaRoot root, RowType rowType) {
-        ArrowFieldWriter<Row>[] fieldWriters = new ArrowFieldWriter[root.getFieldVectors().size()];
-        List<FieldVector> vectors = root.getFieldVectors();
-        for (int i = 0; i < vectors.size(); i++) {
-            FieldVector vector = vectors.get(i);
-            vector.allocateNew();
-            fieldWriters[i] = createRowArrowFieldWriter(vector, rowType.getTypeAt(i));
-        }
-
-        return new ArrowWriter<>(root, fieldWriters);
-    }
-
-    private static ArrowFieldWriter<Row> createRowArrowFieldWriter(
-            ValueVector vector, LogicalType fieldType) {
-        if (vector instanceof TinyIntVector) {
-            return new RowTinyIntWriter((TinyIntVector) vector);
-        } else if (vector instanceof SmallIntVector) {
-            return new RowSmallIntWriter((SmallIntVector) vector);
-        } else if (vector instanceof IntVector) {
-            return new RowIntWriter((IntVector) vector);
-        } else if (vector instanceof BigIntVector) {
-            return new RowBigIntWriter((BigIntVector) vector);
-        } else if (vector instanceof BitVector) {
-            return new RowBooleanWriter((BitVector) vector);
-        } else if (vector instanceof Float4Vector) {
-            return new RowFloatWriter((Float4Vector) vector);
-        } else if (vector instanceof Float8Vector) {
-            return new RowDoubleWriter((Float8Vector) vector);
-        } else if (vector instanceof VarCharVector) {
-            return new RowVarCharWriter((VarCharVector) vector);
-        } else if (vector instanceof VarBinaryVector) {
-            return new RowVarBinaryWriter((VarBinaryVector) vector);
-        } else if (vector instanceof DecimalVector) {
-            DecimalVector decimalVector = (DecimalVector) vector;
-            return new RowDecimalWriter(
-                    decimalVector, getPrecision(decimalVector), decimalVector.getScale());
-        } else if (vector instanceof DateDayVector) {
-            return new RowDateWriter((DateDayVector) vector);
-        } else if (vector instanceof TimeSecVector
-                || vector instanceof TimeMilliVector
-                || vector instanceof TimeMicroVector
-                || vector instanceof TimeNanoVector) {
-            return new RowTimeWriter(vector);
-        } else if (vector instanceof TimeStampVector
-                && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
-            return new RowTimestampWriter(vector);
-        } else if (vector instanceof ListVector) {
-            ListVector listVector = (ListVector) vector;
-            LogicalType elementType = ((ArrayType) fieldType).getElementType();
-            return new RowArrayWriter(
-                    listVector, createRowArrowFieldWriter(listVector.getDataVector(), elementType));
-        } else if (vector instanceof StructVector) {
-            RowType rowType = (RowType) fieldType;
-            ArrowFieldWriter<Row>[] fieldsWriters = new ArrowFieldWriter[rowType.getFieldCount()];
-            for (int i = 0; i < fieldsWriters.length; i++) {
-                fieldsWriters[i] =
-                        createRowArrowFieldWriter(
-                                ((StructVector) vector).getVectorById(i), rowType.getTypeAt(i));
-            }
-            return new RowRowWriter((StructVector) vector, fieldsWriters);
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format("Unsupported type %s.", fieldType));
-        }
-    }
-
-    /**
-     * Creates an {@link ArrowWriter} for blink planner for the specified {@link VectorSchemaRoot}.
-     */
     public static ArrowWriter<RowData> createRowDataArrowWriter(
             VectorSchemaRoot root, RowType rowType) {
         ArrowFieldWriter<RowData>[] fieldWriters =
@@ -345,6 +263,8 @@ public final class ArrowUtils {
             return DoubleWriter.forRow((Float8Vector) vector);
         } else if (vector instanceof VarCharVector) {
             return VarCharWriter.forRow((VarCharVector) vector);
+        } else if (vector instanceof FixedSizeBinaryVector) {
+            return BinaryWriter.forRow((FixedSizeBinaryVector) vector);
         } else if (vector instanceof VarBinaryVector) {
             return VarBinaryWriter.forRow((VarBinaryVector) vector);
         } else if (vector instanceof DecimalVector) {
@@ -367,6 +287,17 @@ public final class ArrowUtils {
                 precision = ((TimestampType) fieldType).getPrecision();
             }
             return TimestampWriter.forRow(vector, precision);
+        } else if (vector instanceof MapVector) {
+            MapVector mapVector = (MapVector) vector;
+            LogicalType keyType = ((MapType) fieldType).getKeyType();
+            LogicalType valueType = ((MapType) fieldType).getValueType();
+            StructVector structVector = (StructVector) mapVector.getDataVector();
+            return MapWriter.forRow(
+                    mapVector,
+                    createArrowFieldWriterForArray(
+                            structVector.getChild(MapVector.KEY_NAME), keyType),
+                    createArrowFieldWriterForArray(
+                            structVector.getChild(MapVector.VALUE_NAME), valueType));
         } else if (vector instanceof ListVector) {
             ListVector listVector = (ListVector) vector;
             LogicalType elementType = ((ArrayType) fieldType).getElementType();
@@ -383,6 +314,8 @@ public final class ArrowUtils {
                                 ((StructVector) vector).getVectorById(i), rowType.getTypeAt(i));
             }
             return RowWriter.forRow((StructVector) vector, fieldsWriters);
+        } else if (vector instanceof NullVector) {
+            return new NullWriter<>((NullVector) vector);
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unsupported type %s.", fieldType));
@@ -407,6 +340,8 @@ public final class ArrowUtils {
             return DoubleWriter.forArray((Float8Vector) vector);
         } else if (vector instanceof VarCharVector) {
             return VarCharWriter.forArray((VarCharVector) vector);
+        } else if (vector instanceof FixedSizeBinaryVector) {
+            return BinaryWriter.forArray((FixedSizeBinaryVector) vector);
         } else if (vector instanceof VarBinaryVector) {
             return VarBinaryWriter.forArray((VarBinaryVector) vector);
         } else if (vector instanceof DecimalVector) {
@@ -429,6 +364,17 @@ public final class ArrowUtils {
                 precision = ((TimestampType) fieldType).getPrecision();
             }
             return TimestampWriter.forArray(vector, precision);
+        } else if (vector instanceof MapVector) {
+            MapVector mapVector = (MapVector) vector;
+            LogicalType keyType = ((MapType) fieldType).getKeyType();
+            LogicalType valueType = ((MapType) fieldType).getValueType();
+            StructVector structVector = (StructVector) mapVector.getDataVector();
+            return MapWriter.forArray(
+                    mapVector,
+                    createArrowFieldWriterForArray(
+                            structVector.getChild(MapVector.KEY_NAME), keyType),
+                    createArrowFieldWriterForArray(
+                            structVector.getChild(MapVector.VALUE_NAME), valueType));
         } else if (vector instanceof ListVector) {
             ListVector listVector = (ListVector) vector;
             LogicalType elementType = ((ArrayType) fieldType).getElementType();
@@ -445,6 +391,8 @@ public final class ArrowUtils {
                                 ((StructVector) vector).getVectorById(i), rowType.getTypeAt(i));
             }
             return RowWriter.forArray((StructVector) vector, fieldsWriters);
+        } else if (vector instanceof NullVector) {
+            return new NullWriter<>((NullVector) vector);
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unsupported type %s.", fieldType));
@@ -452,82 +400,14 @@ public final class ArrowUtils {
     }
 
     /** Creates an {@link ArrowReader} for the specified {@link VectorSchemaRoot}. */
-    public static RowArrowReader createRowArrowReader(VectorSchemaRoot root, RowType rowType) {
-        List<ArrowFieldReader> fieldReaders = new ArrayList<>();
-        List<FieldVector> fieldVectors = root.getFieldVectors();
-        for (int i = 0; i < fieldVectors.size(); i++) {
-            fieldReaders.add(createRowArrowFieldReader(fieldVectors.get(i), rowType.getTypeAt(i)));
-        }
-
-        return new RowArrowReader(fieldReaders.toArray(new ArrowFieldReader[0]));
-    }
-
-    public static ArrowFieldReader createRowArrowFieldReader(
-            ValueVector vector, LogicalType fieldType) {
-        if (vector instanceof TinyIntVector) {
-            return new TinyIntFieldReader((TinyIntVector) vector);
-        } else if (vector instanceof SmallIntVector) {
-            return new SmallIntFieldReader((SmallIntVector) vector);
-        } else if (vector instanceof IntVector) {
-            return new IntFieldReader((IntVector) vector);
-        } else if (vector instanceof BigIntVector) {
-            return new BigIntFieldReader((BigIntVector) vector);
-        } else if (vector instanceof BitVector) {
-            return new BooleanFieldReader((BitVector) vector);
-        } else if (vector instanceof Float4Vector) {
-            return new FloatFieldReader((Float4Vector) vector);
-        } else if (vector instanceof Float8Vector) {
-            return new DoubleFieldReader((Float8Vector) vector);
-        } else if (vector instanceof VarCharVector) {
-            return new VarCharFieldReader((VarCharVector) vector);
-        } else if (vector instanceof VarBinaryVector) {
-            return new VarBinaryFieldReader((VarBinaryVector) vector);
-        } else if (vector instanceof DecimalVector) {
-            return new DecimalFieldReader((DecimalVector) vector);
-        } else if (vector instanceof DateDayVector) {
-            return new DateFieldReader((DateDayVector) vector);
-        } else if (vector instanceof TimeSecVector
-                || vector instanceof TimeMilliVector
-                || vector instanceof TimeMicroVector
-                || vector instanceof TimeNanoVector) {
-            return new TimeFieldReader(vector);
-        } else if (vector instanceof TimeStampVector
-                && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
-            return new TimestampFieldReader(vector);
-        } else if (vector instanceof ListVector) {
-            ListVector listVector = (ListVector) vector;
-            LogicalType elementType = ((ArrayType) fieldType).getElementType();
-            return new ArrayFieldReader(
-                    listVector,
-                    createRowArrowFieldReader(listVector.getDataVector(), elementType),
-                    elementType);
-        } else if (vector instanceof StructVector) {
-            StructVector structVector = (StructVector) vector;
-            ArrowFieldReader[] fieldReaders = new ArrowFieldReader[structVector.size()];
-            for (int i = 0; i < fieldReaders.length; i++) {
-                fieldReaders[i] =
-                        createRowArrowFieldReader(
-                                structVector.getVectorById(i), ((RowType) fieldType).getTypeAt(i));
-            }
-            return new RowFieldReader(structVector, fieldReaders);
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format("Unsupported type %s.", fieldType));
-        }
-    }
-
-    /**
-     * Creates an {@link ArrowReader} for blink planner for the specified {@link VectorSchemaRoot}.
-     */
-    public static RowDataArrowReader createRowDataArrowReader(
-            VectorSchemaRoot root, RowType rowType) {
+    public static ArrowReader createArrowReader(VectorSchemaRoot root, RowType rowType) {
         List<ColumnVector> columnVectors = new ArrayList<>();
         List<FieldVector> fieldVectors = root.getFieldVectors();
         for (int i = 0; i < fieldVectors.size(); i++) {
             columnVectors.add(createColumnVector(fieldVectors.get(i), rowType.getTypeAt(i)));
         }
 
-        return new RowDataArrowReader(columnVectors.toArray(new ColumnVector[0]));
+        return new ArrowReader(columnVectors.toArray(new ColumnVector[0]));
     }
 
     public static ColumnVector createColumnVector(ValueVector vector, LogicalType fieldType) {
@@ -547,6 +427,8 @@ public final class ArrowUtils {
             return new ArrowDoubleColumnVector((Float8Vector) vector);
         } else if (vector instanceof VarCharVector) {
             return new ArrowVarCharColumnVector((VarCharVector) vector);
+        } else if (vector instanceof FixedSizeBinaryVector) {
+            return new ArrowBinaryColumnVector((FixedSizeBinaryVector) vector);
         } else if (vector instanceof VarBinaryVector) {
             return new ArrowVarBinaryColumnVector((VarBinaryVector) vector);
         } else if (vector instanceof DecimalVector) {
@@ -561,6 +443,15 @@ public final class ArrowUtils {
         } else if (vector instanceof TimeStampVector
                 && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
             return new ArrowTimestampColumnVector(vector);
+        } else if (vector instanceof MapVector) {
+            MapVector mapVector = (MapVector) vector;
+            LogicalType keyType = ((MapType) fieldType).getKeyType();
+            LogicalType valueType = ((MapType) fieldType).getValueType();
+            StructVector structVector = (StructVector) mapVector.getDataVector();
+            return new ArrowMapColumnVector(
+                    mapVector,
+                    createColumnVector(structVector.getChild(MapVector.KEY_NAME), keyType),
+                    createColumnVector(structVector.getChild(MapVector.VALUE_NAME), valueType));
         } else if (vector instanceof ListVector) {
             ListVector listVector = (ListVector) vector;
             return new ArrowArrayColumnVector(
@@ -576,20 +467,18 @@ public final class ArrowUtils {
                                 structVector.getVectorById(i), ((RowType) fieldType).getTypeAt(i));
             }
             return new ArrowRowColumnVector(structVector, fieldColumns);
+        } else if (vector instanceof NullVector) {
+            return ArrowNullColumnVector.INSTANCE;
         } else {
             throw new UnsupportedOperationException(
                     String.format("Unsupported type %s.", fieldType));
         }
     }
 
-    public static AbstractArrowTableSource createArrowTableSource(
-            DataType dataType, String fileName) throws IOException {
+    public static ArrowTableSource createArrowTableSource(DataType dataType, String fileName)
+            throws IOException {
         try (FileInputStream fis = new FileInputStream(fileName)) {
-            if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
-                return new ArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
-            } else {
-                return new RowArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
-            }
+            return new ArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
         }
     }
 
@@ -657,14 +546,15 @@ public final class ArrowUtils {
         checkArrowUsable();
         BufferAllocator allocator =
                 getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
-        RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
+        RowType rowType =
+                (RowType) table.getResolvedSchema().toSourceRowDataType().getLogicalType();
+        DataType defaultRowDataType = TypeConversions.fromLogicalToDataType(rowType);
         VectorSchemaRoot root =
                 VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
         arrowStreamWriter.start();
 
-        ArrowWriter arrowWriter;
         Iterator<Row> results = table.execute().collect();
         Iterator<Row> appendOnlyResults;
         if (isAppendOnlyTable(table)) {
@@ -673,38 +563,21 @@ public final class ArrowUtils {
             appendOnlyResults = filterOutRetractRows(results);
         }
 
-        Iterator convertedResults;
-        if (isBlinkPlanner(table)) {
-            arrowWriter = createRowDataArrowWriter(root, rowType);
-            convertedResults =
-                    new Iterator<RowData>() {
-                        @Override
-                        public boolean hasNext() {
-                            return appendOnlyResults.hasNext();
-                        }
+        ArrowWriter arrowWriter = createRowDataArrowWriter(root, rowType);
+        Iterator convertedResults =
+                new Iterator<RowData>() {
+                    @Override
+                    public boolean hasNext() {
+                        return appendOnlyResults.hasNext();
+                    }
 
-                        @Override
-                        public RowData next() {
-                            // The SelectTableSink of blink planner will convert the table schema
-                            // and we
-                            // need to keep the table schema used here be consistent with the
-                            // converted table schema
-                            TableSchema convertedTableSchema =
-                                    SelectTableSinkSchemaConverter
-                                            .convertTimeAttributeToRegularTimestamp(
-                                                    SelectTableSinkSchemaConverter
-                                                            .changeDefaultConversionClass(
-                                                                    table.getSchema()));
-                            DataFormatConverters.DataFormatConverter converter =
-                                    DataFormatConverters.getConverterForDataType(
-                                            convertedTableSchema.toRowDataType());
-                            return (RowData) converter.toInternal(appendOnlyResults.next());
-                        }
-                    };
-        } else {
-            arrowWriter = createRowArrowWriter(root, rowType);
-            convertedResults = appendOnlyResults;
-        }
+                    @Override
+                    public RowData next() {
+                        DataFormatConverters.DataFormatConverter converter =
+                                DataFormatConverters.getConverterForDataType(defaultRowDataType);
+                        return (RowData) converter.toInternal(appendOnlyResults.next());
+                    }
+                };
 
         return new CustomIterator<byte[]>() {
             @Override
@@ -760,39 +633,22 @@ public final class ArrowUtils {
         return result.iterator();
     }
 
-    private static boolean isBlinkPlanner(Table table) {
+    private static boolean isStreamingMode(Table table) {
         TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
-        if (tableEnv instanceof TableEnvImpl) {
-            return false;
-        } else if (tableEnv instanceof TableEnvironmentImpl) {
-            Planner planner = ((TableEnvironmentImpl) tableEnv).getPlanner();
-            return planner instanceof PlannerBase;
+        if (tableEnv instanceof TableEnvironmentImpl) {
+            final RuntimeExecutionMode mode =
+                    tableEnv.getConfig().get(ExecutionOptions.RUNTIME_MODE);
+            if (mode == RuntimeExecutionMode.AUTOMATIC) {
+                throw new RuntimeException(
+                        String.format("Runtime execution mode '%s' is not supported yet.", mode));
+            }
+            return mode == RuntimeExecutionMode.STREAMING;
         } else {
-            throw new RuntimeException(
-                    String.format(
-                            "Could not determine the planner type for table environment class %s.",
-                            tableEnv.getClass()));
+            return false;
         }
     }
 
-    private static boolean isStreamingMode(Table table) throws Exception {
-        TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
-        if (tableEnv instanceof BatchTableEnvironment || tableEnv instanceof BatchTableEnvImpl) {
-            return false;
-        } else if (tableEnv instanceof TableEnvironmentImpl) {
-            java.lang.reflect.Field isStreamingModeMethod =
-                    TableEnvironmentImpl.class.getDeclaredField("isStreamingMode");
-            isStreamingModeMethod.setAccessible(true);
-            return (boolean) isStreamingModeMethod.get(tableEnv);
-        } else {
-            throw new RuntimeException(
-                    String.format(
-                            "Could not determine the streaming mode for table environment class %s",
-                            tableEnv.getClass()));
-        }
-    }
-
-    private static boolean isAppendOnlyTable(Table table) throws Exception {
+    private static boolean isAppendOnlyTable(Table table) {
         if (isStreamingMode(table)) {
             TableEnvironmentImpl tableEnv =
                     (TableEnvironmentImpl) ((TableImpl) table).getTableEnvironment();
@@ -870,8 +726,18 @@ public final class ArrowUtils {
         }
 
         @Override
+        public ArrowType visit(CharType varCharType) {
+            return ArrowType.Utf8.INSTANCE;
+        }
+
+        @Override
         public ArrowType visit(VarCharType varCharType) {
             return ArrowType.Utf8.INSTANCE;
+        }
+
+        @Override
+        public ArrowType visit(BinaryType varCharType) {
+            return new ArrowType.FixedSizeBinary(varCharType.getLength());
         }
 
         @Override
@@ -938,6 +804,16 @@ public final class ArrowUtils {
         @Override
         public ArrowType visit(RowType rowType) {
             return ArrowType.Struct.INSTANCE;
+        }
+
+        @Override
+        public ArrowType visit(MapType mapType) {
+            return new ArrowType.Map(false);
+        }
+
+        @Override
+        public ArrowType visit(NullType nullType) {
+            return ArrowType.Null.INSTANCE;
         }
 
         @Override

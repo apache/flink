@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,7 +46,7 @@ public class StreamingCustomInputSplitProgram {
     public static void main(String[] args) throws Exception {
         Configuration config = new Configuration();
 
-        config.setString(AkkaOptions.ASK_TIMEOUT, "5 s");
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(5));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 

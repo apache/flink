@@ -20,24 +20,55 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /** {@link EmbeddedHaServices} extension to expose leadership granting and revoking. */
 public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
         implements HaLeadershipControl {
-    private final CheckpointRecoveryFactory testingCheckpointRecoveryFactory;
+
+    private final CheckpointRecoveryFactory checkpointRecoveryFactory;
 
     public EmbeddedHaServicesWithLeadershipControl(Executor executor) {
+        this(
+                executor,
+                new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
+                        (maxCheckpoints,
+                                previous,
+                                stateRegistryFactory,
+                                ioExecutor,
+                                restoreMode) -> {
+                            List<CompletedCheckpoint> checkpoints =
+                                    previous != null
+                                            ? previous.getAllCheckpoints()
+                                            : Collections.emptyList();
+                            SharedStateRegistry stateRegistry =
+                                    stateRegistryFactory.create(
+                                            ioExecutor, checkpoints, restoreMode);
+                            if (previous != null) {
+                                if (!previous.getShutdownStatus().isPresent()) {
+                                    throw new IllegalStateException(
+                                            "Completed checkpoint store from previous run has not yet shutdown.");
+                                }
+                                return new EmbeddedCompletedCheckpointStore(
+                                        maxCheckpoints, checkpoints, stateRegistry);
+                            }
+                            return new EmbeddedCompletedCheckpointStore(
+                                    maxCheckpoints, checkpoints, stateRegistry);
+                        }));
+    }
+
+    public EmbeddedHaServicesWithLeadershipControl(
+            Executor executor, CheckpointRecoveryFactory checkpointRecoveryFactory) {
         super(executor);
-        this.testingCheckpointRecoveryFactory =
-                new PerJobCheckpointRecoveryFactory(
-                        n -> new EmbeddedCompletedCheckpointStore(),
-                        StandaloneCheckpointIDCounter::new);
+        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
     }
 
     @Override
@@ -82,7 +113,7 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
     public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
         synchronized (lock) {
             checkNotShutdown();
-            return testingCheckpointRecoveryFactory;
+            return checkpointRecoveryFactory;
         }
     }
 }

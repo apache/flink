@@ -21,19 +21,22 @@ package org.apache.flink.connector.hbase.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
+
+import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -46,19 +49,22 @@ public abstract class AbstractHBaseDynamicTableSource
     protected final String tableName;
     protected HBaseTableSchema hbaseSchema;
     protected final String nullStringLiteral;
-    protected final HBaseLookupOptions lookupOptions;
+    protected final int maxRetryTimes;
+    @Nullable protected final LookupCache cache;
 
     public AbstractHBaseDynamicTableSource(
             Configuration conf,
             String tableName,
             HBaseTableSchema hbaseSchema,
             String nullStringLiteral,
-            HBaseLookupOptions lookupOptions) {
+            int maxRetryTimes,
+            @Nullable LookupCache cache) {
         this.conf = conf;
         this.tableName = tableName;
         this.hbaseSchema = hbaseSchema;
         this.nullStringLiteral = nullStringLiteral;
-        this.lookupOptions = lookupOptions;
+        this.maxRetryTimes = maxRetryTimes;
+        this.cache = cache;
     }
 
     @Override
@@ -77,16 +83,18 @@ public abstract class AbstractHBaseDynamicTableSource
                 hbaseSchema.getRowKeyName().isPresent(),
                 "HBase schema must have a row key when used in lookup mode.");
         checkArgument(
-                hbaseSchema
-                        .convertsToTableSchema()
-                        .getTableColumn(context.getKeys()[0][0])
-                        .filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
-                        .isPresent(),
+                DataType.getFieldNames(hbaseSchema.convertToDataType())
+                        .get(context.getKeys()[0][0])
+                        .equals(hbaseSchema.getRowKeyName().get()),
                 "Currently, HBase table only supports lookup by rowkey field.");
-
-        return TableFunctionProvider.of(
+        HBaseRowDataLookupFunction lookupFunction =
                 new HBaseRowDataLookupFunction(
-                        conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
+                        conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes);
+        if (cache != null) {
+            return PartialCachingLookupProvider.of(lookupFunction, cache);
+        } else {
+            return LookupFunctionProvider.of(lookupFunction);
+        }
     }
 
     @Override
@@ -96,11 +104,10 @@ public abstract class AbstractHBaseDynamicTableSource
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields) {
-        TableSchema projectSchema =
-                TableSchemaUtils.projectSchema(
-                        hbaseSchema.convertsToTableSchema(), projectedFields);
-        this.hbaseSchema = HBaseTableSchema.fromTableSchema(projectSchema);
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
+        this.hbaseSchema =
+                HBaseTableSchema.fromDataType(
+                        Projection.of(projectedFields).project(hbaseSchema.convertToDataType()));
     }
 
     @Override
@@ -118,5 +125,16 @@ public abstract class AbstractHBaseDynamicTableSource
     @VisibleForTesting
     public HBaseTableSchema getHBaseTableSchema() {
         return this.hbaseSchema;
+    }
+
+    @VisibleForTesting
+    public int getMaxRetryTimes() {
+        return maxRetryTimes;
+    }
+
+    @VisibleForTesting
+    @Nullable
+    public LookupCache getCache() {
+        return cache;
     }
 }

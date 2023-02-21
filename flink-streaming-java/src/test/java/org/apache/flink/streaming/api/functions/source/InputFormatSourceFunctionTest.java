@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -282,8 +282,8 @@ public class InputFormatSourceFunctionTest {
         }
 
         @Override
-        public MetricGroup getMetricGroup() {
-            return new UnregisteredMetricsGroup();
+        public OperatorMetricGroup getMetricGroup() {
+            return UnregisteredMetricsGroup.createOperatorMetricGroup();
         }
 
         @Override

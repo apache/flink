@@ -25,8 +25,14 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
+import org.apache.curator.test.InstanceSpec;
+import org.apache.curator.test.TestingServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,6 +40,36 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ZooKeeperTestUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperTestUtils.class);
+
+    /**
+     * Creates a new {@link TestingServer}, setting additional configuration properties for
+     * stability purposes.
+     */
+    public static TestingServer createAndStartZookeeperTestingServer() throws Exception {
+        return new TestingServer(getZookeeperInstanceSpecWithIncreasedSessionTimeout(), true);
+    }
+
+    private static InstanceSpec getZookeeperInstanceSpecWithIncreasedSessionTimeout() {
+        // this gives us the default settings
+        final InstanceSpec instanceSpec = InstanceSpec.newInstanceSpec();
+
+        final Map<String, Object> properties = new HashMap<>();
+        properties.put("maxSessionTimeout", 60_000);
+
+        final boolean deleteDataDirectoryOnClose = true;
+
+        return new InstanceSpec(
+                instanceSpec.getDataDirectory(),
+                instanceSpec.getPort(),
+                instanceSpec.getElectionPort(),
+                instanceSpec.getQuorumPort(),
+                deleteDataDirectoryOnClose,
+                instanceSpec.getServerId(),
+                instanceSpec.getTickTime(),
+                instanceSpec.getMaxClientCnxns(),
+                properties,
+                instanceSpec.getHostname());
+    }
 
     /**
      * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
@@ -86,7 +122,7 @@ public class ZooKeeperTestUtils {
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
         config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
 
         return config;
     }

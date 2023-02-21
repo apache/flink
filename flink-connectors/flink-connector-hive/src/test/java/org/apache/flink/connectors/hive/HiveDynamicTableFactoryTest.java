@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.hive.HiveOptions.PartitionOrder;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -27,27 +28,31 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.filesystem.FileSystemLookupFunction;
-import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.LOOKUP_JOIN_CACHE_TTL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.connectors.hive.HiveOptions.LOOKUP_JOIN_CACHE_TTL;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link HiveDynamicTableFactory}. */
 public class HiveDynamicTableFactoryTest {
@@ -57,9 +62,7 @@ public class HiveDynamicTableFactoryTest {
 
     @BeforeClass
     public static void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-        tableEnv = TableEnvironment.create(settings);
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         hiveCatalog = HiveTestUtils.createHiveCatalog();
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
@@ -76,11 +79,12 @@ public class HiveDynamicTableFactoryTest {
                                 + " tblproperties ('%s' = 'true')",
                         STREAMING_SOURCE_ENABLE.key()));
         DynamicTableSource tableSource1 = getTableSource("table1");
-        assertFalse(tableSource1 instanceof HiveLookupTableSource);
+        assertThat(tableSource1).isNotInstanceOf(HiveLookupTableSource.class);
         HiveTableSource tableSource = (HiveTableSource) tableSource1;
         Configuration configuration = new Configuration();
         tableSource.catalogTable.getOptions().forEach(configuration::setString);
-        assertEquals(configuration.get(STREAMING_SOURCE_PARTITION_ORDER), "partition-name");
+        assertThat(configuration.get(STREAMING_SOURCE_PARTITION_ORDER))
+                .isEqualTo(HiveOptions.PartitionOrder.PARTITION_NAME);
 
         // test table can't be selected when set 'streaming-source.partition.include' to 'latest'
         tableEnv.executeSql(
@@ -90,17 +94,11 @@ public class HiveDynamicTableFactoryTest {
                                 + " tblproperties ('%s' = 'true', '%s' = 'latest')",
                         STREAMING_SOURCE_ENABLE.key(), STREAMING_SOURCE_PARTITION_INCLUDE.key()));
         DynamicTableSource tableSource2 = getTableSource("table2");
-        assertTrue(tableSource2 instanceof HiveLookupTableSource);
-        try {
-            tableEnv.executeSql("select * from table2");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The only supported 'streaming-source.partition.include' is 'all' in"
-                                            + " hive table scan, but is 'latest'")
-                            .isPresent());
-        }
+        assertThat(tableSource2).isInstanceOf(HiveLookupTableSource.class);
+        assertThatThrownBy(() -> tableEnv.executeSql("select * from table2"))
+                .hasMessage(
+                        "The only supported 'streaming-source.partition.include' is 'all' in"
+                                + " hive table scan, but is 'latest'");
 
         // test table support 'partition-name' in option 'streaming-source.partition.order'.
         tableEnv.executeSql(
@@ -110,12 +108,12 @@ public class HiveDynamicTableFactoryTest {
                                 + " tblproperties ('%s' = 'true', '%s' = 'partition-name')",
                         STREAMING_SOURCE_ENABLE.key(), STREAMING_SOURCE_PARTITION_ORDER.key()));
         DynamicTableSource tableSource3 = getTableSource("table3");
-        assertTrue(tableSource3 instanceof HiveTableSource);
+        assertThat(tableSource3).isInstanceOf(HiveTableSource.class);
         HiveTableSource hiveTableSource3 = (HiveTableSource) tableSource3;
         Configuration configuration1 = new Configuration();
         hiveTableSource3.catalogTable.getOptions().forEach(configuration1::setString);
-        String partitionOrder1 = configuration1.get(STREAMING_SOURCE_PARTITION_ORDER);
-        assertEquals("partition-name", partitionOrder1);
+        PartitionOrder partitionOrder1 = configuration1.get(STREAMING_SOURCE_PARTITION_ORDER);
+        assertThat(partitionOrder1).isEqualTo(HiveOptions.PartitionOrder.PARTITION_NAME);
 
         // test deprecated option key 'streaming-source.consume-order' and new key
         // 'streaming-source.partition-order'
@@ -126,13 +124,13 @@ public class HiveDynamicTableFactoryTest {
                                 + " tblproperties ('%s' = 'true', '%s' = 'partition-time')",
                         STREAMING_SOURCE_ENABLE.key(), "streaming-source.consume-order"));
         DynamicTableSource tableSource4 = getTableSource("table4");
-        assertTrue(tableSource4 instanceof HiveTableSource);
+        assertThat(tableSource4).isInstanceOf(HiveTableSource.class);
         HiveTableSource hiveTableSource = (HiveTableSource) tableSource4;
 
         Configuration configuration2 = new Configuration();
         hiveTableSource.catalogTable.getOptions().forEach(configuration2::setString);
-        String partitionOrder2 = configuration2.get(STREAMING_SOURCE_PARTITION_ORDER);
-        assertEquals("partition-time", partitionOrder2);
+        PartitionOrder partitionOrder2 = configuration2.get(STREAMING_SOURCE_PARTITION_ORDER);
+        assertThat(partitionOrder2).isEqualTo(HiveOptions.PartitionOrder.PARTITION_TIME);
     }
 
     @Test
@@ -143,7 +141,7 @@ public class HiveDynamicTableFactoryTest {
                         "create table table5 (x int, y string, z int) tblproperties ('%s'='5min')",
                         LOOKUP_JOIN_CACHE_TTL.key()));
         DynamicTableSource tableSource1 = getTableSource("table5");
-        assertTrue(tableSource1 instanceof HiveLookupTableSource);
+        assertThat(tableSource1).isInstanceOf(HiveLookupTableSource.class);
 
         // test hive streaming source is a lookup source when 'streaming-source.partition.include' =
         // 'latest'
@@ -153,16 +151,17 @@ public class HiveDynamicTableFactoryTest {
                                 + " tblproperties ('%s' = 'true', '%s' = 'latest')",
                         STREAMING_SOURCE_ENABLE.key(), STREAMING_SOURCE_PARTITION_INCLUDE.key()));
         DynamicTableSource tableSource2 = getTableSource("table6");
-        assertTrue(tableSource2 instanceof HiveLookupTableSource);
+        assertThat(tableSource2).isInstanceOf(HiveLookupTableSource.class);
         FileSystemLookupFunction lookupFunction =
                 (FileSystemLookupFunction)
                         ((HiveLookupTableSource) tableSource2).getLookupFunction(new int[][] {{0}});
         // test default lookup cache ttl for streaming-source is 1 hour
-        assertEquals(Duration.ofHours(1), lookupFunction.getReloadInterval());
+        assertThat(lookupFunction.getReloadInterval()).isEqualTo(Duration.ofHours(1));
         HiveLookupTableSource lookupTableSource = (HiveLookupTableSource) tableSource2;
         Configuration configuration = new Configuration();
         lookupTableSource.catalogTable.getOptions().forEach(configuration::setString);
-        assertEquals(configuration.get(STREAMING_SOURCE_PARTITION_ORDER), "partition-name");
+        assertThat(HiveOptions.PartitionOrder.PARTITION_NAME)
+                .isEqualTo(configuration.get(STREAMING_SOURCE_PARTITION_ORDER));
 
         // test lookup with partition-time extractor options
         tableEnv.executeSql(
@@ -183,14 +182,16 @@ public class HiveDynamicTableFactoryTest {
                         PARTITION_TIME_EXTRACTOR_CLASS.key()));
 
         DynamicTableSource tableSource3 = getTableSource("table7");
-        assertTrue(tableSource3 instanceof HiveLookupTableSource);
+        assertThat(tableSource3).isInstanceOf(HiveLookupTableSource.class);
         HiveLookupTableSource tableSource = (HiveLookupTableSource) tableSource3;
         Configuration configuration1 = new Configuration();
         tableSource.catalogTable.getOptions().forEach(configuration1::setString);
 
-        assertEquals(configuration1.get(STREAMING_SOURCE_PARTITION_ORDER), "partition-time");
-        assertEquals(configuration1.get(PARTITION_TIME_EXTRACTOR_KIND), "custom");
-        assertEquals(configuration1.get(PARTITION_TIME_EXTRACTOR_CLASS), "path.to..TimeExtractor");
+        assertThat(HiveOptions.PartitionOrder.PARTITION_TIME)
+                .isEqualTo(configuration1.get(STREAMING_SOURCE_PARTITION_ORDER));
+        assertThat("custom").isEqualTo(configuration1.get(PARTITION_TIME_EXTRACTOR_KIND));
+        assertThat("path.to..TimeExtractor")
+                .isEqualTo(configuration1.get(PARTITION_TIME_EXTRACTOR_CLASS));
 
         tableEnv.executeSql(
                 String.format(
@@ -200,15 +201,16 @@ public class HiveDynamicTableFactoryTest {
                         STREAMING_SOURCE_PARTITION_INCLUDE.key(),
                         STREAMING_SOURCE_MONITOR_INTERVAL.key()));
         DynamicTableSource tableSource4 = getTableSource("table8");
-        assertTrue(tableSource4 instanceof HiveLookupTableSource);
+        assertThat(tableSource4).isInstanceOf(HiveLookupTableSource.class);
         HiveLookupTableSource lookupTableSource4 = (HiveLookupTableSource) tableSource4;
         Configuration configuration4 = new Configuration();
         lookupTableSource4.catalogTable.getOptions().forEach(configuration4::setString);
-        assertEquals(configuration4.get(STREAMING_SOURCE_MONITOR_INTERVAL), Duration.ofMinutes(5L));
+        assertThat(Duration.ofMinutes(5L))
+                .isEqualTo(configuration4.get(STREAMING_SOURCE_MONITOR_INTERVAL));
     }
 
     @Test
-    public void testInvalidOptions() throws Exception {
+    public void testInvalidOptions() {
         tableEnv.executeSql(
                 String.format(
                         "create table table9 (x int, y string, z int)"
@@ -217,17 +219,48 @@ public class HiveDynamicTableFactoryTest {
                         STREAMING_SOURCE_PARTITION_INCLUDE.key(),
                         STREAMING_SOURCE_MONITOR_INTERVAL.key(),
                         STREAMING_SOURCE_CONSUME_START_OFFSET.key()));
+        assertThatThrownBy(() -> getTableSource("table9"))
+                .rootCause()
+                .hasMessage(
+                        "The 'streaming-source.consume-start-offset' is not supported when "
+                                + "set 'streaming-source.partition.include' to 'latest'");
+    }
 
-        try {
-            getTableSource("table9");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The 'streaming-source.consume-start-offset' is not supported when "
-                                            + "set 'streaming-source.partition.include' to 'latest'")
-                            .isPresent());
-        }
+    @Test
+    public void testJobConfWithCredentials() throws Exception {
+        final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+        final Text hdfsDelegationTokenService = new Text("ha-hdfs:hadoop-namespace");
+        Credentials credentials = new Credentials();
+        credentials.addToken(
+                hdfsDelegationTokenService,
+                new Token<>(
+                        new byte[4],
+                        new byte[4],
+                        hdfsDelegationTokenKind,
+                        hdfsDelegationTokenService));
+        UserGroupInformation.getCurrentUser().addCredentials(credentials);
+
+        // test table source's jobConf with credentials
+        tableEnv.executeSql(
+                String.format(
+                        "create table table10 (x int, y string, z int) partitioned by ("
+                                + " pt_year int, pt_mon string, pt_day string)"));
+        DynamicTableSource tableSource1 = getTableSource("table10");
+
+        HiveTableSource tableSource = (HiveTableSource) tableSource1;
+        Token token =
+                tableSource.getJobConf().getCredentials().getToken(hdfsDelegationTokenService);
+        assertThat(token).isNotNull();
+        assertThat(token.getKind()).isEqualTo(hdfsDelegationTokenKind);
+        assertThat(token.getService()).isEqualTo(hdfsDelegationTokenService);
+
+        // test table sink's jobConf with credentials
+        DynamicTableSink tableSink1 = getTableSink("table10");
+        HiveTableSink tableSink = (HiveTableSink) tableSink1;
+        token = tableSink.getJobConf().getCredentials().getToken(hdfsDelegationTokenService);
+        assertThat(token).isNotNull();
+        assertThat(token.getKind()).isEqualTo(hdfsDelegationTokenKind);
+        assertThat(token.getService()).isEqualTo(hdfsDelegationTokenService);
     }
 
     private DynamicTableSource getTableSource(String tableName) throws Exception {
@@ -236,11 +269,28 @@ public class HiveDynamicTableFactoryTest {
                 ObjectIdentifier.of(hiveCatalog.getName(), "default", tableName);
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
-        return FactoryUtil.createTableSource(
-                hiveCatalog,
+        return FactoryUtil.createDynamicTableSource(
+                (DynamicTableSourceFactory)
+                        hiveCatalog.getFactory().orElseThrow(IllegalStateException::new),
                 tableIdentifier,
                 tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
-                tableEnv.getConfig().getConfiguration(),
+                tableEnv.getConfig(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
+    }
+
+    private DynamicTableSink getTableSink(String tableName) throws Exception {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", tableName);
+        CatalogTable catalogTable =
+                (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
+        return FactoryUtil.createDynamicTableSink(
+                (DynamicTableSinkFactory)
+                        hiveCatalog.getFactory().orElseThrow(IllegalStateException::new),
+                tableIdentifier,
+                tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
+                tableEnv.getConfig(),
                 Thread.currentThread().getContextClassLoader(),
                 false);
     }

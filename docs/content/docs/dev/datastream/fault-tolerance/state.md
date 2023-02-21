@@ -36,9 +36,9 @@ to learn about the concepts behind stateful stream processing.
 
 If you want to use keyed state, you first need to specify a key on a
 `DataStream` that should be used to partition the state (and also the records
-in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
-a `DataStream`. This will yield a `KeyedDataStream`, which then allows
-operations that use keyed state.
+in the stream themselves). You can specify a key using `keyBy(KeySelector)`
+in Java/Scala API or `key_by(KeySelector)` in Python API on a `DataStream`.
+This will yield a `KeyedStream`, which then allows operations that use keyed state.
 
 A key selector function takes a single record as input and returns the key for
 that record. The key can be of any type and **must** be derived from
@@ -76,12 +76,20 @@ val words: DataStream[WC] = // [...]
 val keyed = words.keyBy( _.word )
 ```
 {{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+words = # type: DataStream[Row]
+keyed = words.key_by(lambda row: row[0])
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 #### Tuple Keys and Expression Keys
 
 Flink also has two alternative ways of defining keys: tuple keys and expression
-keys. With this you can specify keys using tuple field indices or expressions
+keys in the Java/Scala API(still not supported in the Python API). With this you can
+specify keys using tuple field indices or expressions
 for selecting fields of objects. We don't recommend using these today but you
 can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
 function is strictly superior: with Java lambdas they are easy to use and they
@@ -93,7 +101,7 @@ have potentially less overhead at runtime.
 
 The keyed state interfaces provides access to different types of state that are all scoped to
 the key of the current input element. This means that this type of state can only be used
-on a `KeyedStream`, which can be created via `stream.keyBy(…)`.
+on a `KeyedStream`, which can be created via `stream.keyBy(…)` in Java/Scala API or `stream.key_by(…)` in Python API.
 
 Now, we will first look at the different types of state available and then we will see
 how they can be used in a program. The available state primitives are:
@@ -260,6 +268,54 @@ object ExampleCountWindowAverage extends App {
 }
 ```
 {{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment, FlatMapFunction, RuntimeContext
+from pyflink.datastream.state import ValueStateDescriptor
+
+class CountWindowAverage(FlatMapFunction):
+
+    def __init__(self):
+        self.sum = None
+
+    def open(self, runtime_context: RuntimeContext):
+        descriptor = ValueStateDescriptor(
+            "average",  # the state name
+            Types.PICKLED_BYTE_ARRAY()  # type information
+        )
+        self.sum = runtime_context.get_state(descriptor)
+
+    def flat_map(self, value):
+        # access the state value
+        current_sum = self.sum.value()
+        if current_sum is None:
+            current_sum = (0, 0)
+
+        # update the count
+        current_sum = (current_sum[0] + 1, current_sum[1] + value[1])
+
+        # update the state
+        self.sum.update(current_sum)
+
+        # if the count reaches 2, emit the average and clear the state
+        if current_sum[0] >= 2:
+            self.sum.clear()
+            yield value[0], int(current_sum[1] / current_sum[0])
+
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.from_collection([(1, 3), (1, 5), (1, 7), (1, 4), (1, 2)]) \
+    .key_by(lambda row: row[0]) \
+    .flat_map(CountWindowAverage()) \
+    .print()
+
+env.execute()
+
+# the printed output will be (1,4) and (1,5)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 This example implements a poor man's counting window. We key the tuples by the first field
@@ -313,6 +369,22 @@ val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[Str
 stateDescriptor.enableTimeToLive(ttlConfig)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.common.typeinfo import Types
+from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+  .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
+  .build()
+
+state_descriptor = ValueStateDescriptor("text state", Types.STRING())
+state_descriptor.enable_time_to_live(ttl_config)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The configuration has several options to consider:
@@ -323,11 +395,17 @@ The update type configures when the state TTL is refreshed (by default `OnCreate
 
  - `StateTtlConfig.UpdateType.OnCreateAndWrite` - only on creation and write access
  - `StateTtlConfig.UpdateType.OnReadAndWrite` - also on read access
+
+    (**Notes:** If you set the state visibility to `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp`
+    at the same time, the state read cache will be disabled, which will cause some performance loss in PyFlink)
  
 The state visibility configures whether the expired value is returned on read access 
 if it is not cleaned up yet (by default `NeverReturnExpired`):
 
- - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned
+ - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned 
+
+    (**Notes:** The state read/write cache will be disabled, which will cause some performance loss in PyFlink)
+
  - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available
  
 In case of `NeverReturnExpired`, the expired state behaves as if it does not exist anymore, 
@@ -354,6 +432,8 @@ will lead to compatibility failure and `StateMigrationException`.
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
+- With TTL enabled configuration, the `defaultValue` in `StateDescriptor`, which is actually already deprecated, will no longer take an effect. This aims to make the semantics more clear and let user manually manage the default value if the contents of the state is null or expired.
+
 #### Cleanup of Expired State
 
 By default, expired values are explicitly removed on read, such as `ValueState#value`, and periodically garbage collected
@@ -376,6 +456,17 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .disableCleanupInBackground
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .disable_cleanup_in_background() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -411,6 +502,17 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupFullSnapshot
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_full_snapshot() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -450,6 +552,17 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupIncrementally(10, true)
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_incrementally(10, True) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -499,6 +612,17 @@ val ttlConfig = StateTtlConfig
     .build
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000) \
+  .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 RocksDB compaction filter will query current timestamp, used to check expiration, from Flink every time 
@@ -546,7 +670,7 @@ val counts: DataStream[(String, Int)] = stream
 
 ## Operator State
 
-*Operator State* (or *non-keyed state*) is state that is is bound to one
+*Operator State* (or *non-keyed state*) is state that is bound to one
 parallel operator instance. The [Kafka Connector]({{< ref "docs/connectors/datastream/kafka" >}}) is a good motivating example for the use of
 Operator State in Flink. Each parallel instance of the Kafka consumer maintains
 a map of topic partitions and offsets as its Operator State.
@@ -558,6 +682,8 @@ for doing this redistribution.
 In a typical stateful Flink Application you don't need operators state. It is
 mostly a special type of state that is used in source/sink implementations and
 scenarios where you don't have a key by which state can be partitioned.
+
+**Notes:** Operator state is still not supported in Python DataStream API.
 
 ## Broadcast State
 
@@ -643,7 +769,7 @@ public class BufferingSink
     @Override
     public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
         bufferedElements.add(value);
-        if (bufferedElements.size() == threshold) {
+        if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
                 // send it to the sink
             }
@@ -690,7 +816,7 @@ class BufferingSink(threshold: Int = 0)
 
   override def invoke(value: (String, Int), context: Context): Unit = {
     bufferedElements += value
-    if (bufferedElements.size == threshold) {
+    if (bufferedElements.size >= threshold) {
       for (element <- bufferedElements) {
         // send it to the sink
       }
@@ -714,7 +840,7 @@ class BufferingSink(threshold: Int = 0)
     checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
     if(context.isRestored) {
-      for(element <- checkpointedState.get()) {
+      for(element <- checkpointedState.get().asScala) {
         bufferedElements += element
       }
     }

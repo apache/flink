@@ -65,7 +65,12 @@ import java.util.TimeZone;
  *
  * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime class
  * {@link AvroRowDeserializationSchema} and schema converter {@link AvroSchemaConverter}.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link SerializationSchema}.
  */
+@Deprecated
 public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 
     /** Used for time conversions from SQL types. */

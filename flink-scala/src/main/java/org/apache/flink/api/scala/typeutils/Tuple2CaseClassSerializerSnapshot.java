@@ -56,15 +56,6 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
         this.type = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
     }
 
-    /**
-     * Constructor for backwards compatibility path, used by the method {@code
-     * Tuple2CaseClassSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(TypeSerializerConfigSnapshot)}.
-     */
-    public Tuple2CaseClassSerializerSnapshot(Class<Tuple2<T1, T2>> tupleClass) {
-        super(correspondingSerializerClass());
-        this.type = checkNotNull(tupleClass, "tuple class can not be NULL");
-    }
-
     @Override
     protected int getCurrentOuterSnapshotVersion() {
         return VERSION;

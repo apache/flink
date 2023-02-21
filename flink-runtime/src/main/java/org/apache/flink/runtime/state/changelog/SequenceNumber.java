@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -27,15 +28,17 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A logical timestamp to draw a boundary between the materialized and non-materialized changes.
  * Maintained by the state backend but implementations may choose to move its generation to {@link
- * StateChangelogWriterFactory} as an optimization.
+ * StateChangelogStorage} as an optimization.
  */
 @Internal
-public interface SequenceNumber extends Comparable<SequenceNumber> {
+public interface SequenceNumber extends Comparable<SequenceNumber>, Serializable {
 
     SequenceNumber next();
 
     /** Generic {@link SequenceNumber}. */
     final class GenericSequenceNumber implements SequenceNumber {
+        private static final long serialVersionUID = 1L;
+
         public final long number;
 
         GenericSequenceNumber(long number) {

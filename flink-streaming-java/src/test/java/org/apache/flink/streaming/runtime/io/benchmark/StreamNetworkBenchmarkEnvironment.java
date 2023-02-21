@@ -24,12 +24,12 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -40,15 +40,19 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.newUnregisteredInputChannelMetrics;
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
 
 /**
@@ -234,16 +238,20 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
     }
 
     private InputGateDeploymentDescriptor createInputGateDeploymentDescriptor(
-            TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation) {
+            TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation)
+            throws IOException {
 
-        final ShuffleDescriptor[] channelDescriptors = new ShuffleDescriptor[channels];
+        final ShuffleDescriptorAndIndex[] channelDescriptors =
+                new ShuffleDescriptorAndIndex[channels];
         for (int channelIndex = 0; channelIndex < channels; ++channelIndex) {
             channelDescriptors[channelIndex] =
-                    createShuffleDescriptor(
-                            localMode,
-                            partitionIds[gateIndex],
-                            localLocation,
-                            senderLocation,
+                    new ShuffleDescriptorAndIndex(
+                            createShuffleDescriptor(
+                                    localMode,
+                                    partitionIds[gateIndex],
+                                    localLocation,
+                                    senderLocation,
+                                    channelIndex),
                             channelIndex);
         }
 
@@ -261,13 +269,18 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
             InputGateDeploymentDescriptor gateDescriptor,
             int gateIndex) {
 
+        final TaskMetricGroup taskMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         final SingleInputGate singleGate =
                 gateFactory.create(
-                        "receiving task[" + gateIndex + "]",
+                        receiverEnv.createShuffleIOOwnerContext(
+                                "receiving task[" + gateIndex + "]",
+                                taskMetricGroup.executionId(),
+                                taskMetricGroup),
                         gateIndex,
                         gateDescriptor,
                         SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                        InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+                        newUnregisteredInputChannelMetrics());
 
         return new InputGateWithMetrics(singleGate, new SimpleCounter());
     }

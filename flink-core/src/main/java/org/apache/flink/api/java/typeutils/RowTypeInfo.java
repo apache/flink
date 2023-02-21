@@ -313,7 +313,7 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
         for (int i = 0; i < len; i++) {
             fieldSerializers[i] = types[i].createSerializer(config);
         }
-        return new RowSerializer(fieldSerializers, null, true);
+        return new RowSerializer(fieldSerializers, null, false);
     }
 
     /** Tests whether an other object describes the same, schema-equivalent row information. */

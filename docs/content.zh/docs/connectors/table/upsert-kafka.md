@@ -40,6 +40,8 @@ Upsert Kafka 连接器支持以 upsert 方式从 Kafka topic 中读取数据并�
 
 {{< sql_download_table "upsert-kafka" >}}
 
+Upsert Kafka 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Upsert Kafka 连接器。
+
 完整示例
 ----------------
 
@@ -88,7 +90,7 @@ GROUP BY user_region;
 Available Metadata
 ------------------
 
-See the [regular Kafka connector]({{< ref "docs/connectors/datastream/kafka" >}}#available-metadata) for a list
+See the [regular Kafka connector]({{< ref "docs/connectors/table/kafka" >}}#available-metadata) for a list
 of all available metadata fields.
 
 连接器参数
@@ -240,7 +242,7 @@ CREATE TABLE KafkaTable (
 
 ### 主键约束
 
-Upsert Kafka 始终以 upsert 方式工作，并且需要在 DDL 中定义主键。在具有相同主键值的消息按序存储在同一个分区的前提下，在 changlog source 定义主键意味着 在物化后的 changelog 上主键具有唯一性。定义的主键将决定哪些字段出现在 Kafka 消息的 key 中。
+Upsert Kafka 始终以 upsert 方式工作，并且需要在 DDL 中定义主键。在具有相同主键值的消息按序存储在同一个分区的前提下，在 changelog source 定义主键意味着 在物化后的 changelog 上主键具有唯一性。定义的主键将决定哪些字段出现在 Kafka 消息的 key 中。
 
 ### 一致性保证
 

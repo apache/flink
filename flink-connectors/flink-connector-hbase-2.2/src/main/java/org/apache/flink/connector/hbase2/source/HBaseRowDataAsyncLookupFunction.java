@@ -20,20 +20,15 @@ package org.apache.flink.connector.hbase2.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.util.StringUtils;
-
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
@@ -56,14 +51,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
- * The HBaseRowDataAsyncLookupFunction is an implemenation to lookup HBase data by rowkey in async
+ * The HBaseRowDataAsyncLookupFunction is an implementation to lookup HBase data by rowkey in async
  * fashion. It looks up the result as {@link RowData}.
  */
 @Internal
-public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData> {
+public class HBaseRowDataAsyncLookupFunction extends AsyncLookupFunction {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(HBaseRowDataAsyncLookupFunction.class);
@@ -78,10 +72,7 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     private transient AsyncTable<ScanResultConsumer> table;
     private transient HBaseSerde serde;
 
-    private final long cacheMaxSize;
-    private final long cacheExpireMs;
     private final int maxRetryTimes;
-    private transient Cache<Object, RowData> cache;
 
     /** The size for thread pool. */
     private static final int THREAD_POOL_SIZE = 16;
@@ -91,14 +82,12 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
             String hTableName,
             HBaseTableSchema hbaseTableSchema,
             String nullStringLiteral,
-            HBaseLookupOptions lookupOptions) {
+            int maxRetryTimes) {
         this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(configuration);
         this.hTableName = hTableName;
         this.hbaseTableSchema = hbaseTableSchema;
         this.nullStringLiteral = nullStringLiteral;
-        this.cacheMaxSize = lookupOptions.getCacheMaxSize();
-        this.cacheExpireMs = lookupOptions.getCacheExpireMs();
-        this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
+        this.maxRetryTimes = maxRetryTimes;
     }
 
     @Override
@@ -108,26 +97,13 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                 Executors.newFixedThreadPool(
                         THREAD_POOL_SIZE,
                         new ExecutorThreadFactory(
-                                "hbase-aysnc-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
+                                "hbase-async-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
         Configuration config = prepareRuntimeConfiguration();
         CompletableFuture<AsyncConnection> asyncConnectionFuture =
                 ConnectionFactory.createAsyncConnection(config);
         try {
             asyncConnection = asyncConnectionFuture.get();
             table = asyncConnection.getTable(TableName.valueOf(hTableName), threadPool);
-
-            this.cache =
-                    cacheMaxSize <= 0 || cacheExpireMs <= 0
-                            ? null
-                            : CacheBuilder.newBuilder()
-                                    .recordStats()
-                                    .expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
-                                    .maximumSize(cacheMaxSize)
-                                    .build();
-            if (cache != null && context != null) {
-                context.getMetricGroup()
-                        .gauge("lookupCacheHitRate", (Gauge<Double>) () -> cache.stats().hitRate());
-            }
         } catch (InterruptedException | ExecutionException e) {
             LOG.error("Exception while creating connection to HBase.", e);
             throw new RuntimeException("Cannot create connection to HBase.", e);
@@ -139,24 +115,15 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     /**
      * The invoke entry point of lookup function.
      *
-     * @param future The result or exception is returned.
-     * @param rowKey the lookup key. Currently only support single rowkey.
+     * @param keyRow A {@link RowData} that wraps lookup keys. Currently only support single rowkey.
      */
-    public void eval(CompletableFuture<Collection<RowData>> future, Object rowKey) {
+    @Override
+    public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
         int currentRetry = 0;
-        if (cache != null) {
-            RowData cacheRowData = cache.getIfPresent(rowKey);
-            if (cacheRowData != null) {
-                if (cacheRowData.getArity() == 0) {
-                    future.complete(Collections.emptyList());
-                } else {
-                    future.complete(Collections.singletonList(cacheRowData));
-                }
-                return;
-            }
-        }
+        CompletableFuture<Collection<RowData>> future = new CompletableFuture<>();
         // fetch result
-        fetchResult(future, currentRetry, rowKey);
+        fetchResult(future, currentRetry, ((GenericRowData) keyRow).getField(0));
+        return future;
     }
 
     /**
@@ -199,18 +166,9 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                     } else {
                         if (result.isEmpty()) {
                             resultFuture.complete(Collections.emptyList());
-                            if (cache != null) {
-                                cache.put(rowKey, new GenericRowData(0));
-                            }
                         } else {
-                            if (cache != null) {
-                                RowData rowData = serde.convertToNewRow(result);
-                                resultFuture.complete(Collections.singletonList(rowData));
-                                cache.put(rowKey, rowData);
-                            } else {
-                                resultFuture.complete(
-                                        Collections.singletonList(serde.convertToNewRow(result)));
-                            }
+                            resultFuture.complete(
+                                    Collections.singletonList(serde.convertToNewRow(result)));
                         }
                     }
                 });

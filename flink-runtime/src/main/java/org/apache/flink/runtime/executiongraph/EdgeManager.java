@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Class that manages all the connections between tasks. */
 public class EdgeManager {
@@ -41,20 +40,18 @@ public class EdgeManager {
     private final Map<ExecutionVertexID, List<ConsumedPartitionGroup>> vertexConsumedPartitions =
             new HashMap<>();
 
+    private final Map<IntermediateResultPartitionID, List<ConsumedPartitionGroup>>
+            consumedPartitionsById = new HashMap<>();
+
     public void connectPartitionWithConsumerVertexGroup(
             IntermediateResultPartitionID resultPartitionId,
             ConsumerVertexGroup consumerVertexGroup) {
 
         checkNotNull(consumerVertexGroup);
 
-        final List<ConsumerVertexGroup> consumers =
+        List<ConsumerVertexGroup> groups =
                 getConsumerVertexGroupsForPartitionInternal(resultPartitionId);
-
-        // sanity check
-        checkState(
-                consumers.isEmpty(), "Currently there has to be exactly one consumer in real jobs");
-
-        consumers.add(consumerVertexGroup);
+        groups.add(consumerVertexGroup);
     }
 
     public void connectVertexWithConsumedPartitionGroup(
@@ -88,5 +85,29 @@ public class EdgeManager {
             ExecutionVertexID executionVertexId) {
         return Collections.unmodifiableList(
                 getConsumedPartitionGroupsForVertexInternal(executionVertexId));
+    }
+
+    public void registerConsumedPartitionGroup(ConsumedPartitionGroup group) {
+        for (IntermediateResultPartitionID partitionId : group) {
+            consumedPartitionsById
+                    .computeIfAbsent(partitionId, ignore -> new ArrayList<>())
+                    .add(group);
+        }
+    }
+
+    private List<ConsumedPartitionGroup> getConsumedPartitionGroupsByIdInternal(
+            IntermediateResultPartitionID resultPartitionId) {
+        return consumedPartitionsById.computeIfAbsent(resultPartitionId, id -> new ArrayList<>());
+    }
+
+    public List<ConsumedPartitionGroup> getConsumedPartitionGroupsById(
+            IntermediateResultPartitionID resultPartitionId) {
+        return Collections.unmodifiableList(
+                getConsumedPartitionGroupsByIdInternal(resultPartitionId));
+    }
+
+    public int getNumberOfConsumedPartitionGroupsById(
+            IntermediateResultPartitionID resultPartitionId) {
+        return getConsumedPartitionGroupsByIdInternal(resultPartitionId).size();
     }
 }

@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Column statistics of a table or partition. */
+@PublicEvolving
 public class CatalogColumnStatistics {
     public static final CatalogColumnStatistics UNKNOWN =
             new CatalogColumnStatistics(new HashMap<>());
@@ -69,5 +73,33 @@ public class CatalogColumnStatistics {
             copy.put(entry.getKey(), entry.getValue().copy());
         }
         return new CatalogColumnStatistics(copy, new HashMap<>(this.properties));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatistics that = (CatalogColumnStatistics) o;
+        return columnStatisticsData.equals(that.columnStatisticsData)
+                && properties.equals(that.properties);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(columnStatisticsData, properties);
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatistics{"
+                + "columnStatisticsData="
+                + columnStatisticsData
+                + ", properties="
+                + properties
+                + '}';
     }
 }

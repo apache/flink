@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
@@ -70,6 +71,8 @@ public class DefaultJobLeaderService implements JobLeaderService {
 
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
+    private final UUID taskManagerSession;
+
     /** Internal state of the service. */
     private volatile DefaultJobLeaderService.State state;
 
@@ -93,6 +96,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
         this.ownLocation = Preconditions.checkNotNull(location);
         this.retryingRegistrationConfiguration =
                 Preconditions.checkNotNull(retryingRegistrationConfiguration);
+        this.taskManagerSession = UUID.randomUUID();
 
         // Has to be a concurrent hash map because tests might access this service
         // concurrently via containsJob
@@ -341,7 +345,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
             currentJobMasterId = jobMasterId;
             rpcConnection =
                     new JobManagerRegisteredRpcConnection(
-                            LOG, leaderAddress, jobMasterId, rpcService.getExecutor());
+                            LOG, leaderAddress, jobMasterId, rpcService.getScheduledExecutor());
 
             LOG.info(
                     "Try to register at job manager {} with leader id {}.",
@@ -401,9 +405,9 @@ public class DefaultJobLeaderService implements JobLeaderService {
                         getTargetAddress(),
                         getTargetLeaderId(),
                         retryingRegistrationConfiguration,
-                        ownerAddress,
-                        ownLocation,
-                        jobId);
+                        jobId,
+                        TaskManagerRegistrationInformation.create(
+                                ownerAddress, ownLocation, taskManagerSession));
             }
 
             @Override
@@ -482,11 +486,9 @@ public class DefaultJobLeaderService implements JobLeaderService {
                     JMTMRegistrationSuccess,
                     JMTMRegistrationRejection> {
 
-        private final String taskManagerRpcAddress;
-
-        private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
-
         private final JobID jobId;
+
+        private final TaskManagerRegistrationInformation taskManagerRegistrationInformation;
 
         JobManagerRetryingRegistration(
                 Logger log,
@@ -496,9 +498,8 @@ public class DefaultJobLeaderService implements JobLeaderService {
                 String targetAddress,
                 JobMasterId jobMasterId,
                 RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-                String taskManagerRpcAddress,
-                UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
-                JobID jobId) {
+                JobID jobId,
+                TaskManagerRegistrationInformation taskManagerRegistrationInformation) {
             super(
                     log,
                     rpcService,
@@ -508,20 +509,15 @@ public class DefaultJobLeaderService implements JobLeaderService {
                     jobMasterId,
                     retryingRegistrationConfiguration);
 
-            this.taskManagerRpcAddress = taskManagerRpcAddress;
-            this.unresolvedTaskManagerLocation =
-                    Preconditions.checkNotNull(unresolvedTaskManagerLocation);
             this.jobId = Preconditions.checkNotNull(jobId);
+            this.taskManagerRegistrationInformation = taskManagerRegistrationInformation;
         }
 
         @Override
         protected CompletableFuture<RegistrationResponse> invokeRegistration(
                 JobMasterGateway gateway, JobMasterId fencingToken, long timeoutMillis) {
             return gateway.registerTaskManager(
-                    taskManagerRpcAddress,
-                    unresolvedTaskManagerLocation,
-                    jobId,
-                    Time.milliseconds(timeoutMillis));
+                    jobId, taskManagerRegistrationInformation, Time.milliseconds(timeoutMillis));
         }
     }
 

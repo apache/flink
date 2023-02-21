@@ -18,16 +18,14 @@
 
 package org.apache.flink.api.scala.typeutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,26 +38,19 @@ import static org.hamcrest.CoreMatchers.is;
  * A {@link org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase} for {@link
  * ScalaEitherSerializerSnapshot}.
  */
-@RunWith(Parameterized.class)
-public class OptionSerializerUpgradeTest
+class OptionSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Option<String>, Option<String>> {
 
     private static final String SPEC_NAME = "scala-option-serializer";
 
-    public OptionSerializerUpgradeTest(
-            TestSpecification<Option<String>, Option<String>> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             SPEC_NAME,
-                            migrationVersion,
+                            flinkVersion,
                             ScalaOptionSerializerSetup.class,
                             ScalaOptionSerializerVerifier.class));
         }
@@ -105,7 +96,7 @@ public class OptionSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Option<String>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

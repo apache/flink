@@ -15,4 +15,3 @@
 
 org.apache.flink.formats.avro.AvroFormatFactory
 org.apache.flink.formats.avro.AvroFileFormatFactory
-org.apache.flink.formats.avro.AvroFileSystemFormatFactory

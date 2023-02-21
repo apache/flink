@@ -165,9 +165,9 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         final long checkpointId = 177;
 
         final CheckpointStorageAccess storage1 = createCheckpointStorage(checkpointDir);
-        storage1.initializeBaseLocations();
+        storage1.initializeBaseLocationsForCheckpoint();
         final CheckpointStorageAccess storage2 = createCheckpointStorage(checkpointDir);
-        storage2.initializeBaseLocations();
+        storage2.initializeBaseLocationsForCheckpoint();
 
         final CheckpointStorageLocation loc1 =
                 storage1.initializeLocationForCheckpoint(checkpointId);
@@ -221,7 +221,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         final long checkpointId = 177;
 
         final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
-        storage.initializeBaseLocations();
+        storage.initializeBaseLocationsForCheckpoint();
         final CheckpointStorageLocation loc = storage.initializeLocationForCheckpoint(checkpointId);
 
         // write to the metadata file for the checkpoint

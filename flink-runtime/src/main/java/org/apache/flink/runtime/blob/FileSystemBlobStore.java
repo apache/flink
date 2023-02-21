@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.util.Arrays;
 
@@ -73,10 +73,12 @@ public class FileSystemBlobStore implements BlobStoreService {
     }
 
     private boolean put(File fromFile, String toBlobPath) throws IOException {
-        try (OutputStream os =
+        try (FSDataOutputStream os =
                 fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
             LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
             Files.copy(fromFile, os);
+
+            os.sync();
         }
         return true;
     }
@@ -156,7 +158,13 @@ public class FileSystemBlobStore implements BlobStoreService {
 
             Path path = new Path(blobPath);
 
-            boolean result = fileSystem.delete(path, true);
+            boolean result = true;
+            if (fileSystem.exists(path)) {
+                result = fileSystem.delete(path, true);
+            } else {
+                LOG.debug(
+                        "The given path {} is not present anymore. No deletion is required.", path);
+            }
 
             // send a call to delete the directory containing the file. This will
             // fail (and be ignored) when some files still exist.

@@ -22,14 +22,15 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.python.util.PythonDependencyUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
 
 import py4j.GatewayServer;
 
@@ -124,7 +125,11 @@ public interface PythonFunctionFactory {
         Configuration mergedConfig =
                 new Configuration(
                         ExecutionEnvironment.getExecutionEnvironment().getConfiguration());
-        PythonDependencyUtils.merge(mergedConfig, (Configuration) config);
+        if (config instanceof TableConfig) {
+            PythonDependencyUtils.merge(mergedConfig, ((TableConfig) config).getConfiguration());
+        } else {
+            PythonDependencyUtils.merge(mergedConfig, (Configuration) config);
+        }
         PythonFunctionFactory pythonFunctionFactory =
                 PYTHON_FUNCTION_FACTORY_CACHE.get(CacheKey.of(mergedConfig, classLoader));
         ensureCacheCleanupExecutorServiceStarted();

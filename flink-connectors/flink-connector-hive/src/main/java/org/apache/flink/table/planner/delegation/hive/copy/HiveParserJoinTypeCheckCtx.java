@@ -50,7 +50,7 @@ public class HiveParserJoinTypeCheckCtx extends HiveParserTypeCheckCtx {
                 false,
                 false,
                 false,
-                false,
+                true,
                 false,
                 frameworkConfig,
                 cluster);

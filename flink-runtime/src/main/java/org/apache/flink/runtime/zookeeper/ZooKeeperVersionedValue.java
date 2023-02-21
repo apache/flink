@@ -20,7 +20,7 @@ package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.VersionedValue;
 
 /**
  * Wrapper class for a {@link VersionedValue} so that we don't expose a curator dependency in our

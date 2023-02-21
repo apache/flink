@@ -16,42 +16,77 @@
  * limitations under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
-import { TaskManagerService } from 'services';
-import { first } from 'rxjs/operators';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
+
+import { AddonCompactComponent } from '@flink-runtime-web/components/addon-compact/addon-compact.component';
+import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
+import {
+  TASK_MANAGER_MODULE_CONFIG,
+  TASK_MANAGER_MODULE_DEFAULT_CONFIG
+} from '@flink-runtime-web/pages/task-manager/task-manager.config';
+import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 
 @Component({
   selector: 'flink-task-manager-thread-dump',
   templateUrl: './task-manager-thread-dump.component.html',
   styleUrls: ['./task-manager-thread-dump.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
+  standalone: true
 })
-export class TaskManagerThreadDumpComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
-  dump = '';
-  taskManagerDetail: TaskManagerDetailInterface;
+export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
+  public editorOptions: EditorOptions;
 
-  reload() {
-    if (this.taskManagerDetail) {
-      this.taskManagerService.loadThreadDump(this.taskManagerDetail.id).subscribe(data => {
-          this.monacoEditorComponent.layout();
-          this.dump = data;
-          this.cdr.markForCheck();
-        }, () => {
-        this.cdr.markForCheck();
-      });
-    }
+  public dump = '';
+  public loading = true;
+  public taskManagerId: string;
+  public downloadUrl = '';
+  public downloadName = '';
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly configService: ConfigService,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: ModuleConfig
+  ) {
+    this.editorOptions = moduleConfig.editorOptions || TASK_MANAGER_MODULE_DEFAULT_CONFIG.editorOptions;
   }
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
+  public ngOnInit(): void {
+    this.taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
+    this.downloadUrl = `${this.configService.BASE_URL}/taskmanagers/${this.taskManagerId}/thread-dump`;
+    this.downloadName = `taskmanager_${this.taskManagerId}_thread_dump`;
+    this.reload();
+  }
 
-  ngOnInit() {
-    this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.reload();
-      this.cdr.markForCheck();
-    });
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reload(): void {
+    this.loading = true;
+    this.cdr.markForCheck();
+    this.taskManagerService
+      .loadThreadDump(this.taskManagerId)
+      .pipe(
+        catchError(() => of('')),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.loading = false;
+        this.dump = data;
+        this.cdr.markForCheck();
+      });
   }
 }

@@ -65,7 +65,7 @@ public class PartitionPathUtils {
                     '\u0009', '\n', '\u000B', '\u000C', '\r', '\u000E', '\u000F', '\u0010',
                     '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018',
                     '\u0019', '\u001A', '\u001B', '\u001C', '\u001D', '\u001E', '\u001F', '"', '#',
-                    '%', '\'', '*', '/', ':', '=', '?', '\\', '\u007F', '{', '[', ']', '^'
+                    '%', '\'', '*', '/', ':', '=', '?', '\\', '\u007F', '{', '}', '[', ']', '^'
                 };
 
         for (char c : clist) {
@@ -108,22 +108,39 @@ public class PartitionPathUtils {
      * @param path The path to escape.
      * @return An escaped path name.
      */
-    private static String escapePathName(String path) {
+    static String escapePathName(String path) {
         if (path == null || path.length() == 0) {
             throw new TableException("Path should not be null or empty: " + path);
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = null;
         for (int i = 0; i < path.length(); i++) {
             char c = path.charAt(i);
             if (needsEscaping(c)) {
-                sb.append('%');
-                sb.append(String.format("%1$02X", (int) c));
-            } else {
+                if (sb == null) {
+                    sb = new StringBuilder(path.length() + 2);
+                    for (int j = 0; j < i; j++) {
+                        sb.append(path.charAt(j));
+                    }
+                }
+                escapeChar(c, sb);
+            } else if (sb != null) {
                 sb.append(c);
             }
         }
+        if (sb == null) {
+            return path;
+        }
         return sb.toString();
+    }
+
+    static StringBuilder escapeChar(char c, StringBuilder sb) {
+        sb.append('%');
+        if (c < 16) {
+            sb.append('0');
+        }
+        sb.append(Integer.toHexString(c).toUpperCase());
+        return sb;
     }
 
     /**

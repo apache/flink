@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.OutputFormat.InitializationContext;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -38,8 +39,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.Sorter;
@@ -130,8 +131,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
         {
             Counter tmpNumRecordsIn;
             try {
-                OperatorIOMetricGroup ioMetricGroup =
-                        ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+                InternalOperatorIOMetricGroup ioMetricGroup =
+                        ((InternalOperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
                 ioMetricGroup.reuseInputMetricsForTask();
                 ioMetricGroup.reuseOutputMetricsForTask();
                 tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
@@ -215,8 +216,22 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
             // open
             format.open(
-                    this.getEnvironment().getTaskInfo().getIndexOfThisSubtask(),
-                    this.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks());
+                    new InitializationContext() {
+                        @Override
+                        public int getNumTasks() {
+                            return getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
+                        }
+
+                        @Override
+                        public int getTaskNumber() {
+                            return getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+                        }
+
+                        @Override
+                        public int getAttemptNumber() {
+                            return getEnvironment().getTaskInfo().getAttemptNumber();
+                        }
+                    });
 
             if (objectReuseEnabled) {
                 IT record = serializer.createInstance();

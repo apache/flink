@@ -38,9 +38,9 @@ Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) i
 In order to start an HA-cluster you have to configure the following configuration keys:
 
 - [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (required): 
-The `high-availability` option has to be set to `zookeeper`.
+The `high-availability.type` option has to be set to `zookeeper`.
 
-  <pre>high-availability: zookeeper</pre>
+  <pre>high-availability.type: zookeeper</pre>
 
 - [high-availability.storageDir]({{< ref "docs/deployment/config" >}}#high-availability-storagedir) (required): 
 JobManager metadata is persisted in the file system `high-availability.storageDir` and only a pointer to this state is stored in ZooKeeper.
@@ -49,7 +49,7 @@ JobManager metadata is persisted in the file system `high-availability.storageDi
 
   The `storageDir` stores all metadata needed to recover a JobManager failure.
 
-- [high-availability.zookeeper.quorum]({%link deployment/config.md %}#high-availability-zookeeper-quorum) (required): 
+- [high-availability.zookeeper.quorum]({{< ref "docs/deployment/config.md" >}}#high-availability-zookeeper-quorum) (required): 
 A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
   <pre>high-availability.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
@@ -76,7 +76,7 @@ The *cluster-id ZooKeeper node*, under which all required coordination data for 
 Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
@@ -105,16 +105,18 @@ You can also find further details on [how Flink sets up Kerberos-based security 
 
 {{< top >}}
 
-## ZooKeeper Versions
+## Advanced Configuration
 
-Flink ships with separate ZooKeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
-and thus used by default, whereas 3.5 is placed in the `opt` directory.
+### Tolerating Suspended ZooKeeper Connections
 
-The 3.5 client allows you to secure the ZooKeeper connection via SSL, but _may_ not work with 3.4- ZooKeeper installations.
+Per default, Flink's ZooKeeper client treats suspended ZooKeeper connections as an error.
+This means that Flink will invalidate all leaderships of its components and thereby triggering a failover if a connection is suspended.
 
-You can control which version is used by Flink by placing either jar in the `lib` directory.
+This behaviour might be too disruptive in some cases (e.g., unstable network environment).
+If you are willing to take a more aggressive approach, then you can tolerate suspended ZooKeeper connections and only treat lost connections as an error via [high-availability.zookeeper.client.tolerate-suspended-connections]({{< ref "docs/deployment/config" >}}#high-availability-zookeeper-client-tolerate-suspended-connection).
+Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
 
-{{< top >}}
+For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
 
 ## Bootstrap ZooKeeper
 

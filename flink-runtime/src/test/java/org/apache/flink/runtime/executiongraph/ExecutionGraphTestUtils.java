@@ -31,11 +31,11 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
-import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
@@ -250,6 +251,23 @@ public class ExecutionGraphTestUtils {
         }
     }
 
+    public static void finishJobVertex(ExecutionGraph executionGraph, JobVertexID jobVertexId) {
+        for (ExecutionVertex vertex :
+                Objects.requireNonNull(executionGraph.getJobVertex(jobVertexId))
+                        .getTaskVertices()) {
+            finishExecutionVertex(executionGraph, vertex);
+        }
+    }
+
+    public static void finishExecutionVertex(
+            ExecutionGraph executionGraph, ExecutionVertex executionVertex) {
+        executionGraph.updateState(
+                new TaskExecutionStateTransition(
+                        new TaskExecutionState(
+                                executionVertex.getCurrentExecutionAttempt().getAttemptId(),
+                                ExecutionState.FINISHED)));
+    }
+
     /**
      * Takes all vertices in the given ExecutionGraph and switches their current execution to
      * FINISHED.
@@ -305,19 +323,6 @@ public class ExecutionGraphTestUtils {
     //  Mocking ExecutionGraph
     // ------------------------------------------------------------------------
 
-    /** Creates an execution graph with on job vertex of parallelism 10. */
-    public static ExecutionGraph createSimpleTestGraph() throws Exception {
-        JobVertex vertex = createNoOpVertex(10);
-
-        return createSimpleTestGraph(vertex);
-    }
-
-    /** Creates an execution graph containing the given vertices. */
-    public static DefaultExecutionGraph createSimpleTestGraph(JobVertex... vertices)
-            throws Exception {
-        return createExecutionGraph(TestingUtils.defaultExecutor(), vertices);
-    }
-
     public static DefaultExecutionGraph createExecutionGraph(
             ScheduledExecutorService executor, JobVertex... vertices) throws Exception {
 
@@ -334,11 +339,8 @@ public class ExecutionGraphTestUtils {
         DefaultExecutionGraph executionGraph =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(JobGraphTestUtils.streamingJobGraph(vertices))
-                        .setFutureExecutor(executor)
-                        .setIoExecutor(executor)
-                        .setAllocationTimeout(timeout)
                         .setRpcTimeout(timeout)
-                        .build();
+                        .build(executor);
         executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         return executionGraph;
     }
@@ -408,10 +410,10 @@ public class ExecutionGraphTestUtils {
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertex);
 
         SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                        .setIoExecutor(executor)
-                        .setFutureExecutor(executor)
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                executor)
                         .build();
 
         return scheduler.getExecutionJobVertex(jobVertex.getID());
@@ -443,6 +445,25 @@ public class ExecutionGraphTestUtils {
                         jid, numTasks, slotSharingGroup, new DirectScheduledExecutorService());
 
         return ejv.getTaskVertices()[subtaskIndex].getCurrentExecutionAttempt();
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId() {
+        return createExecutionAttemptId(new JobVertexID(0, 0));
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId(JobVertexID jobVertexId) {
+        return createExecutionAttemptId(jobVertexId, 0, 0);
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId(
+            JobVertexID jobVertexId, int subtaskIndex, int attemptNumber) {
+        return createExecutionAttemptId(
+                new ExecutionVertexID(jobVertexId, subtaskIndex), attemptNumber);
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId(
+            ExecutionVertexID executionVertexId, int attemptNumber) {
+        return new ExecutionAttemptID(new ExecutionGraphID(), executionVertexId, attemptNumber);
     }
 
     // ------------------------------------------------------------------------

@@ -21,7 +21,7 @@ from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType
+    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
 from pyflink.util.java_utils import to_jarray
 import datetime
 import pickle
@@ -52,7 +52,7 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         else:
             arrays.append(create_array(
                 tz_convert_to_internal(s, field_type, timezone), schema_type))
-    return pa.RecordBatch.from_arrays(arrays, schema)
+    return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
 
 def arrow_to_pandas(timezone, field_types, batches):
@@ -140,5 +140,7 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
             for element_bytes in data:
                 elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
             return elements
+        elif isinstance(field_type, RawType):
+            return field_type.from_sql_type(data)
         else:
             return field_type.from_sql_type(data)

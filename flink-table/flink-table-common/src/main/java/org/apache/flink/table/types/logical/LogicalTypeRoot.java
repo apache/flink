@@ -29,7 +29,7 @@ import java.util.Set;
  *
  * <p>A root is an essential description of a {@link LogicalType} without additional parameters. For
  * example, a parameterized logical type {@code DECIMAL(12,3)} possesses all characteristics of its
- * root {@code DECIMAL}. Additionally, a logical type root enables efficient comparision during the
+ * root {@code DECIMAL}. Additionally, a logical type root enables efficient comparison during the
  * evaluation of types.
  *
  * <p>The enumeration is very close to the SQL standard in terms of naming and completeness.

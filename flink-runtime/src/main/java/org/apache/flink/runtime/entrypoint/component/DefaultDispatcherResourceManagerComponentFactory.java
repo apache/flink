@@ -23,10 +23,9 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -37,14 +36,15 @@ import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobmanager.HaServicesJobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.HaServicesJobPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerServiceImpl;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.rest.RestEndpointFactory;
 import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
@@ -54,12 +54,15 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,11 +103,13 @@ public class DefaultDispatcherResourceManagerComponentFactory
     @Override
     public DispatcherResourceManagerComponent create(
             Configuration configuration,
+            ResourceID resourceId,
             Executor ioExecutor,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             BlobServer blobServer,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             MetricRegistry metricRegistry,
             ExecutionGraphInfoStore executionGraphInfoStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
@@ -114,7 +119,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
         LeaderRetrievalService dispatcherLeaderRetrievalService = null;
         LeaderRetrievalService resourceManagerRetrievalService = null;
         WebMonitorEndpoint<?> webMonitorEndpoint = null;
-        ResourceManager<?> resourceManager = null;
+        ResourceManagerService resourceManagerService = null;
         DispatcherRunner dispatcherRunner = null;
 
         try {
@@ -173,13 +178,15 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final String hostname = RpcUtils.getHostname(rpcService);
 
-            resourceManager =
-                    resourceManagerFactory.createResourceManager(
+            resourceManagerService =
+                    ResourceManagerServiceImpl.create(
+                            resourceManagerFactory,
                             configuration,
-                            ResourceID.generate(),
+                            resourceId,
                             rpcService,
                             highAvailabilityServices,
                             heartbeatServices,
+                            delegationTokenManager,
                             fatalErrorHandler,
                             new ClusterInformation(hostname, blobServer.getPort()),
                             webMonitorEndpoint.getRestBaseUrl(),
@@ -191,6 +198,10 @@ public class DefaultDispatcherResourceManagerComponentFactory
                     HistoryServerArchivist.createHistoryServerArchivist(
                             configuration, webMonitorEndpoint, ioExecutor);
 
+            final DispatcherOperationCaches dispatcherOperationCaches =
+                    new DispatcherOperationCaches(
+                            configuration.get(RestOptions.ASYNC_OPERATION_STORE_DURATION));
+
             final PartialDispatcherServices partialDispatcherServices =
                     new PartialDispatcherServices(
                             configuration,
@@ -199,37 +210,39 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             blobServer,
                             heartbeatServices,
                             () ->
-                                    MetricUtils.instantiateJobManagerMetricGroup(
+                                    JobManagerMetricGroup.createJobManagerMetricGroup(
                                             metricRegistry, hostname),
                             executionGraphInfoStore,
                             fatalErrorHandler,
                             historyServerArchivist,
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
-                            ioExecutor);
+                            ioExecutor,
+                            dispatcherOperationCaches);
 
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
                             highAvailabilityServices.getDispatcherLeaderElectionService(),
                             fatalErrorHandler,
-                            new HaServicesJobGraphStoreFactory(highAvailabilityServices),
+                            new HaServicesJobPersistenceComponentFactory(highAvailabilityServices),
                             ioExecutor,
                             rpcService,
                             partialDispatcherServices);
 
-            log.debug("Starting ResourceManager.");
-            resourceManager.start();
+            log.debug("Starting ResourceManagerService.");
+            resourceManagerService.start();
 
             resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
             dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 
             return new DispatcherResourceManagerComponent(
                     dispatcherRunner,
-                    DefaultResourceManagerService.createFor(resourceManager),
+                    resourceManagerService,
                     dispatcherLeaderRetrievalService,
                     resourceManagerRetrievalService,
                     webMonitorEndpoint,
-                    fatalErrorHandler);
+                    fatalErrorHandler,
+                    dispatcherOperationCaches);
 
         } catch (Exception exception) {
             // clean up all started components
@@ -255,8 +268,8 @@ public class DefaultDispatcherResourceManagerComponentFactory
                 terminationFutures.add(webMonitorEndpoint.closeAsync());
             }
 
-            if (resourceManager != null) {
-                terminationFutures.add(resourceManager.closeAsync());
+            if (resourceManagerService != null) {
+                terminationFutures.add(resourceManagerService.closeAsync());
             }
 
             if (dispatcherRunner != null) {

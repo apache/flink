@@ -20,11 +20,11 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.util.CloseShieldOutputStream;
 
 import org.apache.avro.file.DataFileWriter;
 
 import java.io.IOException;
-import java.io.OutputStream;
 
 /**
  * A factory that creates an {@link AvroBulkWriter}. The factory takes a user-supplied builder to
@@ -46,40 +46,5 @@ public class AvroWriterFactory<T> implements BulkWriter.Factory<T> {
     @Override
     public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
         return new AvroBulkWriter<>(avroBuilder.createWriter(new CloseShieldOutputStream(out)));
-    }
-
-    /** Proxy output stream that prevents the underlying output stream from being closed. */
-    private static class CloseShieldOutputStream extends OutputStream {
-        private final OutputStream out;
-
-        public CloseShieldOutputStream(OutputStream out) {
-            this.out = out;
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            out.write(b);
-        }
-
-        @Override
-        public void write(byte[] buffer) throws IOException {
-            out.write(buffer);
-        }
-
-        @Override
-        public void write(byte[] buffer, int off, int len) throws IOException {
-            out.write(buffer, off, len);
-        }
-
-        @Override
-        public void flush() throws IOException {
-            out.flush();
-        }
-
-        @Override
-        public void close() throws IOException {
-            // we do not actually close the internal stream here to prevent that the finishing
-            // of the Avro Writer closes the target output stream.
-        }
     }
 }

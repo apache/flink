@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /** Exception for trying to create a table (or view) that already exists. */
+@PublicEvolving
 public class TableAlreadyExistException extends Exception {
 
     private static final String MSG = "Table (or view) %s already exists in Catalog %s.";

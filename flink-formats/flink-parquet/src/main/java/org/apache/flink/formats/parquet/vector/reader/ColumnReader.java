@@ -17,7 +17,7 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.data.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
 import java.io.IOException;
 

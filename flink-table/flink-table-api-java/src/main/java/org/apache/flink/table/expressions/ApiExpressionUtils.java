@@ -23,10 +23,10 @@ import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
@@ -260,19 +260,14 @@ public final class ApiExpressionUtils {
     }
 
     public static UnresolvedCallExpression unresolvedCall(
-            FunctionIdentifier functionIdentifier,
-            FunctionDefinition functionDefinition,
-            Expression... args) {
-        return unresolvedCall(functionIdentifier, functionDefinition, Arrays.asList(args));
+            ContextResolvedFunction resolvedFunction, Expression... args) {
+        return unresolvedCall(resolvedFunction, Arrays.asList(args));
     }
 
     public static UnresolvedCallExpression unresolvedCall(
-            FunctionIdentifier functionIdentifier,
-            FunctionDefinition functionDefinition,
-            List<Expression> args) {
+            ContextResolvedFunction resolvedFunction, List<Expression> args) {
         return new UnresolvedCallExpression(
-                functionIdentifier,
-                functionDefinition,
+                resolvedFunction,
                 args.stream().map(ApiExpressionUtils::unwrapFromApi).collect(Collectors.toList()));
     }
 
@@ -284,7 +279,7 @@ public final class ApiExpressionUtils {
     public static UnresolvedCallExpression unresolvedCall(
             FunctionDefinition functionDefinition, List<Expression> args) {
         return new UnresolvedCallExpression(
-                functionDefinition,
+                ContextResolvedFunction.anonymous(functionDefinition),
                 args.stream().map(ApiExpressionUtils::unwrapFromApi).collect(Collectors.toList()));
     }
 

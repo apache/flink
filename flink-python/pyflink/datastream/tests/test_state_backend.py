@@ -17,7 +17,8 @@
 ################################################################################
 from pyflink.datastream.state_backend import (_from_j_state_backend, CustomStateBackend,
                                               MemoryStateBackend, FsStateBackend,
-                                              RocksDBStateBackend, PredefinedOptions)
+                                              RocksDBStateBackend, PredefinedOptions,
+                                              EmbeddedRocksDBStateBackend)
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -94,6 +95,86 @@ class FsStateBackendTests(PyFlinkTestCase):
         state_backend = FsStateBackend("file://var/checkpoints/")
 
         self.assertEqual(state_backend.get_checkpoint_path(), "file://var/checkpoints")
+
+
+class EmbeddedRocksDBStateBackendTests(PyFlinkTestCase):
+
+    def test_create_rocks_db_state_backend(self):
+
+        self.assertIsNotNone(EmbeddedRocksDBStateBackend())
+
+        self.assertIsNotNone(EmbeddedRocksDBStateBackend(True))
+
+        self.assertIsNotNone(EmbeddedRocksDBStateBackend(False))
+
+    def test_get_set_db_storage_paths(self):
+        if on_windows():
+            storage_path = ["file:/C:/var/db_storage_dir1/",
+                            "file:/C:/var/db_storage_dir2/",
+                            "file:/C:/var/db_storage_dir3/"]
+            expected = ["C:\\var\\db_storage_dir1",
+                        "C:\\var\\db_storage_dir2",
+                        "C:\\var\\db_storage_dir3"]
+        else:
+            storage_path = ["file://var/db_storage_dir1/",
+                            "file://var/db_storage_dir2/",
+                            "file://var/db_storage_dir3/"]
+            expected = ["/db_storage_dir1",
+                        "/db_storage_dir2",
+                        "/db_storage_dir3"]
+
+        state_backend = EmbeddedRocksDBStateBackend()
+        state_backend.set_db_storage_paths(*storage_path)
+        self.assertEqual(state_backend.get_db_storage_paths(), expected)
+
+    def test_get_set_predefined_options(self):
+
+        state_backend = EmbeddedRocksDBStateBackend()
+
+        self.assertEqual(state_backend.get_predefined_options(), PredefinedOptions.DEFAULT)
+
+        state_backend.set_predefined_options(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)
+
+        self.assertEqual(state_backend.get_predefined_options(),
+                         PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)
+
+        state_backend.set_predefined_options(PredefinedOptions.SPINNING_DISK_OPTIMIZED)
+
+        self.assertEqual(state_backend.get_predefined_options(),
+                         PredefinedOptions.SPINNING_DISK_OPTIMIZED)
+
+        state_backend.set_predefined_options(PredefinedOptions.FLASH_SSD_OPTIMIZED)
+
+        self.assertEqual(state_backend.get_predefined_options(),
+                         PredefinedOptions.FLASH_SSD_OPTIMIZED)
+
+        state_backend.set_predefined_options(PredefinedOptions.DEFAULT)
+
+        self.assertEqual(state_backend.get_predefined_options(), PredefinedOptions.DEFAULT)
+
+    def test_get_set_options(self):
+
+        state_backend = EmbeddedRocksDBStateBackend()
+
+        self.assertIsNone(state_backend.get_options())
+
+        state_backend.set_options(
+            "org.apache.flink.contrib.streaming.state."
+            "RocksDBStateBackendConfigTest$TestOptionsFactory")
+
+        self.assertEqual(state_backend.get_options(),
+                         "org.apache.flink.contrib.streaming.state."
+                         "RocksDBStateBackendConfigTest$TestOptionsFactory")
+
+    def test_get_set_number_of_transfer_threads(self):
+
+        state_backend = EmbeddedRocksDBStateBackend()
+
+        self.assertEqual(state_backend.get_number_of_transfer_threads(), 4)
+
+        state_backend.set_number_of_transfer_threads(8)
+
+        self.assertEqual(state_backend.get_number_of_transfer_threads(), 8)
 
 
 class RocksDBStateBackendTests(PyFlinkTestCase):
@@ -182,11 +263,9 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
-        self.assertEqual(state_backend.get_number_of_transfering_threads(), 1)
+        state_backend.set_number_of_transfering_threads(7)
 
-        state_backend.set_number_of_transfering_threads(4)
-
-        self.assertEqual(state_backend.get_number_of_transfering_threads(), 4)
+        self.assertEqual(state_backend.get_number_of_transfering_threads(), 7)
 
 
 class CustomStateBackendTests(PyFlinkTestCase):

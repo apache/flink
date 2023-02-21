@@ -19,12 +19,11 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Disposable;
 
 import java.io.Serializable;
 
@@ -44,8 +43,7 @@ import java.io.Serializable;
  * @param <OUT> The output type of the operator
  */
 @PublicEvolving
-public interface StreamOperator<OUT>
-        extends CheckpointListener, KeyContext, Disposable, Serializable {
+public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Serializable {
 
     // ------------------------------------------------------------------------
     //  life cycle
@@ -64,21 +62,25 @@ public interface StreamOperator<OUT>
     void open() throws Exception;
 
     /**
-     * This method is called after all records have been added to the operators via the methods
-     * {@link
-     * org.apache.flink.streaming.api.operators.OneInputStreamOperator#processElement(StreamRecord)},
-     * or {@link
-     * org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement1(StreamRecord)}
-     * and {@link
-     * org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement2(StreamRecord)}.
+     * This method is called at the end of data processing.
      *
      * <p>The method is expected to flush all remaining buffered data. Exceptions during this
-     * flushing of buffered should be propagated, in order to cause the operation to be recognized
-     * as failed, because the last data items are not processed properly.
+     * flushing of buffered data should be propagated, in order to cause the operation to be
+     * recognized as failed, because the last data items are not processed properly.
+     *
+     * <p><b>After this method is called, no more records can be produced for the downstream
+     * operators.</b>
+     *
+     * <p><b>WARNING:</b> It is not safe to use this method to commit any transactions or other side
+     * effects! You can use this method to flush any buffered data that can later on be committed
+     * e.g. in a {@link StreamOperator#notifyCheckpointComplete(long)}.
+     *
+     * <p><b>NOTE:</b>This method does not need to close any resources. You should release external
+     * resources in the {@link #close()} method.
      *
      * @throws java.lang.Exception An exception in this method causes the operator to fail.
      */
-    void close() throws Exception;
+    void finish() throws Exception;
 
     /**
      * This method is called at the very end of the operator's life, both in the case of a
@@ -86,9 +88,11 @@ public interface StreamOperator<OUT>
      *
      * <p>This method is expected to make a thorough effort to release all resources that the
      * operator has acquired.
+     *
+     * <p><b>NOTE:</b>It can not emit any records! If you need to emit records at the end of
+     * processing, do so in the {@link #finish()} method.
      */
-    @Override
-    void dispose() throws Exception;
+    void close() throws Exception;
 
     // ------------------------------------------------------------------------
     //  state snapshots
@@ -141,7 +145,7 @@ public interface StreamOperator<OUT>
 
     void setKeyContextElement2(StreamRecord<?> record) throws Exception;
 
-    MetricGroup getMetricGroup();
+    OperatorMetricGroup getMetricGroup();
 
     OperatorID getOperatorID();
 }

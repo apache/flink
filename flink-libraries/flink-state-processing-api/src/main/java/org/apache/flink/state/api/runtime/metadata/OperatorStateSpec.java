@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
  * org.apache.flink.state.api.BootstrapTransformation} that will be used to create it.
  */
 @Internal
+@Deprecated
 class OperatorStateSpec {
 
     private final OperatorID id;

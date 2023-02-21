@@ -25,7 +25,7 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
 
@@ -42,14 +42,7 @@ public class UntilConditionITCase {
 
     /** Condition used for {@link Pattern#until(IterativeCondition)} clause. */
     public static final SimpleCondition<Event> UNTIL_CONDITION =
-            new SimpleCondition<Event>() {
-                private static final long serialVersionUID = 5726188262756267490L;
-
-                @Override
-                public boolean filter(Event value) throws Exception {
-                    return value.getPrice() == 5.0;
-                }
-            };
+            SimpleCondition.of(value -> value.getPrice() == 5.0);
 
     @Test
     public void testUntilConditionFollowedByOneOrMore() throws Exception {
@@ -69,27 +62,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .until(UNTIL_CONDITION)
                         .followedBy("end")
@@ -132,27 +107,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .allowCombinations()
                         .until(UNTIL_CONDITION)
@@ -196,27 +153,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .consecutive()
                         .until(UNTIL_CONDITION)
@@ -259,27 +198,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .consecutive()
                         .until(UNTIL_CONDITION)
@@ -319,27 +240,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .optional()
                         .until(UNTIL_CONDITION)
@@ -383,27 +286,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .optional()
                         .allowCombinations()
@@ -449,27 +334,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .optional()
                         .consecutive()
@@ -512,27 +379,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .until(UNTIL_CONDITION);
 
@@ -567,27 +416,9 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .optional()
                         .until(UNTIL_CONDITION);
@@ -626,16 +457,7 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
                         .oneOrMore()
                         .until(UNTIL_CONDITION);
@@ -678,16 +500,7 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
                         .oneOrMore()
                         .until(
@@ -743,16 +556,7 @@ public class UntilConditionITCase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
                         .oneOrMore()
                         .optional()

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.lib;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -40,6 +41,7 @@ import org.apache.flink.util.NumberSequenceIterator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,6 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * long integer values), user may want to consider executing the application in a streaming manner,
  * because, despite the fact that the produced stream is bounded, the end bound is pretty far away.
  */
+@Public
 public class NumberSequenceSource
         implements Source<
                         Long,
@@ -81,6 +84,18 @@ public class NumberSequenceSource
         this.to = to;
     }
 
+    public long getFrom() {
+        return from;
+    }
+
+    public long getTo() {
+        return to;
+    }
+
+    // ------------------------------------------------------------------------
+    //  source methods
+    // ------------------------------------------------------------------------
+
     @Override
     public TypeInformation<Long> getProducedType() {
         return Types.LONG;
@@ -100,19 +115,8 @@ public class NumberSequenceSource
     public SplitEnumerator<NumberSequenceSplit, Collection<NumberSequenceSplit>> createEnumerator(
             final SplitEnumeratorContext<NumberSequenceSplit> enumContext) {
 
-        final NumberSequenceIterator[] subSequences =
-                new NumberSequenceIterator(from, to).split(enumContext.currentParallelism());
-        final ArrayList<NumberSequenceSplit> splits = new ArrayList<>(subSequences.length);
-
-        int splitId = 1;
-        for (NumberSequenceIterator seq : subSequences) {
-            if (seq.hasNext()) {
-                splits.add(
-                        new NumberSequenceSplit(
-                                String.valueOf(splitId++), seq.getCurrent(), seq.getTo()));
-            }
-        }
-
+        final List<NumberSequenceSplit> splits =
+                splitNumberRange(from, to, enumContext.currentParallelism());
         return new IteratorSourceEnumerator<>(enumContext, splits);
     }
 
@@ -132,6 +136,23 @@ public class NumberSequenceSource
     public SimpleVersionedSerializer<Collection<NumberSequenceSplit>>
             getEnumeratorCheckpointSerializer() {
         return new CheckpointSerializer();
+    }
+
+    protected List<NumberSequenceSplit> splitNumberRange(long from, long to, int numSplits) {
+        final NumberSequenceIterator[] subSequences =
+                new NumberSequenceIterator(from, to).split(numSplits);
+        final ArrayList<NumberSequenceSplit> splits = new ArrayList<>(subSequences.length);
+
+        int splitId = 1;
+        for (NumberSequenceIterator seq : subSequences) {
+            if (seq.hasNext()) {
+                splits.add(
+                        new NumberSequenceSplit(
+                                String.valueOf(splitId++), seq.getCurrent(), seq.getTo()));
+            }
+        }
+
+        return splits;
     }
 
     // ------------------------------------------------------------------------

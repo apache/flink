@@ -20,13 +20,21 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class AllVerticesIteratorTest {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testAllVertices() {
@@ -47,7 +55,9 @@ public class AllVerticesIteratorTest {
             v3.setParallelism(3);
             v4.setParallelism(2);
 
-            ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(v1, v2, v3, v4);
+            ExecutionGraph eg =
+                    ExecutionGraphTestUtils.createExecutionGraph(
+                            EXECUTOR_RESOURCE.getExecutor(), v1, v2, v3, v4);
             ExecutionJobVertex ejv1 = eg.getJobVertex(v1.getID());
             ExecutionJobVertex ejv2 = eg.getJobVertex(v2.getID());
             ExecutionJobVertex ejv3 = eg.getJobVertex(v3.getID());

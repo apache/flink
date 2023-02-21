@@ -23,9 +23,10 @@ import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
-import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.connectors.hive.HiveTablePartitionSplits;
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.connectors.hive.MRSplitsGetter;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -34,14 +35,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
-import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.util.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +50,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
 
 /**
  * The HiveTableInputFormat are inspired by the HCatInputFormat and HadoopInputFormatBase. It's used
@@ -70,6 +66,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     // them ourselves
     private static final String SCHEMA_EVOLUTION_COLUMNS = "schema.evolution.columns";
     private static final String SCHEMA_EVOLUTION_COLUMNS_TYPES = "schema.evolution.columns.types";
+
+    private final int threadNum;
 
     private final JobConfWrapper jobConf;
 
@@ -98,6 +96,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     @VisibleForTesting protected transient SplitReader reader;
 
     public HiveTableInputFormat(
+            int threadNum,
             JobConf jobConf,
             List<String> partitionKeys,
             DataType[] fieldTypes,
@@ -108,6 +107,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
             boolean useMapRedReader,
             List<HiveTablePartition> partitions) {
         super(jobConf.getCredentials());
+        this.threadNum = threadNum;
         this.jobConf = new JobConfWrapper(new JobConf(jobConf));
         this.partitionKeys = partitionKeys;
         this.fieldTypes = fieldTypes;
@@ -315,42 +315,25 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 
     @Override
     public HiveTableInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-        return createInputSplits(minNumSplits, partitions, jobConf.conf());
+        return createInputSplits(minNumSplits, partitions, threadNum, jobConf.conf());
     }
 
     public static HiveTableInputSplit[] createInputSplits(
-            int minNumSplits, List<HiveTablePartition> partitions, JobConf jobConf)
+            int minNumSplits, List<HiveTablePartition> partitions, int threadNum, JobConf jobConf)
             throws IOException {
         List<HiveTableInputSplit> hiveSplits = new ArrayList<>();
         int splitNum = 0;
-        for (HiveTablePartition partition : partitions) {
-            StorageDescriptor sd = partition.getStorageDescriptor();
-            Path inputPath = new Path(sd.getLocation());
-            FileSystem fs = inputPath.getFileSystem(jobConf);
-            // it's possible a partition exists in metastore but the data has been removed
-            if (!fs.exists(inputPath)) {
-                continue;
-            }
-            InputFormat format;
-            try {
-                format =
-                        (InputFormat)
-                                Class.forName(
-                                                sd.getInputFormat(),
-                                                true,
-                                                Thread.currentThread().getContextClassLoader())
-                                        .newInstance();
-            } catch (Exception e) {
-                throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
-            }
-            ReflectionUtils.setConf(format, jobConf);
-            jobConf.set(INPUT_DIR, sd.getLocation());
-            // TODO: we should consider how to calculate the splits according to minNumSplits in the
-            // future.
-            org.apache.hadoop.mapred.InputSplit[] splitArray =
-                    format.getSplits(jobConf, minNumSplits);
-            for (org.apache.hadoop.mapred.InputSplit inputSplit : splitArray) {
-                hiveSplits.add(new HiveTableInputSplit(splitNum++, inputSplit, jobConf, partition));
+        try (MRSplitsGetter splitsGetter = new MRSplitsGetter(threadNum)) {
+            for (HiveTablePartitionSplits partitionSplits :
+                    splitsGetter.getHiveTablePartitionMRSplits(minNumSplits, partitions, jobConf)) {
+                for (InputSplit inputSplit : partitionSplits.getInputSplits()) {
+                    hiveSplits.add(
+                            new HiveTableInputSplit(
+                                    splitNum++,
+                                    inputSplit,
+                                    partitionSplits.getJobConf(),
+                                    partitionSplits.getHiveTablePartition()));
+                }
             }
         }
 
@@ -366,23 +349,5 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     @Override
     public InputSplitAssigner getInputSplitAssigner(HiveTableInputSplit[] inputSplits) {
         return new LocatableInputSplitAssigner(inputSplits);
-    }
-
-    public int getNumFiles() throws IOException {
-        int numFiles = 0;
-        FileSystem fs = null;
-        for (HiveTablePartition partition : partitions) {
-            StorageDescriptor sd = partition.getStorageDescriptor();
-            Path inputPath = new Path(sd.getLocation());
-            if (fs == null) {
-                fs = inputPath.getFileSystem(jobConf.conf());
-            }
-            // it's possible a partition exists in metastore but the data has been removed
-            if (!fs.exists(inputPath)) {
-                continue;
-            }
-            numFiles += fs.listStatus(inputPath).length;
-        }
-        return numFiles;
     }
 }

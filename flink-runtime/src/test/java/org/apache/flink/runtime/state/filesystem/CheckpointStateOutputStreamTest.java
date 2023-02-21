@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.fs.local.LocalRecoverableWriter;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.TestLogger;
@@ -102,7 +103,7 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         }
     }
 
-    /** Simple write and read test */
+    /** Simple write and read test. */
     @Test
     public void testWriteAndRead() throws Exception {
         final FileSystem fs = FileSystem.getLocalFileSystem();
@@ -156,7 +157,6 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
             for (int i = 0; i < rnd.nextInt(1000); i++) {
                 stream.write(rnd.nextInt(100));
             }
-            assertTrue(fs.exists(path));
         }
 
         assertFalse(fs.exists(path));
@@ -170,7 +170,9 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         final Path filePath = new Path(folder, fileName);
 
         final FileSystem fs =
-                spy(new TestFs((path) -> new FailingCloseStream(new File(path.getPath()))));
+                spy(
+                        new FsWithoutRecoverableWriter(
+                                (path) -> new FailingCloseStream(new File(path.getPath()))));
 
         FSDataOutputStream stream = createTestStream(fs, folder, fileName);
         stream.write(new byte[] {1, 2, 3, 4, 5});
@@ -189,8 +191,6 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
      * This test validates that a close operation can happen even while a 'closeAndGetHandle()' call
      * is in progress.
      *
-     * <p>
-     *
      * <p>That behavior is essential for fast cancellation (concurrent cleanup).
      */
     @Test
@@ -198,7 +198,8 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         final Path folder = new Path(tmp.newFolder().toURI());
         final String fileName = "this-is-ignored-anyways.file";
 
-        final FileSystem fileSystem = spy(new TestFs((path) -> new BlockerStream()));
+        final FileSystem fileSystem =
+                spy(new FsWithoutRecoverableWriter((path) -> new BlockerStream()));
 
         final FSDataOutputStream checkpointStream = createTestStream(fileSystem, folder, fileName);
 
@@ -332,17 +333,24 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         }
     }
 
-    private static class TestFs extends LocalFileSystem {
+    private static class FsWithoutRecoverableWriter extends LocalFileSystem {
 
         private final FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory;
 
-        TestFs(FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory) {
+        FsWithoutRecoverableWriter(
+                FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory) {
             this.streamFactory = streamFactory;
         }
 
         @Override
         public FSDataOutputStream create(Path filePath, WriteMode overwrite) throws IOException {
             return streamFactory.apply(filePath);
+        }
+
+        @Override
+        public LocalRecoverableWriter createRecoverableWriter() throws IOException {
+            throw new UnsupportedOperationException(
+                    "This file system does not support recoverable writers.");
         }
     }
 }

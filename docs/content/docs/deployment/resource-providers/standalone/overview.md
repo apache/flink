@@ -36,7 +36,7 @@ under the License.
 
 ## Getting Started
 
-This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmangers).
+This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmanagers).
 
 ### Introduction
 
@@ -49,7 +49,7 @@ In the additional subpages of the standalone mode resource provider, we describe
 Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **Cygwin** (for Windows). Before you start to setup the system, make sure your system fulfils the following requirements.
 
 - **Java 1.8.x** or higher installed,
-- Downloaded a recent Flink distribution from the [download page]({{ site.download_url }}) and unpacked it.
+- Downloaded a recent Flink distribution from the [download page]({{< downloads >}}) and unpacked it.
 
 ### Starting a Standalone Cluster (Session Mode)
 
@@ -76,6 +76,10 @@ In step `(3)`, we are starting a Flink Client (a short-lived JVM process) that s
 ## Deployment Modes
 
 ### Application Mode
+
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
 
 To start a Flink JobManager with an embedded application, we use the `bin/standalone-job.sh` script. 
 We demonstrate this mode by locally starting the `TopSpeedWindowing.jar` example, running on a single TaskManager.
@@ -107,12 +111,11 @@ $ ./bin/taskmanager.sh stop
 $ ./bin/standalone-job.sh stop
 ```
 
-
-### Per-Job Mode
-
-Per-Job Mode is not supported by the Standalone Cluster.
-
 ### Session Mode
+
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
 
 Local deployment in Session Mode has already been described in the [introduction](#starting-a-standalone-cluster-session-mode) above.
 
@@ -121,6 +124,19 @@ Local deployment in Session Mode has already been described in the [introduction
 ### Configuration
 
 All available configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}), in particular the [Basic Setup]({{< ref "docs/deployment/config" >}}#basic-setup) section contains good advise on configuring the ports, memory, parallelism etc.
+
+The following scripts also allow configuration parameters to be set via dynamic properties:
+* `jobmanager.sh`
+* `standalone-job.sh`
+* `taskmanager.sh`
+* `historyserver.sh`
+
+Example:
+```bash
+$ ./bin/jobmanager.sh start -D jobmanager.rpc.address=localhost -D rest.port=8081
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
 
 ### Debugging
 
@@ -131,7 +147,7 @@ The log files are located in the `logs/` directory. There's a `.log` file for ea
 Alternatively, logs are available from the Flink web frontend (both for the JobManager and each TaskManager).
 
 By default, Flink is logging on the "INFO" log level, which provides basic information for all obvious issues. For cases where Flink seems to behave wrongly, reducing the log level to "DEBUG" is advised. The logging level is controlled via the `conf/log4.properties` file.
-Setting `rootLogger.level = DEBUG` will boostrap Flink on the DEBUG log level.
+Setting `rootLogger.level = DEBUG` will bootstrap Flink on the DEBUG log level.
 
 There's a dedicated page on the [logging]({{< ref "docs/deployment/advanced/logging" >}}) in Flink.
 
@@ -156,7 +172,7 @@ localhost
 localhost
 ```
 
-##### Example 2: Start a distributed cluster JobMangers
+##### Example 2: Start a distributed cluster JobManagers
 
 This assumes a cluster with 4 machines (`master1, worker1, worker2, worker3`), which all can reach each other over the network.
 
@@ -234,7 +250,7 @@ By default, the JobManager will pick a *random port* for inter process communica
 1. Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
@@ -282,5 +298,12 @@ $ ./bin/stop-zookeeper-quorum.sh
 Stopping zookeeper daemon (pid: 7101) on host localhost.
 ```
 
+### User jars & Classpath
+
+In Standalone mode, the following jars will be recognized as user-jars and included into user classpath:
+- Session Mode: The JAR file specified in startup command.
+- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}

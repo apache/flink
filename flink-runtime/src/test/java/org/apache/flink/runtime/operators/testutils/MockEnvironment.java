@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -40,10 +42,13 @@ import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTe
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
@@ -52,14 +57,17 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -73,6 +81,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private final ExecutionConfig executionConfig;
 
     private final MemoryManager memManager;
+
+    private final SharedResources sharedResources;
 
     private final IOManager ioManager;
 
@@ -120,6 +130,14 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
+    private MailboxExecutor mainMailboxExecutor;
+
+    private ExecutorService asyncOperationsThreadPool;
+
+    private CheckpointStorageAccess checkpointStorageAccess;
+
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
     }
@@ -142,7 +160,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
             TaskMetricGroup taskMetricGroup,
             TaskManagerRuntimeInfo taskManagerRuntimeInfo,
             MemoryManager memManager,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
         this.jobID = jobID;
         this.jobVertexID = jobVertexID;
@@ -152,9 +171,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
         this.taskConfiguration = taskConfiguration;
         this.inputs = new LinkedList<>();
         this.outputs = new LinkedList<ResultPartitionWriter>();
-        this.executionAttemptID = new ExecutionAttemptID();
+        this.executionAttemptID = createExecutionAttemptId(jobVertexID, subtaskIndex, 0);
 
         this.memManager = memManager;
+        this.sharedResources = new SharedResources();
         this.ioManager = ioManager;
         this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
@@ -175,6 +195,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         this.externalResourceInfoProvider =
                 Preconditions.checkNotNull(externalResourceInfoProvider);
+
+        this.mainMailboxExecutor = new SyncMailboxExecutor();
+
+        this.asyncOperationsThreadPool = Executors.newDirectExecutorService();
+        this.channelStateExecutorFactory = channelStateExecutorFactory;
     }
 
     public IteratorWrappingTestSingleInputGate<Record> addInput(
@@ -217,6 +242,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public MemoryManager getMemoryManager() {
         return this.memManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return this.sharedResources;
     }
 
     @Override
@@ -384,6 +414,41 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         memManager.shutdown();
         ioManager.close();
+    }
+
+    @Override
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
+        this.mainMailboxExecutor = mainMailboxExecutor;
+    }
+
+    @Override
+    public MailboxExecutor getMainMailboxExecutor() {
+        return mainMailboxExecutor;
+    }
+
+    @Override
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
+        this.asyncOperationsThreadPool = executorService;
+    }
+
+    @Override
+    public ExecutorService getAsyncOperationsThreadPool() {
+        return asyncOperationsThreadPool;
+    }
+
+    @Override
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
+        this.checkpointStorageAccess = checkpointStorageAccess;
+    }
+
+    @Override
+    public CheckpointStorageAccess getCheckpointStorageAccess() {
+        return checkNotNull(checkpointStorageAccess);
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

@@ -19,27 +19,33 @@
 package org.apache.flink.orc.vector;
 
 import org.apache.flink.orc.TimestampUtil;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.MapColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDate;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 
 /** This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector. */
 public abstract class AbstractOrcColumnVector
-        implements org.apache.flink.table.data.vector.ColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.ColumnVector {
 
     private ColumnVector vector;
 
@@ -52,7 +58,7 @@ public abstract class AbstractOrcColumnVector
         return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
     }
 
-    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
+    public static org.apache.flink.table.data.columnar.vector.ColumnVector createFlinkVector(
             ColumnVector vector, LogicalType logicalType) {
         if (vector instanceof LongColumnVector) {
             if (logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
@@ -68,15 +74,21 @@ public abstract class AbstractOrcColumnVector
             return new OrcDecimalColumnVector((DecimalColumnVector) vector);
         } else if (TimestampUtil.isHiveTimestampColumnVector(vector)) {
             return new OrcTimestampColumnVector(vector);
+        } else if (vector instanceof ListColumnVector) {
+            return new OrcArrayColumnVector((ListColumnVector) vector, (ArrayType) logicalType);
+        } else if (vector instanceof StructColumnVector) {
+            return new OrcRowColumnVector((StructColumnVector) vector, (RowType) logicalType);
+        } else if (vector instanceof MapColumnVector) {
+            return new OrcMapColumnVector((MapColumnVector) vector, (MapType) logicalType);
         } else {
             throw new UnsupportedOperationException(
-                    "Unsupport vector: " + vector.getClass().getName());
+                    "Unsupported vector: " + vector.getClass().getName());
         }
     }
 
     /** Create flink vector by hive vector from constant. */
-    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
-            LogicalType type, Object value, int batchSize) {
+    public static org.apache.flink.table.data.columnar.vector.ColumnVector
+            createFlinkVectorFromConstant(LogicalType type, Object value, int batchSize) {
         return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize), type);
     }
 
@@ -110,7 +122,7 @@ public abstract class AbstractOrcColumnVector
                 if (value instanceof LocalDate) {
                     value = Date.valueOf((LocalDate) value);
                 }
-                return createLongVector(batchSize, dateToInternal((Date) value));
+                return createLongVector(batchSize, toInternal((Date) value));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return TimestampUtil.createVectorFromConstant(batchSize, value);
             default:

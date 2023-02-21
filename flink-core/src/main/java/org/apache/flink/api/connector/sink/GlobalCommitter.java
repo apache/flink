@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.connector.sink;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,8 +32,11 @@ import java.util.List;
  *
  * @param <CommT> The type of information needed to commit data staged by the sink
  * @param <GlobalCommT> The type of the aggregated committable
+ * @deprecated Please use {@code WithPostCommitTopology} with {@code
+ *     StandardSinkTopologies#addGlobalCommitter}.
  */
-@Experimental
+@Deprecated
+@PublicEvolving
 public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
 
     /**
@@ -57,19 +60,21 @@ public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
     GlobalCommT combine(List<CommT> committables) throws IOException;
 
     /**
-     * Commit the given list of {@link GlobalCommT}.
+     * Commits the given list of {@link GlobalCommT} and returns a list of {@link GlobalCommT} that
+     * need to be re-committed. The elements of the return list must be a subset of the input list,
+     * so that successful committables can be inferred.
      *
      * @param globalCommittables a list of {@link GlobalCommT}.
-     * @return A list of {@link GlobalCommT} needed to re-commit, which is needed in case we
-     *     implement a "commit-with-retry" pattern.
+     * @return a list of {@link GlobalCommT} that need to be re-committed.
      * @throws IOException if the commit operation fail and do not want to retry any more.
      */
-    List<GlobalCommT> commit(List<GlobalCommT> globalCommittables) throws IOException;
+    List<GlobalCommT> commit(List<GlobalCommT> globalCommittables)
+            throws IOException, InterruptedException;
 
     /**
      * Signals that there is no committable any more.
      *
      * @throws IOException if fail to handle this notification.
      */
-    void endOfInput() throws IOException;
+    void endOfInput() throws IOException, InterruptedException;
 }

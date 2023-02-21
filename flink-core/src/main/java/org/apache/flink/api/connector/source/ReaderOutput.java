@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 
@@ -27,10 +27,10 @@ import org.apache.flink.api.common.eventtime.Watermark;
  * optionally watermarks, to downstream operators for message processing.
  *
  * <p>The {@code ReaderOutput} is a {@link SourceOutput} and can be used directly to emit the stream
- * of events from the source. This is recommended for source where the SourceReader processes only a
- * single split, or where NO split-specific characteristics are required (like per-split watermarks
- * and idleness, split-specific event-time skew handling, etc.). As a special case, this is true for
- * sources that are purely supporting bounded/batch data processing.
+ * of events from the source. This is recommended for sources where the SourceReader processes only
+ * a single split, or where NO split-specific characteristics are required (like per-split
+ * watermarks and idleness, split-specific event-time skew handling, etc.). As a special case, this
+ * is true for sources that only support bounded/batch data processing.
  *
  * <p>For most streaming sources, the {@code SourceReader} should use split-specific outputs, to
  * allow the processing logic to run per-split watermark generators, idleness detection, etc. To
@@ -38,7 +38,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
  * ReaderOutput#createOutputForSplit(String)} method, using the Source Split's ID. Make sure to
  * release the output again once the source has finished processing that split.
  */
-@PublicEvolving
+@Public
 public interface ReaderOutput<T> extends SourceOutput<T> {
 
     /**

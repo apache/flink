@@ -62,6 +62,7 @@ public final class RowType extends LogicalType {
     private static final Class<?> DEFAULT_CONVERSION = Row.class;
 
     /** Describes a field of a {@link RowType}. */
+    @PublicEvolving
     public static final class RowField implements Serializable {
         private static final long serialVersionUID = 1L;
 

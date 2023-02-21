@@ -73,7 +73,7 @@ of new files in the folder and read new files incrementally.
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
         <td>Time interval for consecutively monitoring partition/file.
-            Notes: The default interval for hive streaming reading is '1 m', the default interval for hive streaming temporal join is '60 m', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
+            Notes: The default interval for hive streaming reading is '1 min', the default interval for hive streaming temporal join is '60 min', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
@@ -91,7 +91,7 @@ of new files in the folder and read new files incrementally.
   </tbody>
 </table>
 
-[SQL Hints]({{< ref "docs/dev/table/sql/hints" >}}) can be used to apply configurations to a Hive table
+[SQL Hints]({{< ref "docs/dev/table/sql/queries/hints" >}}) can be used to apply configurations to a Hive table
 without changing its definition in the Hive metastore.
 
 ```sql
@@ -166,10 +166,80 @@ following parameters in `TableConfig` (note that these parameters affect all sou
   </tbody>
 </table>
 
+### Tuning Split Size While Reading Hive Table
+While reading Hive table, the data files will be enumerated into splits, one of which is a portion of data consumed by the source.
+Splits are granularity by which the source distributes the work and parallelize the data reading.
+Users can do some performance tuning by tuning the split's size with the follow configurations.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.split-max-size</h5></td>
+        <td style="word-wrap: break-word;">128mb</td>
+        <td>MemorySize</td>
+        <td>The maximum number of bytes (default is 128MB) to pack into a split while reading Hive table.</td>
+    </tr>
+    <tr>
+        <td><h5>table.exec.hive.file-open-cost</h5></td>
+        <td style="word-wrap: break-word;">4mb</td>
+        <td>MemorySize</td>
+        <td>The estimated cost (default is 4MB) to open a file. Used to enumerate Hive's files to splits.
+            If the value is overestimated, Flink will tend to pack Hive's data into less splits, which will helpful when Hive's table contains many small files.
+            If the value is underestimated, Flink will tend to pack Hive's data into more splits, which will help improve parallelism.
+        </td>
+    </tr>
+  </tbody>
+</table>
+{{< hint warning >}}
+**NOTE**:
+- To tune the split's size, Flink will first get all files' size for all partitions.
+  If there are too many partitions, it maybe time-consuming,
+  then you can configure the job configuration `table.exec.hive.calculate-partition-size.thread-num` (3 by default) to a bigger value to enable more threads to speed up the process.
+- Currently, these configurations for tuning split size only works for the Hive table stored as ORC format.
+{{< /hint >}}
+
+### Load Partition Splits
+
+Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
+
+### Read Partition With Subdirectory
+
+In some case, you may create an external table referring another table, but the partition columns is a subset of the referred table.
+For example, you have a partitioned table `fact_tz` with partition `day` and `hour`:
+
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+
+And you have an external table `fact_daily` referring to table `fact_tz` with a coarse-grained partition `day`:
+
+```sql
+CREATE EXTERNAL TABLE fact_daily(x int) PARTITIONED BY (ds STRING) LOCATION '/path/to/fact_tz';
+```
+
+Then when reading the external table `fact_daily`, there will be sub-directories (`hour=1` to `hour=24`) in the partition directory of the table.
+
+By default, you can add partition with sub-directories to the external table. Flink SQL can recursively scan all sub-directories and fetch all the data from all sub-directories.
+
+```sql
+ALTER TABLE fact_daily ADD PARTITION (ds='2022-07-07') location '/path/to/fact_tz/ds=2022-07-07';
+```
+
+You can set job configuration `table.exec.hive.read-partition-with-subdirectory.enabled` (`true` by default) to `false` to disallow Flink to read the sub-directories.
+If the configuration is `false` and the directory does not contain files, rather consists of sub directories Flink blows up with the exception: `java.io.IOException: Not a file: /path/to/data/*`.
+
 ## Temporal Table Join
 
 You can use a Hive table as a temporal table, and then a stream can correlate the Hive table by temporal join. 
-Please see [temporal join]({{< ref "docs/dev/table/concepts/joins" >}}#temporal-joins) for more information about the temporal join.
+Please see [temporal join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) for more information about the temporal join.
 
 Flink supports processing-time temporal join Hive Table, the processing-time temporal join always joins the latest version of temporal table.
 Flink supports temporal join both partitioned table and Hive non-partitioned table, for partitioned table, Flink supports tracking the latest partition of Hive table automatically.
@@ -181,10 +251,10 @@ Flink supports temporal join both partitioned table and Hive non-partitioned tab
 For a partitioned table which is changing over time, we can read it out as an unbounded stream, the partition can be acted as a version of the temporal table if every partition contains complete data of a version,
 the version of temporal table keeps the data of the partition.
  
-Flink support tracking the latest partition(version) of temporal table automatically in processing time temporal join, the latest partition(version) is defined by 'streaming-source.partition-order' option,
+Flink supports tracking the latest partition (version) of temporal table automatically in processing time temporal join, the latest partition (version) is defined by 'streaming-source.partition-order' option,
 This is the most common user cases that use Hive table as dimension table in a Flink stream application job.
 
-**NOTE:** This feature is only support in Flink `STREAMING` Mode.
+**NOTE:** This feature is only supported in Flink `STREAMING` Mode.
 
 The following demo shows a classical business pipeline, the dimension table comes from Hive and it's updated once every day by a batch pipeline job or a Flink job, the kafka stream comes from real time online business data or log and need to join with the dimension table to enrich stream. 
 
@@ -346,7 +416,7 @@ Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom
 visible - incrementally. Users control when/how to trigger commits with several properties. Insert
 overwrite is not supported for streaming write.
 
-The below shows how the streaming sink can be used to write a streaming query to write data from Kafka into a Hive table with partition-commit,
+The below examples show how the streaming sink can be used to write a streaming query to write data from Kafka into a Hive table with partition-commit,
 and runs a batch query to read that data back out. 
 
 Please see the [streaming sink]({{< ref "docs/connectors/table/filesystem" >}}#streaming-sink) for a full list of available configurations.
@@ -369,7 +439,7 @@ CREATE TABLE kafka_table (
   user_id STRING,
   order_amount DOUBLE,
   log_ts TIMESTAMP(3),
-  WATERMARK FOR log_ts AS log_ts - INTERVAL '5' SECOND
+  WATERMARK FOR log_ts AS log_ts - INTERVAL '5' SECOND -- Define watermark on TIMESTAMP column
 ) WITH (...);
 
 -- streaming sql, insert into hive table
@@ -382,6 +452,39 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ```
 
+If the watermark is defined on TIMESTAMP_LTZ column and used `partition-time` to commit, the `sink.partition-commit.watermark-time-zone` is required to set to the session time zone, otherwise the partition committed may happen after a few hours.  
+```sql
+
+SET table.sql-dialect=hive;
+CREATE TABLE hive_table (
+  user_id STRING,
+  order_amount DOUBLE
+) PARTITIONED BY (dt STRING, hr STRING) STORED AS parquet TBLPROPERTIES (
+  'partition.time-extractor.timestamp-pattern'='$dt $hr:00:00',
+  'sink.partition-commit.trigger'='partition-time',
+  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- Assume user configured time zone is 'Asia/Shanghai'
+  'sink.partition-commit.policy.kind'='metastore,success-file'
+);
+
+SET table.sql-dialect=default;
+CREATE TABLE kafka_table (
+  user_id STRING,
+  order_amount DOUBLE,
+  ts BIGINT, -- time in epoch milliseconds
+  ts_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
+  WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '5' SECOND -- Define watermark on TIMESTAMP_LTZ column
+) WITH (...);
+
+-- streaming sql, insert into hive table
+INSERT INTO TABLE hive_table 
+SELECT user_id, order_amount, DATE_FORMAT(ts_ltz, 'yyyy-MM-dd'), DATE_FORMAT(ts_ltz, 'HH')
+FROM kafka_table;
+
+-- batch sql, select with partition pruning
+SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
+
+```
 
 By default, for streaming writes, Flink only supports renaming committers, meaning the S3 filesystem
 cannot support exactly-once streaming writes.
@@ -409,6 +512,115 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
   </tbody>
 </table>
 
+### Dynamic Partition Writing
+Different from static partition writing which requires users to specify the partition column value, dynamic partition writing allow
+users not to specify partition column value. 
+For example, for a partitioned table like:
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+Users can use the follow SQL statement to write data to partitioned table `fact_tz`:
+```sql
+INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
+```
+It's a typical case for dynamic partition writing since user does not specify any partition column value in the SQL statement.
+
+By default, if it's for dynamic partition writing, Flink will sort the data additionally by dynamic partition columns before writing into sink table.
+That means the sink will receive all elements of one partition and then all elements of another partition.
+Elements of different partitions will not be mixed. This is helpful for Hive sink to reduce the number of partition writers and improve writing performance by writing one partition at a time.
+Otherwise, too many partition writers may cause the OutOfMemory exception.
+
+To avoid the extra sorting, you can set job configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` (`true` by default) to `false`.
+But with such a configuration, as said before, it may throw OutOfMemory exception if there are too many partitions fall into same sink node.
+
+To relieve the problem of too many partition writers, if data is not skewed, you can add `DISTRIBUTED BY <partition_field>` in your SQL statement to shuffle the data with same partition into same node.
+
+Also, you can manually add `SORTED BY <partition_field>` in your SQL statement to achieve the same purpose as `table.exec.hive.sink.sort-by-dynamic-partition.enable=true`.
+
+**NOTE:** 
+- The configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` only works in Flink `BATCH` mode.
+- Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}})  in Flink `BATCH` mode.
+
+### Auto Gather Statistic
+By default, Flink will gather the statistic automatically and then committed to Hive metastore during writing Hive table.
+
+But in some case, you may want to disable it as it may be time-consuming to gather the statistic.
+Then, you can set the job configuration `table.exec.hive.sink.statistic-auto-gather.enable` (`true` by default) to `false`
+to disable it.
+
+If the Hive table is stored as Parquet or ORC format, `numFiles`/`totalSize`/`numRows`/`rawDataSize` can be gathered.
+Otherwise, only `numFiles`/`totalSize` can be gathered.
+
+To gather statistic `numRows`/`rawDataSize` for Parquet and ORC format, Flink will only read the file's footer to do fast gathering.
+But it may still time-consuming when there are too many files, then you can configure the job configuration `table.exec.hive.sink.statistic-auto-gather.thread-num` (`3` by default) to 
+use more threads to speed the gathering.
+
+**NOTE:**
+- Only `BATCH` mode supports to auto gather statistic, `STREAMING` mode doesn't support it yet.
+
+### File Compaction
+
+The Hive sink also supports file compactions, which allows applications to reduce the number of files generated while writing into Hive.
+
+#### Stream Mode
+
+In stream mode, the behavior is the same as `FileSystem` sink. Please refer to [File Compaction]({{< ref "docs/connectors/table/filesystem" >}}#file-compaction) for more details.
+
+#### Batch Mode
+
+When it's in batch mode and auto compaction is enabled, after finishing writing files, Flink will calculate the average size of written files for each partition. And if the average size is less than the
+configured threshold, then Flink will try to compact these files to files with a target size. The following are the table's options for file compaction.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>auto-compaction</h5></td>
+        <td>optional</td>
+        <td>no</td>
+        <td style="word-wrap: break-word;">false</td>
+        <td>Boolean</td>
+        <td>Whether to enable automatic compaction in Hive sink or not. The data will be written to temporary files first. The temporary files are invisible before compaction.</td>
+    </tr>
+    <tr>
+        <td><h5>compaction.small-files.avg-size</h5></td>
+        <td>optional</td>
+        <td>yes</td>
+        <td style="word-wrap: break-word;">16MB</td>
+        <td>MemorySize</td>
+        <td>The threshold for file compaction. If the average size of the files is less than this value, FLink will then compact these files. the default value is 16MB.</td>
+    </tr>
+    <tr>
+        <td><h5>compaction.file-size</h5></td>
+        <td>optional</td>
+        <td>yes</td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>MemorySize</td>
+        <td>The compaction target file size, the default value is the <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink.rolling-policy.file-size">rolling file size</a>.</td>
+    </tr>
+    <tr>
+        <td><h5>compaction.parallelism</h5></td>
+        <td>optional</td>
+        <td>no</td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>Integer</td>
+        <td>
+        The parallelism to compact files. If not set, it will use the <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-parallelism">sink parallelism</a>.
+        When using <a href="{{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler">adaptive batch scheduler</a>, the parallelism of the compact operator deduced by the scheduler may be small, which will cause taking much time to finish compaction.
+        In such a case, please remember to set this option to a bigger value manually.
+        </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Formats
 

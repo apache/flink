@@ -47,16 +47,19 @@ public class NettyShuffleMemoryControlTestProgram {
 
     private static final ConfigOption<Integer> RUNNING_TIME_IN_SECONDS =
             ConfigOptions.key("test.running_time_in_seconds")
+                    .intType()
                     .defaultValue(120)
                     .withDescription("The time to run.");
 
     private static final ConfigOption<Integer> MAP_PARALLELISM =
             ConfigOptions.key("test.map_parallelism")
+                    .intType()
                     .defaultValue(1)
                     .withDescription("The number of map tasks.");
 
     private static final ConfigOption<Integer> REDUCE_PARALLELISM =
             ConfigOptions.key("test.reduce_parallelism")
+                    .intType()
                     .defaultValue(1)
                     .withDescription("The number of reduce tasks.");
 
@@ -82,7 +85,7 @@ public class NettyShuffleMemoryControlTestProgram {
                 mapParallelism);
         checkArgument(
                 reduceParallelism > 0,
-                "The number of reduce tasks should be positve, but it is {}",
+                "The number of reduce tasks should be positive, but it is {}",
                 reduceParallelism);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

@@ -19,16 +19,13 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
 
@@ -36,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and {@link
- * StreamStatus}.
+ * WatermarkStatus}.
  *
  * <p>This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
  * stream task/operator level for transmitting StreamRecords and Watermarks.
@@ -104,7 +101,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         if (from.isRecord()) {
             StreamRecord<T> fromRecord = from.asRecord();
             return fromRecord.copy(typeSerializer.copy(fromRecord.getValue()));
-        } else if (from.isWatermark() || from.isStreamStatus() || from.isLatencyMarker()) {
+        } else if (from.isWatermark() || from.isWatermarkStatus() || from.isLatencyMarker()) {
             // is immutable
             return from;
         } else {
@@ -121,7 +118,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             T valueCopy = typeSerializer.copy(fromRecord.getValue(), reuseRecord.getValue());
             fromRecord.copyTo(valueCopy, reuseRecord);
             return reuse;
-        } else if (from.isWatermark() || from.isStreamStatus() || from.isLatencyMarker()) {
+        } else if (from.isWatermark() || from.isWatermarkStatus() || from.isLatencyMarker()) {
             // is immutable
             return from;
         } else {
@@ -169,9 +166,9 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (value.isWatermark()) {
             target.write(TAG_WATERMARK);
             target.writeLong(value.asWatermark().getTimestamp());
-        } else if (value.isStreamStatus()) {
+        } else if (value.isWatermarkStatus()) {
             target.write(TAG_STREAM_STATUS);
-            target.writeInt(value.asStreamStatus().getStatus());
+            target.writeInt(value.asWatermarkStatus().getStatus());
         } else if (value.isLatencyMarker()) {
             target.write(TAG_LATENCY_MARKER);
             target.writeLong(value.asLatencyMarker().getMarkedTime());
@@ -194,7 +191,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (tag == TAG_WATERMARK) {
             return new Watermark(source.readLong());
         } else if (tag == TAG_STREAM_STATUS) {
-            return new StreamStatus(source.readInt());
+            return new WatermarkStatus(source.readInt());
         } else if (tag == TAG_LATENCY_MARKER) {
             return new LatencyMarker(
                     source.readLong(),
@@ -262,35 +259,6 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     @Override
     public StreamElementSerializerSnapshot<T> snapshotConfiguration() {
         return new StreamElementSerializerSnapshot<>(this);
-    }
-
-    /**
-     * Configuration snapshot specific to the {@link StreamElementSerializer}.
-     *
-     * @deprecated see {@link StreamElementSerializerSnapshot}.
-     */
-    @Deprecated
-    public static final class StreamElementSerializerConfigSnapshot<T>
-            extends CompositeTypeSerializerConfigSnapshot<StreamElement> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public StreamElementSerializerConfigSnapshot() {}
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<StreamElement> resolveSchemaCompatibility(
-                TypeSerializer<StreamElement> newSerializer) {
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer,
-                    new StreamElementSerializerSnapshot<>(),
-                    getSingleNestedSerializerAndConfig().f1);
-        }
     }
 
     /** Configuration snapshot specific to the {@link StreamElementSerializer}. */

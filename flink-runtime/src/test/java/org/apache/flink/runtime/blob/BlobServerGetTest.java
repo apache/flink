@@ -19,21 +19,20 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
 
@@ -60,15 +59,14 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
@@ -82,8 +80,6 @@ public class BlobServerGetTest extends TestLogger {
     private final Random rnd = new Random();
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
 
     @Test
     public void testGetTransientFailsDuringLookup1() throws IOException {
@@ -116,10 +112,9 @@ public class BlobServerGetTest extends TestLogger {
             @Nullable final JobID jobId1, @Nullable final JobID jobId2, BlobKey.BlobType blobType)
             throws IOException {
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -167,8 +162,6 @@ public class BlobServerGetTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
         BlobStoreService blobStore = null;
@@ -177,7 +170,8 @@ public class BlobServerGetTest extends TestLogger {
             blobStore = BlobUtils.createBlobStoreFromConfig(config);
 
             File tempFileDir = null;
-            try (BlobServer server = new BlobServer(config, blobStore)) {
+            try (BlobServer server =
+                    new BlobServer(config, temporaryFolder.newFolder(), blobStore)) {
 
                 server.start();
 
@@ -194,11 +188,11 @@ public class BlobServerGetTest extends TestLogger {
                 assertTrue(tempFileDir.setWritable(false, false));
 
                 // request the file from the BlobStore
-                exception.expect(IOException.class);
-                exception.expectMessage("Permission denied");
-
                 try {
-                    get(server, jobId, blobKey);
+                    assertThatThrownBy(() -> get(server, jobId, blobKey))
+                            .satisfies(
+                                    FlinkAssertions.anyCauseMatches(
+                                            IOException.class, "Permission denied"));
                 } finally {
                     HashSet<String> expectedDirs = new HashSet<>();
                     expectedDirs.add("incoming");
@@ -240,8 +234,6 @@ public class BlobServerGetTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
         BlobStoreService blobStore = null;
@@ -250,7 +242,8 @@ public class BlobServerGetTest extends TestLogger {
             blobStore = BlobUtils.createBlobStoreFromConfig(config);
 
             File jobStoreDir = null;
-            try (BlobServer server = new BlobServer(config, blobStore)) {
+            try (BlobServer server =
+                    new BlobServer(config, temporaryFolder.newFolder(), blobStore)) {
 
                 server.start();
 
@@ -267,10 +260,9 @@ public class BlobServerGetTest extends TestLogger {
                 assertTrue(jobStoreDir.setWritable(false, false));
 
                 // request the file from the BlobStore
-                exception.expect(AccessDeniedException.class);
-
                 try {
-                    get(server, jobId, blobKey);
+                    assertThatThrownBy(() -> get(server, jobId, blobKey))
+                            .isInstanceOf(AccessDeniedException.class);
                 } finally {
                     // there should be no remaining incoming files
                     File incomingFileDir = new File(jobStoreDir.getParent(), "incoming");
@@ -302,10 +294,9 @@ public class BlobServerGetTest extends TestLogger {
         final JobID jobId = new JobID();
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -318,10 +309,9 @@ public class BlobServerGetTest extends TestLogger {
             File tempFileDir = server.createTemporaryFilename().getParentFile();
 
             // request the file from the BlobStore
-            exception.expect(NoSuchFileException.class);
-
             try {
-                get(server, jobId, blobKey);
+                assertThatThrownBy(() -> get(server, jobId, blobKey))
+                        .isInstanceOf(NoSuchFileException.class);
             } finally {
                 HashSet<String> expectedDirs = new HashSet<>();
                 expectedDirs.add("incoming");
@@ -357,6 +347,89 @@ public class BlobServerGetTest extends TestLogger {
         testConcurrentGetOperations(new JobID(), PERMANENT_BLOB);
     }
 
+    @Test
+    public void testGetChecksForCorruptionInPermanentBlobInCaseOfRestart() throws IOException {
+        runGetChecksForCorruptionInCaseOfRestartTest(PERMANENT_BLOB);
+    }
+
+    @Test
+    public void testGetChecksForCorruptionInTransientBlobInCaseOfRestart() throws IOException {
+        runGetChecksForCorruptionInCaseOfRestartTest(TRANSIENT_BLOB);
+    }
+
+    private void runGetChecksForCorruptionInCaseOfRestartTest(BlobKey.BlobType blobType)
+            throws IOException {
+        final JobID jobId = JobID.generate();
+        final byte[] data = new byte[] {1, 2, 3};
+        final byte[] corruptedData = new byte[] {3, 2, 1};
+
+        final File storageDir = temporaryFolder.newFolder();
+        try (final BlobServer blobServer =
+                new BlobServer(
+                        new Configuration(), Reference.borrowed(storageDir), new VoidBlobStore())) {
+            final BlobKey blobKey = put(blobServer, jobId, data, blobType);
+
+            blobServer.close();
+
+            final File blob = blobServer.getStorageLocation(jobId, blobKey);
+            // corrupt the file
+            FileUtils.writeByteArrayToFile(blob, corruptedData);
+
+            try (final BlobServer restartedBlobServer =
+                    new BlobServer(
+                            new Configuration(),
+                            Reference.borrowed(storageDir),
+                            new VoidBlobStore())) {
+                try {
+                    // the file should be corrupted now
+                    get(restartedBlobServer, jobId, blobKey);
+                    fail("Expected to fail with an IOException because the file is corrupted.");
+                } catch (IOException expected) {
+                    // expected :-)
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testGetReDownloadsCorruptedPermanentBlobFromBlobStoreInCaseOfRestart()
+            throws IOException {
+        final JobID jobId = JobID.generate();
+        final byte[] data = new byte[] {1, 2, 3};
+        final byte[] corruptedData = new byte[] {3, 2, 1};
+
+        final File storageDir = temporaryFolder.newFolder();
+        final OneShotLatch getCalled = new OneShotLatch();
+        final BlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setGetFunction(
+                                (jobID, blobKey, file) -> {
+                                    getCalled.trigger();
+                                    FileUtils.writeByteArrayToFile(file, data);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
+        try (final BlobServer blobServer =
+                new BlobServer(new Configuration(), Reference.borrowed(storageDir), blobStore)) {
+            final BlobKey blobKey = put(blobServer, jobId, data, PERMANENT_BLOB);
+
+            blobServer.close();
+
+            final File blob = blobServer.getStorageLocation(jobId, blobKey);
+            // corrupt the file
+            FileUtils.writeByteArrayToFile(blob, corruptedData);
+
+            try (final BlobServer restartedBlobServer =
+                    new BlobServer(
+                            new Configuration(), Reference.borrowed(storageDir), blobStore)) {
+                // we should re-download the file from the BlobStore
+                final File file = get(restartedBlobServer, jobId, blobKey);
+                validateGetAndClose(new FileInputStream(file), data);
+                assertThat(getCalled.isTriggered()).isTrue();
+            }
+        }
+    }
+
     /**
      * [FLINK-6020] Tests that concurrent get operations don't concurrently access the BlobStore to
      * download a blob.
@@ -367,36 +440,26 @@ public class BlobServerGetTest extends TestLogger {
     private void testConcurrentGetOperations(
             @Nullable final JobID jobId, final BlobKey.BlobType blobType)
             throws IOException, InterruptedException, ExecutionException {
-        final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+        final byte[] data = {1, 2, 3, 4, 99, 42};
 
-        final BlobStore blobStore = mock(BlobStore.class);
+        final BlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setGetFunction(
+                                (jobID, blobKey, file) -> {
+                                    FileUtils.writeByteArrayToFile(file, data);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
 
         final int numberConcurrentGetOperations = 3;
         final List<CompletableFuture<File>> getOperations =
                 new ArrayList<>(numberConcurrentGetOperations);
 
-        final byte[] data = {1, 2, 3, 4, 99, 42};
-
-        doAnswer(
-                        new Answer() {
-                            @Override
-                            public Object answer(InvocationOnMock invocation) throws Throwable {
-                                File targetFile = (File) invocation.getArguments()[2];
-
-                                FileUtils.writeByteArrayToFile(targetFile, data);
-
-                                return null;
-                            }
-                        })
-                .when(blobStore)
-                .get(any(JobID.class), any(BlobKey.class), any(File.class));
-
         final ExecutorService executor =
                 Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-        try (final BlobServer server = new BlobServer(config, blobStore)) {
+        try (final BlobServer server =
+                new BlobServer(new Configuration(), temporaryFolder.newFolder(), blobStore)) {
 
             server.start();
 

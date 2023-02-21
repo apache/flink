@@ -20,6 +20,8 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -28,25 +30,32 @@ import org.apache.flink.runtime.rest.messages.FlameGraphTypeQueryParameter;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphParameters;
+import org.apache.flink.runtime.rest.messages.SubtaskIndexQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexFlameGraph;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexFlameGraphFactory;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoStats;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker;
+import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraph;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraphFactory;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoStats;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Request handler for the job vertex Flame Graph. */
 public class JobVertexFlameGraphHandler
-        extends AbstractJobVertexHandler<JobVertexFlameGraph, JobVertexFlameGraphParameters> {
+        extends AbstractJobVertexHandler<VertexFlameGraph, JobVertexFlameGraphParameters> {
 
-    private final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> threadInfoOperatorTracker;
+    private final JobVertexStatsTracker<VertexThreadInfoStats> threadInfoOperatorTracker;
 
     public JobVertexFlameGraphHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -54,7 +63,7 @@ public class JobVertexFlameGraphHandler
             Map<String, String> responseHeaders,
             ExecutionGraphCache executionGraphCache,
             Executor executor,
-            JobVertexThreadInfoTracker<JobVertexThreadInfoStats> threadInfoOperatorTracker) {
+            JobVertexStatsTracker<VertexThreadInfoStats> threadInfoOperatorTracker) {
         super(
                 leaderRetriever,
                 timeout,
@@ -66,35 +75,40 @@ public class JobVertexFlameGraphHandler
     }
 
     @Override
-    protected JobVertexFlameGraph handleRequest(
-            HandlerRequest<EmptyRequestBody, JobVertexFlameGraphParameters> request,
-            AccessExecutionJobVertex jobVertex)
+    protected VertexFlameGraph handleRequest(
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
 
-        if (jobVertex.getAggregateState().isTerminal()) {
-            return JobVertexFlameGraph.empty();
+        @Nullable Integer subtaskIndex = getSubtaskIndex(request, jobVertex);
+        if (isTerminated(jobVertex, subtaskIndex)) {
+            return VertexFlameGraph.terminated();
         }
 
-        final Optional<JobVertexThreadInfoStats> threadInfoSample =
+        Optional<VertexThreadInfoStats> threadInfoSample =
                 threadInfoOperatorTracker.getVertexStats(
                         request.getPathParameter(JobIDPathParameter.class), jobVertex);
 
+        if (subtaskIndex != null) {
+            threadInfoSample =
+                    threadInfoSample.map(generateThreadInfoStatsForSubtask(subtaskIndex));
+        }
+
         final FlameGraphTypeQueryParameter.Type flameGraphType = getFlameGraphType(request);
 
-        final Optional<JobVertexFlameGraph> operatorFlameGraph;
+        final Optional<VertexFlameGraph> operatorFlameGraph;
 
         switch (flameGraphType) {
             case FULL:
                 operatorFlameGraph =
-                        threadInfoSample.map(JobVertexFlameGraphFactory::createFullFlameGraphFrom);
+                        threadInfoSample.map(VertexFlameGraphFactory::createFullFlameGraphFrom);
                 break;
             case ON_CPU:
                 operatorFlameGraph =
-                        threadInfoSample.map(JobVertexFlameGraphFactory::createOnCpuFlameGraph);
+                        threadInfoSample.map(VertexFlameGraphFactory::createOnCpuFlameGraph);
                 break;
             case OFF_CPU:
                 operatorFlameGraph =
-                        threadInfoSample.map(JobVertexFlameGraphFactory::createOffCpuFlameGraph);
+                        threadInfoSample.map(VertexFlameGraphFactory::createOffCpuFlameGraph);
                 break;
             default:
                 throw new RestHandlerException(
@@ -102,23 +116,93 @@ public class JobVertexFlameGraphHandler
                         HttpResponseStatus.BAD_REQUEST);
         }
 
-        return operatorFlameGraph.orElse(JobVertexFlameGraph.empty());
+        return operatorFlameGraph.orElse(VertexFlameGraph.waiting());
     }
 
-    private static FlameGraphTypeQueryParameter.Type getFlameGraphType(
-            HandlerRequest<?, JobVertexFlameGraphParameters> request) {
+    private Function<VertexThreadInfoStats, VertexThreadInfoStats>
+            generateThreadInfoStatsForSubtask(Integer subtaskIndex) {
+        return stats ->
+                new VertexThreadInfoStats(
+                        stats.getRequestId(),
+                        stats.getStartTime(),
+                        stats.getEndTime(),
+                        stats.getSamplesBySubtask().entrySet().stream()
+                                .filter(entry -> entry.getKey().getSubtaskIndex() == subtaskIndex)
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    }
+
+    private boolean isTerminated(
+            AccessExecutionJobVertex jobVertex, @Nullable Integer subtaskIndex) {
+        if (subtaskIndex == null) {
+            return jobVertex.getAggregateState().isTerminal();
+        }
+        AccessExecutionVertex executionVertex = jobVertex.getTaskVertices()[subtaskIndex];
+        return executionVertex.getExecutionState().isTerminal();
+    }
+
+    private static FlameGraphTypeQueryParameter.Type getFlameGraphType(HandlerRequest<?> request) {
         final List<FlameGraphTypeQueryParameter.Type> flameGraphTypeParameter =
                 request.getQueryParameter(FlameGraphTypeQueryParameter.class);
 
         if (flameGraphTypeParameter.isEmpty()) {
             return FlameGraphTypeQueryParameter.Type.FULL;
-        } else {
-            return flameGraphTypeParameter.get(0);
         }
+        return flameGraphTypeParameter.get(0);
+    }
+
+    @Nullable
+    private static Integer getSubtaskIndex(
+            HandlerRequest<?> request, AccessExecutionJobVertex jobVertex)
+            throws RestHandlerException {
+        final List<Integer> subtaskIndexParameter =
+                request.getQueryParameter(SubtaskIndexQueryParameter.class);
+
+        if (subtaskIndexParameter.isEmpty()) {
+            return null;
+        }
+        int subtaskIndex = subtaskIndexParameter.get(0);
+        if (subtaskIndex >= jobVertex.getTaskVertices().length || subtaskIndex < 0) {
+            throw new RestHandlerException(
+                    "Invalid subtask index for vertex " + jobVertex.getJobVertexId(),
+                    HttpResponseStatus.NOT_FOUND);
+        }
+        return subtaskIndex;
     }
 
     @Override
     public void close() throws Exception {
         threadInfoOperatorTracker.shutDown();
+    }
+
+    public static AbstractRestHandler<?, ?, ?, ?> disabledHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders) {
+        return new DisabledJobVertexFlameGraphHandler(leaderRetriever, timeout, responseHeaders);
+    }
+
+    private static class DisabledJobVertexFlameGraphHandler
+            extends AbstractRestHandler<
+                    RestfulGateway,
+                    EmptyRequestBody,
+                    VertexFlameGraph,
+                    JobVertexFlameGraphParameters> {
+        protected DisabledJobVertexFlameGraphHandler(
+                GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                Time timeout,
+                Map<String, String> responseHeaders) {
+            super(
+                    leaderRetriever,
+                    timeout,
+                    responseHeaders,
+                    JobVertexFlameGraphHeaders.getInstance());
+        }
+
+        @Override
+        protected CompletableFuture<VertexFlameGraph> handleRequest(
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
+                throws RestHandlerException {
+            return CompletableFuture.completedFuture(VertexFlameGraph.disabled());
+        }
     }
 }

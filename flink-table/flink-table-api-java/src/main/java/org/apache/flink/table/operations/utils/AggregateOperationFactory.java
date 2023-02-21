@@ -51,7 +51,6 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -79,7 +78,6 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 
@@ -313,9 +311,9 @@ final class AggregateOperationFactory {
     }
 
     private void validateBatchTimeAttribute(LogicalType timeFieldType) {
-        if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
-                || hasRoot(timeFieldType, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                || hasRoot(timeFieldType, BIGINT))) {
+        if (!(timeFieldType.is(TIMESTAMP_WITHOUT_TIME_ZONE)
+                || timeFieldType.is(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                || timeFieldType.is(BIGINT))) {
             throw new ValidationException(
                     "A group window expects a time attribute for grouping "
                             + "in a batch environment.");
@@ -323,8 +321,8 @@ final class AggregateOperationFactory {
     }
 
     private void validateStreamTimeAttribute(LogicalType timeFieldType) {
-        if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
-                        || hasRoot(timeFieldType, TIMESTAMP_WITH_LOCAL_TIME_ZONE))
+        if (!(timeFieldType.is(TIMESTAMP_WITHOUT_TIME_ZONE)
+                        || timeFieldType.is(TIMESTAMP_WITH_LOCAL_TIME_ZONE))
                 || !isTimeAttribute(timeFieldType)) {
             throw new ValidationException(
                     "A group window expects a time attribute for grouping "
@@ -343,14 +341,13 @@ final class AggregateOperationFactory {
         final LogicalType timeFieldType = timeField.getOutputDataType().getLogicalType();
         final LogicalType windowSizeType = windowSize.getOutputDataType().getLogicalType();
 
-        if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
+        if (windowSizeType.isAnyOf(BIGINT, INTERVAL_DAY_TIME)) {
+            validateWindowIntervalType(timeFieldType, windowSizeType);
+            return ResolvedGroupWindow.tumblingWindow(windowName, timeField, windowSize);
+        } else {
             throw new ValidationException(
                     "Tumbling window expects a size literal of a day-time interval or BIGINT type.");
         }
-
-        validateWindowIntervalType(timeFieldType, windowSizeType);
-
-        return ResolvedGroupWindow.tumblingWindow(windowName, timeField, windowSize);
     }
 
     private ResolvedGroupWindow validateAndCreateSlideWindow(
@@ -368,7 +365,7 @@ final class AggregateOperationFactory {
         final LogicalType windowSizeType = windowSize.getOutputDataType().getLogicalType();
         final LogicalType windowSlideType = windowSlide.getOutputDataType().getLogicalType();
 
-        if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
+        if (!windowSizeType.is(BIGINT) && !windowSizeType.is(INTERVAL_DAY_TIME)) {
             throw new ValidationException(
                     "A sliding window expects a size literal of a day-time interval or BIGINT type.");
         }
@@ -392,7 +389,7 @@ final class AggregateOperationFactory {
 
         final LogicalType windowGapType = windowGap.getOutputDataType().getLogicalType();
 
-        if (!hasRoot(windowGapType, INTERVAL_DAY_TIME)) {
+        if (!windowGapType.is(INTERVAL_DAY_TIME)) {
             throw new ValidationException(
                     "A session window expects a gap literal of a day-time interval type.");
         }
@@ -401,9 +398,9 @@ final class AggregateOperationFactory {
     }
 
     private void validateWindowIntervalType(LogicalType timeFieldType, LogicalType intervalType) {
-        if (hasRoot(intervalType, TIMESTAMP_WITHOUT_TIME_ZONE)
+        if (intervalType.is(TIMESTAMP_WITHOUT_TIME_ZONE)
                 && isRowtimeAttribute(timeFieldType)
-                && hasRoot(intervalType, BIGINT)) {
+                && intervalType.is(BIGINT)) {
             // unsupported row intervals on event-time
             throw new ValidationException(
                     "Event-time grouping windows on row intervals in a stream environment "
@@ -424,7 +421,7 @@ final class AggregateOperationFactory {
         if (!windowProperties.isEmpty()) {
             if (window.getType() == TUMBLE || window.getType() == SLIDE) {
                 DataType windowType = window.getSize().get().getOutputDataType();
-                if (LogicalTypeChecks.hasRoot(windowType.getLogicalType(), BIGINT)) {
+                if (windowType.getLogicalType().is(BIGINT)) {
                     throw new ValidationException(
                             String.format(
                                     "Window start and Window end cannot be selected "
@@ -544,9 +541,9 @@ final class AggregateOperationFactory {
 
         @Override
         public Boolean visit(StructuredType structuredType) {
-            StructuredType.StructuredComparision comparision = structuredType.getComparision();
-            return comparision == StructuredType.StructuredComparision.FULL
-                    || comparision == StructuredType.StructuredComparision.EQUALS;
+            StructuredType.StructuredComparison comparison = structuredType.getComparison();
+            return comparison == StructuredType.StructuredComparison.FULL
+                    || comparison == StructuredType.StructuredComparison.EQUALS;
         }
 
         @Override

@@ -49,6 +49,9 @@ Dependencies
 
 {{< sql_download_table "upsert-kafka" >}}
 
+The Upsert Kafka connector is not part of the binary distribution.
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+
 Full Example
 ----------------
 
@@ -97,7 +100,7 @@ GROUP BY user_region;
 Available Metadata
 ------------------
 
-See the [regular Kafka connector]({{< ref "docs/connectors/datastream/kafka" >}}#available-metadata) for a list
+See the [regular Kafka connector]({{< ref "docs/connectors/table/kafka" >}}#available-metadata) for a list
 of all available metadata fields.
 
 Connector Options

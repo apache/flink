@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utility for performing type inference.
@@ -96,12 +95,12 @@ public final class TypeInferenceUtil {
      * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of
      * default values (*) where (*) is future work.
      */
-    public static AdaptedCallContext adaptArguments(
+    public static CallContext adaptArguments(
             TypeInference typeInference, CallContext callContext, @Nullable DataType outputType) {
         return adaptArguments(typeInference, callContext, outputType, true);
     }
 
-    private static AdaptedCallContext adaptArguments(
+    private static CallContext adaptArguments(
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
@@ -129,6 +128,10 @@ public final class TypeInferenceUtil {
             final DataType expectedType = expectedTypes.get(pos);
             final DataType actualType = actualTypes.get(pos);
             if (!supportsImplicitCast(actualType.getLogicalType(), expectedType.getLogicalType())) {
+                if (!throwOnInferInputFailure) {
+                    // abort the adaption, e.g. if a NULL is passed for a NOT NULL argument
+                    return callContext;
+                }
                 throw new ValidationException(
                         String.format(
                                 "Invalid argument type at position %d. Data type %s expected but %s passed.",
@@ -212,64 +215,50 @@ public final class TypeInferenceUtil {
      *
      * @see CallContext#getOutputDataType()
      */
-    public static final class SurroundingInfo {
+    public interface SurroundingInfo {
 
-        private final String name;
-
-        private final FunctionDefinition functionDefinition;
-
-        private final TypeInference typeInference;
-
-        private final int argumentCount;
-
-        private final int innerCallPosition;
-
-        private final boolean isGroupedAggregation;
-
-        public SurroundingInfo(
+        static SurroundingInfo of(
                 String name,
                 FunctionDefinition functionDefinition,
                 TypeInference typeInference,
                 int argumentCount,
                 int innerCallPosition,
                 boolean isGroupedAggregation) {
-            this.name = name;
-            this.functionDefinition = functionDefinition;
-            this.typeInference = typeInference;
-            this.argumentCount = argumentCount;
-            this.innerCallPosition = innerCallPosition;
-            this.isGroupedAggregation = isGroupedAggregation;
+            return typeFactory -> {
+                final boolean isValidCount =
+                        validateArgumentCount(
+                                typeInference.getInputTypeStrategy().getArgumentCount(),
+                                argumentCount,
+                                false);
+                if (!isValidCount) {
+                    return Optional.empty();
+                }
+                // for "takes_string(this_function(NULL))" simulate "takes_string(NULL)"
+                // for retrieving the output type of "this_function(NULL)"
+                final CallContext callContext =
+                        new UnknownCallContext(
+                                typeFactory,
+                                name,
+                                functionDefinition,
+                                argumentCount,
+                                isGroupedAggregation);
+
+                // We might not be able to infer the input types at this moment, if the surrounding
+                // function does not provide an explicit input type strategy.
+                final CallContext adaptedContext =
+                        adaptArguments(typeInference, callContext, null, false);
+                return typeInference
+                        .getInputTypeStrategy()
+                        .inferInputTypes(adaptedContext, false)
+                        .map(dataTypes -> dataTypes.get(innerCallPosition));
+            };
         }
 
-        private Optional<DataType> inferOutputType(DataTypeFactory typeFactory) {
-            final boolean isValidCount =
-                    validateArgumentCount(
-                            typeInference.getInputTypeStrategy().getArgumentCount(),
-                            argumentCount,
-                            false);
-            if (!isValidCount) {
-                return Optional.empty();
-            }
-            // for "takes_string(this_function(NULL))" simulate "takes_string(NULL)"
-            // for retrieving the output type of "this_function(NULL)"
-            final CallContext callContext =
-                    new UnknownCallContext(
-                            typeFactory,
-                            name,
-                            functionDefinition,
-                            argumentCount,
-                            isGroupedAggregation);
-
-            // We might not be able to infer the input types at this moment, if the surrounding
-            // function
-            // does not provide an explicit input type strategy.
-            final AdaptedCallContext adaptedContext =
-                    adaptArguments(typeInference, callContext, null, false);
-            return typeInference
-                    .getInputTypeStrategy()
-                    .inferInputTypes(adaptedContext, false)
-                    .map(dataTypes -> dataTypes.get(innerCallPosition));
+        static SurroundingInfo of(DataType dataType) {
+            return typeFactory -> Optional.of(dataType);
         }
+
+        Optional<DataType> inferOutputType(DataTypeFactory typeFactory);
     }
 
     /**
@@ -324,7 +313,7 @@ public final class TypeInferenceUtil {
             throw createInvalidInputException(typeInference, callContext, e);
         }
 
-        final AdaptedCallContext adaptedCallContext;
+        final CallContext adaptedCallContext;
         try {
             // use information of surrounding call to determine output type of this call
             final DataType outputType;
@@ -485,7 +474,7 @@ public final class TypeInferenceUtil {
     }
 
     private static boolean isUnknown(DataType dataType) {
-        return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.NULL);
+        return dataType.getLogicalType().is(LogicalTypeRoot.NULL);
     }
 
     private TypeInferenceUtil() {

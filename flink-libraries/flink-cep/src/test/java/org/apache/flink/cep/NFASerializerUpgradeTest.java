@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -30,11 +31,8 @@ import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,45 +41,39 @@ import java.util.Collections;
 import static org.hamcrest.Matchers.is;
 
 /** Migration tests for NFA-related serializers. */
-@RunWith(Parameterized.class)
-public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public NFASerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "event-id-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             EventIdSerializerSetup.class,
                             EventIdSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "node-id-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             NodeIdSerializerSetup.class,
                             NodeIdSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "dewey-number-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             DeweyNumberSerializerSetup.class,
                             DeweyNumberSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "shared-buffer-edge-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             SharedBufferEdgeSerializerSetup.class,
                             SharedBufferEdgeSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "nfa-state-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             NFAStateSerializerSetup.class,
                             NFAStateSerializerVerifier.class));
         }
@@ -130,7 +122,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<EventId>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -176,7 +168,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<NodeId>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -222,7 +214,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<DeweyNumber>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -271,7 +263,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<SharedBufferEdge>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -325,7 +317,7 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<SharedBufferNode>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -371,8 +363,11 @@ public class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obje
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<NFAState>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+                FlinkVersion version) {
+            if (version.isNewerVersionThan(FlinkVersion.v1_15)) {
+                return TypeSerializerMatchers.isCompatibleAsIs();
+            }
+            return TypeSerializerMatchers.isCompatibleAfterMigration();
         }
     }
 }

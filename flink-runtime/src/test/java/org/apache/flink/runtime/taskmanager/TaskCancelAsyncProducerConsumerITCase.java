@@ -20,12 +20,11 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
@@ -39,17 +38,23 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
@@ -57,7 +62,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class})
+public class TaskCancelAsyncProducerConsumerITCase {
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     // The Exceptions thrown by the producer/consumer Threads
     private static volatile Exception ASYNC_PRODUCER_EXCEPTION;
@@ -67,9 +77,9 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
     private static volatile Thread ASYNC_PRODUCER_THREAD;
     private static volatile Thread ASYNC_CONSUMER_THREAD;
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .build());
@@ -90,7 +100,8 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
      * the main task Thread.
      */
     @Test
-    public void testCancelAsyncProducerAndConsumer() throws Exception {
+    public void testCancelAsyncProducerAndConsumer(@InjectMiniCluster MiniCluster flink)
+            throws Exception {
         Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
         // Job with async producer and consumer
@@ -110,17 +121,15 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
         JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(producer, consumer);
 
-        final MiniCluster flink = MINI_CLUSTER_RESOURCE.getMiniCluster();
-
         // Submit job and wait until running
         flink.runDetached(jobGraph);
 
         FutureUtils.retrySuccessfulWithDelay(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Time.milliseconds(10),
+                        Duration.ofMillis(10),
                         deadline,
                         status -> status == JobStatus.RUNNING,
-                        TestingUtils.defaultScheduledExecutor())
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         boolean producerBlocked = false;
@@ -171,15 +180,15 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
         // wait until the job is canceled
         FutureUtils.retrySuccessfulWithDelay(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Time.milliseconds(10),
+                        Duration.ofMillis(10),
                         deadline,
                         status -> status == JobStatus.CANCELED,
-                        TestingUtils.defaultScheduledExecutor())
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         // Verify the expected Exceptions
         assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-        assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+        assertEquals(CancelTaskException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
 
         assertNotNull(ASYNC_CONSUMER_EXCEPTION);
         assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());

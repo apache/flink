@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.13-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-quickstart</artifactId>
@@ -35,7 +34,6 @@ under the License.
 
 	<modules>
 		<module>flink-quickstart-java</module>
-		<module>flink-quickstart-scala</module>
 	</modules>
 	<build>
 		<extensions>

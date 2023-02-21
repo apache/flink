@@ -26,7 +26,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -66,7 +66,11 @@ public class NumberSequenceSourceTest {
 
                 // re-create and restore
                 reader = createReader();
-                reader.addSplits(splits);
+                if (splits.isEmpty()) {
+                    reader.notifyNoMoreSplits();
+                } else {
+                    reader.addSplits(splits);
+                }
             }
         }
 
@@ -110,8 +114,8 @@ public class NumberSequenceSourceTest {
     private static final class DummyReaderContext implements SourceReaderContext {
 
         @Override
-        public MetricGroup metricGroup() {
-            return new UnregisteredMetricsGroup();
+        public SourceReaderMetricGroup metricGroup() {
+            return UnregisteredMetricsGroup.createSourceReaderMetricGroup();
         }
 
         @Override
@@ -139,6 +143,11 @@ public class NumberSequenceSourceTest {
         public UserCodeClassLoader getUserCodeClassLoader() {
             return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
         }
+
+        @Override
+        public int currentParallelism() {
+            return 1;
+        }
     }
 
     private static final class TestingReaderOutput<E> implements ReaderOutput<E> {
@@ -162,6 +171,11 @@ public class NumberSequenceSourceTest {
 
         @Override
         public void markIdle() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void markActive() {
             throw new UnsupportedOperationException();
         }
 

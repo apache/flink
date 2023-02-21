@@ -36,6 +36,10 @@ This *Getting Started* guide describes how to deploy a *Session cluster* on [Kub
 This page describes deploying a [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) Flink cluster on top of Kubernetes, using Flink's standalone deployment.
 We generally recommend new users to deploy Flink on Kubernetes using [native Kubernetes deployments]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}).
 
+Apache Flink also provides a Kubernetes operator for managing Flink clusters on Kubernetes. It supports both standalone and native deployment mode and greatly simplifies deployment, configuration and the life cycle management of Flink resources on Kubernetes.
+
+For more information, please refer to the [Flink Kubernetes Operator documentation](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/concepts/overview/)
+
 ### Preparation
 
 This guide expects a Kubernetes environment to be present. You can ensure that your Kubernetes setup is working by running a command like `kubectl get nodes`, which lists all connected Kubelets. 
@@ -64,7 +68,7 @@ Using the file contents provided in the [the common resource definitions](#commo
     $ kubectl create -f flink-configuration-configmap.yaml
     $ kubectl create -f jobmanager-service.yaml
     # Create the deployments for the cluster
-    $ kubectl create -f jobmanager-session-deployment.yaml
+    $ kubectl create -f jobmanager-session-deployment-non-ha.yaml
     $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
@@ -85,7 +89,7 @@ You can tear down the cluster using the following commands:
     $ kubectl delete -f jobmanager-service.yaml
     $ kubectl delete -f flink-configuration-configmap.yaml
     $ kubectl delete -f taskmanager-session-deployment.yaml
-    $ kubectl delete -f jobmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-session-deployment-non-ha.yaml
 ```
 
 
@@ -93,9 +97,13 @@ You can tear down the cluster using the following commands:
 
 ## Deployment Modes
 
-### Deploy Application Cluster
+### Application Mode
 
-A *Flink Application cluster* is a dedicated cluster which runs a single application.
+{{< hint info >}}
+For high-level intuition behind the application mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#application-mode" >}}).
+{{< /hint >}}
+
+A *Flink Application cluster* is a dedicated cluster which runs a single application, which needs to be available at deployment time.
 
 A basic *Flink Application cluster* deployment in Kubernetes has three components:
 
@@ -129,10 +137,11 @@ with the `kubectl` command:
     $ kubectl delete -f jobmanager-job.yaml
 ```
 
-### Per-Job Cluster Mode
-Flink on Standalone Kubernetes does not support the Per-Job Cluster Mode.
-
 ### Session Mode
+
+{{< hint info >}}
+For high-level intuition behind the session mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#session-mode" >}}).
+{{< /hint >}}
 
 Deployment of a Session cluster is explained in the [Getting Started](#getting-started) guide at the top of this page.
 
@@ -208,9 +217,9 @@ data:
   flink-conf.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
-    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.type: kubernetes
     high-availability.storageDir: hdfs:///flink/recovery
-    restart-strategy: fixed-delay
+    restart-strategy.type: fixed-delay
     restart-strategy.fixed-delay.attempts: 10
   ...
 ```
@@ -232,6 +241,25 @@ If you want to achieve faster recovery, configure the `replicas` in `jobmanager-
 You can access the queryable state of TaskManager if you create a `NodePort` service for it:
   1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
   2. Run `kubectl get svc flink-taskmanager-query-state` to get the `<node-port>` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) to submit state queries.
+
+### Using Standalone Kubernetes with Reactive Mode
+
+[Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) allows to run Flink in a mode, where the *Application Cluster* is always adjusting the job parallelism to the available resources. In combination with Kubernetes, the replica count of the TaskManager deployment determines the available resources. Increasing the replica count will scale up the job, reducing it will trigger a scale down. This can also be done automatically by using a [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
+
+To use Reactive Mode on Kubernetes, follow the same steps as for [deploying a job using an Application Cluster](#deploy-application-cluster). But instead of `flink-configuration-configmap.yaml` use this config map: `flink-reactive-mode-configuration-configmap.yaml`. It contains the `scheduler-mode: reactive` setting for Flink.
+
+Once you have deployed the *Application Cluster*, you can scale your job up or down by changing the replica count in the `flink-taskmanager` deployment.
+
+### Enabling Local Recovery Across Pod Restarts
+
+In order to speed up recoveries in case of pod failures, you can leverage Flink's [working directory]({{< ref "docs/deployment/resource-providers/standalone/working_directory" >}}) feature together with local recovery.
+If the working directory is configured to reside on a persistent volume that gets remounted to a restarted TaskManager pod, then Flink is able to recover state locally.
+With the [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/), Kubernetes gives you the exact tool you need to map a pod to a persistent volume.
+
+Deploying TaskManagers as a StatefulSet, allows you to configure a volume claim template that is used to mount persistent volumes to the TaskManagers.
+Additionally, you need to configure a deterministic `taskmanager.resource-id`.
+A suitable value is the [pod name](https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/), that you expose using environment variables.
+For an example StatefulSet configuration take a look at the [appendix](#local-recovery-enabled-taskmanager-statefulset).
 
 {{< top >}}
 
@@ -301,7 +329,77 @@ data:
     appender.rolling.strategy.max = 10
 
     # Suppress the irrelevant (wrong) warnings from the Netty channel handler
-    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = OFF
+```
+
+
+`flink-reactive-mode-configuration-configmap.yaml`
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.numberOfTaskSlots: 2
+    blob.server.port: 6124
+    jobmanager.rpc.port: 6123
+    taskmanager.rpc.port: 6122
+    queryable-state.proxy.ports: 6125
+    jobmanager.memory.process.size: 1600m
+    taskmanager.memory.process.size: 1728m
+    parallelism.default: 2
+    scheduler-mode: reactive
+    execution.checkpointing.interval: 10s
+  log4j-console.properties: |+
+    # This affects logging for both user code and Flink
+    rootLogger.level = INFO
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
+
+    # Uncomment this if you want to _only_ change Flink's logging
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+
+    # Log all infos to the console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos in the given rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
+    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
     logger.netty.level = OFF
 ```
 
@@ -685,6 +783,100 @@ spec:
       - name: job-artifacts-volume
         hostPath:
           path: /host/path/to/job/artifacts
+```
+
+### Local Recovery Enabled TaskManager StatefulSet
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.numberOfTaskSlots: 2
+    blob.server.port: 6124
+    jobmanager.rpc.port: 6123
+    taskmanager.rpc.port: 6122
+    state.backend.local-recovery: true
+    process.taskmanager.working-dir: /pv
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskmanager-hl
+spec:
+  clusterIP: None
+  selector:
+    app: flink
+    component: taskmanager
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: flink-taskmanager
+spec:
+  serviceName: taskmanager-hl
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+    spec:
+      securityContext:
+        runAsUser: 9999
+        fsGroup: 9999
+      containers:
+      - name: taskmanager
+        image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+        args: ["taskmanager", "-Dtaskmanager.resource-id=$(POD_NAME)"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        - containerPort: 6125
+          name: query-state
+        - containerPort: 6121
+          name: metrics
+        livenessProbe:
+          tcpSocket:
+            port: 6122
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf/
+        - name: pv
+          mountPath: /pv
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+  volumeClaimTemplates:
+  - metadata:
+      name: pv
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 50Gi
 ```
 
 {{< top >}}

@@ -18,16 +18,14 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,29 +33,23 @@ import java.util.Collection;
 import static org.hamcrest.CoreMatchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
-@RunWith(Parameterized.class)
-public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
+class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
 
-    public NullableSerializerUpgradeTest(TestSpecification<Long, Long> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "nullable-padded-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             NullablePaddedSerializerSetup.class,
                             NullablePaddedSerializerVerifier.class));
 
             testSpecifications.add(
                     new TestSpecification<>(
                             "nullable-not-padded-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             NullableNotPaddedSerializerSetup.class,
                             NullableNotPaddedSerializerVerifier.class));
         }
@@ -103,7 +95,7 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -147,7 +139,7 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

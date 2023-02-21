@@ -21,14 +21,19 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
@@ -37,7 +42,15 @@ import static org.apache.flink.cep.utils.NFAUtils.compile;
 
 /** Tests for {@link Pattern#times(int, int)}. */
 @SuppressWarnings("unchecked")
+@RunWith(Parameterized.class)
 public class TimesRangeITCase extends TestLogger {
+
+    @Parameterized.Parameter public Time time;
+
+    @Parameterized.Parameters(name = "Times Range Time: {0}")
+    public static Collection<Time> parameters() {
+        return Arrays.asList(null, Time.milliseconds(3));
+    }
 
     @Test
     public void testTimesRange() throws Exception {
@@ -57,40 +70,13 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .next("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(1, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(1, 3, time)
                         .allowCombinations()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -124,40 +110,13 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .next("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(0, 2)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(0, 2, time)
                         .allowCombinations()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -186,47 +145,19 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(1, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(1, 3, time)
                         .allowCombinations()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -246,21 +177,27 @@ public class TimesRangeITCase extends TestLogger {
                                 ConsecutiveData.end),
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent2,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent1,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent2,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end)));
+                                ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.addAll(
+                    Lists.newArrayList(
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent2,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end),
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent2,
+                                    ConsecutiveData.end),
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end)));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     @Test
@@ -277,40 +214,13 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(0, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(0, 3, time)
                         .consecutive()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -353,41 +263,14 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(1, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(1, 3, time)
                         .consecutive()
                         .optional()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -428,41 +311,14 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .next("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(1, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(1, 3, time)
                         .consecutive()
                         .optional()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -499,40 +355,13 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(1, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(1, 3, time)
                         .optional()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -558,48 +387,20 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(2, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 3, time)
                         .allowCombinations()
                         .optional()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -614,15 +415,20 @@ public class TimesRangeITCase extends TestLogger {
                                 ConsecutiveData.end),
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent2,
                                 ConsecutiveData.middleEvent3,
                                 ConsecutiveData.end),
-                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.add(
+                    Lists.newArrayList(
+                            ConsecutiveData.startEvent,
+                            ConsecutiveData.middleEvent1,
+                            ConsecutiveData.middleEvent3,
+                            ConsecutiveData.end));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     @Test
@@ -639,40 +445,13 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(2, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 3, time)
                         .optional()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -714,47 +493,19 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .next("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(2, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 3, time)
                         .allowCombinations()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -766,12 +517,17 @@ public class TimesRangeITCase extends TestLogger {
                                 ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent1,
                                 ConsecutiveData.middleEvent2,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end)));
+                                ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.add(
+                    Lists.newArrayList(
+                            ConsecutiveData.startEvent,
+                            ConsecutiveData.middleEvent1,
+                            ConsecutiveData.middleEvent3,
+                            ConsecutiveData.end));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     @Test
@@ -786,39 +542,12 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(2, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 3, time)
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -852,47 +581,19 @@ public class TimesRangeITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
-                        .times(2, 3)
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
+                        .times(2, 3, time)
                         .allowCombinations()
                         .followedBy("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")));
 
         NFA<Event> nfa = compile(pattern, false);
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -904,17 +605,23 @@ public class TimesRangeITCase extends TestLogger {
                                 ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent1,
                                 ConsecutiveData.middleEvent2,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent2,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end)));
+                                ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.addAll(
+                    Lists.newArrayList(
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent2,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end),
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent1,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end)));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     private static class ConsecutiveData {

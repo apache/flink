@@ -30,7 +30,7 @@
             <td><h5>yarn.application-attempt-failures-validity-interval</h5></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>
-            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/">here</a> for more information.</td>
+            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Application_Attempts_API">here</a> for more information.</td>
         </tr>
         <tr>
             <td><h5>yarn.application-attempts</h5></td>
@@ -87,10 +87,16 @@
             <td>The number of virtual cores (vcores) used by YARN application master.</td>
         </tr>
         <tr>
+            <td><h5>yarn.classpath.include-user-jar</h5></td>
+            <td style="word-wrap: break-word;">ORDER</td>
+            <td><p>Enum</p></td>
+            <td>Defines whether user-jars are included in the system class path as well as their positioning in the path.<br /><br />Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>yarn.containers.vcores</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The number of virtual cores (vcores) per YARN container. By default, the number of vcores is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting the <span markdown="span">`org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler`</span>.</td>
+            <td>The number of virtual cores (vcores) per YARN container. By default, the number of vcores is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting the <code class="highlighter-rouge">org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler</code>.</td>
         </tr>
         <tr>
             <td><h5>yarn.file-replication</h5></td>
@@ -117,12 +123,6 @@
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
         </tr>
         <tr>
-            <td><h5>yarn.per-job-cluster.include-user-jar</h5></td>
-            <td style="word-wrap: break-word;">ORDER</td>
-            <td><p>Enum</p>Possible values: [DISABLED, FIRST, LAST, ORDER]</td>
-            <td>Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning in the path. They can be positioned at the beginning (FIRST), at the end (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are excluded from the system class path.</td>
-        </tr>
-        <tr>
             <td><h5>yarn.properties-file.location</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -135,10 +135,10 @@
             <td>A semicolon-separated list of provided lib directories. They should be pre-uploaded and world-readable. Flink will use them to exclude the local Flink jars(e.g. flink-dist, lib/, plugins/)uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that they doesn't need to be downloaded every time for each application. An example could be hdfs://$namenode_address/path/of/flink/lib</td>
         </tr>
         <tr>
-            <td><h5>yarn.security.kerberos.additionalFileSystems</h5></td>
+            <td><h5>yarn.provided.usrlib.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;String&gt;</td>
-            <td>A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.</td>
+            <td>String</td>
+            <td>The provided usrlib directory in remote. It should be pre-uploaded and world-readable. Flink will use it to exclude the local usrlib directory(i.e. usrlib/ under the parent directory of FLINK_LIB_DIR). Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be hdfs://$namenode_address/path/of/flink/usrlib</td>
         </tr>
         <tr>
             <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>
@@ -175,6 +175,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>A comma-separated list of tags to apply to the Flink YARN application.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.taskmanager.node-label</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify YARN node label for the Flink TaskManagers, it will override the yarn.application.node-label for TaskManagers if both are set.</td>
         </tr>
     </tbody>
 </table>

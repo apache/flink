@@ -39,6 +39,7 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
@@ -69,16 +70,25 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                         kubernetesJobManagerParameters.getServiceAccount(),
                         KubernetesUtils.getServiceAccount(flinkPod),
                         "service account");
+
+        final String dnsPolicy =
+                KubernetesUtils.resolveDNSPolicy(
+                        flinkPod.getPodWithoutMainContainer().getSpec().getDnsPolicy(),
+                        kubernetesJobManagerParameters.isHostNetworkEnabled());
+
         if (flinkPod.getPodWithoutMainContainer().getSpec().getRestartPolicy() != null) {
             logger.info(
                     "The restart policy of JobManager pod will be overwritten to 'always' "
                             + "since it is controlled by the Kubernetes deployment.");
         }
+
         basicPodBuilder
                 .withApiVersion(API_VERSION)
                 .editOrNewSpec()
                 .withServiceAccount(serviceAccountName)
                 .withServiceAccountName(serviceAccountName)
+                .withHostNetwork(kubernetesJobManagerParameters.isHostNetworkEnabled())
+                .withDnsPolicy(dnsPolicy)
                 .endSpec();
 
         // Merge fields
@@ -129,7 +139,9 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 KubernetesUtils.getResourceRequirements(
                         requirementsInPodTemplate,
                         kubernetesJobManagerParameters.getJobManagerMemoryMB(),
+                        kubernetesJobManagerParameters.getJobManagerMemoryLimitFactor(),
                         kubernetesJobManagerParameters.getJobManagerCPU(),
+                        kubernetesJobManagerParameters.getJobManagerCPULimitFactor(),
                         Collections.emptyMap(),
                         Collections.emptyMap());
         mainContainerBuilder
@@ -149,10 +161,14 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .withNewFieldRef(API_VERSION, POD_IP_FIELD_PATH)
                                 .build())
                 .endEnv();
+        getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
         return mainContainerBuilder.build();
     }
 
     private List<ContainerPort> getContainerPorts() {
+        if (kubernetesJobManagerParameters.isHostNetworkEnabled()) {
+            return Collections.emptyList();
+        }
         return Arrays.asList(
                 new ContainerPortBuilder()
                         .withName(Constants.REST_PORT_NAME)
@@ -177,5 +193,11 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                         .withValue(kv.getValue())
                                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private Optional<EnvVar> getFlinkLogDirEnv() {
+        return kubernetesJobManagerParameters
+                .getFlinkLogDirInPod()
+                .map(logDir -> new EnvVar(Constants.ENV_FLINK_LOG_DIR, logDir, null));
     }
 }

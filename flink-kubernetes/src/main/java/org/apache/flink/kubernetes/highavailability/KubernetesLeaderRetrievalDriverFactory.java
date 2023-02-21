@@ -19,20 +19,37 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-/** {@link LeaderRetrievalDriverFactory} implementation for Kubernetes. */
+import java.util.concurrent.Executor;
+
+/**
+ * {@link LeaderRetrievalDriverFactory} implementation for Kubernetes.
+ *
+ * @deprecated in favour of {@link KubernetesMultipleComponentLeaderRetrievalDriverFactory}
+ */
+@Deprecated
 public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
     private final FlinkKubeClient kubeClient;
 
+    private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
+    private final Executor watchExecutor;
+
     private final String configMapName;
 
     public KubernetesLeaderRetrievalDriverFactory(
-            FlinkKubeClient kubeClient, String configMapName) {
+            FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            Executor watchExecutor,
+            String configMapName) {
         this.kubeClient = kubeClient;
+        this.configMapSharedWatcher = configMapSharedWatcher;
+        this.watchExecutor = watchExecutor;
         this.configMapName = configMapName;
     }
 
@@ -40,6 +57,12 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
     public KubernetesLeaderRetrievalDriver createLeaderRetrievalDriver(
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler) {
         return new KubernetesLeaderRetrievalDriver(
-                kubeClient, configMapName, leaderEventHandler, fatalErrorHandler);
+                kubeClient,
+                configMapSharedWatcher,
+                watchExecutor,
+                configMapName,
+                leaderEventHandler,
+                KubernetesUtils::getLeaderInformationFromConfigMap,
+                fatalErrorHandler);
     }
 }

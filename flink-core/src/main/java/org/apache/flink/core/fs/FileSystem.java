@@ -35,10 +35,10 @@ import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMultimap;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
+import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMultimap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Multimap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,8 +144,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * local file system does not have any fault tolerance guarantees, no further requirements exist.
  *
  * <p>The above implies specifically that data may still be in the OS cache when considered
- * persistent from the local file system's perspective. Crashes that cause the OS cache to loose
- * data are considered fatal to the local machine and are not covered by the local file system's
+ * persistent from the local file system's perspective. Crashes that cause the OS cache to lose data
+ * are considered fatal to the local machine and are not covered by the local file system's
  * guarantees as defined by Flink.
  *
  * <p>That means that computed results, checkpoints, and savepoints that are written only to the
@@ -248,12 +248,14 @@ public abstract class FileSystem {
             ImmutableMultimap.<String, String>builder()
                     .put("wasb", "flink-fs-azure-hadoop")
                     .put("wasbs", "flink-fs-azure-hadoop")
+                    .put("abfs", "flink-fs-azure-hadoop")
+                    .put("abfss", "flink-fs-azure-hadoop")
                     .put("oss", "flink-oss-fs-hadoop")
                     .put("s3", "flink-s3-fs-hadoop")
                     .put("s3", "flink-s3-fs-presto")
                     .put("s3a", "flink-s3-fs-hadoop")
                     .put("s3p", "flink-s3-fs-presto")
-                    // mapr deliberately omitted for now (no dedicated plugin)
+                    .put("gs", "flink-gs-fs-hadoop")
                     .build();
 
     /** Exceptions for DIRECTLY_SUPPORTED_FILESYSTEM. */
@@ -314,7 +316,7 @@ public abstract class FileSystem {
      * @param pluginManager optional plugin manager that is used to initialized filesystems provided
      *     as plugins.
      */
-    public static void initialize(Configuration config, PluginManager pluginManager)
+    public static void initialize(Configuration config, @Nullable PluginManager pluginManager)
             throws IllegalConfigurationException {
 
         LOCK.lock();
@@ -512,26 +514,38 @@ public abstract class FileSystem {
                 throw new UnsupportedFileSystemSchemeException(
                         String.format(
                                 "Could not find a file system implementation for scheme '%s'. The scheme is "
-                                        + "directly supported by Flink through the following plugin%s: %s. Please ensure that each "
-                                        + "plugin resides within its own subfolder within the plugins directory. See https://ci.apache"
-                                        + ".org/projects/flink/flink-docs-stable/ops/plugins.html for more information. If you want to "
+                                        + "directly supported by Flink through the following plugin(s): %s. Please ensure that each "
+                                        + "plugin resides within its own subfolder within the plugins directory. See https://nightlies.apache"
+                                        + ".org/flink/flink-docs-stable/docs/deployment/filesystems/plugins/ for more information. If you want to "
                                         + "use a Hadoop file system for that scheme, please add the scheme to the configuration fs"
                                         + ".allowed-fallback-filesystems. For a full list of supported file systems, "
-                                        + "please see https://ci.apache.org/projects/flink/flink-docs-stable/ops/filesystems/.",
-                                uri.getScheme(),
-                                plugins.size() == 1 ? "" : "s",
-                                String.join(", ", plugins)));
+                                        + "please see https://nightlies.apache.org/flink/flink-docs-stable/ops/filesystems/.",
+                                uri.getScheme(), String.join(", ", plugins)));
             } else {
                 try {
                     fs = FALLBACK_FACTORY.create(uri);
                 } catch (UnsupportedFileSystemSchemeException e) {
-                    throw new UnsupportedFileSystemSchemeException(
-                            "Could not find a file system implementation for scheme '"
-                                    + uri.getScheme()
-                                    + "'. The scheme is not directly supported by Flink and no Hadoop file system to "
-                                    + "support this scheme could be loaded. For a full list of supported file systems, "
-                                    + "please see https://ci.apache.org/projects/flink/flink-docs-stable/ops/filesystems/.",
-                            e);
+                    if (DIRECTLY_SUPPORTED_FILESYSTEM.containsKey(uri.getScheme())) {
+                        final Collection<String> plugins =
+                                DIRECTLY_SUPPORTED_FILESYSTEM.get(uri.getScheme());
+                        throw new UnsupportedFileSystemSchemeException(
+                                String.format(
+                                        "Could not find a file system implementation for scheme '%s'. File system schemes "
+                                                + "are supported by Flink through the following plugin(s): %s. "
+                                                + "No file system to support this scheme could be loaded. Please ensure that each plugin is "
+                                                + "configured properly and resides within its own subfolder in the plugins directory. "
+                                                + "See https://nightlies.apache.org/flink/flink-docs-stable/docs/deployment/filesystems/plugins/ "
+                                                + "for more information.",
+                                        uri.getScheme(), String.join(", ", plugins)));
+                    } else {
+                        throw new UnsupportedFileSystemSchemeException(
+                                "Could not find a file system implementation for scheme '"
+                                        + uri.getScheme()
+                                        + "'. The scheme is not directly supported by Flink and no Hadoop file system to "
+                                        + "support this scheme could be loaded. For a full list of supported file systems, "
+                                        + "please see https://nightlies.apache.org/flink/flink-docs-stable/ops/filesystems/.",
+                                e);
+                    }
                 }
             }
 
@@ -1076,7 +1090,10 @@ public abstract class FileSystem {
             try {
                 FileSystemFactory factory = iter.next();
                 list.add(factory);
-                LOG.debug("Added file system {}:{}", factory.getScheme(), factory.toString());
+                LOG.debug(
+                        "Added file system {}:{}",
+                        factory.getScheme(),
+                        factory.getClass().getSimpleName());
             } catch (Throwable t) {
                 // catching Throwable here to handle various forms of class loading
                 // and initialization errors

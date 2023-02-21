@@ -17,44 +17,44 @@
 @import "theme";
 
 :host {
-  display: block;
-  height: 100%;
+  display: flex;
+  flex: 1;
+  flex-flow: column nowrap;
+
   &.full-screen {
     position: fixed;
     top: 0;
-    bottom: 0;
     right: 0;
+    bottom: 0;
     left: 0;
-    background: @component-background;
     z-index: 99;
-    .breadcrumb {
-      margin-bottom: 0px;
-      border-top: 0px;
-    }
-    flink-monaco-editor {
-      border-top: 0px;
-      border-bottom: 0px;
-      height: calc(~"100vh - 46px");
+    background: @component-background;
+  }
+
+  .editor-container {
+    position: relative;
+    flex: 1;
+
+    nz-code-editor {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
     }
   }
-}
 
-flink-monaco-editor {
-  height: calc(~"100vh - 386px");
-  border: 1px solid @border-color-split;
-}
+  .breadcrumb {
+    position: relative;
+    padding: 12px 24px;
+    border-bottom: 1px solid @border-color-split;
+    background: @component-background;
+  }
 
-.breadcrumb {
-  background: @component-background;
-  border: 1px solid @border-color-split;
-  margin-bottom: 16px;
-  padding: 12px 24px;
-  position: relative;
-}
-
-flink-refresh-download {
-  position: absolute;
-  right: 12px;
-  top: 0;
-  line-height: 47px;
+  flink-addon-inline {
+    position: absolute;
+    top: 0;
+    right: 12px;
+    line-height: 47px;
+  }
 }

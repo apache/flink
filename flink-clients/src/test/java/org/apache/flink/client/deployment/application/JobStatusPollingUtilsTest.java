@@ -21,13 +21,13 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -36,16 +36,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the {@link JobStatusPollingUtils}. */
-public class JobStatusPollingUtilsTest {
+class JobStatusPollingUtilsTest {
 
     @Test
-    public void testPolling() {
+    void testPolling() {
         final int maxAttemptCounter = 3;
         final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         try {
@@ -66,7 +63,7 @@ public class JobStatusPollingUtilsTest {
 
             result.join();
 
-            assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
+            assertThat(jobStatusSupplier.getAttemptCounter()).isEqualTo(maxAttemptCounter);
 
         } finally {
             ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
@@ -74,7 +71,7 @@ public class JobStatusPollingUtilsTest {
     }
 
     @Test
-    public void testHappyPath() throws ExecutionException, InterruptedException {
+    void testHappyPath() throws ExecutionException, InterruptedException {
         final int maxAttemptCounter = 1;
         final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         try {
@@ -95,8 +92,8 @@ public class JobStatusPollingUtilsTest {
 
             result.join();
 
-            assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
-            assertTrue(result.isDone() && result.get().isSuccess());
+            assertThat(jobStatusSupplier.getAttemptCounter()).isEqualTo(maxAttemptCounter);
+            assertThat(result).isCompletedWithValueMatching(JobResult::isSuccess);
 
         } finally {
             ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
@@ -104,7 +101,7 @@ public class JobStatusPollingUtilsTest {
     }
 
     @Test
-    public void testFailedJobResult() throws ExecutionException, InterruptedException {
+    void testFailedJobResult() throws ExecutionException, InterruptedException {
         final int maxAttemptCounter = 1;
         final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         try {
@@ -125,8 +122,10 @@ public class JobStatusPollingUtilsTest {
 
             result.join();
 
-            assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
-            assertTrue(result.isDone() && result.get().getSerializedThrowable().isPresent());
+            assertThat(jobStatusSupplier.getAttemptCounter()).isEqualTo(maxAttemptCounter);
+            assertThat(result)
+                    .isCompletedWithValueMatching(
+                            jobResult -> jobResult.getSerializedThrowable().isPresent());
 
         } finally {
             ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);

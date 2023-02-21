@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
 
@@ -27,10 +28,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the resume and commit descriptor objects for Hadoop's file system
+ * An implementation of the resume and commit descriptor objects for Hadoop's/AzureBlob file system
  * abstraction.
  */
-class HadoopFsRecoverable implements CommitRecoverable, ResumeRecoverable {
+@Internal
+public class HadoopFsRecoverable implements CommitRecoverable, ResumeRecoverable {
 
     /** The file path for the final result file. */
     private final Path targetFile;
@@ -47,7 +49,7 @@ class HadoopFsRecoverable implements CommitRecoverable, ResumeRecoverable {
      * @param targetFile The file to resume.
      * @param offset The position to resume from.
      */
-    HadoopFsRecoverable(Path targetFile, Path tempFile, long offset) {
+    public HadoopFsRecoverable(Path targetFile, Path tempFile, long offset) {
         checkArgument(offset >= 0, "offset must be >= 0");
         this.targetFile = checkNotNull(targetFile, "targetFile");
         this.tempFile = checkNotNull(tempFile, "tempFile");

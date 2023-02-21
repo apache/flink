@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -71,6 +73,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -80,6 +83,8 @@ public class StreamMockEnvironment implements Environment {
     private final TaskInfo taskInfo;
 
     private final MemoryManager memManager;
+
+    private final SharedResources sharedResources;
 
     private final IOManager ioManager;
 
@@ -91,7 +96,7 @@ public class StreamMockEnvironment implements Environment {
 
     private final List<IndexedInputGate> inputs;
 
-    private final List<ResultPartitionWriter> outputs;
+    private List<ResultPartitionWriter> outputs;
 
     private final JobID jobID;
 
@@ -114,6 +119,10 @@ public class StreamMockEnvironment implements Environment {
     private final UserCodeClassLoader userCodeClassLoader =
             TestingUserCodeClassLoader.newBuilder().build();
 
+    private final boolean collectNetworkEvents;
+
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     @Nullable private Consumer<Throwable> externalExceptionHandler;
 
     private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
@@ -135,14 +144,15 @@ public class StreamMockEnvironment implements Environment {
             TaskStateManager taskStateManager) {
         this(
                 new JobID(),
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(),
                 jobConfig,
                 taskConfig,
                 executionConfig,
                 memorySize,
                 inputSplitProvider,
                 bufferSize,
-                taskStateManager);
+                taskStateManager,
+                false);
     }
 
     public StreamMockEnvironment(
@@ -154,25 +164,27 @@ public class StreamMockEnvironment implements Environment {
             long offHeapMemorySize,
             MockInputSplitProvider inputSplitProvider,
             int bufferSize,
-            TaskStateManager taskStateManager) {
+            TaskStateManager taskStateManager,
+            boolean collectNetworkEvents) {
 
         this.jobID = jobID;
         this.executionAttemptID = executionAttemptID;
 
-        int subtaskIndex = 0;
+        int subtaskIndex = executionAttemptID.getExecutionVertexId().getSubtaskIndex();
         this.taskInfo =
                 new TaskInfo(
                         "", /* task name */
                         1, /* num key groups / max parallelism */
                         subtaskIndex, /* index of this subtask */
                         1, /* num subtasks */
-                        0 /* attempt number */);
+                        executionAttemptID.getAttemptNumber() /* attempt number */);
         this.jobConfiguration = jobConfig;
         this.taskConfiguration = taskConfig;
         this.inputs = new LinkedList<>();
         this.outputs = new LinkedList<ResultPartitionWriter>();
         this.memManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
+        this.sharedResources = new SharedResources();
         this.ioManager = new IOManagerAsync();
         this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
         this.aggregateManager = new TestGlobalAggregateManager();
@@ -183,7 +195,11 @@ public class StreamMockEnvironment implements Environment {
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 
         KvStateRegistry registry = new KvStateRegistry();
-        this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
+        this.kvStateRegistry =
+                registry.createTaskRegistry(
+                        jobID, executionAttemptID.getExecutionVertexId().getJobVertexId());
+        this.collectNetworkEvents = collectNetworkEvents;
+        this.channelStateExecutorFactory = new ChannelStateWriteRequestExecutorFactory(jobID);
     }
 
     public StreamMockEnvironment(
@@ -210,13 +226,22 @@ public class StreamMockEnvironment implements Environment {
 
     public <T> void addOutput(
             final Collection<Object> outputList, final TypeSerializer<T> serializer) {
+        addOutput(
+                new RecordOrEventCollectingResultPartitionWriter<T>(
+                        outputList, serializer, collectNetworkEvents));
+    }
+
+    public void addOutput(ResultPartitionWriter resultPartitionWriter) {
         try {
-            outputs.add(
-                    new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+            outputs.add(resultPartitionWriter);
         } catch (Throwable t) {
             t.printStackTrace();
             fail(t.getMessage());
         }
+    }
+
+    public void setOutputs(List<ResultPartitionWriter> outputs) {
+        this.outputs = outputs;
     }
 
     public void setExternalExceptionHandler(Consumer<Throwable> externalExceptionHandler) {
@@ -231,6 +256,11 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public MemoryManager getMemoryManager() {
         return this.memManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return this.sharedResources;
     }
 
     @Override
@@ -388,5 +418,10 @@ public class StreamMockEnvironment implements Environment {
 
     public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
         this.checkpointResponder = checkpointResponder;
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
 import java.util.ArrayList;
@@ -92,8 +92,8 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
     // ------------------------------------------------------------------------
 
     @Override
-    public MetricGroup metricGroup() {
-        return new UnregisteredMetricsGroup();
+    public SplitEnumeratorMetricGroup metricGroup() {
+        return UnregisteredMetricsGroup.createSplitEnumeratorMetricGroup();
     }
 
     @Override
@@ -101,6 +101,11 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
         final List<SourceEvent> eventsForSubTask =
                 events.computeIfAbsent(subtaskId, (key) -> new ArrayList<>());
         eventsForSubTask.add(event);
+    }
+
+    @Override
+    public void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        sendEventToSourceReader(subtaskId, event);
     }
 
     @Override

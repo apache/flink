@@ -61,8 +61,7 @@ The following examples show how to run a DESCRIBE statement in SQL CLI.
 {{< tabs "a5de1760-e363-4b8d-9d6f-0bacb35b9dcf" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // register a table named "Orders"
 tableEnv.executeSql(
@@ -85,8 +84,7 @@ tableEnv.executeSql("DESC Orders").print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // register a table named "Orders"
  tableEnv.executeSql(
@@ -109,8 +107,7 @@ tableEnv.executeSql("DESC Orders").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # register a table named "Orders"
 table_env.execute_sql( \
@@ -134,11 +131,11 @@ table_env.execute_sql("DESC Orders").print()
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> CREATE TABLE Orders (
->  `user` BIGINT NOT NULl,
+>  `user` BIGINT NOT NULl comment 'this is primary key',
 >  product VARCHAR(32),
 >  amount INT,
->  ts TIMESTAMP(3),
->  ptime AS PROCTIME(),
+>  ts TIMESTAMP(3) comment 'notice: watermark',
+>  ptime AS PROCTIME() comment 'this is a computed column',
 >  PRIMARY KEY(`user`) NOT ENFORCED,
 >  WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS
 > ) with (
@@ -158,15 +155,15 @@ The result of the above example is:
 {{< tab "Java" >}}
 ```text
 
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
 
 ```
@@ -174,15 +171,15 @@ The result of the above example is:
 {{< tab "Scala" >}}
 ```text
 
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
 
 ```
@@ -190,15 +187,15 @@ The result of the above example is:
 {{< tab "Python" >}}
 ```text
 
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
 
 ```
@@ -207,11 +204,11 @@ The result of the above example is:
 ```text
 
 root
- |-- user: BIGINT NOT NULL
+ |-- user: BIGINT NOT NULL COMMENT 'this is primary key'
  |-- product: VARCHAR(32)
  |-- amount: INT
- |-- ts: TIMESTAMP(3) *ROWTIME*
- |-- ptime: TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME()
+ |-- ts: TIMESTAMP(3) *ROWTIME* COMMENT 'notice: watermark'
+ |-- ptime: TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME() COMMENT 'this is a computed column'
  |-- WATERMARK FOR ts AS `ts` - INTERVAL '1' SECOND
  |-- CONSTRAINT PK_3599338 PRIMARY KEY (user)
 

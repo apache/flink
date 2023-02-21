@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nonnull;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
@@ -71,6 +73,27 @@ public class ConfigurationUtils {
     @Nonnull
     public static String[] parseTempDirectories(Configuration configuration) {
         return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+    }
+
+    /**
+     * Picks a temporary directory randomly from the given configuration.
+     *
+     * @param configuration to extract the temp directory from
+     * @return a randomly picked temporary directory
+     */
+    @Nonnull
+    public static File getRandomTempDirectory(Configuration configuration) {
+        final String[] tmpDirectories = parseTempDirectories(configuration);
+
+        Preconditions.checkState(
+                tmpDirectories.length > 0,
+                String.format(
+                        "No temporary directory has been specified for %s",
+                        CoreOptions.TMP_DIRS.key()));
+
+        final int randomIndex = ThreadLocalRandom.current().nextInt(tmpDirectories.length);
+
+        return new File(tmpDirectories[randomIndex]);
     }
 
     /**
@@ -340,7 +363,7 @@ public class ConfigurationUtils {
                             pair -> {
                                 if (pair.size() != 2) {
                                     throw new IllegalArgumentException(
-                                            "Could not parse pair in the map " + pair);
+                                            "Map item is not a key-value pair (missing ':'?)");
                                 }
                             })
                     .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
@@ -348,7 +371,7 @@ public class ConfigurationUtils {
     }
 
     @SuppressWarnings("unchecked")
-    static <E extends Enum<?>> E convertToEnum(Object o, Class<E> clazz) {
+    public static <E extends Enum<?>> E convertToEnum(Object o, Class<E> clazz) {
         if (o.getClass().equals(clazz)) {
             return (E) o;
         }
@@ -389,7 +412,7 @@ public class ConfigurationUtils {
             return (String) o;
         } else if (o.getClass() == Duration.class) {
             Duration duration = (Duration) o;
-            return String.format("%d ns", duration.toNanos());
+            return TimeUtils.formatWithHighestUnit(duration);
         } else if (o instanceof List) {
             return ((List<?>) o)
                     .stream()
@@ -488,6 +511,60 @@ public class ConfigurationUtils {
         }
 
         return Double.parseDouble(o.toString());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Prefix map handling
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Maps can be represented in two ways.
+     *
+     * <p>With constant key space:
+     *
+     * <pre>
+     *     avro-confluent.properties = schema: 1, other-prop: 2
+     * </pre>
+     *
+     * <p>Or with variable key space (i.e. prefix notation):
+     *
+     * <pre>
+     *     avro-confluent.properties.schema = 1
+     *     avro-confluent.properties.other-prop = 2
+     * </pre>
+     */
+    public static boolean canBePrefixMap(ConfigOption<?> configOption) {
+        return configOption.getClazz() == Map.class && !configOption.isList();
+    }
+
+    /** Filter condition for prefix map keys. */
+    public static boolean filterPrefixMapKey(String key, String candidate) {
+        final String prefixKey = key + ".";
+        return candidate.startsWith(prefixKey);
+    }
+
+    static Map<String, String> convertToPropertiesPrefixed(
+            Map<String, Object> confData, String key) {
+        final String prefixKey = key + ".";
+        return confData.keySet().stream()
+                .filter(k -> k.startsWith(prefixKey))
+                .collect(
+                        Collectors.toMap(
+                                k -> k.substring(prefixKey.length()),
+                                k -> convertToString(confData.get(k))));
+    }
+
+    static boolean containsPrefixMap(Map<String, Object> confData, String key) {
+        return confData.keySet().stream().anyMatch(candidate -> filterPrefixMapKey(key, candidate));
+    }
+
+    static boolean removePrefixMap(Map<String, Object> confData, String key) {
+        final List<String> prefixKeys =
+                confData.keySet().stream()
+                        .filter(candidate -> filterPrefixMapKey(key, candidate))
+                        .collect(Collectors.toList());
+        prefixKeys.forEach(confData::remove);
+        return !prefixKeys.isEmpty();
     }
 
     // Make sure that we cannot instantiate this class

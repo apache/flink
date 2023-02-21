@@ -27,10 +27,9 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,10 +37,10 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link DefaultExecutionVertex}. */
-public class DefaultExecutionVertexTest extends TestLogger {
+class DefaultExecutionVertexTest {
 
     private final TestExecutionStateSupplier stateSupplier = new TestExecutionStateSupplier();
 
@@ -51,8 +50,8 @@ public class DefaultExecutionVertexTest extends TestLogger {
 
     private IntermediateResultPartitionID intermediateResultPartitionId;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
 
         intermediateResultPartitionId = new IntermediateResultPartitionID();
 
@@ -61,17 +60,30 @@ public class DefaultExecutionVertexTest extends TestLogger {
                         intermediateResultPartitionId,
                         new IntermediateDataSetID(),
                         BLOCKING,
-                        () -> ResultPartitionState.CREATED);
+                        () -> ResultPartitionState.CREATED,
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        },
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        });
         producerVertex =
                 new DefaultExecutionVertex(
                         new ExecutionVertexID(new JobVertexID(), 0),
                         Collections.singletonList(schedulingResultPartition),
-                        stateSupplier);
+                        stateSupplier,
+                        Collections.emptyList(),
+                        partitionID -> {
+                            throw new UnsupportedOperationException();
+                        });
         schedulingResultPartition.setProducer(producerVertex);
 
         List<ConsumedPartitionGroup> consumedPartitionGroups =
                 Collections.singletonList(
-                        ConsumedPartitionGroup.fromSinglePartition(intermediateResultPartitionId));
+                        ConsumedPartitionGroup.fromSinglePartition(
+                                1,
+                                intermediateResultPartitionId,
+                                schedulingResultPartition.getResultType()));
         Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =
                 Collections.singletonMap(intermediateResultPartitionId, schedulingResultPartition);
 
@@ -85,15 +97,15 @@ public class DefaultExecutionVertexTest extends TestLogger {
     }
 
     @Test
-    public void testGetExecutionState() {
+    void testGetExecutionState() {
         for (ExecutionState state : ExecutionState.values()) {
             stateSupplier.setExecutionState(state);
-            assertEquals(state, producerVertex.getState());
+            assertThat(producerVertex.getState()).isEqualTo(state);
         }
     }
 
     @Test
-    public void testGetProducedResultPartitions() {
+    void testGetProducedResultPartitions() {
         IntermediateResultPartitionID partitionIds1 =
                 IterableUtils.toStream(producerVertex.getProducedResults())
                         .findAny()
@@ -102,11 +114,11 @@ public class DefaultExecutionVertexTest extends TestLogger {
                                 () ->
                                         new IllegalArgumentException(
                                                 "can not find result partition"));
-        assertEquals(partitionIds1, intermediateResultPartitionId);
+        assertThat(intermediateResultPartitionId).isEqualTo(partitionIds1);
     }
 
     @Test
-    public void testGetConsumedResultPartitions() {
+    void testGetConsumedResultPartitions() {
         IntermediateResultPartitionID partitionIds1 =
                 IterableUtils.toStream(consumerVertex.getConsumedResults())
                         .findAny()
@@ -115,7 +127,7 @@ public class DefaultExecutionVertexTest extends TestLogger {
                                 () ->
                                         new IllegalArgumentException(
                                                 "can not find result partition"));
-        assertEquals(partitionIds1, intermediateResultPartitionId);
+        assertThat(intermediateResultPartitionId).isEqualTo(partitionIds1);
     }
 
     /** A simple implementation of {@link Supplier} for testing. */

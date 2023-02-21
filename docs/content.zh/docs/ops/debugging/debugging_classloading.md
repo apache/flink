@@ -27,30 +27,27 @@ under the License.
 
 # 调试类加载
 
-## Overview of Classloading in Flink
+## Flink中的类加载概述
 
-When running Flink applications, the JVM will load various classes over time.
-These classes can be divided into three groups based on their origin:
+Flink应用程序运行时，JVM会随着时间不断加载各种不同的类。
+根据起源不同这些类可以分为三组类型：
 
-  - The **Java Classpath**: This is Java's common classpath, and it includes the JDK libraries, and all code
-    in Flink's `/lib` folder (the classes of Apache Flink and some dependencies).
+  - **Java Classpath**: Java共有的classpath类加载路径，包括JDK库和Flink的`/lib`目录（Apache Flink及相关依赖的类）中的代码。它们通过*AppClassLoader*进行加载。
 
-  - The **Flink Plugin Components**: The plugins code in folders under Flink's `/plugins` folder. Flink's plugin mechanism will dynamically load them once during startup.
+  - **Flink插件类组件**：存放于Flink的 `/plugins` 目录中的插件代码。Flink的插件机制确保在启动时对它们进行动态加载。
 
-  - The **Dynamic User Code**: These are all classes that are included in the JAR files of dynamically submitted jobs,
-    (via REST, CLI, web UI). They are loaded (and unloaded) dynamically per job.
+  - **动态用户代码**：动态提交job（通过REST、命令行或者web UI方式）时存在JAR文件中的类。job运行时它们通过*FlinkUserCodeClassLoader*进行动态加载或卸载。
 
-As a general rule, whenever you start the Flink processes first and submit jobs later, the job's classes are loaded dynamically.
-If the Flink processes are started together with the job/application, or if the application spawns the Flink components (JobManager, TaskManager, etc.), then all job's classes are in the Java classpath.
+作为通用规则，每当Flink进程先启动，之后job提交时，job相关的类都是动态加载的。
+如果Flink进程与job或应用程序一起启动，或者应用代码启动Flink组件（JobManager, TaskManager等），这时所有job的类存在于Java的classpath下。
 
-Code in plugin components is loaded dynamically once by a dedicated class loader per plugin.
+每个插件中的组件代码会由一个专用的类加载器进行动态加载。
 
-In the following are some more details about the different deployment modes:
+下面是不同部署模式的一些细节信息：
 
-**Standalone Session**
+**Session模式(Standalone/Yarn/Kubernetes)**
 
-When starting a Flink cluster as a standalone session, the JobManagers and TaskManagers are started with the Flink framework classes in the
-Java classpath. The classes from all jobs/applications that are submitted against the session (via REST / CLI) are loaded *dynamically*.
+当Flink Session集群启动时，JobManager和TaskManager由Java classpath中的Flink框架类（Flink framework classes）进行启动加载。而通过session提交（REST或命令行方式）的job或应用程序由*FlinkUserCodeClassLoader*进行加载。
 
 <!--
 **Docker Containers with Flink-as-a-Library**
@@ -61,134 +58,100 @@ created for an job/application and will contain the job/application's jar files.
 
 -->
 
-**Docker / Kubernetes Sessions**
+**Per-Job模式（已弃用）（Yarn）**
 
-Docker / Kubernetes setups that start first a set of JobManagers / TaskManagers and then submit jobs/applications via REST or the CLI
-behave like standalone sessions: Flink's code is in the Java classpath, plugin components are loaded dynamically at startup and the job's code is loaded dynamically.
+当前只有Yarn支持Per-Job模式。默认情况下，Flink集群运行在Per-Job模式下时会将用户的jar文件包含在系统的classpath中。
+这种模式可以由[yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) 参数控制。
+当该参数设定为`DISABLED`时，Flink会将用户jar文件含在用户的classpath中，并由*FlinkUserCodeClassLoader*进行动态加载。
 
+详细信息参见[Flink on Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})。
 
-**YARN**
+**Application模式（Standalone/Yarn/Kubernetes）**
 
-YARN classloading differs between single job deployments and sessions:
+当Application模式的Flink集群基于Standalone或Kubernetes方式运行时，用户jar文件（启动命令指定的jar文件和Flink的`usrlib`目录中的jar包）会由*FlinkUserCodeClassLoader*进行动态加载。
 
-  - When submitting a Flink job/application directly to YARN (via `bin/flink run -m yarn-cluster ...`), dedicated TaskManagers and
-    JobManagers are started for that job. Those JVMs have user code classes in the Java classpath.
-    That means that there is *no dynamic classloading* involved in that case for the job.
-
-  - When starting a YARN session, the JobManagers and TaskManagers are started with the Flink framework classes in the
-    classpath. The classes from all jobs that are submitted against the session are loaded dynamically.
-
-**Mesos**
-
-Mesos setups following [this documentation]({{< ref "docs/deployment/resource-providers/mesos" >}}) currently behave very much like the a
-YARN session: The TaskManager and JobManager processes are started with the Flink framework classes in the Java classpath, job
-classes are loaded dynamically when the jobs are submitted.
+当Flink集群以Application模式运行时，用户jar文件（启动命令指定的jar文件和Flink的`usrlib`目录中的jar包）默认情况下会包含在系统classpath（*AppClassLoader*）。与Per-Job模式相同，当[yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)设置为`DISABLED`时，Flink会将用户jar文件含在用户的classpath中，并由*FlinkUserCodeClassLoader*进行动态加载。
 
 
-## Inverted Class Loading and ClassLoader Resolution Order
+## 倒置类加载（Inverted Class Loading）和ClassLoader解析顺序
 
-In setups where dynamic classloading is involved (plugin components, Flink jobs in session setups), there is a hierarchy of typically two ClassLoaders: 
-(1) Java's *application classloader*, which has all classes in the classpath, and (2) the dynamic *plugin/user code classloader*.
-for loading classes from the plugin or the user-code jar(s). The dynamic ClassLoader has the application classloader as its parent.
+涉及到动态类加载的层次结构涉及两种ClassLoader：
+（1）Java的*application classloader*，包含classpath中的所有类；
+（2）动态的*plugin/user code classloader*，用来加载插件代码或用户代码的jar文件。动态的ClassLoader将应用程序classloader作为parent。
 
-By default, Flink inverts classloading order, meaning it looks into the dynamic classloader first, and only looks into
-the parent (application classloader) if the class is not part of the dynamically loaded code.
+默认情况下Flink会倒置类加载顺序，首先Flink会查找动态类加载器，如果该类不属于动态加载的代码时才会去查找其parent（application classloader）。
 
-The benefit of inverted classloading is that plugins and jobs can use different library versions than Flink's core itself, which is very
-useful when the different versions of the libraries are not compatible. The mechanism helps to avoid the common dependency conflict
-errors like `IllegalAccessError` or `NoSuchMethodError`. Different parts of the code simply have separate copies of the
-classes (Flink's core or one of its dependencies can use a different copy than the user code or plugin code).
-In most cases, this works well and no additional configuration from the user is needed.
+倒置类加载的好处在于插件和job可以使用与Flink核心不同的库版本，尤其在使用不同版本的库从而出现不兼容的情况下。这种机制可以帮助避免常见的类似 `IllegalAccessError` 或`NoSuchMethodError`的依赖冲突错误。代码的不同部分会有独立的拷贝（Flink内核及它的不同依赖包可使用与用户代码或插件代码不同的拷贝），多数情况下这种方式可以正常运行，并且不需要用户进行额外配置。
 
-However, there are cases when the inverted classloading causes problems (see below, ["X cannot be cast to X"](#x-cannot-be-cast-to-x-exceptions)). 
-For user code classloading, you can revert back to Java's default mode by configuring the ClassLoader resolution order via
-[`classloader.resolve-order`]({{< ref "docs/deployment/config" >}}#classloader-resolve-order) in the Flink config to `parent-first`
-(from Flink's default `child-first`).
+然而有些情况下，倒置类加载可能会引起一些问题，参见下面的["X cannot be cast to X"](#x-cannot-be-cast-to-x-exceptions)。
 
-Please note that certain classes are always resolved in a *parent-first* way (through the parent ClassLoader first), because they
-are shared between Flink's core and the plugin/user code or the plugin/user-code facing APIs. The packages for these classes are configured via 
-[`classloader.parent-first-patterns-default`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-default) and
-[`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
-To add new packages to be *parent-first* loaded, please set the `classloader.parent-first-patterns-additional` config option.
+对于用户代码的类加载，您可以通过调整Flink的[`classloader.resolve-order`]({{< ref "docs/deployment/config" >}}#classloader-resolve-order)配置将ClassLoader解析顺序还原至Java的默认模式（从Flink默认的`child-first`调整为`parent-first`）。
+
+请注意由于有些类在Flink内核与插件或用户代码间共享，它们总是以*parent-first*方式进行解析的。这些类相关的包通过[`classloader.parent-first-patterns-default`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-default)和[`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional)进行配置。如果需要新添加*parent-first* 方式的包，请调整`classloader.parent-first-patterns-additional` 配置选项。
 
 
-## Avoiding Dynamic Classloading for User Code
+## 避免用户代码的动态类加载
 
-All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
-They can be found as part of the environment information at the beginning of the log.
-
-When running a setup where the JobManager and TaskManagers are exclusive to one particular job, one can put user code JAR files
-directly into the `/lib` folder to make sure they are part of the classpath and not loaded dynamically.
-
-It usually works to put the job's JAR file into the `/lib` directory. The JAR will be part of both the classpath
-(the *AppClassLoader*) and the dynamic class loader (*FlinkUserCodeClassLoader*).
-Because the AppClassLoader is the parent of the FlinkUserCodeClassLoader (and Java loads parent-first, by default), this should
-result in classes being loaded only once.
-
-For setups where the job's JAR file cannot be put to the `/lib` folder (for example because the setup is a session that is
-used by multiple jobs), it may still be possible to put common libraries to the `/lib` folder, and avoid dynamic class loading
-for those.
+Flink的组件（JobManager, TaskManager, Client, ApplicationMaster等）在启动时会在日志开头的环境信息部分记录classpath的设定。
 
 
-## Manual Classloading in User Code
-
-In some cases, a transformation function, source, or sink needs to manually load classes (dynamically via reflection).
-To do that, it needs the classloader that has access to the job's classes.
-
-In that case, the functions (or sources or sinks) can be made a `RichFunction` (for example `RichMapFunction` or `RichWindowFunction`)
-and access the user code class loader via `getRuntimeContext().getUserCodeClassLoader()`.
+当JobManager和TaskManager的运行模式为指定一个job时，可以通过将用户代码的JAR文件放置在`/lib`目录下，从而包含在classpath路径中，以保证它们不会被动态加载。
 
 
-## X cannot be cast to X exceptions
+通常情况下将job的JAR文件放置在`/lib`目录下可以正常运行。JAR文件会同时作为classpath（*AppClassLoader*）和动态类加载器（*FlinkUserCodeClassLoader*）的一部分。
+由于AppClassLoader是FlinkUserCodeClassLoader的父类（Java默认情况下以parent-first方式加载），这样类只会加载一次。
 
-In setups with dynamic classloading, you may see an exception in the style `com.foo.X cannot be cast to com.foo.X`.
-This means that multiple versions of the class `com.foo.X` have been loaded by different class loaders, and types of that class are attempted to be assigned to each other.
-
-One common reason is that a library is not compatible with Flink's *inverted classloading* approach. You can turn off inverted classloading
-to verify this (set [`classloader.resolve-order: parent-first`]({{< ref "docs/deployment/config" >}}#classloader-resolve-order) in the Flink config) or exclude
-the library from inverted classloading (set [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional)
-in the Flink config).
-
-Another cause can be cached object instances, as produced by some libraries like *Apache Avro*, or by interning objects (for example via Guava's Interners).
-The solution here is to either have a setup without any dynamic classloading, or to make sure that the respective library is fully part of the dynamically loaded code.
-The latter means that the library must not be added to Flink's `/lib` folder, but must be part of the application's fat-jar/uber-jar
+当job相关的JAR文件不能全部放在`/lib`目录下（如多个job共用的一个session）时，可以通过将相对公共的类库放在`/lib`目录下，从而避免这些类的动态加载。
 
 
-## Unloading of Dynamically Loaded Classes in User Code
+## 手动进行用户代码的类加载
 
-All scenarios that involve dynamic user code classloading (sessions) rely on classes being *unloaded* again.
-Class unloading means that the Garbage Collector finds that no objects from a class exist and more, and thus removes the class
-(the code, static variable, metadata, etc).
+某些情况下，transformation、source或者sink需要进行手动类加载（通过反射动态实现），这需要通过能访问到job相关类的类加载器进行实现。
 
-Whenever a TaskManager starts (or restarts) a task, it will load that specific task's code. Unless classes can be unloaded, this will
-become a memory leak, as new versions of classes are loaded and the total number of loaded classes accumulates over time. This
-typically manifests itself though a **OutOfMemoryError: Metaspace**.
+在这种情况下，可以把函数（或sources和sinks）实现为`RichFunction`（如`RichMapFunction` 或者 `RichWindowFunction`），然后通过`getRuntimeContext().getUserCodeClassLoader()`访问用户代码的类加载器。
 
-Common causes for class leaks and suggested fixes:
 
-  - *Lingering Threads*: Make sure the application functions/sources/sinks shuts down all threads. Lingering threads cost resources themselves and
-    additionally typically hold references to (user code) objects, preventing garbage collection and unloading of the classes.
+## X cannot be cast to X 异常
 
-  - *Interners*: Avoid caching objects in special structures that live beyond the lifetime of the functions/sources/sinks. Examples are Guava's
-    interners, or Avro's class/object caches in the serializers.
+当进行动态类加载时，您可能会遇到类似`com.foo.X cannot be cast to com.foo.X`类型的异常。
+出现这种异常代表不同的类加载器加载了不同版本的`com.foo.X`类，并且它们互相之间尝试进行类型指定转换。
 
-  - *JDBC*: JDBC drivers leak references outside the user code classloader. To ensure that these classes are only loaded once
-   you should either add the driver jars to Flink's `lib/` folder, or add the driver classes to the list of parent-first loaded class via [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
+发生这种情况的通常原因是这个库与Flink的*倒置类加载*（*inverted classloading*）方式不兼容造成的。您可以通过关闭倒置类加载（inverted classloading）来进行验证（在Flink设置中调整[`classloader.resolve-order: parent-first`]({{< ref "docs/deployment/config" >}}#classloader-resolve-order)），或者将库排除在inverted classloading之外（通过设置[`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional)）。
 
-A helpful tool for unloading dynamically loaded classes are the user code class loader release hooks. These are hooks which are executed prior to the unloading of a classloader. It is generally recommended to shutdown and unload resources as part of the regular function lifecycle (typically the `close()` methods). But in some cases (for example for static fields), it is better to unload once a classloader is certainly not needed anymore.
+另一种原因可能是由缓存的对象实例引起的，比如类似*Apache Avro*或者Guava的Interners类型的对象。
+解决办法是设置没有任何动态类加载，或者确保相应的库完全是动态加载代码的一部分。后者意味着库不能添加到Flink的`/lib`目录下，但必须作为应用程序的fat-jar或uber-jar的一部分。
 
-Class loader release hooks can be registered via the `RuntimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent()` method.
 
-## Resolving Dependency Conflicts with Flink using the maven-shade-plugin.
+## 卸载用户代码中动态加载的类
 
-A way to address dependency conflicts from the application developer's side is to avoid exposing dependencies by *shading them away*.
+所有涉及动态用户代码类加载（会话）的场景都依赖于再次*卸载*的类。
 
-Apache Maven offers the [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/), which allows one to change the package of a
-class *after* compiling it (so the code you are writing is not affected by the shading). For example if you have the `com.amazonaws` packages from
-the aws sdk in your user code jar, the shade plugin would relocate them into the `org.myorg.shaded.com.amazonaws` package, so that your code is calling your aws sdk version.
 
-This documentation page explains [relocating classes using the shade plugin](https://maven.apache.org/plugins/maven-shade-plugin/examples/class-relocation.html).
+类卸载指垃圾回收器发现一个类的对象不再被引用，这时会对该类（相关代码、静态变量、元数据等）进行移除。
 
-Note that most of Flink's dependencies, such as `guava`, `netty`, `jackson`, etc. are shaded away by the maintainers of Flink, so users usually don't have to worry about it.
+当TaskManager启动或重启任务时会加载指定任务的代码，除非这些类可以卸载，否则就有可能引起内存泄露，因为更新新版本的类可能会随着时间不断的被加载积累。这种现象经常会引起**OutOfMemoryError: Metaspace**这种典型异常。
+
+类泄漏的常见原因和建议的修复方式：
+
+  - *Lingering Threads*: 确保应用代码的函数/sources/sink关闭了所有线程。延迟关闭的线程不仅自身消耗资源，同时会因为占据对象引用，从而阻止垃圾回收和类的卸载。
+
+  - *Interners*: 避免缓存超出function/sources/sinks生命周期的特殊结构中的对象。比如Guava的Interner，或是Avro的序列化器中的类或对象。
+
+  - *JDBC*: JDBC驱动会在用户类加载器之外泄漏引用。为了确保这些类只被加载一次，您可以将驱动JAR包放在Flink的`lib/`目录下，或者将驱动类通过[`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional)加到父级优先加载类的列表中。
+
+释放用户代码类加载器的钩子（hook）可以帮助卸载动态加载的类。这种钩子在类加载器卸载前执行。通常情况下最好把关闭和卸载资源作为正常函数生命周期操作的一部分（比如典型的`close()`方法）。有些情况下（比如静态字段）最好确定类加载器不再需要后就立即卸载。
+
+
+释放类加载器的钩子可以通过`RuntimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent()`方法进行注册。
+
+## 通过maven-shade-plugin解决与Flink的依赖冲突
+
+从应用开发者的角度可以通过*shading them away*的方式公开依赖关系来解决依赖冲突。
+
+Apache Maven提供了[maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/)，通过插件可以允许在编译*后*调整类相关的包。举例来说，假如您的用户代码jar文件中包含aws的sdk中的`com.amazonaws`包，shade plugin会将它们重定位到`org.myorg.shaded.com.amazonaws`，这样代码就会正确调用您的aws sdk的版本。
+
+这个文档页面解释了[relocating classes using the shade plugin](https://maven.apache.org/plugins/maven-shade-plugin/examples/class-relocation.html)。
+
+对于大部分的Flink依赖如`guava`, `netty`, `jackson`等，这些已经由Flink的维护者进行处理，普通用户通常情况下无需再对其进行关注。
 
 {{< top >}}

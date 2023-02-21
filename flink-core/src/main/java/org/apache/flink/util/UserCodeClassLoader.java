@@ -18,12 +18,15 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * UserCodeClassLoader allows to register release hooks for a user code class loader.
  *
  * <p>These release hooks are being executed just before the user code class loader is being
  * released.
  */
+@PublicEvolving
 public interface UserCodeClassLoader {
 
     /**

@@ -20,9 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -49,6 +47,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 
 /** Utility class to create instances from class objects and checking failure reasons. */
 @Internal
@@ -209,67 +209,6 @@ public final class InstantiationUtil {
         scalaTypes.add("scala.Enumeration$ValueSet");
     }
 
-    /**
-     * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing
-     * objects of anonymous classes or our Scala serializer classes and also replaces occurences of
-     * GenericData.Array (from Avro) by a dummy class so that the KryoSerializer can still be
-     * deserialized without Avro being on the classpath.
-     *
-     * <p>The {@link TypeSerializerSerializationUtil.TypeSerializerSerializationProxy} uses this
-     * specific object input stream to read serializers, so that mismatching serialVersionUIDs of
-     * anonymous classes / Scala serializers are ignored. This is a required workaround to maintain
-     * backwards compatibility for our pre-1.3 Scala serializers. See FLINK-6869 for details.
-     *
-     * @see <a href="https://issues.apache.org/jira/browse/FLINK-6869">FLINK-6869</a>
-     */
-    public static class FailureTolerantObjectInputStream
-            extends InstantiationUtil.ClassLoaderObjectInputStream {
-
-        public FailureTolerantObjectInputStream(InputStream in, ClassLoader cl) throws IOException {
-            super(in, cl);
-        }
-
-        @Override
-        protected ObjectStreamClass readClassDescriptor()
-                throws IOException, ClassNotFoundException {
-            ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
-
-            try {
-                Class.forName(streamClassDescriptor.getName(), false, classLoader);
-            } catch (ClassNotFoundException e) {
-
-                final ObjectStreamClass equivalentSerializer =
-                        MigrationUtil.getEquivalentSerializer(streamClassDescriptor.getName());
-
-                if (equivalentSerializer != null) {
-                    return equivalentSerializer;
-                }
-            }
-
-            final Class localClass = resolveClass(streamClassDescriptor);
-            final String name = localClass.getName();
-            if (scalaSerializerClassnames.contains(name)
-                    || scalaTypes.contains(name)
-                    || isAnonymousClass(localClass)
-                    || isOldAvroSerializer(name, streamClassDescriptor.getSerialVersionUID())) {
-                final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
-                if (localClassDescriptor != null
-                        && localClassDescriptor.getSerialVersionUID()
-                                != streamClassDescriptor.getSerialVersionUID()) {
-                    LOG.warn(
-                            "Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
-                            streamClassDescriptor.getName(),
-                            streamClassDescriptor.getSerialVersionUID(),
-                            localClassDescriptor.getSerialVersionUID());
-
-                    streamClassDescriptor = localClassDescriptor;
-                }
-            }
-
-            return streamClassDescriptor;
-        }
-    }
-
     private static boolean isAnonymousClass(Class clazz) {
         final String name = clazz.getName();
 
@@ -309,10 +248,6 @@ public final class InstantiationUtil {
 
         // To add a new mapping just pick a name and add an entry as the following:
 
-        GENERIC_DATA_ARRAY_SERIALIZER(
-                "org.apache.avro.generic.GenericData$Array",
-                ObjectStreamClass.lookup(
-                        KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class)),
         HASH_MAP_SERIALIZER(
                 "org.apache.flink.runtime.state.HashMapSerializer",
                 ObjectStreamClass.lookup(MapSerializer.class)); // added in 1.5
@@ -454,7 +389,7 @@ public final class InstantiationUtil {
     public static boolean hasPublicNullaryConstructor(Class<?> clazz) {
         Constructor<?>[] constructors = clazz.getConstructors();
         for (Constructor<?> constructor : constructors) {
-            if (constructor.getParameterTypes().length == 0
+            if (constructor.getParameterCount() == 0
                     && Modifier.isPublic(constructor.getModifiers())) {
                 return true;
             }
@@ -584,38 +519,27 @@ public final class InstantiationUtil {
     @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(byte[] bytes, ClassLoader cl)
             throws IOException, ClassNotFoundException {
-        return deserializeObject(bytes, cl, false);
+        return deserializeObject(new ByteArrayInputStream(bytes), cl);
     }
 
     @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(InputStream in, ClassLoader cl)
             throws IOException, ClassNotFoundException {
-        return deserializeObject(in, cl, false);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T deserializeObject(byte[] bytes, ClassLoader cl, boolean isFailureTolerant)
-            throws IOException, ClassNotFoundException {
-
-        return deserializeObject(new ByteArrayInputStream(bytes), cl, isFailureTolerant);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T deserializeObject(InputStream in, ClassLoader cl, boolean isFailureTolerant)
-            throws IOException, ClassNotFoundException {
 
         final ClassLoader old = Thread.currentThread().getContextClassLoader();
         // not using resource try to avoid AutoClosable's close() on the given stream
         try {
-            ObjectInputStream oois =
-                    isFailureTolerant
-                            ? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
-                            : new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
+            ObjectInputStream oois = new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
             Thread.currentThread().setContextClassLoader(cl);
             return (T) oois.readObject();
         } finally {
             Thread.currentThread().setContextClassLoader(old);
         }
+    }
+
+    public static <T> T decompressAndDeserializeObject(byte[] bytes, ClassLoader cl)
+            throws IOException, ClassNotFoundException {
+        return deserializeObject(new InflaterInputStream(new ByteArrayInputStream(bytes)), cl);
     }
 
     public static byte[] serializeObject(Object o) throws IOException {
@@ -633,6 +557,17 @@ public final class InstantiationUtil {
                         ? (ObjectOutputStream) out
                         : new ObjectOutputStream(out);
         oos.writeObject(o);
+    }
+
+    public static byte[] serializeObjectAndCompress(Object o) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DeflaterOutputStream dos = new DeflaterOutputStream(baos);
+                ObjectOutputStream oos = new ObjectOutputStream(dos)) {
+            oos.writeObject(o);
+            oos.flush();
+            dos.close();
+            return baos.toByteArray();
+        }
     }
 
     public static boolean isSerializable(Object o) {
@@ -753,7 +688,15 @@ public final class InstantiationUtil {
         try {
             rawClazz = Class.forName(className, false, cl);
         } catch (ClassNotFoundException e) {
-            throw new IOException("Could not find class '" + className + "' in classpath.", e);
+            String error = "Could not find class '" + className + "' in classpath.";
+            if (className.contains("SerializerConfig")) {
+                error +=
+                        " TypeSerializerConfigSnapshot and it's subclasses are not supported since Flink 1.17."
+                                + " If you are using built-in serializers, please first migrate to Flink 1.16."
+                                + " If you are using custom serializers, please migrate them to"
+                                + " TypeSerializerSnapshot using Flink 1.16.";
+            }
+            throw new IOException(error, e);
         }
 
         if (!supertype.isAssignableFrom(rawClazz)) {

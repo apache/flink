@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.sql.parser.SqlPartitionUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
 import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
@@ -26,11 +30,11 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -39,7 +43,6 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.rules.TemporaryFolder;
 
@@ -51,6 +54,7 @@ import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -59,7 +63,6 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 
 /** Test utils for Hive connector. */
 public class HiveTestUtils {
-    private static final String HIVE_SITE_XML = "hive-site.xml";
     private static final String HIVE_WAREHOUSE_URI_FORMAT =
             "jdbc:derby:;databaseName=%s;create=true";
     private static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -111,14 +114,14 @@ public class HiveTestUtils {
     }
 
     public static HiveConf createHiveConf() {
-        ClassLoader classLoader = new HiveTestUtils().getClass().getClassLoader();
-        HiveConf.setHiveSiteLocation(classLoader.getResource(HIVE_SITE_XML));
+        ClassLoader classLoader = HiveTestUtils.class.getClassLoader();
 
         try {
             TEMPORARY_FOLDER.create();
             String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
             String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 
+            HiveConf.setHiveSiteLocation(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             HiveConf hiveConf = new HiveConf();
             hiveConf.setVar(
                     HiveConf.ConfVars.METASTOREWAREHOUSE,
@@ -148,40 +151,48 @@ public class HiveTestUtils {
         throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
     }
 
-    public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
-        return createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
+    public static TableEnvironment createTableEnvInBatchMode() {
+        return createTableEnvInBatchMode(SqlDialect.DEFAULT);
     }
 
-    public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode(SqlDialect dialect) {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+    public static TableEnvironment createTableEnvInBatchMode(SqlDialect dialect) {
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         tableEnv.getConfig().setSqlDialect(dialect);
         return tableEnv;
     }
 
-    public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
-            StreamExecutionEnvironment env) {
-        return createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.DEFAULT);
+    public static TableEnvironment createTableEnvInBatchModeWithAdaptiveScheduler() {
+        EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
+        settings.getConfiguration()
+                .set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
+        settings.getConfiguration()
+                .set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, 4);
+        settings.getConfiguration()
+                .set(
+                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
+                        MemorySize.parse("150kb"));
+        settings.getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, -1);
+        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        return tableEnv;
     }
 
-    public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+    public static StreamTableEnvironment createTableEnvInStreamingMode(
+            StreamExecutionEnvironment env) {
+        return createTableEnvInStreamingMode(env, SqlDialect.DEFAULT);
+    }
+
+    public static StreamTableEnvironment createTableEnvInStreamingMode(
             StreamExecutionEnvironment env, SqlDialect dialect) {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         tableEnv.getConfig().setSqlDialect(dialect);
         return tableEnv;
     }
 
     public static TableEnvironment createTableEnvWithHiveCatalog(HiveCatalog catalog) {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.registerCatalog(catalog.getName(), catalog);
         tableEnv.useCatalog(catalog.getName());
         return tableEnv;
@@ -236,30 +247,36 @@ public class HiveTestUtils {
             Path dest;
             ObjectPath tablePath = new ObjectPath(dbName, tableName);
             Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+            String addPartDDL = null;
             if (partitionSpec != null) {
-                String ddl =
+                addPartDDL =
                         String.format(
                                 "alter table `%s`.`%s` add if not exists partition (%s)",
                                 dbName, tableName, partitionSpec);
-                tableEnv.executeSql(ddl);
                 // we need parser to parse the partition spec
                 SqlParser parser =
                         SqlParser.create(
-                                ddl,
+                                addPartDDL,
                                 SqlParser.config()
                                         .withParserFactory(FlinkHiveSqlParserImpl.FACTORY)
                                         .withLex(Lex.JAVA));
                 SqlAddHivePartitions sqlAddPart = (SqlAddHivePartitions) parser.parseStmt();
-                Map<String, String> spec =
+                LinkedHashMap<String, String> spec =
                         SqlPartitionUtils.getPartitionKVs(sqlAddPart.getPartSpecs().get(0));
-                Partition hivePart =
-                        hiveCatalog.getHivePartition(hiveTable, new CatalogPartitionSpec(spec));
-                dest = new Path(hivePart.getSd().getLocation(), src.getName());
+                Path partLocation =
+                        new Path(
+                                hiveTable.getSd().getLocation(),
+                                PartitionPathUtils.generatePartitionPath(spec));
+                dest = new Path(partLocation, src.getName());
             } else {
                 dest = new Path(hiveTable.getSd().getLocation(), src.getName());
             }
             FileSystem fs = dest.getFileSystem(hiveCatalog.getHiveConf());
             Preconditions.checkState(fs.rename(src, dest));
+            if (addPartDDL != null) {
+                tableEnv.executeSql(
+                        addPartDDL + String.format(" location '%s'", dest.getParent().toString()));
+            }
         }
 
         private String toText(Object[] row) {

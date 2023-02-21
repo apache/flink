@@ -30,9 +30,9 @@ nz-table {
   }
 
   &.full-height {
+    position: relative;
     display: block;
     height: 100%;
-    position: relative;
 
     nz-spin {
       display: block;
@@ -40,8 +40,8 @@ nz-table {
 
       .ant-spin-container {
         position: relative;
-        zoom: 1;
         height: 100%;
+        zoom: 1;
 
         .ant-table {
           height: 100%;
@@ -59,7 +59,14 @@ nz-table {
   }
 }
 
-.ant-table-small > .ant-table-content > .ant-table-scroll > .ant-table-header > table > .ant-table-thead > tr > th.ant-table-column-sort {
+.ant-table-small
+  > .ant-table-content
+  > .ant-table-scroll
+  > .ant-table-header
+  > table
+  > .ant-table-thead
+  > tr
+  > th.ant-table-column-sort {
   background: @table-header-sort-active-bg;
 }
 
@@ -72,15 +79,23 @@ nz-table {
 }
 
 .ant-tooltip-inner {
-  word-break: break-word;
   font-size: 12px;
+  word-break: break-word;
 }
 
 .ant-table table {
-  border-collapse: separate;
   border-spacing: 0;
+  border-collapse: separate;
 }
 
-.ant-table-tbody>tr>td, .ant-table-thead>tr>th{
+.ant-table-tbody > tr > td,
+.ant-table-thead > tr > th {
   word-break: break-word;
+}
+
+li.ant-dropdown-menu-item-disabled {
+  a {
+    color: @text-color-secondary;
+    cursor: not-allowed;
+  }
 }

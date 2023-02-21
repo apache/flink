@@ -17,15 +17,14 @@
  */
 package org.apache.flink.api.scala.runtime.tuple.base
 
+import org.apache.flink.api.common.typeutils.TypePairComparator
 import org.apache.flink.util.TestLogger
+
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
-import org.apache.flink.api.common.typeutils.TypePairComparator
 import org.junit.Test
 
-/**
- * Abstract test base for PairComparators.
- */
+/** Abstract test base for PairComparators. */
 abstract class PairComparatorTestBase[T, R] extends TestLogger {
   protected def createComparator(ascending: Boolean): TypePairComparator[T, R]
 
@@ -35,7 +34,7 @@ abstract class PairComparatorTestBase[T, R] extends TestLogger {
   def testEqualityWithReference(): Unit = {
     try {
       val comparator = getComparator(ascending = true)
-      
+
       val (dataT, dataR) = getSortedData
       for (i <- 0 until dataT.length) {
         comparator.setReference(dataT(i))
@@ -65,8 +64,7 @@ abstract class PairComparatorTestBase[T, R] extends TestLogger {
           comparator.setReference(dataT(x))
           if (ascending) {
             assertTrue(comparator.compareToReference(dataR(y)) > 0)
-          }
-          else {
+          } else {
             assertTrue(comparator.compareToReference(dataR(y)) < 0)
           }
         }
@@ -100,4 +98,3 @@ abstract class PairComparatorTestBase[T, R] extends TestLogger {
     (dataT, dataR)
   }
 }
-

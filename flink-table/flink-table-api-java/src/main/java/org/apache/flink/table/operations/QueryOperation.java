@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
@@ -30,7 +30,7 @@ import java.util.List;
  * <p>It represents an operation that can be a node of a relational query. It has a schema, that can
  * be used to validate a {@link QueryOperation} applied on top of this one.
  */
-@Internal
+@PublicEvolving
 public interface QueryOperation extends Operation {
 
     /** Resolved schema of this operation. */

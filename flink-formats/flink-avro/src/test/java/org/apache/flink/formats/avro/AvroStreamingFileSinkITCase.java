@@ -25,6 +25,7 @@ import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -50,9 +51,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
@@ -81,6 +80,7 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
                 env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
         stream.addSink(
                 StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
         env.execute();
 
@@ -103,6 +103,7 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
                 env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
         stream.addSink(
                 StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
         env.execute();
 
@@ -124,6 +125,7 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
                 env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
         stream.addSink(
                 StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
         env.execute();
 
@@ -135,18 +137,16 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
     private static <T> void validateResults(
             File folder, DatumReader<T> datumReader, List<T> expected) throws Exception {
         File[] buckets = folder.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).hasSize(1);
 
         File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
-        assertEquals(2, partFiles.length);
+        assertThat(partFiles).hasSize(2);
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile).isNotEmpty();
 
             final List<T> fileContent = readAvroFile(partFile, datumReader);
-            assertEquals(expected, fileContent);
+            assertThat(fileContent).isEqualTo(expected);
         }
     }
 

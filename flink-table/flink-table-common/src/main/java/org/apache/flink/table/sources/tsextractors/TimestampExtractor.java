@@ -35,8 +35,8 @@ import java.util.Map;
  * Provides an expression to extract the timestamp for a rowtime attribute.
  *
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. Use the concept of computed
- *     columns instead. See FLIP-95 for more information.
+ *     DynamicTableSource}. Use the concept of computed columns instead. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 @PublicEvolving

@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -50,7 +51,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
     private final Random random;
 
     /** The number of the next path to use. */
-    private volatile int nextPath;
+    private final AtomicLong nextPath = new AtomicLong(0);
 
     /** Prefix of the temporary directories to create. */
     private final String prefix;
@@ -69,7 +70,6 @@ public class FileChannelManagerImpl implements FileChannelManager {
         checkArgument(tempDirs.length > 0, "The temporary directories must not be empty.");
 
         this.random = new Random();
-        this.nextPath = 0;
         this.prefix = prefix;
 
         shutdownHook =
@@ -95,7 +95,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
             }
             files[i] = storageDir;
 
-            LOG.info(
+            LOG.debug(
                     "FileChannelManager uses directory {} for spill files.",
                     storageDir.getAbsolutePath());
         }
@@ -106,7 +106,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
     public ID createChannel() {
         checkState(!isShutdown.get(), "File channel manager has shutdown.");
 
-        int num = getNextPathNum();
+        int num = (int) (nextPath.getAndIncrement() % paths.length);
         return new ID(paths[num], num, random);
     }
 
@@ -157,12 +157,5 @@ public class FileChannelManagerImpl implements FileChannelManager {
                 throw new IOException(errorMessage, e);
             }
         };
-    }
-
-    private int getNextPathNum() {
-        int next = nextPath;
-        int newNext = next + 1;
-        nextPath = newNext >= paths.length ? 0 : newNext;
-        return next;
     }
 }

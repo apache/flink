@@ -148,6 +148,12 @@ public class TestingSlotPoolService implements SlotPoolService {
     }
 
     @Override
+    public void releaseFreeSlotsOnTaskManager(ResourceID taskManagerId, Exception cause) {
+        throw new UnsupportedOperationException(
+                "TestingSlotPoolService does not support this operation.");
+    }
+
+    @Override
     public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {
         connectToResourceManagerConsumer.accept(resourceManagerGateway);
     }

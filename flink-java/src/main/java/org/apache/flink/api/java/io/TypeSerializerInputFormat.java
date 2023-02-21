@@ -45,7 +45,7 @@ public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T>
 
     public TypeSerializerInputFormat(TypeInformation<T> resultType) {
         this.resultType = resultType;
-        // TODO: fix this shit
+        // TODO: fix this
         this.serializer = resultType.createSerializer(new ExecutionConfig());
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.NetUtils;
 
@@ -49,7 +50,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
     /**
      * The ID of the resource in which the TaskManager is started. This can be for example the YARN
-     * container ID, Mesos container ID, or any other unique identifier.
+     * container ID or any other unique identifier.
      */
     private final ResourceID resourceID;
 
@@ -69,6 +70,14 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
     private String stringRepresentation;
 
     /**
+     * ID of the node where the TaskManager is located on. In Yarn and Native Kubernetes mode, this
+     * value will be set by resource manager when launch this TaskManager(via the config option
+     * {@link TaskManagerOptionsInternal#TASK_MANAGER_NODE_ID}). In other modes, this value will be
+     * the external address of the TaskManager.
+     */
+    private final String nodeId;
+
+    /**
      * Constructs a new instance connection info object. The constructor will attempt to retrieve
      * the instance's host name and domain name through the operating system's lookup mechanisms.
      *
@@ -76,13 +85,15 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      * @param dataPort the port instance's task manager expects to receive transfer envelopes on
      * @param hostNameSupplier the supplier for obtaining fully-qualified domain name and pure
      *     hostname of the task manager
+     * @param nodeId the ID of node where the task manager is located on.
      */
     @VisibleForTesting
     public TaskManagerLocation(
             ResourceID resourceID,
             InetAddress inetAddress,
             int dataPort,
-            HostNameSupplier hostNameSupplier) {
+            HostNameSupplier hostNameSupplier,
+            String nodeId) {
         // -1 indicates a local instance connection info
         checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
 
@@ -90,6 +101,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
         this.inetAddress = checkNotNull(inetAddress);
         this.dataPort = dataPort;
         this.hostNameSupplier = checkNotNull(hostNameSupplier);
+        this.nodeId = checkNotNull(nodeId);
     }
 
     /**
@@ -101,7 +113,12 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      */
     @VisibleForTesting
     public TaskManagerLocation(ResourceID resourceID, InetAddress inetAddress, int dataPort) {
-        this(resourceID, inetAddress, dataPort, new DefaultHostNameSupplier(inetAddress));
+        this(
+                resourceID,
+                inetAddress,
+                dataPort,
+                new DefaultHostNameSupplier(inetAddress),
+                getHostName(inetAddress));
     }
 
     public static TaskManagerLocation fromUnresolvedLocation(
@@ -117,13 +134,15 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
                         unresolvedLocation.getResourceID(),
                         inetAddress,
                         unresolvedLocation.getDataPort(),
-                        new DefaultHostNameSupplier(inetAddress));
+                        new DefaultHostNameSupplier(inetAddress),
+                        unresolvedLocation.getNodeId());
             case USE_IP_ONLY:
                 return new TaskManagerLocation(
                         unresolvedLocation.getResourceID(),
                         inetAddress,
                         unresolvedLocation.getDataPort(),
-                        new IpOnlyHostNameSupplier(inetAddress));
+                        new IpOnlyHostNameSupplier(inetAddress),
+                        unresolvedLocation.getNodeId());
             default:
                 throw new UnsupportedOperationException("Unsupported resolution mode provided.");
         }
@@ -139,7 +158,6 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      *
      * <ul>
      *   <li>If the TaskManager is started via YARN, this is the YARN container ID.
-     *   <li>If the TaskManager is started via Mesos, this is the Mesos container ID.
      *   <li>If the TaskManager is started in standalone mode, or via a MiniCluster, this is a
      *       random ID.
      *   <li>Other deployment modes can set the resource ID in other ways.
@@ -195,6 +213,15 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      */
     public String getHostname() {
         return hostNameSupplier.getHostName();
+    }
+
+    /**
+     * Return the ID of node where the task manager is located on.
+     *
+     * @return The ID of node where the task manager is located on.
+     */
+    public String getNodeId() {
+        return nodeId;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -265,7 +292,8 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
             TaskManagerLocation that = (TaskManagerLocation) obj;
             return this.resourceID.equals(that.resourceID)
                     && this.inetAddress.equals(that.inetAddress)
-                    && this.dataPort == that.dataPort;
+                    && this.dataPort == that.dataPort
+                    && this.nodeId.equals(that.nodeId);
         } else {
             return false;
         }
@@ -273,7 +301,10 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
     @Override
     public int hashCode() {
-        return resourceID.hashCode() + 17 * inetAddress.hashCode() + 129 * dataPort;
+        return resourceID.hashCode()
+                + 17 * inetAddress.hashCode()
+                + 129 * dataPort
+                + 257 * nodeId.hashCode();
     }
 
     @Override
@@ -310,9 +341,10 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
             return -1;
         } else if (this.dataPort > o.dataPort) {
             return 1;
-        } else {
-            return 0;
         }
+
+        // finally, decided based on node id
+        return this.nodeId.compareTo(o.nodeId);
     }
 
     // --------------------------------------------------------------------------------------------

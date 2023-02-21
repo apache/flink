@@ -38,21 +38,6 @@ public interface OverWindowedTable {
      * <p>Example:
      *
      * <pre>{@code
-     * overWindowedTable.select("c, b.count over ow, e.sum over ow")
-     * }</pre>
-     *
-     * @deprecated use {@link #select(Expression...)}
-     */
-    @Deprecated
-    Table select(String fields);
-
-    /**
-     * Performs a selection operation on a over windowed table. Similar to an SQL SELECT statement.
-     * The field expressions can contain complex expressions and aggregations.
-     *
-     * <p>Example:
-     *
-     * <pre>{@code
      * overWindowedTable.select(
      *    $("c"),
      *    $("b").count().over($("ow")),

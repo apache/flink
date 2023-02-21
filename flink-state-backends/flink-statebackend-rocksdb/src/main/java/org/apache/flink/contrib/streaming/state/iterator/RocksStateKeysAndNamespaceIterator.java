@@ -28,6 +28,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 /**
  * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over
@@ -41,7 +42,8 @@ public class RocksStateKeysAndNamespaceIterator<K, N> extends AbstractRocksState
 
     @Nonnull private final TypeSerializer<N> namespaceSerializer;
 
-    private Tuple2<K, N> nextKey;
+    private Tuple2<K, N> nextKeyAndNamespace;
+    private Tuple2<K, N> previousKeyAndNamespace;
 
     public RocksStateKeysAndNamespaceIterator(
             @Nonnull RocksIteratorWrapper iterator,
@@ -53,26 +55,31 @@ public class RocksStateKeysAndNamespaceIterator<K, N> extends AbstractRocksState
         super(iterator, state, keySerializer, keyGroupPrefixBytes, ambiguousKeyPossible);
 
         this.namespaceSerializer = namespaceSerializer;
-        this.nextKey = null;
+        this.nextKeyAndNamespace = null;
+        this.previousKeyAndNamespace = null;
     }
 
     @Override
     public boolean hasNext() {
         try {
-            while (nextKey == null && iterator.isValid()) {
+            while (nextKeyAndNamespace == null && iterator.isValid()) {
 
                 final byte[] keyBytes = iterator.key();
                 final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
                 final N currentNamespace =
                         CompositeKeySerializationUtils.readNamespace(
                                 namespaceSerializer, byteArrayDataInputView, ambiguousKeyPossible);
-                nextKey = Tuple2.of(currentKey, currentNamespace);
+                final Tuple2<K, N> currentKeyAndNamespace = Tuple2.of(currentKey, currentNamespace);
+                if (!Objects.equals(previousKeyAndNamespace, currentKeyAndNamespace)) {
+                    previousKeyAndNamespace = currentKeyAndNamespace;
+                    nextKeyAndNamespace = currentKeyAndNamespace;
+                }
                 iterator.next();
             }
         } catch (Exception e) {
             throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
         }
-        return nextKey != null;
+        return nextKeyAndNamespace != null;
     }
 
     @Override
@@ -81,8 +88,8 @@ public class RocksStateKeysAndNamespaceIterator<K, N> extends AbstractRocksState
             throw new NoSuchElementException("Failed to access state [" + state + "]");
         }
 
-        Tuple2<K, N> tmpKey = nextKey;
-        nextKey = null;
-        return tmpKey;
+        Tuple2<K, N> tmpKeyAndNamespace = nextKeyAndNamespace;
+        nextKeyAndNamespace = null;
+        return tmpKeyAndNamespace;
     }
 }

@@ -91,7 +91,7 @@ processing as though nothing had gone wrong.
 
 The location where these snapshots are stored is defined via the jobs _checkpoint storage_.
 Two implementations of checkpoint storage are available - one that persists its state snapshots
-to a distributed file system, and another that users the JobManager's heap. 
+to a distributed file system, and another that uses the JobManager's heap. 
 
 <center>
   <table class="table table-bordered">
@@ -222,6 +222,6 @@ The [Flink Operations Playground]({{< ref "docs/try-flink/flink-operations-playg
 - [Savepoints]({{< ref "docs/ops/state/savepoints" >}})
 - [Tuning Checkpoints and Large State]({{< ref "docs/ops/state/large_state_tuning" >}})
 - [Monitoring Checkpointing]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}})
-- [Task Failure Recovery]({{< ref "docs/dev/execution/task_failure_recovery" >}})
+- [Task Failure Recovery]({{< ref "docs/ops/state/task_failure_recovery" >}})
 
 {{< top >}}

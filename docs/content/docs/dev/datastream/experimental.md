@@ -62,7 +62,7 @@ Code example:
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-DataStreamSource<Integer> source = ...
+DataStreamSource<Integer> source = ...;
 DataStreamUtils.reinterpretAsKeyedStream(source, (in) -> in, TypeInformation.of(Integer.class))
     .window(TumblingEventTimeWindows.of(Time.seconds(1)))
     .reduce((a, b) -> a + b)

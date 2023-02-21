@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -25,43 +27,34 @@ import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link RowSerializer}. */
-@RunWith(Parameterized.class)
+@VisibleForTesting
 public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row, Row> {
 
-    public RowSerializerUpgradeTest(TestSpecification<Row, Row> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         // for RowSerializer we also test against 1.10 and newer because we have snapshots
         // for this which go beyond what we have for the usual subclasses of
         // TypeSerializerUpgradeTestBase
-        List<MigrationVersion> testVersions = new ArrayList<>();
-        testVersions.add(MigrationVersion.v1_10);
-        testVersions.addAll(Arrays.asList(MIGRATION_VERSIONS));
-        for (MigrationVersion migrationVersion : testVersions) {
+        List<FlinkVersion> testVersions = new ArrayList<>();
+        testVersions.add(FlinkVersion.v1_10);
+        testVersions.addAll(MIGRATION_VERSIONS);
+        for (FlinkVersion flinkVersion : testVersions) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "row-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             RowSerializerSetup.class,
                             RowSerializerVerifier.class));
         }
@@ -129,8 +122,8 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
-            if (version.isNewerVersionThan(MigrationVersion.v1_10)) {
+                FlinkVersion version) {
+            if (version.isNewerVersionThan(FlinkVersion.v1_10)) {
                 return TypeSerializerMatchers.isCompatibleAsIs();
             }
             return TypeSerializerMatchers.isCompatibleAfterMigration();

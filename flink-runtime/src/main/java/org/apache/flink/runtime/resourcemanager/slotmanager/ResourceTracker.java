@@ -72,6 +72,14 @@ public interface ResourceTracker {
      */
     Collection<ResourceRequirement> getAcquiredResources(JobID jobId);
 
+    /**
+     * Returns whether the {@link ResourceRequirement} of the given job is empty.
+     *
+     * @param jobId job ID
+     * @return true if the {@link ResourceRequirement} of the given job is empty
+     */
+    boolean isRequirementEmpty(JobID jobId);
+
     /** Removes all state from the tracker. */
     void clear();
 }

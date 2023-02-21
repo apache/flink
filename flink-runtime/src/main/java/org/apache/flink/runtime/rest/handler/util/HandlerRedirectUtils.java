@@ -24,7 +24,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
@@ -54,8 +54,8 @@ public class HandlerRedirectUtils {
         String newLocation = String.format("%s%s", redirectAddress, path);
 
         HttpResponse redirectResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, code);
-        redirectResponse.headers().set(HttpHeaders.Names.LOCATION, newLocation);
-        redirectResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+        redirectResponse.headers().set(HttpHeaderNames.LOCATION, newLocation);
+        redirectResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
 
         return redirectResponse;
     }
@@ -68,9 +68,8 @@ public class HandlerRedirectUtils {
         FullHttpResponse response =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, messageByteBuf);
         response.headers()
-                .set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
-        response.headers()
-                .set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+                .set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
 
         return response;
     }

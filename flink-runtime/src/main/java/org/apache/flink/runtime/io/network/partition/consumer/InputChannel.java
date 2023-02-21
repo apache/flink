@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -42,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>For each channel, the consumption life cycle is as follows:
  *
  * <ol>
- *   <li>{@link #requestSubpartition(int)}
+ *   <li>{@link #requestSubpartition()}
  *   <li>{@link #getNextBuffer()}
  *   <li>{@link #releaseAllResources()}
  * </ol>
@@ -51,7 +52,11 @@ public abstract class InputChannel {
     /** The info of the input channel to identify it globally within a task. */
     protected final InputChannelInfo channelInfo;
 
+    /** The parent partition of the subpartition consumed by this channel. */
     protected final ResultPartitionID partitionId;
+
+    /** The index of the subpartition consumed by this channel. */
+    protected final int consumedSubpartitionIndex;
 
     protected final SingleInputGate inputGate;
 
@@ -78,6 +83,7 @@ public abstract class InputChannel {
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -93,6 +99,9 @@ public abstract class InputChannel {
         this.inputGate = checkNotNull(inputGate);
         this.channelInfo = new InputChannelInfo(inputGate.getGateIndex(), channelIndex);
         this.partitionId = checkNotNull(partitionId);
+
+        checkArgument(consumedSubpartitionIndex >= 0);
+        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
 
         this.initialBackoff = initial;
         this.maxBackoff = max;
@@ -123,12 +132,22 @@ public abstract class InputChannel {
         return partitionId;
     }
 
+    public int getConsumedSubpartitionIndex() {
+        return consumedSubpartitionIndex;
+    }
+
     /**
      * After sending a {@link org.apache.flink.runtime.io.network.api.CheckpointBarrier} of
      * exactly-once mode, the upstream will be blocked and become unavailable. This method tries to
      * unblock the corresponding upstream and resume data consumption.
      */
     public abstract void resumeConsumption() throws IOException;
+
+    /**
+     * When received {@link EndOfData} from one channel, it need to acknowledge after this event get
+     * processed.
+     */
+    public abstract void acknowledgeAllRecordsProcessed() throws IOException;
 
     /**
      * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
@@ -156,13 +175,10 @@ public abstract class InputChannel {
     // ------------------------------------------------------------------------
 
     /**
-     * Requests the queue with the specified index of the source intermediate result partition.
-     *
-     * <p>The queue index to request depends on which sub task the channel belongs to and is
-     * specified by the consumer of this channel.
+     * Requests the subpartition specified by {@link #partitionId} and {@link
+     * #consumedSubpartitionIndex}.
      */
-    abstract void requestSubpartition(int subpartitionIndex)
-            throws IOException, InterruptedException;
+    abstract void requestSubpartition() throws IOException, InterruptedException;
 
     /**
      * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there
@@ -204,6 +220,10 @@ public abstract class InputChannel {
 
     /** Releases all resources of the channel. */
     abstract void releaseAllResources() throws IOException;
+
+    abstract void announceBufferSize(int newBufferSize);
+
+    abstract int getBuffersInUseCount();
 
     // ------------------------------------------------------------------------
     // Error notification
@@ -284,6 +304,10 @@ public abstract class InputChannel {
     // ------------------------------------------------------------------------
 
     public int unsynchronizedGetNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    public long unsynchronizedGetSizeOfQueuedBuffers() {
         return 0;
     }
 

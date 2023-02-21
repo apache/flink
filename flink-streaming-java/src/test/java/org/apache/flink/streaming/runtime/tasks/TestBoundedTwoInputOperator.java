@@ -51,14 +51,14 @@ public class TestBoundedTwoInputOperator extends AbstractStreamOperator<String>
     }
 
     @Override
-    public void close() throws Exception {
+    public void finish() throws Exception {
         ProcessingTimeService timeService = getProcessingTimeService();
         timeService.registerTimer(
                 timeService.getCurrentProcessingTime(),
                 t -> output("[" + name + "]: Timer registered in close"));
 
-        output.collect(new StreamRecord<>("[" + name + "]: Bye"));
-        super.close();
+        output.collect(new StreamRecord<>("[" + name + "]: Finish"));
+        super.finish();
     }
 
     private void output(String record) {

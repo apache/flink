@@ -21,13 +21,10 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
-/**
- * Serializer for [[Option]].
- */
+/** Serializer for [[Option]]. */
 @Internal
 @SerialVersionUID(-8635243274072627338L)
-class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
-  extends TypeSerializer[Option[A]] {
+class OptionSerializer[A](val elemSerializer: TypeSerializer[A]) extends TypeSerializer[Option[A]] {
 
   override def duplicate: OptionSerializer[A] = {
     val duplicatedElemSerializer = elemSerializer.duplicate()
@@ -100,32 +97,4 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   override def snapshotConfiguration(): TypeSerializerSnapshot[Option[A]] = {
     new ScalaOptionSerializerSnapshot[A](this)
   }
-}
-
-object OptionSerializer {
-
-  /**
-    * We need to keep this to be compatible with snapshots taken in Flink 1.3.0.
-    * Once Flink 1.3.x is no longer supported, this can be removed.
-    */
-  class OptionSerializerConfigSnapshot[A]()
-      extends CompositeTypeSerializerConfigSnapshot[Option[A]] {
-
-    override def getVersion: Int = OptionSerializerConfigSnapshot.VERSION
-
-    override def resolveSchemaCompatibility(
-        newSerializer: TypeSerializer[Option[A]]
-    ): TypeSerializerSchemaCompatibility[Option[A]] = {
-      CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-        newSerializer,
-        new ScalaOptionSerializerSnapshot[A](),
-        getSingleNestedSerializerAndConfig.f1
-      )
-    }
-  }
-
-  object OptionSerializerConfigSnapshot {
-    val VERSION = 1
-  }
-
 }

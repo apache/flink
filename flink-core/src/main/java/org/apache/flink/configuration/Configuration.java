@@ -37,7 +37,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
+import static org.apache.flink.configuration.ConfigurationUtils.containsPrefixMap;
+import static org.apache.flink.configuration.ConfigurationUtils.convertToPropertiesPrefixed;
+import static org.apache.flink.configuration.ConfigurationUtils.removePrefixMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Lightweight configuration object which stores key/value pairs. */
@@ -662,23 +667,51 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     @PublicEvolving
     public boolean contains(ConfigOption<?> configOption) {
         synchronized (this.confData) {
-            // first try the current key
-            if (this.confData.containsKey(configOption.key())) {
-                return true;
-            } else if (configOption.hasFallbackKeys()) {
-                // try the fallback keys
-                for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                    if (this.confData.containsKey(fallbackKey.getKey())) {
-                        loggingFallback(fallbackKey, configOption);
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            final BiFunction<String, Boolean, Optional<Boolean>> applier =
+                    (key, canBePrefixMap) -> {
+                        if (canBePrefixMap && containsPrefixMap(this.confData, key)
+                                || this.confData.containsKey(key)) {
+                            return Optional.of(true);
+                        }
+                        return Optional.empty();
+                    };
+            return applyWithOption(configOption, applier).orElse(false);
         }
     }
 
+    private <T> Optional<T> applyWithOption(
+            ConfigOption<?> option, BiFunction<String, Boolean, Optional<T>> applier) {
+        final boolean canBePrefixMap = canBePrefixMap(option);
+        final Optional<T> valueFromExactKey = applier.apply(option.key(), canBePrefixMap);
+        if (valueFromExactKey.isPresent()) {
+            return valueFromExactKey;
+        } else if (option.hasFallbackKeys()) {
+            // try the fallback keys
+            for (FallbackKey fallbackKey : option.fallbackKeys()) {
+                final Optional<T> valueFromFallbackKey =
+                        applier.apply(fallbackKey.getKey(), canBePrefixMap);
+                if (valueFromFallbackKey.isPresent()) {
+                    loggingFallback(fallbackKey, option);
+                    return valueFromFallbackKey;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Please check the java doc of {@link #getRawValueFromOption(ConfigOption)}. If no keys are
+     * found in {@link Configuration}, default value of the given option will return. Please make
+     * sure there will be at least one value available. Otherwise, a NPE will be thrown by Flink
+     * when the value is used.
+     *
+     * <p>NOTE: current logic is not able to get the default value of the fallback key's
+     * ConfigOption, in case the given ConfigOption has no default value. If you want to use
+     * fallback key, please make sure its value could be found in {@link Configuration} at runtime.
+     *
+     * @param option metadata of the option to read
+     * @return the value of the given option
+     */
     @Override
     public <T> T get(ConfigOption<T> option) {
         return getOptional(option).orElseGet(option::defaultValue);
@@ -697,16 +730,19 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
-                    String.format(
-                            "Could not parse value '%s' for key '%s'.",
-                            rawValue.map(Object::toString).orElse(""), option.key()),
+                    GlobalConfiguration.isSensitive(option.key())
+                            ? String.format("Could not parse value for key '%s'.", option.key())
+                            : String.format(
+                                    "Could not parse value '%s' for key '%s'.",
+                                    rawValue.map(Object::toString).orElse(""), option.key()),
                     e);
         }
     }
 
     @Override
     public <T> Configuration set(ConfigOption<T> option, T value) {
-        setValueInternal(option.key(), value);
+        final boolean canBePrefixMap = canBePrefixMap(option);
+        setValueInternal(option.key(), value, canBePrefixMap);
         return this;
     }
 
@@ -732,25 +768,35 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      */
     public <T> boolean removeConfig(ConfigOption<T> configOption) {
         synchronized (this.confData) {
-            // try the current key
-            Object oldValue = this.confData.remove(configOption.key());
-            if (oldValue == null) {
-                for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                    oldValue = this.confData.remove(fallbackKey.getKey());
-                    if (oldValue != null) {
-                        loggingFallback(fallbackKey, configOption);
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return true;
+            final BiFunction<String, Boolean, Optional<Boolean>> applier =
+                    (key, canBePrefixMap) -> {
+                        if (canBePrefixMap && removePrefixMap(this.confData, key)
+                                || this.confData.remove(key) != null) {
+                            return Optional.of(true);
+                        }
+                        return Optional.empty();
+                    };
+            return applyWithOption(configOption, applier).orElse(false);
+        }
+    }
+
+    /**
+     * Removes given key from the configuration.
+     *
+     * @param key key of a config option to remove
+     * @return true is config has been removed, false otherwise
+     */
+    public boolean removeKey(String key) {
+        synchronized (this.confData) {
+            boolean removed = this.confData.remove(key) != null;
+            removed |= removePrefixMap(confData, key);
+            return removed;
         }
     }
 
     // --------------------------------------------------------------------------------------------
 
-    <T> void setValueInternal(String key, T value) {
+    <T> void setValueInternal(String key, T value, boolean canBePrefixMap) {
         if (key == null) {
             throw new NullPointerException("Key must not be null.");
         }
@@ -759,39 +805,52 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         }
 
         synchronized (this.confData) {
+            if (canBePrefixMap) {
+                removePrefixMap(this.confData, key);
+            }
             this.confData.put(key, value);
         }
     }
 
+    private <T> void setValueInternal(String key, T value) {
+        setValueInternal(key, value, false);
+    }
+
     private Optional<Object> getRawValue(String key) {
+        return getRawValue(key, false);
+    }
+
+    private Optional<Object> getRawValue(String key, boolean canBePrefixMap) {
         if (key == null) {
             throw new NullPointerException("Key must not be null.");
         }
 
         synchronized (this.confData) {
-            return Optional.ofNullable(this.confData.get(key));
+            final Object valueFromExactKey = this.confData.get(key);
+            if (!canBePrefixMap || valueFromExactKey != null) {
+                return Optional.ofNullable(valueFromExactKey);
+            }
+            final Map<String, String> valueFromPrefixMap =
+                    convertToPropertiesPrefixed(confData, key);
+            if (valueFromPrefixMap.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(valueFromPrefixMap);
         }
     }
 
+    /**
+     * This method will do the following steps to get the value of a config option:
+     *
+     * <p>1. get the value from {@link Configuration}. <br>
+     * 2. if key is not found, try to get the value with fallback keys from {@link Configuration}
+     * <br>
+     * 3. if no fallback keys are found, return {@link Optional#empty()}. <br>
+     *
+     * @return the value of the configuration or {@link Optional#empty()}.
+     */
     private Optional<Object> getRawValueFromOption(ConfigOption<?> configOption) {
-        // first try the current key
-        Optional<Object> o = getRawValue(configOption.key());
-
-        if (o.isPresent()) {
-            // found a value for the current proper key
-            return o;
-        } else if (configOption.hasFallbackKeys()) {
-            // try the deprecated keys
-            for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                Optional<Object> oo = getRawValue(fallbackKey.getKey());
-                if (oo.isPresent()) {
-                    loggingFallback(fallbackKey, configOption);
-                    return oo;
-                }
-            }
-        }
-
-        return Optional.empty();
+        return applyWithOption(configOption, this::getRawValue);
     }
 
     private void loggingFallback(FallbackKey fallbackKey, ConfigOption<?> configOption) {

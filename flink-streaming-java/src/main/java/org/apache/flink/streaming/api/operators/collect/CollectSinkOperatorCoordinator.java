@@ -25,8 +25,8 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandle
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +84,8 @@ public class CollectSinkOperatorCoordinator
     }
 
     @Override
-    public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+            throws Exception {
         Preconditions.checkArgument(
                 event instanceof CollectSinkAddressEvent,
                 "Operator event must be a CollectSinkAddressEvent");
@@ -183,13 +184,18 @@ public class CollectSinkOperatorCoordinator
     }
 
     @Override
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
-        // subtask failed, the socket server does not exist anymore
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
+        // attempt failed, the socket server does not exist anymore
         address = null;
     }
 
     @Override
     public void subtaskReset(int subtask, long checkpointId) {
+        // nothing to do here, connections are re-created lazily
+    }
+
+    @Override
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
         // nothing to do here, connections are re-created lazily
     }
 

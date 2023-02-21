@@ -69,21 +69,21 @@ $ pyflink-shell.sh local
 ...         shutil.rmtree(sink_path)
 >>> s_env.set_parallelism(1)
 >>> t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
->>> st_env.connect(FileSystem().path(sink_path))\
-...     .with_format(OldCsv()
-...         .field_delimiter(',')
-...         .field("a", DataTypes.BIGINT())
-...         .field("b", DataTypes.STRING())
-...         .field("c", DataTypes.STRING()))\
-...     .with_schema(Schema()
-...         .field("a", DataTypes.BIGINT())
-...         .field("b", DataTypes.STRING())
-...         .field("c", DataTypes.STRING()))\
-...     .create_temporary_table("stream_sink")
->>> t.select("a + 1, b, c")\
+>>> st_env.create_temporary_table("stream_sink", TableDescriptor.for_connector("filesystem")
+...     .schema(Schema.new_builder()
+...         .column("a", DataTypes.BIGINT())
+...         .column("b", DataTypes.STRING())
+...         .column("c", DataTypes.STRING())
+...         .build())
+...     .option("path", path)
+...     .format(FormatDescriptor.for_format("csv")
+...         .option("field-delimiter", ",")
+...         .build())
+...     .build())
+>>> t.select(col('a') + 1, col('b'), col('c'))\
 ...     .execute_insert("stream_sink").wait()
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
->>> with open(sink_path, 'r') as f:
+>>> with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:
 ...     print(f.read())
 ```
 {{< /tab >}}
@@ -100,21 +100,21 @@ $ pyflink-shell.sh local
 ...         shutil.rmtree(sink_path)
 >>> b_env.set_parallelism(1)
 >>> t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
->>> bt_env.connect(FileSystem().path(sink_path))\
-...     .with_format(OldCsv()
-...         .field_delimiter(',')
-...         .field("a", DataTypes.BIGINT())
-...         .field("b", DataTypes.STRING())
-...         .field("c", DataTypes.STRING()))\
-...     .with_schema(Schema()
-...         .field("a", DataTypes.BIGINT())
-...         .field("b", DataTypes.STRING())
-...         .field("c", DataTypes.STRING()))\
-...     .create_temporary_table("batch_sink")
->>> t.select("a + 1, b, c")\
+>>> st_env.create_temporary_table("batch_sink", TableDescriptor.for_connector("filesystem")
+...     .schema(Schema.new_builder()
+...         .column("a", DataTypes.BIGINT())
+...         .column("b", DataTypes.STRING())
+...         .column("c", DataTypes.STRING())
+...         .build())
+...     .option("path", path)
+...     .format(FormatDescriptor.for_format("csv")
+...         .option("field-delimiter", ",")
+...         .build())
+...     .build())
+>>> t.select(col('a') + 1, col('b'), col('c'))\
 ...     .execute_insert("batch_sink").wait()
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
->>> with open(sink_path, 'r') as f:
+>>> with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:
 ...     print(f.read())
 ```
 {{< /tab >}}

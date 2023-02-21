@@ -18,14 +18,20 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.runner.TestingDispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
+import org.apache.flink.runtime.rest.ClosedRestService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -64,8 +70,9 @@ public class DispatcherResourceManagerComponentTest extends TestLogger {
                 resourceManagerService,
                 new SettableLeaderRetrievalService(),
                 new SettableLeaderRetrievalService(),
-                FutureUtils::completedVoidFuture,
-                fatalErrorHandler);
+                ClosedRestService.INSTANCE,
+                fatalErrorHandler,
+                new DispatcherOperationCaches());
     }
 
     @Test
@@ -88,5 +95,68 @@ public class DispatcherResourceManagerComponentTest extends TestLogger {
 
         final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
         assertThat(errorFuture, willNotComplete(Duration.ofMillis(10L)));
+    }
+
+    /**
+     * Testing implementation of {@link
+     * org.apache.flink.runtime.resourcemanager.ResourceManagerService}, which does not actually
+     * start the service internally.
+     */
+    private static class TestingResourceManagerService implements ResourceManagerService {
+        private final CompletableFuture<Void> terminationFuture;
+        private final boolean completeTerminationFutureOnClose;
+
+        private TestingResourceManagerService(
+                CompletableFuture<Void> terminationFuture,
+                boolean completeTerminationFutureOnClose) {
+            this.terminationFuture = terminationFuture;
+            this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
+        }
+
+        @Override
+        public void start() throws Exception {}
+
+        @Override
+        public CompletableFuture<Void> getTerminationFuture() {
+            return terminationFuture;
+        }
+
+        @Override
+        public CompletableFuture<Void> deregisterApplication(
+                ApplicationStatus applicationStatus, @Nullable String diagnostics) {
+            return FutureUtils.completedVoidFuture();
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            if (completeTerminationFutureOnClose) {
+                terminationFuture.complete(null);
+            }
+            return getTerminationFuture();
+        }
+
+        private static Builder newBuilder() {
+            return new Builder();
+        }
+
+        private static class Builder {
+            private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+            private boolean completeTerminationFutureOnClose = true;
+
+            private Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
+                this.terminationFuture = terminationFuture;
+                return this;
+            }
+
+            private Builder withManualTerminationFutureCompletion() {
+                this.completeTerminationFutureOnClose = false;
+                return this;
+            }
+
+            private TestingResourceManagerService build() {
+                return new TestingResourceManagerService(
+                        terminationFuture, completeTerminationFutureOnClose);
+            }
+        }
     }
 }

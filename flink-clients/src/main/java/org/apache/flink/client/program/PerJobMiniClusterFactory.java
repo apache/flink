@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -34,6 +35,7 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -127,14 +129,24 @@ public final class PerJobMiniClusterFactory {
                         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
                         ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
 
+        Map<String, String> overwriteParallelisms =
+                configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        if (overwriteParallelisms != null) {
+            for (String overrideParallelism : overwriteParallelisms.values()) {
+                maximumParallelism =
+                        Math.max(maximumParallelism, Integer.parseInt(overrideParallelism));
+            }
+        }
+
+        int finalMaximumParallelism = maximumParallelism;
         int numSlotsPerTaskManager =
                 configuration
                         .getOptional(TaskManagerOptions.NUM_TASK_SLOTS)
                         .orElseGet(
                                 () ->
-                                        maximumParallelism > 0
+                                        finalMaximumParallelism > 0
                                                 ? MathUtils.divideRoundUp(
-                                                        maximumParallelism, numTaskManagers)
+                                                        finalMaximumParallelism, numTaskManagers)
                                                 : TaskManagerOptions.NUM_TASK_SLOTS.defaultValue());
 
         return new MiniClusterConfiguration.Builder()

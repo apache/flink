@@ -19,7 +19,11 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -61,9 +65,14 @@ public final class Signature {
     /**
      * Representation of a single argument in a signature.
      *
-     * <p>The type is represented as {@link String} in order to also express type families or
-     * varargs.
+     * <p>The argument is represented as a {@link String} in order to express both explicit types
+     * (see {@code of(...)}) or groups/families of types (see {@code ofKind(...)}).
+     *
+     * <p>The general string formatting convention is to use {@code T} for explicit types, {@code
+     * &lt;T&gt;} for groups/families of types, {@code T...} for varargs, and {@code [T]} for
+     * conditions.
      */
+    @PublicEvolving
     public static final class Argument {
 
         private final @Nullable String name;
@@ -75,14 +84,69 @@ public final class Signature {
             this.type = Preconditions.checkNotNull(type);
         }
 
-        /** Returns an instance of {@link Argument}. */
         public static Argument of(String name, String type) {
-            return new Argument(Preconditions.checkNotNull(name, "Name must not be null."), type);
+            return new Argument(name, type);
         }
 
-        /** Returns an instance of {@link Argument}. */
+        public static Argument of(String name, LogicalType type) {
+            return of(name, type.asSummaryString());
+        }
+
+        public static Argument ofVarying(String name, String type) {
+            return new Argument(name, type + "...");
+        }
+
         public static Argument of(String type) {
             return new Argument(null, type);
+        }
+
+        public static Argument of(LogicalType type) {
+            return of(type.asSummaryString());
+        }
+
+        public static Argument ofVarying(String type) {
+            return new Argument(null, type + "...");
+        }
+
+        public static Argument ofGroup(String name, String typeGroup) {
+            return new Argument(name, "<" + typeGroup + ">");
+        }
+
+        public static Argument ofGroup(String name, LogicalTypeRoot typeRoot) {
+            return ofGroup(name, typeRoot.name());
+        }
+
+        public static Argument ofGroup(String name, LogicalTypeFamily typeFamily) {
+            return ofGroup(name, typeFamily.name());
+        }
+
+        public static Argument ofGroup(
+                String name, Class<? extends Enum<? extends TableSymbol>> symbol) {
+            return ofGroup(name, symbol.getSimpleName());
+        }
+
+        public static Argument ofGroupVarying(String name, String typeGroup) {
+            return new Argument(name, "<" + typeGroup + ">...");
+        }
+
+        public static Argument ofGroup(String typeGroup) {
+            return ofGroup(null, typeGroup);
+        }
+
+        public static Argument ofGroup(LogicalTypeRoot typeRoot) {
+            return ofGroup(typeRoot.name());
+        }
+
+        public static Argument ofGroup(LogicalTypeFamily typeFamily) {
+            return ofGroup(typeFamily.name());
+        }
+
+        public static Argument ofGroup(Class<? extends Enum<? extends TableSymbol>> symbol) {
+            return ofGroup(symbol.getSimpleName());
+        }
+
+        public static Argument ofGroupVarying(String typeGroup) {
+            return new Argument(null, "<" + typeGroup + ">...");
         }
 
         public Optional<String> getName() {

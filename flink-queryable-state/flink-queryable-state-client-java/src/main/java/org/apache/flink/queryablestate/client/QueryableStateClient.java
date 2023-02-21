@@ -21,18 +21,12 @@ package org.apache.flink.queryablestate.client;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.client.state.ImmutableAggregatingState;
 import org.apache.flink.queryablestate.client.state.ImmutableListState;
 import org.apache.flink.queryablestate.client.state.ImmutableMapState;
@@ -48,6 +42,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,22 +77,22 @@ public class QueryableStateClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(QueryableStateClient.class);
 
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+    private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
-                                    ValueStateDescriptor.class,
+                                    StateDescriptor.Type.VALUE,
                                     (StateFactory) ImmutableValueState::createState),
                             Tuple2.of(
-                                    ListStateDescriptor.class,
+                                    StateDescriptor.Type.LIST,
                                     (StateFactory) ImmutableListState::createState),
                             Tuple2.of(
-                                    MapStateDescriptor.class,
+                                    StateDescriptor.Type.MAP,
                                     (StateFactory) ImmutableMapState::createState),
                             Tuple2.of(
-                                    AggregatingStateDescriptor.class,
+                                    StateDescriptor.Type.AGGREGATING,
                                     (StateFactory) ImmutableAggregatingState::createState),
                             Tuple2.of(
-                                    ReducingStateDescriptor.class,
+                                    StateDescriptor.Type.REDUCING,
                                     (StateFactory) ImmutableReducingState::createState))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
@@ -305,7 +300,7 @@ public class QueryableStateClient {
                     KvStateSerializer.serializeKeyAndNamespace(
                             key, keySerializer, namespace, namespaceSerializer);
         } catch (IOException e) {
-            return FutureUtils.getFailedFuture(e);
+            return FutureUtils.completedExceptionally(e);
         }
 
         ClassLoader classLoaderToUse =
@@ -322,7 +317,7 @@ public class QueryableStateClient {
 
     private <T, S extends State> S createState(
             KvStateResponse stateResponse, StateDescriptor<S, T> stateDescriptor) {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDescriptor.getClass());
+        StateFactory stateFactory = STATE_FACTORIES.get(stateDescriptor.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
@@ -360,7 +355,7 @@ public class QueryableStateClient {
             return client.sendRequest(remoteAddress, request);
         } catch (Exception e) {
             LOG.error("Unable to send KVStateRequest: ", e);
-            return FutureUtils.getFailedFuture(e);
+            return FutureUtils.completedExceptionally(e);
         }
     }
 }

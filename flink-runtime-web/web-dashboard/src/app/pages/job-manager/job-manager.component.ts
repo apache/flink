@@ -17,19 +17,25 @@
  */
 
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+
+import { NavigationComponent } from '@flink-runtime-web/components/navigation/navigation.component';
 
 @Component({
   selector: 'flink-job-manager',
   templateUrl: './job-manager.component.html',
   styleUrls: ['./job-manager.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NavigationComponent, RouterOutlet],
+  standalone: true
 })
 export class JobManagerComponent {
-  listOfNavigation = [
+  public readonly listOfNavigation = [
     { path: 'metrics', title: 'Metrics' },
     { path: 'config', title: 'Configuration' },
     { path: 'logs', title: 'Logs' },
     { path: 'stdout', title: 'Stdout' },
-    { path: 'log', title: 'Log List' }
+    { path: 'log', title: 'Log List' },
+    { path: 'thread-dump', title: 'Thread Dump' }
   ];
 }

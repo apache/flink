@@ -39,7 +39,13 @@ public class TestingPartitionRequestClient implements PartitionRequestClient {
     public void notifyCreditAvailable(RemoteInputChannel inputChannel) {}
 
     @Override
+    public void notifyNewBufferSize(RemoteInputChannel inputChannel, int bufferSize) {}
+
+    @Override
     public void resumeConsumption(RemoteInputChannel inputChannel) {}
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {}
 
     @Override
     public void sendTaskEvent(

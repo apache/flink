@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -45,17 +45,22 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>compile</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-kafka-test_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-kafka-test</artifactId>
 			<version>${project.version}</version>
 			<!-- ensure the test jars are built beforehand -->
 			<scope>provided</scope>
@@ -63,7 +68,7 @@ under the License.
 				<exclusion>
 					<!-- For dependency convergence; conflicting dependencies are not loaded at the same time -->
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-connector-kafka-_${scala.binary.version}</artifactId>
+					<artifactId>flink-connector-kafka</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -71,7 +76,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
-			<version>2.4.1</version>
+			<version>3.2.3</version>
 		</dependency>
 
 		<!-- The following dependencies are for connector/format sql-jars that
@@ -104,21 +109,20 @@ under the License.
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>kafka</artifactId>
-			<version>1.15.1</version>
 		</dependency>
 
 		<dependency>
 			<!-- https://mvnrepository.com/artifact/io.confluent/kafka-avro-serializer -->
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-avro-serializer</artifactId>
-			<version>5.5.2</version>
+			<version>7.2.2</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-schema-registry-client</artifactId>
-			<version>5.5.2</version>
+			<version>7.2.2</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -131,8 +135,32 @@ under the License.
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<version>1.10.0</version>
+			<version>${avro.version}</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+		<!-- Needed by Schema Registry -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>30.1.1-jre</version>
 		</dependency>
 	</dependencies>
 
@@ -154,7 +182,7 @@ under the License.
 					<artifactItems>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-streaming-kafka-test_${scala.binary.version}</artifactId>
+							<artifactId>flink-streaming-kafka-test</artifactId>
 							<version>${project.version}</version>
 							<type>jar</type>
 							<overWrite>true</overWrite>
@@ -187,9 +215,41 @@ under the License.
 						</artifactItem>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-sql-connector-kafka_${scala.binary.version}</artifactId>
+							<artifactId>flink-sql-connector-kafka</artifactId>
 							<version>${project.version}</version>
 							<destFileName>sql-kafka.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-connector-kafka</artifactId>
+							<version>${project.version}</version>
+							<destFileName>kafka-connector.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-connector-test-utils</artifactId>
+							<version>${project.version}</version>
+							<destFileName>flink-connector-testing.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.kafka</groupId>
+							<artifactId>kafka-clients</artifactId>
+							<version>3.2.3</version>
+							<destFileName>kafka-clients.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
+							<groupId>com.google.guava</groupId>
+							<artifactId>guava</artifactId>
+							<version>30.1.1-jre</version>
+							<destFileName>guava.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>

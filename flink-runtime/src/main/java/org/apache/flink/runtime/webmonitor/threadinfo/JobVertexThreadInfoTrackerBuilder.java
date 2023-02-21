@@ -17,14 +17,22 @@
 
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.Statistics;
+import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker.Key;
+
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Builder for {@link JobVertexThreadInfoTracker}.
@@ -34,7 +42,7 @@ import java.util.function.Function;
 public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-    private final Function<JobVertexThreadInfoStats, T> createStatsFn;
+    private final Function<VertexThreadInfoStats, T> createStatsFn;
     private final ScheduledExecutorService executor;
     private final Time restTimeout;
 
@@ -44,10 +52,11 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     private Duration statsRefreshInterval;
     private Duration delayBetweenSamples;
     private int maxThreadInfoDepth;
+    private Cache<Key, T> vertexStatsCache;
 
     JobVertexThreadInfoTrackerBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
+            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Time restTimeout) {
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -128,11 +137,27 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     }
 
     /**
+     * Sets {@code vertexStatsCache}. This is currently only used for testing.
+     *
+     * @param vertexStatsCache The Cache instance to use for caching statistics. Will use the
+     *     default defined in {@link JobVertexThreadInfoTrackerBuilder#defaultCache()} if not set.
+     * @return Builder.
+     */
+    @VisibleForTesting
+    JobVertexThreadInfoTrackerBuilder<T> setVertexStatsCache(Cache<Key, T> vertexStatsCache) {
+        this.vertexStatsCache = vertexStatsCache;
+        return this;
+    }
+
+    /**
      * Constructs a new {@link JobVertexThreadInfoTracker}.
      *
      * @return a new {@link JobVertexThreadInfoTracker} instance.
      */
     public JobVertexThreadInfoTracker<T> build() {
+        if (vertexStatsCache == null) {
+            vertexStatsCache = defaultCache();
+        }
         return new JobVertexThreadInfoTracker<>(
                 coordinator,
                 resourceManagerGatewayRetriever,
@@ -143,7 +168,16 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
                 statsRefreshInterval,
                 delayBetweenSamples,
                 maxThreadInfoDepth,
-                restTimeout);
+                restTimeout,
+                vertexStatsCache);
+    }
+
+    private Cache<Key, T> defaultCache() {
+        checkArgument(cleanUpInterval.toMillis() > 0, "Clean up interval must be greater than 0");
+        return CacheBuilder.newBuilder()
+                .concurrencyLevel(1)
+                .expireAfterAccess(cleanUpInterval.toMillis(), TimeUnit.MILLISECONDS)
+                .build();
     }
 
     /**
@@ -154,7 +188,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      */
     public static <T extends Statistics> JobVertexThreadInfoTrackerBuilder<T> newBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
+            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Time restTimeout) {
         return new JobVertexThreadInfoTrackerBuilder<>(

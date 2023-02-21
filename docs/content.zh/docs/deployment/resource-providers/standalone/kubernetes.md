@@ -25,61 +25,67 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Kubernetes Setup
+<a name="kubernetes-setup"></a>
 
-## Getting Started
+# Kubernetes 安装
 
-This *Getting Started* guide describes how to deploy a *Session cluster* on [Kubernetes](https://kubernetes.io).
+<a name="getting-started"></a>
 
-### Introduction
+## 入门
 
-This page describes deploying a [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) Flink cluster on top of Kubernetes, using Flink's standalone deployment.
-We generally recommend new users to deploy Flink on Kubernetes using [native Kubernetes deployments]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}).
+本 *入门* 指南描述了如何在 [Kubernetes](https://kubernetes.io) 上部署 *Flink Session 集群*。
 
-### Preparation
+<a name="introduction"></a>
 
-This guide expects a Kubernetes environment to be present. You can ensure that your Kubernetes setup is working by running a command like `kubectl get nodes`, which lists all connected Kubelets. 
+### 介绍
 
-If you want to run Kubernetes locally, we recommend using [MiniKube](https://minikube.sigs.k8s.io/docs/start/).
+本文描述了如何使用 Flink standalone 部署模式在 Kubernetes 上部署 [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) 模式的 Flink 集群。通常我们建议新用户使用 [native Kubernetes 部署]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})模式在 Kubernetes上部署 Flink。
+
+<a name="preparation"></a>
+
+### 准备
+
+本指南假设存在一个 Kubernets 的运行环境。你可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernets 集群的 node 节点信息。
+
+如果你想在本地运行 Kubernetes，建议使用 [MiniKube](https://minikube.sigs.k8s.io/docs/start/)。
 
 {{< hint info >}}
-If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. Otherwise Flink components are not able to reference themselves through a Kubernetes service.
+如果使用 MiniKube，请确保在部署 Flink 集群之前先执行 `minikube ssh 'sudo ip link set docker0 promisc on'`，否则 Flink 组件不能自动地将自己映射到 Kubernetes Service 中。
 {{< /hint >}}
 
-### Starting a Kubernetes Cluster (Session Mode)
+<a name="starting-a-kubernetes-cluster-session-mode"></a>
 
-A *Flink Session cluster* is executed as a long-running Kubernetes Deployment. You can run multiple Flink jobs on a *Session cluster*.
-Each job needs to be submitted to the cluster after the cluster has been deployed.
+### Kubernetes 上的 Flink session 集群
 
-A *Flink Session cluster* deployment in Kubernetes has at least three components:
+*Flink session 集群* 是以一种长期运行的 Kubernetes Deployment 形式执行的。你可以在一个 *session 集群* 上运行多个 Flink 作业。当然，只有 session 集群部署好以后才可以在上面提交 Flink 作业。
 
-* a *Deployment* which runs a [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager)
-* a *Deployment* for a pool of [TaskManagers]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager)
-* a *Service* exposing the *JobManager's* REST and UI ports
+在 Kubernetes 上部署一个基本的 *Flink session 集群* 时，一般包括下面三个组件：
 
-Using the file contents provided in the [the common resource definitions](#common-cluster-resource-definitions), create the following files, and create the respective components with the `kubectl` command:
+* 运行 [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager) 的 *Deployment*；
+* 运行 [TaskManagers]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager) 的 *Deployment*；
+* 暴露 *JobManager* 上 REST 和 UI 端口的 *Service*；
+
+使用[通用集群资源定义](#common-cluster-resource-definitions)中提供的文件内容来创建以下文件，并使用 `kubectl` 命令来创建相应的组件：
 
 ```sh
-    # Configuration and service definition
+    # Configuration 和 service 的定义
     $ kubectl create -f flink-configuration-configmap.yaml
     $ kubectl create -f jobmanager-service.yaml
-    # Create the deployments for the cluster
+    # 为集群创建 deployment
     $ kubectl create -f jobmanager-session-deployment.yaml
     $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
-Next, we set up a port forward to access the Flink UI and submit jobs:
+接下来，我们设置端口转发以访问 Flink UI 页面并提交作业：
 
-1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
-2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
-3. Moreover, you could use the following command below to submit jobs to the cluster:
+1. 运行 `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` 将 jobmanager 的 web ui 端口映射到本地 8081。
+2. 在浏览器中导航到 [http://localhost:8081](http://localhost:8081) 页面。
+3. 此外，也可以使用如下命令向集群提交作业：
 ```bash
 $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 ```
 
-
-
-You can tear down the cluster using the following commands:
+可以使用以下命令停止运行 flink 集群：
 
 ```sh
     $ kubectl delete -f jobmanager-service.yaml
@@ -88,94 +94,107 @@ You can tear down the cluster using the following commands:
     $ kubectl delete -f jobmanager-session-deployment.yaml
 ```
 
-
 {{< top >}}
 
-## Deployment Modes
+<a name="deployment-modes"></a>
 
-### Deploy Application Cluster
+## 部署模式
 
-A *Flink Application cluster* is a dedicated cluster which runs a single application.
+<a name="deploy-application-cluster"></a>
 
-A basic *Flink Application cluster* deployment in Kubernetes has three components:
+### Application 集群模式
 
-* an *Application* which runs a *JobManager*
-* a *Deployment* for a pool of *TaskManagers*
-* a *Service* exposing the *JobManager's* REST and UI ports
+*Flink Application 集群* 是运行单个 Application 的专用集群，部署集群时要保证该 Application 可用。
 
-Check [the Application cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly:
+在 Kubernetes 上部署一个基本的 *Flink Application 集群* 时，一般包括下面三个组件：
 
-The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
-See also [how to specify the JobManager arguments]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments) to understand
-how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
+* 一个运行 *JobManager* 的 *Application*；
+* 运行若干个 TaskManager 的 Deployment；
+* 暴露 JobManager 上 REST 和 UI 端口的 Service；
 
-The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
-The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
-If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
-Alternatively, you can build [a custom image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) which already contains the artifacts instead.
+检查 [Application 集群资源定义](#application-cluster-resource-definitions) 并做出相应的调整：
 
-After creating [the common cluster components](#common-cluster-resource-definitions), use [the Application cluster specific resource definitions](#application-cluster-resource-definitions) to launch the cluster with the `kubectl` command:
+`jobmanager-job.yaml` 中的 `args` 属性必须指定用户作业的主类。也可以参考[如何设置 JobManager 参数]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)来了解如何将额外的 `args` 传递给 `jobmanager-job.yaml` 配置中指定的 Flink 镜像。
+
+*job artifacts* 参数必须可以从 [资源定义示例](#application-cluster-resource-definitions) 中的 `job-artifacts-volume` 处获取。假如是在 minikube 集群中创建这些组件，那么定义示例中的 job-artifacts-volume 可以挂载为主机的本地目录。如果不使用 minikube 集群，那么可以使用 Kubernetes 集群中任何其它可用类型的 volume 来提供 *job artifacts*。此外，还可以构建一个已经包含 *job artifacts* 参数的[自定义镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization)。
+
+在创建[通用集群组件](#common-cluster-resource-definitions)后，指定 [Application 集群资源定义](#application-cluster-resource-definitions)文件，执行 `kubectl` 命令来启动 Flink Application 集群：
 
 ```sh
     $ kubectl create -f jobmanager-job.yaml
     $ kubectl create -f taskmanager-job-deployment.yaml
 ```
 
-To terminate the single application cluster, these components can be deleted along with [the common ones](#common-cluster-resource-definitions)
-with the `kubectl` command:
+要停止单个 application 集群，可以使用 `kubectl` 命令来删除相应组件以及 [通用集群资源](#common-cluster-resource-definitions)对应的组件 ：
 
 ```sh
     $ kubectl delete -f taskmanager-job-deployment.yaml
     $ kubectl delete -f jobmanager-job.yaml
 ```
 
-### Per-Job Cluster Mode
-Flink on Standalone Kubernetes does not support the Per-Job Cluster Mode.
+<a name="per-job-cluster-mode"></a>
 
-### Session Mode
+### Per-Job 集群模式
 
-Deployment of a Session cluster is explained in the [Getting Started](#getting-started) guide at the top of this page.
+在 Kubernetes 上部署 Standalone 集群时不支持 Per-Job 集群模式。
+
+<a name="session-mode"></a>
+
+### Session 集群模式
+
+本文档开始部分的[入门](#getting-started)指南中描述了 Session 集群模式的部署。
 
 {{< top >}}
 
-## Flink on Standalone Kubernetes Reference
+<a name="flink-on-standalone-kubernetes-reference"></a>
+
+## Kubernetes 上运行 Standalone 集群指南
+
+<a name="configuration"></a>
 
 ### Configuration
 
-All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the `flink-conf.yaml` section of the `flink-configuration-configmap.yaml` config map.
+所有配置项都展示在[配置页面]({{< ref "docs/deployment/config" >}})上。在 config map 配置文件 `flink-configuration-configmap.yaml` 中，可以将配置添加在 `flink-conf.yaml` 部分。
 
-### Accessing Flink in Kubernetes
+<a name="accessing-flink-in-kubernetes"></a>
 
-You can then access the Flink UI and submit jobs via different ways:
+### 在 Kubernets 上访问 Flink
+
+接下来可以访问 Flink UI 页面并通过不同的方式提交作业：
+
 *  `kubectl proxy`:
 
-    1. Run `kubectl proxy` in a terminal.
-    2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy) in your browser.
+    1. 在终端运行 `kubectl proxy` 命令。
+    2. 在浏览器中导航到 [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy)。
 
 *  `kubectl port-forward`:
-    1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
-    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
-    3. Moreover, you can use the following command below to submit jobs to the cluster:
+    1. 运行 `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` 将 jobmanager 的 web ui 端口映射到本地的 8081。
+    2. 在浏览器中导航到 [http://localhost:8081](http://localhost:8081)。
+    3. 此外，也可以使用如下命令向集群提交作业：
     ```bash
     $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
     ```
 
-*  Create a `NodePort` service on the rest service of jobmanager:
-    1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-    2. Run `kubectl get svc flink-jobmanager-rest` to know the `node-port` of this service and navigate to [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>) in your browser.
-    3. If you use minikube, you can get its public ip by running `minikube ip`.
-    4. Similarly to the `port-forward` solution, you can also use the following command below to submit jobs to the cluster:
+*  基于 jobmanager 的 rest 服务上创建 `NodePort` service：
+    1. 运行 `kubectl create -f jobmanager-rest-service.yaml` 来基于 jobmanager 创建 `NodePort` service。`jobmanager-rest-service.yaml` 的示例文件可以在 [附录](#common-cluster-resource-definitions) 中找到。
+    2. 运行 `kubectl get svc flink-jobmanager-rest` 来查询 server 的 `node-port`，然后再浏览器导航到 [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>)。
+    3. 如果使用 minikube 集群，可以执行 `minikube ip` 命令来查看 public ip。
+    4. 与 `port-forward` 方案类似，也可以使用如下命令向集群提交作业。
 
     ```bash
     $ ./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/TopSpeedWindowing.jar
     ```
 
-### Debugging and Log Access
 
-Many common errors are easy to detect by checking Flink's log files. If you have access to Flink's web user interface, you can access the JobManager and TaskManager logs from there.
 
-If there are problems starting Flink, you can also use Kubernetes utilities to access the logs. Use `kubectl get pods` to see all running pods.
-For the quickstart example from above, you should see three pods:
+<a name="debugging-and-log-access"></a>
+
+### 调试和访问日志
+
+通过查看 Flink 的日志文件，可以很轻松地发现许多常见错误。如果你有权访问 Flink 的 Web 用户界面，那么可以在页面上访问 JobManager 和 TaskManager 日志。
+
+如果启动 Flink 出现问题，也可以使用 Kubernetes 工具集访问日志。使用 `kubectl get pods` 命令查看所有运行的 pods 资源。针对上面的快速入门示例，你可以看到三个 pod：
+
 ```
 $ kubectl get pods
 NAME                                 READY   STATUS             RESTARTS   AGE
@@ -184,18 +203,21 @@ flink-taskmanager-64847444ff-7rdl4   1/1     Running            3          3m28s
 flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 ```
 
-You can now access the logs by running `kubectl logs flink-jobmanager-589967dcfc-m49xv`
+现在你可以通过运行 `kubectl logs flink-jobmanager-589967dcfc-m49xv` 来访问日志。
 
-### High-Availability with Standalone Kubernetes
+<a name="high-availability-with-standalone-kubernetes"></a>
 
-For high availability on Kubernetes, you can use the [existing high availability services]({{< ref "docs/deployment/ha/overview" >}}).
+### 高可用的 Standalone Kubernetes
 
-#### Kubernetes High-Availability Services
+对于在 Kubernetes 上实现HA，可以参考当前的 [Kubernets 高可用服务]({{< ref "docs/deployment/ha/overview" >}})。
 
-Session Mode and Application Mode clusters support using the [Kubernetes high availability service]({{< ref "docs/deployment/ha/kubernetes_ha" >}}).
-You need to add the following Flink config options to [flink-configuration-configmap.yaml](#common-cluster-resource-definitions).
+<a name="kubernetes-high-availability-services"></a>
 
-<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) and [enable plugins]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-filesystem-plugins) for more information.
+#### Kubernetes 高可用 Services
+
+Session 模式和 Application 模式集群都支持使用 [Kubernetes 高可用服务]({{< ref "docs/deployment/ha/kubernetes_ha" >}})。需要在 [flink-configuration-configmap.yaml](#common-cluster-resource-definitions) 中添加如下 Flink 配置项。
+
+<span class="label label-info">Note</span> 配置了 HA 存储目录相对应的文件系统必须在运行时可用。请参阅[自定义Flink 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization)和[启用文件系统插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-filesystem-plugins)获取更多相关信息。
 
 ```yaml
 apiVersion: v1
@@ -208,36 +230,52 @@ data:
   flink-conf.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
-    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.type: kubernetes
     high-availability.storageDir: hdfs:///flink/recovery
-    restart-strategy: fixed-delay
+    restart-strategy.type: fixed-delay
     restart-strategy.fixed-delay.attempts: 10
   ...
 ```
 
-Moreover, you have to start the JobManager and TaskManager pods with a service account which has the permissions to create, edit, delete ConfigMaps.
-See [how to configure service accounts for pods](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) for more information.
+此外，你必须使用具有创建、编辑、删除 ConfigMap 权限的 service 账号启动 JobManager 和 TaskManager pod。请查看[如何为 pod 配置 service 账号](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)获取更多信息。
 
-When High-Availability is enabled, Flink will use its own HA-services for service discovery.
-Therefore, JobManager pods should be started with their IP address instead of a Kubernetes service as its `jobmanager.rpc.address`.
-Refer to the [appendix](#appendix) for full configuration.
+当启用了高可用，Flink 会使用自己的 HA 服务进行服务发现。因此，JobManager Pod 会使用 IP 地址而不是 Kubernetes 的 service 名称来作为 `jobmanager.rpc.address` 的配置项启动。完整配置请参考[附录](#appendix)。
 
-#### Standby JobManagers
+<a name="standby-jobManagers"></a>
 
-Usually, it is enough to only start a single JobManager pod, because Kubernetes will restart it once the pod crashes.
-If you want to achieve faster recovery, configure the `replicas` in `jobmanager-session-deployment-ha.yaml` or `parallelism` in `jobmanager-application-ha.yaml` to a value greater than `1` to start standby JobManagers.
+####  Standby JobManagers
 
-### Enabling Queryable State
+通常，只启动一个 JobManager pod 就足够了，因为一旦 pod 崩溃，Kubernetes 就会重新启动它。如果要实现更快的恢复，需要将 `jobmanager-session-deployment-ha.yaml` 中的 `replicas` 配置 或 `jobmanager-application-ha.yaml` 中的 `parallelism` 配置设定为大于 `1` 的整型值来启动 Standby JobManagers。
 
-You can access the queryable state of TaskManager if you create a `NodePort` service for it:
-  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `<node-port>` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) to submit state queries.
+<a name="enabling-queryable-state"></a>
+
+### 启用 Queryable State
+
+如果你为 TaskManager 创建了 `NodePort` service，那么你就可以访问 TaskManager 的 Queryable State 服务：
+
+  1. 运行 `kubectl create -f taskmanager-query-state-service.yaml` 来为 `taskmanager` pod 创建 `NodePort` service。`taskmanager-query-state-service.yaml` 的示例文件可以从[附录](#common-cluster-resource-definitions)中找到。
+  2. 运行 `kubectl get svc flink-taskmanager-query-state` 来查询 service 对应 node-port 的端口号。然后你就可以创建 [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) 来提交状态查询。
+
+<a name="using-standalone-kubernetes-with-reactive-mode"></a>
+
+### 在 Reactive 模式下使用 Standalone Kubernetes
+
+[Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) 允许在 *Application 集群* 始终根据可用资源调整作业并行度的模式下运行 Flink。与 Kubernetes 结合使用，TaskManager 部署的副本数决定了可用资源。增加副本数将扩大作业规模，而减少副本数将会触发缩减作业规模。通过使用 [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) 也可以自动实现该功能。
+
+要在 Kubernetes 上使用 Reactive Mode，请按照[使用 Application 集群部署作业](#deploy-application-cluster) 完成相同的步骤。但是要使用 `flink-reactive-mode-configuration-configmap.yaml` 配置文件来代替 `flink-configuration-configmap.yaml`。该文件包含了针对 Flink 的 `scheduler-mode: reactive` 配置。
+
+一旦你部署了 *Application 集群*，就可以通过修改 `flink-taskmanager` 的部署副本数量来扩大或缩小作业的并行度。
+
 
 {{< top >}}
 
-## Appendix
+<a name="appendix"></a>
 
-### Common cluster resource definitions
+## 附录
+
+<a name="common-cluster-resource-definitions"></a>
+
+### 通用集群资源定义
 
 `flink-configuration-configmap.yaml`
 ```yaml
@@ -259,18 +297,18 @@ data:
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
   log4j-console.properties: |+
-    # This affects logging for both user code and Flink
+    # 如下配置会同时影响用户代码和 Flink 的日志行为
     rootLogger.level = INFO
     rootLogger.appenderRef.console.ref = ConsoleAppender
     rootLogger.appenderRef.rolling.ref = RollingFileAppender
 
-    # Uncomment this if you want to _only_ change Flink's logging
+    # 如果你只想改变 Flink 的日志行为则可以取消如下的注释部分
     #logger.flink.name = org.apache.flink
     #logger.flink.level = INFO
 
-    # The following lines keep the log level of common libraries/connectors on
-    # log level INFO. The root logger does not override this. You have to manually
-    # change the log levels here.
+    # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
+    # root logger 的配置不会覆盖此处配置。
+    # 你必须手动修改这里的日志级别。
     logger.akka.name = akka
     logger.akka.level = INFO
     logger.kafka.name= org.apache.kafka
@@ -280,13 +318,13 @@ data:
     logger.zookeeper.name = org.apache.zookeeper
     logger.zookeeper.level = INFO
 
-    # Log all infos to the console
+    # 将所有 info 级别的日志输出到 console
     appender.console.name = ConsoleAppender
     appender.console.type = CONSOLE
     appender.console.layout.type = PatternLayout
     appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 
-    # Log all infos in the given rolling file
+    # 将所有 info 级别的日志输出到指定的 rolling file
     appender.rolling.name = RollingFileAppender
     appender.rolling.type = RollingFile
     appender.rolling.append = false
@@ -300,12 +338,84 @@ data:
     appender.rolling.strategy.type = DefaultRolloverStrategy
     appender.rolling.strategy.max = 10
 
-    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
-    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
+    # 关闭 Netty channel handler 中不相关的（错误）警告
+    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
     logger.netty.level = OFF
 ```
 
-`jobmanager-service.yaml` Optional service, which is only necessary for non-HA mode.
+
+`flink-reactive-mode-configuration-configmap.yaml`
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.numberOfTaskSlots: 2
+    blob.server.port: 6124
+    jobmanager.rpc.port: 6123
+    taskmanager.rpc.port: 6122
+    queryable-state.proxy.ports: 6125
+    jobmanager.memory.process.size: 1600m
+    taskmanager.memory.process.size: 1728m
+    parallelism.default: 2
+    scheduler-mode: reactive
+    execution.checkpointing.interval: 10s
+  log4j-console.properties: |+
+    # 如下配置会同时影响用户代码和 Flink 的日志行为
+    rootLogger.level = INFO
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
+
+    # 如果你只想改变 Flink 的日志行为则可以取消如下的注释部分
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+
+
+    # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
+    # root logger 的配置不会覆盖此处配置。
+    # 你必须手动修改这里的日志级别。
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+
+    # 将所有 info 级别的日志输出到 console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # 将所有 info 级别的日志输出到指定的 rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+
+    # 关闭 Netty channel handler 中不相关的（错误）警告
+    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = OFF
+```
+
+`jobmanager-service.yaml` 。可选的 service，仅在非 HA 模式下需要。
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -325,7 +435,8 @@ spec:
     component: jobmanager
 ```
 
-`jobmanager-rest-service.yaml`. Optional service, that exposes the jobmanager `rest` port as public Kubernetes node's port.
+`jobmanager-rest-service.yaml`。可选的 service，该 service 将 jobmanager 的 `rest` 端口暴露为公共 Kubernetes node 的节点端口。
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -343,7 +454,8 @@ spec:
     component: jobmanager
 ```
 
-`taskmanager-query-state-service.yaml`. Optional service, that exposes the TaskManager port to access the queryable state as a public Kubernetes node's port.
+`taskmanager-query-state-service.yaml`。可选的 service，该 service 将 TaskManager 的端口暴露为公共 Kubernetes node 的节点端口，通过该端口来访问 queryable state 服务。  
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -361,7 +473,9 @@ spec:
     component: taskmanager
 ```
 
-### Session cluster resource definitions
+<a name="session-cluster-resource-definitions"></a>
+
+### Session 集群资源定义
 
 `jobmanager-session-deployment-non-ha.yaml`
 ```yaml
@@ -401,7 +515,7 @@ spec:
         - name: flink-config-volume
           mountPath: /opt/flink/conf
         securityContext:
-          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+          runAsUser: 9999  # 参考官方 flink 镜像中的 _flink_ 用户，如有必要可以修改
       volumes:
       - name: flink-config-volume
         configMap:
@@ -420,7 +534,7 @@ kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
-  replicas: 1 # Set the value to greater than 1 to start standby JobManagers
+  replicas: 1 # 通过设置大于 1 的整型值来开启 Standby JobManager
   selector:
     matchLabels:
       app: flink
@@ -440,7 +554,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.podIP
-        # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
+        # 下面的 args 参数会使用 POD_IP 对应的值覆盖 config map 中 jobmanager.rpc.address 的属性值。
         args: ["jobmanager", "$(POD_IP)"]
         ports:
         - containerPort: 6123
@@ -458,8 +572,8 @@ spec:
         - name: flink-config-volume
           mountPath: /opt/flink/conf
         securityContext:
-          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
-      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete ConfigMaps
+          runAsUser: 9999  # 参考官方 flink 镜像中的 _flink_ 用户，如有必要可以修改
+      serviceAccountName: flink-service-account # 拥有创建、编辑、删除 ConfigMap 权限的 Service 账号
       volumes:
       - name: flink-config-volume
         configMap:
@@ -507,7 +621,7 @@ spec:
         - name: flink-config-volume
           mountPath: /opt/flink/conf/
         securityContext:
-          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+          runAsUser: 9999  # 参考官方 flink 镜像中的 _flink_ 用户，如有必要可以修改
       volumes:
       - name: flink-config-volume
         configMap:
@@ -519,7 +633,9 @@ spec:
             path: log4j-console.properties
 ```
 
-### Application cluster resource definitions
+<a name="application-cluster-resource-definitions"></a>
+
+### Application 集群资源定义
 
 `jobmanager-application-non-ha.yaml`
 ```yaml
@@ -539,7 +655,7 @@ spec:
         - name: jobmanager
           image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
           env:
-          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # 可选的参数项: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -558,7 +674,7 @@ spec:
             - name: job-artifacts-volume
               mountPath: /opt/flink/usrlib
           securityContext:
-            runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+            runAsUser: 9999  # 参考官方 flink 镜像中的 _flink_ 用户，如有必要可以修改
       volumes:
         - name: flink-config-volume
           configMap:
@@ -580,7 +696,7 @@ kind: Job
 metadata:
   name: flink-jobmanager
 spec:
-  parallelism: 1 # Set the value to greater than 1 to start standby JobManagers
+  parallelism: 1 # 通过设置大于 1 的整型值来开启 Standby JobManager
   template:
     metadata:
       labels:
@@ -597,8 +713,8 @@ spec:
               fieldRef:
                 apiVersion: v1
                 fieldPath: status.podIP
-          # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
-          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          # 下面的 args 参数会使用 POD_IP 对应的值覆盖 config map 中 jobmanager.rpc.address 的属性值。
+          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # 可选参数项: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -617,8 +733,8 @@ spec:
             - name: job-artifacts-volume
               mountPath: /opt/flink/usrlib
           securityContext:
-            runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
-      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete ConfigMaps
+            runAsUser: 9999  # 参考官方 flink 镜像中的 _flink_ 用户，如有必要可以修改
+      serviceAccountName: flink-service-account # 拥有创建、编辑、删除 ConfigMap 权限的 Service 账号
       volumes:
         - name: flink-config-volume
           configMap:
@@ -672,7 +788,7 @@ spec:
         - name: job-artifacts-volume
           mountPath: /opt/flink/usrlib
         securityContext:
-          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+          runAsUser: 9999  # 参考官方 flink 镜像中的 _flink_ 用户，如有必要可以修改
       volumes:
       - name: flink-config-volume
         configMap:

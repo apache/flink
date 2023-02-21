@@ -38,6 +38,21 @@ public final class ChangelogMode {
     private static final ChangelogMode INSERT_ONLY =
             ChangelogMode.newBuilder().addContainedKind(RowKind.INSERT).build();
 
+    private static final ChangelogMode UPSERT =
+            ChangelogMode.newBuilder()
+                    .addContainedKind(RowKind.INSERT)
+                    .addContainedKind(RowKind.UPDATE_AFTER)
+                    .addContainedKind(RowKind.DELETE)
+                    .build();
+
+    private static final ChangelogMode ALL =
+            ChangelogMode.newBuilder()
+                    .addContainedKind(RowKind.INSERT)
+                    .addContainedKind(RowKind.UPDATE_BEFORE)
+                    .addContainedKind(RowKind.UPDATE_AFTER)
+                    .addContainedKind(RowKind.DELETE)
+                    .build();
+
     private final Set<RowKind> kinds;
 
     private ChangelogMode(Set<RowKind> kinds) {
@@ -49,6 +64,19 @@ public final class ChangelogMode {
     /** Shortcut for a simple {@link RowKind#INSERT}-only changelog. */
     public static ChangelogMode insertOnly() {
         return INSERT_ONLY;
+    }
+
+    /**
+     * Shortcut for an upsert changelog that describes idempotent updates on a key and thus does not
+     * contain {@link RowKind#UPDATE_BEFORE} rows.
+     */
+    public static ChangelogMode upsert() {
+        return UPSERT;
+    }
+
+    /** Shortcut for a changelog that can contain all {@link RowKind}s. */
+    public static ChangelogMode all() {
+        return ALL;
     }
 
     /** Builder for configuring and creating instances of {@link ChangelogMode}. */
@@ -93,6 +121,7 @@ public final class ChangelogMode {
     // --------------------------------------------------------------------------------------------
 
     /** Builder for configuring and creating instances of {@link ChangelogMode}. */
+    @PublicEvolving
     public static class Builder {
 
         private final Set<RowKind> kinds = EnumSet.noneOf(RowKind.class);

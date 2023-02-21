@@ -38,7 +38,7 @@ STAGE=$1
 # =============================================================================
 
 # check preconditions
-if [ -z "$DEBUG_FILES_OUTPUT_DIR" ] ; then
+if [ -z "${DEBUG_FILES_OUTPUT_DIR:-}" ] ; then
 	echo "ERROR: Environment variable 'DEBUG_FILES_OUTPUT_DIR' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
 	exit 1
 fi
@@ -48,7 +48,7 @@ if [ ! -d "$DEBUG_FILES_OUTPUT_DIR" ] ; then
 	exit 1
 fi
 
-if [ -z "$STAGE" ] ; then
+if [ -z "${STAGE:-}" ] ; then
 	echo "ERROR: Environment variable 'STAGE' is not set but expected by test_controller.sh. THe variable refers to the stage being executed."
 	exit 1
 fi
@@ -77,10 +77,10 @@ source "${HERE}/watchdog.sh"
 # Step 1: Rebuild jars and install Flink to local maven repository
 # =============================================================================
 
-LOG4J_PROPERTIES=${HERE}/log4j.properties
+export LOG4J_PROPERTIES=${HERE}/log4j.properties
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
-MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
+MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
 
@@ -101,17 +101,11 @@ fi
 # =============================================================================
 
 if [ $STAGE == $STAGE_PYTHON ]; then
+	sed -i "s/\(^appender\.file\.fileName = \).*$/\1\$\{sys:log\.file\}/g" ${HERE}/log4j.properties
 	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
 else
-	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
-	if [ $STAGE = $STAGE_LEGACY_SLOT_MANAGEMENT ]; then
-		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
-			echo "Skipping legacy slot management test stage in adaptive scheduler job"
-			exit 0
-		fi
-		MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dflink.tests.disable-declarative"
-	fi
+	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
 	if [ $STAGE = $STAGE_FINEGRAINED_RESOURCE_MANAGEMENT ]; then
 		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
 			echo "Skipping fine grained resource management test stage in adaptive scheduler job"

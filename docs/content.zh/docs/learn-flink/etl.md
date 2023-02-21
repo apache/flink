@@ -331,7 +331,7 @@ keyHasBeenSeen.clear()
 
 相比于下面这种预先定义的转换：
 
-{{< img src="/fig/transformation" alt="simple transformation" class="offset" width="45%" >}}
+{{< img src="/fig/transformation.svg" alt="simple transformation" class="offset" width="45%" >}}
 
 有时你想要更灵活地调整转换的某些功能，比如数据流的阈值、规则或者其他参数。Flink 支持这种需求的模式称为 _connected streams_ ，一个单独的算子有两个输入流。
 
@@ -399,7 +399,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
 
 在 Flink 运行时中，`flatMap1` 和 `flatMap2` 在连接流有新元素到来时被调用 —— 在我们的例子中，`control` 流中的元素会进入 `flatMap1`，`streamOfWords` 中的元素会进入 `flatMap2`。这是由两个流连接的顺序决定的，本例中为 `control.connect(streamOfWords)`。
 
-认识到你没法控制 `flatMap1` 和 `flatMap2` 的调用顺序是很重要的。这两个输入流是相互竞争的关系，Flink 运行时将根据从一个流或另一个流中消费的事件做它要做的。对于需要保证时间和/或顺序的场景，你会发现在 Flink 的管理状态中缓存事件一直到它们能够被处理是必须的。（注意：如果你真的感到绝望，可以使用自定义的算子实现 `InputSelectable` 接口，在两输入算子消费它的输入流时增加一些顺序上的限制。）
+认识到你没法控制 `flatMap1` 和 `flatMap2` 的调用顺序是很重要的。这两个输入流是相互竞争的关系，Flink 运行时将根据从一个流或另一个流中消费的事件做它要做的。对于需要保证时间和/或顺序的场景，你会发现在 Flink 的管理状态中缓存事件一直到它们能够被处理是必须的。（注意：如果你真的迫切需要，可以使用自定义的算子实现 {{< javadoc name="InputSelectable" file="org/apache/flink/streaming/api/operators/InputSelectable.html" >}} 接口，在两输入算子消费它的输入流时增加一些顺序上的限制。）
 
 {{< top >}}
 

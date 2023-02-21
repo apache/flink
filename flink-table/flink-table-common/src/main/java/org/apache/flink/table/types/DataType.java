@@ -21,14 +21,24 @@ package org.apache.flink.table.types;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
  * Describes the data type of a value in the table ecosystem. Instances of this class can be used to
@@ -86,9 +96,30 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
         return conversionClass;
     }
 
+    /**
+     * Returns the children of this data type, if any. Returns an empty list if this data type is
+     * atomic.
+     *
+     * @return the children data types
+     */
     public abstract List<DataType> getChildren();
 
     public abstract <R> R accept(DataTypeVisitor<R> visitor);
+
+    /**
+     * Creates a copy of this {@link DataType} instance with the internal data type conversion
+     * classes. This method performs the transformation deeply through its children. For example,
+     * for a {@link DataType} instance representing a row type with a timestamp field, this method
+     * returns a new {@link DataType}, with the conversion class to {@link RowData} and the children
+     * data type with the conversion class to {@link TimestampData}.
+     *
+     * <p>For a comprehensive list of internal data types, check {@link RowData}.
+     *
+     * @see RowData
+     */
+    public DataType toInternal() {
+        return DataTypeUtils.toInternalDataType(this);
+    }
 
     @Override
     public String toString() {
@@ -111,6 +142,66 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
     @Override
     public int hashCode() {
         return Objects.hash(logicalType, conversionClass);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Utilities for Common Data Type Transformations
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the first-level field names for the provided {@link DataType}.
+     *
+     * <p>Note: This method returns an empty list for every {@link DataType} that is not a composite
+     * type.
+     */
+    public static List<String> getFieldNames(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
+            return getFieldNames(dataType.getChildren().get(0));
+        } else if (isCompositeType(type)) {
+            return LogicalTypeChecks.getFieldNames(type);
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns the first-level field data types for the provided {@link DataType}.
+     *
+     * <p>Note: This method returns an empty list for every {@link DataType} that is not a composite
+     * type.
+     */
+    public static List<DataType> getFieldDataTypes(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (type.is(LogicalTypeRoot.DISTINCT_TYPE)) {
+            return getFieldDataTypes(dataType.getChildren().get(0));
+        } else if (isCompositeType(type)) {
+            return dataType.getChildren();
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns the count of the first-level fields for the provided {@link DataType}.
+     *
+     * <p>Note: This method returns {@code 0} for every {@link DataType} that is not a composite
+     * type.
+     */
+    public static int getFieldCount(DataType dataType) {
+        return getFieldDataTypes(dataType).size();
+    }
+
+    /**
+     * Returns an ordered list of fields starting from the provided {@link DataType}.
+     *
+     * <p>Note: This method returns an empty list for every {@link DataType} that is not a composite
+     * type.
+     */
+    public static List<DataTypes.Field> getFields(DataType dataType) {
+        final List<String> names = getFieldNames(dataType);
+        final List<DataType> dataTypes = getFieldDataTypes(dataType);
+        return IntStream.range(0, names.size())
+                .mapToObj(i -> DataTypes.FIELD(names.get(i), dataTypes.get(i)))
+                .collect(Collectors.toList());
     }
 
     // --------------------------------------------------------------------------------------------

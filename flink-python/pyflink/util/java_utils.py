@@ -19,6 +19,7 @@
 from datetime import timedelta
 
 from py4j.java_gateway import JavaClass, get_java_class, JavaObject
+from py4j.protocol import Py4JJavaError
 
 from pyflink.java_gateway import get_gateway
 
@@ -80,15 +81,33 @@ def is_instance_of(java_object, java_class):
         param, java_object)
 
 
-def get_j_env_configuration(t_env):
-    if is_instance_of(t_env._get_j_env(), "org.apache.flink.api.java.ExecutionEnvironment"):
-        return t_env._get_j_env().getConfiguration()
-    else:
-        return invoke_method(
-            t_env._get_j_env(),
-            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
-            "getConfiguration"
-        )
+def get_j_env_configuration(j_env):
+    env_clazz = load_java_class(
+        "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+    field = env_clazz.getDeclaredField("configuration")
+    field.setAccessible(True)
+    return field.get(j_env)
+
+
+def get_field_value(java_obj, field_name):
+    field = get_field(java_obj.getClass(), field_name)
+    return field.get(java_obj)
+
+
+def get_field(cls, field_name):
+    try:
+        field = cls.getDeclaredField(field_name)
+        field.setAccessible(True)
+        return field
+    except Py4JJavaError:
+        while cls.getSuperclass() is not None:
+            cls = cls.getSuperclass()
+            try:
+                field = cls.getDeclaredField(field_name)
+                field.setAccessible(True)
+                return field
+            except Py4JJavaError:
+                pass
 
 
 def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
@@ -106,7 +125,8 @@ def is_local_deployment(j_configuration):
     jvm = get_gateway().jvm
     JDeploymentOptions = jvm.org.apache.flink.configuration.DeploymentOptions
     return j_configuration.containsKey(JDeploymentOptions.TARGET.key()) \
-        and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) == "local"
+        and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) in \
+        ("local", "minicluster")
 
 
 def add_jars_to_context_class_loader(jar_urls):
@@ -120,20 +140,37 @@ def add_jars_to_context_class_loader(jar_urls):
     """
     gateway = get_gateway()
     # validate and normalize
-    jar_urls = [gateway.jvm.java.net.URL(url).toString() for url in jar_urls]
+    jar_urls = [gateway.jvm.java.net.URL(url) for url in jar_urls]
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
     existing_urls = []
-    if context_classloader.getClass().getName() == "java.net.URLClassLoader":
+    class_loader_name = context_classloader.getClass().getName()
+    if class_loader_name == "java.net.URLClassLoader":
         existing_urls = set([url.toString() for url in context_classloader.getURLs()])
-    if all([url in existing_urls for url in jar_urls]):
+    if all([url.toString() in existing_urls for url in jar_urls]):
         # if urls all existed, no need to create new class loader.
         return
-    jar_urls.extend(existing_urls)
-    # remove duplicates and create Java objects.
-    j_urls = [gateway.jvm.java.net.URL(url) for url in set(jar_urls)]
-    new_classloader = gateway.jvm.java.net.URLClassLoader(
-        to_jarray(gateway.jvm.java.net.URL, j_urls), context_classloader)
-    gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
+
+    URLClassLoaderClass = load_java_class("java.net.URLClassLoader")
+    if is_instance_of(context_classloader, URLClassLoaderClass):
+        if class_loader_name == "org.apache.flink.runtime.execution.librarycache." \
+                                "FlinkUserCodeClassLoaders$SafetyNetWrapperClassLoader":
+            ensureInner = context_classloader.getClass().getDeclaredMethod("ensureInner", None)
+            ensureInner.setAccessible(True)
+            context_classloader = ensureInner.invoke(context_classloader, None)
+
+        addURL = URLClassLoaderClass.getDeclaredMethod(
+            "addURL",
+            to_jarray(
+                gateway.jvm.Class,
+                [load_java_class("java.net.URL")]))
+        addURL.setAccessible(True)
+
+        for url in jar_urls:
+            addURL.invoke(context_classloader, to_jarray(get_gateway().jvm.Object, [url]))
+
+    else:
+        context_classloader = create_url_class_loader(jar_urls, context_classloader)
+        gateway.jvm.Thread.currentThread().setContextClassLoader(context_classloader)
 
 
 def to_j_explain_detail_arr(p_extra_details):
@@ -143,10 +180,14 @@ def to_j_explain_detail_arr(p_extra_details):
     gateway = get_gateway()
 
     def to_j_explain_detail(p_extra_detail):
-        if p_extra_detail == ExplainDetail.CHANGELOG_MODE:
+        if p_extra_detail == ExplainDetail.JSON_EXECUTION_PLAN:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.JSON_EXECUTION_PLAN
+        elif p_extra_detail == ExplainDetail.CHANGELOG_MODE:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.CHANGELOG_MODE
-        else:
+        elif p_extra_detail == ExplainDetail.ESTIMATED_COST:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.ESTIMATED_COST
+        else:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.PLAN_ADVICE
 
     _len = len(p_extra_details) if p_extra_details else 0
     j_arr = gateway.new_array(gateway.jvm.org.apache.flink.table.api.ExplainDetail, _len)
@@ -154,3 +195,10 @@ def to_j_explain_detail_arr(p_extra_details):
         j_arr[i] = to_j_explain_detail(p_extra_details[i])
 
     return j_arr
+
+
+def create_url_class_loader(urls, parent_class_loader):
+    gateway = get_gateway()
+    url_class_loader = gateway.jvm.java.net.URLClassLoader(
+        to_jarray(gateway.jvm.java.net.URL, urls), parent_class_loader)
+    return url_class_loader

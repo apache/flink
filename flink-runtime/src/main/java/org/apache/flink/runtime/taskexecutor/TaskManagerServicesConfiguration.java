@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -26,16 +27,19 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Reference;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.Optional;
 
@@ -48,11 +52,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TaskManagerServicesConfiguration {
 
+    private static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState_";
+
     private final Configuration configuration;
 
     private final ResourceID resourceID;
 
     private final String externalAddress;
+
+    private final String nodeId;
 
     private final InetAddress bindAddress;
 
@@ -62,7 +70,7 @@ public class TaskManagerServicesConfiguration {
 
     private final String[] tmpDirPaths;
 
-    private final String[] localRecoveryStateRootDirectories;
+    private final Reference<File[]> localRecoveryStateDirectories;
 
     private final int numberOfSlots;
 
@@ -94,7 +102,7 @@ public class TaskManagerServicesConfiguration {
             int externalDataPort,
             boolean localCommunicationOnly,
             String[] tmpDirPaths,
-            String[] localRecoveryStateRootDirectories,
+            Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
@@ -105,7 +113,8 @@ public class TaskManagerServicesConfiguration {
             Optional<Time> systemResourceMetricsProbingInterval,
             FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstLoaderPatterns,
-            int numIoThreads) {
+            int numIoThreads,
+            String nodeId) {
         this.configuration = checkNotNull(configuration);
         this.resourceID = checkNotNull(resourceID);
 
@@ -114,10 +123,10 @@ public class TaskManagerServicesConfiguration {
         this.externalDataPort = externalDataPort;
         this.localCommunicationOnly = localCommunicationOnly;
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
-        this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
-        this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
+        this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
+        this.localRecoveryEnabled = localRecoveryEnabled;
         this.queryableStateConfig = queryableStateConfig;
-        this.numberOfSlots = checkNotNull(numberOfSlots);
+        this.numberOfSlots = numberOfSlots;
 
         this.pageSize = pageSize;
 
@@ -134,6 +143,8 @@ public class TaskManagerServicesConfiguration {
 
         this.systemResourceMetricsProbingInterval =
                 checkNotNull(systemResourceMetricsProbingInterval);
+
+        this.nodeId = checkNotNull(nodeId);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -168,8 +179,8 @@ public class TaskManagerServicesConfiguration {
         return tmpDirPaths;
     }
 
-    String[] getLocalRecoveryStateRootDirectories() {
-        return localRecoveryStateRootDirectories;
+    Reference<File[]> getLocalRecoveryStateDirectories() {
+        return localRecoveryStateDirectories;
     }
 
     boolean isLocalRecoveryEnabled() {
@@ -225,6 +236,10 @@ public class TaskManagerServicesConfiguration {
         return numIoThreads;
     }
 
+    public String getNodeId() {
+        return nodeId;
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Parsing of Flink configuration
     // --------------------------------------------------------------------------------------------
@@ -239,6 +254,8 @@ public class TaskManagerServicesConfiguration {
      *     accessible
      * @param localCommunicationOnly True if only local communication is possible. Use only in cases
      *     where only one task manager runs.
+     * @param taskExecutorResourceSpec resource specification of the TaskManager to start
+     * @param workingDirectory working directory of the TaskManager
      * @return configuration of task manager services used to create them
      */
     public static TaskManagerServicesConfiguration fromConfiguration(
@@ -246,13 +263,24 @@ public class TaskManagerServicesConfiguration {
             ResourceID resourceID,
             String externalAddress,
             boolean localCommunicationOnly,
-            TaskExecutorResourceSpec taskExecutorResourceSpec)
+            TaskExecutorResourceSpec taskExecutorResourceSpec,
+            WorkingDirectory workingDirectory)
             throws Exception {
-        final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
-        String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
-        if (localStateRootDir.length == 0) {
-            // default to temp dirs.
-            localStateRootDir = tmpDirs;
+        String[] localStateRootDirs = ConfigurationUtils.parseLocalStateDirectories(configuration);
+        final Reference<File[]> localStateDirs;
+
+        if (localStateRootDirs.length == 0) {
+            localStateDirs =
+                    Reference.borrowed(new File[] {workingDirectory.getLocalStateDirectory()});
+        } else {
+            File[] createdLocalStateDirs = new File[localStateRootDirs.length];
+            final String localStateDirectoryName = LOCAL_STATE_SUB_DIRECTORY_ROOT + resourceID;
+
+            for (int i = 0; i < localStateRootDirs.length; i++) {
+                createdLocalStateDirs[i] = new File(localStateRootDirs[i], localStateDirectoryName);
+            }
+
+            localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
         boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
@@ -260,7 +288,8 @@ public class TaskManagerServicesConfiguration {
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);
 
-        long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
+        long timerServiceShutdownTimeout =
+                configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION).toMillis();
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
@@ -281,6 +310,15 @@ public class TaskManagerServicesConfiguration {
 
         final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
 
+        final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
+
+        // If TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID is not set, use the external address
+        // as the node id.
+        final String nodeId =
+                configuration
+                        .getOptional(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID)
+                        .orElse(externalAddress);
+
         return new TaskManagerServicesConfiguration(
                 configuration,
                 resourceID,
@@ -289,7 +327,7 @@ public class TaskManagerServicesConfiguration {
                 externalDataPort,
                 localCommunicationOnly,
                 tmpDirs,
-                localStateRootDir,
+                localStateDirs,
                 localRecoveryMode,
                 queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),
@@ -300,6 +338,7 @@ public class TaskManagerServicesConfiguration {
                 ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),
                 FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
                 alwaysParentFirstLoaderPatterns,
-                numIoThreads);
+                numIoThreads,
+                nodeId);
     }
 }

@@ -23,9 +23,20 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
-/** Provider of a {@link Sink} instance as a runtime implementation for {@link DynamicTableSink}. */
+/**
+ * Provider of a {@link Sink} instance as a runtime implementation for {@link DynamicTableSink}.
+ *
+ * <p>{@code DataStreamSinkProvider} in {@code flink-table-api-java-bridge} is available for
+ * advanced connector developers.
+ *
+ * @deprecated Please convert your sink to {@link org.apache.flink.api.connector.sink2.Sink} and use
+ *     {@link SinkV2Provider}.
+ */
+@Deprecated
 @PublicEvolving
 public interface SinkProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
@@ -35,7 +46,7 @@ public interface SinkProvider extends DynamicTableSink.SinkRuntimeProvider, Para
     }
 
     /** Helper method for creating a Sink provider with a provided sink parallelism. */
-    static SinkProvider of(Sink<RowData, ?, ?, ?> sink, Integer sinkParallelism) {
+    static SinkProvider of(Sink<RowData, ?, ?, ?> sink, @Nullable Integer sinkParallelism) {
         return new SinkProvider() {
 
             @Override

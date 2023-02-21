@@ -33,12 +33,12 @@ When running Flink applications, the JVM will load various classes over time.
 These classes can be divided into three groups based on their origin:
 
   - The **Java Classpath**: This is Java's common classpath, and it includes the JDK libraries, and all code
-    in Flink's `/lib` folder (the classes of Apache Flink and some dependencies).
+    in Flink's `/lib` folder (the classes of Apache Flink and some dependencies). They are loaded by *AppClassLoader*.
 
   - The **Flink Plugin Components**: The plugins code in folders under Flink's `/plugins` folder. Flink's plugin mechanism will dynamically load them once during startup.
 
   - The **Dynamic User Code**: These are all classes that are included in the JAR files of dynamically submitted jobs,
-    (via REST, CLI, web UI). They are loaded (and unloaded) dynamically per job.
+    (via REST, CLI, web UI). They are loaded (and unloaded) dynamically by *FlinkUserCodeClassLoader* per job.
 
 As a general rule, whenever you start the Flink processes first and submit jobs later, the job's classes are loaded dynamically.
 If the Flink processes are started together with the job/application, or if the application spawns the Flink components (JobManager, TaskManager, etc.), then all job's classes are in the Java classpath.
@@ -47,10 +47,10 @@ Code in plugin components is loaded dynamically once by a dedicated class loader
 
 In the following are some more details about the different deployment modes:
 
-**Standalone Session**
+**Session Mode (Standalone/Yarn/Kubernetes)**
 
-When starting a Flink cluster as a standalone session, the JobManagers and TaskManagers are started with the Flink framework classes in the
-Java classpath. The classes from all jobs/applications that are submitted against the session (via REST / CLI) are loaded *dynamically*.
+When starting a Flink session(Standalone/Yarn/Kubernetes) cluster, the JobManagers and TaskManagers are started with the Flink framework classes in the
+Java classpath. The classes from all jobs/applications that are submitted against the session (via REST / CLI) are loaded dynamically by *FlinkUserCodeClassLoader*.
 
 <!--
 **Docker Containers with Flink-as-a-Library**
@@ -61,29 +61,22 @@ created for an job/application and will contain the job/application's jar files.
 
 -->
 
-**Docker / Kubernetes Sessions**
+**Per-Job Mode (deprecated) (Yarn)**
 
-Docker / Kubernetes setups that start first a set of JobManagers / TaskManagers and then submit jobs/applications via REST or the CLI
-behave like standalone sessions: Flink's code is in the Java classpath, plugin components are loaded dynamically at startup and the job's code is loaded dynamically.
+Currently, only Yarn supports Per-Job mode. By default, running a Flink cluster in Per-Job mode will include the user jars 
+(the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder) into the system classpath (the *AppClassLoader*).
+This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) config option. 
+When setting it to `DISABLED`, Flink will include the user jars in the user classpath and load them dynamically by *FlinkUserCodeClassLoader*.
+See [Flink on Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) for more details.
 
+**Application Mode (Standalone/Yarn/Kubernetes)**
 
-**YARN**
+When run a Standalone/Kubernetes Flink cluster in Application Mode, the user jars (the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder)
+will be loaded dynamically by *FlinkUserCodeClassLoader*.
 
-YARN classloading differs between single job deployments and sessions:
-
-  - When submitting a Flink job/application directly to YARN (via `bin/flink run -m yarn-cluster ...`), dedicated TaskManagers and
-    JobManagers are started for that job. Those JVMs have user code classes in the Java classpath.
-    That means that there is *no dynamic classloading* involved in that case for the job.
-
-  - When starting a YARN session, the JobManagers and TaskManagers are started with the Flink framework classes in the
-    classpath. The classes from all jobs that are submitted against the session are loaded dynamically.
-
-**Mesos**
-
-Mesos setups following [this documentation]({{< ref "docs/deployment/resource-providers/mesos" >}}) currently behave very much like the a
-YARN session: The TaskManager and JobManager processes are started with the Flink framework classes in the Java classpath, job
-classes are loaded dynamically when the jobs are submitted.
-
+When run a Yarn Flink cluster in Application Mode, the user jars (the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder)
+will be included into the system classpath (the *AppClassLoader*) by default. Same as Per-Job mode, when setting the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)
+to `DISABLED`, Flink will include the user jars in the user classpath and load them dynamically by *FlinkUserCodeClassLoader*.
 
 ## Inverted Class Loading and ClassLoader Resolution Order
 
@@ -114,7 +107,7 @@ To add new packages to be *parent-first* loaded, please set the `classloader.par
 
 ## Avoiding Dynamic Classloading for User Code
 
-All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
+All components (JobManager, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
 They can be found as part of the environment information at the beginning of the log.
 
 When running a setup where the JobManager and TaskManagers are exclusive to one particular job, one can put user code JAR files
@@ -173,7 +166,9 @@ Common causes for class leaks and suggested fixes:
     interners, or Avro's class/object caches in the serializers.
 
   - *JDBC*: JDBC drivers leak references outside the user code classloader. To ensure that these classes are only loaded once
-   you should either add the driver jars to Flink's `lib/` folder, or add the driver classes to the list of parent-first loaded class via [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
+   you should add the driver jars to Flink's `lib/` folder instead of bundling them in the user-jar. 
+   If you can't guarantee that none of your user-jars bundle the driver, you have to additionally add the driver classes to the list of parent-first
+   loaded classes via [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
 
 A helpful tool for unloading dynamically loaded classes are the user code class loader release hooks. These are hooks which are executed prior to the unloading of a classloader. It is generally recommended to shutdown and unload resources as part of the regular function lifecycle (typically the `close()` methods). But in some cases (for example for static fields), it is better to unload once a classloader is certainly not needed anymore.
 

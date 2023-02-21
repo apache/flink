@@ -54,6 +54,8 @@ public final class VarCharType extends LogicalType {
 
     public static final int DEFAULT_LENGTH = 1;
 
+    public static final VarCharType STRING_TYPE = new VarCharType(MAX_LENGTH);
+
     private static final String FORMAT = "VARCHAR(%d)";
 
     private static final String MAX_FORMAT = "STRING";

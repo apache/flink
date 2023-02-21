@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -127,13 +129,13 @@ public class StreamOperatorWrapperTest extends TestLogger {
 
     @After
     public void teardown() throws Exception {
-        containingTask.cleanup();
+        containingTask.cleanUpInternal();
     }
 
     @Test
-    public void testClose() throws Exception {
+    public void testFinish() throws Exception {
         output.clear();
-        operatorWrappers.get(0).close(containingTask.getActionExecutor(), false);
+        operatorWrappers.get(0).finish(containingTask.getActionExecutor(), StopMode.DRAIN);
 
         List<Object> expected = new ArrayList<>();
         for (int i = 0; i < operatorWrappers.size(); i++) {
@@ -143,7 +145,7 @@ public class StreamOperatorWrapperTest extends TestLogger {
                     prefix + ": End of input",
                     prefix + ": Timer that was in mailbox before closing operator",
                     prefix + ": Bye",
-                    prefix + ": Mail to put in mailbox when closing operator");
+                    prefix + ": Mail to put in mailbox when finishing operator");
         }
 
         assertArrayEquals(
@@ -153,12 +155,12 @@ public class StreamOperatorWrapperTest extends TestLogger {
     }
 
     @Test
-    public void testClosingOperatorWithException() {
-        AbstractStreamOperator streamOperator =
+    public void testFinishingOperatorWithException() {
+        AbstractStreamOperator<Void> streamOperator =
                 new AbstractStreamOperator<Void>() {
                     @Override
-                    public void close() throws Exception {
-                        throw new Exception("test exception at closing");
+                    public void finish() throws Exception {
+                        throw new Exception("test exception at finishing");
                     }
                 };
 
@@ -172,11 +174,11 @@ public class StreamOperatorWrapperTest extends TestLogger {
                         true);
 
         try {
-            operatorWrapper.close(containingTask.getActionExecutor(), false);
+            operatorWrapper.finish(containingTask.getActionExecutor(), StopMode.DRAIN);
             fail("should throw an exception");
         } catch (Throwable t) {
             Optional<Throwable> optional =
-                    ExceptionUtils.findThrowableWithMessage(t, "test exception at closing");
+                    ExceptionUtils.findThrowableWithMessage(t, "test exception at finishing");
             assertTrue(optional.isPresent());
         }
     }
@@ -313,20 +315,22 @@ public class StreamOperatorWrapperTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
             ProcessingTimeCallback callback =
                     t1 ->
                             output.add(
                                     "["
                                             + name
-                                            + "]: Timer to put in mailbox when closing operator");
+                                            + "]: Timer to put in mailbox when finishing operator");
             assertNotNull(processingTimeService.registerTimer(0, callback));
             assertNull(timerMailController.getPuttingLatch(callback));
 
             mailboxExecutor.submit(
                     () ->
                             output.add(
-                                    "[" + name + "]: Mail to put in mailbox when closing operator"),
+                                    "["
+                                            + name
+                                            + "]: Mail to put in mailbox when finishing operator"),
                     "");
 
             output.add("[" + name + "]: Bye");

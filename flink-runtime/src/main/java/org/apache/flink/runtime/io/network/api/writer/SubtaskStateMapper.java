@@ -54,18 +54,6 @@ public enum SubtaskStateMapper {
         }
     },
 
-    /**
-     * Discards extra state. Useful if all subtasks already contain the same information
-     * (broadcast).
-     */
-    DISCARD_EXTRA_STATE {
-        @Override
-        public int[] getOldSubtasks(
-                int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
-            return newSubtaskIndex >= oldNumberOfSubtasks ? EMPTY : new int[] {newSubtaskIndex};
-        }
-    },
-
     /** Restores extra subtasks to the first subtask. */
     FIRST {
         @Override
@@ -101,7 +89,7 @@ public enum SubtaskStateMapper {
      * <p>Example:<br>
      * old assignment: 0 -> [0;43); 1 -> [43;87); 2 -> [87;128)<br>
      * new assignment: 0 -> [0;64]; 1 -> [64;128)<br>
-     * subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old subtask 0
+     * subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old subtask 1
      * + 2
      *
      * <p>For all downscale from n to [n-1 .. n/2], each new subtasks get exactly two old subtasks

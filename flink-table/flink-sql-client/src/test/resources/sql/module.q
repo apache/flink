@@ -16,8 +16,8 @@
 # limitations under the License.
 
 # set tableau result mode
-SET sql-client.execution.result-mode = tableau;
-[INFO] Session property has been set.
+SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -38,7 +38,7 @@ SHOW FULL MODULES;
 +-------------+------+
 | module name | used |
 +-------------+------+
-|        core | true |
+|        core | TRUE |
 +-------------+------+
 1 row in set
 !ok
@@ -63,33 +63,27 @@ Was expecting one of:
     <BRACKET_QUOTED_IDENTIFIER> ...
     <QUOTED_IDENTIFIER> ...
     <BACK_QUOTED_IDENTIFIER> ...
+    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> ...
     <HYPHENATED_IDENTIFIER> ...
     <IDENTIFIER> ...
     <UNICODE_QUOTED_IDENTIFIER> ...
-
 !error
 
 # load hive module with module name capitalized
 LOAD MODULE Hive;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.NoMatchingTableFactoryException: Could not find a suitable table factory for 'org.apache.flink.table.factories.ModuleFactory' in
-the classpath.
+org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'Hive' that implements 'org.apache.flink.table.factories.ModuleFactory' in the classpath.
 
-Reason: Required context properties mismatch.
+Available factory identifiers are:
 
-The following properties are requested:
-type=Hive
-
-The following factories have been considered:
-org.apache.flink.table.client.gateway.local.DependencyTest$TestModuleFactory
-org.apache.flink.table.module.CoreModuleFactory
-org.apache.flink.table.module.hive.HiveModuleFactory
+core
+hive
 !error
 
 # load hive module with specifying type
 LOAD MODULE myhive WITH ('type' = 'hive');
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Property 'type' = 'hive' is not supported since module name is used to find module
+org.apache.flink.table.api.ValidationException: Option 'type' = 'hive' is not supported since module name is used to find module
 !error
 
 LOAD MODULE hive;
@@ -112,8 +106,8 @@ SHOW FULL MODULES;
 +-------------+------+
 | module name | used |
 +-------------+------+
-|        core | true |
-|        hive | true |
+|        core | TRUE |
+|        hive | TRUE |
 +-------------+------+
 2 rows in set
 !ok
@@ -157,8 +151,8 @@ SHOW FULL MODULES;
 +-------------+------+
 | module name | used |
 +-------------+------+
-|        hive | true |
-|        core | true |
+|        hive | TRUE |
+|        core | TRUE |
 +-------------+------+
 2 rows in set
 !ok
@@ -181,8 +175,8 @@ SHOW FULL MODULES;
 +-------------+-------+
 | module name |  used |
 +-------------+-------+
-|        core |  true |
-|        hive | false |
+|        core |  TRUE |
+|        hive | FALSE |
 +-------------+-------+
 2 rows in set
 !ok
@@ -209,7 +203,7 @@ SHOW FULL MODULES;
 +-------------+-------+
 | module name |  used |
 +-------------+-------+
-|        hive | false |
+|        hive | FALSE |
 +-------------+-------+
 1 row in set
 !ok

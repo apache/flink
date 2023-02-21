@@ -18,19 +18,16 @@
 
 package org.apache.flink.connector.hbase2.source;
 
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.connector.hbase2.util.HBaseTestBase;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.source.lookup.LookupOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,25 +36,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Test suite for {@link HBaseRowDataAsyncLookupFunction}. */
-@RunWith(Parameterized.class)
 public class HBaseRowDataAsyncLookupFunctionTest extends HBaseTestBase {
-    @Parameterized.Parameter public boolean useCache;
-
-    @Parameterized.Parameters(name = "use cache = {0}")
-    public static Object[] parameters() {
-        return new Object[][] {new Object[] {true}, new Object[] {false}};
-    }
-
-    @Override
-    protected PlannerType planner() {
-        // lookup table source is only supported in blink planner
-        return PlannerType.BLINK_PLANNER;
-    }
-
     @Test
     public void testEval() throws Exception {
         HBaseRowDataAsyncLookupFunction lookupFunction = buildRowDataAsyncLookupFunction();
@@ -100,29 +89,23 @@ public class HBaseRowDataAsyncLookupFunctionTest extends HBaseTestBase {
     }
 
     private HBaseRowDataAsyncLookupFunction buildRowDataAsyncLookupFunction() {
-        HBaseLookupOptions lookupOptions = HBaseLookupOptions.builder().build();
-        if (useCache) {
-            lookupOptions =
-                    HBaseLookupOptions.builder().setCacheMaxSize(4).setCacheExpireMs(10000).build();
-        }
-        TableSchema schema =
-                TableSchema.builder()
-                        .field(ROW_KEY, DataTypes.INT())
-                        .field(FAMILY1, DataTypes.ROW(DataTypes.FIELD(F1COL1, DataTypes.INT())))
-                        .field(
-                                FAMILY2,
-                                DataTypes.ROW(
-                                        DataTypes.FIELD(F2COL1, DataTypes.STRING()),
-                                        DataTypes.FIELD(F2COL2, DataTypes.BIGINT())))
-                        .field(
+        DataType dataType =
+                ROW(
+                        FIELD(ROW_KEY, INT()),
+                        FIELD(FAMILY1, ROW(FIELD(F1COL1, INT()))),
+                        FIELD(FAMILY2, ROW(FIELD(F2COL1, STRING()), FIELD(F2COL2, BIGINT()))),
+                        FIELD(
                                 FAMILY3,
-                                DataTypes.ROW(
-                                        DataTypes.FIELD(F3COL1, DataTypes.DOUBLE()),
-                                        DataTypes.FIELD(F3COL2, DataTypes.BOOLEAN()),
-                                        DataTypes.FIELD(F3COL3, DataTypes.STRING())))
-                        .build();
-        HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(schema);
+                                ROW(
+                                        FIELD(F3COL1, DOUBLE()),
+                                        FIELD(F3COL2, DataTypes.BOOLEAN()),
+                                        FIELD(F3COL3, STRING()))));
+        HBaseTableSchema hbaseSchema = HBaseTableSchema.fromDataType(dataType);
         return new HBaseRowDataAsyncLookupFunction(
-                getConf(), TEST_TABLE_1, hbaseSchema, "null", lookupOptions);
+                getConf(),
+                TEST_TABLE_1,
+                hbaseSchema,
+                "null",
+                LookupOptions.MAX_RETRIES.defaultValue());
     }
 }

@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3.common.utils.RefCountedFSOutputStream;
+import org.apache.flink.core.fs.RefCountedFSOutputStream;
 
 import javax.annotation.Nullable;
 

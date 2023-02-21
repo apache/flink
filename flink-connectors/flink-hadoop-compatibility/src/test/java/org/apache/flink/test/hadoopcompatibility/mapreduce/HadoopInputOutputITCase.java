@@ -28,6 +28,8 @@ import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** IT cases for both the {@link HadoopInputFormat} and {@link HadoopOutputFormat}. */
 public class HadoopInputOutputITCase extends JavaProgramTestBase {
 

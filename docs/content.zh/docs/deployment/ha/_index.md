@@ -1,5 +1,5 @@
 ---
-title: High Availablity
+title: 高可用
 bookCollapseSection: true
 weight: 6
 ---

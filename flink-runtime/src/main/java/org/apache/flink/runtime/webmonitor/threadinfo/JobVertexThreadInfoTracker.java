@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -34,8 +35,8 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
 import org.apache.flink.runtime.webmonitor.stats.Statistics;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +57,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,7 +77,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     @GuardedBy("lock")
     private final ThreadInfoRequestCoordinator coordinator;
 
-    private final Function<JobVertexThreadInfoStats, T> createStatsFn;
+    private final Function<VertexThreadInfoStats, T> createStatsFn;
 
     private final ExecutorService executor;
 
@@ -106,14 +108,15 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     JobVertexThreadInfoTracker(
             ThreadInfoRequestCoordinator coordinator,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
+            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Duration cleanUpInterval,
             int numSamples,
             Duration statsRefreshInterval,
             Duration delayBetweenSamples,
             int maxStackTraceDepth,
-            Time rpcTimeout) {
+            Time rpcTimeout,
+            Cache<Key, T> vertexStatsCache) {
 
         this.coordinator = checkNotNull(coordinator, "Thread info samples coordinator");
         this.resourceManagerGatewayRetriever =
@@ -138,11 +141,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         checkArgument(maxStackTraceDepth > 0, "Max stack trace depth must be greater than 0");
         this.maxThreadInfoDepth = maxStackTraceDepth;
 
-        this.vertexStatsCache =
-                CacheBuilder.newBuilder()
-                        .concurrencyLevel(1)
-                        .expireAfterAccess(cleanUpInterval.toMillis(), TimeUnit.MILLISECONDS)
-                        .build();
+        this.vertexStatsCache = checkNotNull(vertexStatsCache, "Vertex stats cache");
 
         executor.scheduleWithFixedDelay(
                 this::cleanUpVertexStatsCache,
@@ -194,7 +193,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
             final CompletableFuture<ResourceManagerGateway> gatewayFuture =
                     resourceManagerGatewayRetriever.getFuture();
 
-            CompletableFuture<JobVertexThreadInfoStats> sample =
+            CompletableFuture<VertexThreadInfoStats> sample =
                     gatewayFuture.thenCompose(
                             (ResourceManagerGateway resourceManagerGateway) ->
                                     coordinator.triggerThreadInfoRequest(
@@ -208,38 +207,76 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         }
     }
 
-    private Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+    private Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
             matchExecutionsWithGateways(
                     AccessExecutionVertex[] executionVertices,
                     ResourceManagerGateway resourceManagerGateway) {
 
-        Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+        // Group executions by their TaskManagerLocation to be able to issue one sampling
+        // request per TaskManager for all relevant tasks at once
+        final Map<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> executionsByLocation =
+                groupExecutionsByLocation(executionVertices);
+
+        return mapExecutionsToGateways(resourceManagerGateway, executionsByLocation);
+    }
+
+    private Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
+            mapExecutionsToGateways(
+                    ResourceManagerGateway resourceManagerGateway,
+                    Map<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> verticesByLocation) {
+
+        final Map<
+                        ImmutableSet<ExecutionAttemptID>,
+                        CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionsWithGateways = new HashMap<>();
 
+        for (Map.Entry<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> entry :
+                verticesByLocation.entrySet()) {
+            TaskManagerLocation tmLocation = entry.getKey();
+            ImmutableSet<ExecutionAttemptID> attemptIds = entry.getValue();
+
+            CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
+                    resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
+                            tmLocation.getResourceID(), rpcTimeout);
+
+            executionsWithGateways.put(attemptIds, taskExecutorGatewayFuture);
+        }
+        return executionsWithGateways;
+    }
+
+    private Map<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> groupExecutionsByLocation(
+            AccessExecutionVertex[] executionVertices) {
+
+        final Map<TaskManagerLocation, Set<ExecutionAttemptID>> executionAttemptsByLocation =
+                new HashMap<>();
+
         for (AccessExecutionVertex executionVertex : executionVertices) {
-            TaskManagerLocation tmLocation = executionVertex.getCurrentAssignedResourceLocation();
-
-            if (tmLocation != null) {
-                CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
-                        resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
-                                tmLocation.getResourceID(), rpcTimeout);
-
-                if (executionVertex.getExecutionState() == ExecutionState.RUNNING) {
-                    executionsWithGateways.put(
-                            executionVertex.getCurrentExecutionAttempt().getAttemptId(),
-                            taskExecutorGatewayFuture);
-                } else {
-                    LOG.trace(
-                            "{} not running, but {}; not sampling",
-                            executionVertex.getTaskNameWithSubtaskIndex(),
-                            executionVertex.getExecutionState());
+            if (executionVertex.getExecutionState() != ExecutionState.RUNNING) {
+                LOG.trace(
+                        "{} not running, but {}; not sampling",
+                        executionVertex.getTaskNameWithSubtaskIndex(),
+                        executionVertex.getExecutionState());
+                continue;
+            }
+            for (AccessExecution execution : executionVertex.getCurrentExecutions()) {
+                TaskManagerLocation tmLocation = execution.getAssignedResourceLocation();
+                if (tmLocation == null) {
+                    LOG.trace("ExecutionVertex {} is currently not assigned", executionVertex);
+                    continue;
                 }
-            } else {
-                LOG.trace("ExecutionVertex {} is currently not assigned", executionVertex);
+                Set<ExecutionAttemptID> groupedAttemptIds =
+                        executionAttemptsByLocation.getOrDefault(tmLocation, new HashSet<>());
+
+                ExecutionAttemptID attemptId = execution.getAttemptId();
+                groupedAttemptIds.add(attemptId);
+                executionAttemptsByLocation.put(tmLocation, groupedAttemptIds);
             }
         }
 
-        return executionsWithGateways;
+        return executionAttemptsByLocation.entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey, e -> ImmutableSet.copyOf(e.getValue())));
     }
 
     @VisibleForTesting
@@ -268,7 +305,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         return new Key(jobId, vertex.getJobVertexId());
     }
 
-    private static class Key {
+    static class Key {
         private final JobID jobId;
         private final JobVertexID jobVertexId;
 
@@ -297,7 +334,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
 
     /** Callback on completed thread info sample. */
     private class ThreadInfoSampleCompletionCallback
-            implements BiConsumer<JobVertexThreadInfoStats, Throwable> {
+            implements BiConsumer<VertexThreadInfoStats, Throwable> {
 
         private final Key key;
         private final AccessExecutionJobVertex vertex;
@@ -308,17 +345,17 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         }
 
         @Override
-        public void accept(JobVertexThreadInfoStats threadInfoStats, Throwable throwable) {
+        public void accept(VertexThreadInfoStats threadInfoStats, Throwable throwable) {
             synchronized (lock) {
                 try {
                     if (shutDown) {
                         return;
                     }
                     if (threadInfoStats != null) {
-                        resultAvailableFuture.complete(null);
                         vertexStatsCache.put(key, createStatsFn.apply(threadInfoStats));
+                        resultAvailableFuture.complete(null);
                     } else {
-                        LOG.debug(
+                        LOG.error(
                                 "Failed to gather a thread info sample for {}",
                                 vertex.getName(),
                                 throwable);

@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.table.factories.DataGenTableSourceFactory
-org.apache.flink.table.factories.BlackHoleTableSinkFactory
-org.apache.flink.table.factories.PrintTableSinkFactory
+org.apache.flink.connector.datagen.table.DataGenTableSourceFactory
+org.apache.flink.connector.blackhole.table.BlackHoleTableSinkFactory
+org.apache.flink.connector.print.table.PrintTableSinkFactory

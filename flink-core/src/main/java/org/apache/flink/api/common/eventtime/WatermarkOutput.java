@@ -36,7 +36,14 @@ public interface WatermarkOutput {
      * Marks this output as idle, meaning that downstream operations do not wait for watermarks from
      * this output.
      *
-     * <p>An output becomes active again as soon as the next watermark is emitted.
+     * <p>An output becomes active again as soon as the next watermark is emitted or {@link
+     * #markActive()} is explicitly called.
      */
     void markIdle();
+
+    /**
+     * Marks this output as active, meaning that downstream operations should wait for watermarks
+     * from this output.
+     */
+    void markActive();
 }

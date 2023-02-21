@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 /**
  * The boundedness of a stream. A stream could either be "bounded" (a stream with finite records) or
  * "unbounded" (a stream with infinite records).
  */
-@PublicEvolving
+@Public
 public enum Boundedness {
     /**
      * A BOUNDED stream is a stream with finite records.

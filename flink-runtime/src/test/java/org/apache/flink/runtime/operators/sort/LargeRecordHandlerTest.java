@@ -40,7 +40,9 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class LargeRecordHandlerTest {
 
@@ -70,7 +72,14 @@ public class LargeRecordHandlerTest {
 
             LargeRecordHandler<Tuple2<Long, String>> handler =
                     new LargeRecordHandler<Tuple2<Long, String>>(
-                            serializer, comparator, ioMan, memMan, memory, owner, 128);
+                            serializer,
+                            comparator,
+                            ioMan,
+                            memMan,
+                            memory,
+                            owner,
+                            128,
+                            owner.getExecutionConfig());
 
             assertFalse(handler.hasData());
 
@@ -123,7 +132,14 @@ public class LargeRecordHandlerTest {
 
             LargeRecordHandler<Tuple2<Long, String>> handler =
                     new LargeRecordHandler<Tuple2<Long, String>>(
-                            serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+                            serializer,
+                            comparator,
+                            ioMan,
+                            memMan,
+                            initialMemory,
+                            owner,
+                            128,
+                            owner.getExecutionConfig());
 
             assertFalse(handler.hasData());
 
@@ -209,7 +225,14 @@ public class LargeRecordHandlerTest {
 
             LargeRecordHandler<Tuple3<Long, String, Byte>> handler =
                     new LargeRecordHandler<Tuple3<Long, String, Byte>>(
-                            serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+                            serializer,
+                            comparator,
+                            ioMan,
+                            memMan,
+                            initialMemory,
+                            owner,
+                            128,
+                            owner.getExecutionConfig());
 
             assertFalse(handler.hasData());
 

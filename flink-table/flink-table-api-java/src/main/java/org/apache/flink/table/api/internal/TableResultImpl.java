@@ -20,13 +20,14 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.utils.PrintUtils;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.print.PrintStyle;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
+import org.apache.flink.table.utils.print.TableauStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
@@ -34,7 +35,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.PrintWriter;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -47,32 +47,26 @@ import java.util.concurrent.TimeoutException;
 
 /** Implementation for {@link TableResult}. */
 @Internal
-public class TableResultImpl implements TableResult {
-    public static final TableResult TABLE_RESULT_OK =
-            TableResultImpl.builder()
-                    .resultKind(ResultKind.SUCCESS)
-                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(Collections.singletonList(Row.of("OK")))
-                    .build();
+public class TableResultImpl implements TableResultInternal {
 
     private final JobClient jobClient;
     private final ResolvedSchema resolvedSchema;
     private final ResultKind resultKind;
-    private final CloseableRowIteratorWrapper data;
+    private final ResultProvider resultProvider;
     private final PrintStyle printStyle;
 
     private TableResultImpl(
             @Nullable JobClient jobClient,
             ResolvedSchema resolvedSchema,
             ResultKind resultKind,
-            CloseableIterator<Row> data,
+            ResultProvider resultProvider,
             PrintStyle printStyle) {
         this.jobClient = jobClient;
         this.resolvedSchema =
                 Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
         this.resultKind = Preconditions.checkNotNull(resultKind, "resultKind should not be null");
-        Preconditions.checkNotNull(data, "data should not be null");
-        this.data = new CloseableRowIteratorWrapper(data);
+        Preconditions.checkNotNull(resultProvider, "result provider should not be null");
+        this.resultProvider = resultProvider;
         this.printStyle = Preconditions.checkNotNull(printStyle, "printStyle should not be null");
     }
 
@@ -108,7 +102,7 @@ public class TableResultImpl implements TableResult {
             CompletableFuture<Void> future =
                     CompletableFuture.runAsync(
                             () -> {
-                                while (!data.isFirstRowReady()) {
+                                while (!resultProvider.isFirstRowReady()) {
                                     try {
                                         Thread.sleep(100);
                                     } catch (InterruptedException e) {
@@ -140,33 +134,23 @@ public class TableResultImpl implements TableResult {
 
     @Override
     public CloseableIterator<Row> collect() {
-        return data;
+        return resultProvider.toExternalIterator();
+    }
+
+    @Override
+    public CloseableIterator<RowData> collectInternal() {
+        return resultProvider.toInternalIterator();
+    }
+
+    @Override
+    public RowDataToStringConverter getRowDataToStringConverter() {
+        return resultProvider.getRowDataStringConverter();
     }
 
     @Override
     public void print() {
-        Iterator<Row> it = collect();
-        if (printStyle instanceof TableauStyle) {
-            int maxColumnWidth = ((TableauStyle) printStyle).getMaxColumnWidth();
-            String nullColumn = ((TableauStyle) printStyle).getNullColumn();
-            boolean deriveColumnWidthByType =
-                    ((TableauStyle) printStyle).isDeriveColumnWidthByType();
-            boolean printRowKind = ((TableauStyle) printStyle).isPrintRowKind();
-            PrintUtils.printAsTableauForm(
-                    getResolvedSchema(),
-                    it,
-                    new PrintWriter(System.out),
-                    maxColumnWidth,
-                    nullColumn,
-                    deriveColumnWidthByType,
-                    printRowKind);
-        } else if (printStyle instanceof RawContentStyle) {
-            while (it.hasNext()) {
-                System.out.println(String.join(",", PrintUtils.rowToString(it.next())));
-            }
-        } else {
-            throw new TableException("Unsupported print style: " + printStyle);
-        }
+        Iterator<RowData> it = resultProvider.toInternalIterator();
+        printStyle.print(it, new PrintWriter(System.out));
     }
 
     public static Builder builder() {
@@ -178,9 +162,8 @@ public class TableResultImpl implements TableResult {
         private JobClient jobClient = null;
         private ResolvedSchema resolvedSchema = null;
         private ResultKind resultKind = null;
-        private CloseableIterator<Row> data = null;
-        private PrintStyle printStyle =
-                PrintStyle.tableau(Integer.MAX_VALUE, PrintUtils.NULL_COLUMN, false, false);
+        private ResultProvider resultProvider = null;
+        private PrintStyle printStyle = null;
 
         private Builder() {}
 
@@ -216,14 +199,9 @@ public class TableResultImpl implements TableResult {
             return this;
         }
 
-        /**
-         * Specifies an row iterator as the execution result.
-         *
-         * @param rowIterator a row iterator as the execution result.
-         */
-        public Builder data(CloseableIterator<Row> rowIterator) {
-            Preconditions.checkNotNull(rowIterator, "rowIterator should not be null");
-            this.data = rowIterator;
+        public Builder resultProvider(ResultProvider resultProvider) {
+            Preconditions.checkNotNull(resultProvider, "resultProvider should not be null");
+            this.resultProvider = resultProvider;
             return this;
         }
 
@@ -234,7 +212,7 @@ public class TableResultImpl implements TableResult {
          */
         public Builder data(List<Row> rowList) {
             Preconditions.checkNotNull(rowList, "listRows should not be null");
-            this.data = CloseableIterator.adapterForIterator(rowList.iterator());
+            this.resultProvider = new StaticResultProvider(rowList);
             return this;
         }
 
@@ -246,122 +224,12 @@ public class TableResultImpl implements TableResult {
         }
 
         /** Returns a {@link TableResult} instance. */
-        public TableResult build() {
-            return new TableResultImpl(jobClient, resolvedSchema, resultKind, data, printStyle);
-        }
-    }
-
-    /** Root interface for all print styles. */
-    public interface PrintStyle {
-        /**
-         * Create a tableau print style with given max column width, null column, change mode
-         * indicator and a flag to indicate whether the column width is derived from type (true) or
-         * content (false), which prints the result schema and content as tableau form.
-         */
-        static PrintStyle tableau(
-                int maxColumnWidth,
-                String nullColumn,
-                boolean deriveColumnWidthByType,
-                boolean printRowKind) {
-            Preconditions.checkArgument(
-                    maxColumnWidth > 0, "maxColumnWidth should be greater than 0");
-            Preconditions.checkNotNull(nullColumn, "nullColumn should not be null");
-            return new TableauStyle(
-                    maxColumnWidth, nullColumn, deriveColumnWidthByType, printRowKind);
-        }
-
-        /**
-         * Create a raw content print style, which only print the result content as raw form. column
-         * delimiter is ",", row delimiter is "\n".
-         */
-        static PrintStyle rawContent() {
-            return new RawContentStyle();
-        }
-    }
-
-    /** print the result schema and content as tableau form. */
-    private static final class TableauStyle implements PrintStyle {
-        /**
-         * A flag to indicate whether the column width is derived from type (true) or content
-         * (false).
-         */
-        private final boolean deriveColumnWidthByType;
-
-        private final int maxColumnWidth;
-        private final String nullColumn;
-        /** A flag to indicate whether print row kind info. */
-        private final boolean printRowKind;
-
-        private TableauStyle(
-                int maxColumnWidth,
-                String nullColumn,
-                boolean deriveColumnWidthByType,
-                boolean printRowKind) {
-            this.deriveColumnWidthByType = deriveColumnWidthByType;
-            this.maxColumnWidth = maxColumnWidth;
-            this.nullColumn = nullColumn;
-            this.printRowKind = printRowKind;
-        }
-
-        public boolean isDeriveColumnWidthByType() {
-            return deriveColumnWidthByType;
-        }
-
-        int getMaxColumnWidth() {
-            return maxColumnWidth;
-        }
-
-        String getNullColumn() {
-            return nullColumn;
-        }
-
-        public boolean isPrintRowKind() {
-            return printRowKind;
-        }
-    }
-
-    /**
-     * only print the result content as raw form. column delimiter is ",", row delimiter is "\n".
-     */
-    private static final class RawContentStyle implements PrintStyle {}
-
-    /**
-     * A {@link CloseableIterator} wrapper class that can return whether the first row is ready.
-     *
-     * <p>The first row is ready when {@link #hasNext} method returns true or {@link #next()} method
-     * returns a row. The execution order of {@link TableResult#collect} method and {@link
-     * TableResult#await()} may be arbitrary, this class will record whether the first row is ready
-     * (or accessed).
-     */
-    private static final class CloseableRowIteratorWrapper implements CloseableIterator<Row> {
-        private final CloseableIterator<Row> iterator;
-        private boolean isFirstRowReady = false;
-
-        private CloseableRowIteratorWrapper(CloseableIterator<Row> iterator) {
-            this.iterator = iterator;
-        }
-
-        @Override
-        public void close() throws Exception {
-            iterator.close();
-        }
-
-        @Override
-        public boolean hasNext() {
-            boolean hasNext = iterator.hasNext();
-            isFirstRowReady = isFirstRowReady || hasNext;
-            return hasNext;
-        }
-
-        @Override
-        public Row next() {
-            Row next = iterator.next();
-            isFirstRowReady = true;
-            return next;
-        }
-
-        public boolean isFirstRowReady() {
-            return isFirstRowReady || hasNext();
+        public TableResultInternal build() {
+            if (printStyle == null) {
+                printStyle = PrintStyle.rawContent(resultProvider.getRowDataStringConverter());
+            }
+            return new TableResultImpl(
+                    jobClient, resolvedSchema, resultKind, resultProvider, printStyle);
         }
     }
 }

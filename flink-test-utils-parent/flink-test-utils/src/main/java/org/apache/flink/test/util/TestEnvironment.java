@@ -21,6 +21,7 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.Preconditions;
@@ -46,7 +47,8 @@ public class TestEnvironment extends ExecutionEnvironment {
             Collection<URL> classPaths) {
         super(
                 new MiniClusterPipelineExecutorServiceLoader(miniCluster),
-                MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
+                MiniClusterPipelineExecutorServiceLoader.updateConfigurationForMiniCluster(
+                        new Configuration(), jarFiles, classPaths),
                 null);
 
         this.miniCluster = Preconditions.checkNotNull(miniCluster);

@@ -29,10 +29,9 @@ import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -44,27 +43,25 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
 
 /**
  * Base class for adapters, as used by {@link StreamFormatAdapterTest} and {@link
  * FileRecordFormatAdapterTest}.
  */
-public abstract class AdapterTestBase<FormatT> {
+abstract class AdapterTestBase<FormatT> {
 
-    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
+    @TempDir public static java.nio.file.Path tmpDir;
 
     protected static final int NUM_NUMBERS = 100;
     protected static final long FILE_LEN = 4 * NUM_NUMBERS;
 
     protected static Path testPath;
 
-    @BeforeClass
-    public static void writeTestFile() throws IOException {
-        final File testFile = new File(TMP_DIR.getRoot(), "testFile");
+    @BeforeAll
+    static void writeTestFile() throws IOException {
+        final File testFile = new File(tmpDir.toFile(), "testFile");
         testPath = Path.fromLocalFile(testFile);
 
         try (DataOutputStream out = new DataOutputStream(new FileOutputStream(testFile))) {
@@ -91,17 +88,17 @@ public abstract class AdapterTestBase<FormatT> {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testRecoverCheckpointedFormatOneSplit() throws IOException {
+    void testRecoverCheckpointedFormatOneSplit() throws IOException {
         testReading(createCheckpointedFormat(), 1, 5, 44);
     }
 
     @Test
-    public void testRecoverCheckpointedFormatMultipleSplits() throws IOException {
+    void testRecoverCheckpointedFormatMultipleSplits() throws IOException {
         testReading(createCheckpointedFormat(), 3, 11, 33, 56);
     }
 
     @Test
-    public void testRecoverNonCheckpointedFormatOneSplit() throws IOException {
+    void testRecoverNonCheckpointedFormatOneSplit() throws IOException {
         testReading(createNonCheckpointedFormat(), 1, 5, 44);
     }
 
@@ -144,7 +141,7 @@ public abstract class AdapterTestBase<FormatT> {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testClosesStreamIfReaderCreationFails() throws Exception {
+    void testClosesStreamIfReaderCreationFails() throws Exception {
         // setup
         final Path testPath = new Path("testFs:///testpath-1");
         final CloseTestingInputStream in = new CloseTestingInputStream();
@@ -158,19 +155,20 @@ public abstract class AdapterTestBase<FormatT> {
         final BulkFormat<Integer, FileSourceSplit> adapter =
                 wrapWithAdapter(createFormatFailingInInstantiation());
         try {
-            adapter.createReader(new Configuration(), new FileSourceSplit("id", testPath, 0, 1024));
+            adapter.createReader(
+                    new Configuration(), new FileSourceSplit("id", testPath, 0, 1024, 0, 1024));
         } catch (IOException ignored) {
         }
 
         // assertions
-        assertTrue(in.closed);
+        assertThat(in.closed).isTrue();
 
         // cleanup
         testFs.unregister();
     }
 
     @Test
-    public void testClosesStreamIfReaderRestoreFails() throws Exception {
+    void testClosesStreamIfReaderRestoreFails() throws Exception {
         // setup
         final Path testPath = new Path("testFs:///testpath-1");
         final CloseTestingInputStream in = new CloseTestingInputStream();
@@ -185,7 +183,14 @@ public abstract class AdapterTestBase<FormatT> {
                 wrapWithAdapter(createFormatFailingInInstantiation());
         final FileSourceSplit split =
                 new FileSourceSplit(
-                        "id", testPath, 0, 1024, new String[0], new CheckpointedPosition(0L, 5L));
+                        "id",
+                        testPath,
+                        0,
+                        1024,
+                        0,
+                        1024,
+                        new String[0],
+                        new CheckpointedPosition(0L, 5L));
 
         try {
             adapter.restoreReader(new Configuration(), split);
@@ -193,7 +198,7 @@ public abstract class AdapterTestBase<FormatT> {
         }
 
         // assertions
-        assertTrue(in.closed);
+        assertThat(in.closed).isTrue();
 
         // cleanup
         testFs.unregister();
@@ -204,7 +209,7 @@ public abstract class AdapterTestBase<FormatT> {
     // ------------------------------------------------------------------------
 
     protected static void verifyIntListResult(List<Integer> result) {
-        assertEquals("wrong result size", NUM_NUMBERS, result.size());
+        assertThat(result).as("wrong result size").hasSize(NUM_NUMBERS);
         int nextExpected = 0;
         for (int next : result) {
             if (next != nextExpected++) {
@@ -235,7 +240,7 @@ public abstract class AdapterTestBase<FormatT> {
         while (num > 0) {
             if (currentReader == null) {
                 currentSplit = moreSplits.poll();
-                assertNotNull(currentSplit);
+                assertThat(currentSplit).isNotNull();
                 currentReader = format.createReader(config, currentSplit);
             }
 
@@ -268,12 +273,19 @@ public abstract class AdapterTestBase<FormatT> {
         final long rangeForSplit = FILE_LEN / numSplits;
 
         for (int i = 0; i < numSplits - 1; i++) {
-            splits.add(new FileSourceSplit("ID-" + i, testPath, i * rangeForSplit, rangeForSplit));
+            splits.add(
+                    new FileSourceSplit(
+                            "ID-" + i, testPath, i * rangeForSplit, rangeForSplit, 0, FILE_LEN));
         }
         final long startOfLast = (numSplits - 1) * rangeForSplit;
         splits.add(
                 new FileSourceSplit(
-                        "ID-" + (numSplits - 1), testPath, startOfLast, FILE_LEN - startOfLast));
+                        "ID-" + (numSplits - 1),
+                        testPath,
+                        startOfLast,
+                        FILE_LEN - startOfLast,
+                        0,
+                        FILE_LEN));
         return splits;
     }
 

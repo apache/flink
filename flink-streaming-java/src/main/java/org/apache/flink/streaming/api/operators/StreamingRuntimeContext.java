@@ -37,7 +37,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -90,7 +90,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     public StreamingRuntimeContext(
             Environment env,
             Map<String, Accumulator<?, ?>> accumulators,
-            MetricGroup operatorMetricGroup,
+            OperatorMetricGroup operatorMetricGroup,
             OperatorID operatorID,
             ProcessingTimeService processingTimeService,
             @Nullable KeyedStateStore keyedStateStore,

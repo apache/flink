@@ -18,13 +18,13 @@
             <td><h5>jobmanager.adaptive-scheduler.resource-stabilization-timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. Once this timeout has passed, the job will start executing with the available resources.<br />If <span markdown="span">`scheduler-mode`</span> is configured to <span markdown="span">`REACTIVE`</span>, this configuration value will default to 0, so that jobs are starting immediately with the available resources.</td>
+            <td>The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. The timeout starts once sufficient resources for running the job are available. Once this timeout has passed, the job will start executing with the available resources.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to 0, so that jobs are starting immediately with the available resources.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.resource-wait-timeout</h5></td>
-            <td style="word-wrap: break-word;">10 s</td>
+            <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
-            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <span markdown="span">`scheduler-mode`</span> is configured to <span markdown="span">`REACTIVE`</span>, this configuration value will default to a negative value to disable the resource timeout.</td>
+            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to a negative value to disable the resource timeout.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.archive.fs.dir</h5></td>
@@ -39,22 +39,28 @@
             <td>The local address of the network interface that the job manager binds to. If not configured, '0.0.0.0' will be used.</td>
         </tr>
         <tr>
-            <td><h5>jobmanager.exception-history-size</h5></td>
-            <td style="word-wrap: break-word;">16</td>
-            <td>Integer</td>
-            <td>The maximum number of failures collected by the exception history per job.</td>
-        </tr>
-        <tr>
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>
-            <td>The maximum number of prior execution attempts kept in history.</td>
+            <td>The maximum number of historical execution attempts kept in history.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.execution.failover-strategy</h5></td>
             <td style="word-wrap: break-word;">"region"</td>
             <td>String</td>
-            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.future-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the future thread pool to execute future callbacks for all spawned JobMasters. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.io-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.memory.enable-jvm-direct-memory-limit</h5></td>
@@ -111,6 +117,18 @@
             <td>Total Process Memory size for the JobManager. This includes all the memory that a JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. In containerized setups, this should be set to the container memory. See also 'jobmanager.memory.flink.size' for Total Flink Memory size configuration.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.partition.hybrid.partition-data-consume-constraint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p></td>
+            <td>Controls the constraint that hybrid partition data can be consumed. Note that this option is allowed only when <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Accepted values are:<ul><li>'<code class="highlighter-rouge">ALL_PRODUCERS_FINISHED</code>': hybrid partition data can be consumed only when all producers are finished.</li><li>'<code class="highlighter-rouge">ONLY_FINISHED_PRODUCERS</code>': hybrid partition data can be consumed when its producer is finished.</li><li>'<code class="highlighter-rouge">UNFINISHED_PRODUCERS</code>': hybrid partition data can be consumed even if its producer is un-finished.</li></ul><br /><br />Possible values:<ul><li>"ALL_PRODUCERS_FINISHED"</li><li>"ONLY_FINISHED_PRODUCERS"</li><li>"UNFINISHED_PRODUCERS"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.resource-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -135,6 +153,12 @@
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.scheduler</h5></td>
+            <td style="word-wrap: break-word;">Default</td>
+            <td><p>Enum</p></td>
+            <td>Determines which scheduler implementation is used to schedule tasks. Accepted values are:<ul><li>'Default': Default scheduler</li><li>'Adaptive': Adaptive scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler">here</a>.</li><li>'AdaptiveBatch': Adaptive batch scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler">here</a>.</li></ul><br /><br />Possible values:<ul><li>"Default"</li><li>"Adaptive"</li><li>"AdaptiveBatch"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>jobstore.cache-size</h5></td>
             <td style="word-wrap: break-word;">52428800</td>
             <td>Long</td>
@@ -148,15 +172,21 @@
         </tr>
         <tr>
             <td><h5>jobstore.max-capacity</h5></td>
-            <td style="word-wrap: break-word;">2147483647</td>
+            <td style="word-wrap: break-word;">infinite</td>
             <td>Integer</td>
-            <td>The max number of completed jobs that can be kept in the job store.</td>
+            <td>The max number of completed jobs that can be kept in the job store. NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.type</h5></td>
+            <td style="word-wrap: break-word;">File</td>
+            <td><p>Enum</p></td>
+            <td>Determines which job store implementation is used in session cluster. Accepted values are:<ul><li>'File': the file job store keeps the archived execution graphs in files</li><li>'Memory': the memory job store keeps the archived execution graphs in memory. You may need to limit the <code class="highlighter-rouge">jobstore.max-capacity</code> to mitigate FullGC or OOM when there are too many graphs</li></ul><br /><br />Possible values:<ul><li>"File"</li><li>"Memory"</li></ul></td>
         </tr>
         <tr>
             <td><h5>scheduler-mode</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td><p>Enum</p>Possible values: [REACTIVE]</td>
-            <td>Determines the mode of the scheduler. Note that <span markdown="span">`scheduler-mode`</span>=<span markdown="span">`REACTIVE`</span> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.</td>
+            <td><p>Enum</p></td>
+            <td>Determines the mode of the scheduler. Note that <code class="highlighter-rouge">scheduler-mode</code>=<code class="highlighter-rouge">REACTIVE</code> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.<br /><br />Possible values:<ul><li>"REACTIVE"</li></ul></td>
         </tr>
         <tr>
             <td><h5>slot.idle.timeout</h5></td>

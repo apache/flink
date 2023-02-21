@@ -79,7 +79,7 @@ public class HiveParserQBParseInfo {
      */
     private final HashMap<String, HiveParserASTNode> destToSortby;
 
-    /** Maping from table/subquery aliases to all the associated lateral view nodes. */
+    /** Mapping from table/subquery aliases to all the associated lateral view nodes. */
     private final HashMap<String, ArrayList<HiveParserASTNode>> aliasToLateralViews;
 
     private final HashMap<String, HiveParserASTNode> destToLateralView;
@@ -158,8 +158,7 @@ public class HiveParserQBParseInfo {
     }
 
     // See also {@link #getInsertOverwriteTables()}
-    public boolean isInsertIntoTable(String dbName, String table) {
-        String fullName = dbName + "." + table;
+    public boolean isInsertIntoTable(String fullName) {
         return insertIntoTables.containsKey(fullName.toLowerCase());
     }
 

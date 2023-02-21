@@ -118,7 +118,7 @@ The first query is a simple `GROUP-BY COUNT` aggregation query. It groups the `c
 
 When the query starts, the `clicks` table (left-hand side) is empty. The query computes the result table when the first row is inserted. After the first row `[Mary, ./home]` arrives, the result table (right-hand side, top) consists of a single row `[Mary, 1]`. When the second row `[Bob, ./cart]` is inserted into the `clicks` table, the query updates the result table and inserts a new row `[Bob, 1]`. The third row, `[Mary, ./prod?id=1]` yields an update of an already computed result row such that `[Mary, 1]` is updated to `[Mary, 2]`. Finally, the query inserts a third row `[Liz, 1]` into the result table, when the fourth row is appended to the `clicks` table.
 
-The second query is similar to the first one but groups the `clicks` table in addition to the `user` attribute also on an [hourly tumbling window]({{< ref "docs/dev/table/sql/queries" >}}#group-windows) before it counts the number of URLs (time-based computations such as windows are based on special [time attributes](time_attributes.html) are discussed later). Again, the figure shows the input and output at different points in time to visualize the changing nature of dynamic tables.
+The second query is similar to the first one but groups the `clicks` table in addition to the `user` attribute also on an [hourly tumbling window]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-functions) before it counts the number of URLs (time-based computations such as windows are based on special [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) are discussed later). Again, the figure shows the input and output at different points in time to visualize the changing nature of dynamic tables.
 
 {{< img alt="Continuous Group-Window Query" src="/fig/table-streaming/query-groupBy-window-cnt.png" width="80%" >}}
 
@@ -155,7 +155,7 @@ FROM (
 );
 ```
 
-The [Query Configuration](query_configuration.html) page discusses parameters to control the execution of continuous queries. Some parameters can be used to trade the size of the maintained state for result accuracy.
+The [Query Configuration]({{< ref "docs/dev/table/config" >}}) page discusses parameters to control the execution of continuous queries. Some parameters can be used to trade the size of the maintained state for result accuracy.
 
 Table to Stream Conversion
 --------------------------
@@ -173,11 +173,10 @@ When converting a dynamic table into a stream or writing it to an external syste
 
 * **Upsert stream:** An upsert stream is a stream with two types of messages, *upsert messages* and *delete messages*. A dynamic table that is converted into an upsert stream requires a (possibly composite) unique key. A dynamic table with a unique key is transformed into a stream by encoding `INSERT` and `UPDATE` changes as upsert messages and `DELETE` changes as delete messages. The stream consuming operator needs to be aware of the unique key attribute to apply messages correctly. The main difference to a retract stream is that `UPDATE` changes are encoded with a single message and hence more efficient. The following figure visualizes the conversion of a dynamic table into an upsert stream.
 
-<center>
-<img alt="Dynamic tables" src="{% link /fig/table-streaming/redo-mode.png %}" width="85%">
-</center>
+{{< img alt="Dynamic tables" src="/fig/table-streaming/redo-mode.png" width="85%">}}
+
 <br><br>
 
-The API to convert a dynamic table into a `DataStream` is discussed on the [Common Concepts]({{< ref "docs/dev/table/common" >}}#convert-a-table-into-a-datastream) page. Please note that only append and retract streams are supported when converting a dynamic table into a `DataStream`. The `TableSink` interface to emit a dynamic table to an external system are discussed on the [TableSources and TableSinks](../sourceSinks.html#define-a-tablesink) page.
+The API to convert a dynamic table into a `DataStream` is discussed on the [Common Concepts]({{< ref "docs/dev/table/common" >}}#convert-a-table-into-a-datastream) page. Please note that only append and retract streams are supported when converting a dynamic table into a `DataStream`. The `TableSink` interface to emit a dynamic table to an external system are discussed on the [TableSources and TableSinks]({{< ref "docs/dev/table/sourcesSinks">}}#dynamic-table-sink) page.
 
 {{< top >}}

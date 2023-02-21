@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,7 +125,7 @@ public class EmbeddedLeaderService {
 
     @GuardedBy("lock")
     private void shutdownInternally(Exception exceptionForHandlers) {
-        assert Thread.holdsLock(lock);
+        Preconditions.checkState(Thread.holdsLock(lock));
 
         if (!shutdown) {
             // clear all leader status
@@ -289,7 +290,7 @@ public class EmbeddedLeaderService {
     @GuardedBy("lock")
     private CompletableFuture<Void> updateLeader() {
         // this must be called under the lock
-        assert Thread.holdsLock(lock);
+        Preconditions.checkState(Thread.holdsLock(lock));
 
         if (currentLeaderConfirmed == null && currentLeaderProposed == null) {
             // we need a new leader

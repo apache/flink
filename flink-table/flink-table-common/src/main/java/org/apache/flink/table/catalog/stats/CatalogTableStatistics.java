@@ -18,11 +18,16 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Statistics for a non-partitioned table or a partition of a partitioned table. */
+@PublicEvolving
 public class CatalogTableStatistics {
+
     public static final CatalogTableStatistics UNKNOWN = new CatalogTableStatistics(-1, -1, -1, -1);
 
     /** The number of rows in the table or partition. */
@@ -37,7 +42,7 @@ public class CatalogTableStatistics {
     /** The raw data size (size when loaded in memory) in bytes. */
     private final long rawDataSize;
 
-    private Map<String, String> properties;
+    private final Map<String, String> properties;
 
     public CatalogTableStatistics(long rowCount, int fileCount, long totalSize, long rawDataSize) {
         this(rowCount, fileCount, totalSize, rawDataSize, new HashMap<>());
@@ -89,5 +94,42 @@ public class CatalogTableStatistics {
                 this.totalSize,
                 this.rawDataSize,
                 new HashMap<>(this.properties));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogTableStatistics that = (CatalogTableStatistics) o;
+        return rowCount == that.rowCount
+                && fileCount == that.fileCount
+                && totalSize == that.totalSize
+                && rawDataSize == that.rawDataSize
+                && properties.equals(that.properties);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(rowCount, fileCount, totalSize, rawDataSize, properties);
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogTableStatistics{"
+                + "rowCount="
+                + rowCount
+                + ", fileCount="
+                + fileCount
+                + ", totalSize="
+                + totalSize
+                + ", rawDataSize="
+                + rawDataSize
+                + ", properties="
+                + properties
+                + '}';
     }
 }

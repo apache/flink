@@ -18,14 +18,15 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
@@ -66,12 +67,13 @@ public class SortingDataInputTest {
                         true,
                         1.0,
                         new Configuration(),
-                        new DummyInvokable());
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
-        InputStatus inputStatus;
+        DataInputStatus inputStatus;
         do {
             inputStatus = sortingDataInput.emitNext(collectingDataOutput);
-        } while (inputStatus != InputStatus.END_OF_INPUT);
+        } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
         assertThat(
                 collectingDataOutput.events,
@@ -115,12 +117,13 @@ public class SortingDataInputTest {
                         true,
                         1.0,
                         new Configuration(),
-                        new DummyInvokable());
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
-        InputStatus inputStatus;
+        DataInputStatus inputStatus;
         do {
             inputStatus = sortingDataInput.emitNext(collectingDataOutput);
-        } while (inputStatus != InputStatus.END_OF_INPUT);
+        } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
         assertThat(
                 collectingDataOutput.events,
@@ -159,12 +162,13 @@ public class SortingDataInputTest {
                         true,
                         1.0,
                         new Configuration(),
-                        new DummyInvokable());
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
-        InputStatus inputStatus;
+        DataInputStatus inputStatus;
         do {
             inputStatus = sortingDataInput.emitNext(collectingDataOutput);
-        } while (inputStatus != InputStatus.END_OF_INPUT);
+        } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
         assertThat(
                 collectingDataOutput.events,

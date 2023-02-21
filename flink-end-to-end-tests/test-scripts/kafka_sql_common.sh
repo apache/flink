@@ -45,55 +45,19 @@ function get_kafka_json_source_schema {
     topicName="$1"
     tableName="$2"
     cat << EOF
-  - name: $tableName
-    type: source-table
-    update-mode: append
-    schema:
-      - name: rowtime
-        data-type: TIMESTAMP(3)
-        rowtime:
-          timestamps:
-            type: from-field
-            from: timestamp
-          watermarks:
-            type: periodic-bounded
-            delay: 2000
-      - name: user
-        data-type: STRING
-      - name: event
-        data-type: ROW<type STRING, message STRING>
-    connector:
-      type: kafka
-      version: "$KAFKA_SQL_VERSION"
-      topic: $topicName
-      startup-mode: earliest-offset
-      properties:
-        bootstrap.servers: localhost:9092
-    format:
-      type: json
-      json-schema: >
-        {
-          "type": "object",
-          "properties": {
-            "timestamp": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "user": {
-              "type": ["string", "null"]
-            },
-            "event": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "message": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
+    CREATE TABLE $tableName (
+      \`timestamp\` TIMESTAMP_LTZ(3),
+      \`user\` STRING,
+      \`event\` ROW<type STRING, message STRING>,
+      \`rowtime\` as \`timestamp\`,
+      WATERMARK FOR \`rowtime\` AS \`rowtime\` - INTERVAL '2' SECOND
+    ) WITH (
+      'connector' = 'kafka',
+      'topic' = '$topicName',
+      'properties.bootstrap.servers' = 'localhost:9092',
+      'scan.startup.mode' = 'earliest-offset',
+      'format' = 'json',
+      'json.timestamp-format.standard' = 'ISO-8601'
+    );
 EOF
 }

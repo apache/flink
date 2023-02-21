@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -25,8 +26,10 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -39,16 +42,28 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_SUBJECT;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroFormatFactory.buildOptionalPropertiesMap;
 
 /**
  * Format factory for providing configured instances of Debezium Avro to RowData {@link
  * DeserializationSchema}.
  */
+@Internal
 public class DebeziumAvroFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
@@ -59,17 +74,21 @@ public class DebeziumAvroFormatFactory
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        String schemaRegistryURL = formatOptions.get(URL);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
-        return new DecodingFormat<DeserializationSchema<RowData>>() {
+        return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
-                    DynamicTableSource.Context context, DataType producedDataType) {
+                    DynamicTableSource.Context context,
+                    DataType producedDataType,
+                    int[][] projections) {
+                producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new DebeziumAvroDeserializationSchema(
-                        rowType, producedTypeInfo, schemaRegistryURL);
+                        rowType, producedTypeInfo, schemaRegistryURL, optionalPropertiesMap);
             }
 
             @Override
@@ -89,13 +108,15 @@ public class DebeziumAvroFormatFactory
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-        Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
+        String schemaRegistryURL = formatOptions.get(URL);
+        Optional<String> subject = formatOptions.getOptional(SUBJECT);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
+
         if (!subject.isPresent()) {
             throw new ValidationException(
                     String.format(
                             "Option '%s.%s' is required for serialization",
-                            IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
+                            IDENTIFIER, SUBJECT.key()));
         }
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
@@ -114,7 +135,7 @@ public class DebeziumAvroFormatFactory
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new DebeziumAvroSerializationSchema(
-                        rowType, schemaRegistryURL, subject.get());
+                        rowType, schemaRegistryURL, subject.get(), optionalPropertiesMap);
             }
         };
     }
@@ -127,14 +148,23 @@ public class DebeziumAvroFormatFactory
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SCHEMA_REGISTRY_URL);
+        options.add(URL);
         return options;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SCHEMA_REGISTRY_SUBJECT);
+        options.add(SUBJECT);
+        options.add(PROPERTIES);
+        options.add(SSL_KEYSTORE_LOCATION);
+        options.add(SSL_KEYSTORE_PASSWORD);
+        options.add(SSL_TRUSTSTORE_LOCATION);
+        options.add(SSL_TRUSTSTORE_PASSWORD);
+        options.add(BASIC_AUTH_CREDENTIALS_SOURCE);
+        options.add(BASIC_AUTH_USER_INFO);
+        options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
+        options.add(BEARER_AUTH_TOKEN);
         return options;
     }
 }

@@ -202,10 +202,15 @@ public class ExecutionGraphHandler {
             throw new IllegalStateException("No InputSplitAssigner for vertex ID " + vertexID);
         }
 
-        final InputSplit nextInputSplit = execution.getNextInputSplit();
+        final Optional<InputSplit> optionalNextInputSplit = execution.getNextInputSplit();
 
-        if (log.isDebugEnabled()) {
+        final InputSplit nextInputSplit;
+        if (optionalNextInputSplit.isPresent()) {
+            nextInputSplit = optionalNextInputSplit.get();
             log.debug("Send next input split {}.", nextInputSplit);
+        } else {
+            nextInputSplit = null;
+            log.debug("No more input splits available");
         }
 
         try {

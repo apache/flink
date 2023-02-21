@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
@@ -30,7 +30,7 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
  * Splits</i>. That way, streams of events from different splits can be identified and treated
  * separately, for example for watermark generation, or event-time skew handling.
  */
-@PublicEvolving
+@Public
 public interface SourceOutput<T> extends WatermarkOutput {
 
     /**

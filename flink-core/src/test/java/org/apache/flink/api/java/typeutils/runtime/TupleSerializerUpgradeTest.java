@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -25,11 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,26 +35,18 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /** {@link TupleSerializer} upgrade test. */
-@RunWith(Parameterized.class)
-public class TupleSerializerUpgradeTest
+class TupleSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 Tuple3<String, String, Integer>, Tuple3<String, String, Integer>> {
 
-    public TupleSerializerUpgradeTest(
-            TestSpecification<Tuple3<String, String, Integer>, Tuple3<String, String, Integer>>
-                    testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "tuple-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             TupleSerializerSetup.class,
                             TupleSerializerVerifier.class));
         }
@@ -109,7 +99,7 @@ public class TupleSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Tuple3<String, String, Integer>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

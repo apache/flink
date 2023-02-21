@@ -18,11 +18,11 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** Builder for {@link TaskExecutorManager}. */
@@ -34,9 +34,14 @@ public class TaskExecutorManagerBuilder {
     private boolean waitResultConsumedBeforeRelease = true;
     private int redundantTaskManagerNum = 0;
     private Time taskManagerTimeout = Time.seconds(5);
-    private ScheduledExecutor scheduledExecutor = TestingUtils.defaultScheduledExecutor();
+    private Duration declareNeededResourceDelay = Duration.ofMillis(0);
+    private final ScheduledExecutor scheduledExecutor;
     private Executor mainThreadExecutor = Executors.directExecutor();
-    private ResourceActions newResourceActions = new TestingResourceActionsBuilder().build();
+    private ResourceAllocator newResourceAllocator = new TestingResourceAllocatorBuilder().build();
+
+    public TaskExecutorManagerBuilder(ScheduledExecutor scheduledExecutor) {
+        this.scheduledExecutor = scheduledExecutor;
+    }
 
     public TaskExecutorManagerBuilder setDefaultWorkerResourceSpec(
             WorkerResourceSpec defaultWorkerResourceSpec) {
@@ -70,18 +75,19 @@ public class TaskExecutorManagerBuilder {
         return this;
     }
 
-    public TaskExecutorManagerBuilder setScheduledExecutor(ScheduledExecutor scheduledExecutor) {
-        this.scheduledExecutor = scheduledExecutor;
-        return this;
-    }
-
     public TaskExecutorManagerBuilder setMainThreadExecutor(Executor mainThreadExecutor) {
         this.mainThreadExecutor = mainThreadExecutor;
         return this;
     }
 
-    public TaskExecutorManagerBuilder setResourceActions(ResourceActions newResourceActions) {
-        this.newResourceActions = newResourceActions;
+    public TaskExecutorManagerBuilder setResourceAllocator(ResourceAllocator newResourceAllocator) {
+        this.newResourceAllocator = newResourceAllocator;
+        return this;
+    }
+
+    public TaskExecutorManagerBuilder setDeclareNeededResourceDelay(
+            Duration declareNeededResourceDelay) {
+        this.declareNeededResourceDelay = declareNeededResourceDelay;
         return this;
     }
 
@@ -93,8 +99,9 @@ public class TaskExecutorManagerBuilder {
                 waitResultConsumedBeforeRelease,
                 redundantTaskManagerNum,
                 taskManagerTimeout,
+                declareNeededResourceDelay,
                 scheduledExecutor,
                 mainThreadExecutor,
-                newResourceActions);
+                newResourceAllocator);
     }
 }

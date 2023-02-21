@@ -45,4 +45,9 @@ final class WatermarkStrategyWithTimestampAssigner<T> implements WatermarkStrate
             WatermarkGeneratorSupplier.Context context) {
         return baseStrategy.createWatermarkGenerator(context);
     }
+
+    @Override
+    public WatermarkAlignmentParams getAlignmentParameters() {
+        return baseStrategy.getAlignmentParameters();
+    }
 }

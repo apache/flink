@@ -38,6 +38,7 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
 
 /** Savepoint metadata that can be modified. */
 @Internal
+@Deprecated
 public class SavepointMetadata {
 
     private final int maxParallelism;

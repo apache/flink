@@ -33,8 +33,8 @@ import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileNotFoundException;
 import java.time.Duration;
@@ -44,19 +44,19 @@ import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_IN
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
 /** Test cases for the deployment of Yarn Flink application clusters. */
-public class YARNApplicationITCase extends YarnTestBase {
+class YARNApplicationITCase extends YarnTestBase {
 
     private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(30);
     private static final int sleepIntervalInMS = 100;
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-application");
         startYARNWithConfig(YARN_CONFIGURATION, true);
     }
 
     @Test
-    public void testApplicationClusterWithLocalUserJarAndFirstUserJarInclusion() throws Exception {
+    void testApplicationClusterWithLocalUserJarAndFirstUserJarInclusion() throws Exception {
         runTest(
                 () ->
                         deployApplication(
@@ -66,8 +66,7 @@ public class YARNApplicationITCase extends YarnTestBase {
     }
 
     @Test
-    public void testApplicationClusterWithLocalUserJarAndDisableUserJarInclusion()
-            throws Exception {
+    void testApplicationClusterWithLocalUserJarAndDisableUserJarInclusion() throws Exception {
         runTest(
                 () ->
                         deployApplication(
@@ -77,7 +76,7 @@ public class YARNApplicationITCase extends YarnTestBase {
     }
 
     @Test
-    public void testApplicationClusterWithRemoteUserJar() throws Exception {
+    void testApplicationClusterWithRemoteUserJar() throws Exception {
         final Path testingJar = getTestingJar();
         final Path remoteJar =
                 new Path(miniDFSCluster.getFileSystem().getHomeDirectory(), testingJar.getName());
@@ -132,7 +131,7 @@ public class YARNApplicationITCase extends YarnTestBase {
         Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
         configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
         configuration.set(PipelineOptions.JARS, Collections.singletonList(userJar.toString()));

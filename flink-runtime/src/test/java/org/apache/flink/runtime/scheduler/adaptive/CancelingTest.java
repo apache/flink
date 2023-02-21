@@ -20,14 +20,17 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -96,15 +99,16 @@ public class CancelingTest extends TestLogger {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Canceling canceling = createCancelingState(ctx, meg);
             // register execution at EG
-            ExecutingTest.MockExecutionJobVertex ejv = new ExecutingTest.MockExecutionJobVertex();
+
+            Exception exception = new RuntimeException();
+            TestingAccessExecution execution =
+                    TestingAccessExecution.newBuilder()
+                            .withExecutionState(ExecutionState.FAILED)
+                            .withErrorInfo(new ErrorInfo(exception, System.currentTimeMillis()))
+                            .build();
+            meg.registerExecution(execution);
             TaskExecutionStateTransition update =
-                    new TaskExecutionStateTransition(
-                            new TaskExecutionState(
-                                    ejv.getMockExecutionVertex()
-                                            .getCurrentExecutionAttempt()
-                                            .getAttemptId(),
-                                    ExecutionState.FAILED,
-                                    new RuntimeException()));
+                    ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
             canceling.updateTaskExecutionState(update);
             ctx.assertNoStateTransition();
         }
@@ -148,7 +152,9 @@ public class CancelingTest extends TestLogger {
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
-                        log);
+                        log,
+                        ClassLoader.getSystemClassLoader(),
+                        new ArrayList<>());
         return canceling;
     }
 }

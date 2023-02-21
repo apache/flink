@@ -30,7 +30,19 @@
             <td><h5>historyserver.archive.retained-jobs</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <span markdown="span">`IllegalConfigurationException`</span>. </td>
+            <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Pattern of the log URL of JobManager. The HistoryServer will generate actual URLs from it, with replacing the special placeholders, `&lt;jobid&gt;`, to the id of job. Only http / https schemes are supported.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.log.taskmanager.url-pattern</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it, with replacing the special placeholders, `&lt;jobid&gt;` and `&lt;tmid&gt;`, to the id of job and TaskManager respectively. Only http / https schemes are supported.</td>
         </tr>
         <tr>
             <td><h5>historyserver.web.address</h5></td>
@@ -60,7 +72,7 @@
             <td><h5>historyserver.web.tmpdir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>This configuration parameter allows defining the Flink web directory to be used by the history server web interface. The web interface will copy its static files into the directory.</td>
+            <td>Local directory that is used by the history server REST API for temporary files.</td>
         </tr>
     </tbody>
 </table>

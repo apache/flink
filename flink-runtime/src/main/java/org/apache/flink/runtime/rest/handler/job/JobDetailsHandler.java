@@ -82,8 +82,7 @@ public class JobDetailsHandler
 
     @Override
     protected JobDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
         return createJobDetailsInfo(executionGraph, metricFetcher);
     }
@@ -203,6 +202,8 @@ public class JobDetailsHandler
         MutableIOMetrics counts = new MutableIOMetrics();
 
         for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
+            // Here we use the metrics of one of the current attempts to represent the subtask,
+            // rather than the aggregation of all attempts.
             counts.addIOMetrics(
                     vertex.getCurrentExecutionAttempt(),
                     metricFetcher,
@@ -219,7 +220,10 @@ public class JobDetailsHandler
                         counts.getNumRecordsIn(),
                         counts.isNumRecordsInComplete(),
                         counts.getNumRecordsOut(),
-                        counts.isNumRecordsOutComplete());
+                        counts.isNumRecordsOutComplete(),
+                        counts.getAccumulateBackPressuredTime(),
+                        counts.getAccumulateIdleTime(),
+                        counts.getAccumulateBusyTime());
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),

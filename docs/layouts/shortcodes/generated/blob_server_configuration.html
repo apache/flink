@@ -24,7 +24,7 @@
             <td><h5>blob.fetch.backlog</h5></td>
             <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
-            <td>The config parameter defining the desired backlog of BLOB fetches on the JobManager.Note that the operating system usually enforces an upper limit on the backlog size based on the <span markdown="span">`SOMAXCONN`</span> setting.</td>
+            <td>The config parameter defining the desired backlog of BLOB fetches on the JobManager.Note that the operating system usually enforces an upper limit on the backlog size based on the <code class="highlighter-rouge">SOMAXCONN</code> setting.</td>
         </tr>
         <tr>
             <td><h5>blob.fetch.num-concurrent</h5></td>
@@ -66,7 +66,7 @@
             <td><h5>blob.storage.directory</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The config parameter defining the storage directory to be used by the blob server.</td>
+            <td>The config parameter defining the local storage directory to be used by the blob server. If not configured, then it will default to &lt;WORKING_DIR&gt;/blobStorage.</td>
         </tr>
     </tbody>
 </table>

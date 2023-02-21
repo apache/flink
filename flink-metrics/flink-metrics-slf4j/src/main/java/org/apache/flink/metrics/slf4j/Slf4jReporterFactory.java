@@ -17,15 +17,12 @@
 
 package org.apache.flink.metrics.slf4j;
 
-import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
 /** {@link MetricReporterFactory} for {@link Slf4jReporter}. */
-@InterceptInstantiationViaReflection(
-        reporterClassName = "org.apache.flink.metrics.slf4j.Slf4jReporter")
 public class Slf4jReporterFactory implements MetricReporterFactory {
 
     @Override

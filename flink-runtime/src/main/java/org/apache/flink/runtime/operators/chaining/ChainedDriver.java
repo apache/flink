@@ -25,8 +25,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -56,7 +56,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
     protected boolean objectReuseEnabled = false;
 
-    protected OperatorMetricGroup metrics;
+    protected InternalOperatorMetricGroup metrics;
 
     protected Counter numRecordsIn;
 
@@ -116,7 +116,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
     @Override
     public abstract void collect(IT record);
 
-    public OperatorIOMetricGroup getIOMetrics() {
+    public InternalOperatorIOMetricGroup getIOMetrics() {
         return this.metrics.getIOMetricGroup();
     }
 

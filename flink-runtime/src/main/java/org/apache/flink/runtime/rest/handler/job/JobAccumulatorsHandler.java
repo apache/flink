@@ -71,8 +71,7 @@ public class JobAccumulatorsHandler
 
     @Override
     protected JobAccumulatorsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobAccumulatorsMessageParameters> request,
-            AccessExecutionGraph graph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph graph)
             throws RestHandlerException {
         List<Boolean> queryParams =
                 request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);

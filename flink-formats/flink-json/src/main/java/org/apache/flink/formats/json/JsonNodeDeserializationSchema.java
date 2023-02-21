@@ -17,28 +17,21 @@
 
 package org.apache.flink.formats.json;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-
-import java.io.IOException;
 
 /**
  * DeserializationSchema that deserializes a JSON String into an ObjectNode.
  *
  * <p>Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
+ *
+ * @deprecated Use {@code new JsonDeserializationSchema(ObjectNode.class)} instead
  */
-@PublicEvolving
-public class JsonNodeDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
+@Deprecated
+public class JsonNodeDeserializationSchema extends JsonDeserializationSchema<ObjectNode> {
 
-    private static final long serialVersionUID = -1699854177598621044L;
+    private static final long serialVersionUID = 2L;
 
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    @Override
-    public ObjectNode deserialize(byte[] message) throws IOException {
-        return mapper.readValue(message, ObjectNode.class);
+    public JsonNodeDeserializationSchema() {
+        super(ObjectNode.class);
     }
 }

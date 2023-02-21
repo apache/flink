@@ -10,7 +10,7 @@
     <tbody>
         <tr>
             <td><h5>state.backend.rocksdb.checkpoint.transfer.thread.num</h5></td>
-            <td style="word-wrap: break-word;">1</td>
+            <td style="word-wrap: break-word;">4</td>
             <td>Integer</td>
             <td>The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.</td>
         </tr>
@@ -18,13 +18,19 @@
             <td><h5>state.backend.rocksdb.localdir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The local directory (on the TaskManager) where RocksDB puts its files.</td>
+            <td>The local directory (on the TaskManager) where RocksDB puts its files. Per default, it will be &lt;WORKING_DIR&gt;/tmp. See <code class="highlighter-rouge">process.taskmanager.working-dir</code> for more details.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.memory.fixed-per-slot</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
-            <td>The fixed total amount of memory, shared among all RocksDB instances per slot. This option overrides the 'state.backend.rocksdb.memory.managed' option when configured. If neither this option, nor the 'state.backend.rocksdb.memory.managed' optionare set, then each RocksDB column family state has its own memory caches (as controlled by the column family options).</td>
+            <td>The fixed total amount of memory, shared among all RocksDB instances per slot. This option overrides the 'state.backend.rocksdb.memory.managed' option when configured.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.memory.fixed-per-tm</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>The fixed total amount of memory, shared among all RocksDB instances per Task Manager (cluster-level option). This option only takes effect if neither 'state.backend.rocksdb.memory.managed' nor 'state.backend.rocksdb.memory.fixed-per-slot' are not configured. If none is configured then each RocksDB column family state has its own memory caches (as controlled by the column family options). The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml).Note, that this feature breaks resource isolation between the slots</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.memory.high-prio-pool-ratio</h5></td>
@@ -52,9 +58,9 @@
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.options-factory</h5></td>
-            <td style="word-wrap: break-word;">"org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory"</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions. The default options factory is org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.</td>
+            <td>The options factory class for users to add customized options in DBOptions and ColumnFamilyOptions for RocksDB. If set, the RocksDB state backend will load the class and apply configs to DBOptions and ColumnFamilyOptions after loading ones from 'RocksDBConfigurableOptions' and pre-defined options.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.predefined-options</h5></td>
@@ -65,8 +71,8 @@
         <tr>
             <td><h5>state.backend.rocksdb.timer-service.factory</h5></td>
             <td style="word-wrap: break-word;">ROCKSDB</td>
-            <td><p>Enum</p>Possible values: [HEAP, ROCKSDB]</td>
-            <td>This determines the factory for timer service state implementation. Options are either HEAP (heap-based) or ROCKSDB for an implementation based on RocksDB.</td>
+            <td><p>Enum</p></td>
+            <td>This determines the factory for timer service state implementation.<br /><br />Possible values:<ul><li>"HEAP": Heap-based</li><li>"ROCKSDB": Implementation based on RocksDB</li></ul></td>
         </tr>
     </tbody>
 </table>

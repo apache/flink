@@ -15,22 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.common.functions.Partitioner
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.operators.translation.CustomPartitioningGroupingPojoTest.Pojo4
+import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType
+
 import org.junit.Assert._
 import org.junit.Test
-import org.apache.flink.api.scala._
-import org.apache.flink.api.common.functions.Partitioner
-import org.apache.flink.runtime.operators.shipping.ShipStrategyType
-import org.apache.flink.optimizer.plan.SingleInputPlanNode
 
 import scala.collection.immutable.Seq
-import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.scala.operators.translation.CustomPartitioningGroupingPojoTest.Pojo4
 
 class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
 
@@ -41,9 +41,10 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       val data = env.fromElements(new Pojo2()).rebalance().setParallelism(4)
 
       data
-          .groupBy("a").withPartitioner(new TestPartitionerInt())
-          .reduce( (a,b) => a )
-          .output(new DiscardingOutputFormat[Pojo2])
+        .groupBy("a")
+        .withPartitioner(new TestPartitionerInt())
+        .reduce((a, b) => a)
+        .output(new DiscardingOutputFormat[Pojo2])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -55,8 +56,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -72,9 +72,10 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       val data = env.fromElements(new Pojo2()).rebalance().setParallelism(4)
 
       data
-          .groupBy("a").withPartitioner(new TestPartitionerInt())
-          .reduceGroup( iter => Seq(iter.next) )
-          .output(new DiscardingOutputFormat[Seq[Pojo2]])
+        .groupBy("a")
+        .withPartitioner(new TestPartitionerInt())
+        .reduceGroup(iter => Seq(iter.next))
+        .output(new DiscardingOutputFormat[Seq[Pojo2]])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -84,8 +85,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
 
       assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -101,10 +101,11 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       val data = env.fromElements(new Pojo3()).rebalance().setParallelism(4)
 
       data
-          .groupBy("a").withPartitioner(new TestPartitionerInt())
-          .sortGroup("b", Order.ASCENDING)
-          .reduceGroup( iter => Seq(iter.next) )
-          .output(new DiscardingOutputFormat[Seq[Pojo3]])
+        .groupBy("a")
+        .withPartitioner(new TestPartitionerInt())
+        .sortGroup("b", Order.ASCENDING)
+        .reduceGroup(iter => Seq(iter.next))
+        .output(new DiscardingOutputFormat[Seq[Pojo3]])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -114,8 +115,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
 
       assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -131,11 +131,12 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       val data = env.fromElements(new Pojo4()).rebalance().setParallelism(4)
 
       data
-          .groupBy("a").withPartitioner(new TestPartitionerInt())
-          .sortGroup("b", Order.ASCENDING)
-          .sortGroup("c", Order.DESCENDING)
-          .reduceGroup( iter => Seq(iter.next) )
-          .output(new DiscardingOutputFormat[Seq[Pojo4]])
+        .groupBy("a")
+        .withPartitioner(new TestPartitionerInt())
+        .sortGroup("b", Order.ASCENDING)
+        .sortGroup("c", Order.DESCENDING)
+        .reduceGroup(iter => Seq(iter.next))
+        .output(new DiscardingOutputFormat[Seq[Pojo4]])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -145,8 +146,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
 
       assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -164,12 +164,10 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       try {
         data.groupBy("a").withPartitioner(new TestPartitionerLong())
         fail("Should throw an exception")
-      }
-      catch {
+      } catch {
         case e: InvalidProgramException =>
       }
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -186,16 +184,14 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
 
       try {
         data
-            .groupBy("a")
-            .sortGroup("b", Order.ASCENDING)
-            .withPartitioner(new TestPartitionerLong())
+          .groupBy("a")
+          .sortGroup("b", Order.ASCENDING)
+          .withPartitioner(new TestPartitionerLong())
         fail("Should throw an exception")
-      }
-      catch {
+      } catch {
         case e: InvalidProgramException =>
       }
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)

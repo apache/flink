@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.stats;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Column statistics value of long type. */
 public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsDataBase {
@@ -62,5 +63,39 @@ public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsData
     public CatalogColumnStatisticsDataLong copy() {
         return new CatalogColumnStatisticsDataLong(
                 min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatisticsDataLong that = (CatalogColumnStatisticsDataLong) o;
+        return Objects.equals(min, that.min)
+                && Objects.equals(max, that.max)
+                && Objects.equals(ndv, that.ndv)
+                && Objects.equals(getNullCount(), that.getNullCount());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(min, max, ndv, getNullCount());
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataLong{"
+                + "min="
+                + min
+                + ", max="
+                + max
+                + ", ndv="
+                + ndv
+                + ", nullCount="
+                + getNullCount()
+                + '}';
     }
 }

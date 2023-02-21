@@ -40,6 +40,7 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键�
 
 {{< sql_download_table "hbase" >}}
 
+HBase 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 HBase 连接器。
 
 如何使用 HBase 表
 ----------------
@@ -105,7 +106,7 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>连接的 HBase 表名。</td>
+      <td>连接的 HBase 表名。默认该表在 "default" 命名空间下，指定命名空间下的表需要使用 "namespace:table"。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.quorum</h5></td>
@@ -167,18 +168,42 @@ ON myTopic.key = hTable.rowkey;
       <td>是否启用异步查找。如果为真，查找将是异步的。注意：异步方式只支持 hbase-2.2 连接器</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.max-rows</h5></td>
+      <td><h5>lookup.cache</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">(无)</td>
-      <td>Integer</td>
-      <td>查找缓存的最大行数，超过这个值，最旧的行将过期。注意："lookup.cache.max-rows" 和 "lookup.cache.ttl" 必须同时被设置。默认情况下，查找缓存是禁用的。 </td>
+      <td style="word-wrap: break-word;">NONE</td>
+      <td><p>枚举类型</p>可选值: NONE, PARTIAL</td>
+      <td>维表的缓存策略。 目前支持 NONE（不缓存）和 PARTIAL（只在外部数据库中查找数据时缓存）。</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.ttl</h5></td>
+      <td><h5>lookup.partial-cache.max-rows</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">(无)</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>查找缓存的最大行数，超过这个值，最旧的行将过期。使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.expire-after-write</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>查找缓存中每一行的最大生存时间，在这段时间内，最老的行将过期。注意："lookup.cache.max-rows" 和 "lookup.cache.ttl" 必须同时被设置。默认情况下，查找缓存是禁用的。</td>
+      <td>在记录写入缓存后该记录的最大保留时间。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.expire-after-access</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>在缓存中的记录被访问后该记录的最大保留时间。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>是否缓存维表中不存在的键，默认为true。
+        使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -199,6 +224,39 @@ ON myTopic.key = hTable.rowkey;
     </tr>
     </tbody>
 </table>
+
+### 已弃用的配置
+这些弃用配置已经被上述的新配置代替，而且最终会被弃用。请优先考虑使用新配置。
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.max-rows" 代替</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.expire-after-write" 代替</td>
+        </tr>
+    </tbody>
+<table>
 
 
 

@@ -18,11 +18,13 @@
 
 package org.apache.flink.sql.tests;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.io.IteratorInputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -55,11 +57,10 @@ public class BatchSQLTestProgram {
         ParameterTool params = ParameterTool.fromArgs(args);
         String outputPath = params.getRequired("outputPath");
         String sqlStatement = params.getRequired("sqlStatement");
-
-        TableEnvironment tEnv =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
-
+        String shuffleType = params.getRequired("shuffleType");
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        BatchShuffleMode shuffleMode = checkAndGetShuffleMode(shuffleType);
+        tEnv.getConfig().set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode);
         ((TableEnvironmentInternal) tEnv)
                 .registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
         ((TableEnvironmentInternal) tEnv)
@@ -75,6 +76,24 @@ public class BatchSQLTestProgram {
         TableResult result = tEnv.executeSql(sqlStatement);
         // wait job finish
         result.getJobClient().get().getJobExecutionResult().get();
+    }
+
+    private static BatchShuffleMode checkAndGetShuffleMode(String shuffleType) {
+        BatchShuffleMode shuffleMode;
+        switch (shuffleType.toLowerCase()) {
+            case "blocking":
+                shuffleMode = BatchShuffleMode.ALL_EXCHANGES_BLOCKING;
+                break;
+            case "hybrid_full":
+                shuffleMode = BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
+                break;
+            case "hybrid_selective":
+                shuffleMode = BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
+                break;
+            default:
+                throw new IllegalArgumentException("unsupported shuffle type : " + shuffleType);
+        }
+        return shuffleMode;
     }
 
     /** TableSource for generated data. */

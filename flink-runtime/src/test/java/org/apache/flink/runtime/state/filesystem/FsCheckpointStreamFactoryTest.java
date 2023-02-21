@@ -18,37 +18,29 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit tests for the {@link FsCheckpointStreamFactory}. */
 public class FsCheckpointStreamFactoryTest {
 
-    @Rule public final TemporaryFolder TMP = new TemporaryFolder();
-
-    private Path exclusiveStateDir;
-    private Path sharedStateDir;
-
-    @Before
-    public void createStateDirectories() throws IOException {
-        exclusiveStateDir = Path.fromLocalFile(TMP.newFolder("exclusive"));
-        sharedStateDir = Path.fromLocalFile(TMP.newFolder("shared"));
-    }
+    @TempDir private Path exclusiveStateDir;
+    @TempDir private Path sharedStateDir;
 
     // ------------------------------------------------------------------------
     //  tests
@@ -117,6 +109,20 @@ public class FsCheckpointStreamFactoryTest {
     }
 
     @Test
+    public void testFSWithDisabledEntropyHasRelativePaths() throws IOException {
+        final FsCheckpointStreamFactory factory = createFactory(new DisabledEntropyFS(), 0);
+
+        final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
+                factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+        stream.write(0);
+        final StreamStateHandle handle = stream.closeAndGetHandle();
+
+        assertThat(handle, instanceOf(RelativeFileStateHandle.class));
+        assertPathsEqual(
+                exclusiveStateDir, ((RelativeFileStateHandle) handle).getFilePath().getParent());
+    }
+
+    @Test
     public void testFlushUnderThreshold() throws IOException {
         flushAndVerify(10, 10, true);
     }
@@ -141,10 +147,11 @@ public class FsCheckpointStreamFactoryTest {
     //  test utils
     // ------------------------------------------------------------------------
 
-    private static void assertPathsEqual(Path expected, Path actual) {
-        final Path reNormalizedExpected = new Path(expected.toString());
-        final Path reNormalizedActual = new Path(actual.toString());
-        assertEquals(reNormalizedExpected, reNormalizedActual);
+    private static void assertPathsEqual(Path expected, org.apache.flink.core.fs.Path actual) {
+        final org.apache.flink.core.fs.Path reNormalizedExpected =
+                new org.apache.flink.core.fs.Path(
+                        new org.apache.flink.core.fs.Path(expected.toUri()).toString());
+        assertEquals(reNormalizedExpected, actual);
     }
 
     private FsCheckpointStreamFactory createFactory(FileSystem fs, int fileSizeThreshold) {
@@ -154,6 +161,23 @@ public class FsCheckpointStreamFactoryTest {
     private FsCheckpointStreamFactory createFactory(
             FileSystem fs, int fileSizeThreshold, int bufferSize) {
         return new FsCheckpointStreamFactory(
-                fs, exclusiveStateDir, sharedStateDir, fileSizeThreshold, bufferSize);
+                fs,
+                new org.apache.flink.core.fs.Path(exclusiveStateDir.toUri()),
+                new org.apache.flink.core.fs.Path(sharedStateDir.toUri()),
+                fileSizeThreshold,
+                bufferSize);
+    }
+
+    private static final class DisabledEntropyFS extends LocalFileSystem
+            implements EntropyInjectingFileSystem {
+        @Override
+        public String getEntropyInjectionKey() {
+            return null;
+        }
+
+        @Override
+        public String generateEntropy() {
+            return null;
+        }
     }
 }

@@ -26,4 +26,8 @@ public class ExpectedTestException extends RuntimeException {
     public ExpectedTestException() {
         super(MESSAGE);
     }
+
+    public ExpectedTestException(String message) {
+        super(message);
+    }
 }

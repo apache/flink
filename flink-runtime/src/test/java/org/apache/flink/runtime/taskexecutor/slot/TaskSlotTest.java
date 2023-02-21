@@ -21,15 +21,15 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -42,7 +42,7 @@ public class TaskSlotTest extends TestLogger {
         try (TaskSlot<TaskSlotPayload> taskSlot = createTaskSlot()) {
             taskSlot.markActive();
             TestingTaskSlotPayload task =
-                    new TestingTaskSlotPayload(JOB_ID, new ExecutionAttemptID(), ALLOCATION_ID);
+                    new TestingTaskSlotPayload(JOB_ID, createExecutionAttemptId(), ALLOCATION_ID);
             taskSlot.add(task);
 
             CompletableFuture<Void> closingFuture = taskSlot.closeAsync();

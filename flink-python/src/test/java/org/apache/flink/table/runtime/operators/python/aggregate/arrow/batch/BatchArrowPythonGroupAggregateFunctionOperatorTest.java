@@ -24,8 +24,12 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -34,10 +38,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -48,11 +51,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>FinishBundle is called when bundled time reach to max bundle time
  * </ul>
  */
-public class BatchArrowPythonGroupAggregateFunctionOperatorTest
+class BatchArrowPythonGroupAggregateFunctionOperatorTest
         extends AbstractBatchArrowPythonAggregateFunctionOperatorTest {
 
     @Test
-    public void testGroupAggregateFunction() throws Exception {
+    void testGroupAggregateFunction() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
         long initialTime = 0L;
@@ -75,7 +78,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -106,7 +109,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
+    void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
@@ -169,14 +172,42 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
             RowType outputType,
             int[] groupingSet,
             int[] udafInputOffsets) {
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(groupingSet.length, outputType.getFieldCount())
+                                .project(outputType);
+
         return new PassThroughBatchArrowPythonGroupAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                outputType,
-                groupingSet,
-                groupingSet,
-                udafInputOffsets);
+                udfInputType,
+                udfOutputType,
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "UdafInputProjection",
+                        inputType,
+                        udfInputType,
+                        udafInputOffsets),
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "GroupKey",
+                        inputType,
+                        (RowType) Projection.of(groupingSet).project(inputType),
+                        groupingSet),
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "GroupSet",
+                        inputType,
+                        (RowType) Projection.of(groupingSet).project(inputType),
+                        groupingSet));
     }
 
     private static class PassThroughBatchArrowPythonGroupAggregateFunctionOperator
@@ -184,33 +215,33 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 
         PassThroughBatchArrowPythonGroupAggregateFunctionOperator(
                 Configuration config,
-                PythonFunctionInfo[] pandasAggregateFunctions,
+                PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
-                int[] groupKey,
-                int[] groupingSet,
-                int[] udafInputOffsets) {
+                RowType udfInputType,
+                RowType udfOutputType,
+                GeneratedProjection inputGeneratedProjection,
+                GeneratedProjection groupKeyGeneratedProjection,
+                GeneratedProjection groupSetGeneratedProjection) {
             super(
                     config,
-                    pandasAggregateFunctions,
+                    pandasAggFunctions,
                     inputType,
-                    outputType,
-                    groupKey,
-                    groupingSet,
-                    udafInputOffsets);
+                    udfInputType,
+                    udfOutputType,
+                    inputGeneratedProjection,
+                    groupKeyGeneratedProjection,
+                    groupSetGeneratedProjection);
         }
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
-                    new HashMap<>(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);
         }

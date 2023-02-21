@@ -17,9 +17,15 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,9 +38,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** The checkpoint failure manager which centralized manage checkpoint failure processing logic. */
 public class CheckpointFailureManager {
 
+    private static final Logger LOG = LoggerFactory.getLogger(CheckpointFailureManager.class);
+
     public static final int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
     public static final String EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE =
             "Exceeded checkpoint tolerable failure threshold.";
+    private static final int UNKNOWN_CHECKPOINT_ID = -1;
 
     private final int tolerableCpFailureNumber;
     private final FailJobCallback failureCallback;
@@ -54,6 +63,96 @@ public class CheckpointFailureManager {
     }
 
     /**
+     * Failures on JM:
+     *
+     * <ul>
+     *   <li>all checkpoints - go against failure counter.
+     *   <li>any savepoints - don’t do anything, manual action, the failover will not help anyway.
+     * </ul>
+     *
+     * <p>Failures on TM:
+     *
+     * <ul>
+     *   <li>all checkpoints - go against failure counter (failover might help and we want to notify
+     *       users).
+     *   <li>sync savepoints - we must always fail, otherwise we risk deadlock when the job
+     *       cancelation waiting for finishing savepoint which never happens.
+     *   <li>non sync savepoints - go against failure counter (failover might help solve the
+     *       problem).
+     * </ul>
+     *
+     * @param pendingCheckpoint the failed checkpoint if it was initialized already.
+     * @param checkpointProperties the checkpoint properties in order to determinate which handle
+     *     strategy can be used.
+     * @param exception the checkpoint exception.
+     * @param executionAttemptID the execution attempt id, as a safe guard.
+     * @param job the JobID.
+     * @param pendingCheckpointStats the pending checkpoint statistics.
+     * @param statsTracker the tracker for checkpoint statistics.
+     */
+    public void handleCheckpointException(
+            @Nullable PendingCheckpoint pendingCheckpoint,
+            CheckpointProperties checkpointProperties,
+            CheckpointException exception,
+            @Nullable ExecutionAttemptID executionAttemptID,
+            JobID job,
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            CheckpointStatsTracker statsTracker) {
+        long checkpointId =
+                pendingCheckpoint == null
+                        ? UNKNOWN_CHECKPOINT_ID
+                        : pendingCheckpoint.getCheckpointID();
+        updateStatsAfterCheckpointFailed(pendingCheckpointStats, statsTracker, exception);
+
+        if (CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING.equals(
+                exception.getCheckpointFailureReason())) {
+            LOG.info(
+                    "Failed to trigger checkpoint for job {} since {}.",
+                    job,
+                    exception.getMessage());
+        } else {
+            LOG.warn(
+                    "Failed to trigger or complete checkpoint {} for job {}. ({} consecutive failed attempts so far)",
+                    checkpointId == UNKNOWN_CHECKPOINT_ID ? "UNKNOWN_CHECKPOINT_ID" : checkpointId,
+                    job,
+                    continuousFailureCounter.get(),
+                    exception);
+        }
+        if (isJobManagerFailure(exception, executionAttemptID)) {
+            handleJobLevelCheckpointException(checkpointProperties, exception, checkpointId);
+        } else {
+            handleTaskLevelCheckpointException(
+                    checkNotNull(pendingCheckpoint), exception, checkNotNull(executionAttemptID));
+        }
+    }
+
+    /**
+     * Updating checkpoint statistics after checkpoint failed.
+     *
+     * @param pendingCheckpointStats the pending checkpoint statistics.
+     * @param exception the checkpoint exception.
+     */
+    private void updateStatsAfterCheckpointFailed(
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            CheckpointStatsTracker statsTracker,
+            CheckpointException exception) {
+        if (pendingCheckpointStats != null) {
+            long failureTimestamp = System.currentTimeMillis();
+            statsTracker.reportFailedCheckpoint(
+                    pendingCheckpointStats.toFailedCheckpoint(failureTimestamp, exception));
+        } else {
+            statsTracker.reportFailedCheckpointsWithoutInProgress();
+        }
+    }
+
+    private boolean isJobManagerFailure(
+            CheckpointException exception, @Nullable ExecutionAttemptID executionAttemptID) {
+        // TODO: Try to get rid of checking nullability of executionAttemptID because false value of
+        // isPreFlightFailure should guarantee that executionAttemptID is always not null.
+        return isPreFlightFailure(exception) || executionAttemptID == null;
+    }
+
+    /**
      * Handle job level checkpoint exception with a handler callback.
      *
      * @param exception the checkpoint exception.
@@ -62,41 +161,55 @@ public class CheckpointFailureManager {
      *     the failure happens before the checkpoint id generation. In this case, it will be
      *     specified a negative latest generated checkpoint id as a special flag.
      */
-    public void handleJobLevelCheckpointException(
-            CheckpointException exception, long checkpointId) {
-        handleCheckpointException(exception, checkpointId, failureCallback::failJob);
+    void handleJobLevelCheckpointException(
+            CheckpointProperties checkpointProperties,
+            CheckpointException exception,
+            long checkpointId) {
+        if (!checkpointProperties.isSavepoint()) {
+            checkFailureAgainstCounter(exception, checkpointId, failureCallback::failJob);
+        }
     }
 
     /**
      * Handle task level checkpoint exception with a handler callback.
      *
-     * @param exception the checkpoint exception.
-     * @param checkpointId the failed checkpoint id used to count the continuous failure number
+     * @param pendingCheckpoint the failed checkpoint used to count the continuous failure number
      *     based on checkpoint id sequence. In trigger phase, we may not get the checkpoint id when
      *     the failure happens before the checkpoint id generation. In this case, it will be
      *     specified a negative latest generated checkpoint id as a special flag.
+     * @param exception the checkpoint exception.
      * @param executionAttemptID the execution attempt id, as a safe guard.
      */
-    public void handleTaskLevelCheckpointException(
+    void handleTaskLevelCheckpointException(
+            PendingCheckpoint pendingCheckpoint,
             CheckpointException exception,
-            long checkpointId,
             ExecutionAttemptID executionAttemptID) {
-        handleCheckpointException(
-                exception,
-                checkpointId,
-                e -> failureCallback.failJobDueToTaskFailure(e, executionAttemptID));
+        CheckpointProperties checkpointProps = pendingCheckpoint.getProps();
+        if (checkpointProps.isSavepoint() && checkpointProps.isSynchronous()) {
+            failureCallback.failJob(exception);
+        } else {
+            checkFailureAgainstCounter(
+                    exception,
+                    pendingCheckpoint.getCheckpointID(),
+                    e -> failureCallback.failJobDueToTaskFailure(e, executionAttemptID));
+        }
     }
 
-    private void handleCheckpointException(
+    private void checkFailureAgainstCounter(
             CheckpointException exception,
             long checkpointId,
             Consumer<FlinkRuntimeException> errorHandler) {
-        if (checkpointId > lastSucceededCheckpointId) {
+        if (checkpointId == UNKNOWN_CHECKPOINT_ID || checkpointId > lastSucceededCheckpointId) {
             checkFailureCounter(exception, checkpointId);
             if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
                 clearCount();
-                errorHandler.accept(
-                        new FlinkRuntimeException(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE));
+                String exceptionMessage =
+                        String.format(
+                                "%s The latest checkpoint failed due to %s, view the Checkpoint History tab"
+                                        + " or the Job Manager log to find out why continuous checkpoints failed.",
+                                EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE,
+                                exception.getCheckpointFailureReason().message());
+                errorHandler.accept(new FlinkRuntimeException(exceptionMessage));
             }
         }
     }
@@ -109,38 +222,37 @@ public class CheckpointFailureManager {
         CheckpointFailureReason reason = exception.getCheckpointFailureReason();
         switch (reason) {
             case PERIODIC_SCHEDULER_SHUTDOWN:
-            case TOO_MANY_CONCURRENT_CHECKPOINTS:
             case TOO_MANY_CHECKPOINT_REQUESTS:
             case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
             case NOT_ALL_REQUIRED_TASKS_RUNNING:
             case CHECKPOINT_SUBSUMED:
             case CHECKPOINT_COORDINATOR_SUSPEND:
             case CHECKPOINT_COORDINATOR_SHUTDOWN:
-            case JOB_FAILURE:
+            case CHANNEL_STATE_SHARED_STREAM_EXCEPTION:
             case JOB_FAILOVER_REGION:
                 // for compatibility purposes with user job behavior
             case CHECKPOINT_DECLINED_TASK_NOT_READY:
             case CHECKPOINT_DECLINED_TASK_CLOSING:
-            case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-            case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
             case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
             case CHECKPOINT_DECLINED_SUBSUMED:
             case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
-            case EXCEPTION:
             case TASK_FAILURE:
             case TASK_CHECKPOINT_FAILURE:
             case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
+                // there are some edge cases shouldn't be counted as a failure, e.g. shutdown
             case TRIGGER_CHECKPOINT_FAILURE:
-            case FINALIZE_CHECKPOINT_FAILURE:
                 // ignore
                 break;
 
+            case IO_EXCEPTION:
             case CHECKPOINT_ASYNC_EXCEPTION:
             case CHECKPOINT_DECLINED:
             case CHECKPOINT_EXPIRED:
+            case FINALIZE_CHECKPOINT_FAILURE:
                 // we should make sure one checkpoint only be counted once
-                if (countedCheckpointIds.add(checkpointId)) {
+                if (checkpointId == UNKNOWN_CHECKPOINT_ID
+                        || countedCheckpointIds.add(checkpointId)) {
                     continuousFailureCounter.incrementAndGet();
                 }
 
@@ -168,21 +280,6 @@ public class CheckpointFailureManager {
     private void clearCount() {
         continuousFailureCounter.set(0);
         countedCheckpointIds.clear();
-    }
-
-    /**
-     * Fails the whole job graph in case an in-progress synchronous savepoint is discarded.
-     *
-     * <p>If the checkpoint was cancelled at the checkpoint coordinator, i.e. before the synchronous
-     * savepoint barrier was sent to the tasks, then we do not cancel the job as we do not risk
-     * having a deadlock.
-     *
-     * @param cause The reason why the job is cancelled.
-     */
-    void handleSynchronousSavepointFailure(final Throwable cause) {
-        if (!isPreFlightFailure(cause)) {
-            failureCallback.failJob(cause);
-        }
     }
 
     private static boolean isPreFlightFailure(final Throwable cause) {

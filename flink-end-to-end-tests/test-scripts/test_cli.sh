@@ -65,7 +65,7 @@ function extract_valid_job_list_by_type_from_job_list_return() {
 }
 
 function extract_task_manager_slot_request_count() {
-    COUNT=`grep "Receive slot request" $FLINK_DIR/log/*taskexecutor*.log | wc -l`
+    COUNT=`grep "Receive slot request" $FLINK_LOG_DIR/*taskexecutor*.log* | wc -l`
     echo $COUNT
 }
 

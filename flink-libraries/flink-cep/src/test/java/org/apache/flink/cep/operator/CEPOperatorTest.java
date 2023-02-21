@@ -38,6 +38,7 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.time.TimerService;
+import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -52,7 +53,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -362,7 +363,7 @@ public class CEPOperatorTest extends TestLogger {
     public void testKeyedCEPOperatorNFAUpdate() throws Exception {
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+                CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 CepOperatorTestUtilities.getCepTestHarness(operator);
 
@@ -379,7 +380,7 @@ public class CEPOperatorTest extends TestLogger {
             OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
             harness.close();
 
-            operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+            operator = CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
             harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
             harness.setup();
@@ -390,7 +391,7 @@ public class CEPOperatorTest extends TestLogger {
             OperatorSubtaskState snapshot2 = harness.snapshot(0L, 0L);
             harness.close();
 
-            operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+            operator = CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
             harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
             harness.setup();
@@ -421,7 +422,7 @@ public class CEPOperatorTest extends TestLogger {
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+                CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 CepOperatorTestUtilities.getCepTestHarness(operator);
 
@@ -440,7 +441,7 @@ public class CEPOperatorTest extends TestLogger {
             OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
             harness.close();
 
-            operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+            operator = CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
             harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
             rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
@@ -454,7 +455,7 @@ public class CEPOperatorTest extends TestLogger {
             OperatorSubtaskState snapshot2 = harness.snapshot(0L, 0L);
             harness.close();
 
-            operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+            operator = CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
             harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
             rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
@@ -482,7 +483,7 @@ public class CEPOperatorTest extends TestLogger {
     @Test
     public void testKeyedCEPOperatorNFAUpdateTimes() throws Exception {
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+                CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 CepOperatorTestUtilities.getCepTestHarness(operator);
 
@@ -526,7 +527,7 @@ public class CEPOperatorTest extends TestLogger {
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
+                CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 CepOperatorTestUtilities.getCepTestHarness(operator);
 
@@ -596,7 +597,7 @@ public class CEPOperatorTest extends TestLogger {
             // there must be 2 keys 42, 43 registered for the watermark callback
             // all the seen elements must be in the priority queues but no NFA yet.
 
-            assertEquals(2L, harness.numEventTimeTimers());
+            assertEquals(4L, harness.numEventTimeTimers());
             assertEquals(4L, operator.getPQSize(42));
             assertEquals(1L, operator.getPQSize(43));
             assertTrue(!operator.hasNonEmptySharedBuffer(42));
@@ -611,7 +612,7 @@ public class CEPOperatorTest extends TestLogger {
             // one element in PQ for 42 (the barfoo) as it arrived early
             // for 43 the element entered the NFA and the PQ is empty
 
-            assertEquals(2L, harness.numEventTimeTimers());
+            assertEquals(4L, harness.numEventTimeTimers());
             assertTrue(operator.hasNonEmptySharedBuffer(42));
             assertEquals(1L, operator.getPQSize(42));
             assertTrue(operator.hasNonEmptySharedBuffer(43));
@@ -636,7 +637,7 @@ public class CEPOperatorTest extends TestLogger {
 
             // now we have 1 key because the 43 expired and was removed.
             // 42 is still there due to startEvent2
-            assertEquals(1L, harness.numEventTimeTimers());
+            assertEquals(3L, harness.numEventTimeTimers());
             assertTrue(operator2.hasNonEmptySharedBuffer(42));
             assertTrue(!operator2.hasNonEmptyPQ(42));
             assertTrue(!operator2.hasNonEmptySharedBuffer(43));
@@ -678,7 +679,7 @@ public class CEPOperatorTest extends TestLogger {
         Event middle2Event1 = new Event(41, "b", 5.0);
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(false, new ComplexNFAFactory());
+                CepOperatorTestUtilities.getKeyedCepOperator(false, new ComplexNFAFactory());
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 CepOperatorTestUtilities.getCepTestHarness(operator);
 
@@ -695,7 +696,7 @@ public class CEPOperatorTest extends TestLogger {
             harness.processElement(new StreamRecord<>(middle1Event1, 3));
             harness.processElement(new StreamRecord<>(new Event(41, "d", 6.0), 5));
 
-            assertEquals(1L, harness.numEventTimeTimers());
+            assertEquals(5L, harness.numEventTimeTimers());
             assertEquals(7L, operator.getPQSize(41));
             assertTrue(!operator.hasNonEmptySharedBuffer(41));
 
@@ -704,7 +705,7 @@ public class CEPOperatorTest extends TestLogger {
             verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);
             verifyWatermark(harness.getOutput().poll(), 2L);
 
-            assertEquals(1L, harness.numEventTimeTimers());
+            assertEquals(5L, harness.numEventTimeTimers());
             assertEquals(6L, operator.getPQSize(41));
             assertTrue(operator.hasNonEmptySharedBuffer(41)); // processed the first element
 
@@ -783,7 +784,7 @@ public class CEPOperatorTest extends TestLogger {
                 new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(
+                CepOperatorTestUtilities.getKeyedCepOperator(
                         false, new ComplexNFAFactory(), null, lateDataTag);
         try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 CepOperatorTestUtilities.getCepTestHarness(operator)) {
@@ -905,7 +906,7 @@ public class CEPOperatorTest extends TestLogger {
 
             harness.setProcessingTime(21L);
 
-            assertTrue(operator2.hasNonEmptySharedBuffer(42));
+            assertTrue(!operator2.hasNonEmptySharedBuffer(42));
 
             harness.processElement(new StreamRecord<>(startEvent1, 21L));
             assertTrue(operator2.hasNonEmptySharedBuffer(42));
@@ -943,16 +944,7 @@ public class CEPOperatorTest extends TestLogger {
 
         final Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedBy("middle")
                         .subtype(SubEvent.class)
                         .where(
@@ -979,19 +971,10 @@ public class CEPOperatorTest extends TestLogger {
                         .oneOrMore()
                         .allowCombinations()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            7056763917392056548L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
-                CepOperatorTestUtilities.getKeyedCepOpearator(
+                CepOperatorTestUtilities.getKeyedCepOperator(
                         false,
                         new NFACompiler.NFAFactory<Event>() {
                             private static final long serialVersionUID = 477082663248051994L;
@@ -1199,13 +1182,13 @@ public class CEPOperatorTest extends TestLogger {
 
     private CepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperator(
             boolean isProcessingTime) {
-        return CepOperatorTestUtilities.getKeyedCepOpearator(isProcessingTime, new NFAFactory());
+        return CepOperatorTestUtilities.getKeyedCepOperator(isProcessingTime, new NFAFactory());
     }
 
     private CepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperatorWithComparator(
             boolean isProcessingTime) {
 
-        return CepOperatorTestUtilities.getKeyedCepOpearator(
+        return CepOperatorTestUtilities.getKeyedCepOperator(
                 isProcessingTime,
                 new NFAFactory(),
                 new org.apache.flink.cep.EventComparator<Event>() {
@@ -1278,7 +1261,7 @@ public class CEPOperatorTest extends TestLogger {
 
     private CepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOpearator(
             boolean isProcessingTime) {
-        return CepOperatorTestUtilities.getKeyedCepOpearator(
+        return CepOperatorTestUtilities.getKeyedCepOperator(
                 isProcessingTime, new CEPOperatorTest.NFAFactory());
     }
 
@@ -1301,39 +1284,12 @@ public class CEPOperatorTest extends TestLogger {
 
             Pattern<Event, ?> pattern =
                     Pattern.<Event>begin("start")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("start");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("start")))
                             .followedByAny("middle")
                             .subtype(SubEvent.class)
-                            .where(
-                                    new SimpleCondition<SubEvent>() {
-                                        private static final long serialVersionUID =
-                                                6215754202506583964L;
-
-                                        @Override
-                                        public boolean filter(SubEvent value) throws Exception {
-                                            return value.getVolume() > 5.0;
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getVolume() > 5.0))
                             .followedByAny("end")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                7056763917392056548L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("end");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("end")))
                             // add a window timeout to test whether timestamps of elements in the
                             // priority queue in CEP operator are correctly checkpointed/restored
                             .within(Time.milliseconds(10L));
@@ -1361,52 +1317,16 @@ public class CEPOperatorTest extends TestLogger {
 
             Pattern<Event, ?> pattern =
                     Pattern.<Event>begin("start")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("c");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("c")))
                             .followedBy("middle1")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("a");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("a")))
                             .oneOrMore()
                             .optional()
                             .followedBy("middle2")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("b");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("b")))
                             .optional()
                             .followedBy("end")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("a");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("a")))
                             .within(Time.milliseconds(10L));
 
             return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
@@ -1432,38 +1352,11 @@ public class CEPOperatorTest extends TestLogger {
 
             Pattern<Event, ?> pattern =
                     Pattern.<Event>begin("start")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("c");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("c")))
                             .followedBy("middle")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("a");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("a")))
                             .followedBy("end")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("b");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("b")))
                             .within(Time.milliseconds(10L));
 
             return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();

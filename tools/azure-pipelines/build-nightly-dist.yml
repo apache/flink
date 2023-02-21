@@ -13,10 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+parameters:
+  jdk: # the jdk version to use
+
 jobs:
   - job: ${{parameters.stage_name}}_binary
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-20.04'
     container: flink-build-container
     workspace:
       clean: all
@@ -28,6 +31,10 @@ jobs:
           restoreKeys: $(CACHE_FALLBACK_KEY)
           path: $(MAVEN_CACHE_FOLDER)
         continueOnError: true
+      - script: |
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+        displayName: "Set JDK"
       - task: CmdLine@2
         displayName: Build snapshot binary release
         inputs:
@@ -63,9 +70,9 @@ jobs:
       #    artifact: nightly-release
   - job: ${{parameters.stage_name}}_maven
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-20.04'
     container: flink-build-container
-    timeoutInMinutes: 100 # 40 minutes per scala version + 20 buffer
+    timeoutInMinutes: 240
     workspace:
       clean: all
     steps:
@@ -76,6 +83,10 @@ jobs:
           restoreKeys: $(CACHE_FALLBACK_KEY)
           path: $(MAVEN_CACHE_FOLDER)
         continueOnError: true
+      - script: |
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+        displayName: "Set JDK"
       # Upload snapshot
       - task: CmdLine@2
         displayName: Deploy maven snapshot
@@ -109,7 +120,7 @@ jobs:
             </settings>
             EOF
 
-            export CUSTOM_OPTIONS="-Dgpg.skip -Drat.skip -Dcheckstyle.skip --settings $(pwd)/deploy-settings.xml"
+            export CUSTOM_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} -Dgpg.skip -Drat.skip -Dcheckstyle.skip --settings $(pwd)/deploy-settings.xml"
             export MVN_RUN_VERBOSE=true
             ./releasing/deploy_staging_jars.sh
         env:

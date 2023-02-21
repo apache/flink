@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Partitioner that selects the channel with a user defined partitioner function on a key.
@@ -74,6 +75,25 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
         } catch (ClassNotFoundException | IOException e) {
             throw new IllegalStateException("Cannot clone custom partitioner", e);
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final CustomPartitionerWrapper<?, ?> that = (CustomPartitionerWrapper<?, ?>) o;
+        return numberOfChannels == that.numberOfChannels
+                && Objects.equals(partitioner, that.partitioner)
+                && Objects.equals(keySelector, that.keySelector);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), partitioner, keySelector);
     }
 
     @Override

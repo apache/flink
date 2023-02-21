@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
@@ -26,14 +29,13 @@ import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
+import java.time.Duration;
+
 /** The Factory class for {@link CollectSinkOperator}. */
 public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFactory<Object>
         implements CoordinatedOperatorFactory<Object> {
 
     private static final long serialVersionUID = 1L;
-
-    private static final long DEFAULT_MAX_BYTES_PER_BATCH = 1 << 21; // 2MB
-    private static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 10000;
 
     private final CollectSinkOperator<IN> operator;
     private final int socketTimeoutMillis;
@@ -42,18 +44,18 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
         this(
                 serializer,
                 accumulatorName,
-                DEFAULT_MAX_BYTES_PER_BATCH,
-                DEFAULT_SOCKET_TIMEOUT_MILLIS);
+                MAX_BATCH_SIZE.defaultValue(),
+                SOCKET_TIMEOUT.defaultValue());
     }
 
     public CollectSinkOperatorFactory(
             TypeSerializer<IN> serializer,
             String accumulatorName,
-            long maxBytesPerBatch,
-            int socketTimeoutMillis) {
-        super(new CollectSinkOperator<>(serializer, maxBytesPerBatch, accumulatorName));
+            MemorySize maxBatchSize,
+            Duration socketTimeout) {
+        super(new CollectSinkOperator<>(serializer, maxBatchSize.getBytes(), accumulatorName));
         this.operator = (CollectSinkOperator<IN>) getOperator();
-        this.socketTimeoutMillis = socketTimeoutMillis;
+        this.socketTimeoutMillis = (int) socketTimeout.toMillis();
     }
 
     @Override
@@ -79,4 +81,14 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
         operator.getOperatorIdFuture().complete(operatorID);
         return new CollectSinkOperatorCoordinator.Provider(operatorID, socketTimeoutMillis);
     }
+
+    // these configs are rarely used, so we're not exposing them to the user by docs
+    public static final ConfigOption<MemorySize> MAX_BATCH_SIZE =
+            ConfigOptions.key("collect-sink.batch-size.max")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(2));
+    public static final ConfigOption<Duration> SOCKET_TIMEOUT =
+            ConfigOptions.key("collect-sink.socket-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10));
 }

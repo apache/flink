@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
@@ -25,6 +26,8 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -39,6 +42,7 @@ import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -47,7 +51,7 @@ import java.util.function.Supplier;
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
+import static org.apache.flink.shaded.guava30.com.google.common.base.Strings.emptyToNull;
 
 /** Handler to submit jobs uploaded via the Web UI. */
 public class JarRunHandler
@@ -82,8 +86,9 @@ public class JarRunHandler
     }
 
     @Override
-    protected CompletableFuture<JarRunResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
+    @VisibleForTesting
+    public CompletableFuture<JarRunResponseBody> handleRequest(
+            @Nonnull final HandlerRequest<JarRunRequestBody> request,
             @Nonnull final DispatcherGateway gateway)
             throws RestHandlerException {
 
@@ -92,9 +97,10 @@ public class JarRunHandler
         effectiveConfiguration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 
         final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
-        context.applyToConfiguration(effectiveConfiguration);
+        context.applyToConfiguration(effectiveConfiguration, request);
         SavepointRestoreSettings.toConfiguration(
-                getSavepointRestoreSettings(request), effectiveConfiguration);
+                getSavepointRestoreSettings(request, effectiveConfiguration),
+                effectiveConfiguration);
 
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
 
@@ -121,7 +127,8 @@ public class JarRunHandler
     }
 
     private SavepointRestoreSettings getSavepointRestoreSettings(
-            final @Nonnull HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
+            final @Nonnull HandlerRequest<JarRunRequestBody> request,
+            final Configuration effectiveConfiguration)
             throws RestHandlerException {
 
         final JarRunRequestBody requestBody = request.getRequestBody();
@@ -130,21 +137,29 @@ public class JarRunHandler
                 fromRequestBodyOrQueryParameter(
                         requestBody.getAllowNonRestoredState(),
                         () -> getQueryParameter(request, AllowNonRestoredStateQueryParameter.class),
-                        false,
+                        effectiveConfiguration.get(
+                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE),
                         log);
         final String savepointPath =
                 fromRequestBodyOrQueryParameter(
-                        emptyToNull(requestBody.getSavepointPath()),
+                        requestBody.getSavepointPath(),
                         () ->
                                 emptyToNull(
                                         getQueryParameter(
                                                 request, SavepointPathQueryParameter.class)),
-                        null,
+                        effectiveConfiguration.get(SavepointConfigOptions.SAVEPOINT_PATH),
                         log);
+        final RestoreMode restoreMode =
+                Optional.ofNullable(requestBody.getRestoreMode())
+                        .orElseGet(
+                                () ->
+                                        effectiveConfiguration.get(
+                                                SavepointConfigOptions.RESTORE_MODE));
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =
-                    SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+                    SavepointRestoreSettings.forPath(
+                            savepointPath, allowNonRestoredState, restoreMode);
         } else {
             savepointRestoreSettings = SavepointRestoreSettings.none();
         }

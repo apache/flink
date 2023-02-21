@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
@@ -33,15 +33,14 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 /**
- * An example of grouped stream windowing into sliding time windows. This example uses
- * [[RichParallelSourceFunction]] to generate a list of key-value pairs.
+ * An example of grouped stream windowing into sliding time windows. This example uses {@link
+ * RichParallelSourceFunction} to generate a list of key-value pairs.
  */
 public class GroupedProcessingTimeWindowExample {
 
     public static void main(String[] args) throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(4);
 
         DataStream<Tuple2<Long, Long>> stream = env.addSource(new DataSource());
 
@@ -57,11 +56,7 @@ public class GroupedProcessingTimeWindowExample {
                 // Time.milliseconds(500)))
                 //			.apply(new SummingWindowFunction())
 
-                .addSink(
-                        new SinkFunction<Tuple2<Long, Long>>() {
-                            @Override
-                            public void invoke(Tuple2<Long, Long> value) {}
-                        });
+                .addSink(new DiscardingSink<>());
 
         env.execute();
     }

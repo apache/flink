@@ -28,6 +28,8 @@ import org.apache.flink.table.utils.EncodingUtils;
 
 import java.io.Serializable;
 
+import static org.apache.flink.table.functions.UserDefinedFunctionHelper.isClassNameSerializable;
+
 /**
  * Base class for all user-defined functions.
  *
@@ -58,9 +60,13 @@ public abstract class UserDefinedFunction implements FunctionDefinition, Seriali
 
     /** Returns a unique, serialized representation for this function. */
     public final String functionIdentifier() {
+        final String className = getClass().getName();
+        if (isClassNameSerializable(this)) {
+            return className;
+        }
         final String md5 =
                 EncodingUtils.hex(EncodingUtils.md5(EncodingUtils.encodeObjectToString(this)));
-        return getClass().getName().replace('.', '$').concat("$").concat(md5);
+        return className.concat("$").concat(md5);
     }
 
     /**

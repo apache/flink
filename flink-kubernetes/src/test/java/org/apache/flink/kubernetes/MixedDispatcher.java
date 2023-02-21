@@ -38,7 +38,7 @@ public class MixedDispatcher extends KubernetesCrudDispatcher {
     }
 
     @Override
-    public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+    public MockResponse dispatch(RecordedRequest request) {
         HttpMethod method = HttpMethod.valueOf(request.getMethod());
         String path = request.getPath();
         SimpleRequest key = new SimpleRequest(method, path);

@@ -26,7 +26,6 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -117,9 +117,9 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
     }
 
     @Override
-    protected void cleanupDirectories() throws IOException {
+    protected void cleanupDirectories(ShutdownBehaviour shutdownBehaviour) throws IOException {
         // Close the packaged program explicitly to clean up temporary jars.
         program.close();
-        super.cleanupDirectories();
+        super.cleanupDirectories(shutdownBehaviour);
     }
 }

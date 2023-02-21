@@ -18,30 +18,53 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Optional;
+import java.io.Serializable;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.OptionalInt;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.function.ToIntFunction;
 
 /** Container for meta-data of a data set. */
-public final class DataSetMetaInfo {
+public final class DataSetMetaInfo implements Serializable {
     private static final int UNKNOWN = -1;
 
     private final int numRegisteredPartitions;
     private final int numTotalPartitions;
+    private final SortedMap<ResultPartitionID, ShuffleDescriptor>
+            shuffleDescriptorsOrderByPartitionId =
+                    new TreeMap<>(
+                            Comparator.comparingInt(
+                                    (ToIntFunction<? super ResultPartitionID> & Serializable)
+                                            o -> o.getPartitionId().getPartitionNumber()));
 
     private DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
         this.numRegisteredPartitions = numRegisteredPartitions;
         this.numTotalPartitions = numTotalPartitions;
     }
 
-    public Optional<Integer> getNumRegisteredPartitions() {
+    public OptionalInt getNumRegisteredPartitions() {
         return numRegisteredPartitions == UNKNOWN
-                ? Optional.empty()
-                : Optional.of(numRegisteredPartitions);
+                ? OptionalInt.empty()
+                : OptionalInt.of(numRegisteredPartitions);
     }
 
     public int getNumTotalPartitions() {
         return numTotalPartitions;
+    }
+
+    public DataSetMetaInfo addShuffleDescriptors(
+            Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors) {
+        this.shuffleDescriptorsOrderByPartitionId.putAll(shuffleDescriptors);
+        return this;
+    }
+
+    public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
+        return this.shuffleDescriptorsOrderByPartitionId;
     }
 
     static DataSetMetaInfo withoutNumRegisteredPartitions(int numTotalPartitions) {

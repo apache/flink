@@ -19,19 +19,21 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.util.SerializableFunction;
+import org.apache.flink.util.function.SerializableFunction;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /** A simple testing implementation of the {@link OperatorCoordinator}. */
-class TestingOperatorCoordinator implements OperatorCoordinator {
+public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public static final byte[] NULL_RESTORE_VALUE = new byte[0];
 
@@ -45,11 +47,15 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
     @Nullable private byte[] lastRestoredCheckpointState;
     private long lastRestoredCheckpointId;
 
-    private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
+    private long lastTriggeredCheckpointId;
 
-    private BlockingQueue<Long> lastCheckpointComplete;
+    private final BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
 
-    private BlockingQueue<OperatorEvent> receivedOperatorEvents;
+    private final BlockingQueue<Long> lastCheckpointComplete;
+
+    private final BlockingQueue<OperatorEvent> receivedOperatorEvents;
+
+    private final Map<Integer, SubtaskGateway> subtaskGateways;
 
     private boolean started;
     private boolean closed;
@@ -65,6 +71,7 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
         this.lastCheckpointComplete = new LinkedBlockingQueue<>();
         this.receivedOperatorEvents = new LinkedBlockingQueue<>();
         this.blockOnCloseLatch = blockOnCloseLatch;
+        this.subtaskGateways = new HashMap<>();
     }
 
     // ------------------------------------------------------------------------
@@ -83,13 +90,14 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
-    public void handleEventFromOperator(int subtask, OperatorEvent event) {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {
         receivedOperatorEvents.add(event);
     }
 
     @Override
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
         failedTasks.add(subtask);
+        subtaskGateways.remove(subtask);
     }
 
     @Override
@@ -98,7 +106,13 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
+        subtaskGateways.put(subtask, gateway);
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+        lastTriggeredCheckpointId = checkpointId;
         boolean added = triggeredCheckpoints.offer(result);
         assert added; // guard the test assumptions
     }
@@ -118,6 +132,10 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public OperatorCoordinator.Context getContext() {
         return context;
+    }
+
+    public SubtaskGateway getSubtaskGateway(int subtask) {
+        return subtaskGateways.get(subtask);
     }
 
     public boolean isStarted() {
@@ -147,6 +165,10 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {
         return triggeredCheckpoints.take();
+    }
+
+    public long getLastTriggeredCheckpointId() {
+        return lastTriggeredCheckpointId;
     }
 
     public boolean hasTriggeredCheckpoint() {

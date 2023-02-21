@@ -28,33 +28,34 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 /** Factory for {@link MergingSharedSlotProfileRetriever}. */
 class MergingSharedSlotProfileRetrieverFactory
         implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
+
     private final SyncPreferredLocationsRetriever preferredLocationsRetriever;
 
-    private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
+    private final Function<ExecutionVertexID, Optional<AllocationID>> priorAllocationIdRetriever;
+
+    private final Supplier<Set<AllocationID>> reservedAllocationIdsRetriever;
 
     MergingSharedSlotProfileRetrieverFactory(
             SyncPreferredLocationsRetriever preferredLocationsRetriever,
-            Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever) {
+            Function<ExecutionVertexID, Optional<AllocationID>> priorAllocationIdRetriever,
+            Supplier<Set<AllocationID>> reservedAllocationIdsRetriever) {
         this.preferredLocationsRetriever = Preconditions.checkNotNull(preferredLocationsRetriever);
         this.priorAllocationIdRetriever = Preconditions.checkNotNull(priorAllocationIdRetriever);
+        this.reservedAllocationIdsRetriever =
+                Preconditions.checkNotNull(reservedAllocationIdsRetriever);
     }
 
     @Override
     public SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk) {
-        Set<AllocationID> allPriorAllocationIds =
-                bulk.stream()
-                        .map(priorAllocationIdRetriever)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toSet());
-        return new MergingSharedSlotProfileRetriever(allPriorAllocationIds, bulk);
+        return new MergingSharedSlotProfileRetriever(reservedAllocationIdsRetriever.get(), bulk);
     }
 
     /**
@@ -62,16 +63,15 @@ class MergingSharedSlotProfileRetrieverFactory
      * schedule.
      */
     private class MergingSharedSlotProfileRetriever implements SharedSlotProfileRetriever {
-        /** All previous {@link AllocationID}s of the bulk to schedule. */
-        private final Set<AllocationID> allBulkPriorAllocationIds;
+        /** All reserved {@link AllocationID}s of the job. */
+        private final Set<AllocationID> reservedAllocationIds;
 
         /** All {@link ExecutionVertexID}s of the bulk. */
         private final Set<ExecutionVertexID> producersToIgnore;
 
         private MergingSharedSlotProfileRetriever(
-                Set<AllocationID> allBulkPriorAllocationIds,
-                Set<ExecutionVertexID> producersToIgnore) {
-            this.allBulkPriorAllocationIds = Preconditions.checkNotNull(allBulkPriorAllocationIds);
+                Set<AllocationID> reservedAllocationIds, Set<ExecutionVertexID> producersToIgnore) {
+            this.reservedAllocationIds = Preconditions.checkNotNull(reservedAllocationIds);
             this.producersToIgnore = Preconditions.checkNotNull(producersToIgnore);
         }
 
@@ -86,8 +86,7 @@ class MergingSharedSlotProfileRetrieverFactory
          * <p>The preferred {@link AllocationID}s of the {@link SlotProfile} are all previous {@link
          * AllocationID}s of all executions sharing the slot.
          *
-         * <p>The {@link SlotProfile} also refers to all previous {@link AllocationID}s of all
-         * executions within the bulk.
+         * <p>The {@link SlotProfile} also refers to all reserved {@link AllocationID}s of the job.
          *
          * @param executionSlotSharingGroup executions sharing the slot.
          * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
@@ -100,17 +99,18 @@ class MergingSharedSlotProfileRetrieverFactory
             Collection<AllocationID> priorAllocations = new HashSet<>();
             Collection<TaskManagerLocation> preferredLocations = new ArrayList<>();
             for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
-                priorAllocations.add(priorAllocationIdRetriever.apply(execution));
+                priorAllocationIdRetriever.apply(execution).ifPresent(priorAllocations::add);
                 preferredLocations.addAll(
                         preferredLocationsRetriever.getPreferredLocations(
                                 execution, producersToIgnore));
             }
+
             return SlotProfile.priorAllocation(
                     physicalSlotResourceProfile,
                     physicalSlotResourceProfile,
                     preferredLocations,
                     priorAllocations,
-                    allBulkPriorAllocationIds);
+                    reservedAllocationIds);
         }
     }
 }

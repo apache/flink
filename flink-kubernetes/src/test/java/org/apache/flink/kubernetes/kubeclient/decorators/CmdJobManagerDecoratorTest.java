@@ -26,19 +26,15 @@ import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** General tests for the {@link CmdJobManagerDecorator}. */
-public class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
+class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 
     private CmdJobManagerDecorator cmdJobManagerDecorator;
 
@@ -50,40 +46,44 @@ public class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testContainerIsDecorated() {
+    void testContainerIsDecorated() {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
-        assertThat(
-                resultFlinkPod.getPodWithoutMainContainer(),
-                is(equalTo(baseFlinkPod.getPodWithoutMainContainer())));
-        assertThat(
-                resultFlinkPod.getMainContainer(), not(equalTo(baseFlinkPod.getMainContainer())));
+        assertThat(resultFlinkPod.getPodWithoutMainContainer())
+                .isEqualTo(baseFlinkPod.getPodWithoutMainContainer());
+        assertThat(resultFlinkPod.getMainContainer()).isNotEqualTo(baseFlinkPod.getMainContainer());
     }
 
     @Test
-    public void testSessionClusterCommandsAndArgs() {
+    void testSessionClusterCommandsAndArgs() {
         testJobManagerCommandsAndArgs(KubernetesDeploymentTarget.SESSION.getName());
     }
 
     @Test
-    public void testApplicationClusterCommandsAndArgs() {
+    void testApplicationClusterCommandsAndArgs() {
         testJobManagerCommandsAndArgs(KubernetesDeploymentTarget.APPLICATION.getName());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testUnsupportedDeploymentTargetShouldFail() {
-        testJobManagerCommandsAndArgs("unsupported-deployment-target");
+        assertThatThrownBy(() -> testJobManagerCommandsAndArgs("unsupported-deployment-target"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private void testJobManagerCommandsAndArgs(String target) {
         flinkConfig.set(DeploymentOptions.TARGET, target);
         final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
         final String entryCommand = flinkConfig.get(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH);
-        assertThat(
-                resultFlinkPod.getMainContainer().getCommand(), containsInAnyOrder(entryCommand));
+        assertThat(resultFlinkPod.getMainContainer().getCommand())
+                .containsExactlyInAnyOrder(entryCommand);
         List<String> flinkCommands =
                 KubernetesUtils.getStartCommandWithBashWrapper(
-                        Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH + " " + target);
-        assertThat(resultFlinkPod.getMainContainer().getArgs(), contains(flinkCommands.toArray()));
+                        Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH
+                                + " "
+                                + target
+                                + " "
+                                + ENTRYPOINT_ARGS);
+        assertThat(resultFlinkPod.getMainContainer().getArgs())
+                .containsExactlyElementsOf(flinkCommands);
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nonnull;
@@ -36,7 +38,6 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Settable implementation of ClusterClient used for testing. */
@@ -44,32 +45,38 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
 
     private Function<JobID, CompletableFuture<Acknowledge>> cancelFunction =
             ignore -> CompletableFuture.completedFuture(Acknowledge.get());
-    private BiFunction<JobID, String, CompletableFuture<String>> cancelWithSavepointFunction =
-            (ignore, savepointPath) -> CompletableFuture.completedFuture(savepointPath);
-    private TriFunction<JobID, Boolean, String, CompletableFuture<String>>
-            stopWithSavepointFunction =
-                    (ignore1, ignore2, savepointPath) ->
+    private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+            cancelWithSavepointFunction =
+                    (ignore, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
-    private BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction =
-            (ignore, savepointPath) -> CompletableFuture.completedFuture(savepointPath);
+    private QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+            stopWithSavepointFunction =
+                    (ignore1, ignore2, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(savepointPath);
+    private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+            triggerSavepointFunction =
+                    (ignore, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(savepointPath);
 
     public void setCancelFunction(Function<JobID, CompletableFuture<Acknowledge>> cancelFunction) {
         this.cancelFunction = cancelFunction;
     }
 
     public void setCancelWithSavepointFunction(
-            BiFunction<JobID, String, CompletableFuture<String>> cancelWithSavepointFunction) {
+            TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+                    cancelWithSavepointFunction) {
         this.cancelWithSavepointFunction = cancelWithSavepointFunction;
     }
 
     public void setStopWithSavepointFunction(
-            TriFunction<JobID, Boolean, String, CompletableFuture<String>>
+            QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
                     stopWithSavepointFunction) {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
     }
 
     public void setTriggerSavepointFunction(
-            BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction) {
+            TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+                    triggerSavepointFunction) {
         this.triggerSavepointFunction = triggerSavepointFunction;
     }
 
@@ -130,20 +137,24 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<String> cancelWithSavepoint(
-            JobID jobId, @Nullable String savepointDirectory) {
-        return cancelWithSavepointFunction.apply(jobId, savepointDirectory);
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return cancelWithSavepointFunction.apply(jobId, savepointDirectory, formatType);
     }
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-        return stopWithSavepointFunction.apply(jobId, advanceToEndOfEventTime, savepointDirectory);
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return stopWithSavepointFunction.apply(
+                jobId, advanceToEndOfEventTime, savepointDirectory, formatType);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            JobID jobId, @Nullable String savepointDirectory) {
-        return triggerSavepointFunction.apply(jobId, savepointDirectory);
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return triggerSavepointFunction.apply(jobId, savepointDirectory, formatType);
     }
 
     @Override

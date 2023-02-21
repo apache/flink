@@ -19,26 +19,30 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import java.util.function.BiConsumer;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 
 class TestingHeartbeatTargetBuilder<T> {
-    private BiConsumer<ResourceID, T> receiveHeartbeatConsumer = (ignoredA, ignoredB) -> {};
-    private BiConsumer<ResourceID, T> requestHeartbeatConsumer = (ignoredA, ignoredB) -> {};
+    private BiFunction<ResourceID, T, CompletableFuture<Void>> receiveHeartbeatFunction =
+            (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
+    private BiFunction<ResourceID, T, CompletableFuture<Void>> requestHeartbeatFunction =
+            (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
 
-    public TestingHeartbeatTargetBuilder<T> setReceiveHeartbeatConsumer(
-            BiConsumer<ResourceID, T> receiveHeartbeatConsumer) {
-        this.receiveHeartbeatConsumer = receiveHeartbeatConsumer;
+    public TestingHeartbeatTargetBuilder<T> setReceiveHeartbeatFunction(
+            BiFunction<ResourceID, T, CompletableFuture<Void>> receiveHeartbeatFunction) {
+        this.receiveHeartbeatFunction = receiveHeartbeatFunction;
         return this;
     }
 
-    public TestingHeartbeatTargetBuilder<T> setRequestHeartbeatConsumer(
-            BiConsumer<ResourceID, T> requestHeartbeatConsumer) {
-        this.requestHeartbeatConsumer = requestHeartbeatConsumer;
+    public TestingHeartbeatTargetBuilder<T> setRequestHeartbeatFunction(
+            BiFunction<ResourceID, T, CompletableFuture<Void>> requestHeartbeatFunction) {
+        this.requestHeartbeatFunction = requestHeartbeatFunction;
         return this;
     }
 
     public TestingHeartbeatTarget<T> createTestingHeartbeatTarget() {
-        return new TestingHeartbeatTarget<>(receiveHeartbeatConsumer, requestHeartbeatConsumer);
+        return new TestingHeartbeatTarget<>(receiveHeartbeatFunction, requestHeartbeatFunction);
     }
 }

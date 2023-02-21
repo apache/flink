@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.execution.SavepointFormatType;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -31,7 +33,14 @@ public class RestoredCheckpointStatsTest {
         long triggerTimestamp = Integer.MAX_VALUE + 1L;
         CheckpointProperties props =
                 new CheckpointProperties(
-                        true, CheckpointType.SAVEPOINT, false, false, true, false, true);
+                        true,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        true,
+                        false,
+                        true,
+                        false);
         long restoreTimestamp = Integer.MAX_VALUE + 1L;
         String externalPath = "external-path";
 

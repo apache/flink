@@ -20,11 +20,13 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -42,6 +44,13 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpr
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_NULL_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_ABSENT_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_STRING;
 
 /**
  * Entry point of the Table API Expression DSL such as: {@code $("myField").plus(10).abs()}
@@ -51,7 +60,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
  * API entities that are further translated into {@link ResolvedExpression ResolvedExpressions}
  * under the hood.
  *
- * <p>For fluent definition of expressions and easier readability, we recommend to add a star import
+ * <p>For fluent definition of expressions and easier readability, we recommend adding a star import
  * to the methods of this class:
  *
  * <pre>
@@ -63,20 +72,39 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
  */
 @PublicEvolving
 public final class Expressions {
+
     /**
-     * Creates an unresolved reference to a table's field.
+     * Creates an unresolved reference to a table's column.
      *
      * <p>Example:
      *
      * <pre>{@code
      * tab.select($("key"), $("value"))
      * }</pre>
+     *
+     * @see #col(String)
      */
     // CHECKSTYLE.OFF: MethodName
     public static ApiExpression $(String name) {
         return new ApiExpression(unresolvedRef(name));
     }
     // CHECKSTYLE.ON: MethodName
+
+    /**
+     * Creates an unresolved reference to a table's column.
+     *
+     * <p>Because {@link #$(String)} is not supported by every JVM language due to the dollar sign,
+     * this method provides a synonym with the same behavior.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * tab.select(col("key"), col("value"))
+     * }</pre>
+     */
+    public static ApiExpression col(String name) {
+        return $(name);
+    }
 
     /**
      * Creates a SQL literal.
@@ -157,6 +185,26 @@ public final class Expressions {
     }
 
     /**
+     * Inverts a given boolean expression.
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     *
+     * <p>The resulting type is nullable if and only if the input type is nullable.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * not(lit(true)) // false
+     * not(lit(false)) // true
+     * not(lit(null, DataTypes.BOOLEAN())) // null
+     * }</pre>
+     */
+    public static ApiExpression not(Object expression) {
+        return apiCall(BuiltInFunctionDefinitions.NOT, expression);
+    }
+
+    /**
      * Offset constant to be used in the {@code preceding} clause of unbounded {@code Over} windows.
      * Use this constant for a time interval. Unbounded over windows start with the first row of a
      * partition.
@@ -211,6 +259,35 @@ public final class Expressions {
     }
 
     /**
+     * Returns the current watermark for the given rowtime attribute, or {@code NULL} if no common
+     * watermark of all upstream operations is available at the current operation in the pipeline.
+     *
+     * <p>The function returns the watermark with the same type as the rowtime attribute, but with
+     * an adjusted precision of 3. For example, if the rowtime attribute is {@link
+     * DataTypes#TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(9)}, the function will return {@link
+     * DataTypes#TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(3)}.
+     *
+     * <p>If no watermark has been emitted yet, the function will return {@code NULL}. Users must
+     * take care of this when comparing against it, e.g. in order to filter out late data you can
+     * use
+     *
+     * <pre>{@code
+     * WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+     * }</pre>
+     */
+    public static ApiExpression currentWatermark(Object rowtimeAttribute) {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_WATERMARK, rowtimeAttribute);
+    }
+
+    /**
+     * Return the current database, the return type of this expression is {@link
+     * DataTypes#STRING()}.
+     */
+    public static ApiExpression currentDatabase() {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_DATABASE);
+    }
+
+    /**
      * Returns the current SQL time in local time zone, the return type of this expression is {@link
      * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
      */
@@ -224,6 +301,50 @@ public final class Expressions {
      */
     public static ApiExpression localTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.LOCAL_TIMESTAMP);
+    }
+
+    /**
+     * Converts the given date string with format 'yyyy-MM-dd' to {@link DataTypes#DATE()}.
+     *
+     * @param dateStr The date string.
+     * @return The date value of {@link DataTypes#DATE()} type.
+     */
+    public static ApiExpression toDate(Object dateStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr);
+    }
+
+    /**
+     * Converts the date string with the specified format to {@link DataTypes#DATE()}.
+     *
+     * @param dateStr The date string.
+     * @param format The format of the string.
+     * @return The date value of {@link DataTypes#DATE()} type.
+     */
+    public static ApiExpression toDate(Object dateStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr, format);
+    }
+
+    /**
+     * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time
+     * zone to {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr);
+    }
+
+    /**
+     * Converts the given time string with the specified format under the 'UTC+0' time zone to
+     * {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr, format);
     }
 
     /**
@@ -312,6 +433,78 @@ public final class Expressions {
                 timePoint2);
     }
 
+    /**
+     * Converts a datetime dateStr (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from
+     * time zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation
+     * such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00".
+     * E.g., convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31
+     * 16:00:00'.
+     *
+     * @param dateStr the date time string
+     * @param tzFrom the original time zone
+     * @param tzTo the target time zone
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression convertTz(Object dateStr, Object tzFrom, Object tzTo) {
+        return apiCall(BuiltInFunctionDefinitions.CONVERT_TZ, dateStr, tzFrom, tzTo);
+    }
+
+    /**
+     * Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * "yyyy-MM-dd HH:mm:ss" format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime);
+    }
+
+    /**
+     * Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * given format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @param format The format of the string.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime, format);
+    }
+
+    /**
+     * Gets the current unix timestamp in seconds. This function is not deterministic which means
+     * the value would be recalculated for each record.
+     *
+     * @return The current unix timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp() {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP);
+    }
+
+    /**
+     * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' to unix timestamp (in
+     * seconds), using the time zone specified in the table config.
+     *
+     * @param timestampStr The date time string.
+     * @return The converted timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp(Object timestampStr) {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, timestampStr);
+    }
+
+    /**
+     * Converts the given date time string with the specified format to unix timestamp (in seconds),
+     * using the specified timezone in table config.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the date time string.
+     * @return The converted timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp(Object timestampStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, timestampStr, format);
+    }
+
     /** Creates an array of literals. */
     public static ApiExpression array(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.ARRAY, head, tail);
@@ -375,7 +568,7 @@ public final class Expressions {
     }
 
     /**
-     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+     * Returns a pseudorandom integer value between 0 (inclusive) and the specified value
      * (exclusive).
      */
     public static ApiExpression randInteger(Object bound) {
@@ -383,7 +576,7 @@ public final class Expressions {
     }
 
     /**
-     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+     * Returns a pseudorandom integer value between 0 (inclusive) and the specified value
      * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
      * of numbers if they have same initial seed and same bound.
      */
@@ -465,6 +658,21 @@ public final class Expressions {
     }
 
     /**
+     * Source watermark declaration for {@link Schema}.
+     *
+     * <p>This is a marker function that doesn't have concrete runtime implementation. It can only
+     * be used as a single expression in {@link Schema.Builder#watermark(String, Expression)}. The
+     * declaration will be pushed down into a table source that implements the {@link
+     * SupportsSourceWatermark} interface. The source will emit system-defined watermarks
+     * afterwards.
+     *
+     * <p>Please check the documentation whether the connector supports source watermarks.
+     */
+    public static ApiExpression sourceWatermark() {
+        return apiCall(BuiltInFunctionDefinitions.SOURCE_WATERMARK);
+    }
+
+    /**
      * Ternary conditional operator that decides which of two other expressions should be evaluated
      * based on a evaluated boolean condition.
      *
@@ -476,6 +684,28 @@ public final class Expressions {
      */
     public static ApiExpression ifThenElse(Object condition, Object ifTrue, Object ifFalse) {
         return apiCall(BuiltInFunctionDefinitions.IF, condition, ifTrue, ifFalse);
+    }
+
+    /**
+     * Returns the first argument that is not NULL.
+     *
+     * <p>If all arguments are NULL, it returns NULL as well. The return type is the least
+     * restrictive, common type of all of its arguments. The return type is nullable if all
+     * arguments are nullable as well.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // Returns "default"
+     * coalesce(null, "default")
+     * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+     * coalesce($("f0"), $("f1"), "default")
+     * }</pre>
+     *
+     * @param args the input expressions.
+     */
+    public static ApiExpression coalesce(Object... args) {
+        return apiCall(BuiltInFunctionDefinitions.COALESCE, args);
     }
 
     /**
@@ -503,6 +733,178 @@ public final class Expressions {
      */
     public static ApiExpression withoutColumns(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.WITHOUT_COLUMNS, head, tail);
+    }
+
+    /**
+     * Builds a JSON object string from a list of key-value pairs.
+     *
+     * <p>{@param keyValues} is an even-numbered list of alternating key/value pairs. Note that keys
+     * must be non-{@code NULL} string literals, while values may be arbitrary expressions.
+     *
+     * <p>This function returns a JSON string. The {@link JsonOnNull onNull} behavior defines how to
+     * treat {@code NULL} values.
+     *
+     * <p>Values which are created from another JSON construction function call ({@code jsonObject},
+     * {@code jsonArray}) are inserted directly rather than as a string. This allows building nested
+     * JSON structures.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // {}
+     * jsonObject(JsonOnNull.NULL)
+     * // "{\"K1\":\"V1\",\"K2\":\"V2\"}"
+     * // {"K1":"V1","K2":"V2"}
+     * jsonObject(JsonOnNull.NULL, "K1", "V1", "K2", "V2")
+     *
+     * // Expressions as values
+     * jsonObject(JsonOnNull.NULL, "orderNo", $("orderId"))
+     *
+     * // ON NULL
+     * jsonObject(JsonOnNull.NULL, "K1", nullOf(DataTypes.STRING()))   // "{\"K1\":null}"
+     * jsonObject(JsonOnNull.ABSENT, "K1", nullOf(DataTypes.STRING())) // "{}"
+     *
+     * // {"K1":{"K2":"V"}}
+     * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
+     * }</pre>
+     *
+     * @see #jsonArray(JsonOnNull, Object...)
+     */
+    public static ApiExpression jsonObject(JsonOnNull onNull, Object... keyValues) {
+        final Object[] arguments =
+                Stream.concat(Stream.of(onNull), Arrays.stream(keyValues)).toArray(Object[]::new);
+
+        return apiCall(JSON_OBJECT, arguments);
+    }
+
+    /**
+     * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+     *
+     * <p>The key expression must return a non-nullable character string. Value expressions can be
+     * arbitrary, including other JSON functions. If a value is {@code NULL}, the {@link JsonOnNull
+     * onNull} behavior defines what to do.
+     *
+     * <p>Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+     *
+     * <p>This function is currently not supported in {@code OVER} windows.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "{\"Apple\":2,\"Banana\":17,\"Orange\":0}"
+     * orders.select(jsonObjectAgg(JsonOnNull.NULL, $("product"), $("cnt")))
+     * }</pre>
+     *
+     * @see #jsonObject(JsonOnNull, Object...)
+     * @see #jsonArrayAgg(JsonOnNull, Object)
+     */
+    public static ApiExpression jsonObjectAgg(JsonOnNull onNull, Object keyExpr, Object valueExpr) {
+        final BuiltInFunctionDefinition functionDefinition;
+        switch (onNull) {
+            case ABSENT:
+                functionDefinition = JSON_OBJECTAGG_ABSENT_ON_NULL;
+                break;
+            case NULL:
+            default:
+                functionDefinition = JSON_OBJECTAGG_NULL_ON_NULL;
+                break;
+        }
+
+        return apiCall(functionDefinition, keyExpr, valueExpr);
+    }
+
+    /**
+     * Serializes a value into JSON.
+     *
+     * <p>This function returns a JSON string containing the serialized value. If the value is
+     * {@code null}, the function returns {@code null}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // null
+     * jsonString(nullOf(DataTypes.INT()))
+     *
+     * jsonString(1)                   // "1"
+     * jsonString(true)                // "true"
+     * jsonString("Hello, World!")     // "\"Hello, World!\""
+     * jsonString(Arrays.asList(1, 2)) // "[1,2]"
+     * }</pre>
+     */
+    public static ApiExpression jsonString(Object value) {
+        return apiCallAtLeastOneArgument(JSON_STRING, value);
+    }
+
+    /**
+     * Builds a JSON array string from a list of values.
+     *
+     * <p>This function returns a JSON string. The values can be arbitrary expressions. The {@link
+     * JsonOnNull onNull} behavior defines how to treat {@code NULL} values.
+     *
+     * <p>Elements which are created from another JSON construction function call ({@code
+     * jsonObject}, {@code jsonArray}) are inserted directly rather than as a string. This allows
+     * building nested JSON structures.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "[]"
+     * jsonArray(JsonOnNull.NULL)
+     * // "[1,\"2\"]"
+     * jsonArray(JsonOnNull.NULL, 1, "2")
+     *
+     * // Expressions as values
+     * jsonArray(JsonOnNull.NULL, $("orderId"))
+     *
+     * // ON NULL
+     * jsonArray(JsonOnNull.NULL, nullOf(DataTypes.STRING()))   // "[null]"
+     * jsonArray(JsonOnNull.ABSENT, nullOf(DataTypes.STRING())) // "[]"
+     *
+     * // "[[1]]"
+     * jsonArray(JsonOnNull.NULL, jsonArray(JsonOnNull.NULL, 1))
+     * }</pre>
+     *
+     * @see #jsonObject(JsonOnNull, Object...)
+     */
+    public static ApiExpression jsonArray(JsonOnNull onNull, Object... values) {
+        final Object[] arguments =
+                Stream.concat(Stream.of(onNull), Arrays.stream(values)).toArray(Object[]::new);
+
+        return apiCall(JSON_ARRAY, arguments);
+    }
+
+    /**
+     * Builds a JSON object string by aggregating items into an array.
+     *
+     * <p>Item expressions can be arbitrary, including other JSON functions. If a value is {@code
+     * NULL}, the {@link JsonOnNull onNull} behavior defines what to do.
+     *
+     * <p>This function is currently not supported in {@code OVER} windows, unbounded session
+     * windows, or hop windows.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // "[\"Apple\",\"Banana\",\"Orange\"]"
+     * orders.select(jsonArrayAgg(JsonOnNull.NULL, $("product")))
+     * }</pre>
+     *
+     * @see #jsonArray(JsonOnNull, Object...)
+     * @see #jsonObjectAgg(JsonOnNull, Object, Object)
+     */
+    public static ApiExpression jsonArrayAgg(JsonOnNull onNull, Object itemExpr) {
+        final BuiltInFunctionDefinition functionDefinition;
+        switch (onNull) {
+            case NULL:
+                functionDefinition = JSON_ARRAYAGG_NULL_ON_NULL;
+                break;
+            case ABSENT:
+            default:
+                functionDefinition = JSON_ARRAYAGG_ABSENT_ON_NULL;
+                break;
+        }
+
+        return apiCall(functionDefinition, itemExpr);
     }
 
     /**

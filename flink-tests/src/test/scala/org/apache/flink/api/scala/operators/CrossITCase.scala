@@ -18,20 +18,20 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.functions.RichCrossFunction
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -60,7 +60,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2) { (l, r) => (l._3 + r._3, l._4 + r._4) }
+    val crossDs = ds.cross(ds2)((l, r) => (l._3 + r._3, l._4 + r._4))
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
 
@@ -78,7 +78,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2) { (l, r ) => l }
+    val crossDs = ds.cross(ds2)((l, r) => l)
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
 
@@ -94,7 +94,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2) { (l, r) => r }
+    val crossDs = ds.cross(ds2)((l, r) => r)
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
 
@@ -112,25 +112,28 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val intDs = CollectionDataSets.getIntDataSet(env)
     val ds = CollectionDataSets.getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2).apply (
-      new RichCrossFunction[
-        (Int, Long, Int, String, Long),
-        (Int, Long, Int, String, Long),
-        (Int, Int, Int)] {
-        private var broadcast = 41
+    val crossDs = ds
+      .cross(ds2)
+      .apply(
+        new RichCrossFunction[
+          (Int, Long, Int, String, Long),
+          (Int, Long, Int, String, Long),
+          (Int, Int, Int)] {
+          private var broadcast = 41
 
-        override def open(config: Configuration) {
-          val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
-          broadcast = ints.sum
-        }
+          override def open(config: Configuration) {
+            val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
+            broadcast = ints.sum
+          }
 
-        override def cross(
-                            first: (Int, Long, Int, String, Long),
-                            second: (Int, Long, Int, String, Long)): (Int, Int, Int) = {
-          (first._1 + second._1, first._3.toInt * second._3.toInt, broadcast)
-        }
+          override def cross(
+              first: (Int, Long, Int, String, Long),
+              second: (Int, Long, Int, String, Long)): (Int, Int, Int) = {
+            (first._1 + second._1, first._3.toInt * second._3.toInt, broadcast)
+          }
 
-      })withBroadcastSet(intDs, "ints")
+        })
+      .withBroadcastSet(intDs, "ints")
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "2,0,55\n" + "3,0,55\n" + "3,0,55\n" + "3,0,55\n" + "4,1,55\n" + "4,2,55\n" + "3," +
@@ -146,7 +149,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.crossWithHuge(ds2) { (l, r) => (l._3 + r._3, l._4 + r._4)}
+    val crossDs = ds.crossWithHuge(ds2)((l, r) => (l._3 + r._3, l._4 + r._4))
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "0,HalloHallo\n" + "1,HalloHallo Welt\n" + "2,HalloHallo Welt wie\n" + "1," +
@@ -166,7 +169,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
       .getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets
       .getSmall5TupleDataSet(env)
-    val crossDs = ds.crossWithTiny(ds2) { (l, r) => (l._3 + r._3, l._4 + r._4)}
+    val crossDs = ds.crossWithTiny(ds2)((l, r) => (l._3 + r._3, l._4 + r._4))
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "0,HalloHallo\n" + "1,HalloHallo Welt\n" + "2,HalloHallo Welt wie\n" + "1," +
@@ -219,9 +222,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env)
-    val crossDs = ds.cross(ds2) {
-      (l, r) => (l._1 + r.myInt, l._3 * r.myLong, l._4 + r.myString)
-    }
+    val crossDs = ds.cross(ds2)((l, r) => (l._1 + r.myInt, l._3 * r.myLong, l._4 + r.myString))
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "2,0,HalloHi\n" + "3,0,HalloHello\n" + "3,0,HalloHello world\n" + "3,0," +
@@ -230,4 +231,3 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
 }
-

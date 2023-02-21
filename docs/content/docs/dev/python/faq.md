@@ -65,7 +65,7 @@ $ # specify the path of the python interpreter which is used to execute the pyth
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 ```
 
-For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({{< ref "docs/dev/python/table/dependency_management" >}}#usage).
+For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({{< ref "docs/dev/python/dependency_management" >}}#usage).
 
 ## Adding Jar Files
 
@@ -74,13 +74,13 @@ You can specify the dependencies with the following Python Table APIs or through
 
 ```python
 # NOTE: Only local file URLs (start with "file:") are supported.
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 
 # NOTE: The Paths must specify a protocol (e.g. "file") and users should ensure that the URLs are accessible on both the client and the cluster.
-table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 ```
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({{< ref "docs/dev/python/table/dependency_management" >}}#java-dependency-in-python-program)
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({{< ref "docs/dev/python/dependency_management" >}}#java-dependency-in-python-program)
 
 ## Adding Python Files
 You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.

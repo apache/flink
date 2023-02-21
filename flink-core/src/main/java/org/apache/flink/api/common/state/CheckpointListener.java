@@ -117,7 +117,7 @@ public interface CheckpointListener {
      *
      * @param checkpointId The ID of the checkpoint that has been completed.
      * @throws Exception This method can propagate exceptions, which leads to a failure/recovery for
-     *     the task. Not that this will NOT lead to the checkpoint being revoked.
+     *     the task. Note that this will NOT lead to the checkpoint being revoked.
      */
     void notifyCheckpointComplete(long checkpointId) throws Exception;
 

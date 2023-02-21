@@ -61,6 +61,8 @@ public class QsStateClient {
                         TypeInformation.of(new TypeHint<EmailId>() {}),
                         TypeInformation.of(new TypeHint<EmailInformation>() {}));
 
+        System.out.println("Wait until the state can be queried.");
+
         // wait for state to exist
         for (int i = 0; i < BOOTSTRAP_RETRIES; i++) { // ~120s
             try {
@@ -79,6 +81,9 @@ public class QsStateClient {
                 throw new RuntimeException("Timeout: state doesn't exist after 120s");
             }
         }
+
+        System.out.println(
+                String.format("State exists. Start querying it %d times.", numIterations));
 
         // query state
         for (int iterations = 0; iterations < numIterations; iterations++) {

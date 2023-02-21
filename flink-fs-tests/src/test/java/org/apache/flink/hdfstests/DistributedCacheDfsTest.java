@@ -134,11 +134,11 @@ public class DistributedCacheDfsTest extends TestLogger {
     }
 
     /**
-     * All the Flink Standalone, Yarn, Mesos, Kubernetes sessions are using {@link
+     * All the Flink Standalone, Yarn, Kubernetes sessions are using {@link
      * RestClusterClient#submitJob(JobGraph)} to submit a job to an existing session. This test will
      * cover this cases.
      */
-    @Test(timeout = 30000)
+    @Test
     public void testSubmittingJobViaRestClusterClient() throws Exception {
         RestClusterClient<String> restClusterClient =
                 new RestClusterClient<>(

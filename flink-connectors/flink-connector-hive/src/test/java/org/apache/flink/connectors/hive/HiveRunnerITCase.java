@@ -63,8 +63,8 @@ import java.util.stream.IntStream;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_IN_TEST;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SUPPORT_CONCURRENCY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TXN_MANAGER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests that need to run with hive runner. Since hive runner is heavy, make sure to add test cases
@@ -81,14 +81,13 @@ public class HiveRunnerITCase {
     private static final HiveRunnerConfig CONFIG =
             new HiveRunnerConfig() {
                 {
-                    if (HiveShimLoader.getHiveVersion().startsWith("3.")) {
-                        // hive-3.x requires a proper txn manager to create ACID table
-                        getHiveConfSystemOverride()
-                                .put(HIVE_TXN_MANAGER.varname, DbTxnManager.class.getName());
-                        getHiveConfSystemOverride().put(HIVE_SUPPORT_CONCURRENCY.varname, "true");
-                        // tell TxnHandler to prepare txn DB
-                        getHiveConfSystemOverride().put(HIVE_IN_TEST.varname, "true");
-                    }
+                    // catalog lock needs txn manager
+                    // hive-3.x requires a proper txn manager to create ACID table
+                    getHiveConfSystemOverride()
+                            .put(HIVE_TXN_MANAGER.varname, DbTxnManager.class.getName());
+                    getHiveConfSystemOverride().put(HIVE_SUPPORT_CONCURRENCY.varname, "true");
+                    // tell TxnHandler to prepare txn DB
+                    getHiveConfSystemOverride().put(HIVE_IN_TEST.varname, "true");
                 }
             };
 
@@ -162,8 +161,9 @@ public class HiveRunnerITCase {
                             "insert into dest select * from default_catalog.default_database.complexSrc")
                     .await();
             List<String> result = hiveShell.executeQuery("select * from dest");
-            assertEquals(1, result.size());
-            assertEquals("[1,2,3]\t{1:\"a\",2:\"b\"}\t{\"f1\":3,\"f2\":\"c\"}", result.get(0));
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0))
+                    .isEqualTo("[1,2,3]\t{1:\"a\",2:\"b\"}\t{\"f1\":3,\"f2\":\"c\"}");
         } finally {
             tableEnv.executeSql("drop table dest");
         }
@@ -198,10 +198,10 @@ public class HiveRunnerITCase {
                             "insert into dest select * from default_catalog.default_database.nestedSrc")
                     .await();
             List<String> result = hiveShell.executeQuery("select * from dest");
-            assertEquals(1, result.size());
-            assertEquals(
-                    "[{\"f1\":1,\"f2\":\"a\"},{\"f1\":2,\"f2\":\"b\"},{\"f1\":3,\"f2\":\"c\"}]",
-                    result.get(0));
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0))
+                    .isEqualTo(
+                            "[{\"f1\":1,\"f2\":\"a\"},{\"f1\":2,\"f2\":\"b\"},{\"f1\":3,\"f2\":\"c\"}]");
         } finally {
             tableEnv.executeSql("drop table dest");
         }
@@ -209,8 +209,7 @@ public class HiveRunnerITCase {
 
     @Test
     public void testWriteNullValues() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create database db1");
@@ -231,11 +230,11 @@ public class HiveRunnerITCase {
 
             tableEnv.executeSql("insert into db1.dest select * from db1.src").await();
             List<String> results = hiveShell.executeQuery("select * from db1.dest");
-            assertEquals(1, results.size());
+            assertThat(results).hasSize(1);
             String[] cols = results.get(0).split("\t");
-            assertEquals(17, cols.length);
-            assertEquals("NULL", cols[0]);
-            assertEquals(1, new HashSet<>(Arrays.asList(cols)).size());
+            assertThat(cols).hasSize(17);
+            assertThat(cols[0]).isEqualTo("NULL");
+            assertThat(new HashSet<>(Arrays.asList(cols))).hasSize(1);
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -245,7 +244,7 @@ public class HiveRunnerITCase {
     public void testDifferentFormats() throws Exception {
         String[] formats = new String[] {"orc", "parquet", "sequencefile", "csv", "avro"};
         for (String format : formats) {
-            if (format.equals("avro") && !HiveVersionTestUtil.HIVE_110_OR_LATER) {
+            if (format.equals("avro") && !HiveVersionTestUtil.HIVE_230_OR_LATER) {
                 // timestamp is not supported for avro tables before 1.1.0
                 continue;
             }
@@ -258,9 +257,9 @@ public class HiveRunnerITCase {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");
         try {
-            tableEnv.executeSql("create table db1.src1 (x decimal(10,2))");
-            tableEnv.executeSql("create table db1.src2 (x decimal(10,2))");
-            tableEnv.executeSql("create table db1.dest (x decimal(10,2))");
+            tableEnv.executeSql("create table db1.src1 (x decimal(12,2))");
+            tableEnv.executeSql("create table db1.src2 (x decimal(12,2))");
+            tableEnv.executeSql("create table db1.dest (x decimal(12,2))");
             // populate src1 from Hive
             // TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
             hiveShell.execute(
@@ -338,7 +337,7 @@ public class HiveRunnerITCase {
             tableEnv.executeSql(
                             "insert into db1.dest partition (p1='1\\'1', p2=1.1) select x from db1.src")
                     .await();
-            assertEquals(1, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
+            assertThat(hiveCatalog.listPartitions(new ObjectPath("db1", "dest"))).hasSize(1);
             verifyHiveQueryResult(
                     "select * from db1.dest", Arrays.asList("1\t1'1\t1.1", "2\t1'1\t1.1"));
         } finally {
@@ -360,7 +359,7 @@ public class HiveRunnerITCase {
             tableEnv.executeSql(
                     "create table db1.dest (x int) partitioned by (p1 string, p2 double)");
             tableEnv.executeSql("insert into db1.dest select * from db1.src").await();
-            assertEquals(3, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
+            assertThat(hiveCatalog.listPartitions(new ObjectPath("db1", "dest"))).hasSize(3);
             verifyHiveQueryResult(
                     "select * from db1.dest", Arrays.asList("1\ta\t1.1", "2\ta\t2.2", "3\tb\t3.3"));
         } finally {
@@ -383,7 +382,7 @@ public class HiveRunnerITCase {
             tableEnv.executeSql(
                             "insert into db1.dest partition (p1=1.1,p2) select x,y from db1.src")
                     .await();
-            assertEquals(2, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
+            assertThat(hiveCatalog.listPartitions(new ObjectPath("db1", "dest"))).hasSize(2);
             verifyHiveQueryResult(
                     "select * from db1.dest", Arrays.asList("1\t1.1\ta", "2\t1.1\tb"));
         } finally {
@@ -416,11 +415,10 @@ public class HiveRunnerITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.src").execute().collect());
-            assertEquals(2, results.size());
-            assertEquals(LocalDateTime.of(2019, 11, 11, 0, 0), results.get(0).getField(0));
-            assertEquals(
-                    LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789),
-                    results.get(1).getField(0));
+            assertThat(results).hasSize(2);
+            assertThat(results.get(0).getField(0)).isEqualTo(LocalDateTime.of(2019, 11, 11, 0, 0));
+            assertThat(results.get(1).getField(0))
+                    .isEqualTo(LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789));
             // test write timestamp to hive
             tableEnv.executeSql("insert into db1.dest select max(ts) from db1.src").await();
             verifyHiveQueryResult(
@@ -446,9 +444,9 @@ public class HiveRunnerITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.src").execute().collect());
-            assertEquals(2, results.size());
-            assertEquals(LocalDate.of(2019, 12, 9), results.get(0).getField(0));
-            assertEquals(LocalDate.of(2019, 12, 12), results.get(1).getField(0));
+            assertThat(results).hasSize(2);
+            assertThat(results.get(0).getField(0)).isEqualTo(LocalDate.of(2019, 12, 9));
+            assertThat(results.get(1).getField(0)).isEqualTo(LocalDate.of(2019, 12, 12));
             // test write date to hive
             tableEnv.executeSql("insert into db1.dest select max(dt) from db1.src").await();
             verifyHiveQueryResult(
@@ -488,15 +486,16 @@ public class HiveRunnerITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select count(v) from db1.v1").execute().collect());
-            assertEquals("[+I[2]]", results.toString());
+            assertThat(results.toString()).isEqualTo("[+I[2]]");
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.v2").execute().collect());
-            assertEquals("[+I[1, 3], +I[3, 2]]", results.toString());
+            assertThat(results.toString()).isEqualTo("[+I[1, 3], +I[3, 2]]");
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.v3").execute().collect());
-            assertEquals("[+I[1, key1, 3], +I[2, key2, 1], +I[3, key3, 2]]", results.toString());
+            assertThat(results.toString())
+                    .isEqualTo("[+I[1, key1, 3], +I[2, key2, 1], +I[3, key3, 2]]");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -512,9 +511,8 @@ public class HiveRunnerITCase {
             stmtSet.addInsertSql("insert into db1.dest select 1,'  '");
             stmtSet.addInsertSql("insert into db1.dest select 2,'a \t'");
             stmtSet.execute().await();
-            assertEquals(
-                    "[p=  , p=a %09]",
-                    hiveShell.executeQuery("show partitions db1.dest").toString());
+            assertThat(hiveShell.executeQuery("show partitions db1.dest").toString())
+                    .isEqualTo("[p=  , p=a %09]");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -534,30 +532,32 @@ public class HiveRunnerITCase {
     public void testOrcSchemaEvol() throws Exception {
         // not supported until 2.1.0 -- https://issues.apache.org/jira/browse/HIVE-11981,
         // https://issues.apache.org/jira/browse/HIVE-13178
-        Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
+        Assume.assumeTrue(HiveVersionTestUtil.HIVE_230_OR_LATER);
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");
         try {
             tableEnv.executeSql("create table db1.src (x smallint,y int) stored as orc");
             hiveShell.execute("insert into table db1.src values (1,100),(2,200)");
 
-            tableEnv.getConfig()
-                    .getConfiguration()
-                    .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
 
             tableEnv.executeSql("alter table db1.src change x x int");
-            assertEquals(
-                    "[+I[1, 100], +I[2, 200]]",
-                    CollectionUtil.iteratorToList(
-                                    tableEnv.sqlQuery("select * from db1.src").execute().collect())
-                            .toString());
+            assertThat(
+                            CollectionUtil.iteratorToList(
+                                            tableEnv.sqlQuery("select * from db1.src")
+                                                    .execute()
+                                                    .collect())
+                                    .toString())
+                    .isEqualTo("[+I[1, 100], +I[2, 200]]");
 
             tableEnv.executeSql("alter table db1.src change y y string");
-            assertEquals(
-                    "[+I[1, 100], +I[2, 200]]",
-                    CollectionUtil.iteratorToList(
-                                    tableEnv.sqlQuery("select * from db1.src").execute().collect())
-                            .toString());
+            assertThat(
+                            CollectionUtil.iteratorToList(
+                                            tableEnv.sqlQuery("select * from db1.src")
+                                                    .execute()
+                                                    .collect())
+                                    .toString())
+                    .isEqualTo("[+I[1, 100], +I[2, 200]]");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -571,25 +571,20 @@ public class HiveRunnerITCase {
             tableEnv.executeSql("create table db1.src (x string,y string)");
             hiveShell.execute(
                     "create table db1.dest (x string,y string) clustered by (x) into 3 buckets stored as orc tblproperties ('transactional'='true')");
-            List<Exception> exceptions = new ArrayList<>();
-            try {
-                tableEnv.executeSql("insert into db1.src select * from db1.dest").await();
-            } catch (Exception e) {
-                exceptions.add(e);
-            }
-            try {
-                tableEnv.executeSql("insert into db1.dest select * from db1.src").await();
-            } catch (Exception e) {
-                exceptions.add(e);
-            }
-            assertEquals(2, exceptions.size());
-            exceptions.forEach(
-                    e -> {
-                        assertTrue(e instanceof FlinkHiveException);
-                        assertEquals(
-                                "Reading or writing ACID table db1.dest is not supported.",
-                                e.getMessage());
-                    });
+            assertThatThrownBy(
+                            () ->
+                                    tableEnv.executeSql(
+                                                    "insert into db1.src select * from db1.dest")
+                                            .await())
+                    .isInstanceOf(FlinkHiveException.class)
+                    .hasMessage("Reading or writing ACID table db1.dest is not supported.");
+            assertThatThrownBy(
+                            () ->
+                                    tableEnv.executeSql(
+                                                    "insert into db1.dest select * from db1.src")
+                                            .await())
+                    .isInstanceOf(FlinkHiveException.class)
+                    .hasMessage("Reading or writing ACID table db1.dest is not supported.");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -617,8 +612,7 @@ public class HiveRunnerITCase {
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -627,7 +621,7 @@ public class HiveRunnerITCase {
     private TableEnvironment getStreamTableEnvWithHiveCatalog() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -651,7 +645,7 @@ public class HiveRunnerITCase {
         List<Object> row2 = new ArrayList<>(Arrays.asList(2, "b", "2019-08-26 00:00:00.1"));
         // some data types are not supported for parquet tables in early versions --
         // https://issues.apache.org/jira/browse/HIVE-6384
-        if (HiveVersionTestUtil.HIVE_120_OR_LATER || !format.equals("parquet")) {
+        if (HiveVersionTestUtil.HIVE_310_OR_LATER || !format.equals("parquet")) {
             tableSchema = "(i int,s string,ts timestamp,dt date)";
             row1.add("2018-08-20");
             row2.add("2019-08-26");
@@ -708,13 +702,13 @@ public class HiveRunnerITCase {
 
     private static void verifyWrittenData(List<Row> expected, List<String> results)
             throws Exception {
-        assertEquals(expected.size(), results.size());
+        assertThat(results).hasSize(expected.size());
         Set<String> expectedSet = new HashSet<>();
         for (int i = 0; i < results.size(); i++) {
             final String rowString = expected.get(i).toString();
             expectedSet.add(rowString.substring(3, rowString.length() - 1).replaceAll(", ", "\t"));
         }
-        assertEquals(expectedSet, new HashSet<>(results));
+        assertThat(new HashSet<>(results)).isEqualTo(expectedSet);
     }
 
     private static List<Row> generateRecords(int numRecords) {
@@ -733,8 +727,8 @@ public class HiveRunnerITCase {
 
     private static void verifyHiveQueryResult(String query, List<String> expected) {
         List<String> results = hiveShell.executeQuery(query);
-        assertEquals(expected.size(), results.size());
-        assertEquals(new HashSet<>(expected), new HashSet<>(results));
+        assertThat(results).hasSize(expected.size());
+        assertThat(new HashSet<>(results)).isEqualTo(new HashSet<>(expected));
     }
 
     private static void verifyFlinkQueryResult(
@@ -755,8 +749,8 @@ public class HiveRunnerITCase {
                                                 .map(Object::toString)
                                                 .collect(Collectors.joining("\t")))
                         .collect(Collectors.toList());
-        assertEquals(expected.size(), results.size());
-        assertEquals(new HashSet<>(expected), new HashSet<>(results));
+        assertThat(results).hasSize(expected.size());
+        assertThat(new HashSet<>(results)).isEqualTo(new HashSet<>(expected));
     }
 
     private static String toRowValue(List<Object> row) {
@@ -770,5 +764,25 @@ public class HiveRunnerITCase {
                             return res;
                         })
                 .collect(Collectors.joining(","));
+    }
+
+    @Test
+    public void testCatalogLock() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.DEFAULT);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql(
+                    "create table src (x int) with ('connector'='datagen','number-of-rows'='2')");
+            tableEnv.executeSql("create table lock_t (x int) with ('connector'='test-lock')");
+
+            // see TestLockTableSinkFactory
+            tableEnv.executeSql("insert into lock_t select * from src").await();
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
+        }
     }
 }

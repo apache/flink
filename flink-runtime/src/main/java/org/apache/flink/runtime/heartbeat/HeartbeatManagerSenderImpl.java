@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
@@ -32,14 +32,14 @@ import java.util.concurrent.TimeUnit;
  * @param <I> Type of the incoming heartbeat payload
  * @param <O> Type of the outgoing heartbeat payload
  */
-public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
-        implements Runnable {
+class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O> implements Runnable {
 
     private final long heartbeatPeriod;
 
     HeartbeatManagerSenderImpl(
             long heartbeatPeriod,
             long heartbeatTimeout,
+            int failedRpcRequestsUntilUnreachable,
             ResourceID ownResourceID,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
@@ -47,16 +47,18 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
         this(
                 heartbeatPeriod,
                 heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
                 ownResourceID,
                 heartbeatListener,
                 mainThreadExecutor,
                 log,
-                new HeartbeatMonitorImpl.Factory<>());
+                new DefaultHeartbeatMonitor.Factory<>());
     }
 
     HeartbeatManagerSenderImpl(
             long heartbeatPeriod,
             long heartbeatTimeout,
+            int failedRpcRequestsUntilUnreachable,
             ResourceID ownResourceID,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
@@ -64,6 +66,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
             HeartbeatMonitor.Factory<O> heartbeatMonitorFactory) {
         super(
                 heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
                 ownResourceID,
                 heartbeatListener,
                 mainThreadExecutor,
@@ -90,6 +93,10 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
         O payload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
         final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
-        heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload);
+        heartbeatTarget
+                .requestHeartbeat(getOwnResourceID(), payload)
+                .whenCompleteAsync(
+                        handleHeartbeatRpc(heartbeatMonitor.getHeartbeatTargetId()),
+                        getMainThreadExecutor());
     }
 }

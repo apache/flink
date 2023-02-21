@@ -23,32 +23,27 @@ import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FlinkPod}. */
-public class FlinkPodTest extends KubernetesTestBase {
+class FlinkPodTest extends KubernetesTestBase {
 
     @Test
-    public void testCopyFlinkPod() {
+    void testCopyFlinkPod() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
         final FlinkPod copiedFlinkPod = flinkPod.copy();
-        assertThat(flinkPod == copiedFlinkPod, is(false));
-        assertThat(
-                flinkPod.getPodWithoutMainContainer()
-                        == copiedFlinkPod.getPodWithoutMainContainer(),
-                is(false));
-        assertThat(
-                flinkPod.getPodWithoutMainContainer(),
-                is(equalTo(copiedFlinkPod.getPodWithoutMainContainer())));
-        assertThat(flinkPod.getMainContainer() == copiedFlinkPod.getMainContainer(), is(false));
-        assertThat(flinkPod.getMainContainer(), is(equalTo(copiedFlinkPod.getMainContainer())));
+        assertThat(flinkPod).isNotSameAs(copiedFlinkPod);
+        assertThat(flinkPod.getPodWithoutMainContainer())
+                .isNotSameAs(copiedFlinkPod.getPodWithoutMainContainer());
+        assertThat(flinkPod.getPodWithoutMainContainer())
+                .isEqualTo(copiedFlinkPod.getPodWithoutMainContainer());
+        assertThat(flinkPod.getMainContainer()).isNotSameAs(copiedFlinkPod.getMainContainer());
+        assertThat(flinkPod.getMainContainer()).isEqualTo(copiedFlinkPod.getMainContainer());
     }
 }

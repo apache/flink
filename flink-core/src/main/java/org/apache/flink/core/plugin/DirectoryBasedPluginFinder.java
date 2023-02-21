@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class is used to create a collection of {@link PluginDescriptor} based on directory
@@ -73,11 +74,13 @@ public class DirectoryBasedPluginFinder implements PluginFinder {
             throw new IOException(
                     "Plugins root directory [" + pluginsRootDir + "] does not exist!");
         }
-
-        return Files.list(pluginsRootDir)
-                .filter((Path path) -> Files.isDirectory(path))
-                .map(FunctionUtils.uncheckedFunction(this::createPluginDescriptorForSubDirectory))
-                .collect(Collectors.toList());
+        try (Stream<Path> stream = Files.list(pluginsRootDir)) {
+            return stream.filter((Path path) -> Files.isDirectory(path))
+                    .map(
+                            FunctionUtils.uncheckedFunction(
+                                    this::createPluginDescriptorForSubDirectory))
+                    .collect(Collectors.toList());
+        }
     }
 
     private PluginDescriptor createPluginDescriptorForSubDirectory(Path subDirectory)
@@ -90,20 +93,21 @@ public class DirectoryBasedPluginFinder implements PluginFinder {
     }
 
     private URL[] createJarURLsFromDirectory(Path subDirectory) throws IOException {
-        URL[] urls =
-                Files.list(subDirectory)
-                        .filter((Path p) -> Files.isRegularFile(p) && jarFileMatcher.matches(p))
-                        .map(FunctionUtils.uncheckedFunction((Path p) -> p.toUri().toURL()))
-                        .toArray(URL[]::new);
+        try (Stream<Path> stream = Files.list(subDirectory)) {
+            URL[] urls =
+                    stream.filter((Path p) -> Files.isRegularFile(p) && jarFileMatcher.matches(p))
+                            .map(FunctionUtils.uncheckedFunction((Path p) -> p.toUri().toURL()))
+                            .toArray(URL[]::new);
 
-        if (urls.length < 1) {
-            throw new IOException(
-                    "Cannot find any jar files for plugin in directory ["
-                            + subDirectory
-                            + "]."
-                            + " Please provide the jar files for the plugin or delete the directory.");
+            if (urls.length < 1) {
+                throw new IOException(
+                        "Cannot find any jar files for plugin in directory ["
+                                + subDirectory
+                                + "]."
+                                + " Please provide the jar files for the plugin or delete the directory.");
+            }
+
+            return urls;
         }
-
-        return urls;
     }
 }

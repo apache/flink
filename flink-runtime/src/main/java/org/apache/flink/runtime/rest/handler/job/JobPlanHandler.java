@@ -57,8 +57,7 @@ public class JobPlanHandler
 
     @Override
     protected JobPlanInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
         return createJobPlanInfo(executionGraph);
     }

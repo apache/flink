@@ -28,8 +28,10 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -41,7 +43,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -66,12 +71,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
         Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 temporaryFolder.newFolder().getAbsolutePath());
         config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
@@ -83,7 +87,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                             true);
 
             for (int i = 0; i < server.length; i++) {
-                server[i] = new BlobServer(config, blobStoreService);
+                server[i] = new BlobServer(config, temporaryFolder.newFolder(), blobStoreService);
                 server[i].start();
                 serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
                 libServer[i] = new BlobLibraryCacheManager(server[i], classLoaderFactory);
@@ -103,7 +107,12 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
 
             // The cache
-            cache = new PermanentBlobCache(config, blobStoreService, serverAddress[0]);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            blobStoreService,
+                            serverAddress[0]);
 
             // Register uploaded libraries
             final LibraryCacheManager.ClassLoaderLease classLoaderLease =
@@ -125,7 +134,12 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             // Shutdown cache and start with other server
             cache.close();
 
-            cache = new PermanentBlobCache(config, blobStoreService, serverAddress[1]);
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            blobStoreService,
+                            serverAddress[1]);
 
             // Verify key 1
             f = cache.getFile(jobId, keys.get(0));
@@ -152,7 +166,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             }
 
             // Remove blobs again
-            server[1].cleanupJob(jobId, true);
+            server[1].globalCleanupAsync(jobId, executorService).join();
 
             // Verify everything is clean below recoveryDir/<cluster_id>
             final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
@@ -165,6 +179,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                     0,
                     recoveryFiles.length);
         } finally {
+            assertThat(executorService.shutdownNow(), IsEmptyCollection.empty());
+
             for (BlobLibraryCacheManager s : libServer) {
                 if (s != null) {
                     s.shutdown();

@@ -1,6 +1,6 @@
 ---
 title: "DROP 语句"
-weight: 4
+weight: 5
 type: docs
 aliases:
   - /zh/dev/table/sql/drop.html
@@ -28,10 +28,11 @@ under the License.
 
 
 
-DROP 语句用于从当前或指定的 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中删除一个已经注册的表、视图或函数。
+DROP 语句可用于删除指定的 catalog，也可用于从当前或指定的 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中删除一个已经注册的表、视图或函数。
 
 Flink SQL 目前支持以下 DROP 语句：
 
+- DROP CATALOG
 - DROP TABLE
 - DROP DATABASE
 - DROP VIEW
@@ -77,8 +78,7 @@ Flink SQL 目前支持以下 DROP 语句：
 {{< tabs "9f224244-9f9f-4af3-85b9-61225ec3fc0b" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -97,8 +97,7 @@ String[] tables = tableEnv.listTables();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -117,8 +116,7 @@ val tables = tableEnv.listTables()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # 字符串数组： ["Orders"]
 tables = table_env.listTables()
@@ -148,6 +146,18 @@ Flink SQL> SHOW TABLES;
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+## DROP CATALOG
+
+```sql
+DROP CATALOG [IF EXISTS] catalog_name
+```
+
+删除给定名字的 catalog。
+
+**IF EXISTS**
+
+如果目标 catalog 不存在，则不会执行任何操作。
 
 ## DROP TABLE
 
@@ -202,7 +212,7 @@ Flink 没有使用 CASCADE / RESTRICT 关键字来维护视图的依赖关系，
 
 ## DROP FUNCTION
 
-{% highlight sql%}
+```sql
 DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]function_name;
 ```
 

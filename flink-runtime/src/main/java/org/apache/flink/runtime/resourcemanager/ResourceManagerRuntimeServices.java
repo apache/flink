@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManager;
@@ -31,15 +29,12 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManag
 import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedTaskManagerTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 /** Container class for the {@link ResourceManager} services. */
 public class ResourceManagerRuntimeServices {
-    // We currently make the delay of requirements check a constant time. This delay might be
-    // configurable by user in the future.
-    private static final long REQUIREMENTS_CHECK_DELAY_MS = 50L;
 
     private final SlotManager slotManager;
     private final JobLeaderIdService jobLeaderIdService;
@@ -94,18 +89,14 @@ public class ResourceManagerRuntimeServices {
                     new DefaultResourceAllocationStrategy(
                             SlotManagerUtils.generateTaskManagerTotalResourceProfile(
                                     slotManagerConfiguration.getDefaultWorkerResourceSpec()),
-                            slotManagerConfiguration.getNumSlotsPerWorker()),
-                    Time.milliseconds(REQUIREMENTS_CHECK_DELAY_MS));
-        } else if (configuration.isDeclarativeResourceManagementEnabled()) {
+                            slotManagerConfiguration.getNumSlotsPerWorker()));
+        } else {
             return new DeclarativeSlotManager(
                     scheduledExecutor,
                     slotManagerConfiguration,
                     slotManagerMetricGroup,
                     new DefaultResourceTracker(),
                     new DefaultSlotTracker());
-        } else {
-            return new SlotManagerImpl(
-                    scheduledExecutor, slotManagerConfiguration, slotManagerMetricGroup);
         }
     }
 }

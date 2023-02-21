@@ -22,14 +22,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 /**
@@ -66,11 +68,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private volatile JobGraphStore jobGraphStore;
 
-    private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
+    private volatile JobResultStore jobResultStore = new EmbeddedJobResultStore();
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
     private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+
+    private volatile CompletableFuture<JobID> globalCleanupFuture;
 
     // ------------------------------------------------------------------------
     //  Setters for mock / testing implementations
@@ -122,8 +126,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.jobGraphStore = jobGraphStore;
     }
 
-    public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
-        this.runningJobsRegistry = runningJobsRegistry;
+    public void setJobResultStore(JobResultStore jobResultStore) {
+        this.jobResultStore = jobResultStore;
     }
 
     public void setJobMasterLeaderElectionServiceFunction(
@@ -143,6 +147,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     public void setCloseAndCleanupAllDataFuture(
             CompletableFuture<Void> closeAndCleanupAllDataFuture) {
         this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
+    }
+
+    public void setGlobalCleanupFuture(CompletableFuture<JobID> globalCleanupFuture) {
+        this.globalCleanupFuture = globalCleanupFuture;
     }
 
     // ------------------------------------------------------------------------
@@ -255,8 +263,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() {
-        return runningJobsRegistry;
+    public JobResultStore getJobResultStore() {
+        return jobResultStore;
     }
 
     @Override
@@ -276,5 +284,14 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     @Override
     public void closeAndCleanupAllData() throws Exception {
         closeAndCleanupAllDataFuture.complete(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobID, Executor executor) {
+        if (globalCleanupFuture != null) {
+            globalCleanupFuture.complete(jobID);
+        }
+
+        return FutureUtils.completedVoidFuture();
     }
 }

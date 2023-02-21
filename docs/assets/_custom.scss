@@ -217,16 +217,16 @@ pre.chroma code {
     background: white;
 }
 
-.rest-api .book-expand label {
+.rest-api label {
     padding: 0rem 0rem;
     background: white;
 }
 
-.rest-api .book-expand {
+.rest-api {
     background: white;
 }
 
-.rest-api .book-expand .book-expand-head {
+.rest-api {
     background: white;
 }
 
@@ -236,4 +236,8 @@ pre.chroma code {
 
 .markdown table tr:nth-child(2n) {
     background: white;
-} 
+}
+
+.table-inline {
+    background: white;
+}

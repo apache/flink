@@ -94,17 +94,19 @@ public class JarPlanHandler
 
     @Override
     protected CompletableFuture<JobPlanInfo> handleRequest(
-            @Nonnull final HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request,
+            @Nonnull final HandlerRequest<JarPlanRequestBody> request,
             @Nonnull final RestfulGateway gateway)
             throws RestHandlerException {
         final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
+        final Configuration effectiveConfiguration = new Configuration(this.configuration);
+        context.applyToConfiguration(effectiveConfiguration, request);
 
         return CompletableFuture.supplyAsync(
                 () -> {
                     try (PackagedProgram packagedProgram =
-                            context.toPackagedProgram(configuration)) {
+                            context.toPackagedProgram(effectiveConfiguration)) {
                         final JobGraph jobGraph =
-                                context.toJobGraph(packagedProgram, configuration, true);
+                                context.toJobGraph(packagedProgram, effectiveConfiguration, true);
                         return planGenerator.apply(jobGraph);
                     }
                 },

@@ -25,10 +25,10 @@ from pyflink.common.job_client import JobClient
 from pyflink.java_gateway import get_gateway
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
-from pyflink.table.types import _from_java_type
+from pyflink.table.types import _from_java_data_type
 from pyflink.table.utils import pickled_bytes_to_python_converter
 
-__all__ = ['TableResult']
+__all__ = ['TableResult', 'CloseableIterator']
 
 
 class TableResult(object):
@@ -141,7 +141,7 @@ class TableResult(object):
 
         .. versionadded:: 1.11.0
         """
-        return TableSchema(j_table_schema=self._j_table_result.getTableSchema())
+        return TableSchema(j_table_schema=self._get_java_table_schema())
 
     def get_result_kind(self) -> ResultKind:
         """
@@ -189,7 +189,7 @@ class TableResult(object):
 
         .. versionadded:: 1.12.0
         """
-        field_data_types = self._j_table_result.getTableSchema().getFieldDataTypes()
+        field_data_types = self._get_java_table_schema().getFieldDataTypes()
 
         j_iter = self._j_table_result.collect()
 
@@ -218,6 +218,10 @@ class TableResult(object):
         """
         self._j_table_result.print()
 
+    def _get_java_table_schema(self):
+        TableSchema = get_gateway().jvm.org.apache.flink.table.api.TableSchema
+        return TableSchema.fromResolvedSchema(self._j_table_result.getResolvedSchema())
+
 
 class CloseableIterator(object):
     """
@@ -226,7 +230,7 @@ class CloseableIterator(object):
     def __init__(self, j_closeable_iterator, field_data_types):
         self._j_closeable_iterator = j_closeable_iterator
         self._j_field_data_types = field_data_types
-        self._data_types = [_from_java_type(j_field_data_type)
+        self._data_types = [_from_java_data_type(j_field_data_type)
                             for j_field_data_type in self._j_field_data_types]
 
     def __iter__(self):

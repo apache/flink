@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Map;
 import java.util.Optional;
 
 /** Interface of a database in a catalog. */
+@PublicEvolving
 public interface CatalogDatabase {
     /** Get a map of properties associated with the database. */
     Map<String, String> getProperties();
@@ -39,6 +42,13 @@ public interface CatalogDatabase {
      * @return a copy of CatalogDatabase instance
      */
     CatalogDatabase copy();
+
+    /**
+     * Returns a copy of this {@code CatalogDatabase} with the given properties.
+     *
+     * @return a new copy of this database with replaced properties
+     */
+    CatalogDatabase copy(Map<String, String> properties);
 
     /**
      * Get a brief description of the database.

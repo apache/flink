@@ -44,235 +44,210 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResol
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Stream;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.of;
 
 /** Tests for {@link LogicalTypeMerging#findCommonType(List)}. */
-@RunWith(Parameterized.class)
-public class LogicalCommonTypeTest {
+class LogicalCommonTypeTest {
 
-    @Parameters(name = "{index}: [Types: {0}, To: {1}]")
-    public static List<Object[]> testData() {
-        return Arrays.asList(
-                new Object[][] {
+    private static Stream<Arguments> testData() {
+        return Stream.of(
+                // simple types
+                of(Arrays.asList(new IntType(), new IntType()), new IntType()),
 
-                    // simple types
-                    {Arrays.asList(new IntType(), new IntType()), new IntType()},
+                // incompatible types
+                of(Arrays.asList(new IntType(), new ArrayType(new IntType())), null),
 
-                    // incompatible types
-                    {Arrays.asList(new IntType(), new ArrayType(new IntType())), null},
+                // incompatible types
+                of(Arrays.asList(new IntType(), new VarCharType(23)), null),
 
-                    // incompatible types
-                    {Arrays.asList(new IntType(), new VarCharType(23)), null},
+                // incompatible types
+                of(Arrays.asList(new BinaryType(), new VarCharType(23)), null),
 
-                    // incompatible types
-                    {Arrays.asList(new BinaryType(), new VarCharType(23)), null},
+                // NOT NULL types
+                of(Arrays.asList(new IntType(false), new IntType(false)), new IntType(false)),
 
-                    // NOT NULL types
-                    {Arrays.asList(new IntType(false), new IntType(false)), new IntType(false)},
+                // NOT NULL with different types
+                of(Arrays.asList(new IntType(true), new BigIntType(false)), new BigIntType()),
 
-                    // NOT NULL with different types
-                    {Arrays.asList(new IntType(true), new BigIntType(false)), new BigIntType()},
+                // NULL only
+                of(Arrays.asList(new NullType(), new NullType()), null),
 
-                    // NULL only
-                    {Arrays.asList(new NullType(), new NullType()), null},
+                // NULL with other types
+                of(Arrays.asList(new NullType(), new IntType(), new IntType()), new IntType()),
 
-                    // NULL with other types
-                    {Arrays.asList(new NullType(), new IntType(), new IntType()), new IntType()},
-
-                    // ARRAY types with same element type
-                    {
+                // ARRAY types with same element type
+                of(
                         Arrays.asList(new ArrayType(new IntType()), new ArrayType(new IntType())),
-                        new ArrayType(new IntType())
-                    },
+                        new ArrayType(new IntType())),
 
-                    // ARRAY types with different element types
-                    {
+                // ARRAY types with different element types
+                of(
                         Arrays.asList(
                                 new ArrayType(new BigIntType()), new ArrayType(new IntType())),
-                        new ArrayType(new BigIntType())
-                    },
+                        new ArrayType(new BigIntType())),
 
-                    // MULTISET types with different element type
-                    {
+                // MULTISET types with different element type
+                of(
                         Arrays.asList(
                                 new MultisetType(new BigIntType()),
                                 new MultisetType(new IntType())),
-                        new MultisetType(new BigIntType())
-                    },
+                        new MultisetType(new BigIntType())),
 
-                    // MAP types with different element type
-                    {
+                // MAP types with different element type
+                of(
                         Arrays.asList(
                                 new MapType(new BigIntType(), new DoubleType()),
                                 new MapType(new IntType(), new DoubleType())),
-                        new MapType(new BigIntType(), new DoubleType())
-                    },
+                        new MapType(new BigIntType(), new DoubleType())),
 
-                    // ROW type with different element types
-                    {
+                // ROW type with different element types
+                of(
                         Arrays.asList(
                                 RowType.of(new IntType(), new IntType(), new BigIntType()),
                                 RowType.of(new BigIntType(), new IntType(), new IntType())),
-                        RowType.of(new BigIntType(), new IntType(), new BigIntType())
-                    },
+                        RowType.of(new BigIntType(), new IntType(), new BigIntType())),
 
-                    // CHAR types of same length
-                    {Arrays.asList(new CharType(2), new CharType(2)), new CharType(2)},
+                // CHAR types of same length
+                of(Arrays.asList(new CharType(2), new CharType(2)), new CharType(2)),
 
-                    // CHAR types of length 0
-                    {
+                // CHAR types of length 0
+                of(
                         Arrays.asList(CharType.ofEmptyLiteral(), CharType.ofEmptyLiteral()),
-                        CharType.ofEmptyLiteral()
-                    },
+                        CharType.ofEmptyLiteral()),
 
-                    // CHAR types of different length
-                    {Arrays.asList(new CharType(2), new CharType(4)), new VarCharType(4)},
+                // CHAR types of different length
+                of(Arrays.asList(new CharType(2), new CharType(4)), new VarCharType(4)),
 
-                    // VARCHAR types of different length
-                    {
-                        Arrays.asList(new VarCharType(2), new VarCharType(VarCharType.MAX_LENGTH)),
-                        new VarCharType(VarCharType.MAX_LENGTH)
-                    },
+                // VARCHAR types of different length
+                of(
+                        Arrays.asList(new VarCharType(2), VarCharType.STRING_TYPE),
+                        VarCharType.STRING_TYPE),
 
-                    // mixed VARCHAR and CHAR types
-                    {Arrays.asList(new VarCharType(2), new CharType(5)), new VarCharType(5)},
+                // mixed VARCHAR and CHAR types
+                of(Arrays.asList(new VarCharType(2), new CharType(5)), new VarCharType(5)),
 
-                    // more mixed VARCHAR and CHAR types
-                    {
+                // more mixed VARCHAR and CHAR types
+                of(
                         Arrays.asList(new CharType(5), new VarCharType(2), new VarCharType(7)),
-                        new VarCharType(7)
-                    },
+                        new VarCharType(7)),
 
-                    // BINARY types of different length
-                    {Arrays.asList(new BinaryType(2), new BinaryType(4)), new VarBinaryType(4)},
+                // BINARY types of different length
+                of(Arrays.asList(new BinaryType(2), new BinaryType(4)), new VarBinaryType(4)),
 
-                    // mixed BINARY and VARBINARY types
-                    {
+                // mixed BINARY and VARBINARY types
+                of(
                         Arrays.asList(
                                 new BinaryType(5), new VarBinaryType(2), new VarBinaryType(7)),
-                        new VarBinaryType(7)
-                    },
+                        new VarBinaryType(7)),
 
-                    // two APPROXIMATE_NUMERIC types
-                    {Arrays.asList(new DoubleType(), new FloatType()), new DoubleType()},
+                // two APPROXIMATE_NUMERIC types
+                of(Arrays.asList(new DoubleType(), new FloatType()), new DoubleType()),
 
-                    // one APPROXIMATE_NUMERIC and one DECIMAL type
-                    {Arrays.asList(new DoubleType(), new DecimalType(2, 2)), new DoubleType()},
+                // one APPROXIMATE_NUMERIC and one DECIMAL type
+                of(Arrays.asList(new DoubleType(), new DecimalType(2, 2)), new DoubleType()),
 
-                    // one APPROXIMATE_NUMERIC and one EXACT_NUMERIC type
-                    {Arrays.asList(new IntType(), new FloatType()), new FloatType()},
+                // one APPROXIMATE_NUMERIC and one EXACT_NUMERIC type
+                of(Arrays.asList(new IntType(), new FloatType()), new FloatType()),
 
-                    // two APPROXIMATE_NUMERIC and one DECIMAL type
-                    {
+                // two APPROXIMATE_NUMERIC and one DECIMAL type
+                of(
                         Arrays.asList(new DecimalType(2, 2), new DoubleType(), new FloatType()),
-                        new DoubleType()
-                    },
+                        new DoubleType()),
 
-                    // DECIMAL precision and scale merging
-                    {
+                // DECIMAL precision and scale merging
+                of(
                         Arrays.asList(
                                 new DecimalType(2, 2),
                                 new DecimalType(5, 2),
                                 new DecimalType(7, 5)),
-                        new DecimalType(8, 5)
-                    },
+                        new DecimalType(8, 5)),
 
-                    // DECIMAL precision and scale merging with other EXACT_NUMERIC types
-                    {
+                // DECIMAL precision and scale merging with other EXACT_NUMERIC types
+                of(
                         Arrays.asList(new DecimalType(2, 2), new IntType(), new BigIntType()),
-                        new DecimalType(21, 2)
-                    },
+                        new DecimalType(21, 2)),
 
-                    // unsupported time merging
-                    {Arrays.asList(new DateType(), new DateType(), new TimeType()), null},
+                // unsupported time merging
+                of(Arrays.asList(new DateType(), new DateType(), new TimeType()), null),
 
-                    // time precision merging
-                    {
+                // time precision merging
+                of(
                         Arrays.asList(new TimeType(3), new TimeType(5), new TimeType(2)),
-                        new TimeType(5)
-                    },
+                        new TimeType(5)),
 
-                    // timestamp precision merging
-                    {
+                // timestamp precision merging
+                of(
                         Arrays.asList(
                                 new TimestampType(3), new TimestampType(5), new TimestampType(2)),
-                        new TimestampType(5)
-                    },
+                        new TimestampType(5)),
 
-                    // timestamp merging
-                    {
+                // timestamp merging
+                of(
                         Arrays.asList(
                                 new TimestampType(3),
                                 new ZonedTimestampType(5),
                                 new LocalZonedTimestampType(2)),
-                        new ZonedTimestampType(5)
-                    },
+                        new ZonedTimestampType(5)),
 
-                    // timestamp merging
-                    {
+                // timestamp merging
+                of(
                         Arrays.asList(new TimestampType(3), new LocalZonedTimestampType(2)),
-                        new LocalZonedTimestampType(3)
-                    },
+                        new LocalZonedTimestampType(3)),
 
-                    // day-time interval + DATETIME
-                    {
+                // day-time interval + DATETIME
+                of(
                         Arrays.asList(
                                 new DayTimeIntervalType(DayTimeResolution.DAY), new DateType()),
-                        new DateType()
-                    },
+                        new DateType()),
 
-                    // year-month interval + DATETIME
-                    {
+                // year-month interval + DATETIME
+                of(
                         Arrays.asList(
                                 new YearMonthIntervalType(YearMonthResolution.MONTH),
                                 new DateType()),
-                        new DateType()
-                    },
+                        new DateType()),
 
-                    // DATETIME + INTERVAL
-                    {
+                // DATETIME + INTERVAL
+                of(
                         Arrays.asList(
                                 new TimeType(), new DayTimeIntervalType(DayTimeResolution.MINUTE)),
-                        new TimeType()
-                    },
+                        new TimeType()),
 
-                    // DATETIME + INTERVAL
-                    {
+                // DATETIME + INTERVAL
+                of(
                         Arrays.asList(
                                 new DateType(), new DayTimeIntervalType(DayTimeResolution.DAY)),
-                        new DateType()
-                    },
+                        new DateType()),
 
-                    // EXACT_NUMERIC + DATE
-                    {Arrays.asList(new IntType(), new DateType()), new DateType()},
+                // EXACT_NUMERIC + DATE
+                of(Arrays.asList(new IntType(), new DateType()), new DateType()),
 
-                    // TIME + EXACT_NUMERIC
-                    {Arrays.asList(new TimeType(), new DecimalType()), null},
+                // TIME + EXACT_NUMERIC
+                of(Arrays.asList(new TimeType(), new DecimalType()), null),
 
-                    // TIMESTAMP + EXACT_NUMERIC
-                    {Arrays.asList(new TimestampType(), new DecimalType()), new TimestampType()},
+                // TIMESTAMP + EXACT_NUMERIC
+                of(Arrays.asList(new TimestampType(), new DecimalType()), new TimestampType()),
 
-                    // day-time intervals
-                    {
+                // day-time intervals
+                of(
                         Arrays.asList(
                                 new DayTimeIntervalType(DayTimeResolution.DAY_TO_MINUTE),
                                 new DayTimeIntervalType(DayTimeResolution.SECOND)),
-                        new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND)
-                    },
+                        new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND)),
 
-                    // day-time intervals
-                    {
+                // day-time intervals
+                of(
                         Arrays.asList(
                                 new DayTimeIntervalType(DayTimeResolution.HOUR),
                                 new DayTimeIntervalType(
@@ -282,27 +257,23 @@ public class LogicalCommonTypeTest {
                         new DayTimeIntervalType(
                                 DayTimeResolution.HOUR_TO_SECOND,
                                 DayTimeIntervalType.DEFAULT_DAY_PRECISION,
-                                6)
-                    },
+                                6)),
 
-                    // year-month intervals
-                    {
+                // year-month intervals
+                of(
                         Arrays.asList(
                                 new YearMonthIntervalType(YearMonthResolution.MONTH),
                                 new YearMonthIntervalType(YearMonthResolution.YEAR)),
-                        new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH)
-                    }
-                });
+                        new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH)));
     }
 
-    @Parameter public List<LogicalType> types;
-
-    @Parameter(1)
-    public LogicalType commonType;
-
-    @Test
-    public void testCommonType() {
-        assertThat(
-                LogicalTypeMerging.findCommonType(types), equalTo(Optional.ofNullable(commonType)));
+    @ParameterizedTest(name = "{index}: [Types: {0}, To: {1}]")
+    @MethodSource("testData")
+    void testCommonType(List<LogicalType> types, @Nullable LogicalType commonType) {
+        if (commonType == null) {
+            assertThat(LogicalTypeMerging.findCommonType(types)).isEmpty();
+        } else {
+            assertThat(LogicalTypeMerging.findCommonType(types)).contains(commonType);
+        }
     }
 }

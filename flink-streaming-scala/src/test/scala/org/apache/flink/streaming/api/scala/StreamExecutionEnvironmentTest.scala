@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
@@ -24,6 +23,7 @@ import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.Test
 
@@ -31,14 +31,10 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/**
- * Tests for the [[StreamExecutionEnvironment]].
- */
+/** Tests for the [[StreamExecutionEnvironment]]. */
 class StreamExecutionEnvironmentTest {
 
-  /**
-   * Verifies that calls to fromSource() don't throw and create a stream of the expected type.
-   */
+  /** Verifies that calls to fromSource() don't throw and create a stream of the expected type. */
   @Test
   def testFromSource(): Unit = {
     implicit val typeInfo: TypeInformation[Integer] = new MockTypeInfo()
@@ -53,8 +49,8 @@ class StreamExecutionEnvironmentTest {
   }
 
   /**
-   * Verifies that calls to fromSequence() instantiate a new DataStream
-   * that contains a sequence of numbers.
+   * Verifies that calls to fromSequence() instantiate a new DataStream that contains a sequence of
+   * numbers.
    */
   @Test
   def testFromSequence(): Unit = {

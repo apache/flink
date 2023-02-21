@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
@@ -39,98 +41,29 @@ import java.util.StringJoiner;
  * path/query parameters.
  *
  * @param <R> type of the contained request body
- * @param <M> type of the contained message parameters
  */
-public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
+public class HandlerRequest<R extends RequestBody> {
 
     private final R requestBody;
     private final Collection<File> uploadedFiles;
     private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>>
-            pathParameters = new HashMap<>(2);
+            pathParameters;
     private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>>
-            queryParameters = new HashMap<>(2);
+            queryParameters;
 
-    public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
-        this(
-                requestBody,
-                messageParameters,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyList());
-    }
-
-    public HandlerRequest(
+    private HandlerRequest(
             R requestBody,
-            M messageParameters,
-            Map<String, String> receivedPathParameters,
-            Map<String, List<String>> receivedQueryParameters)
-            throws HandlerRequestException {
-        this(
-                requestBody,
-                messageParameters,
-                receivedPathParameters,
-                receivedQueryParameters,
-                Collections.emptyList());
-    }
-
-    public HandlerRequest(
-            R requestBody,
-            M messageParameters,
-            Map<String, String> receivedPathParameters,
-            Map<String, List<String>> receivedQueryParameters,
-            Collection<File> uploadedFiles)
-            throws HandlerRequestException {
+            Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>>
+                    receivedPathParameters,
+            Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>>
+                    receivedQueryParameters,
+            Collection<File> uploadedFiles) {
         this.requestBody = Preconditions.checkNotNull(requestBody);
         this.uploadedFiles =
                 Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
-        Preconditions.checkNotNull(messageParameters);
-        Preconditions.checkNotNull(receivedQueryParameters);
-        Preconditions.checkNotNull(receivedPathParameters);
 
-        for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
-            String value = receivedPathParameters.get(pathParameter.getKey());
-            if (value != null) {
-                try {
-                    pathParameter.resolveFromString(value);
-                } catch (Exception e) {
-                    throw new HandlerRequestException(
-                            "Cannot resolve path parameter ("
-                                    + pathParameter.getKey()
-                                    + ") from value \""
-                                    + value
-                                    + "\".");
-                }
-
-                @SuppressWarnings("unchecked")
-                Class<? extends MessagePathParameter<?>> clazz =
-                        (Class<? extends MessagePathParameter<?>>) pathParameter.getClass();
-                pathParameters.put(clazz, pathParameter);
-            }
-        }
-
-        for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
-            List<String> values = receivedQueryParameters.get(queryParameter.getKey());
-            if (values != null && !values.isEmpty()) {
-                StringJoiner joiner = new StringJoiner(",");
-                values.forEach(joiner::add);
-
-                try {
-                    queryParameter.resolveFromString(joiner.toString());
-                } catch (Exception e) {
-                    throw new HandlerRequestException(
-                            "Cannot resolve query parameter ("
-                                    + queryParameter.getKey()
-                                    + ") from value \""
-                                    + joiner
-                                    + "\".");
-                }
-
-                @SuppressWarnings("unchecked")
-                Class<? extends MessageQueryParameter<?>> clazz =
-                        (Class<? extends MessageQueryParameter<?>>) queryParameter.getClass();
-                queryParameters.put(clazz, queryParameter);
-            }
-        }
+        pathParameters = Preconditions.checkNotNull(receivedPathParameters);
+        queryParameters = Preconditions.checkNotNull(receivedQueryParameters);
     }
 
     /**
@@ -182,5 +115,110 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
     @Nonnull
     public Collection<File> getUploadedFiles() {
         return uploadedFiles;
+    }
+
+    /**
+     * Short-cut for {@link #create(RequestBody, MessageParameters, Collection)} without any
+     * uploaded files.
+     */
+    @VisibleForTesting
+    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R> create(
+            R requestBody, M messageParameters) {
+        return create(requestBody, messageParameters, Collections.emptyList());
+    }
+
+    /**
+     * Creates a new {@link HandlerRequest}. The given {@link MessageParameters} are expected to be
+     * resolved.
+     */
+    @VisibleForTesting
+    public static <R extends RequestBody, M extends MessageParameters> HandlerRequest<R> create(
+            R requestBody, M messageParameters, Collection<File> uploadedFiles) {
+        return new HandlerRequest<R>(
+                requestBody,
+                mapParameters(messageParameters.getPathParameters()),
+                mapParameters(messageParameters.getQueryParameters()),
+                uploadedFiles);
+    }
+
+    /**
+     * Creates a new {@link HandlerRequest} after resolving the given {@link MessageParameters}
+     * against the given query/path parameter maps.
+     *
+     * <p>For tests it is recommended to resolve the parameters manually and use {@link #create}.
+     */
+    public static <R extends RequestBody, M extends MessageParameters>
+            HandlerRequest<R> resolveParametersAndCreate(
+                    R requestBody,
+                    M messageParameters,
+                    Map<String, String> receivedPathParameters,
+                    Map<String, List<String>> receivedQueryParameters,
+                    Collection<File> uploadedFiles)
+                    throws HandlerRequestException {
+
+        resolvePathParameters(messageParameters, receivedPathParameters);
+        resolveQueryParameters(messageParameters, receivedQueryParameters);
+
+        return create(requestBody, messageParameters, uploadedFiles);
+    }
+
+    private static void resolvePathParameters(
+            MessageParameters messageParameters, Map<String, String> receivedPathParameters)
+            throws HandlerRequestException {
+
+        for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
+            String value = receivedPathParameters.get(pathParameter.getKey());
+            if (value != null) {
+                try {
+                    pathParameter.resolveFromString(value);
+                } catch (Exception e) {
+                    throw new HandlerRequestException(
+                            "Cannot resolve path parameter ("
+                                    + pathParameter.getKey()
+                                    + ") from value \""
+                                    + value
+                                    + "\".");
+                }
+            }
+        }
+    }
+
+    private static void resolveQueryParameters(
+            MessageParameters messageParameters, Map<String, List<String>> receivedQueryParameters)
+            throws HandlerRequestException {
+
+        for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
+            List<String> values = receivedQueryParameters.get(queryParameter.getKey());
+            if (values != null && !values.isEmpty()) {
+                StringJoiner joiner = new StringJoiner(",");
+                values.forEach(joiner::add);
+
+                try {
+                    queryParameter.resolveFromString(joiner.toString());
+                } catch (Exception e) {
+                    throw new HandlerRequestException(
+                            "Cannot resolve query parameter ("
+                                    + queryParameter.getKey()
+                                    + ") from value \""
+                                    + joiner
+                                    + "\".");
+                }
+            }
+        }
+    }
+
+    private static <P extends MessageParameter<?>> Map<Class<? extends P>, P> mapParameters(
+            Collection<P> parameters) {
+        final Map<Class<? extends P>, P> mappedParameters = new HashMap<>(2);
+
+        for (P parameter : parameters) {
+            if (parameter.isResolved()) {
+                @SuppressWarnings("unchecked")
+                Class<P> clazz = (Class<P>) parameter.getClass();
+                mappedParameters.put(clazz, parameter);
+            }
+        }
+
+        return mappedParameters;
     }
 }

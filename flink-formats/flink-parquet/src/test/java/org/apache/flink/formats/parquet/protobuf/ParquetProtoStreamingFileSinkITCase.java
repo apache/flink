@@ -23,16 +23,17 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.proto.ProtoParquetReader;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,21 +43,17 @@ import java.util.List;
 
 import static com.google.protobuf.Message.Builder;
 import static org.apache.flink.formats.parquet.protobuf.SimpleRecord.SimpleProtoRecord;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Parquet.
  */
-public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
+@ExtendWith(MiniClusterExtension.class)
+class ParquetProtoStreamingFileSinkITCase {
 
     @Test
-    public void testParquetProtoWriters() throws Exception {
-        File folder = TEMPORARY_FOLDER.newFolder();
+    void testParquetProtoWriters(@TempDir File folder) throws Exception {
 
         List<SimpleProtoRecord> data =
                 Arrays.asList(
@@ -76,6 +73,7 @@ public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetProtoWriters.forType(SimpleProtoRecord.class))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();
@@ -88,18 +86,16 @@ public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
     private static <T extends MessageOrBuilder> void validateResults(File folder, List<T> expected)
             throws Exception {
         File[] buckets = folder.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).hasSize(1);
 
         File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
-        assertEquals(2, partFiles.length);
+        assertThat(partFiles).hasSize(2);
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
 
             final List<Message> fileContent = readParquetFile(partFile);
-            assertEquals(expected, fileContent);
+            assertThat(fileContent).isEqualTo(expected);
         }
     }
 

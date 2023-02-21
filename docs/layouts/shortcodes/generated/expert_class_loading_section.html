@@ -24,14 +24,14 @@ This check should only be disabled if such a leak prevents further jobs from run
         </tr>
         <tr>
             <td><h5>classloader.parent-first-patterns.additional</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
             <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against the fully qualified class name. These patterns are appended to "classloader.parent-first-patterns.default".</td>
         </tr>
         <tr>
             <td><h5>classloader.parent-first-patterns.default</h5></td>
-            <td style="word-wrap: break-word;">"java.;<wbr>scala.;<wbr>org.apache.flink.;<wbr>com.esotericsoftware.kryo;<wbr>org.apache.hadoop.;<wbr>javax.annotation.;<wbr>org.slf4j;<wbr>org.apache.log4j;<wbr>org.apache.logging;<wbr>org.apache.commons.logging;<wbr>ch.qos.logback;<wbr>org.xml;<wbr>javax.xml;<wbr>org.apache.xerces;<wbr>org.w3c"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">"java.";<wbr>"scala.";<wbr>"org.apache.flink.";<wbr>"com.esotericsoftware.kryo";<wbr>"org.apache.hadoop.";<wbr>"javax.annotation.";<wbr>"org.xml";<wbr>"javax.xml";<wbr>"org.apache.xerces";<wbr>"org.w3c";<wbr>"org.rocksdb.";<wbr>"org.slf4j";<wbr>"org.apache.log4j";<wbr>"org.apache.logging";<wbr>"org.apache.commons.logging";<wbr>"ch.qos.logback"</td>
+            <td>List&lt;String&gt;</td>
             <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against the fully qualified class name. This setting should generally not be modified. To add another pattern we recommend to use "classloader.parent-first-patterns.additional" instead.</td>
         </tr>
         <tr>

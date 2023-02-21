@@ -21,13 +21,15 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Headers for the {@link TaskManagerThreadDumpHandler}. */
 public class TaskManagerThreadDumpHeaders
-        implements MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
 
     private static final TaskManagerThreadDumpHeaders INSTANCE = new TaskManagerThreadDumpHeaders();
 

@@ -25,7 +25,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link SubtasksTimesHandler}. */
 public class SubtasksTimesHeaders
-        implements MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters> {
 
     private static final SubtasksTimesHeaders INSTANCE = new SubtasksTimesHeaders();
 

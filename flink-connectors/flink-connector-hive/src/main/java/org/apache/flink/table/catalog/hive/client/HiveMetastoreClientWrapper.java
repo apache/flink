@@ -19,12 +19,13 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -36,12 +37,20 @@ import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidInputException;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
+import org.apache.hadoop.hive.metastore.api.LockRequest;
+import org.apache.hadoop.hive.metastore.api.LockResponse;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchLockException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.NoSuchTxnException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
+import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Wrapper class for Hive Metastore Client, which embeds a HiveShim layer to handle different Hive
@@ -66,13 +73,15 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     private final IMetaStoreClient client;
     private final HiveConf hiveConf;
     private final HiveShim hiveShim;
+    private volatile Hive hive;
 
     public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
+        this(hiveConf, HiveShimLoader.loadHiveShim(hiveVersion));
+    }
+
+    public HiveMetastoreClientWrapper(HiveConf hiveConf, HiveShim hiveShim) {
         this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
-        checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(hiveVersion),
-                "hiveVersion cannot be null or empty");
-        hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+        this.hiveShim = hiveShim;
         // use synchronized client in case we're talking to a remote HMS
         client =
                 HiveCatalog.isEmbeddedMetastore(hiveConf)
@@ -137,6 +146,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     public Partition getPartition(String databaseName, String tableName, List<String> list)
             throws NoSuchObjectException, MetaException, TException {
         return client.getPartition(databaseName, tableName, list);
+    }
+
+    public List<Partition> getPartitionsByNames(
+            String databaseName, String tableName, List<String> partitionNames) throws TException {
+        return client.getPartitionsByNames(databaseName, tableName, partitionNames);
     }
 
     public List<String> listPartitionNames(
@@ -312,5 +326,51 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             List<Byte> nnTraits) {
         hiveShim.createTableWithConstraints(
                 client, table, conf, pk, pkTraits, notNullCols, nnTraits);
+    }
+
+    public LockResponse checkLock(long lockid)
+            throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException {
+        return client.checkLock(lockid);
+    }
+
+    public LockResponse lock(LockRequest request)
+            throws NoSuchTxnException, TxnAbortedException, TException {
+        return client.lock(request);
+    }
+
+    public void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException {
+        client.unlock(lockid);
+    }
+
+    public void loadTable(Path loadPath, String tableName, boolean replace, boolean isSrcLocal)
+            throws HiveException {
+        initHive();
+        hiveShim.loadTable(hive, loadPath, tableName, replace, isSrcLocal);
+    }
+
+    public void loadPartition(
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal) {
+        initHive();
+        hiveShim.loadPartition(
+                hive, loadPath, tableName, partSpec, isSkewedStoreAsSubdir, replace, isSrcLocal);
+    }
+
+    private void initHive() {
+        if (this.hive == null) {
+            synchronized (this) {
+                if (this.hive == null) {
+                    try {
+                        this.hive = Hive.get(hiveConf);
+                    } catch (HiveException e) {
+                        throw new FlinkHiveException(e);
+                    }
+                }
+            }
+        }
     }
 }

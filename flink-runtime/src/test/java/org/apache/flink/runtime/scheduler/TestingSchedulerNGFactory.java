@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -69,13 +70,14 @@ public class TestingSchedulerNGFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            BlocklistOperations blocklistOperations)
             throws Exception {
         return schedulerNG;
     }
 
     @Override
     public JobManagerOptions.SchedulerType getSchedulerType() {
-        return JobManagerOptions.SchedulerType.Ng;
+        return JobManagerOptions.SchedulerType.Default;
     }
 }

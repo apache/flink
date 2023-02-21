@@ -18,10 +18,11 @@
 
 package org.apache.flink.connector.kafka.source.enumerator.subscriber;
 
-import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -33,17 +34,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link KafkaSubscriber}. */
 public class KafkaSubscriberTest {
     private static final String TOPIC1 = "topic1";
     private static final String TOPIC2 = "pattern-topic";
-    private static final TopicPartition assignedPartition1 = new TopicPartition(TOPIC1, 2);
-    private static final TopicPartition assignedPartition2 = new TopicPartition(TOPIC2, 2);
-    private static final TopicPartition removedPartition = new TopicPartition("removed", 0);
-    private static final Set<TopicPartition> currentAssignment =
-            new HashSet<>(Arrays.asList(assignedPartition1, assignedPartition2, removedPartition));
+    private static final TopicPartition NON_EXISTING_TOPIC = new TopicPartition("removed", 0);
     private static AdminClient adminClient;
 
     @BeforeClass
@@ -65,34 +64,38 @@ public class KafkaSubscriberTest {
         List<String> topics = Arrays.asList(TOPIC1, TOPIC2);
         KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicListSubscriber(Arrays.asList(TOPIC1, TOPIC2));
-        KafkaSubscriber.PartitionChange change =
-                subscriber.getPartitionChanges(adminClient, currentAssignment);
-        Set<TopicPartition> expectedNewPartitions =
+        final Set<TopicPartition> subscribedPartitions =
+                subscriber.getSubscribedTopicPartitions(adminClient);
+
+        final Set<TopicPartition> expectedSubscribedPartitions =
                 new HashSet<>(KafkaSourceTestEnv.getPartitionsForTopics(topics));
-        expectedNewPartitions.remove(assignedPartition1);
-        expectedNewPartitions.remove(assignedPartition2);
-        assertEquals(expectedNewPartitions, change.getNewPartitions());
-        assertEquals(Collections.singleton(removedPartition), change.getRemovedPartitions());
+
+        assertThat(subscribedPartitions).isEqualTo(expectedSubscribedPartitions);
+    }
+
+    @Test
+    public void testNonExistingTopic() {
+        final KafkaSubscriber subscriber =
+                KafkaSubscriber.getTopicListSubscriber(
+                        Collections.singletonList(NON_EXISTING_TOPIC.topic()));
+
+        assertThatThrownBy(() -> subscriber.getSubscribedTopicPartitions(adminClient))
+                .isInstanceOf(RuntimeException.class)
+                .satisfies(anyCauseMatches(UnknownTopicOrPartitionException.class));
     }
 
     @Test
     public void testTopicPatternSubscriber() {
         KafkaSubscriber subscriber =
                 KafkaSubscriber.getTopicPatternSubscriber(Pattern.compile("pattern.*"));
-        KafkaSubscriber.PartitionChange change =
-                subscriber.getPartitionChanges(adminClient, currentAssignment);
+        final Set<TopicPartition> subscribedPartitions =
+                subscriber.getSubscribedTopicPartitions(adminClient);
 
-        Set<TopicPartition> expectedNewPartitions = new HashSet<>();
-        for (int i = 0; i < KafkaSourceTestEnv.NUM_PARTITIONS; i++) {
-            if (i != assignedPartition2.partition()) {
-                expectedNewPartitions.add(new TopicPartition(TOPIC2, i));
-            }
-        }
-        Set<TopicPartition> expectedRemovedPartitions =
-                new HashSet<>(Arrays.asList(assignedPartition1, removedPartition));
+        final Set<TopicPartition> expectedSubscribedPartitions =
+                new HashSet<>(
+                        KafkaSourceTestEnv.getPartitionsForTopics(Collections.singleton(TOPIC2)));
 
-        assertEquals(expectedNewPartitions, change.getNewPartitions());
-        assertEquals(expectedRemovedPartitions, change.getRemovedPartitions());
+        assertThat(subscribedPartitions).isEqualTo(expectedSubscribedPartitions);
     }
 
     @Test
@@ -103,13 +106,25 @@ public class KafkaSubscriberTest {
         partitions.remove(new TopicPartition(TOPIC1, 1));
 
         KafkaSubscriber subscriber = KafkaSubscriber.getPartitionSetSubscriber(partitions);
-        KafkaSubscriber.PartitionChange change =
-                subscriber.getPartitionChanges(adminClient, currentAssignment);
 
-        Set<TopicPartition> expectedNewPartitions = new HashSet<>(partitions);
-        expectedNewPartitions.remove(assignedPartition1);
-        expectedNewPartitions.remove(assignedPartition2);
-        assertEquals(expectedNewPartitions, change.getNewPartitions());
-        assertEquals(Collections.singleton(removedPartition), change.getRemovedPartitions());
+        final Set<TopicPartition> subscribedPartitions =
+                subscriber.getSubscribedTopicPartitions(adminClient);
+
+        assertThat(subscribedPartitions).isEqualTo(partitions);
+    }
+
+    @Test
+    public void testNonExistingPartition() {
+        TopicPartition nonExistingPartition = new TopicPartition(TOPIC1, Integer.MAX_VALUE);
+        final KafkaSubscriber subscriber =
+                KafkaSubscriber.getPartitionSetSubscriber(
+                        Collections.singleton(nonExistingPartition));
+
+        assertThatThrownBy(() -> subscriber.getSubscribedTopicPartitions(adminClient))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage(
+                        String.format(
+                                "Partition '%s' does not exist on Kafka brokers",
+                                nonExistingPartition));
     }
 }

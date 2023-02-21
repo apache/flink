@@ -48,7 +48,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
     /** Returns the encapsulated output stream. */
     @Nonnull
-    CheckpointStreamFactory.CheckpointStateOutputStream getCheckpointOutputStream();
+    CheckpointStateOutputStream getCheckpointOutputStream();
 
     @Override
     default void close() throws IOException {
@@ -61,10 +61,9 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
      */
     class PrimaryStreamOnly implements CheckpointStreamWithResultProvider {
 
-        @Nonnull private final CheckpointStreamFactory.CheckpointStateOutputStream outputStream;
+        @Nonnull private final CheckpointStateOutputStream outputStream;
 
-        public PrimaryStreamOnly(
-                @Nonnull CheckpointStreamFactory.CheckpointStateOutputStream outputStream) {
+        public PrimaryStreamOnly(@Nonnull CheckpointStateOutputStream outputStream) {
             this.outputStream = outputStream;
         }
 
@@ -77,7 +76,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
         @Nonnull
         @Override
-        public CheckpointStreamFactory.CheckpointStateOutputStream getCheckpointOutputStream() {
+        public CheckpointStateOutputStream getCheckpointOutputStream() {
             return outputStream;
         }
     }
@@ -93,8 +92,8 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
         @Nonnull private final DuplicatingCheckpointOutputStream outputStream;
 
         public PrimaryAndSecondaryStream(
-                @Nonnull CheckpointStreamFactory.CheckpointStateOutputStream primaryOut,
-                CheckpointStreamFactory.CheckpointStateOutputStream secondaryOut)
+                @Nonnull CheckpointStateOutputStream primaryOut,
+                CheckpointStateOutputStream secondaryOut)
                 throws IOException {
             this(new DuplicatingCheckpointOutputStream(primaryOut, secondaryOut));
         }
@@ -154,7 +153,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
             @Nonnull CheckpointStreamFactory primaryStreamFactory)
             throws IOException {
 
-        CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
+        CheckpointStateOutputStream primaryOut =
                 primaryStreamFactory.createCheckpointStateOutputStream(checkpointedStateScope);
 
         return new CheckpointStreamWithResultProvider.PrimaryStreamOnly(primaryOut);
@@ -168,7 +167,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
             @Nonnull LocalRecoveryDirectoryProvider secondaryStreamDirProvider)
             throws IOException {
 
-        CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
+        CheckpointStateOutputStream primaryOut =
                 primaryStreamFactory.createCheckpointStateOutputStream(checkpointedStateScope);
 
         try {
@@ -179,7 +178,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
                             String.valueOf(UUID.randomUUID()));
             Path outPath = new Path(outFile.toURI());
 
-            CheckpointStreamFactory.CheckpointStateOutputStream secondaryOut =
+            CheckpointStateOutputStream secondaryOut =
                     new FileBasedStateOutputStream(outPath.getFileSystem(), outPath);
 
             return new CheckpointStreamWithResultProvider.PrimaryAndSecondaryStream(

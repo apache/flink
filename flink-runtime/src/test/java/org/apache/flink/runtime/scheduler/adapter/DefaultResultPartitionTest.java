@@ -20,19 +20,26 @@ package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link DefaultResultPartition}. */
-public class DefaultResultPartitionTest extends TestLogger {
+class DefaultResultPartitionTest {
 
     private static final TestResultPartitionStateSupplier resultPartitionState =
             new TestResultPartitionStateSupplier();
@@ -43,19 +50,47 @@ public class DefaultResultPartitionTest extends TestLogger {
 
     private DefaultResultPartition resultPartition;
 
-    @Before
-    public void setUp() {
+    private final Map<IntermediateResultPartitionID, List<ConsumerVertexGroup>>
+            consumerVertexGroups = new HashMap<>();
+
+    @BeforeEach
+    void setUp() {
         resultPartition =
                 new DefaultResultPartition(
-                        resultPartitionId, intermediateResultId, BLOCKING, resultPartitionState);
+                        resultPartitionId,
+                        intermediateResultId,
+                        BLOCKING,
+                        resultPartitionState,
+                        () ->
+                                consumerVertexGroups.computeIfAbsent(
+                                        resultPartitionId, ignored -> new ArrayList<>()),
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        });
     }
 
     @Test
-    public void testGetPartitionState() {
+    void testGetPartitionState() {
         for (ResultPartitionState state : ResultPartitionState.values()) {
             resultPartitionState.setResultPartitionState(state);
-            assertEquals(state, resultPartition.getState());
+            assertThat(resultPartition.getState()).isEqualTo(state);
         }
+    }
+
+    @Test
+    void testGetConsumerVertexGroup() {
+
+        assertThat(resultPartition.getConsumerVertexGroups()).isEmpty();
+
+        // test update consumers
+        ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+        consumerVertexGroups.put(
+                resultPartition.getId(),
+                Collections.singletonList(
+                        ConsumerVertexGroup.fromSingleVertex(
+                                executionVertexId, resultPartition.getResultType())));
+        assertThat(resultPartition.getConsumerVertexGroups()).isNotEmpty();
+        assertThat(resultPartition.getConsumerVertexGroups().get(0)).contains(executionVertexId);
     }
 
     /** A test {@link ResultPartitionState} supplier. */

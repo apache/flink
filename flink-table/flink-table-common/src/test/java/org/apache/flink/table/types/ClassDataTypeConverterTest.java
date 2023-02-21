@@ -24,57 +24,49 @@ import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.of;
 
 /** Tests for {@link ClassDataTypeConverter}. */
-@RunWith(Parameterized.class)
-public class ClassDataTypeConverterTest {
+class ClassDataTypeConverterTest {
 
-    @Parameterized.Parameters(name = "[{index}] class: {0} type: {1}")
-    public static List<Object[]> testData() {
-        return Arrays.asList(
-                new Object[][] {
-                    {long.class, DataTypes.BIGINT().notNull().bridgedTo(long.class)},
-                    {byte[].class, DataTypes.BYTES().nullable().bridgedTo(byte[].class)},
-                    {Long.class, DataTypes.BIGINT().nullable().bridgedTo(Long.class)},
-                    {
+    private static Stream<Arguments> testData() {
+        return Stream.of(
+                of(long.class, DataTypes.BIGINT().notNull().bridgedTo(long.class)),
+                of(byte[].class, DataTypes.BYTES().nullable().bridgedTo(byte[].class)),
+                of(Long.class, DataTypes.BIGINT().nullable().bridgedTo(Long.class)),
+                of(
                         java.sql.Time.class,
-                        DataTypes.TIME(0).nullable().bridgedTo(java.sql.Time.class)
-                    },
-                    {
+                        DataTypes.TIME(0).nullable().bridgedTo(java.sql.Time.class)),
+                of(
                         java.time.Duration.class,
-                        DataTypes.INTERVAL(DataTypes.SECOND(9)).bridgedTo(java.time.Duration.class)
-                    },
-                    {
+                        DataTypes.INTERVAL(DataTypes.SECOND(9))
+                                .bridgedTo(java.time.Duration.class)),
+                of(
                         java.time.Period.class,
                         DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH())
-                                .bridgedTo(java.time.Period.class)
-                    },
-                    {BigDecimal.class, null},
-                    {
+                                .bridgedTo(java.time.Period.class)),
+                of(BigDecimal.class, null),
+                of(
                         byte[][].class,
                         DataTypes.ARRAY(DataTypes.BYTES().nullable().bridgedTo(byte[].class))
                                 .nullable()
-                                .bridgedTo(byte[][].class)
-                    },
-                    {
+                                .bridgedTo(byte[][].class)),
+                of(
                         Byte[].class,
                         DataTypes.ARRAY(DataTypes.TINYINT().nullable().bridgedTo(Byte.class))
                                 .nullable()
-                                .bridgedTo(Byte[].class)
-                    },
-                    {
+                                .bridgedTo(Byte[].class)),
+                of(
                         Byte[][].class,
                         DataTypes.ARRAY(
                                         DataTypes.ARRAY(
@@ -84,36 +76,30 @@ public class ClassDataTypeConverterTest {
                                                 .nullable()
                                                 .bridgedTo(Byte[].class))
                                 .nullable()
-                                .bridgedTo(Byte[][].class)
-                    },
-                    {
+                                .bridgedTo(Byte[][].class)),
+                of(
                         Integer[].class,
                         DataTypes.ARRAY(DataTypes.INT().nullable().bridgedTo(Integer.class))
                                 .nullable()
-                                .bridgedTo(Integer[].class)
-                    },
-                    {
+                                .bridgedTo(Integer[].class)),
+                of(
                         int[].class,
                         DataTypes.ARRAY(DataTypes.INT().notNull().bridgedTo(int.class))
                                 .nullable()
-                                .bridgedTo(int[].class)
-                    },
-                    {
+                                .bridgedTo(int[].class)),
+                of(
                         TimeIntervalUnit.class,
-                        new AtomicDataType(new SymbolType<>(TimeIntervalUnit.class))
-                                .bridgedTo(TimeIntervalUnit.class)
-                    },
-                    {Row.class, null}
-                });
+                        new AtomicDataType(new SymbolType<>()).bridgedTo(TimeIntervalUnit.class)),
+                of(Row.class, null));
     }
 
-    @Parameterized.Parameter public Class<?> clazz;
-
-    @Parameterized.Parameter(1)
-    public @Nullable DataType dataType;
-
-    @Test
-    public void testClassToDataTypeConversion() {
-        assertEquals(Optional.ofNullable(dataType), ClassDataTypeConverter.extractDataType(clazz));
+    @ParameterizedTest(name = "[{index}] class: {0} type: {1}")
+    @MethodSource("testData")
+    void testClassToDataTypeConversion(Class<?> clazz, @Nullable DataType dataType) {
+        if (dataType == null) {
+            assertThat(ClassDataTypeConverter.extractDataType(clazz)).isEmpty();
+        } else {
+            assertThat(ClassDataTypeConverter.extractDataType(clazz)).contains(dataType);
+        }
     }
 }

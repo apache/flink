@@ -22,27 +22,29 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpUtil;
 
 /** Utilities to write. */
 public class KeepAliveWrite {
     public static ChannelFuture flush(
             ChannelHandlerContext ctx, HttpRequest request, HttpResponse response) {
-        if (!HttpHeaders.isKeepAlive(request)) {
+        if (!HttpUtil.isKeepAlive(request)) {
             return ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         } else {
-            response.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             return ctx.writeAndFlush(response);
         }
     }
 
     public static ChannelFuture flush(Channel ch, HttpRequest req, HttpResponse res) {
-        if (!HttpHeaders.isKeepAlive(req)) {
+        if (!HttpUtil.isKeepAlive(req)) {
             return ch.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE);
         } else {
-            res.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            res.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             return ch.writeAndFlush(res);
         }
     }

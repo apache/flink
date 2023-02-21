@@ -31,6 +31,8 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 import java.util.Date;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** WordCount with nested POJO example. */
 @SuppressWarnings("serial")
 public class WordCountNestedPOJOITCase extends JavaProgramTestBase implements Serializable {

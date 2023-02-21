@@ -18,27 +18,22 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.src.AbstractFileSource;
 import org.apache.flink.connector.file.src.ContinuousEnumerationSettings;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
-import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
-import org.apache.flink.connectors.hive.read.HiveBulkFormatAdapter;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
-import org.apache.flink.table.filesystem.LimitableBulkFormat;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -51,17 +46,25 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIGNER;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/** A unified data source that reads a hive table. */
-public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
-        implements ResultTypeQueryable<RowData> {
+/**
+ * A unified data source that reads a hive table. HiveSource works on {@link HiveSourceSplit} and
+ * uses {@link BulkFormat} to read the data. A built-in BulkFormat is provided to return records in
+ * type of {@link RowData}. It's also possible to implement a custom BulkFormat to return data in
+ * different types. Use {@link HiveSourceBuilder} to build HiveSource instances.
+ *
+ * @param <T> the type of record returned by this source
+ */
+@PublicEvolving
+public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
 
     private static final long serialVersionUID = 1L;
 
     private final JobConfWrapper jobConfWrapper;
     private final List<String> partitionKeys;
+
+    private final String hiveVersion;
+    private final List<String> dynamicFilterPartitionKeys;
+    private final List<byte[]> partitionBytes;
     private final ContinuousPartitionFetcher<Partition, ?> fetcher;
     private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
     private final ObjectPath tablePath;
@@ -70,11 +73,14 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
             Path[] inputPaths,
             FileEnumerator.Provider fileEnumerator,
             FileSplitAssigner.Provider splitAssigner,
-            BulkFormat<RowData, HiveSourceSplit> readerFormat,
+            BulkFormat<T, HiveSourceSplit> readerFormat,
             @Nullable ContinuousEnumerationSettings continuousEnumerationSettings,
             JobConf jobConf,
             ObjectPath tablePath,
             List<String> partitionKeys,
+            String hiveVersion,
+            @Nullable List<String> dynamicFilterPartitionKeys,
+            List<byte[]> partitionBytes,
             @Nullable ContinuousPartitionFetcher<Partition, ?> fetcher,
             @Nullable HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
         super(
@@ -86,6 +92,9 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
         this.jobConfWrapper = new JobConfWrapper(jobConf);
         this.tablePath = tablePath;
         this.partitionKeys = partitionKeys;
+        this.hiveVersion = hiveVersion;
+        this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        this.partitionBytes = partitionBytes;
         this.fetcher = fetcher;
         this.fetcherContext = fetcherContext;
     }
@@ -114,6 +123,8 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
                     fetcherContext.getConsumeStartOffset(),
                     Collections.emptyList(),
                     Collections.emptyList());
+        } else if (dynamicFilterPartitionKeys != null) {
+            return createDynamicSplitEnumerator(enumContext);
         } else {
             return super.createEnumerator(enumContext);
         }
@@ -163,90 +174,16 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
                 fetcherContext);
     }
 
-    /** Builder to build HiveSource instances. */
-    public static class HiveSourceBuilder
-            extends AbstractFileSourceBuilder<RowData, HiveSourceSplit, HiveSourceBuilder> {
-
-        private final JobConf jobConf;
-        private final ObjectPath tablePath;
-        private final List<String> partitionKeys;
-
-        private ContinuousPartitionFetcher<Partition, ?> fetcher = null;
-        private HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext = null;
-
-        HiveSourceBuilder(
-                JobConf jobConf,
-                ObjectPath tablePath,
-                CatalogTable catalogTable,
-                List<HiveTablePartition> partitions,
-                @Nullable Long limit,
-                String hiveVersion,
-                boolean useMapRedReader,
-                RowType producedRowType) {
-            super(
-                    new Path[1],
-                    createBulkFormat(
-                            new JobConf(jobConf),
-                            catalogTable,
-                            hiveVersion,
-                            producedRowType,
-                            useMapRedReader,
-                            limit),
-                    new HiveSourceFileEnumerator.Provider(partitions, new JobConfWrapper(jobConf)),
-                    null);
-            this.jobConf = jobConf;
-            this.tablePath = tablePath;
-            this.partitionKeys = catalogTable.getPartitionKeys();
-        }
-
-        @Override
-        public HiveSource build() {
-            FileSplitAssigner.Provider splitAssigner =
-                    continuousSourceSettings == null || partitionKeys.isEmpty()
-                            ? DEFAULT_SPLIT_ASSIGNER
-                            : SimpleSplitAssigner::new;
-            return new HiveSource(
-                    inputPaths,
-                    fileEnumerator,
-                    splitAssigner,
-                    readerFormat,
-                    continuousSourceSettings,
-                    jobConf,
-                    tablePath,
-                    partitionKeys,
-                    fetcher,
-                    fetcherContext);
-        }
-
-        public HiveSourceBuilder setFetcher(ContinuousPartitionFetcher<Partition, ?> fetcher) {
-            this.fetcher = fetcher;
-            return this;
-        }
-
-        public HiveSourceBuilder setFetcherContext(
-                HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
-            this.fetcherContext = fetcherContext;
-            return this;
-        }
-
-        private static BulkFormat<RowData, HiveSourceSplit> createBulkFormat(
-                JobConf jobConf,
-                CatalogTable catalogTable,
-                String hiveVersion,
-                RowType producedRowType,
-                boolean useMapRedReader,
-                Long limit) {
-            checkNotNull(catalogTable, "catalogTable can not be null.");
-            return LimitableBulkFormat.create(
-                    new HiveBulkFormatAdapter(
-                            new JobConfWrapper(jobConf),
-                            catalogTable.getPartitionKeys(),
-                            catalogTable.getSchema().getFieldNames(),
-                            catalogTable.getSchema().getFieldDataTypes(),
-                            hiveVersion,
-                            producedRowType,
-                            useMapRedReader),
-                    limit);
-        }
+    private SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>
+            createDynamicSplitEnumerator(SplitEnumeratorContext<HiveSourceSplit> enumContext) {
+        return new DynamicHiveSplitEnumerator(
+                enumContext,
+                new HiveSourceDynamicFileEnumerator.Provider(
+                        tablePath.getFullName(),
+                        dynamicFilterPartitionKeys,
+                        partitionBytes,
+                        hiveVersion,
+                        jobConfWrapper),
+                getAssignerFactory());
     }
 }

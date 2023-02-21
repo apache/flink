@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -27,21 +30,32 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 
 /** Tests for the {@link ExecutionVertex}. */
 public class ExecutionVertexTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testResetForNewExecutionReleasesPartitions() throws Exception {
@@ -61,8 +75,10 @@ public class ExecutionVertexTest extends TestLogger {
         final JobGraph jobGraph =
                 JobGraphTestUtils.streamingJobGraph(producerJobVertex, consumerJobVertex);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setPartitionTracker(partitionTracker)
                         .build();
 
@@ -94,6 +110,58 @@ public class ExecutionVertexTest extends TestLogger {
                         .getShuffleDescriptor()
                         .getResultPartitionID();
 
-        assertThat(releasePartitionsFuture.get(), contains(resultPartitionID));
+        assertThat(releasePartitionsFuture.get()).contains(resultPartitionID);
+    }
+
+    @Test
+    public void testFindLatestAllocationIgnoresFailedAttempts() throws Exception {
+        final JobVertex source = ExecutionGraphTestUtils.createNoOpVertex(1);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source);
+        final TestingPhysicalSlotProvider withLimitedAmountOfPhysicalSlots =
+                TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
+        final Configuration configuration = new Configuration();
+        // make sure that retrieving the last (al)location is independent from the history size
+        configuration.set(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE, 1);
+        final SchedulerBase scheduler =
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(configuration)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        withLimitedAmountOfPhysicalSlots))
+                        .build();
+
+        scheduler.startScheduling();
+
+        final ExecutionJobVertex sourceExecutionJobVertex =
+                scheduler.getExecutionJobVertex(source.getID());
+
+        final ExecutionVertex sourceExecutionVertex = sourceExecutionJobVertex.getTaskVertices()[0];
+        final Execution firstExecution = sourceExecutionVertex.getCurrentExecutionAttempt();
+
+        final TestingPhysicalSlot physicalSlot =
+                withLimitedAmountOfPhysicalSlots.getFirstResponseOrFail().join();
+        final AllocationID allocationId = physicalSlot.getAllocationId();
+        final TaskManagerLocation taskManagerLocation = physicalSlot.getTaskManagerLocation();
+
+        cancelExecution(firstExecution);
+        sourceExecutionVertex.resetForNewExecution();
+
+        assertThat(sourceExecutionVertex.findLastAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLastLocation()).hasValue(taskManagerLocation);
+
+        final Execution secondExecution = sourceExecutionVertex.getCurrentExecutionAttempt();
+        cancelExecution(secondExecution);
+        sourceExecutionVertex.resetForNewExecution();
+
+        assertThat(sourceExecutionVertex.findLastAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLastLocation()).hasValue(taskManagerLocation);
+    }
+
+    private void cancelExecution(Execution execution) {
+        execution.cancel();
+        execution.completeCancelling();
     }
 }

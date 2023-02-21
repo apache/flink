@@ -20,13 +20,10 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -62,6 +59,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
@@ -78,23 +76,46 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+    private static final Map<StateDescriptor.Type, StateCreateFactory> STATE_CREATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
-                                    ValueStateDescriptor.class,
-                                    (StateFactory) HeapValueState::create),
+                                    StateDescriptor.Type.VALUE,
+                                    (StateCreateFactory) HeapValueState::create),
                             Tuple2.of(
-                                    ListStateDescriptor.class,
-                                    (StateFactory) HeapListState::create),
+                                    StateDescriptor.Type.LIST,
+                                    (StateCreateFactory) HeapListState::create),
                             Tuple2.of(
-                                    MapStateDescriptor.class, (StateFactory) HeapMapState::create),
+                                    StateDescriptor.Type.MAP,
+                                    (StateCreateFactory) HeapMapState::create),
                             Tuple2.of(
-                                    AggregatingStateDescriptor.class,
-                                    (StateFactory) HeapAggregatingState::create),
+                                    StateDescriptor.Type.AGGREGATING,
+                                    (StateCreateFactory) HeapAggregatingState::create),
                             Tuple2.of(
-                                    ReducingStateDescriptor.class,
-                                    (StateFactory) HeapReducingState::create))
+                                    StateDescriptor.Type.REDUCING,
+                                    (StateCreateFactory) HeapReducingState::create))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+
+    private static final Map<StateDescriptor.Type, StateUpdateFactory> STATE_UPDATE_FACTORIES =
+            Stream.of(
+                            Tuple2.of(
+                                    StateDescriptor.Type.VALUE,
+                                    (StateUpdateFactory) HeapValueState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.LIST,
+                                    (StateUpdateFactory) HeapListState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.MAP,
+                                    (StateUpdateFactory) HeapMapState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.AGGREGATING,
+                                    (StateUpdateFactory) HeapAggregatingState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.REDUCING,
+                                    (StateUpdateFactory) HeapReducingState::update))
+                    .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+
+    /** Map of created Key/Value states. */
+    private final Map<String, State> createdKVStates;
 
     /** Map of registered Key/Value states. */
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
@@ -140,6 +161,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 keyGroupCompressionDecorator,
                 keyContext);
         this.registeredKVStates = registeredKVStates;
+        this.createdKVStates = new HashMap<>();
         this.localRecoveryConfig = localRecoveryConfig;
         this.checkpointStrategy = checkpointStrategy;
         this.snapshotExecutionType = snapshotExecutionType;
@@ -166,10 +188,21 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return priorityQueuesManager.createOrUpdate(stateName, byteOrderedElementSerializer);
     }
 
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
+        return priorityQueuesManager.createOrUpdate(
+                stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+    }
+
     private <N, V> StateTable<K, N, V> tryRegisterStateTable(
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<?, V> stateDesc,
-            @Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory)
+            @Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory,
+            boolean allowFutureMetadataUpdates)
             throws StateMigrationException {
 
         @SuppressWarnings("unchecked")
@@ -219,6 +252,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                 + ").");
             }
 
+            restoredKvMetaInfo =
+                    allowFutureMetadataUpdates
+                            ? restoredKvMetaInfo.withSerializerUpgradesAllowed()
+                            : restoredKvMetaInfo;
+
             stateTable.setMetaInfo(restoredKvMetaInfo);
         } else {
             RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo =
@@ -228,6 +266,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             namespaceSerializer,
                             newStateSerializer,
                             snapshotTransformFactory);
+
+            newMetaInfo =
+                    allowFutureMetadataUpdates
+                            ? newMetaInfo.withSerializerUpgradesAllowed()
+                            : newMetaInfo;
 
             stateTable = stateTableFactory.newStateTable(keyContext, newMetaInfo, keySerializer);
             registeredKVStates.put(stateDesc.getName(), stateTable);
@@ -262,25 +305,55 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     @Nonnull
-    public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
-        if (stateFactory == null) {
-            String message =
-                    String.format(
-                            "State %s is not supported by %s",
-                            stateDesc.getClass(), this.getClass());
-            throw new FlinkRuntimeException(message);
-        }
+        return createOrUpdateInternalState(
+                namespaceSerializer, stateDesc, snapshotTransformFactory, false);
+    }
+
+    @Override
+    @Nonnull
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<S, SV> stateDesc,
+            @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+            boolean allowFutureMetadataUpdates)
+            throws Exception {
         StateTable<K, N, SV> stateTable =
                 tryRegisterStateTable(
                         namespaceSerializer,
                         stateDesc,
-                        getStateSnapshotTransformFactory(stateDesc, snapshotTransformFactory));
-        return stateFactory.createState(stateDesc, stateTable, getKeySerializer());
+                        getStateSnapshotTransformFactory(stateDesc, snapshotTransformFactory),
+                        allowFutureMetadataUpdates);
+
+        @SuppressWarnings("unchecked")
+        IS createdState = (IS) createdKVStates.get(stateDesc.getName());
+        if (createdState == null) {
+            StateCreateFactory stateCreateFactory = STATE_CREATE_FACTORIES.get(stateDesc.getType());
+            if (stateCreateFactory == null) {
+                throw new FlinkRuntimeException(stateNotSupportedMessage(stateDesc));
+            }
+            createdState =
+                    stateCreateFactory.createState(stateDesc, stateTable, getKeySerializer());
+        } else {
+            StateUpdateFactory stateUpdateFactory = STATE_UPDATE_FACTORIES.get(stateDesc.getType());
+            if (stateUpdateFactory == null) {
+                throw new FlinkRuntimeException(stateNotSupportedMessage(stateDesc));
+            }
+            createdState = stateUpdateFactory.updateState(stateDesc, stateTable, createdState);
+        }
+
+        createdKVStates.put(stateDesc.getName(), createdState);
+        return createdState;
+    }
+
+    private <S extends State, SV> String stateNotSupportedMessage(
+            StateDescriptor<S, SV> stateDesc) {
+        return String.format(
+                "State %s is not supported by %s", stateDesc.getClass(), this.getClass());
     }
 
     @SuppressWarnings("unchecked")
@@ -401,11 +474,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return localRecoveryConfig;
     }
 
-    private interface StateFactory {
+    private interface StateCreateFactory {
         <K, N, SV, S extends State, IS extends S> IS createState(
                 StateDescriptor<S, SV> stateDesc,
                 StateTable<K, N, SV> stateTable,
                 TypeSerializer<K> keySerializer)
+                throws Exception;
+    }
+
+    private interface StateUpdateFactory {
+        <K, N, SV, S extends State, IS extends S> IS updateState(
+                StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState)
                 throws Exception;
     }
 }

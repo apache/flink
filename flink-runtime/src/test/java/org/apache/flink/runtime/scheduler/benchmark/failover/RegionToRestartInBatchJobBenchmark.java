@@ -36,19 +36,20 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
  */
 public class RegionToRestartInBatchJobBenchmark extends FailoverBenchmarkBase {
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        createRestartPipelinedRegionFailoverStrategy(jobConfiguration);
+        super.setup(jobConfiguration);
 
         final JobVertex source = jobVertices.get(0);
         final JobVertex sink = jobVertices.get(1);
 
         final TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 
-        deployTasks(executionGraph, source.getID(), slotBuilder, true);
+        deployTasks(executionGraph, source.getID(), slotBuilder);
 
         transitionTaskStatus(executionGraph, source.getID(), ExecutionState.FINISHED);
 
-        deployTasks(executionGraph, sink.getID(), slotBuilder, true);
+        deployTasks(executionGraph, sink.getID(), slotBuilder);
     }
 
     public Set<ExecutionVertexID> calculateRegionToRestart() {

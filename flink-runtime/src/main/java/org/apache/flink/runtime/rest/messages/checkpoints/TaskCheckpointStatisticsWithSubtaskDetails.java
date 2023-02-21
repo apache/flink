@@ -48,6 +48,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
             @JsonProperty(FIELD_NAME_ID) long checkpointId,
             @JsonProperty(FIELD_NAME_CHECKPOINT_STATUS) CheckpointStatsStatus checkpointStatus,
             @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+            @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
             @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
             @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -62,6 +63,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
                 checkpointId,
                 checkpointStatus,
                 latestAckTimestamp,
+                checkpointedSize,
                 stateSize,
                 duration,
                 alignmentBuffered,
@@ -111,6 +113,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
     /** Summary of the checkpoint statistics for a given task. */
     public static final class Summary {
 
+        public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
+
         /**
          * The accurate name of this field should be 'checkpointed_data_size', keep it as before to
          * not break backwards compatibility for old web UI.
@@ -127,11 +131,14 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 
         public static final String FIELD_NAME_START_DELAY = "start_delay";
 
+        @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE)
+        private final StatsSummaryDto checkpointedSize;
+
         @JsonProperty(FIELD_NAME_STATE_SIZE)
-        private final MinMaxAvgStatistics stateSize;
+        private final StatsSummaryDto stateSize;
 
         @JsonProperty(FIELD_NAME_DURATION)
-        private final MinMaxAvgStatistics duration;
+        private final StatsSummaryDto duration;
 
         @JsonProperty(FIELD_NAME_CHECKPOINT_DURATION)
         private final CheckpointDuration checkpointDuration;
@@ -140,15 +147,17 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
         private final CheckpointAlignment checkpointAlignment;
 
         @JsonProperty(FIELD_NAME_START_DELAY)
-        private final MinMaxAvgStatistics checkpointStartDelay;
+        private final StatsSummaryDto checkpointStartDelay;
 
         @JsonCreator
         public Summary(
-                @JsonProperty(FIELD_NAME_STATE_SIZE) MinMaxAvgStatistics stateSize,
-                @JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration,
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) StatsSummaryDto checkpointedSize,
+                @JsonProperty(FIELD_NAME_STATE_SIZE) StatsSummaryDto stateSize,
+                @JsonProperty(FIELD_NAME_DURATION) StatsSummaryDto duration,
                 @JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment checkpointAlignment,
-                @JsonProperty(FIELD_NAME_START_DELAY) MinMaxAvgStatistics checkpointStartDelay) {
+                @JsonProperty(FIELD_NAME_START_DELAY) StatsSummaryDto checkpointStartDelay) {
+            this.checkpointedSize = Preconditions.checkNotNull(checkpointedSize);
             this.stateSize = Preconditions.checkNotNull(stateSize);
             this.duration = Preconditions.checkNotNull(duration);
             this.checkpointDuration = Preconditions.checkNotNull(checkpointDuration);
@@ -156,11 +165,15 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
             this.checkpointStartDelay = Preconditions.checkNotNull(checkpointStartDelay);
         }
 
-        public MinMaxAvgStatistics getStateSize() {
+        public StatsSummaryDto getCheckpointedSize() {
+            return checkpointedSize;
+        }
+
+        public StatsSummaryDto getStateSize() {
             return stateSize;
         }
 
-        public MinMaxAvgStatistics getDuration() {
+        public StatsSummaryDto getDuration() {
             return duration;
         }
 
@@ -172,7 +185,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
             return checkpointAlignment;
         }
 
-        public MinMaxAvgStatistics getCheckpointStartDelay() {
+        public StatsSummaryDto getCheckpointStartDelay() {
             return checkpointStartDelay;
         }
 
@@ -185,7 +198,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
                 return false;
             }
             Summary summary = (Summary) o;
-            return Objects.equals(stateSize, summary.stateSize)
+            return Objects.equals(checkpointedSize, summary.checkpointedSize)
+                    && Objects.equals(stateSize, summary.stateSize)
                     && Objects.equals(duration, summary.duration)
                     && Objects.equals(checkpointDuration, summary.checkpointDuration)
                     && Objects.equals(checkpointAlignment, summary.checkpointAlignment)
@@ -195,6 +209,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
         @Override
         public int hashCode() {
             return Objects.hash(
+                    checkpointedSize,
                     stateSize,
                     duration,
                     checkpointDuration,
@@ -211,26 +226,25 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
         public static final String FIELD_NAME_ASYNCHRONOUS_DURATION = "async";
 
         @JsonProperty(FIELD_NAME_SYNCHRONOUS_DURATION)
-        private final MinMaxAvgStatistics synchronousDuration;
+        private final StatsSummaryDto synchronousDuration;
 
         @JsonProperty(FIELD_NAME_ASYNCHRONOUS_DURATION)
-        private final MinMaxAvgStatistics asynchronousDuration;
+        private final StatsSummaryDto asynchronousDuration;
 
         @JsonCreator
         public CheckpointDuration(
-                @JsonProperty(FIELD_NAME_SYNCHRONOUS_DURATION)
-                        MinMaxAvgStatistics synchronousDuration,
+                @JsonProperty(FIELD_NAME_SYNCHRONOUS_DURATION) StatsSummaryDto synchronousDuration,
                 @JsonProperty(FIELD_NAME_ASYNCHRONOUS_DURATION)
-                        MinMaxAvgStatistics asynchronousDuration) {
+                        StatsSummaryDto asynchronousDuration) {
             this.synchronousDuration = Preconditions.checkNotNull(synchronousDuration);
             this.asynchronousDuration = Preconditions.checkNotNull(asynchronousDuration);
         }
 
-        public MinMaxAvgStatistics getSynchronousDuration() {
+        public StatsSummaryDto getSynchronousDuration() {
             return synchronousDuration;
         }
 
-        public MinMaxAvgStatistics getAsynchronousDuration() {
+        public StatsSummaryDto getAsynchronousDuration() {
             return asynchronousDuration;
         }
 
@@ -265,42 +279,42 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
         public static final String FIELD_NAME_DURATION = "duration";
 
         @JsonProperty(FIELD_NAME_BUFFERED_DATA)
-        private final MinMaxAvgStatistics bufferedData;
+        private final StatsSummaryDto bufferedData;
 
         @JsonProperty(FIELD_NAME_PROCESSED)
-        private final MinMaxAvgStatistics processedData;
+        private final StatsSummaryDto processedData;
 
         @JsonProperty(FIELD_NAME_PERSISTED)
-        private final MinMaxAvgStatistics persistedData;
+        private final StatsSummaryDto persistedData;
 
         @JsonProperty(FIELD_NAME_DURATION)
-        private final MinMaxAvgStatistics duration;
+        private final StatsSummaryDto duration;
 
         @JsonCreator
         public CheckpointAlignment(
-                @JsonProperty(FIELD_NAME_BUFFERED_DATA) MinMaxAvgStatistics bufferedData,
-                @JsonProperty(FIELD_NAME_PROCESSED) MinMaxAvgStatistics processedData,
-                @JsonProperty(FIELD_NAME_PERSISTED) MinMaxAvgStatistics persistedData,
-                @JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration) {
+                @JsonProperty(FIELD_NAME_BUFFERED_DATA) StatsSummaryDto bufferedData,
+                @JsonProperty(FIELD_NAME_PROCESSED) StatsSummaryDto processedData,
+                @JsonProperty(FIELD_NAME_PERSISTED) StatsSummaryDto persistedData,
+                @JsonProperty(FIELD_NAME_DURATION) StatsSummaryDto duration) {
             this.bufferedData = bufferedData;
             this.processedData = processedData;
             this.persistedData = persistedData;
             this.duration = duration;
         }
 
-        public MinMaxAvgStatistics getBufferedData() {
+        public StatsSummaryDto getBufferedData() {
             return bufferedData;
         }
 
-        public MinMaxAvgStatistics getProcessedData() {
+        public StatsSummaryDto getProcessedData() {
             return processedData;
         }
 
-        public MinMaxAvgStatistics getPersistedData() {
+        public StatsSummaryDto getPersistedData() {
             return persistedData;
         }
 
-        public MinMaxAvgStatistics getDuration() {
+        public StatsSummaryDto getDuration() {
             return duration;
         }
 

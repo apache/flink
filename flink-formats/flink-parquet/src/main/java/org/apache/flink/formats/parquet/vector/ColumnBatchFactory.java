@@ -19,8 +19,8 @@
 package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 
 import java.io.Serializable;
 
@@ -31,6 +31,6 @@ public interface ColumnBatchFactory<SplitT extends FileSourceSplit> extends Seri
     VectorizedColumnBatch create(SplitT split, ColumnVector[] vectors);
 
     static <SplitT extends FileSourceSplit> ColumnBatchFactory<SplitT> withoutExtraFields() {
-        return (ColumnBatchFactory<SplitT>) (split, vectors) -> new VectorizedColumnBatch(vectors);
+        return (split, vectors) -> new VectorizedColumnBatch(vectors);
     }
 }

@@ -317,7 +317,7 @@ public class BufferPoolFactoryTest {
             BufferPool first = globalPool.createBufferPool(1, 10);
             assertEquals(10, first.getNumBuffers());
 
-            List<MemorySegment> segmentList1 = globalPool.requestMemorySegments(2);
+            List<MemorySegment> segmentList1 = globalPool.requestUnpooledMemorySegments(2);
             assertEquals(2, segmentList1.size());
             assertEquals(8, first.getNumBuffers());
 
@@ -325,12 +325,12 @@ public class BufferPoolFactoryTest {
             assertEquals(4, first.getNumBuffers());
             assertEquals(4, second.getNumBuffers());
 
-            List<MemorySegment> segmentList2 = globalPool.requestMemorySegments(2);
+            List<MemorySegment> segmentList2 = globalPool.requestUnpooledMemorySegments(2);
             assertEquals(2, segmentList2.size());
             assertEquals(3, first.getNumBuffers());
             assertEquals(3, second.getNumBuffers());
 
-            List<MemorySegment> segmentList3 = globalPool.requestMemorySegments(2);
+            List<MemorySegment> segmentList3 = globalPool.requestUnpooledMemorySegments(2);
             assertEquals(2, segmentList3.size());
             assertEquals(2, first.getNumBuffers());
             assertEquals(2, second.getNumBuffers());
@@ -339,17 +339,17 @@ public class BufferPoolFactoryTest {
                     "Wrong number of available segments after creating buffer pools and requesting segments.";
             assertEquals(msg, 2, globalPool.getNumberOfAvailableMemorySegments());
 
-            globalPool.recycleMemorySegments(segmentList1);
+            globalPool.recycleUnpooledMemorySegments(segmentList1);
             assertEquals(msg, 4, globalPool.getNumberOfAvailableMemorySegments());
             assertEquals(3, first.getNumBuffers());
             assertEquals(3, second.getNumBuffers());
 
-            globalPool.recycleMemorySegments(segmentList2);
+            globalPool.recycleUnpooledMemorySegments(segmentList2);
             assertEquals(msg, 6, globalPool.getNumberOfAvailableMemorySegments());
             assertEquals(4, first.getNumBuffers());
             assertEquals(4, second.getNumBuffers());
 
-            globalPool.recycleMemorySegments(segmentList3);
+            globalPool.recycleUnpooledMemorySegments(segmentList3);
             assertEquals(msg, 8, globalPool.getNumberOfAvailableMemorySegments());
             assertEquals(5, first.getNumBuffers());
             assertEquals(5, second.getNumBuffers());

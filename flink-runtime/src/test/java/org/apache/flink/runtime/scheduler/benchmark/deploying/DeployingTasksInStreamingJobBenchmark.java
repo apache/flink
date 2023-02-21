@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.benchmark.deploying;
 
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -29,14 +30,16 @@ import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
  */
 public class DeployingTasksInStreamingJobBenchmark extends DeployingTasksBenchmarkBase {
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        createAndSetupExecutionGraph(jobConfiguration);
+        super.setup(jobConfiguration);
     }
 
     public void deployAllTasks() throws Exception {
         for (ExecutionJobVertex ejv : executionGraph.getVerticesTopologically()) {
             for (ExecutionVertex ev : ejv.getTaskVertices()) {
                 Execution execution = ev.getCurrentExecutionAttempt();
+                execution.transitionState(ExecutionState.SCHEDULED);
                 execution.deploy();
             }
         }

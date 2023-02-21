@@ -35,8 +35,7 @@ import java.io.IOException;
  * user. This class is used to write state for local recovery as a local (secondary) copy of the
  * (primary) state snapshot that is written to a (slower but highly-available) remote filesystem.
  */
-public class DuplicatingCheckpointOutputStream
-        extends CheckpointStreamFactory.CheckpointStateOutputStream {
+public class DuplicatingCheckpointOutputStream extends CheckpointStateOutputStream {
 
     /** Default buffer size of 8KB. */
     private static final int DEFAULT_BUFFER_SIZER = 8 * 1024;
@@ -48,13 +47,13 @@ public class DuplicatingCheckpointOutputStream
     private int bufferIdx;
 
     /** Primary stream for writing the checkpoint data. Failures from this stream are forwarded. */
-    private final CheckpointStreamFactory.CheckpointStateOutputStream primaryOutputStream;
+    private final CheckpointStateOutputStream primaryOutputStream;
 
     /**
      * Primary stream for writing the checkpoint data. Failures from this stream are not forwarded
      * until {@link #closeAndGetSecondaryHandle()}.
      */
-    private final CheckpointStreamFactory.CheckpointStateOutputStream secondaryOutputStream;
+    private final CheckpointStateOutputStream secondaryOutputStream;
 
     /**
      * Stores a potential exception that occurred while interacting with {@link
@@ -63,15 +62,15 @@ public class DuplicatingCheckpointOutputStream
     private Exception secondaryStreamException;
 
     public DuplicatingCheckpointOutputStream(
-            CheckpointStreamFactory.CheckpointStateOutputStream primaryOutputStream,
-            CheckpointStreamFactory.CheckpointStateOutputStream secondaryOutputStream)
+            CheckpointStateOutputStream primaryOutputStream,
+            CheckpointStateOutputStream secondaryOutputStream)
             throws IOException {
         this(primaryOutputStream, secondaryOutputStream, DEFAULT_BUFFER_SIZER);
     }
 
     public DuplicatingCheckpointOutputStream(
-            CheckpointStreamFactory.CheckpointStateOutputStream primaryOutputStream,
-            CheckpointStreamFactory.CheckpointStateOutputStream secondaryOutputStream,
+            CheckpointStateOutputStream primaryOutputStream,
+            CheckpointStateOutputStream secondaryOutputStream,
             int bufferSize)
             throws IOException {
 
@@ -280,12 +279,12 @@ public class DuplicatingCheckpointOutputStream
     }
 
     @VisibleForTesting
-    CheckpointStreamFactory.CheckpointStateOutputStream getPrimaryOutputStream() {
+    CheckpointStateOutputStream getPrimaryOutputStream() {
         return primaryOutputStream;
     }
 
     @VisibleForTesting
-    CheckpointStreamFactory.CheckpointStateOutputStream getSecondaryOutputStream() {
+    CheckpointStateOutputStream getSecondaryOutputStream() {
         return secondaryOutputStream;
     }
 }

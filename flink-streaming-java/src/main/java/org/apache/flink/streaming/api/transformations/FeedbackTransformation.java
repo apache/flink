@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -60,7 +60,7 @@ public class FeedbackTransformation<T> extends Transformation<T> {
      *     will close and not receive any more feedback elements.
      */
     public FeedbackTransformation(Transformation<T> input, Long waitTime) {
-        super("Feedback", input.getOutputType(), input.getParallelism());
+        super("Feedback", input.getOutputType(), input.getParallelism(), false);
         this.input = input;
         this.waitTime = waitTime;
         this.feedbackEdges = Lists.newArrayList();

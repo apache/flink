@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
@@ -39,12 +40,14 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Test {@link ExecutionSlotAllocator} implementation. */
 public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotOwner {
 
-    private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingRequests =
+    private final Map<ExecutionAttemptID, ExecutionSlotAssignment> pendingRequests =
             new HashMap<>();
 
     private final TestingLogicalSlotBuilder logicalSlotBuilder;
 
     private boolean autoCompletePendingRequests = true;
+
+    private boolean completePendingRequestsWithReturnedSlots = false;
 
     private final List<LogicalSlot> returnedSlots = new ArrayList<>();
 
@@ -61,31 +64,32 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
     }
 
     @Override
-    public List<SlotExecutionVertexAssignment> allocateSlotsFor(
-            final List<ExecutionVertexID> executionVertexIds) {
-        final List<SlotExecutionVertexAssignment> slotVertexAssignments =
-                createSlotVertexAssignments(executionVertexIds);
-        registerPendingRequests(slotVertexAssignments);
+    public List<ExecutionSlotAssignment> allocateSlotsFor(
+            final List<ExecutionAttemptID> executionAttemptIds) {
+        final List<ExecutionSlotAssignment> executionSlotAssignments =
+                createExecutionSlotAssignments(executionAttemptIds);
+        registerPendingRequests(executionSlotAssignments);
         maybeCompletePendingRequests();
-        return slotVertexAssignments;
+        return executionSlotAssignments;
+    }
+
+    private List<ExecutionSlotAssignment> createExecutionSlotAssignments(
+            final List<ExecutionAttemptID> executionAttemptIds) {
+
+        final List<ExecutionSlotAssignment> result = new ArrayList<>();
+        for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
+            final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
+            result.add(new ExecutionSlotAssignment(executionAttemptId, logicalSlotFuture));
+        }
+        return result;
     }
 
     private void registerPendingRequests(
-            final List<SlotExecutionVertexAssignment> slotVertexAssignments) {
-        for (SlotExecutionVertexAssignment slotVertexAssignment : slotVertexAssignments) {
-            pendingRequests.put(slotVertexAssignment.getExecutionVertexId(), slotVertexAssignment);
+            final List<ExecutionSlotAssignment> executionSlotAssignments) {
+        for (ExecutionSlotAssignment executionSlotAssignment : executionSlotAssignments) {
+            pendingRequests.put(
+                    executionSlotAssignment.getExecutionAttemptId(), executionSlotAssignment);
         }
-    }
-
-    private List<SlotExecutionVertexAssignment> createSlotVertexAssignments(
-            final Collection<ExecutionVertexID> executionVertexIds) {
-
-        final List<SlotExecutionVertexAssignment> result = new ArrayList<>();
-        for (ExecutionVertexID executionVertexId : executionVertexIds) {
-            final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
-            result.add(new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture));
-        }
-        return result;
     }
 
     private void maybeCompletePendingRequests() {
@@ -95,34 +99,58 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
     }
 
     public void completePendingRequests() {
-        final Collection<ExecutionVertexID> vertexIds = new ArrayList<>(pendingRequests.keySet());
-        vertexIds.forEach(this::completePendingRequest);
+        final Collection<ExecutionAttemptID> executionIds =
+                new ArrayList<>(pendingRequests.keySet());
+        executionIds.forEach(this::completePendingRequest);
     }
 
-    public LogicalSlot completePendingRequest(final ExecutionVertexID executionVertexId) {
+    public LogicalSlot completePendingRequest(final ExecutionAttemptID executionAttemptId) {
         final LogicalSlot slot = logicalSlotBuilder.setSlotOwner(this).createTestingLogicalSlot();
-        final SlotExecutionVertexAssignment slotVertexAssignment =
-                removePendingRequest(executionVertexId);
-        checkState(slotVertexAssignment != null);
-        slotVertexAssignment.getLogicalSlotFuture().complete(slot);
+        final ExecutionSlotAssignment executionSlotAssignment =
+                removePendingRequest(executionAttemptId);
+        checkState(executionSlotAssignment != null);
+        executionSlotAssignment.getLogicalSlotFuture().complete(slot);
         return slot;
     }
 
-    private SlotExecutionVertexAssignment removePendingRequest(
-            final ExecutionVertexID executionVertexId) {
-        return pendingRequests.remove(executionVertexId);
+    public LogicalSlot completePendingRequest(final ExecutionVertexID executionVertexId) {
+        return completePendingRequest(findExecutionIdByVertexId(executionVertexId));
+    }
+
+    private ExecutionSlotAssignment removePendingRequest(
+            final ExecutionAttemptID executionAttemptId) {
+        return pendingRequests.remove(executionAttemptId);
     }
 
     public void timeoutPendingRequests() {
-        final Collection<ExecutionVertexID> vertexIds = new ArrayList<>(pendingRequests.keySet());
-        vertexIds.forEach(this::timeoutPendingRequest);
+        final Collection<ExecutionAttemptID> executionIds =
+                new ArrayList<>(pendingRequests.keySet());
+        executionIds.forEach(this::timeoutPendingRequest);
+    }
+
+    public void timeoutPendingRequest(final ExecutionAttemptID executionAttemptId) {
+        final ExecutionSlotAssignment slotVertexAssignment =
+                removePendingRequest(executionAttemptId);
+        checkState(slotVertexAssignment != null);
+        slotVertexAssignment.getLogicalSlotFuture().completeExceptionally(new TimeoutException());
     }
 
     public void timeoutPendingRequest(final ExecutionVertexID executionVertexId) {
-        final SlotExecutionVertexAssignment slotVertexAssignment =
-                removePendingRequest(executionVertexId);
-        checkState(slotVertexAssignment != null);
-        slotVertexAssignment.getLogicalSlotFuture().completeExceptionally(new TimeoutException());
+        timeoutPendingRequest(findExecutionIdByVertexId(executionVertexId));
+    }
+
+    private ExecutionAttemptID findExecutionIdByVertexId(
+            final ExecutionVertexID executionVertexId) {
+        final List<ExecutionAttemptID> executionIds = new ArrayList<>();
+        for (ExecutionAttemptID executionAttemptId : pendingRequests.keySet()) {
+            if (executionAttemptId.getExecutionVertexId().equals(executionVertexId)) {
+                executionIds.add(executionAttemptId);
+            }
+        }
+        checkState(
+                executionIds.size() == 1,
+                "It is expected to find one and only one ExecutionAttemptID of the given ExecutionVertexID.");
+        return executionIds.get(0);
     }
 
     public void enableAutoCompletePendingRequests() {
@@ -133,18 +161,35 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
         autoCompletePendingRequests = false;
     }
 
+    public void enableCompletePendingRequestsWithReturnedSlots() {
+        completePendingRequestsWithReturnedSlots = true;
+    }
+
     @Override
-    public void cancel(final ExecutionVertexID executionVertexId) {
-        final SlotExecutionVertexAssignment slotVertexAssignment =
-                removePendingRequest(executionVertexId);
-        if (slotVertexAssignment != null) {
-            slotVertexAssignment.getLogicalSlotFuture().cancel(false);
+    public void cancel(ExecutionAttemptID executionAttemptId) {
+        final ExecutionSlotAssignment executionSlotAssignment =
+                removePendingRequest(executionAttemptId);
+        if (executionSlotAssignment != null) {
+            executionSlotAssignment.getLogicalSlotFuture().cancel(false);
         }
     }
 
     @Override
     public void returnLogicalSlot(final LogicalSlot logicalSlot) {
         returnedSlots.add(logicalSlot);
+
+        if (completePendingRequestsWithReturnedSlots) {
+            if (pendingRequests.size() > 0) {
+                // logical slots are not re-usable, creating a new one instead.
+                final LogicalSlot slot =
+                        logicalSlotBuilder.setSlotOwner(this).createTestingLogicalSlot();
+
+                final ExecutionSlotAssignment executionSlotAssignment =
+                        pendingRequests.remove(pendingRequests.keySet().stream().findAny().get());
+
+                executionSlotAssignment.getLogicalSlotFuture().complete(slot);
+            }
+        }
     }
 
     public List<LogicalSlot> getReturnedSlots() {
@@ -155,7 +200,7 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
         return logicalSlotBuilder;
     }
 
-    public Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingRequests() {
+    public Map<ExecutionAttemptID, ExecutionSlotAssignment> getPendingRequests() {
         return Collections.unmodifiableMap(pendingRequests);
     }
 }

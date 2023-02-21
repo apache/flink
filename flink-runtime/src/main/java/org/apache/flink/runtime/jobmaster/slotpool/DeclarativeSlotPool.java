@@ -87,6 +87,27 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
+     * Registers the given set of slots at the slot pool. The slot pool will try to accept all slots
+     * unless the slot is unavailable (for example, the TaskManger is blocked).
+     *
+     * <p>The difference from {@link #offerSlots} is that this method allows accepting slots which
+     * exceed the currently required, but the {@link #offerSlots} only accepts those slots that are
+     * currently required.
+     *
+     * @param slots slots to register
+     * @param taskManagerLocation taskManagerLocation is the location of the offering TaskExecutor
+     * @param taskManagerGateway taskManagerGateway is the gateway to talk to the offering
+     *     TaskExecutor
+     * @param currentTime currentTime is the time the slots are being offered
+     * @return the successfully registered slots; the other slot offers are implicitly rejected
+     */
+    Collection<SlotOffer> registerSlots(
+            Collection<? extends SlotOffer> slots,
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            long currentTime);
+
+    /**
      * Returns the slot information for all free slots (slots which can be allocated from the slot
      * pool).
      *
@@ -132,7 +153,7 @@ public interface DeclarativeSlotPool {
      * @param allocationId allocationId identifying the slot to release
      * @param cause cause for releasing the slot; can be {@code null}
      * @param currentTime currentTime when the slot was released
-     * @return resource information about freed slot
+     * @return the resource requirements that the slot was fulfilling
      */
     ResourceCounter freeReservedSlot(
             AllocationID allocationId, @Nullable Throwable cause, long currentTime);
@@ -142,7 +163,8 @@ public interface DeclarativeSlotPool {
      *
      * @param owner owner identifying the owning TaskExecutor
      * @param cause cause for failing the slots
-     * @return resource information about released slots
+     * @return the resource requirements that all slots were fulfilling; empty if all slots were
+     *     currently free
      */
     ResourceCounter releaseSlots(ResourceID owner, Exception cause);
 
@@ -151,7 +173,8 @@ public interface DeclarativeSlotPool {
      *
      * @param allocationId allocationId identifying the slot to fail
      * @param cause cause for failing the slot
-     * @return resource information about released slot
+     * @return the resource requirements that the slot was fulfilling; empty if the slot was
+     *     currently free
      */
     ResourceCounter releaseSlot(AllocationID allocationId, Exception cause);
 

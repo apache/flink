@@ -20,10 +20,13 @@ package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
+import org.apache.flink.runtime.util.ExitJVMFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.utils.ZKPaths;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 
 import org.apache.curator.test.TestingCluster;
@@ -42,6 +45,8 @@ public class ZooKeeperTestEnvironment {
 
     private final CuratorFramework client;
 
+    private final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
+
     /**
      * Starts a ZooKeeper cluster with the number of quorum peers and a client.
      *
@@ -57,7 +62,7 @@ public class ZooKeeperTestEnvironment {
 
         try {
             if (numberOfZooKeeperQuorumPeers == 1) {
-                zooKeeperServer = new TestingServer(true);
+                zooKeeperServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
                 zooKeeperCluster = null;
 
                 conf.setString(
@@ -74,7 +79,10 @@ public class ZooKeeperTestEnvironment {
                         zooKeeperCluster.getConnectString());
             }
 
-            client = ZooKeeperUtils.startCuratorFramework(conf);
+            curatorFrameworkWrapper =
+                    ZooKeeperUtils.startCuratorFramework(conf, ExitJVMFatalErrorHandler.INSTANCE);
+
+            client = curatorFrameworkWrapper.asCuratorFramework();
 
             client.newNamespaceAwareEnsurePath("/").ensure(client.getZookeeperClient());
         } catch (Exception e) {
@@ -84,8 +92,8 @@ public class ZooKeeperTestEnvironment {
 
     /** Shutdown the client and ZooKeeper server/cluster. */
     public void shutdown() throws Exception {
-        if (client != null) {
-            client.close();
+        if (curatorFrameworkWrapper != null) {
+            curatorFrameworkWrapper.close();
         }
 
         if (zooKeeperServer != null) {
@@ -121,13 +129,6 @@ public class ZooKeeperTestEnvironment {
 
     public List<String> getChildren(String path) throws Exception {
         return client.getChildren().forPath(path);
-    }
-
-    /** Creates a new client for the started ZooKeeper server/cluster. */
-    public CuratorFramework createClient() {
-        Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
-        return ZooKeeperUtils.startCuratorFramework(config);
     }
 
     /**

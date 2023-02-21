@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nullable;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -53,6 +55,10 @@ public final class CollectionUtil {
 
     public static boolean isNullOrEmpty(Map<?, ?> map) {
         return map == null || map.isEmpty();
+    }
+
+    public static <T> Set<T> ofNullable(@Nullable T obj) {
+        return obj == null ? Collections.emptySet() : Collections.singleton(obj);
     }
 
     public static <T, R> Stream<R> mapWithIndex(
@@ -108,5 +114,23 @@ public final class CollectionUtil {
         final ArrayList<E> list = new ArrayList<>();
         iterator.forEachRemaining(list::add);
         return list;
+    }
+
+    /** Returns an immutable {@link Map.Entry}. */
+    public static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    /** Returns an immutable {@link Map} from the provided entries. */
+    @SafeVarargs
+    public static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return Collections.emptyMap();
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return Collections.unmodifiableMap(map);
     }
 }

@@ -39,6 +39,8 @@ import java.io.File;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemoryWithStrictOrder;
+import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for data sinks. */

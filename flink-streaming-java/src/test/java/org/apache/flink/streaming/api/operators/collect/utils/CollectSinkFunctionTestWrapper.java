@@ -100,7 +100,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         function.setRuntimeContext(runtimeContext);
         function.setOperatorEventGateway(gateway);
         function.open(new Configuration());
-        coordinator.handleEventFromOperator(0, gateway.getNextEvent());
+        coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 
     public void openFunctionWithState() throws Exception {
@@ -110,7 +110,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         function.setOperatorEventGateway(gateway);
         function.initializeState(functionInitializationContext);
         function.open(new Configuration());
-        coordinator.handleEventFromOperator(0, gateway.getNextEvent());
+        coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 
     public void invoke(IN record) throws Exception {
@@ -136,7 +136,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
     public void closeFunctionAbnormally() throws Exception {
         // this is an exceptional shutdown
         function.close();
-        coordinator.subtaskFailed(0, null);
+        coordinator.executionAttemptFailed(0, 0, null);
     }
 
     public CollectCoordinationResponse sendRequestAndGetResponse(String version, long offset)

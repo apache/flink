@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.TimestampAssigner;
 
 /** Wraps an existing {@link TimestampAssigner} into a {@link Timestamper}. */
 @Internal
+@Deprecated
 public class TimestampAssignerWrapper<T> implements Timestamper<T> {
 
     private static final long serialVersionUID = 1L;

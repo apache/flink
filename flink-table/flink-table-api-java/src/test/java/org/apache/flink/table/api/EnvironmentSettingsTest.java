@@ -21,33 +21,29 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
-import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link EnvironmentSettings}. */
-public class EnvironmentSettingsTest {
+class EnvironmentSettingsTest {
 
     @Test
-    public void testFromConfiguration() {
+    void testFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString("execution.runtime-mode", "batch");
-        configuration.setString("table.planner", "old");
-        EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
-        Assert.assertFalse("Expect old planner.", settings.isBlinkPlanner());
-        Assert.assertFalse("Expect batch mode.", settings.isStreamingMode());
+        assertThat(settings.isStreamingMode()).as("Expect batch mode.").isFalse();
     }
 
     @Test
-    public void testToConfiguration() {
-        EnvironmentSettings settings =
-                new EnvironmentSettings.Builder().useOldPlanner().inBatchMode().build();
-        Configuration configuration = settings.toConfiguration();
+    void testGetConfiguration() {
+        EnvironmentSettings settings = new EnvironmentSettings.Builder().inBatchMode().build();
+        Configuration configuration = settings.getConfiguration();
 
-        Assert.assertEquals(PlannerType.OLD, configuration.get(TABLE_PLANNER));
-        Assert.assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
+        assertThat(configuration.get(RUNTIME_MODE)).isEqualTo(RuntimeExecutionMode.BATCH);
     }
 }

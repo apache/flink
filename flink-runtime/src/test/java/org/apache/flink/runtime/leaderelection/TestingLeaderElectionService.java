@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -48,7 +49,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 
     @Override
     public synchronized void start(LeaderContender contender) {
-        assert (!getStartFuture().isDone());
+        Preconditions.checkState(!getStartFuture().isDone());
 
         this.contender = contender;
 
@@ -119,5 +120,9 @@ public class TestingLeaderElectionService implements LeaderElectionService {
      */
     public synchronized CompletableFuture<Void> getStartFuture() {
         return startFuture;
+    }
+
+    public synchronized boolean isStopped() {
+        return contender == null;
     }
 }

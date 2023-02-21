@@ -38,6 +38,12 @@ import java.util.Map;
  * <p>A catalog implementer can either use {@link #of(Schema, String, List, Map)} for a basic
  * implementation of this interface or create a custom class that allows passing catalog-specific
  * objects all the way down to the connector creation (if necessary).
+ *
+ * <p>Note: The default implementation that is available via {@link #of(Schema, String, List, Map)}
+ * is always serializable. For example, it can be used for implementing a catalog that uses {@link
+ * ResolvedCatalogTable#toProperties()} or for persisting compiled plans. An implementation of this
+ * interface determines whether a catalog table can be serialized by providing a proper {@link
+ * #getOptions()} method.
  */
 @PublicEvolving
 public interface CatalogTable extends CatalogBaseTable {
@@ -63,6 +69,10 @@ public interface CatalogTable extends CatalogBaseTable {
     /**
      * Creates an instance of {@link CatalogTable} from a map of string properties that were
      * previously created with {@link ResolvedCatalogTable#toProperties()}.
+     *
+     * <p>Note that the serialization and deserialization of catalog tables are not symmetric. The
+     * framework will resolve functions and perform other validation tasks. A catalog implementation
+     * must not deal with this during a read operation.
      *
      * @param properties serialized version of a {@link CatalogTable} that includes schema,
      *     partition keys, and connector options

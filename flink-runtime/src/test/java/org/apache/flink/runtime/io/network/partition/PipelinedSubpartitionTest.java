@@ -20,8 +20,13 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -29,14 +34,21 @@ import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,12 +73,9 @@ import static org.mockito.Mockito.when;
 public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
     /** Executor service for concurrent produce/consume tests. */
-    private static final ExecutorService executorService = Executors.newCachedThreadPool();
-
-    @AfterClass
-    public static void shutdownExecutorService() throws Exception {
-        executorService.shutdownNow();
-    }
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newCachedThreadPool());
 
     @Override
     PipelinedSubpartition createSubpartition() throws Exception {
@@ -206,10 +215,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
         CompletableFuture<Boolean> producerResult =
                 CompletableFuture.supplyAsync(
-                        CheckedSupplier.unchecked(producer::call), executorService);
+                        CheckedSupplier.unchecked(producer::call), EXECUTOR_RESOURCE.getExecutor());
         CompletableFuture<Boolean> consumerResult =
                 CompletableFuture.supplyAsync(
-                        CheckedSupplier.unchecked(consumer::call), executorService);
+                        CheckedSupplier.unchecked(consumer::call), EXECUTOR_RESOURCE.getExecutor());
 
         FutureUtils.waitForAll(Arrays.asList(producerResult, consumerResult))
                 .get(60_000L, TimeUnit.MILLISECONDS);
@@ -243,6 +252,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         try {
             partition.add(buffer1);
             partition.add(buffer2);
+            assertEquals(2, partition.getNumberOfQueuedBuffers());
+
             // create the read view first
             ResultSubpartitionView view = null;
             if (createView) {
@@ -250,6 +261,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
             }
 
             partition.release();
+            assertEquals(0, partition.getNumberOfQueuedBuffers());
 
             assertTrue(partition.isReleased());
             if (createView) {
@@ -272,14 +284,210 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         if (!buffer2Recycled) {
             Assert.fail("buffer 2 not recycled");
         }
-        assertEquals(2, partition.getTotalNumberOfBuffers());
-        assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
+        assertEquals(2, partition.getTotalNumberOfBuffersUnsafe());
+        assertEquals(0, partition.getTotalNumberOfBytesUnsafe()); // buffer data is never consumed
     }
 
     @Test
     public void testReleaseParent() throws Exception {
         final ResultSubpartition partition = createSubpartition();
         verifyViewReleasedAfterParentRelease(partition);
+    }
+
+    @Test
+    public void testNumberOfQueueBuffers() throws Exception {
+        final PipelinedSubpartition subpartition = createSubpartition();
+
+        subpartition.add(createFilledFinishedBufferConsumer(4096));
+        assertEquals(1, subpartition.getNumberOfQueuedBuffers());
+
+        subpartition.add(createFilledFinishedBufferConsumer(4096));
+        assertEquals(2, subpartition.getNumberOfQueuedBuffers());
+
+        subpartition.getNextBuffer();
+
+        assertEquals(1, subpartition.getNumberOfQueuedBuffers());
+    }
+
+    @Test
+    public void testNewBufferSize() throws Exception {
+        // given: Buffer size equal to integer max value by default.
+        final PipelinedSubpartition subpartition = createSubpartition();
+        assertEquals(Integer.MAX_VALUE, subpartition.add(createFilledFinishedBufferConsumer(4)));
+
+        // when: Changing buffer size.
+        subpartition.bufferSize(42);
+
+        // then: Changes successfully applied.
+        assertEquals(42, subpartition.add(createFilledFinishedBufferConsumer(4)));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testNegativeNewBufferSize() throws Exception {
+        // given: Buffer size equal to integer max value by default.
+        final PipelinedSubpartition subpartition = createSubpartition();
+        assertEquals(Integer.MAX_VALUE, subpartition.add(createFilledFinishedBufferConsumer(4)));
+
+        // when: Changing buffer size to the negative value.
+        subpartition.bufferSize(-1);
+    }
+
+    @Test
+    public void testNegativeBufferSizeAsSignOfAddingFail() throws Exception {
+        // given: Buffer size equal to integer max value by default.
+        final PipelinedSubpartition subpartition = createSubpartition();
+        assertEquals(Integer.MAX_VALUE, subpartition.add(createFilledFinishedBufferConsumer(4)));
+
+        // when: Finishing the subpartition which make following adding impossible.
+        subpartition.finish();
+
+        // then: -1 should be return because the add operation fails.
+        assertEquals(-1, subpartition.add(createFilledFinishedBufferConsumer(4)));
+    }
+
+    @Test
+    public void testProducerFailedException() {
+        PipelinedSubpartition subpartition =
+                new FailurePipelinedSubpartition(0, 2, PartitionTestUtils.createPartition());
+
+        ResultSubpartitionView view =
+                subpartition.createReadView(new NoOpBufferAvailablityListener());
+
+        assertNotNull(view.getFailureCause());
+        assertTrue(view.getFailureCause() instanceof CancelTaskException);
+    }
+
+    @Test
+    public void testConsumeTimeoutableCheckpointBarrierQuickly() throws Exception {
+        PipelinedSubpartition subpartition = createSubpartition();
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+        assertSubpartitionChannelStateFuturesAndQueuedBuffers(subpartition, null, true, 0, false);
+
+        // test without data buffer
+        testConsumeQuicklyWithNDataBuffers(0, subpartition, 5L);
+
+        // test with data buffer
+        testConsumeQuicklyWithNDataBuffers(1, subpartition, 6L);
+        testConsumeQuicklyWithNDataBuffers(2, subpartition, 7L);
+    }
+
+    private void testConsumeQuicklyWithNDataBuffers(
+            int numberOfDataBuffers, PipelinedSubpartition subpartition, long checkpointId)
+            throws Exception {
+        // add data buffers and barrier
+        for (int i = 0; i < numberOfDataBuffers; i++) {
+            subpartition.add(createFilledFinishedBufferConsumer(4096));
+        }
+        subpartition.add(getTimeoutableBarrierBuffer(checkpointId));
+        assertEquals(checkpointId, subpartition.getChannelStateCheckpointId());
+        CompletableFuture<List<Buffer>> channelStateFuture = subpartition.getChannelStateFuture();
+        assertSubpartitionChannelStateFuturesAndQueuedBuffers(
+                subpartition, channelStateFuture, false, numberOfDataBuffers + 1, false);
+
+        // poll data buffers first
+        for (int i = 0; i < numberOfDataBuffers; i++) {
+            pollBufferAndCheckType(subpartition, Buffer.DataType.DATA_BUFFER);
+        }
+        pollBufferAndCheckType(
+                subpartition, Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER);
+
+        assertSubpartitionChannelStateFuturesAndQueuedBuffers(
+                subpartition, channelStateFuture, true, 0, true);
+        assertTrue(channelStateFuture.get().isEmpty());
+        subpartition.resumeConsumption();
+    }
+
+    @Test
+    public void testTimeoutAlignedToUnalignedBarrier() throws Exception {
+        PipelinedSubpartition subpartition = createSubpartition();
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+        assertSubpartitionChannelStateFuturesAndQueuedBuffers(subpartition, null, true, 0, false);
+
+        // test without data buffer
+        testTimeoutWithNDataBuffers(0, subpartition, 7L);
+
+        // test with data buffer
+        testTimeoutWithNDataBuffers(1, subpartition, 8L);
+    }
+
+    private void testTimeoutWithNDataBuffers(
+            int numberOfDataBuffers, PipelinedSubpartition subpartition, long checkpointId)
+            throws Exception {
+        // put data buffers and barrier
+        List<Buffer> expectedBuffers = new ArrayList<>();
+        for (int i = 0; i < numberOfDataBuffers; i++) {
+            BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
+            subpartition.add(bufferConsumer);
+            expectedBuffers.add(bufferConsumer.copy().build());
+        }
+        subpartition.add(getTimeoutableBarrierBuffer(checkpointId));
+
+        assertEquals(checkpointId, subpartition.getChannelStateCheckpointId());
+        CompletableFuture<List<Buffer>> channelStateFuture = subpartition.getChannelStateFuture();
+        assertSubpartitionChannelStateFuturesAndQueuedBuffers(
+                subpartition, channelStateFuture, false, numberOfDataBuffers + 1, false);
+
+        subpartition.alignedBarrierTimeout(checkpointId);
+        assertSubpartitionChannelStateFuturesAndQueuedBuffers(
+                subpartition, channelStateFuture, true, numberOfDataBuffers + 1, true);
+
+        pollBufferAndCheckType(subpartition, Buffer.DataType.PRIORITIZED_EVENT_BUFFER);
+        for (int i = 0; i < numberOfDataBuffers; i++) {
+            pollBufferAndCheckType(subpartition, Buffer.DataType.DATA_BUFFER);
+        }
+
+        assertEquals(expectedBuffers, channelStateFuture.get());
+    }
+
+    private void pollBufferAndCheckType(
+            PipelinedSubpartition subpartition, Buffer.DataType dataType) {
+        ResultSubpartition.BufferAndBacklog barrierBuffer = subpartition.pollBuffer();
+        assertNotNull(barrierBuffer);
+        assertEquals(dataType, barrierBuffer.buffer().getDataType());
+    }
+
+    @Test
+    public void testConcurrentTimeoutableCheckpointBarrier() throws Exception {
+        PipelinedSubpartition subpartition = createSubpartition();
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+
+        subpartition.add(getTimeoutableBarrierBuffer(10L));
+        assertEquals(10L, subpartition.getChannelStateCheckpointId());
+        CompletableFuture<List<Buffer>> checkpointFuture10 = subpartition.getChannelStateFuture();
+        assertNotNull(checkpointFuture10);
+
+        try {
+            // It should fail due to currently does not support concurrent unaligned checkpoints.
+            subpartition.add(getTimeoutableBarrierBuffer(11L));
+            checkpointFuture10.get();
+            fail("Should fail with an IllegalStateException.");
+        } catch (Throwable e) {
+            ExceptionUtils.assertThrowable(e, IllegalStateException.class);
+        }
+    }
+
+    private BufferConsumer getTimeoutableBarrierBuffer(long checkpointId) throws IOException {
+        CheckpointOptions checkpointOptions =
+                CheckpointOptions.alignedWithTimeout(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        1000);
+        return EventSerializer.toBufferConsumer(
+                new CheckpointBarrier(checkpointId, System.currentTimeMillis(), checkpointOptions),
+                false);
+    }
+
+    private void assertSubpartitionChannelStateFuturesAndQueuedBuffers(
+            PipelinedSubpartition subpartition,
+            CompletableFuture<List<Buffer>> channelStateFuture,
+            boolean channelStateFutureIsNull,
+            long numberOfQueuedBuffers,
+            boolean expectedFutureIsDone) {
+        assertEquals(channelStateFutureIsNull, subpartition.getChannelStateFuture() == null);
+        assertEquals(numberOfQueuedBuffers, subpartition.getNumberOfQueuedBuffers());
+        if (channelStateFuture != null) {
+            assertEquals(expectedFutureIsDone, channelStateFuture.isDone());
+        }
     }
 
     private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition)
@@ -309,6 +517,23 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
     public static PipelinedSubpartition createPipelinedSubpartition() {
         final ResultPartition parent = PartitionTestUtils.createPartition();
 
-        return new PipelinedSubpartition(0, parent);
+        return new PipelinedSubpartition(0, 2, parent);
+    }
+
+    public static PipelinedSubpartition createPipelinedSubpartition(ResultPartition parent) {
+        return new PipelinedSubpartition(0, 2, parent);
+    }
+
+    private static class FailurePipelinedSubpartition extends PipelinedSubpartition {
+
+        FailurePipelinedSubpartition(
+                int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
+            super(index, receiverExclusiveBuffersPerChannel, parent);
+        }
+
+        @Override
+        Throwable getFailureCause() {
+            return new RuntimeException("Expected test exception");
+        }
     }
 }

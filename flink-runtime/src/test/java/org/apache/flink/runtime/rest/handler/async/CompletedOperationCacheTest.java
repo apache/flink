@@ -18,22 +18,26 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.util.ManualTicker;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link CompletedOperationCache}. */
@@ -72,11 +76,13 @@ public class CompletedOperationCacheTest extends TestLogger {
         final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
         assertThat(closeCacheFuture.isDone(), is(false));
 
-        final Either<Throwable, String> operationResultOrError =
+        final Optional<OperationResult<String>> operationResultOptional =
                 completedOperationCache.get(TEST_OPERATION_KEY);
 
-        assertThat(operationResultOrError, is(notNullValue()));
-        assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+        assertTrue(operationResultOptional.isPresent());
+        OperationResult<String> operationResult = operationResultOptional.get();
+        assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
+        assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
         assertThat(closeCacheFuture.isDone(), is(true));
     }
 
@@ -103,8 +109,80 @@ public class CompletedOperationCacheTest extends TestLogger {
         completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
         completedOperationCache.closeAsync();
 
-        final Either<Throwable, String> result = completedOperationCache.get(TEST_OPERATION_KEY);
+        final Optional<OperationResult<String>> operationResultOptional =
+                completedOperationCache.get(TEST_OPERATION_KEY);
 
-        assertThat(result.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+        assertTrue(operationResultOptional.isPresent());
+        final OperationResult<String> operationResult = operationResultOptional.get();
+        assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
+        assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
+    }
+
+    @Test
+    public void testCacheTimeout() throws Exception {
+        final Duration timeout = RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue();
+
+        completedOperationCache = new CompletedOperationCache<>(timeout, manualTicker);
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+
+        // sanity check that the operation can be retrieved before the timeout
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+
+        manualTicker.advanceTime(timeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
+
+        assertFalse(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+    }
+
+    @Test
+    public void testCacheTimeoutCanBeDisabled() throws Exception {
+        completedOperationCache =
+                new CompletedOperationCache<>(Duration.ofSeconds(0), manualTicker);
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+
+        manualTicker.advanceTime(365, TimeUnit.DAYS);
+
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+    }
+
+    @Test
+    public void testCacheTimeoutCanBeConfigured() throws Exception {
+        final Duration baseTimeout = RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue();
+
+        completedOperationCache =
+                new CompletedOperationCache<>(baseTimeout.multipliedBy(10), manualTicker);
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+
+        manualTicker.advanceTime(baseTimeout.multipliedBy(2).getSeconds(), TimeUnit.SECONDS);
+
+        assertTrue(completedOperationCache.get(TEST_OPERATION_KEY).isPresent());
+    }
+
+    @Test
+    public void containsReturnsFalseForUnknownOperation() {
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(false));
+    }
+
+    @Test
+    public void containsChecksOnoingOperations() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, new CompletableFuture<>());
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(true));
+    }
+
+    @Test
+    public void containsChecksCompletedOperations() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, CompletableFuture.completedFuture(null));
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(true));
+    }
+
+    @Test
+    public void containsDoesNotMarkResultAsAccessed() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, CompletableFuture.completedFuture(null));
+        assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY), is(true));
+        assertThat(
+                completedOperationCache.closeAsync(),
+                FlinkMatchers.willNotComplete(Duration.ofMillis(10)));
     }
 }

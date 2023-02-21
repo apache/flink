@@ -55,7 +55,7 @@ public final class FactoryMocks {
 
     public static DynamicTableSource createTableSource(
             ResolvedSchema schema, Map<String, String> options) {
-        return FactoryUtil.createTableSource(
+        return FactoryUtil.createDynamicTableSource(
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(
@@ -65,6 +65,7 @@ public final class FactoryMocks {
                                 Collections.emptyList(),
                                 options),
                         schema),
+                Collections.emptyMap(),
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);
@@ -77,7 +78,7 @@ public final class FactoryMocks {
 
     public static DynamicTableSink createTableSink(
             ResolvedSchema schema, List<String> partitionKeys, Map<String, String> options) {
-        return FactoryUtil.createTableSink(
+        return FactoryUtil.createDynamicTableSink(
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(
@@ -94,6 +95,13 @@ public final class FactoryMocks {
 
     public static DynamicTableFactory.Context createTableContext(
             ResolvedSchema schema, Map<String, String> options) {
+        return createTableContext(schema, options, Collections.emptyMap());
+    }
+
+    public static DynamicTableFactory.Context createTableContext(
+            ResolvedSchema schema,
+            Map<String, String> options,
+            Map<String, String> enrichmentOptions) {
         return new FactoryUtil.DefaultDynamicTableContext(
                 IDENTIFIER,
                 new ResolvedCatalogTable(
@@ -103,6 +111,7 @@ public final class FactoryMocks {
                                 Collections.emptyList(),
                                 options),
                         schema),
+                enrichmentOptions,
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);

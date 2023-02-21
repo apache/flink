@@ -21,8 +21,12 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 
@@ -38,8 +42,14 @@ class ChangelogValueState<K, N, V>
         extends AbstractChangelogState<K, N, V, InternalValueState<K, N, V>>
         implements InternalValueState<K, N, V> {
 
-    ChangelogValueState(InternalValueState<K, N, V> delegatedState) {
-        super(delegatedState);
+    private final InternalKeyContext<K> keyContext;
+
+    ChangelogValueState(
+            InternalValueState<K, N, V> delegatedState,
+            KvStateChangeLogger<V, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
+        super(delegatedState, changeLogger);
+        this.keyContext = keyContext;
     }
 
     @Override
@@ -50,16 +60,31 @@ class ChangelogValueState<K, N, V>
     @Override
     public void update(V value) throws IOException {
         delegatedState.update(value);
+        changeLogger.valueUpdated(value, getCurrentNamespace());
     }
 
     @Override
     public void clear() {
         delegatedState.clear();
+        try {
+            changeLogger.valueCleared(getCurrentNamespace());
+        } catch (IOException e) {
+            ExceptionUtils.rethrow(e);
+        }
     }
 
     @SuppressWarnings("unchecked")
     static <K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> valueState) {
-        return (IS) new ChangelogValueState<>((InternalValueState<K, N, SV>) valueState);
+            InternalKvState<K, N, SV> valueState,
+            KvStateChangeLogger<SV, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
+        return (IS)
+                new ChangelogValueState<>(
+                        (InternalValueState<K, N, SV>) valueState, changeLogger, keyContext);
+    }
+
+    @Override
+    public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
+        return factory.forValue(delegatedState, keyContext);
     }
 }

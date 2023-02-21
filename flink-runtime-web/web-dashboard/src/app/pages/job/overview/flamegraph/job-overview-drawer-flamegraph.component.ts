@@ -16,39 +16,91 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { NgForOf, NgIf, NgSwitch, NgSwitchCase, NgSwitchDefault } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil, tap } from 'rxjs/operators';
-import { JobFlameGraphInterface, NodesItemCorrectInterface } from 'interfaces';
-import { JobService } from 'services';
+import { mergeMap, takeUntil, tap } from 'rxjs/operators';
+
+import { FlameGraphComponent } from '@flink-runtime-web/components/flame-graph/flame-graph.component';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
+import { FlameGraphType, JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+import { isNil } from '@flink-runtime-web/utils';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+
+import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-flamegraph',
   templateUrl: './job-overview-drawer-flamegraph.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls: ['./job-overview-drawer-flamegraph.component.less']
+  styleUrls: ['./job-overview-drawer-flamegraph.component.less'],
+  imports: [
+    NgIf,
+    NgForOf,
+    NzSelectModule,
+    NzRadioModule,
+    FormsModule,
+    NgSwitch,
+    HumanizeDurationPipe,
+    FlameGraphComponent,
+    NgSwitchCase,
+    NgSwitchDefault,
+    NzSpinModule
+  ],
+  standalone: true
 })
 export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  isLoading = true;
-  now = Date.now();
-  selectedVertex: NodesItemCorrectInterface | null;
-  flameGraph = {} as JobFlameGraphInterface;
+  readonly FlameGraphType = FlameGraphType;
+  public isLoading = true;
+  public now = Date.now();
+  public selectedVertex: NodesItemCorrect | null;
+  public flameGraph = {} as JobFlameGraph;
+  public allSubtasks = 'all';
+  public listOfRunningSubtasks: string[] = [this.allSubtasks];
 
-  graphType = 'on_cpu';
+  public graphType = FlameGraphType.ON_CPU;
+  public subtaskIndex = this.allSubtasks;
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit() {
-    this.requestFlameGraph();
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
+
+  public ngOnInit(): void {
+    this.requestRunningSubtasks();
+    this.requestFlameGraph(this.graphType);
   }
 
-  private requestFlameGraph() {
-    this.jobService.jobWithVertex$
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private requestFlameGraph(graphType: FlameGraphType): void {
+    this.flameGraph = {} as JobFlameGraph;
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
         tap(data => (this.selectedVertex = data.vertex)),
-        flatMap(data => this.jobService.loadOperatorFlameGraph(data.job.jid, data.vertex!.id, this.graphType))
+        mergeMap(data => {
+          if (this.subtaskIndex === this.allSubtasks) {
+            return this.jobService.loadOperatorFlameGraph(data.job.jid, data.vertex!.id, graphType);
+          }
+          return this.jobService.loadOperatorFlameGraphForSingleSubtask(
+            data.job.jid,
+            data.vertex!.id,
+            graphType,
+            this.subtaskIndex
+          );
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe(
         data => {
@@ -56,7 +108,7 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           if (this.flameGraph.endTimestamp !== data['endTimestamp']) {
             this.isLoading = false;
             this.flameGraph = data;
-            this.flameGraph.graphType = this.graphType;
+            this.flameGraph.graphType = graphType;
           }
           this.cdr.markForCheck();
         },
@@ -67,16 +119,43 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       );
   }
 
-  selectFrameGraphType() {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.destroy$ = new Subject();
-    this.flameGraph = {} as JobFlameGraphInterface;
-    this.requestFlameGraph();
+  private requestRunningSubtasks(): void {
+    this.jobLocalService
+      .jobWithVertexChanges()
+      .pipe(
+        tap(data => (this.selectedVertex = data.vertex)),
+        mergeMap(data => {
+          return this.jobService.loadSubTasks(data.job.jid, data.vertex!.id);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(
+        data => {
+          const runningSubtasks = data?.subtasks
+            .filter(subtaskInfo => subtaskInfo.status === 'RUNNING')
+            .map(subtaskInfo => subtaskInfo.subtask.toString());
+          if (isNil(runningSubtasks)) {
+            return;
+          }
+          this.listOfRunningSubtasks = [this.allSubtasks, ...runningSubtasks];
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.listOfRunningSubtasks = [this.allSubtasks];
+          this.cdr.markForCheck();
+        }
+      );
   }
 
-  ngOnDestroy() {
+  public selectSubtask(subtaskIndex: string): void {
     this.destroy$.next();
-    this.destroy$.complete();
+    this.subtaskIndex = subtaskIndex;
+    this.cdr.markForCheck();
+    this.requestFlameGraph(this.graphType);
+  }
+
+  public selectFrameGraphType(graphType: FlameGraphType): void {
+    this.destroy$.next();
+    this.requestFlameGraph(graphType);
   }
 }

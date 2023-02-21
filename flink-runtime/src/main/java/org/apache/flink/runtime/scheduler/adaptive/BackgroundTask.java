@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.concurrent.CompletableFuture;

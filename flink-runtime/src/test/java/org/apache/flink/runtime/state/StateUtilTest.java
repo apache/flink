@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -25,8 +27,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.flink.runtime.concurrent.FutureUtils.completedExceptionally;
 import static org.apache.flink.runtime.state.StateUtil.discardStateFuture;
+import static org.apache.flink.util.concurrent.FutureUtils.completedExceptionally;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -36,14 +38,17 @@ public class StateUtilTest {
 
     @Test
     public void testDiscardStateSize() throws Exception {
-        assertEquals(1234, discardStateFuture(completedFuture(new TestStateObject(1234))));
-        assertEquals(0, discardStateFuture(null));
-        assertEquals(0, discardStateFuture(new CompletableFuture<>()));
-        assertEquals(0, discardStateFuture(completedExceptionally(new RuntimeException())));
-        assertEquals(0, discardStateFuture(emptyFuture(false, true)));
-        assertEquals(0, discardStateFuture(emptyFuture(false, false)));
-        assertEquals(0, discardStateFuture(emptyFuture(true, true)));
-        assertEquals(0, discardStateFuture(emptyFuture(true, false)));
+        assertEquals(
+                Tuple2.of(1234L, 123L),
+                discardStateFuture(completedFuture(new TestStateObject(1234, 123))));
+        Tuple2<Long, Long> zeroSize = Tuple2.of(0L, 0L);
+        assertEquals(zeroSize, discardStateFuture(null));
+        assertEquals(zeroSize, discardStateFuture(new CompletableFuture<>()));
+        assertEquals(zeroSize, discardStateFuture(completedExceptionally(new RuntimeException())));
+        assertEquals(zeroSize, discardStateFuture(emptyFuture(false, true)));
+        assertEquals(zeroSize, discardStateFuture(emptyFuture(false, false)));
+        assertEquals(zeroSize, discardStateFuture(emptyFuture(true, true)));
+        assertEquals(zeroSize, discardStateFuture(emptyFuture(true, false)));
     }
 
     @Test
@@ -101,12 +106,14 @@ public class StateUtilTest {
         };
     }
 
-    private static class TestStateObject implements StateObject {
+    private static class TestStateObject implements CompositeStateHandle {
         private static final long serialVersionUID = -8070326169926626355L;
         private final int size;
+        private final int checkpointedSize;
 
-        private TestStateObject(int size) {
+        private TestStateObject(int size, int checkpointedSize) {
             this.size = size;
+            this.checkpointedSize = checkpointedSize;
         }
 
         @Override
@@ -116,5 +123,15 @@ public class StateUtilTest {
 
         @Override
         public void discardState() {}
+
+        @Override
+        public long getCheckpointedSize() {
+            return checkpointedSize;
+        }
+
+        @Override
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

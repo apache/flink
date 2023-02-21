@@ -41,24 +41,30 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test class for testing typeinfo to proto converter and typeinfo to type serializer converter. */
-public class PythonTypeUtilsTest {
+class PythonTypeUtilsTest {
 
     @Test
-    public void testTypeInfoToProtoConverter() {
+    void testTypeInfoToProtoConverter() {
         Map<TypeInformation, FlinkFnApi.TypeInfo.TypeName> typeInformationTypeNameMap =
                 new HashMap<>();
         typeInformationTypeNameMap.put(
@@ -93,50 +99,65 @@ public class PythonTypeUtilsTest {
 
         for (Map.Entry<TypeInformation, FlinkFnApi.TypeInfo.TypeName> entry :
                 typeInformationTypeNameMap.entrySet()) {
-            assertEquals(
-                    entry.getValue(),
-                    PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(entry.getKey())
-                            .getTypeName());
+            assertThat(
+                            PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                                            entry.getKey(), null)
+                                    .getTypeName())
+                    .isEqualTo(entry.getValue());
         }
 
         TypeInformation primitiveIntegerArrayTypeInfo =
                 PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
         FlinkFnApi.TypeInfo convertedFieldType =
                 PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
-                        primitiveIntegerArrayTypeInfo);
-        assertEquals(
-                convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
-        assertEquals(
-                convertedFieldType.getCollectionElementType().getTypeName(),
-                FlinkFnApi.TypeInfo.TypeName.INT);
+                        primitiveIntegerArrayTypeInfo, null);
+        assertThat(convertedFieldType.getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
+        assertThat(convertedFieldType.getCollectionElementType().getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
 
         TypeInformation basicIntegerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
         FlinkFnApi.TypeInfo convertedBasicFieldType =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(basicIntegerArrayTypeInfo);
-        assertEquals(
-                convertedBasicFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
-        assertEquals(
-                convertedBasicFieldType.getCollectionElementType().getTypeName(),
-                FlinkFnApi.TypeInfo.TypeName.INT);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                        basicIntegerArrayTypeInfo, null);
+        assertThat(convertedBasicFieldType.getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
+        assertThat(convertedBasicFieldType.getCollectionElementType().getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
+
+        TypeInformation objectArrayTypeInfo = Types.OBJECT_ARRAY(Types.ROW(Types.INT));
+        FlinkFnApi.TypeInfo convertedTypeInfoProto =
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(objectArrayTypeInfo, null);
+        assertThat(convertedTypeInfoProto.getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.OBJECT_ARRAY);
+        assertThat(convertedTypeInfoProto.getCollectionElementType().getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.ROW);
+        assertThat(
+                        convertedTypeInfoProto
+                                .getCollectionElementType()
+                                .getRowTypeInfo()
+                                .getFields(0)
+                                .getFieldType()
+                                .getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
 
         TypeInformation rowTypeInfo = Types.ROW(Types.INT);
-        convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(rowTypeInfo);
-        assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.ROW);
-        assertEquals(
-                convertedFieldType.getRowTypeInfo().getFields(0).getFieldType().getTypeName(),
-                FlinkFnApi.TypeInfo.TypeName.INT);
+        convertedFieldType =
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(rowTypeInfo, null);
+        assertThat(convertedFieldType.getTypeName()).isEqualTo(FlinkFnApi.TypeInfo.TypeName.ROW);
+        assertThat(convertedFieldType.getRowTypeInfo().getFields(0).getFieldType().getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
 
         TypeInformation tupleTypeInfo = Types.TUPLE(Types.INT);
         convertedFieldType =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo);
-        assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.TUPLE);
-        assertEquals(
-                convertedFieldType.getTupleTypeInfo().getFieldTypes(0).getTypeName(),
-                FlinkFnApi.TypeInfo.TypeName.INT);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo, null);
+        assertThat(convertedFieldType.getTypeName()).isEqualTo(FlinkFnApi.TypeInfo.TypeName.TUPLE);
+        assertThat(convertedFieldType.getTupleTypeInfo().getFieldTypes(0).getTypeName())
+                .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
     }
 
     @Test
-    public void testTypeInfotoSerializerConverter() {
+    void testTypeInfoToSerializerConverter() {
         Map<TypeInformation, TypeSerializer> typeInformationTypeSerializerMap = new HashMap<>();
         typeInformationTypeSerializerMap.put(BasicTypeInfo.INT_TYPE_INFO, IntSerializer.INSTANCE);
         typeInformationTypeSerializerMap.put(
@@ -165,10 +186,10 @@ public class PythonTypeUtilsTest {
 
         for (Map.Entry<TypeInformation, TypeSerializer> entry :
                 typeInformationTypeSerializerMap.entrySet()) {
-            assertEquals(
-                    entry.getValue(),
-                    PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
-                            entry.getKey()));
+            assertThat(entry.getValue())
+                    .isEqualTo(
+                            PythonTypeUtils.TypeInfoToSerializerConverter
+                                    .typeInfoSerializerConverter(entry.getKey()));
         }
 
         TypeInformation primitiveIntegerArrayTypeInfo =
@@ -176,32 +197,99 @@ public class PythonTypeUtilsTest {
         TypeSerializer convertedTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         primitiveIntegerArrayTypeInfo);
-        assertEquals(convertedTypeSerializer, IntPrimitiveArraySerializer.INSTANCE);
+        assertThat(convertedTypeSerializer).isEqualTo(IntPrimitiveArraySerializer.INSTANCE);
 
         TypeInformation integerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
         convertedTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         integerArrayTypeInfo);
-        assertEquals(
-                convertedTypeSerializer,
-                new GenericArraySerializer(Integer.class, IntSerializer.INSTANCE));
+        assertThat(convertedTypeSerializer)
+                .isEqualTo(new GenericArraySerializer(Integer.class, IntSerializer.INSTANCE));
+
+        TypeInformation objectArrayTypeInfo = Types.OBJECT_ARRAY(Types.ROW(Types.INT));
+        convertedTypeSerializer =
+                PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                        objectArrayTypeInfo);
+        assertThat(convertedTypeSerializer)
+                .isEqualTo(
+                        new GenericArraySerializer(
+                                Row.class,
+                                new RowSerializer(
+                                        new TypeSerializer[] {IntSerializer.INSTANCE}, null)));
 
         TypeInformation rowTypeInfo = Types.ROW(Types.INT);
         convertedTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         rowTypeInfo);
-        assertEquals(
-                convertedTypeSerializer,
-                new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, null));
+        assertThat(convertedTypeSerializer)
+                .isEqualTo(new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, null));
 
         TupleTypeInfo tupleTypeInfo = (TupleTypeInfo) Types.TUPLE(Types.INT);
         convertedTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         tupleTypeInfo);
-        assertEquals(
-                convertedTypeSerializer,
-                new TupleSerializer(
-                        tupleTypeInfo.getTypeClass(),
-                        new TypeSerializer[] {IntSerializer.INSTANCE}));
+        assertThat(convertedTypeSerializer)
+                .isEqualTo(
+                        new TupleSerializer(
+                                tupleTypeInfo.getTypeClass(),
+                                new TypeSerializer[] {IntSerializer.INSTANCE}));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testInternalTypeInfoToDataConverter() {
+        RowType rowDataType =
+                (RowType)
+                        DataTypes.ROW(
+                                        DataTypes.BOOLEAN(),
+                                        DataTypes.TINYINT(),
+                                        DataTypes.SMALLINT(),
+                                        DataTypes.INT(),
+                                        DataTypes.BIGINT(),
+                                        DataTypes.FLOAT(),
+                                        DataTypes.DOUBLE(),
+                                        DataTypes.BINARY(10),
+                                        DataTypes.VARCHAR(100),
+                                        DataTypes.CHAR(100),
+                                        DataTypes.VARCHAR(1000),
+                                        DataTypes.DATE(),
+                                        DataTypes.TIME(),
+                                        DataTypes.ARRAY(DataTypes.STRING()),
+                                        DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BYTES()))
+                                .getLogicalType();
+        PythonTypeUtils.DataConverter dataConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                        InternalTypeInfo.of(rowDataType));
+
+        PythonTypeUtils.RowDataConverter rowDataConverter =
+                new PythonTypeUtils.RowDataConverter(
+                        new PythonTypeUtils.DataConverter[] {
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.ByteDataConverter.INSTANCE,
+                            PythonTypeUtils.ShortDataConverter.INSTANCE,
+                            PythonTypeUtils.IntDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.FloatDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                            new PythonTypeUtils.ArrayDataConverter<>(
+                                    String.class, PythonTypeUtils.IdentityDataConverter.INSTANCE),
+                            new PythonTypeUtils.MapDataConverter(
+                                    PythonTypeUtils.IdentityDataConverter.INSTANCE,
+                                    PythonTypeUtils.IdentityDataConverter.INSTANCE)
+                        });
+
+        PythonTypeUtils.RowDataDataConverter expectedDataConverter =
+                new PythonTypeUtils.RowDataDataConverter(
+                        rowDataConverter,
+                        DataFormatConverters.getConverterForDataType(
+                                TypeConversions.fromLogicalToDataType(rowDataType)));
+
+        assertThat(dataConverter).isEqualTo(expectedDataConverter);
     }
 }

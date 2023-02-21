@@ -23,6 +23,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -39,7 +41,8 @@ public interface SinkFunctionProvider
     }
 
     /** Helper method for creating a SinkFunction provider with a provided sink parallelism. */
-    static SinkFunctionProvider of(SinkFunction<RowData> sinkFunction, Integer sinkParallelism) {
+    static SinkFunctionProvider of(
+            SinkFunction<RowData> sinkFunction, @Nullable Integer sinkParallelism) {
         return new SinkFunctionProvider() {
 
             @Override

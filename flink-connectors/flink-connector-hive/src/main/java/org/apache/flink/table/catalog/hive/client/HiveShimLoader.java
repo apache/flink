@@ -30,18 +30,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /** A loader to load HiveShim. */
 public class HiveShimLoader {
 
-    public static final String HIVE_VERSION_V1_0_0 = "1.0.0";
-    public static final String HIVE_VERSION_V1_0_1 = "1.0.1";
-    public static final String HIVE_VERSION_V1_1_0 = "1.1.0";
-    public static final String HIVE_VERSION_V1_1_1 = "1.1.1";
-    public static final String HIVE_VERSION_V1_2_0 = "1.2.0";
-    public static final String HIVE_VERSION_V1_2_1 = "1.2.1";
-    public static final String HIVE_VERSION_V1_2_2 = "1.2.2";
-    public static final String HIVE_VERSION_V2_0_0 = "2.0.0";
-    public static final String HIVE_VERSION_V2_0_1 = "2.0.1";
-    public static final String HIVE_VERSION_V2_1_0 = "2.1.0";
-    public static final String HIVE_VERSION_V2_1_1 = "2.1.1";
-    public static final String HIVE_VERSION_V2_2_0 = "2.2.0";
     public static final String HIVE_VERSION_V2_3_0 = "2.3.0";
     public static final String HIVE_VERSION_V2_3_1 = "2.3.1";
     public static final String HIVE_VERSION_V2_3_2 = "2.3.2";
@@ -49,9 +37,13 @@ public class HiveShimLoader {
     public static final String HIVE_VERSION_V2_3_4 = "2.3.4";
     public static final String HIVE_VERSION_V2_3_5 = "2.3.5";
     public static final String HIVE_VERSION_V2_3_6 = "2.3.6";
+    public static final String HIVE_VERSION_V2_3_7 = "2.3.7";
+    public static final String HIVE_VERSION_V2_3_8 = "2.3.8";
+    public static final String HIVE_VERSION_V2_3_9 = "2.3.9";
     public static final String HIVE_VERSION_V3_1_0 = "3.1.0";
     public static final String HIVE_VERSION_V3_1_1 = "3.1.1";
     public static final String HIVE_VERSION_V3_1_2 = "3.1.2";
+    public static final String HIVE_VERSION_V3_1_3 = "3.1.3";
 
     private static final Map<String, HiveShim> hiveShims = new ConcurrentHashMap<>(2);
 
@@ -63,42 +55,6 @@ public class HiveShimLoader {
         return hiveShims.computeIfAbsent(
                 version,
                 (v) -> {
-                    if (v.startsWith(HIVE_VERSION_V1_0_0)) {
-                        return new HiveShimV100();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V1_0_1)) {
-                        return new HiveShimV101();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V1_1_0)) {
-                        return new HiveShimV110();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V1_1_1)) {
-                        return new HiveShimV111();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V1_2_0)) {
-                        return new HiveShimV120();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V1_2_1)) {
-                        return new HiveShimV121();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V1_2_2)) {
-                        return new HiveShimV122();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V2_0_0)) {
-                        return new HiveShimV200();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V2_0_1)) {
-                        return new HiveShimV201();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V2_1_0)) {
-                        return new HiveShimV210();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V2_1_1)) {
-                        return new HiveShimV211();
-                    }
-                    if (v.startsWith(HIVE_VERSION_V2_2_0)) {
-                        return new HiveShimV220();
-                    }
                     if (v.startsWith(HIVE_VERSION_V2_3_0)) {
                         return new HiveShimV230();
                     }
@@ -120,6 +76,15 @@ public class HiveShimLoader {
                     if (v.startsWith(HIVE_VERSION_V2_3_6)) {
                         return new HiveShimV236();
                     }
+                    if (v.startsWith(HIVE_VERSION_V2_3_7)) {
+                        return new HiveShimV237();
+                    }
+                    if (v.startsWith(HIVE_VERSION_V2_3_8)) {
+                        return new HiveShimV238();
+                    }
+                    if (v.startsWith(HIVE_VERSION_V2_3_9)) {
+                        return new HiveShimV239();
+                    }
                     if (v.startsWith(HIVE_VERSION_V3_1_0)) {
                         return new HiveShimV310();
                     }
@@ -128,6 +93,9 @@ public class HiveShimLoader {
                     }
                     if (v.startsWith(HIVE_VERSION_V3_1_2)) {
                         return new HiveShimV312();
+                    }
+                    if (v.startsWith(HIVE_VERSION_V3_1_3)) {
+                        return new HiveShimV313();
                     }
                     throw new CatalogException("Unsupported Hive version " + v);
                 });

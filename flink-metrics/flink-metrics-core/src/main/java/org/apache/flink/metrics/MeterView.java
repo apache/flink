@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * A MeterView provides an average rate of events per second over a given time period.
  *
@@ -33,6 +35,7 @@ package org.apache.flink.metrics;
  *
  * <p>The events are counted by a {@link Counter}.
  */
+@Internal
 public class MeterView implements Meter, View {
 
     private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;

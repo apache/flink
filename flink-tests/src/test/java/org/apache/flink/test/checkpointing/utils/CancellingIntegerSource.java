@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import javax.annotation.Nullable;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 

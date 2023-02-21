@@ -28,23 +28,22 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /** General tests for the {@link KubernetesTaskManagerParameters}. */
-public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
+class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
     private static final int TASK_MANAGER_MEMORY = 1024;
     private static final double TASK_MANAGER_CPU = 1.2;
+    private static final double TASK_MANAGER_CPU_LIMIT_FACTOR = 2.0;
+    private static final double TASK_MANAGER_MEMORY_LIMIT_FACTOR = 2.0;
     private static final int RPC_PORT = 13001;
 
     private static final String POD_NAME = "task-manager-pod-1";
@@ -70,6 +69,12 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY,
                 MemorySize.parse(TASK_MANAGER_MEMORY + "m"));
         flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR,
+                TASK_MANAGER_CPU_LIMIT_FACTOR);
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR,
+                TASK_MANAGER_MEMORY_LIMIT_FACTOR);
 
         customizedEnvs.forEach(
                 (k, v) ->
@@ -94,21 +99,22 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
                         DYNAMIC_PROPERTIES,
                         JVM_MEM_OPTS_ENV,
                         containeredTaskManagerParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptySet());
     }
 
     @Test
-    public void testGetEnvironments() {
-        assertEquals(customizedEnvs, kubernetesTaskManagerParameters.getEnvironments());
+    void testGetEnvironments() {
+        assertThat(kubernetesTaskManagerParameters.getEnvironments()).isEqualTo(customizedEnvs);
     }
 
     @Test
-    public void testGetEmptyAnnotations() {
-        assertTrue(kubernetesTaskManagerParameters.getAnnotations().isEmpty());
+    void testGetEmptyAnnotations() {
+        assertThat(kubernetesTaskManagerParameters.getAnnotations()).isEmpty();
     }
 
     @Test
-    public void testGetAnnotations() {
+    void testGetAnnotations() {
         final Map<String, String> expectedAnnotations = new HashMap<>();
         expectedAnnotations.put("a1", "v1");
         expectedAnnotations.put("a2", "v2");
@@ -118,44 +124,56 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
         final Map<String, String> resultAnnotations =
                 kubernetesTaskManagerParameters.getAnnotations();
 
-        assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
+        assertThat(resultAnnotations).isEqualTo(expectedAnnotations);
     }
 
     @Test
-    public void testGetPodName() {
-        assertEquals(POD_NAME, kubernetesTaskManagerParameters.getPodName());
+    void testGetPodName() {
+        assertThat(kubernetesTaskManagerParameters.getPodName()).isEqualTo(POD_NAME);
     }
 
     @Test
-    public void testGetTaskManagerMemoryMB() {
-        assertEquals(TASK_MANAGER_MEMORY, kubernetesTaskManagerParameters.getTaskManagerMemoryMB());
+    void testGetTaskManagerMemoryMB() {
+        assertThat(kubernetesTaskManagerParameters.getTaskManagerMemoryMB())
+                .isEqualTo(TASK_MANAGER_MEMORY);
     }
 
     @Test
-    public void testGetTaskManagerCPU() {
-        assertEquals(
-                TASK_MANAGER_CPU,
-                kubernetesTaskManagerParameters.getTaskManagerCPU(),
-                0.000000000001);
+    void testGetTaskManagerCPU() {
+        assertThat(kubernetesTaskManagerParameters.getTaskManagerCPU())
+                .isEqualTo(TASK_MANAGER_CPU, within(0.00001));
     }
 
     @Test
-    public void testGetRpcPort() {
-        assertEquals(RPC_PORT, kubernetesTaskManagerParameters.getRPCPort());
+    void testGetTaskManagerCPULimitFactor() {
+        assertThat(kubernetesTaskManagerParameters.getTaskManagerCPULimitFactor())
+                .isEqualTo(TASK_MANAGER_CPU_LIMIT_FACTOR, within(0.00001));
     }
 
     @Test
-    public void testGetDynamicProperties() {
-        assertEquals(DYNAMIC_PROPERTIES, kubernetesTaskManagerParameters.getDynamicProperties());
+    void testGetTaskManagerMemoryLimitFactor() {
+        assertThat(kubernetesTaskManagerParameters.getTaskManagerMemoryLimitFactor())
+                .isEqualTo(TASK_MANAGER_MEMORY_LIMIT_FACTOR, within(0.00001));
     }
 
     @Test
-    public void testGetJvmMemOptsEnv() {
-        assertThat(kubernetesTaskManagerParameters.getJvmMemOptsEnv(), is(JVM_MEM_OPTS_ENV));
+    void testGetRpcPort() {
+        assertThat(kubernetesTaskManagerParameters.getRPCPort()).isEqualTo(RPC_PORT);
     }
 
     @Test
-    public void testPrioritizeBuiltInLabels() {
+    void testGetDynamicProperties() {
+        assertThat(kubernetesTaskManagerParameters.getDynamicProperties())
+                .isEqualTo(DYNAMIC_PROPERTIES);
+    }
+
+    @Test
+    void testGetJvmMemOptsEnv() {
+        assertThat(kubernetesTaskManagerParameters.getJvmMemOptsEnv()).isEqualTo(JVM_MEM_OPTS_ENV);
+    }
+
+    @Test
+    void testPrioritizeBuiltInLabels() {
         final Map<String, String> userLabels = new HashMap<>();
         userLabels.put(Constants.LABEL_TYPE_KEY, "user-label-type");
         userLabels.put(Constants.LABEL_APP_KEY, "user-label-app");
@@ -165,23 +183,23 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
         final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
-        assertThat(kubernetesTaskManagerParameters.getLabels(), is(equalTo(expectedLabels)));
+        assertThat(kubernetesTaskManagerParameters.getLabels()).isEqualTo(expectedLabels);
     }
 
     @Test
-    public void testGetServiceAccount() {
+    void testGetServiceAccount() {
         flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT, "flink");
-        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("flink"));
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount()).isEqualTo("flink");
     }
 
     @Test
-    public void testGetServiceAccountFallback() {
+    void testGetServiceAccountFallback() {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, "flink-fallback");
-        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("flink-fallback"));
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount()).isEqualTo("flink-fallback");
     }
 
     @Test
-    public void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
-        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("default"));
+    void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount()).isEqualTo("default");
     }
 }

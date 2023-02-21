@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,7 +34,6 @@ public abstract class CatalogTestBase extends CatalogTest {
                 new HashMap<String, String>() {
                     {
                         put("k1", "v1");
-                        putAll(getGenericFlag(isGeneric()));
                     }
                 },
                 TEST_COMMENT);
@@ -45,7 +45,6 @@ public abstract class CatalogTestBase extends CatalogTest {
                 new HashMap<String, String>() {
                     {
                         put("k2", "v2");
-                        putAll(getGenericFlag(isGeneric()));
                     }
                 },
                 TEST_COMMENT);
@@ -126,7 +125,7 @@ public abstract class CatalogTestBase extends CatalogTest {
                         String.format("select * from %s", t1),
                         String.format(
                                 "select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-                        getBatchTableProperties());
+                        Collections.emptyMap());
         return new ResolvedCatalogView(origin, resolvedSchema);
     }
 
@@ -140,7 +139,7 @@ public abstract class CatalogTestBase extends CatalogTest {
                         String.format("select * from %s", t2),
                         String.format(
                                 "select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-                        getBatchTableProperties());
+                        Collections.emptyMap());
         return new ResolvedCatalogView(origin, resolvedSchema);
     }
 
@@ -165,7 +164,8 @@ public abstract class CatalogTestBase extends CatalogTest {
     private Map<String, String> getGenericFlag(boolean isGeneric) {
         return new HashMap<String, String>() {
             {
-                put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(isGeneric));
+                String connector = isGeneric ? "COLLECTION" : "hive";
+                put(FactoryUtil.CONNECTOR.key(), connector);
             }
         };
     }

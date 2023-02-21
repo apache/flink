@@ -32,6 +32,9 @@ import java.io.IOException;
 /**
  * Simple reader for integers, that is both a {@link StreamFormat.Reader} and a {@link
  * FileRecordFormat.Reader}.
+ *
+ * <p>The interface {@link FileRecordFormat} is deprecated, use {@link StreamFormat} instead. This
+ * test class will be refactored once we remove the {@link FileRecordFormat}.
  */
 class TestIntReader implements StreamFormat.Reader<Integer>, FileRecordFormat.Reader<Integer> {
 

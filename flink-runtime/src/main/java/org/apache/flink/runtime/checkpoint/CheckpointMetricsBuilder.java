@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.checkStateAndGet;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.concurrent.FutureUtils.checkStateAndGet;
 
 /**
  * A builder for {@link CheckpointMetrics}.
@@ -42,6 +42,7 @@ public class CheckpointMetricsBuilder {
     private long checkpointStartDelayNanos = -1L;
     private boolean unalignedCheckpoint = false;
     private long totalBytesPersisted = -1L;
+    private long bytesPersistedOfThisCheckpoint = -1L;
 
     public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(
             long bytesProcessedDuringAlignment) {
@@ -128,6 +129,16 @@ public class CheckpointMetricsBuilder {
         return this;
     }
 
+    public long getBytesPersistedOfThisCheckpoint() {
+        return bytesPersistedOfThisCheckpoint;
+    }
+
+    public CheckpointMetricsBuilder setBytesPersistedOfThisCheckpoint(
+            long bytesPersistedOfThisCheckpoint) {
+        this.bytesPersistedOfThisCheckpoint = bytesPersistedOfThisCheckpoint;
+        return this;
+    }
+
     public CheckpointMetrics build() {
         return new CheckpointMetrics(
                 checkStateAndGet(bytesProcessedDuringAlignment),
@@ -137,6 +148,7 @@ public class CheckpointMetricsBuilder {
                 asyncDurationMillis,
                 checkpointStartDelayNanos,
                 unalignedCheckpoint,
+                bytesPersistedOfThisCheckpoint,
                 totalBytesPersisted);
     }
 
@@ -149,6 +161,7 @@ public class CheckpointMetricsBuilder {
                 asyncDurationMillis,
                 checkpointStartDelayNanos,
                 unalignedCheckpoint,
+                bytesPersistedOfThisCheckpoint,
                 totalBytesPersisted);
     }
 }

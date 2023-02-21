@@ -20,16 +20,17 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.queryablestate.FutureUtils;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
+import org.apache.flink.test.util.JobSubmission;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -86,6 +87,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         for (JarOperation jarOperation : setup.getJarOperations()) {
             distribution.performJarOperation(jarOperation);
         }
+        for (JarAddition jarAddition : setup.getJarAdditions()) {
+            distribution.performJarAddition(jarAddition);
+        }
         if (setup.getConfig().isPresent()) {
             distribution.appendConfiguration(setup.getConfig().get());
         }
@@ -109,6 +113,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     private void shutdownCluster() {
         try {
             distribution.stopFlinkCluster();
+            distribution.stopSqlGateway();
         } catch (IOException e) {
             LOG.warn("Error while shutting down Flink cluster.", e);
         }
@@ -133,9 +138,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         distribution.startFlinkCluster();
 
         try (final RestClient restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        Executors.directExecutor())) {
+                new RestClient(new Configuration(), Executors.directExecutor())) {
             for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
                 final CompletableFuture<TaskManagersInfo> localhost =
                         restClient.sendRequest(
@@ -182,9 +185,40 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     }
 
     @Override
+    public GatewayController startSqlGateway() throws IOException {
+        distribution.startSqlGateway();
+
+        return new GatewayClusterControllerImpl(distribution);
+    }
+
+    @Override
     public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor)
             throws IOException {
         return distribution.searchAllLogs(pattern, matchProcessor);
+    }
+
+    private static class GatewayClusterControllerImpl implements GatewayController {
+
+        private final FlinkDistribution distribution;
+
+        public GatewayClusterControllerImpl(FlinkDistribution distribution) {
+            this.distribution = distribution;
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            try {
+                distribution.stopSqlGateway();
+                return CompletableFuture.completedFuture(null);
+            } catch (IOException e) {
+                return FutureUtils.completedExceptionally(e);
+            }
+        }
+
+        @Override
+        public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
+            distribution.submitSQLJob(job, timeout);
+        }
     }
 
     private static class StandaloneClusterController implements ClusterController {
@@ -203,7 +237,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         }
 
         @Override
-        public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
+        public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
             distribution.submitSQLJob(job, timeout);
         }
 
@@ -213,7 +247,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
                 distribution.stopFlinkCluster();
                 return CompletableFuture.completedFuture(null);
             } catch (IOException e) {
-                return FutureUtils.getFailedFuture(e);
+                return FutureUtils.completedExceptionally(e);
             }
         }
     }

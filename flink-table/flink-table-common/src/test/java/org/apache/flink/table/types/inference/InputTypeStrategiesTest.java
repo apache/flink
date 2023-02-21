@@ -20,14 +20,12 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import org.junit.runners.Parameterized.Parameters;
+import java.util.stream.Stream;
 
-import java.util.List;
-
-import static java.util.Arrays.asList;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL_OR_NULL;
@@ -43,11 +41,11 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.sequenc
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /** Tests for built-in {@link InputTypeStrategies}. */
-public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
+class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return asList(
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
                 // wildcard with 2 arguments
                 TestSpec.forStrategy(WILDCARD)
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.INT())
@@ -442,7 +440,7 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 "Invalid number of arguments. At least 2 arguments expected but 1 passed."),
                 TestSpec.forStrategy(
                                 "Array strategy infers a common type",
-                                InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+                                SpecificInputTypeStrategies.ARRAY)
                         .expectSignature("f(<COMMON>, <COMMON>...)")
                         .calledWithArgumentTypes(
                                 DataTypes.INT().notNull(),
@@ -456,18 +454,17 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 DataTypes.DOUBLE()),
                 TestSpec.forStrategy(
                                 "Array strategy fails for no arguments",
-                                InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+                                SpecificInputTypeStrategies.ARRAY)
                         .calledWithArgumentTypes()
                         .expectErrorMessage(
                                 "Invalid number of arguments. At least 1 arguments expected but 0 passed."),
                 TestSpec.forStrategy(
                                 "Array strategy fails for null arguments",
-                                InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+                                SpecificInputTypeStrategies.ARRAY)
                         .calledWithArgumentTypes(DataTypes.NULL())
                         .expectErrorMessage("Could not find a common type for arguments: [NULL]"),
                 TestSpec.forStrategy(
-                                "Map strategy infers common types",
-                                InputTypeStrategies.SPECIFIC_FOR_MAP)
+                                "Map strategy infers common types", SpecificInputTypeStrategies.MAP)
                         .calledWithArgumentTypes(
                                 DataTypes.INT().notNull(),
                                 DataTypes.DOUBLE(),
@@ -480,24 +477,24 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 DataTypes.DOUBLE()),
                 TestSpec.forStrategy(
                                 "Map strategy fails for no arguments",
-                                InputTypeStrategies.SPECIFIC_FOR_MAP)
+                                SpecificInputTypeStrategies.MAP)
                         .calledWithArgumentTypes()
                         .expectErrorMessage(
                                 "Invalid number of arguments. At least 2 arguments expected but 0 passed."),
                 TestSpec.forStrategy(
                                 "Map strategy fails for an odd number of arguments",
-                                InputTypeStrategies.SPECIFIC_FOR_MAP)
+                                SpecificInputTypeStrategies.MAP)
                         .calledWithArgumentTypes(
                                 DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT())
                         .expectErrorMessage("Invalid number of arguments. 3 arguments passed."),
-                TestSpec.forStrategy("Cast strategy", InputTypeStrategies.SPECIFIC_FOR_CAST)
+                TestSpec.forStrategy("Cast strategy", SpecificInputTypeStrategies.CAST)
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
                         .calledWithLiteralAt(1, DataTypes.BIGINT())
                         .expectSignature("f(<ANY>, <TYPE LITERAL>)")
                         .expectArgumentTypes(DataTypes.INT(), DataTypes.BIGINT()),
                 TestSpec.forStrategy(
                                 "Cast strategy for invalid target type",
-                                InputTypeStrategies.SPECIFIC_FOR_CAST)
+                                SpecificInputTypeStrategies.CAST)
                         .calledWithArgumentTypes(DataTypes.BOOLEAN(), DataTypes.DATE())
                         .calledWithLiteralAt(1, DataTypes.DATE())
                         .expectErrorMessage("Unsupported cast from 'BOOLEAN' to 'DATE'."),

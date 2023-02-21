@@ -18,6 +18,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+
+import java.util.concurrent.Executor;
 
 /** A {@link CheckpointRecoveryFactory} that pre-defined checkpointing components. */
 public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
@@ -32,8 +36,12 @@ public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFacto
     }
 
     @Override
-    public CompletedCheckpointStore createCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) {
+    public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
+            JobID jobId,
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor,
+            RestoreMode restoreMode) {
         return store;
     }
 

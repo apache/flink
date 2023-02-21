@@ -26,10 +26,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
@@ -95,7 +95,8 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                         tablePath,
                         jobConf,
                         fetcher,
-                        fetcherContext);
+                        fetcherContext,
+                        enumeratorContext.currentParallelism());
     }
 
     @Override
@@ -132,7 +133,8 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
     }
 
     @Override
-    public PendingSplitsCheckpoint<HiveSourceSplit> snapshotState() throws Exception {
+    public PendingSplitsCheckpoint<HiveSourceSplit> snapshotState(long checkpointId)
+            throws Exception {
         Collection<HiveSourceSplit> remainingSplits =
                 (Collection<HiveSourceSplit>) (Collection<?>) splitAssigner.remainingSplits();
         return new ContinuousHivePendingSplitsCheckpoint(
@@ -164,6 +166,14 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                 readersAwaitingSplit.entrySet().iterator();
         while (awaitingReader.hasNext()) {
             final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
+
+            // if the reader that requested another split has failed in the meantime, remove
+            // it from the list of waiting readers
+            if (!enumeratorContext.registeredReaders().containsKey(nextAwaiting.getKey())) {
+                awaitingReader.remove();
+                continue;
+            }
+
             final String hostname = nextAwaiting.getValue();
             final int awaitingSubtask = nextAwaiting.getKey();
             final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
@@ -187,6 +197,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
         private final JobConf jobConf;
         private final ContinuousPartitionFetcher<Partition, T> fetcher;
         private final HiveContinuousPartitionContext<Partition, T> fetcherContext;
+        private final int currentParallelism;
 
         PartitionMonitor(
                 T currentReadOffset,
@@ -194,13 +205,15 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                 ObjectPath tablePath,
                 JobConf jobConf,
                 ContinuousPartitionFetcher<Partition, T> fetcher,
-                HiveContinuousPartitionContext<Partition, T> fetcherContext) {
+                HiveContinuousPartitionContext<Partition, T> fetcherContext,
+                int currentParallelism) {
             this.currentReadOffset = currentReadOffset;
             this.seenPartitionsSinceOffset = new HashSet<>(seenPartitionsSinceOffset);
             this.tablePath = tablePath;
             this.jobConf = jobConf;
             this.fetcher = fetcher;
             this.fetcherContext = fetcherContext;
+            this.currentParallelism = currentParallelism;
         }
 
         @Override
@@ -234,10 +247,11 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                             tablePath.getFullName());
                     newSplits.addAll(
                             HiveSourceFileEnumerator.createInputSplits(
-                                    0,
+                                    currentParallelism,
                                     Collections.singletonList(
                                             fetcherContext.toHiveTablePartition(partition)),
-                                    jobConf));
+                                    jobConf,
+                                    false));
                 }
             }
             currentReadOffset = maxOffset;

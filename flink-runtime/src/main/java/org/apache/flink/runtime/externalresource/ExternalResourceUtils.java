@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.externalresource;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
@@ -116,10 +117,25 @@ public class ExternalResourceUtils {
         return externalResourceConfigs;
     }
 
+    /**
+     * Instantiate {@link StaticExternalResourceInfoProvider} for all of enabled external resources.
+     */
+    public static ExternalResourceInfoProvider createStaticExternalResourceInfoProviderFromConfig(
+            Configuration configuration, PluginManager pluginManager) {
+
+        final Map<String, Long> externalResourceAmountMap =
+                getExternalResourceAmountMap(configuration);
+        LOG.info("Enabled external resources: {}", externalResourceAmountMap.keySet());
+
+        return createStaticExternalResourceInfoProvider(
+                externalResourceAmountMap,
+                externalResourceDriversFromConfig(configuration, pluginManager));
+    }
+
     /** Get the map of resource name and amount of all of enabled external resources. */
-    public static Map<String, Long> getExternalResourceAmountMap(Configuration config) {
+    @VisibleForTesting
+    static Map<String, Long> getExternalResourceAmountMap(Configuration config) {
         final Set<String> resourceSet = getExternalResourceSet(config);
-        LOG.info("Enabled external resources: {}", resourceSet);
 
         if (resourceSet.isEmpty()) {
             return Collections.emptyMap();
@@ -170,10 +186,10 @@ public class ExternalResourceUtils {
      * external resources. {@link ExternalResourceDriver ExternalResourceDrivers} are mapped to its
      * resource name.
      */
-    public static Map<String, ExternalResourceDriver> externalResourceDriversFromConfig(
+    @VisibleForTesting
+    static Map<String, ExternalResourceDriver> externalResourceDriversFromConfig(
             Configuration config, PluginManager pluginManager) {
         final Set<String> resourceSet = getExternalResourceSet(config);
-        LOG.info("Enabled external resources: {}", resourceSet);
 
         if (resourceSet.isEmpty()) {
             return Collections.emptyMap();
@@ -242,7 +258,8 @@ public class ExternalResourceUtils {
     /**
      * Instantiate {@link StaticExternalResourceInfoProvider} for all of enabled external resources.
      */
-    public static ExternalResourceInfoProvider createStaticExternalResourceInfoProvider(
+    @VisibleForTesting
+    static ExternalResourceInfoProvider createStaticExternalResourceInfoProvider(
             Map<String, Long> externalResourceAmountMap,
             Map<String, ExternalResourceDriver> externalResourceDrivers) {
         final Map<String, Set<? extends ExternalResourceInfo>> externalResources = new HashMap<>();

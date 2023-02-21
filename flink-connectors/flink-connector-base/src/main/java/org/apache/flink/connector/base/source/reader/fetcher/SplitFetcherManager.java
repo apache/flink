@@ -18,8 +18,10 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -28,6 +30,8 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +44,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
+
 /**
  * A class responsible for starting the {@link SplitFetcher} and manage the life cycles of them.
  * This class works with the {@link SourceReaderBase}.
@@ -49,6 +55,7 @@ import java.util.function.Supplier;
  * manager would only start a single fetcher and assign all the splits to it. A one-thread-per-split
  * fetcher may spawn a new thread every time a new split is assigned.
  */
+@Internal
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcherManager.class);
 
@@ -79,6 +86,14 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private volatile boolean closed;
 
     /**
+     * Hook for handling finished splits in {@link SplitFetcher}, usually used for testing split
+     * finishing behavior of {@link SplitFetcher} and {@link SplitReader}.
+     */
+    private final Consumer<Collection<String>> splitFinishedHook;
+
+    private final boolean allowUnalignedSourceSplits;
+
+    /**
      * Create a split fetcher manager.
      *
      * @param elementsQueue the queue that split readers will put elements into.
@@ -86,7 +101,24 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      */
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            Supplier<SplitReader<E, SplitT>> splitReaderFactory) {
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Configuration configuration) {
+        this(elementsQueue, splitReaderFactory, configuration, (ignore) -> {});
+    }
+
+    /**
+     * Create a split fetcher manager.
+     *
+     * @param elementsQueue the queue that split readers will put elements into.
+     * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param splitFinishedHook Hook for handling finished splits in split fetchers.
+     */
+    @VisibleForTesting
+    public SplitFetcherManager(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Configuration configuration,
+            Consumer<Collection<String>> splitFinishedHook) {
         this.elementsQueue = elementsQueue;
         this.errorHandler =
                 new Consumer<Throwable>() {
@@ -102,9 +134,11 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                     }
                 };
         this.splitReaderFactory = splitReaderFactory;
+        this.splitFinishedHook = splitFinishedHook;
         this.uncaughtFetcherException = new AtomicReference<>(null);
         this.fetcherIdGenerator = new AtomicInteger(0);
         this.fetchers = new ConcurrentHashMap<>();
+        this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
 
         // Create the executor with a thread factory that fails the source reader if one of
         // the fetcher thread exits abnormally.
@@ -116,6 +150,30 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     }
 
     public abstract void addSplits(List<SplitT> splitsToAdd);
+
+    public void pauseOrResumeSplits(
+            Collection<String> splitIdsToPause, Collection<String> splitIdsToResume) {
+        for (SplitFetcher<E, SplitT> fetcher : fetchers.values()) {
+            Map<String, SplitT> idToSplit = fetcher.assignedSplits();
+            List<SplitT> splitsToPause = lookupInAssignment(splitIdsToPause, idToSplit);
+            List<SplitT> splitsToResume = lookupInAssignment(splitIdsToResume, idToSplit);
+            if (!splitsToPause.isEmpty() || !splitsToResume.isEmpty()) {
+                fetcher.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            }
+        }
+    }
+
+    private List<SplitT> lookupInAssignment(
+            Collection<String> splitIds, Map<String, SplitT> assignment) {
+        List<SplitT> splits = new ArrayList<>();
+        for (String s : splitIds) {
+            SplitT split = assignment.get(s);
+            if (split != null) {
+                splits.add(split);
+            }
+        }
+        return splits;
+    }
 
     protected void startFetcher(SplitFetcher<E, SplitT> fetcher) {
         executors.submit(fetcher);
@@ -150,7 +208,9 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                             // and
                             // containsValue are not designed for program control.
                             elementsQueue.notifyAvailable();
-                        });
+                        },
+                        this.splitFinishedHook,
+                        allowUnalignedSourceSplits);
         fetchers.put(fetcherId, splitFetcher);
         return splitFetcher;
     }

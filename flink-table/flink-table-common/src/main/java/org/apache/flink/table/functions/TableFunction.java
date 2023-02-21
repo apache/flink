@@ -97,7 +97,8 @@ import org.apache.flink.util.Collector;
  * }</pre>
  *
  * <p>For storing a user-defined function in a catalog, the class must have a default constructor
- * and must be instantiable during runtime.
+ * and must be instantiable during runtime. Anonymous functions in Table API can only be persisted
+ * if the function is not stateful (i.e. containing only transient and static fields).
  *
  * <p>In the API, a table function can be used as follows:
  *
@@ -135,7 +136,7 @@ import org.apache.flink.util.Collector;
 public abstract class TableFunction<T> extends UserDefinedFunction {
 
     /** The code generated collector used to emit rows. */
-    private Collector<T> collector;
+    private transient Collector<T> collector;
 
     /** Internal use. Sets the current collector. */
     public final void setCollector(Collector<T> collector) {
@@ -205,5 +206,21 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         return TypeInferenceExtractor.forTableFunction(typeFactory, (Class) getClass());
+    }
+
+    /**
+     * This method is called at the end of data processing. After this method is called, no more
+     * records can be produced for the downstream operators.
+     *
+     * <p><b>NOTE:</b>This method does not need to close any resources. You should release external
+     * resources in the {@link #close()} method. More details can see {@link
+     * StreamOperator#finish()}.
+     *
+     * <p><b>Important:</b>Emit record in the {@link #close()} method is impossible since
+     * flink-1.14, if you need to emit records at the end of data processing, do so in the {@link
+     * #finish()} method.
+     */
+    public void finish() throws Exception {
+        // do nothing
     }
 }

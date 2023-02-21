@@ -18,7 +18,18 @@
 
 package org.apache.flink.table.api;
 
-/** Exception for all errors occurring during expression parsing. */
+import org.apache.flink.annotation.Internal;
+
+/**
+ * Exception for all errors occurring during expression parsing.
+ *
+ * @deprecated This exception is considered internal and has been erroneously placed in the *.api
+ *     package. It is replaced by {@link
+ *     org.apache.flink.table.expressions.ExpressionParserException} and should not be used directly
+ *     anymore.
+ */
+@Internal
+@Deprecated
 public class ExpressionParserException extends RuntimeException {
 
     public ExpressionParserException(String msg) {

@@ -132,7 +132,15 @@ public class GenericCLI implements CustomCommandLine {
         return new DefaultExecutorServiceLoader()
                 .getExecutorNames()
                 .map(name -> String.format("\"%s\"", name))
+                .map(name -> addDeprecationNoticeToYarnPerJobMode(name))
                 .collect(Collectors.joining(", "));
+    }
+
+    private static String addDeprecationNoticeToYarnPerJobMode(String name) {
+        if (name.contains("yarn-per-job")) {
+            return name + " (deprecated)";
+        }
+        return name;
     }
 
     private static String getApplicationModeTargetNames() {

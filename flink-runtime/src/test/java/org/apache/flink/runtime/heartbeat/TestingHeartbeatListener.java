@@ -32,18 +32,27 @@ final class TestingHeartbeatListener<I, O> implements HeartbeatListener<I, O> {
 
     private final Function<ResourceID, O> retrievePayloadFunction;
 
+    private final Consumer<ResourceID> notifyTargetUnreachableConsumer;
+
     TestingHeartbeatListener(
             Consumer<ResourceID> notifyHeartbeatTimeoutConsumer,
             BiConsumer<ResourceID, I> reportPayloadConsumer,
-            Function<ResourceID, O> retrievePayloadFunction) {
+            Function<ResourceID, O> retrievePayloadFunction,
+            Consumer<ResourceID> notifyTargetUnreachableConsumer) {
         this.notifyHeartbeatTimeoutConsumer = notifyHeartbeatTimeoutConsumer;
         this.reportPayloadConsumer = reportPayloadConsumer;
         this.retrievePayloadFunction = retrievePayloadFunction;
+        this.notifyTargetUnreachableConsumer = notifyTargetUnreachableConsumer;
     }
 
     @Override
     public void notifyHeartbeatTimeout(ResourceID resourceID) {
         notifyHeartbeatTimeoutConsumer.accept(resourceID);
+    }
+
+    @Override
+    public void notifyTargetUnreachable(ResourceID resourceID) {
+        notifyTargetUnreachableConsumer.accept(resourceID);
     }
 
     @Override

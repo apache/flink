@@ -28,14 +28,26 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.NodeAffinity;
+import io.fabric8.kubernetes.api.model.NodeAffinityBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirement;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
+import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_NODE_ID;
+import static org.apache.flink.kubernetes.utils.Constants.POD_NODE_ID_FIELD_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An initializer for the TaskManager {@link org.apache.flink.kubernetes.kubeclient.FlinkPod}. */
@@ -62,6 +74,12 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                         kubernetesTaskManagerParameters.getServiceAccount(),
                         KubernetesUtils.getServiceAccount(flinkPod),
                         "service account");
+
+        final String dnsPolicy =
+                KubernetesUtils.resolveDNSPolicy(
+                        flinkPod.getPodWithoutMainContainer().getSpec().getDnsPolicy(),
+                        kubernetesTaskManagerParameters.isHostNetworkEnabled());
+
         if (flinkPod.getPodWithoutMainContainer().getSpec().getRestartPolicy() != null) {
             logger.info(
                     "The restart policy of TaskManager pod will be overwritten to 'never' "
@@ -76,6 +94,8 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withServiceAccount(serviceAccountName)
                 .withServiceAccountName(serviceAccountName)
                 .withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
+                .withHostNetwork(kubernetesTaskManagerParameters.isHostNetworkEnabled())
+                .withDnsPolicy(dnsPolicy)
                 .endSpec();
 
         // Merge fields
@@ -93,11 +113,40 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .collect(Collectors.toList()))
                 .endSpec();
 
+        // Add node affinity.
+        // https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
+        Set<String> blockedNodes = kubernetesTaskManagerParameters.getBlockedNodes();
+        if (!blockedNodes.isEmpty()) {
+            basicPodBuilder
+                    .editOrNewSpec()
+                    .editOrNewAffinity()
+                    .withNodeAffinity(
+                            generateNodeAffinity(
+                                    kubernetesTaskManagerParameters.getNodeNameLabel(),
+                                    blockedNodes))
+                    .endAffinity()
+                    .endSpec();
+        }
+
         final Container basicMainContainer = decorateMainContainer(flinkPod.getMainContainer());
 
         return new FlinkPod.Builder(flinkPod)
                 .withPod(basicPodBuilder.build())
                 .withMainContainer(basicMainContainer)
+                .build();
+    }
+
+    private NodeAffinity generateNodeAffinity(String labelKey, Set<String> blockedNodes) {
+        NodeSelectorRequirement nodeSelectorRequirement =
+                new NodeSelectorRequirement(labelKey, "NotIn", new ArrayList<>(blockedNodes));
+
+        NodeAffinityBuilder nodeAffinityBuilder = new NodeAffinityBuilder();
+        return nodeAffinityBuilder
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addToMatchExpressions(nodeSelectorRequirement)
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
                 .build();
     }
 
@@ -113,7 +162,9 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 KubernetesUtils.getResourceRequirements(
                         requirementsInPodTemplate,
                         kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
+                        kubernetesTaskManagerParameters.getTaskManagerMemoryLimitFactor(),
                         kubernetesTaskManagerParameters.getTaskManagerCPU(),
+                        kubernetesTaskManagerParameters.getTaskManagerCPULimitFactor(),
                         kubernetesTaskManagerParameters.getTaskManagerExternalResources(),
                         kubernetesTaskManagerParameters.getTaskManagerExternalResourceConfigKeys());
         final String image =
@@ -138,19 +189,40 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 
         // Merge fields
         mainContainerBuilder
-                .addToPorts(
-                        new ContainerPortBuilder()
-                                .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
-                                .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
+                .addAllToPorts(getContainerPorts())
+                .addAllToEnv(getCustomizedEnvs())
+                .addNewEnv()
+                .withName(ENV_FLINK_POD_NODE_ID)
+                .withValueFrom(
+                        new EnvVarSourceBuilder()
+                                .withNewFieldRef(API_VERSION, POD_NODE_ID_FIELD_PATH)
                                 .build())
-                .addAllToEnv(getCustomizedEnvs());
+                .endEnv();
+        getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
 
         return mainContainerBuilder.build();
+    }
+
+    private List<ContainerPort> getContainerPorts() {
+        if (kubernetesTaskManagerParameters.isHostNetworkEnabled()) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(
+                new ContainerPortBuilder()
+                        .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
+                        .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
+                        .build());
     }
 
     private List<EnvVar> getCustomizedEnvs() {
         return kubernetesTaskManagerParameters.getEnvironments().entrySet().stream()
                 .map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
                 .collect(Collectors.toList());
+    }
+
+    private Optional<EnvVar> getFlinkLogDirEnv() {
+        return kubernetesTaskManagerParameters
+                .getFlinkLogDirInPod()
+                .map(logDir -> new EnvVar(Constants.ENV_FLINK_LOG_DIR, logDir, null));
     }
 }

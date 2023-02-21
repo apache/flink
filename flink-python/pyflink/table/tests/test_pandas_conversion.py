@@ -18,13 +18,13 @@
 import datetime
 import decimal
 
-from pandas.util.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal
 
 from pyflink.common import Row
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkOldStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -121,17 +121,34 @@ class PandasConversionITTests(PandasConversionTestBase):
         self.assertEqual(self.data_type, table.get_schema().to_row_data_type())
 
         table = table.filter(table.f2 < 2)
-        table_sink = source_sink_utils.TestAppendSink(
-            self.data_type.field_names(),
-            self.data_type.field_types())
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results(
+            f1 TINYINT,
+            f2 SMALLINT,
+            f3 INT,
+            f4 BIGINT,
+            f5 BOOLEAN,
+            f6 FLOAT,
+            f7 DOUBLE,
+            f8 STRING,
+            f9 BYTES,
+            f10 DECIMAL(38, 18),
+            f11 DATE,
+            f12 TIME,
+            f13 TIMESTAMP(3),
+            f14 ARRAY<STRING>,
+            f15 ROW<a INT, b STRING, c TIMESTAMP(3), d ARRAY<INT>>)
+            WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
         table.execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["+I[1, 1, 1, 1, true, 1.1, 1.2, hello, [97, 97, 97], "
                             "1000000000000000000.010000000000000000, 2014-09-13, 01:00:01, "
-                            "1970-01-01 00:00:00.123, [hello, 中文], +I[1, hello, "
-                            "1970-01-01 00:00:00.123, [1, 2]]]"])
+                            "1970-01-01T00:00:00.123, [hello, 中文], +I[1, hello, "
+                            "1970-01-01T00:00:00.123, [1, 2]]]"])
 
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
@@ -156,7 +173,7 @@ class PandasConversionITTests(PandasConversionTestBase):
         import numpy as np
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int16([2])}))
 
-        result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
+        result_pdf = table.group_by(table.f2).select(table.f1.max.alias('f2')).to_pandas()
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
 
     def assert_equal_field(self, expected_field, result_field):
@@ -172,21 +189,16 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.assertTrue(expected_field == result_field)
 
 
+class BatchPandasConversionTests(PandasConversionTests,
+                                 PandasConversionITTests,
+                                 PyFlinkBatchTableTestCase):
+    pass
+
+
 class StreamPandasConversionTests(PandasConversionITTests,
-                                  PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class BlinkBatchPandasConversionTests(PandasConversionTests,
-                                      PandasConversionITTests,
-                                      PyFlinkBlinkBatchTableTestCase):
-    pass
-
-
-class BlinkStreamPandasConversionTests(PandasConversionITTests,
-                                       PyFlinkBlinkStreamTableTestCase):
+                                  PyFlinkStreamTableTestCase):
     def test_to_pandas_with_event_time(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         import tempfile
         import os
@@ -204,7 +216,7 @@ class BlinkStreamPandasConversionTests(PandasConversionITTests,
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
 
         source_table = """

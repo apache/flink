@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -29,8 +28,6 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
-
 /** Input processor for {@link MultipleInputStreamOperator}. */
 @Internal
 public final class StreamMultipleInputProcessor implements StreamInputProcessor {
@@ -38,6 +35,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     private final MultipleInputSelectionHandler inputSelectionHandler;
 
     private final StreamOneInputProcessor<?>[] inputProcessors;
+
+    private final MultipleFuturesAvailabilityHelper availabilityHelper;
     /** Always try to read from the first input. */
     private int lastReadInputIndex = 1;
 
@@ -48,6 +47,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             StreamOneInputProcessor<?>[] inputProcessors) {
         this.inputSelectionHandler = inputSelectionHandler;
         this.inputProcessors = inputProcessors;
+        this.availabilityHelper = new MultipleFuturesAvailabilityHelper(inputProcessors.length);
     }
 
     @Override
@@ -56,21 +56,19 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
                 || inputSelectionHandler.areAllInputsFinished()) {
             return AVAILABLE;
         }
-        final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
+
+        availabilityHelper.resetToUnAvailable();
         for (int i = 0; i < inputProcessors.length; i++) {
             if (!inputSelectionHandler.isInputFinished(i)
                     && inputSelectionHandler.isInputSelected(i)) {
-                assertNoException(
-                        inputProcessors[i]
-                                .getAvailableFuture()
-                                .thenRun(() -> anyInputAvailable.complete(null)));
+                availabilityHelper.anyOf(i, inputProcessors[i].getAvailableFuture());
             }
         }
-        return anyInputAvailable;
+        return availabilityHelper.getAvailableFuture();
     }
 
     @Override
-    public InputStatus processInput() throws Exception {
+    public DataInputStatus processInput() throws Exception {
         int readingInputIndex;
         if (isPrepared) {
             readingInputIndex = selectNextReadingInputIndex();
@@ -80,13 +78,12 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             readingInputIndex = selectFirstReadingInputIndex();
         }
         if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
 
         lastReadInputIndex = readingInputIndex;
-        InputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
-        inputSelectionHandler.nextSelection();
-        return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
+        DataInputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
+        return inputSelectionHandler.updateStatusAndSelection(inputStatus, readingInputIndex);
     }
 
     private int selectFirstReadingInputIndex() {

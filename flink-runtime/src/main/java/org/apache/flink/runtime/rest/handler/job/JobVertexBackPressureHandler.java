@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.ComponentMetricStore;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.SubtaskMetricStore;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.TaskMetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -69,8 +71,7 @@ public class JobVertexBackPressureHandler
 
     @Override
     protected CompletableFuture<JobVertexBackPressureInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         metricFetcher.update();
 
@@ -81,18 +82,23 @@ public class JobVertexBackPressureHandler
                 metricFetcher
                         .getMetricStore()
                         .getTaskMetricStore(jobId.toString(), jobVertexId.toString());
+        Map<String, Map<Integer, Integer>> jobRepresentativeExecutions =
+                metricFetcher.getMetricStore().getRepresentativeAttempts().get(jobId.toString());
+        Map<Integer, Integer> representativeAttempts =
+                jobRepresentativeExecutions != null
+                        ? jobRepresentativeExecutions.get(jobVertexId.toString())
+                        : null;
 
         return CompletableFuture.completedFuture(
                 taskMetricStore != null
-                        ? createJobVertexBackPressureInfo(
-                                taskMetricStore.getAllSubtaskMetricStores())
+                        ? createJobVertexBackPressureInfo(taskMetricStore, representativeAttempts)
                         : JobVertexBackPressureInfo.deprecated());
     }
 
     private JobVertexBackPressureInfo createJobVertexBackPressureInfo(
-            Map<Integer, ComponentMetricStore> allSubtaskMetricStores) {
+            TaskMetricStore taskMetricStore, Map<Integer, Integer> representativeAttempts) {
         List<SubtaskBackPressureInfo> subtaskBackPressureInfos =
-                createSubtaskBackPressureInfo(allSubtaskMetricStores);
+                createSubtaskBackPressureInfo(taskMetricStore, representativeAttempts);
         return new JobVertexBackPressureInfo(
                 JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
                 getBackPressureLevel(getMaxBackPressureRatio(subtaskBackPressureInfos)),
@@ -101,24 +107,70 @@ public class JobVertexBackPressureHandler
     }
 
     private List<SubtaskBackPressureInfo> createSubtaskBackPressureInfo(
-            Map<Integer, ComponentMetricStore> subtaskMetricStores) {
+            TaskMetricStore taskMetricStore, Map<Integer, Integer> representativeAttempts) {
+        Map<Integer, SubtaskMetricStore> subtaskMetricStores =
+                taskMetricStore.getAllSubtaskMetricStores();
         List<SubtaskBackPressureInfo> result = new ArrayList<>(subtaskMetricStores.size());
-        for (Map.Entry<Integer, ComponentMetricStore> entry : subtaskMetricStores.entrySet()) {
+        for (Map.Entry<Integer, SubtaskMetricStore> entry : subtaskMetricStores.entrySet()) {
             int subtaskIndex = entry.getKey();
-            ComponentMetricStore subtaskMetricStore = entry.getValue();
-            double backPressureRatio = getBackPressureRatio(subtaskMetricStore);
-            double idleRatio = getIdleRatio(subtaskMetricStore);
-            double busyRatio = getBusyRatio(subtaskMetricStore);
-            result.add(
-                    new SubtaskBackPressureInfo(
-                            subtaskIndex,
-                            getBackPressureLevel(backPressureRatio),
-                            backPressureRatio,
-                            idleRatio,
-                            busyRatio));
+            SubtaskMetricStore subtaskMetricStore = entry.getValue();
+            Map<Integer, ComponentMetricStore> allAttemptsMetricStores =
+                    subtaskMetricStore.getAllAttemptsMetricStores();
+            if (allAttemptsMetricStores.isEmpty() || allAttemptsMetricStores.size() == 1) {
+                result.add(
+                        createSubtaskAttemptBackpressureInfo(
+                                subtaskIndex, null, subtaskMetricStore, null));
+            } else {
+                int representativeAttempt =
+                        representativeAttempts == null
+                                ? -1
+                                : representativeAttempts.getOrDefault(subtaskIndex, -1);
+                if (!allAttemptsMetricStores.containsKey(representativeAttempt)) {
+                    // allAttemptsMetricStores is not empty here
+                    representativeAttempt = allAttemptsMetricStores.keySet().iterator().next();
+                }
+                List<SubtaskBackPressureInfo> otherConcurrentAttempts =
+                        new ArrayList<>(allAttemptsMetricStores.size() - 1);
+                for (Map.Entry<Integer, ComponentMetricStore> attemptStore :
+                        allAttemptsMetricStores.entrySet()) {
+                    if (attemptStore.getKey() == representativeAttempt) {
+                        continue;
+                    }
+                    otherConcurrentAttempts.add(
+                            createSubtaskAttemptBackpressureInfo(
+                                    subtaskIndex,
+                                    attemptStore.getKey(),
+                                    attemptStore.getValue(),
+                                    null));
+                }
+                result.add(
+                        createSubtaskAttemptBackpressureInfo(
+                                subtaskIndex,
+                                representativeAttempt,
+                                allAttemptsMetricStores.get(representativeAttempt),
+                                otherConcurrentAttempts));
+            }
         }
         result.sort(Comparator.comparingInt(SubtaskBackPressureInfo::getSubtask));
         return result;
+    }
+
+    private SubtaskBackPressureInfo createSubtaskAttemptBackpressureInfo(
+            int subtaskIndex,
+            @Nullable Integer attemptNumber,
+            ComponentMetricStore metricStore,
+            @Nullable List<SubtaskBackPressureInfo> otherConcurrentAttempts) {
+        double backPressureRatio = getBackPressureRatio(metricStore);
+        double idleRatio = getIdleRatio(metricStore);
+        double busyRatio = getBusyRatio(metricStore);
+        return new SubtaskBackPressureInfo(
+                subtaskIndex,
+                attemptNumber,
+                getBackPressureLevel(backPressureRatio),
+                backPressureRatio,
+                idleRatio,
+                busyRatio,
+                otherConcurrentAttempts);
     }
 
     private double getMaxBackPressureRatio(List<SubtaskBackPressureInfo> subtaskBackPressureInfos) {

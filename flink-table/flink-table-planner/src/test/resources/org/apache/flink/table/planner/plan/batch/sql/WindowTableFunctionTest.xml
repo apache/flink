@@ -1,0 +1,276 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCascadingWindowAggregate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT window_start, window_end, b, SUM(cnt)
+FROM (
+  SELECT
+    window_start, window_end, a, b, COUNT(1) AS cnt
+  FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '3' SECOND))
+  GROUP BY window_start, window_end, a, b
+)
+GROUP BY window_start, window_end, b
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[SUM($3)])
++- LogicalProject(window_start=[$0], window_end=[$1], b=[$3], cnt=[$4])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()])
+      +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], b=[$1])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[window_start, window_end, b], select=[window_start, window_end, b, Final_SUM(sum$0) AS EXPR$3])
++- Exchange(distribution=[hash[window_start, window_end, b]])
+   +- LocalHashAggregate(groupBy=[window_start, window_end, b], select=[window_start, window_end, b, Partial_SUM(cnt) AS sum$0])
+      +- Calc(select=[window_start, window_end, b, cnt])
+         +- HashAggregate(isMerge=[true], groupBy=[window_start, window_end, a, b], select=[window_start, window_end, a, b, Final_COUNT(count1$0) AS cnt])
+            +- Exchange(distribution=[hash[window_start, window_end, a, b]])
+               +- LocalHashAggregate(groupBy=[window_start, window_end, a, b], select=[window_start, window_end, a, b, Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[window_start, window_end, a, b])
+                     +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
+                        +- Calc(select=[a, b, ts])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCumulateTVF">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM TABLE(
+ CUMULATE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
++- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($4), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WindowTableFunction(window=[CUMULATE(time_col=[ts], max_size=[1 h], step=[10 min])])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHopTVF">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM TABLE(HOP(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '1' HOUR, INTERVAL '2' HOUR))
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
++- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($4), 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WindowTableFunction(window=[HOP(time_col=[ts], size=[2 h], slide=[1 h])])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleTVF">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
++- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWTFTransposeRule">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  MAX(c)
+FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '3' SECOND))
+GROUP BY window_start, window_end, a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$3])
++- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
+   +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Final_MAX(max$0) AS EXPR$0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+         +- Exchange(distribution=[hash[window_start, window_end, a]])
+            +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+                     +- Calc(select=[window_start, window_end, a, c])
+                        +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
+                           +- Calc(select=[a, c, ts])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  window_start,
+  window_end,
+  a,
+  MAX(c)
+FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '3' SECOND))
+GROUP BY window_start, window_end, a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[MAX($3)])
++- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Final_MAX(max$0) AS EXPR$3])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+      +- Exchange(distribution=[hash[window_start, window_end, a]])
+         +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+                  +- Calc(select=[window_start, window_end, a, c])
+                     +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
+                        +- Calc(select=[a, c, ts])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT *
+  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
+) L
+JOIN (
+  SELECT *
+  FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
+) R
+ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.b
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], a0=[$7], b0=[$8], c0=[$9], d=[$10], ts0=[$11], window_start0=[$12], window_end0=[$13], window_time0=[$14])
++- LogicalJoin(condition=[AND(=($4, $12), =($5, $13), =($1, $8))], joinType=[inner])
+   :- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
+   :  +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($0), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   :     +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[((window_start = window_start0) AND (window_end = window_end0) AND (a = b0))], select=[ts, a, b, c, window_start, window_end, window_time, a0, b0, c0, d, ts0, window_start0, window_end0, window_time0], build=[left])
+:- Exchange(distribution=[hash[window_start, window_end, a]])
+:  +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
++- Exchange(distribution=[hash[window_start, window_end, b]])
+   +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowRank">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+SELECT *,
+  RANK() OVER(PARTITION BY a, window_start, window_end ORDER BY b) as rownum
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
+)
+WHERE rownum <= 3
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], rownum=[$7])
++- LogicalFilter(condition=[<=($7, 3)])
+   +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], rownum=[RANK() OVER (PARTITION BY $1, $4, $5 ORDER BY $2 NULLS FIRST)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($0), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+         +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[true], select=[ts, a, b, c, window_start, window_end, window_time, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
+      +- Exchange(distribution=[hash[a, window_start, window_end]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[false], select=[ts, a, b, c, window_start, window_end, window_time])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
+                  +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

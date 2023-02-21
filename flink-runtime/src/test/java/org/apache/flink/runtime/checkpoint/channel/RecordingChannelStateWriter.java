@@ -21,8 +21,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.LinkedListMultimap;
-import org.apache.flink.shaded.guava18.com.google.common.collect.ListMultimap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.LinkedListMultimap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ListMultimap;
 
 import java.util.Arrays;
 
@@ -31,9 +31,9 @@ import static org.apache.flink.util.ExceptionUtils.rethrow;
 /** A simple {@link ChannelStateWriter} used to write unit tests. */
 public class RecordingChannelStateWriter extends MockChannelStateWriter {
     private long lastStartedCheckpointId = -1;
-    private long lastFinishedCheckpointId = -1;
-    private ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
-    private ListMultimap<ResultSubpartitionInfo, Buffer> adedOutput = LinkedListMultimap.create();
+    private final ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
+    private final ListMultimap<ResultSubpartitionInfo, Buffer> addedOutput =
+            LinkedListMultimap.create();
 
     public RecordingChannelStateWriter() {
         super(false);
@@ -41,11 +41,10 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
 
     public void reset() {
         lastStartedCheckpointId = -1;
-        lastFinishedCheckpointId = -1;
         addedInput.values().forEach(Buffer::recycleBuffer);
         addedInput.clear();
-        adedOutput.values().forEach(Buffer::recycleBuffer);
-        adedOutput.clear();
+        addedOutput.values().forEach(Buffer::recycleBuffer);
+        addedOutput.clear();
     }
 
     @Override
@@ -73,15 +72,11 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
     public void addOutputData(
             long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
         checkCheckpointId(checkpointId);
-        adedOutput.putAll(info, Arrays.asList(data));
+        addedOutput.putAll(info, Arrays.asList(data));
     }
 
     public long getLastStartedCheckpointId() {
         return lastStartedCheckpointId;
-    }
-
-    public long getLastFinishedCheckpointId() {
-        return lastFinishedCheckpointId;
     }
 
     public ListMultimap<InputChannelInfo, Buffer> getAddedInput() {
@@ -89,6 +84,6 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
     }
 
     public ListMultimap<ResultSubpartitionInfo, Buffer> getAddedOutput() {
-        return adedOutput;
+        return addedOutput;
     }
 }

@@ -26,7 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link ClusterOverviewHandler}. */
 public final class ClusterOverviewHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> {
 
     private static final ClusterOverviewHeaders INSTANCE = new ClusterOverviewHeaders();

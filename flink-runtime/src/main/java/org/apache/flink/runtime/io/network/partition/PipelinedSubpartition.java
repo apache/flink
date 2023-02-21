@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -31,7 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecor
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +42,13 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -70,7 +74,15 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
+    private static final int DEFAULT_PRIORITY_SEQUENCE_NUMBER = -1;
+
     // ------------------------------------------------------------------------
+
+    /**
+     * Number of exclusive credits per input channel at the downstream tasks configured by {@link
+     * org.apache.flink.configuration.NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL}.
+     */
+    private final int receiverExclusiveBuffersPerChannel;
 
     /** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
     final PrioritizedDeque<BufferConsumerWithPartialRecordLength> buffers =
@@ -101,6 +113,19 @@ public class PipelinedSubpartition extends ResultSubpartition
     /** Writes in-flight data. */
     private ChannelStateWriter channelStateWriter;
 
+    private int bufferSize = Integer.MAX_VALUE;
+
+    /** The channelState Future of unaligned checkpoint. */
+    @GuardedBy("buffers")
+    private CompletableFuture<List<Buffer>> channelStateFuture;
+
+    /**
+     * It is the checkpointId corresponding to channelStateFuture. And It should be always update
+     * with {@link #channelStateFuture}.
+     */
+    @GuardedBy("buffers")
+    private long channelStateCheckpointId;
+
     /**
      * Whether this subpartition is blocked (e.g. by exactly once checkpoint) and is waiting for
      * resumption.
@@ -112,8 +137,14 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    PipelinedSubpartition(int index, ResultPartition parent) {
+    PipelinedSubpartition(
+            int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
         super(index, parent);
+
+        checkArgument(
+                receiverExclusiveBuffersPerChannel >= 0,
+                "Buffers per channel must be non-negative.");
+        this.receiverExclusiveBuffersPerChannel = receiverExclusiveBuffersPerChannel;
     }
 
     @Override
@@ -123,8 +154,20 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @Override
-    public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) {
+    public int add(BufferConsumer bufferConsumer, int partialRecordLength) {
         return add(bufferConsumer, partialRecordLength, false);
+    }
+
+    @Override
+    public void addRecovered(BufferConsumer bufferConsumer) throws IOException {
+        NetworkActionsLogger.traceRecover(
+                "PipelinedSubpartition#addRecovered",
+                bufferConsumer,
+                parent.getOwningTaskName(),
+                subpartitionInfo);
+        if (add(bufferConsumer, Integer.MIN_VALUE) == -1) {
+            throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
+        }
     }
 
     @Override
@@ -140,15 +183,16 @@ public class PipelinedSubpartition extends ResultSubpartition
         LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
     }
 
-    private boolean add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
+    private int add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
         checkNotNull(bufferConsumer);
 
         final boolean notifyDataAvailable;
-        int prioritySequenceNumber = -1;
+        int prioritySequenceNumber = DEFAULT_PRIORITY_SEQUENCE_NUMBER;
+        int newBufferSize;
         synchronized (buffers) {
             if (isFinished || isReleased) {
                 bufferConsumer.close();
-                return false;
+                return -1;
             }
 
             // Add the bufferConsumer and update the stats
@@ -160,22 +204,24 @@ public class PipelinedSubpartition extends ResultSubpartition
             notifyDataAvailable = finish || shouldNotifyDataAvailable();
 
             isFinished |= finish;
+            newBufferSize = bufferSize;
         }
 
-        if (prioritySequenceNumber != -1) {
-            notifyPriorityEvent(prioritySequenceNumber);
-        }
+        notifyPriorityEvent(prioritySequenceNumber);
         if (notifyDataAvailable) {
             notifyDataAvailable();
         }
 
-        return true;
+        return newBufferSize;
     }
 
     private boolean addBuffer(BufferConsumer bufferConsumer, int partialRecordLength) {
         assert Thread.holdsLock(buffers);
         if (bufferConsumer.getDataType().hasPriority()) {
             return processPriorityBuffer(bufferConsumer, partialRecordLength);
+        } else if (Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER
+                == bufferConsumer.getDataType()) {
+            processTimeoutableCheckpointBarrier(bufferConsumer);
         }
         buffers.add(new BufferConsumerWithPartialRecordLength(bufferConsumer, partialRecordLength));
         return false;
@@ -211,9 +257,151 @@ public class PipelinedSubpartition extends ResultSubpartition
                         inflightBuffers.toArray(new Buffer[0]));
             }
         }
-        return numPriorityElements == 1
-                && !isBlocked; // if subpartition is blocked then downstream doesn't expect any
-        // notifications
+        return needNotifyPriorityEvent();
+    }
+
+    // It just be called after add priorityEvent.
+    private boolean needNotifyPriorityEvent() {
+        assert Thread.holdsLock(buffers);
+        // if subpartition is blocked then downstream doesn't expect any notifications
+        return buffers.getNumPriorityElements() == 1 && !isBlocked;
+    }
+
+    private void processTimeoutableCheckpointBarrier(BufferConsumer bufferConsumer) {
+        CheckpointBarrier barrier = parseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
+        channelStateWriter.addOutputDataFuture(
+                barrier.getId(),
+                subpartitionInfo,
+                ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+                createChannelStateFuture(barrier.getId()));
+    }
+
+    private CompletableFuture<List<Buffer>> createChannelStateFuture(long checkpointId) {
+        assert Thread.holdsLock(buffers);
+        if (channelStateFuture != null) {
+            completeChannelStateFuture(
+                    null,
+                    new IllegalStateException(
+                            String.format(
+                                    "%s has uncompleted channelStateFuture of checkpointId=%s, but it received "
+                                            + "a new timeoutable checkpoint barrier of checkpointId=%s, it maybe "
+                                            + "a bug due to currently not supported concurrent unaligned checkpoint.",
+                                    this, channelStateCheckpointId, checkpointId)));
+        }
+        channelStateFuture = new CompletableFuture<>();
+        channelStateCheckpointId = checkpointId;
+        return channelStateFuture;
+    }
+
+    private void completeChannelStateFuture(List<Buffer> channelResult, Throwable e) {
+        assert Thread.holdsLock(buffers);
+        if (e != null) {
+            channelStateFuture.completeExceptionally(e);
+        } else {
+            channelStateFuture.complete(channelResult);
+        }
+        channelStateFuture = null;
+    }
+
+    private boolean isChannelStateFutureAvailable(long checkpointId) {
+        assert Thread.holdsLock(buffers);
+        return channelStateFuture != null && channelStateCheckpointId == checkpointId;
+    }
+
+    private CheckpointBarrier parseAndCheckTimeoutableCheckpointBarrier(
+            BufferConsumer bufferConsumer) {
+        CheckpointBarrier barrier = parseCheckpointBarrier(bufferConsumer);
+        checkArgument(barrier != null, "Parse the timeoutable Checkpoint Barrier failed.");
+        checkState(
+                barrier.getCheckpointOptions().isTimeoutable()
+                        && Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER
+                                == bufferConsumer.getDataType());
+        return barrier;
+    }
+
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        int prioritySequenceNumber = DEFAULT_PRIORITY_SEQUENCE_NUMBER;
+        synchronized (buffers) {
+            // The checkpoint barrier has sent to downstream, so nothing to do.
+            if (!isChannelStateFutureAvailable(checkpointId)) {
+                return;
+            }
+
+            // 1. find inflightBuffers and timeout the aligned barrier to unaligned barrier
+            List<Buffer> inflightBuffers = new ArrayList<>();
+            try {
+                if (findInflightBuffersAndMakeBarrierToPriority(checkpointId, inflightBuffers)) {
+                    prioritySequenceNumber = sequenceNumber;
+                }
+            } catch (IOException e) {
+                inflightBuffers.forEach(Buffer::recycleBuffer);
+                completeChannelStateFuture(null, e);
+                throw e;
+            }
+
+            // 2. complete the channelStateFuture
+            completeChannelStateFuture(inflightBuffers, null);
+        }
+
+        // 3. notify downstream read barrier, it must be called outside the buffers_lock to avoid
+        // the deadlock.
+        notifyPriorityEvent(prioritySequenceNumber);
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        synchronized (buffers) {
+            if (isChannelStateFutureAvailable(checkpointId)) {
+                completeChannelStateFuture(null, cause);
+            }
+        }
+    }
+
+    private boolean findInflightBuffersAndMakeBarrierToPriority(
+            long checkpointId, List<Buffer> inflightBuffers) throws IOException {
+        // 1. record the buffers before barrier as inflightBuffers
+        final int numPriorityElements = buffers.getNumPriorityElements();
+        final Iterator<BufferConsumerWithPartialRecordLength> iterator = buffers.iterator();
+        Iterators.advance(iterator, numPriorityElements);
+
+        BufferConsumerWithPartialRecordLength element = null;
+        CheckpointBarrier barrier = null;
+        while (iterator.hasNext()) {
+            BufferConsumerWithPartialRecordLength next = iterator.next();
+            BufferConsumer bufferConsumer = next.getBufferConsumer();
+
+            if (Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER
+                    == bufferConsumer.getDataType()) {
+                barrier = parseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
+                // It may be a aborted barrier
+                if (barrier.getId() != checkpointId) {
+                    continue;
+                }
+                element = next;
+                break;
+            } else if (bufferConsumer.isBuffer()) {
+                try (BufferConsumer bc = bufferConsumer.copy()) {
+                    inflightBuffers.add(bc.build());
+                }
+            }
+        }
+
+        // 2. Make the barrier to be priority
+        checkNotNull(
+                element, "The checkpoint barrier=%d don't find in %s.", checkpointId, toString());
+        makeBarrierToPriority(element, barrier);
+
+        return needNotifyPriorityEvent();
+    }
+
+    private void makeBarrierToPriority(
+            BufferConsumerWithPartialRecordLength oldElement, CheckpointBarrier barrier)
+            throws IOException {
+        buffers.getAndRemove(oldElement::equals);
+        buffers.addPriorityElement(
+                new BufferConsumerWithPartialRecordLength(
+                        EventSerializer.toBufferConsumer(barrier.asUnaligned(), true), 0));
     }
 
     @Nullable
@@ -251,6 +439,12 @@ public class PipelinedSubpartition extends ResultSubpartition
             }
             buffers.clear();
 
+            if (channelStateFuture != null) {
+                IllegalStateException exception =
+                        new IllegalStateException("The PipelinedSubpartition is released");
+                completeChannelStateFuture(null, exception);
+            }
+
             view = readView;
             readView = null;
 
@@ -283,7 +477,10 @@ public class PipelinedSubpartition extends ResultSubpartition
                         buffers.peek();
                 BufferConsumer bufferConsumer =
                         bufferConsumerWithPartialRecordLength.getBufferConsumer();
-
+                if (Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER
+                        == bufferConsumer.getDataType()) {
+                    completeTimeoutableCheckpointBarrier(bufferConsumer);
+                }
                 buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
 
                 checkState(
@@ -298,6 +495,16 @@ public class PipelinedSubpartition extends ResultSubpartition
                 if (bufferConsumer.isFinished()) {
                     requireNonNull(buffers.poll()).getBufferConsumer().close();
                     decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
+                }
+
+                // if we have an empty finished buffer and the exclusive credit is 0, we just return
+                // the empty buffer so that the downstream task can release the allocated credit for
+                // this empty buffer, this happens in two main scenarios currently:
+                // 1. all data of a buffer builder has been read and after that the buffer builder
+                // is finished
+                // 2. in approximate recovery mode, a partial record takes a whole buffer builder
+                if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer.isFinished()) {
+                    break;
                 }
 
                 if (buffer.readableBytes() > 0) {
@@ -331,10 +538,19 @@ public class PipelinedSubpartition extends ResultSubpartition
                     subpartitionInfo);
             return new BufferAndBacklog(
                     buffer,
-                    getBuffersInBacklog(),
+                    getBuffersInBacklogUnsafe(),
                     isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,
                     sequenceNumber++);
         }
+    }
+
+    private void completeTimeoutableCheckpointBarrier(BufferConsumer bufferConsumer) {
+        CheckpointBarrier barrier = parseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
+        if (!isChannelStateFutureAvailable(barrier.getId())) {
+            // It happens on a previously aborted checkpoint.
+            return;
+        }
+        completeChannelStateFuture(Collections.emptyList(), null);
     }
 
     void resumeConsumption() {
@@ -343,6 +559,10 @@ public class PipelinedSubpartition extends ResultSubpartition
 
             isBlocked = false;
         }
+    }
+
+    public void acknowledgeAllDataProcessed() {
+        parent.onSubpartitionAllDataProcessed(subpartitionInfo.getSubPartitionIdx());
     }
 
     @Override
@@ -374,14 +594,17 @@ public class PipelinedSubpartition extends ResultSubpartition
         return readView;
     }
 
-    public boolean isAvailable(int numCreditsAvailable) {
+    public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog(
+            int numCreditsAvailable) {
         synchronized (buffers) {
+            boolean isAvailable;
             if (numCreditsAvailable > 0) {
-                return isDataAvailableUnsafe();
+                isAvailable = isDataAvailableUnsafe();
+            } else {
+                isAvailable = getNextBufferTypeUnsafe().isEvent();
             }
-
-            final Buffer.DataType dataType = getNextBufferTypeUnsafe();
-            return dataType.isEvent();
+            return new ResultSubpartitionView.AvailabilityWithBacklog(
+                    isAvailable, getBuffersInBacklogUnsafe());
         }
     }
 
@@ -401,8 +624,21 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    int getCurrentNumberOfBuffers() {
-        return buffers.size();
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        synchronized (buffers) {
+            return buffers.size();
+        }
+    }
+
+    @Override
+    public void bufferSize(int desirableNewBufferSize) {
+        if (desirableNewBufferSize < 0) {
+            throw new IllegalArgumentException("New buffer size can not be less than zero");
+        }
+        synchronized (buffers) {
+            bufferSize = desirableNewBufferSize;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -415,8 +651,8 @@ public class PipelinedSubpartition extends ResultSubpartition
         final boolean hasReadView;
 
         synchronized (buffers) {
-            numBuffers = getTotalNumberOfBuffers();
-            numBytes = getTotalNumberOfBytes();
+            numBuffers = getTotalNumberOfBuffersUnsafe();
+            numBytes = getTotalNumberOfBytesUnsafe();
             finished = isFinished;
             hasReadView = readView != null;
         }
@@ -427,7 +663,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 getSubPartitionIndex(),
                 numBuffers,
                 numBytes,
-                getBuffersInBacklog(),
+                getBuffersInBacklogUnsafe(),
                 finished,
                 hasReadView);
     }
@@ -447,11 +683,10 @@ public class PipelinedSubpartition extends ResultSubpartition
             }
             // if there is more then 1 buffer, we already notified the reader
             // (at the latest when adding the second buffer)
-            notifyDataAvailable =
-                    !isBlocked
-                            && buffers.size() == 1
-                            && buffers.peek().getBufferConsumer().isDataAvailable();
-            flushRequested = buffers.size() > 1 || notifyDataAvailable;
+            boolean isDataAvailableInUnfinishedBuffer =
+                    buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();
+            notifyDataAvailable = !isBlocked && isDataAvailableInUnfinishedBuffer;
+            flushRequested = buffers.size() > 1 || isDataAvailableInUnfinishedBuffer;
         }
         if (notifyDataAvailable) {
             notifyDataAvailable();
@@ -459,12 +694,12 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @Override
-    protected long getTotalNumberOfBuffers() {
+    protected long getTotalNumberOfBuffersUnsafe() {
         return totalNumberOfBuffers;
     }
 
     @Override
-    protected long getTotalNumberOfBytes() {
+    protected long getTotalNumberOfBytesUnsafe() {
         return totalNumberOfBytes;
     }
 
@@ -501,16 +736,16 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @SuppressWarnings("FieldAccessNotGuarded")
-    @VisibleForTesting
-    public int getBuffersInBacklog() {
-        if (flushRequested || isFinished) {
+    /** Gets the number of non-event buffers in this subpartition. */
+    @Override
+    public int getBuffersInBacklogUnsafe() {
+        if (isBlocked || buffers.isEmpty()) {
+            return 0;
+        }
+
+        if (flushRequested
+                || isFinished
+                || !checkNotNull(buffers.peekLast()).getBufferConsumer().isBuffer()) {
             return buffersInBacklog;
         } else {
             return Math.max(buffersInBacklog - 1, 0);
@@ -535,7 +770,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     private void notifyPriorityEvent(int prioritySequenceNumber) {
         final PipelinedSubpartitionView readView = this.readView;
-        if (readView != null) {
+        if (readView != null && prioritySequenceNumber != DEFAULT_PRIORITY_SEQUENCE_NUMBER) {
             readView.notifyPriorityEvent(prioritySequenceNumber);
         }
     }
@@ -568,5 +803,16 @@ public class PipelinedSubpartition extends ResultSubpartition
     @VisibleForTesting
     BufferConsumerWithPartialRecordLength getNextBuffer() {
         return buffers.poll();
+    }
+
+    /** for testing only. */
+    @VisibleForTesting
+    CompletableFuture<List<Buffer>> getChannelStateFuture() {
+        return channelStateFuture;
+    }
+
+    @VisibleForTesting
+    public long getChannelStateCheckpointId() {
+        return channelStateCheckpointId;
     }
 }

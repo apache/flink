@@ -24,6 +24,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+{{< hint warning >}}
+Starting with Flink 1.12 the DataSet API has been soft deprecated.
+
+We recommend that you use the [Table API and SQL]({{< ref "docs/dev/table/overview" >}}) to run efficient
+batch pipelines in a fully unified API. Table API is well integrated with common batch connectors and
+catalogs.
+
+Alternatively, you can also use the DataStream API with `BATCH` [execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}).
+The linked section also outlines cases where it makes sense to use the DataSet API but those cases will
+become rarer as development progresses and the DataSet API will eventually be removed. Please also
+see [FLIP-131](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741) for
+background information on this decision.
+{{< /hint >}}
+
 # Local Execution
 
 Flink can run on a single machine, even in a single Java Virtual Machine. This allows users to test and debug Flink programs locally. This section gives an overview of the local execution mechanisms.
@@ -46,7 +60,7 @@ If you are developing your program in a Maven project, you have to add the `flin
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients{{< scala_version >}}</artifactId>
+  <artifactId>flink-clients</artifactId>
   <version>{{< version >}}</version>
 </dependency>
 ```
@@ -83,7 +97,7 @@ The `LocalEnvironment` allows also to pass custom configuration values to Flink.
 
 ```java
 Configuration conf = new Configuration();
-conf.setFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, 0.5f);
+conf.set(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.5f);
 final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 ```
 

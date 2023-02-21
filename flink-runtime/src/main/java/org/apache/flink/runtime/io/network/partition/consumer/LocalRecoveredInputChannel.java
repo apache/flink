@@ -37,6 +37,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
             int initialBackOff,
@@ -47,6 +48,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackOff,
                 maxBackoff,
                 metrics.getNumBytesInLocalCounter(),
@@ -63,12 +65,13 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 inputGate,
                 getChannelIndex(),
                 partitionId,
+                consumedSubpartitionIndex,
                 partitionManager,
                 taskEventPublisher,
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
-                numBytesIn,
+                numBuffersIn,
                 channelStateWriter);
     }
 }

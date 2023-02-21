@@ -16,22 +16,67 @@
   ~ limitations under the License.
   -->
 
-
 <span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
-          Operator is not running. Cannot sample back pressure.
+  Operator is not running. Cannot sample back pressure.
 </span>
 
 Type:
 <nz-radio-group [(ngModel)]="graphType" nzButtonStyle="solid">
-  <label nz-radio-button nzValue="on_cpu" (click)="selectFrameGraphType()" title="Includes Thread.State.[RUNNABLE, NEW]">On-CPU</label>
-  <label nz-radio-button nzValue="off_cpu" (click)="selectFrameGraphType()" title="Includes Thread.State.[WAITING, TIMED_WAITING, BLOCKED]">Off-CPU</label>
-  <label nz-radio-button nzValue="full" (click)="selectFrameGraphType()" title="Includes stack traces of threads in all states">Mixed</label>
+  <label
+    nz-radio-button
+    [nzValue]="FlameGraphType.ON_CPU"
+    (click)="selectFrameGraphType(FlameGraphType.ON_CPU)"
+    title="Includes Thread.State.[RUNNABLE, NEW]"
+  >
+    On-CPU
+  </label>
+  <label
+    nz-radio-button
+    [nzValue]="FlameGraphType.OFF_CPU"
+    (click)="selectFrameGraphType(FlameGraphType.OFF_CPU)"
+    title="Includes Thread.State.[WAITING, TIMED_WAITING, BLOCKED]"
+  >
+    Off-CPU
+  </label>
+  <label
+    nz-radio-button
+    [nzValue]="FlameGraphType.FULL"
+    (click)="selectFrameGraphType(FlameGraphType.FULL)"
+    title="Includes stack traces of threads in all states"
+  >
+    Mixed
+  </label>
 </nz-radio-group>
 
-Measurement:
-<span *ngIf="flameGraph.endTimestamp">
-  {{ (now - flameGraph.endTimestamp) | humanizeDuration }} ago
-</span>
+Subtask:
+<nz-select
+  nzSize="small"
+  [ngModel]="subtaskIndex"
+  nzShowSearch
+  (ngModelChange)="selectSubtask($event)"
+>
+  <nz-option
+    *ngFor="let name of listOfRunningSubtasks"
+    [nzLabel]="name"
+    [nzValue]="name"
+    nzCustomContent
+  >
+    <span [title]="name">{{ name }}</span>
+  </nz-option>
+</nz-select>
+
+&nbsp; &nbsp;
+<ng-container [ngSwitch]="flameGraph.endTimestamp">
+  <span *ngSwitchCase="-1">The task has already been terminated</span>
+  <span *ngSwitchCase="-2">
+    The flame graph feature is currently disabled (enable it by setting rest.flamegraph.enabled:
+    true)
+  </span>
+  <span *ngSwitchCase="-3">We are waiting for the first samples to create a flame graph</span>
+  <span *ngSwitchDefault>
+    Measurement: {{ now - flameGraph.endTimestamp | humanizeDuration }} ago
+  </span>
+</ng-container>
 
 <div class="flame-graph-area">
   <flink-flame-graph [data]="flameGraph['data']" [graphType]="graphType"></flink-flame-graph>
@@ -40,7 +85,3 @@ Measurement:
 <div style="padding-top: 100px">
   <nz-spin *ngIf="isLoading"></nz-spin>
 </div>
-
-
-
-

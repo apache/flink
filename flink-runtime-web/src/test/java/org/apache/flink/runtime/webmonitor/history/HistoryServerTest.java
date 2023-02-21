@@ -32,37 +32,31 @@ import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.webmonitor.testutils.HttpUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.apache.commons.io.IOUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringWriter;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -74,39 +68,28 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the HistoryServer. */
-@RunWith(Parameterized.class)
-public class HistoryServerTest extends TestLogger {
+class HistoryServerTest {
 
     private static final JsonFactory JACKSON_FACTORY =
             new JsonFactory()
                     .enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
                     .disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
     private static final ObjectMapper OBJECT_MAPPER =
-            new ObjectMapper().enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
-
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+            JacksonMapperFactory.createObjectMapper()
+                    .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
 
     private MiniClusterWithClientResource cluster;
     private File jmDirectory;
     private File hsDirectory;
 
-    @Parameterized.Parameters(name = "Flink version less than 1.4: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(true, false);
-    }
-
-    @Parameterized.Parameter public static boolean versionLessThan14;
-
-    @Before
-    public void setUp() throws Exception {
-        jmDirectory = tmpFolder.newFolder("jm_" + versionLessThan14);
-        hsDirectory = tmpFolder.newFolder("hs_" + versionLessThan14);
+    @BeforeEach
+    void setUp(@TempDir File jmDirectory, @TempDir File hsDirectory) throws Exception {
+        this.jmDirectory = jmDirectory;
+        this.hsDirectory = hsDirectory;
 
         Configuration clusterConfig = new Configuration();
         clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
@@ -121,15 +104,16 @@ public class HistoryServerTest extends TestLogger {
         cluster.before();
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         if (cluster != null) {
             cluster.after();
         }
     }
 
-    @Test
-    public void testHistoryServerIntegration() throws Exception {
+    @ParameterizedTest(name = "Flink version less than 1.4: {0}")
+    @ValueSource(booleans = {true, false})
+    void testHistoryServerIntegration(final boolean versionLessThan14) throws Exception {
         final int numJobs = 2;
         final int numLegacyJobs = 1;
 
@@ -151,16 +135,16 @@ public class HistoryServerTest extends TestLogger {
             hs.start();
             String baseUrl = "http://localhost:" + hs.getWebPort();
 
-            Assert.assertEquals(0, getJobsOverview(baseUrl).getJobs().size());
+            assertThat(getJobsOverview(baseUrl).getJobs()).isEmpty();
 
             for (int x = 0; x < numJobs; x++) {
                 runJob();
             }
-            createLegacyArchive(jmDirectory.toPath());
+            createLegacyArchive(jmDirectory.toPath(), versionLessThan14);
             waitForArchivesCreation(numJobs + numLegacyJobs);
 
-            assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
-            Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
+            assertThat(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(getJobsOverview(baseUrl).getJobs()).hasSize(numJobs + numLegacyJobs);
 
             // checks whether the dashboard configuration contains all expected fields
             getDashboardConfiguration(baseUrl);
@@ -169,8 +153,10 @@ public class HistoryServerTest extends TestLogger {
         }
     }
 
-    @Test
-    public void testRemoveOldestModifiedArchivesBeyondHistorySizeLimit() throws Exception {
+    @ParameterizedTest(name = "Flink version less than 1.4: {0}")
+    @ValueSource(booleans = {true, false})
+    void testRemoveOldestModifiedArchivesBeyondHistorySizeLimit(final boolean versionLessThan14)
+            throws Exception {
         final int numArchivesToKeepInHistory = 2;
         final int numArchivesBeforeHsStarted = 4;
         final int numArchivesAfterHsStarted = 2;
@@ -180,7 +166,9 @@ public class HistoryServerTest extends TestLogger {
         List<String> expectedJobIdsToKeep = new LinkedList<>();
 
         for (int j = 0; j < numArchivesBeforeHsStarted; j++) {
-            String jobId = createLegacyArchive(jmDirectory.toPath(), j * oneMinuteSinceEpoch);
+            String jobId =
+                    createLegacyArchive(
+                            jmDirectory.toPath(), j * oneMinuteSinceEpoch, versionLessThan14);
             if (j >= numArchivesToRemoveUponHsStart) {
                 expectedJobIdsToKeep.add(jobId);
             }
@@ -221,22 +209,23 @@ public class HistoryServerTest extends TestLogger {
         try {
             hs.start();
             String baseUrl = "http://localhost:" + hs.getWebPort();
-            assertTrue(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS));
-            assertTrue(numArchivesDeletedInitially.await(10L, TimeUnit.SECONDS));
-            Assert.assertEquals(
-                    new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
+            assertThat(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numArchivesDeletedInitially.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(getIdsFromJobOverview(baseUrl))
+                    .isEqualTo(new HashSet<>(expectedJobIdsToKeep));
 
             for (int j = numArchivesBeforeHsStarted;
                     j < numArchivesBeforeHsStarted + numArchivesAfterHsStarted;
                     j++) {
                 expectedJobIdsToKeep.remove(0);
                 expectedJobIdsToKeep.add(
-                        createLegacyArchive(jmDirectory.toPath(), j * oneMinuteSinceEpoch));
+                        createLegacyArchive(
+                                jmDirectory.toPath(), j * oneMinuteSinceEpoch, versionLessThan14));
             }
-            assertTrue(numArchivesCreatedTotal.await(10L, TimeUnit.SECONDS));
-            assertTrue(numArchivesDeletedTotal.await(10L, TimeUnit.SECONDS));
-            Assert.assertEquals(
-                    new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
+            assertThat(numArchivesCreatedTotal.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numArchivesDeletedTotal.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(getIdsFromJobOverview(baseUrl))
+                    .isEqualTo(new HashSet<>(expectedJobIdsToKeep));
         } finally {
             hs.stop();
         }
@@ -249,14 +238,16 @@ public class HistoryServerTest extends TestLogger {
                 .collect(Collectors.toSet());
     }
 
-    @Test(expected = IllegalConfigurationException.class)
-    public void testFailIfHistorySizeLimitIsZero() throws Exception {
-        startHistoryServerWithSizeLimit(0);
+    @Test
+    void testFailIfHistorySizeLimitIsZero() throws Exception {
+        assertThatThrownBy(() -> startHistoryServerWithSizeLimit(0))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
-    @Test(expected = IllegalConfigurationException.class)
-    public void testFailIfHistorySizeLimitIsLessThanMinusOne() throws Exception {
-        startHistoryServerWithSizeLimit(-2);
+    @Test
+    void testFailIfHistorySizeLimitIsLessThanMinusOne() throws Exception {
+        assertThatThrownBy(() -> startHistoryServerWithSizeLimit(-2))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     private void startHistoryServerWithSizeLimit(int maxHistorySize)
@@ -270,12 +261,12 @@ public class HistoryServerTest extends TestLogger {
     }
 
     @Test
-    public void testCleanExpiredJob() throws Exception {
+    void testCleanExpiredJob() throws Exception {
         runArchiveExpirationTest(true);
     }
 
     @Test
-    public void testRemainExpiredJob() throws Exception {
+    void testRemainExpiredJob() throws Exception {
         runArchiveExpirationTest(false);
     }
 
@@ -312,10 +303,10 @@ public class HistoryServerTest extends TestLogger {
         try {
             hs.start();
             String baseUrl = "http://localhost:" + hs.getWebPort();
-            assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
+            assertThat(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS)).isTrue();
 
             Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
-            Assert.assertEquals(numJobs, jobs.size());
+            assertThat(jobs).hasSize(numJobs);
 
             String jobIdToDelete =
                     jobs.stream()
@@ -327,21 +318,23 @@ public class HistoryServerTest extends TestLogger {
                                             new IllegalStateException(
                                                     "Expected at least one existing job"));
 
-            // delete one archive from jm
+            // trigger another fetch and delete one archive from jm
+            // we fetch again to probabilistically cause a concurrent deletion
+            hs.fetchArchives();
             Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
 
-            assertTrue(firstArchiveExpiredLatch.await(10L, TimeUnit.SECONDS));
+            assertThat(firstArchiveExpiredLatch.await(10L, TimeUnit.SECONDS)).isTrue();
 
             // check that archive is still/no longer present in hs
             Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
-            Assert.assertEquals(numJobs - numExpiredJobs, jobsAfterDeletion.size());
-            Assert.assertEquals(
-                    1 - numExpiredJobs,
-                    jobsAfterDeletion.stream()
-                            .map(JobDetails::getJobId)
-                            .map(JobID::toString)
-                            .filter(jobId -> jobId.equals(jobIdToDelete))
-                            .count());
+            assertThat(jobsAfterDeletion).hasSize(numJobs - numExpiredJobs);
+            assertThat(
+                            jobsAfterDeletion.stream()
+                                    .map(JobDetails::getJobId)
+                                    .map(JobID::toString)
+                                    .filter(jobId -> jobId.equals(jobIdToDelete))
+                                    .count())
+                    .isEqualTo(1 - numExpiredJobs);
 
             // delete remaining archives from jm and ensure files are cleaned up
             List<String> remainingJobIds =
@@ -354,7 +347,7 @@ public class HistoryServerTest extends TestLogger {
                 Files.deleteIfExists(jmDirectory.toPath().resolve(remainingJobId));
             }
 
-            assertTrue(allArchivesExpiredLatch.await(10L, TimeUnit.SECONDS));
+            assertThat(allArchivesExpiredLatch.await(10L, TimeUnit.SECONDS)).isTrue();
 
             assertJobFilesCleanedUp(cleanupExpiredJobs);
         } finally {
@@ -373,7 +366,11 @@ public class HistoryServerTest extends TestLogger {
                             .filter(path -> !path.equals(Paths.get("overviews")))
                             .collect(Collectors.toList());
 
-            assertThat(jobFiles, jobFilesShouldBeDeleted ? empty() : not(empty()));
+            if (jobFilesShouldBeDeleted) {
+                assertThat(jobFiles).isEmpty();
+            } else {
+                assertThat(jobFiles).isNotEmpty();
+            }
         }
     }
 
@@ -405,7 +402,7 @@ public class HistoryServerTest extends TestLogger {
     private static DashboardConfiguration getDashboardConfiguration(String baseUrl)
             throws Exception {
         Tuple2<Integer, String> response =
-                getFromHTTP(
+                HttpUtils.getFromHTTP(
                         baseUrl
                                 + DashboardConfigurationHeaders.INSTANCE
                                         .getTargetRestEndpointURL());
@@ -413,7 +410,7 @@ public class HistoryServerTest extends TestLogger {
     }
 
     private static MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
-        Tuple2<Integer, String> response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
+        Tuple2<Integer, String> response = HttpUtils.getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
         return OBJECT_MAPPER.readValue(response.f1, MultipleJobsDetails.class);
     }
 
@@ -424,37 +421,16 @@ public class HistoryServerTest extends TestLogger {
         env.execute();
     }
 
-    static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
-        URL u = new URL(url);
-        HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-        connection.setConnectTimeout(100000);
-        connection.connect();
-        InputStream is;
-        if (connection.getResponseCode() >= 400) {
-            // error!
-            is = connection.getErrorStream();
-        } else {
-            is = connection.getInputStream();
-        }
-
-        return Tuple2.of(
-                connection.getResponseCode(),
-                IOUtils.toString(
-                        is,
-                        connection.getContentEncoding() != null
-                                ? connection.getContentEncoding()
-                                : "UTF-8"));
-    }
-
-    private static String createLegacyArchive(Path directory, long fileModifiedDate)
-            throws IOException {
-        String jobId = createLegacyArchive(directory);
+    private static String createLegacyArchive(
+            Path directory, long fileModifiedDate, boolean versionLessThan14) throws IOException {
+        String jobId = createLegacyArchive(directory, versionLessThan14);
         File jobArchive = directory.resolve(jobId).toFile();
         jobArchive.setLastModified(fileModifiedDate);
         return jobId;
     }
 
-    private static String createLegacyArchive(Path directory) throws IOException {
+    private static String createLegacyArchive(Path directory, boolean versionLessThan14)
+            throws IOException {
         JobID jobId = JobID.generate();
 
         StringWriter sw = new StringWriter();

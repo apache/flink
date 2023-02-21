@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
+
 import org.junit.Test
 
 class OnDataSetTest extends AcceptPFTestBase {
@@ -29,90 +30,77 @@ class OnDataSetTest extends AcceptPFTestBase {
   @Test
   def testMapWithOnTuple(): Unit = {
     val test =
-      tuples.mapWith {
-        case (id, value) => s"$id $value"
-      }
-    assert(test.javaSet.isInstanceOf[MapOperator[_, _]],
-      "mapWith should produce a MapOperator")
+      tuples.mapWith { case (id, value) => s"$id $value" }
+    assert(test.javaSet.isInstanceOf[MapOperator[_, _]], "mapWith should produce a MapOperator")
   }
 
   @Test
   def testMapWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.mapWith {
-        case KeyValuePair(id, value) => s"$id $value"
-      }
-    assert(test.javaSet.isInstanceOf[MapOperator[_, _]],
-      "mapWith should produce a MapOperator")
+      caseObjects.mapWith { case KeyValuePair(id, value) => s"$id $value" }
+    assert(test.javaSet.isInstanceOf[MapOperator[_, _]], "mapWith should produce a MapOperator")
   }
 
   @Test
   def testMapPartitionWithOnTuple(): Unit = {
     val test =
-      tuples.mapPartitionWith {
-        case (id, value) #:: _ => s"$id $value"
-      }
-    assert(test.javaSet.isInstanceOf[MapPartitionOperator[_, _]],
+      tuples.mapPartitionWith { case (id, value) #:: _ => s"$id $value" }
+    assert(
+      test.javaSet.isInstanceOf[MapPartitionOperator[_, _]],
       "mapPartitionWith should produce a MapPartitionOperator")
   }
 
   @Test
   def testMapPartitionWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.mapPartitionWith {
-        case KeyValuePair(id, value) #:: _ => s"$id $value"
-      }
-    assert(test.javaSet.isInstanceOf[MapPartitionOperator[_, _]],
+      caseObjects.mapPartitionWith { case KeyValuePair(id, value) #:: _ => s"$id $value" }
+    assert(
+      test.javaSet.isInstanceOf[MapPartitionOperator[_, _]],
       "mapPartitionWith should produce a MapPartitionOperator")
   }
 
   @Test
   def testFlatMapWithOnTuple(): Unit = {
     val test =
-      tuples.flatMapWith {
-        case (id, value) => List(id.toString, value)
-      }
-    assert(test.javaSet.isInstanceOf[FlatMapOperator[_, _]],
+      tuples.flatMapWith { case (id, value) => List(id.toString, value) }
+    assert(
+      test.javaSet.isInstanceOf[FlatMapOperator[_, _]],
       "flatMapWith should produce a FlatMapOperator")
   }
 
   @Test
   def testFlatMapWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.flatMapWith {
-        case KeyValuePair(id, value) => List(id.toString, value)
-      }
-    assert(test.javaSet.isInstanceOf[FlatMapOperator[_, _]],
+      caseObjects.flatMapWith { case KeyValuePair(id, value) => List(id.toString, value) }
+    assert(
+      test.javaSet.isInstanceOf[FlatMapOperator[_, _]],
       "flatMapWith should produce a FlatMapOperator")
   }
 
   @Test
   def testFilterWithOnTuple(): Unit = {
     val test =
-      tuples.filterWith {
-        case (id, value) => id == 1
-      }
-    assert(test.javaSet.isInstanceOf[FilterOperator[_]],
+      tuples.filterWith { case (id, value) => id == 1 }
+    assert(
+      test.javaSet.isInstanceOf[FilterOperator[_]],
       "filterWith should produce a FilterOperator")
   }
 
   @Test
   def testFilterWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.filterWith {
-        case KeyValuePair(id, value) => id == 1
-      }
-    assert(test.javaSet.isInstanceOf[FilterOperator[_]],
+      caseObjects.filterWith { case KeyValuePair(id, value) => id == 1 }
+    assert(
+      test.javaSet.isInstanceOf[FilterOperator[_]],
       "filterWith should produce a FilterOperator")
   }
 
   @Test
   def testReduceWithOnTuple(): Unit = {
     val test =
-      tuples.reduceWith {
-        case ((_, v1), (_, v2)) => (0, s"$v1 $v2")
-      }
-    assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
+      tuples.reduceWith { case ((_, v1), (_, v2)) => (0, s"$v1 $v2") }
+    assert(
+      test.javaSet.isInstanceOf[ReduceOperator[_]],
       "reduceWith should produce a ReduceOperator")
   }
 
@@ -122,7 +110,8 @@ class OnDataSetTest extends AcceptPFTestBase {
       caseObjects.reduceWith {
         case (KeyValuePair(_, v1), KeyValuePair(_, v2)) => KeyValuePair(0, s"$v1 $v2")
       }
-    assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
+    assert(
+      test.javaSet.isInstanceOf[ReduceOperator[_]],
       "reduceWith should produce a ReduceOperator")
   }
 
@@ -130,10 +119,9 @@ class OnDataSetTest extends AcceptPFTestBase {
   def testReduceGroupWithOnTuple(): Unit = {
     val accumulator: StringBuffer = new StringBuffer()
     val test =
-      tuples.reduceGroupWith {
-        case (_, value) #:: _ => accumulator.append(value).append('\n')
-      }
-    assert(test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
+      tuples.reduceGroupWith { case (_, value) #:: _ => accumulator.append(value).append('\n') }
+    assert(
+      test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
       "reduceGroupWith should produce a GroupReduceOperator")
   }
 
@@ -144,28 +132,23 @@ class OnDataSetTest extends AcceptPFTestBase {
       caseObjects.reduceGroupWith {
         case KeyValuePair(_, value) #:: _ => accumulator.append(value).append('\n')
       }
-    assert(test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
+    assert(
+      test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
       "reduceGroupWith should produce a GroupReduceOperator")
   }
 
   @Test
   def testGroupingByOnTuple(): Unit = {
     val test =
-      tuples.groupingBy {
-        case (id, _) => id
-      }
-    assert(test.isInstanceOf[GroupedDataSet[_]],
-      "groupingBy should produce a GroupedDataSet")
+      tuples.groupingBy { case (id, _) => id }
+    assert(test.isInstanceOf[GroupedDataSet[_]], "groupingBy should produce a GroupedDataSet")
   }
 
   @Test
   def testGroupingByOnCaseClass(): Unit = {
     val test =
-      caseObjects.groupingBy {
-        case KeyValuePair(id, _) => id
-      }
-    assert(test.isInstanceOf[GroupedDataSet[_]],
-      "groupingBy should produce a GroupedDataSet")
+      caseObjects.groupingBy { case KeyValuePair(id, _) => id }
+    assert(test.isInstanceOf[GroupedDataSet[_]], "groupingBy should produce a GroupedDataSet")
   }
 
 }

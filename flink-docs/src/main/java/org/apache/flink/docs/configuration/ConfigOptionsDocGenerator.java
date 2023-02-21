@@ -24,21 +24,26 @@ import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.configuration.description.TextElement;
+import org.apache.flink.docs.util.ConfigurationOptionLocator;
+import org.apache.flink.docs.util.OptionWithMetaInfo;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TimeUtils;
-import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,64 +52,23 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /** Class used for generating code based documentation of configuration parameters. */
 public class ConfigOptionsDocGenerator {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConfigOptionsDocGenerator.class);
-
-    static final OptionsClassLocation[] LOCATIONS =
-            new OptionsClassLocation[] {
-                new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
-                new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.shuffle"),
-                new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.jobgraph"),
-                new OptionsClassLocation(
-                        "flink-streaming-java", "org.apache.flink.streaming.api.environment"),
-                new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
-                new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
-                new OptionsClassLocation(
-                        "flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
-                new OptionsClassLocation(
-                        "flink-metrics/flink-metrics-prometheus",
-                        "org.apache.flink.metrics.prometheus"),
-                new OptionsClassLocation(
-                        "flink-metrics/flink-metrics-influxdb",
-                        "org.apache.flink.metrics.influxdb"),
-                new OptionsClassLocation(
-                        "flink-state-backends/flink-statebackend-rocksdb",
-                        "org.apache.flink.contrib.streaming.state"),
-                new OptionsClassLocation(
-                        "flink-table/flink-table-api-java", "org.apache.flink.table.api.config"),
-                new OptionsClassLocation("flink-python", "org.apache.flink.python"),
-                new OptionsClassLocation(
-                        "flink-kubernetes", "org.apache.flink.kubernetes.configuration"),
-                new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli"),
-                new OptionsClassLocation(
-                        "flink-table/flink-sql-client", "org.apache.flink.table.client.config")
-            };
-
-    static final Set<String> EXCLUSIONS =
-            new HashSet<>(
-                    Arrays.asList(
-                            "org.apache.flink.configuration.ReadableConfig",
-                            "org.apache.flink.configuration.WritableConfig",
-                            "org.apache.flink.configuration.ConfigOptions",
-                            "org.apache.flink.streaming.api.environment.CheckpointConfig",
-                            "org.apache.flink.contrib.streaming.state.PredefinedOptions",
-                            "org.apache.flink.python.PythonConfig"));
-
-    static final String DEFAULT_PATH_PREFIX = "src/main/java";
-
-    @VisibleForTesting static final String COMMON_SECTION_FILE_NAME = "common_section.html";
 
     private static final String CLASS_NAME_GROUP = "className";
     private static final String CLASS_PREFIX_GROUP = "classPrefix";
@@ -130,46 +94,21 @@ public class ConfigOptionsDocGenerator {
      *
      * @param args [0] output directory for the generated files [1] project root directory
      */
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
+    public static void main(String[] args) throws Exception {
         String outputDirectory = args[0];
         String rootDir = args[1];
 
-        LOG.info(
-                "Searching the following locations; configured via {}#LOCATIONS:{}",
-                ConfigOptionsDocGenerator.class.getCanonicalName(),
-                Arrays.stream(LOCATIONS)
-                        .map(OptionsClassLocation::toString)
-                        .collect(Collectors.joining("\n\t", "\n\t", "")));
-        LOG.info(
-                "Excluding the following classes; configured via {}#EXCLUSIONS:{}",
-                ConfigOptionsDocGenerator.class.getCanonicalName(),
-                EXCLUSIONS.stream().collect(Collectors.joining("\n\t", "\n\t", "")));
+        createTables(rootDir, outputDirectory);
 
-        for (OptionsClassLocation location : LOCATIONS) {
-            createTable(
-                    rootDir,
-                    location.getModule(),
-                    location.getPackage(),
-                    outputDirectory,
-                    DEFAULT_PATH_PREFIX);
-        }
-
-        generateCommonSection(rootDir, outputDirectory, LOCATIONS, DEFAULT_PATH_PREFIX);
+        generateCommonSection(rootDir, new ConfigurationOptionLocator(), outputDirectory);
     }
 
     @VisibleForTesting
     static void generateCommonSection(
-            String rootDir,
-            String outputDirectory,
-            OptionsClassLocation[] locations,
-            String pathPrefix)
-            throws IOException, ClassNotFoundException {
+            String rootDir, ConfigurationOptionLocator locator, String outputDirectory)
+            throws Exception {
         List<OptionWithMetaInfo> allSectionOptions = new ArrayList<>(32);
-        for (OptionsClassLocation location : locations) {
-            allSectionOptions.addAll(
-                    findSectionOptions(
-                            rootDir, location.getModule(), location.getPackage(), pathPrefix));
-        }
+        allSectionOptions.addAll(findSectionOptions(rootDir, locator));
 
         Map<String, List<OptionWithMetaInfo>> optionsGroupedBySection =
                 allSectionOptions.stream()
@@ -233,16 +172,15 @@ public class ConfigOptionsDocGenerator {
     }
 
     private static Collection<OptionWithMetaInfo> findSectionOptions(
-            String rootDir, String module, String packageName, String pathPrefix)
-            throws IOException, ClassNotFoundException {
+            String rootDir, ConfigurationOptionLocator locator) throws Exception {
         Collection<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
-        processConfigOptions(
-                rootDir,
-                module,
-                packageName,
-                pathPrefix,
-                optionsClass ->
-                        extractConfigOptions(optionsClass).stream()
+        locator.discoverOptionsAndApply(
+                Paths.get(rootDir),
+                (optionsClass, optionWithMetaInfos) ->
+                        optionWithMetaInfos.stream()
+                                .filter(
+                                        optionWithMetaInfo ->
+                                                shouldBeDocumented(optionWithMetaInfo.field))
                                 .filter(
                                         optionWithMetaInfo ->
                                                 optionWithMetaInfo.field.getAnnotation(
@@ -252,42 +190,36 @@ public class ConfigOptionsDocGenerator {
         return commonOptions;
     }
 
-    private static void createTable(
-            String rootDir,
-            String module,
-            String packageName,
-            String outputDirectory,
-            String pathPrefix)
-            throws IOException, ClassNotFoundException {
-        processConfigOptions(
-                rootDir,
-                module,
-                packageName,
-                pathPrefix,
-                optionsClass -> {
-                    List<Tuple2<ConfigGroup, String>> tables = generateTablesForClass(optionsClass);
-                    for (Tuple2<ConfigGroup, String> group : tables) {
-                        String name;
-                        if (group.f0 == null) {
-                            Matcher matcher =
-                                    CLASS_NAME_PATTERN.matcher(optionsClass.getSimpleName());
-                            if (!matcher.matches()) {
-                                throw new RuntimeException(
-                                        "Pattern did not match for "
-                                                + optionsClass.getSimpleName()
-                                                + '.');
-                            }
-                            name = matcher.group(CLASS_PREFIX_GROUP);
-                        } else {
-                            name = group.f0.name();
-                        }
+    private static void createTables(String rootDir, String outputDirectory) throws Exception {
+        new ConfigurationOptionLocator()
+                .discoverOptionsAndApply(
+                        Paths.get(rootDir),
+                        (optionsClass, optionWithMetaInfos) -> {
+                            List<Tuple2<ConfigGroup, String>> tables =
+                                    generateTablesForClass(optionsClass, optionWithMetaInfos);
+                            for (Tuple2<ConfigGroup, String> group : tables) {
+                                String name;
+                                if (group.f0 == null) {
+                                    Matcher matcher =
+                                            CLASS_NAME_PATTERN.matcher(
+                                                    optionsClass.getSimpleName());
+                                    if (!matcher.matches()) {
+                                        throw new RuntimeException(
+                                                "Pattern did not match for "
+                                                        + optionsClass.getSimpleName()
+                                                        + '.');
+                                    }
+                                    name = matcher.group(CLASS_PREFIX_GROUP);
+                                } else {
+                                    name = group.f0.name();
+                                }
 
-                        String outputFile = toSnakeCase(name) + "_configuration.html";
-                        Files.write(
-                                Paths.get(outputDirectory, outputFile),
-                                group.f1.getBytes(StandardCharsets.UTF_8));
-                    }
-                });
+                                String outputFile = toSnakeCase(name) + "_configuration.html";
+                                Files.write(
+                                        Paths.get(outputDirectory, outputFile),
+                                        group.f1.getBytes(StandardCharsets.UTF_8));
+                            }
+                        });
     }
 
     @VisibleForTesting
@@ -296,35 +228,10 @@ public class ConfigOptionsDocGenerator {
     }
 
     @VisibleForTesting
-    static void processConfigOptions(
-            String rootDir,
-            String module,
-            String packageName,
-            String pathPrefix,
-            ThrowingConsumer<Class<?>, IOException> classConsumer)
-            throws IOException, ClassNotFoundException {
-        Path configDir = Paths.get(rootDir, module, pathPrefix, packageName.replaceAll("\\.", "/"));
-
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
-            for (Path entry : stream) {
-                String fileName = entry.getFileName().toString();
-                Matcher matcher = CLASS_NAME_PATTERN.matcher(fileName);
-                if (matcher.matches()) {
-                    final String className = packageName + '.' + matcher.group(CLASS_NAME_GROUP);
-
-                    if (!EXCLUSIONS.contains(className)) {
-                        Class<?> optionsClass = Class.forName(className);
-                        classConsumer.accept(optionsClass);
-                    }
-                }
-            }
-        }
-    }
-
-    @VisibleForTesting
-    static List<Tuple2<ConfigGroup, String>> generateTablesForClass(Class<?> optionsClass) {
+    static List<Tuple2<ConfigGroup, String>> generateTablesForClass(
+            Class<?> optionsClass, Collection<OptionWithMetaInfo> optionWithMetaInfos) {
         ConfigGroups configGroups = optionsClass.getAnnotation(ConfigGroups.class);
-        List<OptionWithMetaInfo> allOptions = extractConfigOptions(optionsClass);
+        List<OptionWithMetaInfo> allOptions = selectOptionsToDocument(optionWithMetaInfos);
 
         if (allOptions.isEmpty()) {
             return Collections.emptyList();
@@ -355,29 +262,14 @@ public class ConfigOptionsDocGenerator {
     }
 
     @VisibleForTesting
-    static List<OptionWithMetaInfo> extractConfigOptions(Class<?> clazz) {
-        try {
-            List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
-            Field[] fields = clazz.getFields();
-            for (Field field : fields) {
-                if (isConfigOption(field) && shouldBeDocumented(field)) {
-                    configOptions.add(
-                            new OptionWithMetaInfo((ConfigOption<?>) field.get(null), field));
-                }
-            }
-
-            return configOptions;
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Failed to extract config options from class " + clazz + '.', e);
-        }
+    static List<OptionWithMetaInfo> selectOptionsToDocument(Collection<OptionWithMetaInfo> clazz) {
+        return clazz.stream()
+                .filter(option -> shouldBeDocumented(option.field))
+                .collect(Collectors.toList());
     }
 
-    private static boolean isConfigOption(Field field) {
-        return field.getType().equals(ConfigOption.class);
-    }
-
-    private static boolean shouldBeDocumented(Field field) {
+    @VisibleForTesting
+    static boolean shouldBeDocumented(Field field) {
         return field.getAnnotation(Deprecated.class) == null
                 && field.getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
     }
@@ -446,7 +338,7 @@ public class ConfigOptionsDocGenerator {
         return ""
                 + "        <tr>\n"
                 + "            <td><h5>"
-                + escapeCharacters(option.key())
+                + escapeCharacters(getDocumentedKey(optionWithMetaInfo))
                 + "</h5>"
                 + execModeStringBuilder.toString()
                 + "</td>\n"
@@ -457,9 +349,95 @@ public class ConfigOptionsDocGenerator {
                 + type
                 + "</td>\n"
                 + "            <td>"
-                + formatter.format(option.description())
+                + getDescription(optionWithMetaInfo)
                 + "</td>\n"
                 + "        </tr>\n";
+    }
+
+    @VisibleForTesting
+    static String getDocumentedKey(OptionWithMetaInfo optionWithMetaInfo) {
+        Documentation.SuffixOption suffixOptionAnnotation =
+                optionWithMetaInfo.field.getAnnotation(Documentation.SuffixOption.class);
+        if (suffixOptionAnnotation == null) {
+            suffixOptionAnnotation =
+                    optionWithMetaInfo
+                            .field
+                            .getDeclaringClass()
+                            .getAnnotation(Documentation.SuffixOption.class);
+        }
+
+        final String originalKey = optionWithMetaInfo.option.key();
+        return suffixOptionAnnotation == null
+                ? originalKey
+                : suffixOptionAnnotation.value() + "." + originalKey;
+    }
+
+    @VisibleForTesting
+    static String getDescription(OptionWithMetaInfo optionWithMetaInfo) {
+        final String enumValuesSection =
+                Optional.ofNullable(getEnumOptionsDescription(optionWithMetaInfo))
+                        .map(formatter::format)
+                        .map(desc -> String.format("<br /><br />%s", desc))
+                        .orElse("");
+
+        return formatter.format(optionWithMetaInfo.option.description()) + enumValuesSection;
+    }
+
+    /**
+     * Returns a {@link Description} for the enum constants of the given option in case it is
+     * enum-based, and {@code null} otherwise.
+     */
+    private static @Nullable Description getEnumOptionsDescription(
+            OptionWithMetaInfo optionWithMetaInfo) {
+        Class<?> clazz = getClazz(optionWithMetaInfo.option);
+        if (!clazz.isEnum()) {
+            return null;
+        }
+        AtomicReference<IllegalAccessException> exception = new AtomicReference<>(null);
+        InlineElement[] optionDescriptions =
+                Arrays.stream(clazz.getDeclaredFields())
+                        .filter(field -> field.isEnumConstant() && shouldBeDocumented(field))
+                        .map(
+                                field -> {
+                                    try {
+                                        return field.get(null);
+                                    } catch (IllegalAccessException e) {
+                                        exception.set(
+                                                ExceptionUtils.firstOrSuppressed(
+                                                        e, exception.get()));
+                                    }
+                                    return null;
+                                })
+                        .filter(Objects::nonNull)
+                        .map(ConfigOptionsDocGenerator::formatEnumOption)
+                        .map(
+                                elements ->
+                                        TextElement.wrap(
+                                                elements.stream().toArray(InlineElement[]::new)))
+                        .toArray(InlineElement[]::new);
+        if (exception.get() != null) {
+            throw new RuntimeException(
+                    "config option should have public access right.", exception.get());
+        }
+        return Description.builder().text("Possible values:").list(optionDescriptions).build();
+    }
+
+    /**
+     * Formats a single enum constant.
+     *
+     * <p>If the enum implements {@link DescribedEnum}, this includes the given description for each
+     * constant. Otherwise, only the constant itself is printed.
+     */
+    private static List<InlineElement> formatEnumOption(Object e) {
+        final List<InlineElement> elements = new LinkedList<>();
+        elements.add(text("\"%s\"", text(escapeCharacters(e.toString()))));
+
+        if (DescribedEnum.class.isAssignableFrom(e.getClass())) {
+            elements.add(text(": "));
+            elements.add(((DescribedEnum) e).getDescription());
+        }
+
+        return elements;
     }
 
     private static Class<?> getClazz(ConfigOption<?> option) {
@@ -493,7 +471,7 @@ public class ConfigOptionsDocGenerator {
         boolean isList = isList(option);
 
         if (clazz.isEnum()) {
-            return enumTypeToHtml(clazz, isList);
+            return enumTypeToHtml(isList);
         }
 
         return atomicTypeToHtml(clazz, isList);
@@ -512,7 +490,7 @@ public class ConfigOptionsDocGenerator {
         return escapeCharacters(type);
     }
 
-    private static String enumTypeToHtml(Class<?> enumClazz, boolean isList) {
+    private static String enumTypeToHtml(boolean isList) {
         final String type;
         if (isList) {
             type = "List<Enum>";
@@ -520,10 +498,7 @@ public class ConfigOptionsDocGenerator {
             type = "Enum";
         }
 
-        return String.format(
-                "<p>%s</p>Possible values: %s",
-                escapeCharacters(type),
-                escapeCharacters(Arrays.toString(enumClazz.getEnumConstants())));
+        return String.format("<p>%s</p>", escapeCharacters(type));
     }
 
     @VisibleForTesting
@@ -569,7 +544,7 @@ public class ConfigOptionsDocGenerator {
     }
 
     private static void sortOptions(List<OptionWithMetaInfo> configOptions) {
-        configOptions.sort(Comparator.comparing(option -> option.option.key()));
+        configOptions.sort(Comparator.comparing(option -> getDocumentedKey(option)));
     }
 
     /**
@@ -658,16 +633,6 @@ public class ConfigOptionsDocGenerator {
             private List<OptionWithMetaInfo> getConfigOptions() {
                 return configOptions;
             }
-        }
-    }
-
-    static class OptionWithMetaInfo {
-        final ConfigOption<?> option;
-        final Field field;
-
-        public OptionWithMetaInfo(ConfigOption<?> option, Field field) {
-            this.option = option;
-            this.field = field;
         }
     }
 

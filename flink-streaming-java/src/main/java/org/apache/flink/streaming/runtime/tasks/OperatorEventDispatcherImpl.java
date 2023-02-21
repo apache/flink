@@ -32,6 +32,7 @@ import org.apache.flink.util.SerializedValue;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This class is intended for single threaded use from the stream task mailbox.
  */
 @Internal
-final class OperatorEventDispatcherImpl implements OperatorEventDispatcher {
+public final class OperatorEventDispatcherImpl implements OperatorEventDispatcher {
 
     private final Map<OperatorID, OperatorEventHandler> handlers;
 
@@ -49,7 +50,8 @@ final class OperatorEventDispatcherImpl implements OperatorEventDispatcher {
 
     private final TaskOperatorEventGateway toCoordinator;
 
-    OperatorEventDispatcherImpl(ClassLoader classLoader, TaskOperatorEventGateway toCoordinator) {
+    public OperatorEventDispatcherImpl(
+            ClassLoader classLoader, TaskOperatorEventGateway toCoordinator) {
         this.classLoader = checkNotNull(classLoader);
         this.toCoordinator = checkNotNull(toCoordinator);
         this.handlers = new HashMap<>();
@@ -79,6 +81,10 @@ final class OperatorEventDispatcherImpl implements OperatorEventDispatcher {
         if (prior != null) {
             throw new IllegalStateException("already a handler registered for this operatorId");
         }
+    }
+
+    Set<OperatorID> getRegisteredOperators() {
+        return handlers.keySet();
     }
 
     @Override

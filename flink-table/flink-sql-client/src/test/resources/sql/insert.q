@@ -15,20 +15,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SET sql-client.execution.result-mode = tableau;
-[INFO] Session property has been set.
+SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Execute statement succeed.
 !info
 
-SET table.dml-sync=true;
-[INFO] Session property has been set.
+SET 'table.dml-sync' = 'true';
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
 # test streaming insert
 # ==========================================================================
 
-SET execution.runtime-mode = streaming;
-[INFO] Session property has been set.
+SET 'execution.runtime-mode' = 'streaming';
+[INFO] Execute statement succeed.
 !info
 
 create table StreamingTable (
@@ -43,8 +43,6 @@ create table StreamingTable (
 !info
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 
@@ -67,8 +65,8 @@ Received a total of 7 rows
 # test batch insert
 # ==========================================================================
 
-SET execution.runtime-mode = batch;
-[INFO] Session property has been set.
+SET 'execution.runtime-mode' = 'batch';
+[INFO] Execute statement succeed.
 !info
 
 create table BatchTable (
@@ -83,22 +81,20 @@ create table BatchTable (
 !info
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 
 SELECT * FROM BatchTable;
-+-------------+--------------------------------+
-|          id |                            str |
-+-------------+--------------------------------+
-|           1 |                    Hello World |
-|           2 |                             Hi |
-|           2 |                             Hi |
-|           3 |                          Hello |
-|           3 |                          World |
-|           4 |                            ADD |
-|           5 |                           LINE |
-+-------------+--------------------------------+
-Received a total of 7 rows
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
+7 rows in set
 !ok

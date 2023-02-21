@@ -46,7 +46,7 @@ oss://<your-bucket>/<object-name>
 env.readTextFile("oss://<your-bucket>/<object-name>");
 
 // 写入 OSS bucket
-stream.writeAsText("oss://<your-bucket>/<object-name>")
+stream.writeAsText("oss://<your-bucket>/<object-name>");
 
 // 将 OSS 用作 FsStatebackend
 env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));

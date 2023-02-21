@@ -16,51 +16,40 @@
   ~ limitations under the License.
   -->
 
-<div *ngIf="!isLoading" class="wrapper">
-  <div class="name">
-    <h2>{{ taskManagerDetail.path }}</h2>
+<ng-container *ngIf="!loading; else loadingContent">
+  <div class="title-wrapper" [attr.title]="taskManagerDetail?.id">
+    <span class="title">{{ taskManagerDetail?.id }}</span>
+    <flink-blocked-badge *ngIf="taskManagerDetail?.blocked"></flink-blocked-badge>
   </div>
-  <div class="status">
-    <div class="field">
-      <div>Last Heartbeat:</div>
-      <div>{{ taskManagerDetail.timeSinceLastHeartbeat | date:'yyyy-MM-dd HH:mm:ss' }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>ID:</div>
-      <div>{{ taskManagerDetail.id }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>Data Port:</div>
-      <div>{{ taskManagerDetail.dataPort }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>Free Slots / All Slots:</div>
-      <div>{{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>CPU Cores:</div>
-      <div>{{ taskManagerDetail.hardware.cpuCores }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>Physical Memory:</div>
-      <div>{{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>JVM Heap Size:</div>
-      <div>{{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>Flink Managed Memory:</div>
-      <div>{{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}</div>
-    </div>
-  </div>
+  <nz-descriptions *ngIf="taskManagerDetail" nzBordered nzSize="small">
+    <nz-descriptions-item [nzSpan]="2" nzTitle="Path">
+      {{ taskManagerDetail.path }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Free/All Slots">
+      {{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Last Heartbeat">
+      {{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Data Port">
+      {{ taskManagerDetail.dataPort }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="CPU Cores">
+      {{ taskManagerDetail.hardware.cpuCores }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Physical Memory">
+      {{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="JVM Heap Size">
+      {{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Flink Managed Memory">
+      {{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}
+    </nz-descriptions-item>
+  </nz-descriptions>
   <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
-</div>
-<nz-skeleton [nzActive]="true" *ngIf="isLoading" [nzTitle]="false" [nzParagraph]="{ rows: 4 }"></nz-skeleton>
+</ng-container>
+
+<ng-template #loadingContent>
+  <nz-skeleton [nzActive]="true" [nzTitle]="false" [nzParagraph]="{ rows: 6 }"></nz-skeleton>
+</ng-template>

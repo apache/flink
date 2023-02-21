@@ -23,11 +23,11 @@ import org.apache.flink.core.plugin.DirectoryBasedPluginFinder;
 import org.apache.flink.core.plugin.PluginDescriptor;
 import org.apache.flink.core.plugin.PluginFinder;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.test.plugin.jar.pluginb.TestServiceB;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,6 +42,12 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link DefaultPluginManager}. */
 public class DefaultPluginManagerTest extends PluginTestBase {
@@ -86,22 +92,45 @@ public class DefaultPluginManagerTest extends PluginTestBase {
         final PluginManager pluginManager =
                 new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
         final List<TestSpi> serviceImplList = Lists.newArrayList(pluginManager.load(TestSpi.class));
-        Assert.assertEquals(2, serviceImplList.size());
+        assertEquals(2, serviceImplList.size());
 
         // check that all impl have unique classloader
         final Set<ClassLoader> classLoaders = Collections.newSetFromMap(new IdentityHashMap<>(3));
         classLoaders.add(PARENT_CLASS_LOADER);
         for (TestSpi testSpi : serviceImplList) {
-            Assert.assertNotNull(testSpi.testMethod());
-            Assert.assertTrue(classLoaders.add(testSpi.getClass().getClassLoader()));
+            assertNotNull(testSpi.testMethod());
+            assertTrue(classLoaders.add(testSpi.getClass().getClassLoader()));
         }
 
         final List<OtherTestSpi> otherServiceImplList =
                 Lists.newArrayList(pluginManager.load(OtherTestSpi.class));
-        Assert.assertEquals(1, otherServiceImplList.size());
+        assertEquals(1, otherServiceImplList.size());
         for (OtherTestSpi otherTestSpi : otherServiceImplList) {
-            Assert.assertNotNull(otherTestSpi.otherTestMethod());
-            Assert.assertTrue(classLoaders.add(otherTestSpi.getClass().getClassLoader()));
+            assertNotNull(otherTestSpi.otherTestMethod());
+            assertFalse(classLoaders.add(otherTestSpi.getClass().getClassLoader()));
         }
+    }
+
+    @Test
+    public void classLoaderMustBeTheSameInsideAPlugin() {
+        String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
+        final PluginManager pluginManager =
+                new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
+        final List<TestSpi> serviceImplList = Lists.newArrayList(pluginManager.load(TestSpi.class));
+        assertEquals(2, serviceImplList.size());
+
+        final List<OtherTestSpi> otherServiceImplList =
+                Lists.newArrayList(pluginManager.load(OtherTestSpi.class));
+        assertEquals(1, otherServiceImplList.size());
+
+        // instanceof with multiple classloaders works only this way
+        final List<TestSpi> serviceBImplList =
+                serviceImplList.stream()
+                        .filter(s -> s.getClass().getName().equals(TestServiceB.class.getName()))
+                        .collect(Collectors.toList());
+        assertEquals(1, serviceBImplList.size());
+        assertEquals(
+                otherServiceImplList.get(0).getClass().getClassLoader(),
+                serviceBImplList.get(0).getClass().getClassLoader());
     }
 }

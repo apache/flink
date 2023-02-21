@@ -23,12 +23,10 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
-import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -62,9 +60,9 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.assertj.core.api.ThrowingConsumer;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -76,484 +74,535 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.table.test.TableAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for subclasses of {@link org.apache.flink.table.types.logical.LogicalType}. */
 public class LogicalTypesTest {
 
     @Test
-    public void testCharType() {
-        testAll(
-                new CharType(33),
-                "CHAR(33)",
-                "CHAR(33)",
-                new Class[] {String.class, byte[].class},
-                new Class[] {String.class, byte[].class},
-                new LogicalType[] {},
-                new CharType(Integer.MAX_VALUE));
+    void testCharType() {
+        assertThat(new CharType(33))
+                .satisfies(
+                        baseAssertions(
+                                "CHAR(33)",
+                                "CHAR(33)",
+                                new Class[] {String.class, byte[].class},
+                                new Class[] {String.class, byte[].class},
+                                new LogicalType[] {},
+                                new CharType(Integer.MAX_VALUE)));
     }
 
     @Test
-    public void testVarCharType() {
-        testAll(
-                new VarCharType(33),
-                "VARCHAR(33)",
-                "VARCHAR(33)",
-                new Class[] {String.class, byte[].class},
-                new Class[] {String.class, byte[].class},
-                new LogicalType[] {},
-                new VarCharType(12));
+    void testVarCharType() {
+        assertThat(new VarCharType(33))
+                .satisfies(
+                        baseAssertions(
+                                "VARCHAR(33)",
+                                "VARCHAR(33)",
+                                new Class[] {String.class, byte[].class},
+                                new Class[] {String.class, byte[].class},
+                                new LogicalType[] {},
+                                new VarCharType(12)));
     }
 
     @Test
-    public void testVarCharTypeWithMaximumLength() {
-        testAll(
-                new VarCharType(Integer.MAX_VALUE),
-                "VARCHAR(2147483647)",
-                "STRING",
-                new Class[] {String.class, byte[].class},
-                new Class[] {String.class, byte[].class},
-                new LogicalType[] {},
-                new VarCharType(12));
+    void testVarCharTypeWithMaximumLength() {
+        assertThat(new VarCharType(Integer.MAX_VALUE))
+                .satisfies(
+                        baseAssertions(
+                                "VARCHAR(2147483647)",
+                                "STRING",
+                                new Class[] {String.class, byte[].class},
+                                new Class[] {String.class, byte[].class},
+                                new LogicalType[] {},
+                                new VarCharType(12)));
     }
 
     @Test
-    public void testBooleanType() {
-        testAll(
-                new BooleanType(),
-                "BOOLEAN",
-                "BOOLEAN",
-                new Class[] {Boolean.class, boolean.class},
-                new Class[] {Boolean.class},
-                new LogicalType[] {},
-                new BooleanType(false));
+    void testBooleanType() {
+        assertThat(new BooleanType())
+                .satisfies(
+                        baseAssertions(
+                                "BOOLEAN",
+                                "BOOLEAN",
+                                new Class[] {Boolean.class, boolean.class},
+                                new Class[] {Boolean.class},
+                                new LogicalType[] {},
+                                new BooleanType(false)));
     }
 
     @Test
-    public void testBinaryType() {
-        testAll(
-                new BinaryType(22),
-                "BINARY(22)",
-                "BINARY(22)",
-                new Class[] {byte[].class},
-                new Class[] {byte[].class},
-                new LogicalType[] {},
-                new BinaryType());
+    void testBinaryType() {
+        assertThat(new BinaryType(22))
+                .satisfies(
+                        baseAssertions(
+                                "BINARY(22)",
+                                "BINARY(22)",
+                                new Class[] {byte[].class},
+                                new Class[] {byte[].class},
+                                new LogicalType[] {},
+                                new BinaryType()));
     }
 
     @Test
-    public void testVarBinaryType() {
-        testAll(
-                new VarBinaryType(22),
-                "VARBINARY(22)",
-                "VARBINARY(22)",
-                new Class[] {byte[].class},
-                new Class[] {byte[].class},
-                new LogicalType[] {},
-                new VarBinaryType());
+    void testVarBinaryType() {
+        assertThat(new VarBinaryType(22))
+                .satisfies(
+                        baseAssertions(
+                                "VARBINARY(22)",
+                                "VARBINARY(22)",
+                                new Class[] {byte[].class},
+                                new Class[] {byte[].class},
+                                new LogicalType[] {},
+                                new VarBinaryType()));
     }
 
     @Test
-    public void testVarBinaryTypeWithMaximumLength() {
-        testAll(
-                new VarBinaryType(Integer.MAX_VALUE),
-                "VARBINARY(2147483647)",
-                "BYTES",
-                new Class[] {byte[].class},
-                new Class[] {byte[].class},
-                new LogicalType[] {},
-                new VarBinaryType(12));
+    void testVarBinaryTypeWithMaximumLength() {
+        assertThat(new VarBinaryType(Integer.MAX_VALUE))
+                .satisfies(
+                        baseAssertions(
+                                "VARBINARY(2147483647)",
+                                "BYTES",
+                                new Class[] {byte[].class},
+                                new Class[] {byte[].class},
+                                new LogicalType[] {},
+                                new VarBinaryType(12)));
     }
 
     @Test
-    public void testDecimalType() {
-        testAll(
-                new DecimalType(10, 2),
-                "DECIMAL(10, 2)",
-                "DECIMAL(10, 2)",
-                new Class[] {BigDecimal.class},
-                new Class[] {BigDecimal.class},
-                new LogicalType[] {},
-                new DecimalType());
+    void testDecimalType() {
+        assertThat(new DecimalType(10, 2))
+                .satisfies(
+                        baseAssertions(
+                                "DECIMAL(10, 2)",
+                                "DECIMAL(10, 2)",
+                                new Class[] {BigDecimal.class},
+                                new Class[] {BigDecimal.class},
+                                new LogicalType[] {},
+                                new DecimalType()));
     }
 
     @Test
-    public void testTinyIntType() {
-        testAll(
-                new TinyIntType(),
-                "TINYINT",
-                "TINYINT",
-                new Class[] {Byte.class, byte.class},
-                new Class[] {Byte.class},
-                new LogicalType[] {},
-                new TinyIntType(false));
+    void testTinyIntType() {
+        assertThat(new TinyIntType())
+                .satisfies(
+                        baseAssertions(
+                                "TINYINT",
+                                "TINYINT",
+                                new Class[] {Byte.class, byte.class},
+                                new Class[] {Byte.class},
+                                new LogicalType[] {},
+                                new TinyIntType(false)));
     }
 
     @Test
-    public void testSmallIntType() {
-        testAll(
-                new SmallIntType(),
-                "SMALLINT",
-                "SMALLINT",
-                new Class[] {Short.class, short.class},
-                new Class[] {Short.class},
-                new LogicalType[] {},
-                new SmallIntType(false));
+    void testSmallIntType() {
+        assertThat(new SmallIntType())
+                .satisfies(
+                        baseAssertions(
+                                "SMALLINT",
+                                "SMALLINT",
+                                new Class[] {Short.class, short.class},
+                                new Class[] {Short.class},
+                                new LogicalType[] {},
+                                new SmallIntType(false)));
     }
 
     @Test
-    public void testIntType() {
-        testAll(
-                new IntType(),
-                "INT",
-                "INT",
-                new Class[] {Integer.class, int.class},
-                new Class[] {Integer.class},
-                new LogicalType[] {},
-                new IntType(false));
+    void testIntType() {
+        assertThat(new IntType())
+                .satisfies(
+                        baseAssertions(
+                                "INT",
+                                "INT",
+                                new Class[] {Integer.class, int.class},
+                                new Class[] {Integer.class},
+                                new LogicalType[] {},
+                                new IntType(false)));
     }
 
     @Test
-    public void testBigIntType() {
-        testAll(
-                new BigIntType(),
-                "BIGINT",
-                "BIGINT",
-                new Class[] {Long.class, long.class},
-                new Class[] {Long.class},
-                new LogicalType[] {},
-                new BigIntType(false));
+    void testBigIntType() {
+        assertThat(new BigIntType())
+                .satisfies(
+                        baseAssertions(
+                                "BIGINT",
+                                "BIGINT",
+                                new Class[] {Long.class, long.class},
+                                new Class[] {Long.class},
+                                new LogicalType[] {},
+                                new BigIntType(false)));
     }
 
     @Test
-    public void testFloatType() {
-        testAll(
-                new FloatType(),
-                "FLOAT",
-                "FLOAT",
-                new Class[] {Float.class, float.class},
-                new Class[] {Float.class},
-                new LogicalType[] {},
-                new FloatType(false));
+    void testFloatType() {
+        assertThat(new FloatType())
+                .satisfies(
+                        baseAssertions(
+                                "FLOAT",
+                                "FLOAT",
+                                new Class[] {Float.class, float.class},
+                                new Class[] {Float.class},
+                                new LogicalType[] {},
+                                new FloatType(false)));
     }
 
     @Test
-    public void testDoubleType() {
-        testAll(
-                new DoubleType(),
-                "DOUBLE",
-                "DOUBLE",
-                new Class[] {Double.class, double.class},
-                new Class[] {Double.class},
-                new LogicalType[] {},
-                new DoubleType(false));
+    void testDoubleType() {
+        assertThat(new DoubleType())
+                .satisfies(
+                        baseAssertions(
+                                "DOUBLE",
+                                "DOUBLE",
+                                new Class[] {Double.class, double.class},
+                                new Class[] {Double.class},
+                                new LogicalType[] {},
+                                new DoubleType(false)));
     }
 
     @Test
-    public void testDateType() {
-        testAll(
-                new DateType(),
-                "DATE",
-                "DATE",
-                new Class[] {java.sql.Date.class, java.time.LocalDate.class, int.class},
-                new Class[] {java.time.LocalDate.class},
-                new LogicalType[] {},
-                new DateType(false));
+    void testDateType() {
+        assertThat(new DateType())
+                .satisfies(
+                        baseAssertions(
+                                "DATE",
+                                "DATE",
+                                new Class[] {
+                                    java.sql.Date.class, java.time.LocalDate.class, int.class
+                                },
+                                new Class[] {java.time.LocalDate.class},
+                                new LogicalType[] {},
+                                new DateType(false)));
     }
 
     @Test
-    public void testTimeType() {
-        testAll(
-                new TimeType(9),
-                "TIME(9)",
-                "TIME(9)",
-                new Class[] {java.sql.Time.class, java.time.LocalTime.class, long.class},
-                new Class[] {java.time.LocalTime.class},
-                new LogicalType[] {},
-                new TimeType());
+    void testTimeType() {
+        assertThat(new TimeType(9))
+                .satisfies(
+                        baseAssertions(
+                                "TIME(9)",
+                                "TIME(9)",
+                                new Class[] {
+                                    java.sql.Time.class, java.time.LocalTime.class, long.class
+                                },
+                                new Class[] {java.time.LocalTime.class},
+                                new LogicalType[] {},
+                                new TimeType()));
     }
 
     @Test
-    public void testTimestampType() {
-        testAll(
-                new TimestampType(9),
-                "TIMESTAMP(9)",
-                "TIMESTAMP(9)",
-                new Class[] {java.sql.Timestamp.class, java.time.LocalDateTime.class},
-                new Class[] {java.time.LocalDateTime.class},
-                new LogicalType[] {},
-                new TimestampType(3));
+    void testTimestampType() {
+        assertThat(new TimestampType(9))
+                .satisfies(
+                        baseAssertions(
+                                "TIMESTAMP(9)",
+                                "TIMESTAMP(9)",
+                                new Class[] {
+                                    java.sql.Timestamp.class, java.time.LocalDateTime.class
+                                },
+                                new Class[] {java.time.LocalDateTime.class},
+                                new LogicalType[] {},
+                                new TimestampType(3)));
     }
 
     @Test
-    public void testTimestampTypeWithTimeAttribute() {
-        testAll(
-                new TimestampType(true, TimestampKind.ROWTIME, 9),
-                "TIMESTAMP(9)",
-                "TIMESTAMP(9) *ROWTIME*",
-                new Class[] {java.sql.Timestamp.class, java.time.LocalDateTime.class},
-                new Class[] {java.time.LocalDateTime.class},
-                new LogicalType[] {},
-                new TimestampType(3));
+    void testTimestampTypeWithTimeAttribute() {
+        assertThat(new TimestampType(true, TimestampKind.ROWTIME, 9))
+                .satisfies(
+                        baseAssertions(
+                                "TIMESTAMP(9)",
+                                "TIMESTAMP(9) *ROWTIME*",
+                                new Class[] {
+                                    java.sql.Timestamp.class, java.time.LocalDateTime.class
+                                },
+                                new Class[] {java.time.LocalDateTime.class},
+                                new LogicalType[] {},
+                                new TimestampType(3)));
     }
 
     @Test
-    public void testZonedTimestampType() {
-        testAll(
-                new ZonedTimestampType(9),
-                "TIMESTAMP(9) WITH TIME ZONE",
-                "TIMESTAMP(9) WITH TIME ZONE",
-                new Class[] {java.time.ZonedDateTime.class, java.time.OffsetDateTime.class},
-                new Class[] {java.time.OffsetDateTime.class},
-                new LogicalType[] {},
-                new ZonedTimestampType(3));
+    void testZonedTimestampType() {
+        assertThat(new ZonedTimestampType(9))
+                .satisfies(
+                        baseAssertions(
+                                "TIMESTAMP(9) WITH TIME ZONE",
+                                "TIMESTAMP(9) WITH TIME ZONE",
+                                new Class[] {
+                                    java.time.ZonedDateTime.class, java.time.OffsetDateTime.class
+                                },
+                                new Class[] {java.time.OffsetDateTime.class},
+                                new LogicalType[] {},
+                                new ZonedTimestampType(3)));
     }
 
     @Test
-    public void testZonedTimestampTypeWithTimeAttribute() {
-        testAll(
-                new ZonedTimestampType(true, TimestampKind.ROWTIME, 9),
-                "TIMESTAMP(9) WITH TIME ZONE",
-                "TIMESTAMP(9) WITH TIME ZONE *ROWTIME*",
-                new Class[] {java.time.ZonedDateTime.class, java.time.OffsetDateTime.class},
-                new Class[] {java.time.OffsetDateTime.class},
-                new LogicalType[] {},
-                new ZonedTimestampType(3));
+    void testZonedTimestampTypeWithTimeAttribute() {
+        assertThat(new ZonedTimestampType(true, TimestampKind.ROWTIME, 9))
+                .satisfies(
+                        baseAssertions(
+                                "TIMESTAMP(9) WITH TIME ZONE",
+                                "TIMESTAMP(9) WITH TIME ZONE *ROWTIME*",
+                                new Class[] {
+                                    java.time.ZonedDateTime.class, java.time.OffsetDateTime.class
+                                },
+                                new Class[] {java.time.OffsetDateTime.class},
+                                new LogicalType[] {},
+                                new ZonedTimestampType(3)));
     }
 
     @Test
-    public void testLocalZonedTimestampType() {
-        testAll(
-                new LocalZonedTimestampType(9),
-                "TIMESTAMP(9) WITH LOCAL TIME ZONE",
-                "TIMESTAMP_LTZ(9)",
-                new Class[] {java.time.Instant.class, long.class, int.class},
-                new Class[] {java.time.Instant.class},
-                new LogicalType[] {},
-                new LocalZonedTimestampType(3));
+    void testLocalZonedTimestampType() {
+        assertThat(new LocalZonedTimestampType(9))
+                .satisfies(
+                        baseAssertions(
+                                "TIMESTAMP(9) WITH LOCAL TIME ZONE",
+                                "TIMESTAMP_LTZ(9)",
+                                new Class[] {java.time.Instant.class, long.class, int.class},
+                                new Class[] {java.time.Instant.class},
+                                new LogicalType[] {},
+                                new LocalZonedTimestampType(3)));
     }
 
     @Test
-    public void testLocalZonedTimestampTypeWithTimeAttribute() {
-        testAll(
-                new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 9),
-                "TIMESTAMP(9) WITH LOCAL TIME ZONE",
-                "TIMESTAMP_LTZ(9) *ROWTIME*",
-                new Class[] {java.time.Instant.class, long.class, int.class},
-                new Class[] {java.time.Instant.class},
-                new LogicalType[] {},
-                new LocalZonedTimestampType(3));
+    void testLocalZonedTimestampTypeWithTimeAttribute() {
+        assertThat(new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 9))
+                .satisfies(
+                        baseAssertions(
+                                "TIMESTAMP(9) WITH LOCAL TIME ZONE",
+                                "TIMESTAMP_LTZ(9) *ROWTIME*",
+                                new Class[] {java.time.Instant.class, long.class, int.class},
+                                new Class[] {java.time.Instant.class},
+                                new LogicalType[] {},
+                                new LocalZonedTimestampType(3)));
     }
 
     @Test
-    public void testYearMonthIntervalType() {
-        testAll(
-                new YearMonthIntervalType(
-                        YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH, 2),
-                "INTERVAL YEAR(2) TO MONTH",
-                "INTERVAL YEAR(2) TO MONTH",
-                new Class[] {java.time.Period.class, int.class},
-                new Class[] {java.time.Period.class},
-                new LogicalType[] {},
-                new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH));
+    void testYearMonthIntervalType() {
+        assertThat(
+                        new YearMonthIntervalType(
+                                YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH, 2))
+                .satisfies(
+                        baseAssertions(
+                                "INTERVAL YEAR(2) TO MONTH",
+                                "INTERVAL YEAR(2) TO MONTH",
+                                new Class[] {java.time.Period.class, int.class},
+                                new Class[] {java.time.Period.class},
+                                new LogicalType[] {},
+                                new YearMonthIntervalType(
+                                        YearMonthIntervalType.YearMonthResolution.MONTH)));
     }
 
     @Test
-    public void testDayTimeIntervalType() {
-        testAll(
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 6),
-                "INTERVAL DAY(2) TO SECOND(6)",
-                "INTERVAL DAY(2) TO SECOND(6)",
-                new Class[] {java.time.Duration.class, long.class},
-                new Class[] {java.time.Duration.class},
-                new LogicalType[] {},
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 7));
+    void testDayTimeIntervalType() {
+        assertThat(
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 6))
+                .satisfies(
+                        baseAssertions(
+                                "INTERVAL DAY(2) TO SECOND(6)",
+                                "INTERVAL DAY(2) TO SECOND(6)",
+                                new Class[] {java.time.Duration.class, long.class},
+                                new Class[] {java.time.Duration.class},
+                                new LogicalType[] {},
+                                new DayTimeIntervalType(
+                                        DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND,
+                                        2,
+                                        7)));
     }
 
     @Test
-    public void testArrayType() {
-        testAll(
-                new ArrayType(new TimestampType()),
-                "ARRAY<TIMESTAMP(6)>",
-                "ARRAY<TIMESTAMP(6)>",
-                new Class[] {
-                    java.sql.Timestamp[].class,
-                    java.time.LocalDateTime[].class,
-                    List.class,
-                    ArrayList.class
-                },
-                new Class[] {
-                    java.sql.Timestamp[].class, java.time.LocalDateTime[].class, List.class
-                },
-                new LogicalType[] {new TimestampType()},
-                new ArrayType(new SmallIntType()));
+    void testArrayType() {
+        assertThat(new ArrayType(new TimestampType()))
+                .satisfies(
+                        baseAssertions(
+                                "ARRAY<TIMESTAMP(6)>",
+                                "ARRAY<TIMESTAMP(6)>",
+                                new Class[] {
+                                    java.sql.Timestamp[].class,
+                                    java.time.LocalDateTime[].class,
+                                    List.class,
+                                    ArrayList.class
+                                },
+                                new Class[] {
+                                    java.sql.Timestamp[].class,
+                                    java.time.LocalDateTime[].class,
+                                    List.class
+                                },
+                                new LogicalType[] {new TimestampType()},
+                                new ArrayType(new SmallIntType())));
 
-        testAll(
-                new ArrayType(new ArrayType(new TimestampType())),
-                "ARRAY<ARRAY<TIMESTAMP(6)>>",
-                "ARRAY<ARRAY<TIMESTAMP(6)>>",
-                new Class[] {java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class},
-                new Class[] {java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class},
-                new LogicalType[] {new ArrayType(new TimestampType())},
-                new ArrayType(new ArrayType(new SmallIntType())));
+        assertThat(new ArrayType(new ArrayType(new TimestampType())))
+                .satisfies(
+                        baseAssertions(
+                                "ARRAY<ARRAY<TIMESTAMP(6)>>",
+                                "ARRAY<ARRAY<TIMESTAMP(6)>>",
+                                new Class[] {
+                                    java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class
+                                },
+                                new Class[] {
+                                    java.sql.Timestamp[][].class, java.time.LocalDateTime[][].class
+                                },
+                                new LogicalType[] {new ArrayType(new TimestampType())},
+                                new ArrayType(new ArrayType(new SmallIntType()))));
 
         final LogicalType nestedArray = new ArrayType(new ArrayType(new TimestampType()));
-        assertFalse(nestedArray.supportsInputConversion(java.sql.Timestamp[].class));
-        assertFalse(nestedArray.supportsOutputConversion(java.sql.Timestamp[].class));
+        assertThat(nestedArray)
+                .doesNotSupportInputConversion(java.sql.Timestamp[].class)
+                .doesNotSupportOutputConversion(java.sql.Timestamp[].class);
     }
 
     @Test
-    public void testMultisetType() {
-        testAll(
-                new MultisetType(new TimestampType()),
-                "MULTISET<TIMESTAMP(6)>",
-                "MULTISET<TIMESTAMP(6)>",
-                new Class[] {Map.class, HashMap.class, TreeMap.class},
-                new Class[] {Map.class},
-                new LogicalType[] {new TimestampType()},
-                new MultisetType(new SmallIntType()));
+    void testMultisetType() {
+        assertThat(new MultisetType(new TimestampType()))
+                .satisfies(
+                        baseAssertions(
+                                "MULTISET<TIMESTAMP(6)>",
+                                "MULTISET<TIMESTAMP(6)>",
+                                new Class[] {Map.class, HashMap.class, TreeMap.class},
+                                new Class[] {Map.class},
+                                new LogicalType[] {new TimestampType()},
+                                new MultisetType(new SmallIntType())));
 
-        testAll(
-                new MultisetType(new MultisetType(new TimestampType())),
-                "MULTISET<MULTISET<TIMESTAMP(6)>>",
-                "MULTISET<MULTISET<TIMESTAMP(6)>>",
-                new Class[] {Map.class, HashMap.class, TreeMap.class},
-                new Class[] {Map.class},
-                new LogicalType[] {new MultisetType(new TimestampType())},
-                new MultisetType(new MultisetType(new SmallIntType())));
+        assertThat(new MultisetType(new MultisetType(new TimestampType())))
+                .satisfies(
+                        baseAssertions(
+                                "MULTISET<MULTISET<TIMESTAMP(6)>>",
+                                "MULTISET<MULTISET<TIMESTAMP(6)>>",
+                                new Class[] {Map.class, HashMap.class, TreeMap.class},
+                                new Class[] {Map.class},
+                                new LogicalType[] {new MultisetType(new TimestampType())},
+                                new MultisetType(new MultisetType(new SmallIntType()))));
     }
 
     @Test
-    public void testMapType() {
-        testAll(
-                new MapType(new VarCharType(20), new TimestampType()),
-                "MAP<VARCHAR(20), TIMESTAMP(6)>",
-                "MAP<VARCHAR(20), TIMESTAMP(6)>",
-                new Class[] {Map.class, HashMap.class, TreeMap.class},
-                new Class[] {Map.class},
-                new LogicalType[] {new VarCharType(20), new TimestampType()},
-                new MapType(new VarCharType(99), new TimestampType()));
+    void testMapType() {
+        assertThat(new MapType(new VarCharType(20), new TimestampType()))
+                .satisfies(
+                        baseAssertions(
+                                "MAP<VARCHAR(20), TIMESTAMP(6)>",
+                                "MAP<VARCHAR(20), TIMESTAMP(6)>",
+                                new Class[] {Map.class, HashMap.class, TreeMap.class},
+                                new Class[] {Map.class},
+                                new LogicalType[] {new VarCharType(20), new TimestampType()},
+                                new MapType(new VarCharType(99), new TimestampType())));
     }
 
     @Test
-    public void testRowType() {
-        testAll(
-                new RowType(
-                        Arrays.asList(
-                                new RowType.RowField("a", new VarCharType(), "Someone's desc."),
-                                new RowType.RowField("b`", new TimestampType()))),
-                "ROW<`a` VARCHAR(1) 'Someone''s desc.', `b``` TIMESTAMP(6)>",
-                "ROW<`a` VARCHAR(1) '...', `b``` TIMESTAMP(6)>",
-                new Class[] {Row.class},
-                new Class[] {Row.class},
-                new LogicalType[] {new VarCharType(), new TimestampType()},
-                new RowType(
-                        Arrays.asList(
-                                new RowType.RowField("a", new VarCharType(), "Different desc."),
-                                new RowType.RowField("b`", new TimestampType()))));
+    void testRowType() {
+        assertThat(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowType.RowField(
+                                                "a", new VarCharType(), "Someone's desc."),
+                                        new RowType.RowField("b`", new TimestampType()))))
+                .satisfies(
+                        baseAssertions(
+                                "ROW<`a` VARCHAR(1) 'Someone''s desc.', `b``` TIMESTAMP(6)>",
+                                "ROW<`a` VARCHAR(1) '...', `b``` TIMESTAMP(6)>",
+                                new Class[] {Row.class},
+                                new Class[] {Row.class},
+                                new LogicalType[] {new VarCharType(), new TimestampType()},
+                                new RowType(
+                                        Arrays.asList(
+                                                new RowType.RowField(
+                                                        "a", new VarCharType(), "Different desc."),
+                                                new RowType.RowField("b`", new TimestampType())))));
 
-        try {
-            new RowType(
-                    Arrays.asList(
-                            new RowType.RowField("b", new VarCharType()),
-                            new RowType.RowField("b", new VarCharType()),
-                            new RowType.RowField("a", new VarCharType()),
-                            new RowType.RowField("a", new TimestampType())));
-            fail("Not unique fields expected.");
-        } catch (ValidationException e) {
-            // ok
-        }
+        assertThatThrownBy(
+                        () ->
+                                new RowType(
+                                        Arrays.asList(
+                                                new RowType.RowField("b", new VarCharType()),
+                                                new RowType.RowField("b", new VarCharType()),
+                                                new RowType.RowField("a", new VarCharType()),
+                                                new RowType.RowField("a", new TimestampType()))))
+                .isInstanceOf(ValidationException.class);
 
-        try {
-            new RowType(Collections.singletonList(new RowType.RowField("", new VarCharType())));
-            fail("Invalid name.");
-        } catch (ValidationException e) {
-            // ok
-        }
+        assertThatThrownBy(
+                        () ->
+                                new RowType(
+                                        Collections.singletonList(
+                                                new RowType.RowField("", new VarCharType()))))
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testDistinctType() {
-        testAll(
-                createDistinctType("Money"),
-                "`cat`.`db`.`Money`",
-                "`cat`.`db`.`Money`",
-                new Class[] {BigDecimal.class},
-                new Class[] {BigDecimal.class},
-                new LogicalType[] {new DecimalType(10, 2)},
-                createDistinctType("Monetary"));
+    void testDistinctType() {
+        assertThat(createDistinctType("Money"))
+                .satisfies(
+                        baseAssertions(
+                                "`cat`.`db`.`Money`",
+                                "`cat`.`db`.`Money`",
+                                new Class[] {BigDecimal.class},
+                                new Class[] {BigDecimal.class},
+                                new LogicalType[] {new DecimalType(10, 2)},
+                                createDistinctType("Monetary")));
     }
 
     @Test
-    public void testStructuredType() {
-        testAll(
-                createUserType(true, true),
-                "`cat`.`db`.`User`",
-                "`cat`.`db`.`User`",
-                new Class[] {Row.class, User.class},
-                new Class[] {Row.class, Human.class, User.class},
-                new LogicalType[] {UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE},
-                createUserType(true, false));
+    void testStructuredType() {
+        assertThat(createUserType(true, true))
+                .satisfies(
+                        baseAssertions(
+                                "`cat`.`db`.`User`",
+                                "`cat`.`db`.`User`",
+                                new Class[] {Row.class, User.class},
+                                new Class[] {Row.class, Human.class, User.class},
+                                new LogicalType[] {
+                                    UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE
+                                },
+                                createUserType(true, false)));
 
-        testConversions(
-                createHumanType(false),
-                new Class[] {Row.class, Human.class, User.class}, // every User is Human
-                new Class[] {Row.class, Human.class});
+        assertThat(createHumanType(false))
+                .satisfies(
+                        conversions(
+                                new Class[] {
+                                    Row.class, Human.class, User.class // every User is Human
+                                },
+                                new Class[] {Row.class, Human.class}));
 
         // not every Human is User
-        assertFalse(createUserType(true, true).supportsInputConversion(Human.class));
+        assertThat(createUserType(true, true)).doesNotSupportInputConversion(Human.class);
 
         // User is not implementing SpecialHuman
-        assertFalse(createHumanType(true).supportsInputConversion(User.class));
+        assertThat(createHumanType(true)).doesNotSupportInputConversion(User.class);
     }
 
     @Test
-    public void testNullType() {
-        final NullType nullType = new NullType();
-
-        testEquality(nullType, new TimeType());
-
-        testJavaSerializability(nullType);
-
-        testStringSerializability(nullType, "NULL");
-
-        testStringSummary(nullType, "NULL");
-
-        assertTrue(nullType.supportsInputConversion(Object.class));
-
-        assertTrue(nullType.supportsOutputConversion(Object.class));
-
-        assertTrue(nullType.supportsOutputConversion(Integer.class));
-
-        assertFalse(nullType.supportsOutputConversion(int.class));
+    void testNullType() {
+        assertThat(new NullType())
+                .isJavaSerializable()
+                .satisfies(nonEqualityCheckWithOtherType(new TimeType()))
+                .hasSerializableString("NULL")
+                .hasSummaryString("NULL")
+                .supportsInputConversion(Object.class)
+                .supportsOutputConversion(Object.class)
+                .supportsOutputConversion(Integer.class)
+                .doesNotSupportOutputConversion(int.class);
     }
 
     @Test
-    public void testTypeInformationRawType() {
+    void testTypeInformationRawType() throws Exception {
         final TypeInformationRawType<?> rawType =
                 new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.INT));
 
-        testEquality(rawType, new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.LONG)));
-
-        testStringSummary(rawType, "RAW('org.apache.flink.api.java.tuple.Tuple2', ?)");
-
-        testNullability(rawType);
-
-        testJavaSerializability(rawType);
-
-        testConversions(rawType, new Class[] {Tuple2.class}, new Class[] {Tuple.class});
-
-        testInvalidStringSerializability(rawType);
+        assertThat(rawType)
+                .satisfies(
+                        nonEqualityCheckWithOtherType(
+                                new TypeInformationRawType<>(
+                                        Types.TUPLE(Types.STRING, Types.LONG))))
+                .satisfies(LogicalTypesTest::nullability)
+                .isJavaSerializable()
+                .hasSummaryString("RAW('org.apache.flink.api.java.tuple.Tuple2', ?)")
+                .hasNoSerializableString()
+                .satisfies(conversions(new Class[] {Tuple2.class}, new Class[] {Tuple.class}));
     }
 
     @Test
-    public void testRawType() {
+    void testRawType() {
         final RawType<Human> rawType =
                 new RawType<>(
                         Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig()));
@@ -572,204 +621,160 @@ public class LogicalTypesTest {
                         + "ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3"
                         + "MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=";
 
-        testAll(
-                rawType,
-                "RAW('" + className + "', '" + serializerString + "')",
-                "RAW('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
-                new Class[] {Human.class, User.class}, // every User is Human
-                new Class[] {Human.class},
-                new LogicalType[] {},
-                new RawType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig())));
+        assertThat(rawType)
+                .satisfies(
+                        baseAssertions(
+                                "RAW('" + className + "', '" + serializerString + "')",
+                                "RAW('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
+                                new Class[] {Human.class, User.class}, // every User is Human
+                                new Class[] {Human.class},
+                                new LogicalType[] {},
+                                new RawType<>(
+                                        User.class,
+                                        new KryoSerializer<>(User.class, new ExecutionConfig()))));
 
         assertThat(
-                RawType.restore(
-                        LogicalTypesTest.class.getClassLoader(), className, serializerString),
-                equalTo(rawType));
+                        RawType.restore(
+                                LogicalTypesTest.class.getClassLoader(),
+                                className,
+                                serializerString))
+                .isEqualTo(rawType);
     }
 
     @Test
-    public void testSymbolType() {
-        final SymbolType<?> symbolType = new SymbolType<>(TimeIntervalUnit.class);
+    void testSymbolType() {
+        final SymbolType<?> symbolType = new SymbolType<>();
 
-        testEquality(symbolType, new SymbolType<>(TimePointUnit.class));
-
-        testStringSummary(symbolType, "SYMBOL('" + TimeIntervalUnit.class.getName() + "')");
-
-        testNullability(symbolType);
-
-        testJavaSerializability(symbolType);
-
-        testConversions(
-                symbolType,
-                new Class[] {TimeIntervalUnit.class},
-                new Class[] {TimeIntervalUnit.class});
-
-        testInvalidStringSerializability(symbolType);
+        assertThat(symbolType)
+                .hasSummaryString("SYMBOL")
+                .satisfies(LogicalTypesTest::nullability)
+                .isJavaSerializable()
+                .satisfies(
+                        conversions(
+                                new Class[] {TimeIntervalUnit.class},
+                                new Class[] {TimeIntervalUnit.class}))
+                .hasNoSerializableString();
     }
 
     @Test
-    public void testUnresolvedUserDefinedType() {
+    void testUnresolvedUserDefinedType() {
         final UnresolvedUserDefinedType unresolvedType =
                 new UnresolvedUserDefinedType(
                         UnresolvedIdentifier.of("catalog", "database", "Type"));
 
-        testEquality(
-                unresolvedType,
-                new UnresolvedUserDefinedType(
-                        UnresolvedIdentifier.of("different", "database", "Type")));
-
-        testStringSummary(unresolvedType, "`catalog`.`database`.`Type`");
+        assertThat(unresolvedType)
+                .satisfies(
+                        nonEqualityCheckWithOtherType(
+                                new UnresolvedUserDefinedType(
+                                        UnresolvedIdentifier.of("different", "database", "Type"))))
+                .hasSummaryString("`catalog`.`database`.`Type`");
     }
 
     @Test
-    public void testEmptyStringLiterals() {
+    void testEmptyStringLiterals() {
         final CharType charType = CharType.ofEmptyLiteral();
         final VarCharType varcharType = VarCharType.ofEmptyLiteral();
         final BinaryType binaryType = BinaryType.ofEmptyLiteral();
         final VarBinaryType varBinaryType = VarBinaryType.ofEmptyLiteral();
 
         // make the types nullable for testing
-        testEquality(charType.copy(true), new CharType(1));
-        testEquality(varcharType.copy(true), new VarCharType(1));
-        testEquality(binaryType.copy(true), new BinaryType(1));
-        testEquality(varBinaryType.copy(true), new VarBinaryType(1));
+        assertThat(charType.copy(true)).satisfies(nonEqualityCheckWithOtherType(new CharType(1)));
+        assertThat(varcharType.copy(true))
+                .satisfies(nonEqualityCheckWithOtherType(new VarCharType(1)));
+        assertThat(binaryType.copy(true))
+                .satisfies(nonEqualityCheckWithOtherType(new BinaryType(1)));
+        assertThat(varBinaryType.copy(true))
+                .satisfies(nonEqualityCheckWithOtherType(new VarBinaryType(1)));
 
-        testStringSummary(charType, "CHAR(0) NOT NULL");
-        testStringSummary(varcharType, "VARCHAR(0) NOT NULL");
-        testStringSummary(binaryType, "BINARY(0) NOT NULL");
-        testStringSummary(varBinaryType, "VARBINARY(0) NOT NULL");
+        assertThat(charType).hasSummaryString("CHAR(0) NOT NULL");
+        assertThat(varcharType).hasSummaryString("VARCHAR(0) NOT NULL");
+        assertThat(binaryType).hasSummaryString("BINARY(0) NOT NULL");
+        assertThat(varBinaryType).hasSummaryString("VARBINARY(0) NOT NULL");
 
-        testInvalidStringSerializability(charType);
-        testInvalidStringSerializability(varcharType);
-        testInvalidStringSerializability(binaryType);
-        testInvalidStringSerializability(varBinaryType);
+        assertThat(charType).hasNoSerializableString();
+        assertThat(varcharType).hasNoSerializableString();
+        assertThat(binaryType).hasNoSerializableString();
+        assertThat(varBinaryType).hasNoSerializableString();
     }
 
     @Test
-    public void testUnregisteredStructuredType() {
+    void testUnregisteredStructuredType() {
         final StructuredType structuredType = createUserType(false, true);
 
-        testEquality(structuredType, createUserType(false, false));
-
-        testNullability(structuredType);
-
-        testJavaSerializability(structuredType);
-
-        testInvalidStringSerializability(structuredType);
-
-        testStringSummary(
-                structuredType,
-                String.format(
-                        "*%s<`name` VARCHAR(1) '...', `setting` INT, `timestamp` TIMESTAMP(6)>*",
-                        User.class.getName()));
-
-        testConversions(
-                structuredType,
-                new Class[] {Row.class, User.class},
-                new Class[] {Row.class, Human.class, User.class});
-
-        testChildren(
-                structuredType,
-                new LogicalType[] {UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE});
+        assertThat(structuredType)
+                .satisfies(nonEqualityCheckWithOtherType(createUserType(false, false)))
+                .satisfies(LogicalTypesTest::nullability)
+                .isJavaSerializable()
+                .hasNoSerializableString()
+                .hasSummaryString(
+                        String.format(
+                                "*%s<`name` VARCHAR(1) '...', `setting` INT, `timestamp` TIMESTAMP(6)>*",
+                                User.class.getName()))
+                .satisfies(
+                        conversions(
+                                new Class[] {Row.class, User.class},
+                                new Class[] {Row.class, Human.class, User.class}))
+                .hasExactlyChildren(UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE);
     }
 
     // --------------------------------------------------------------------------------------------
 
-    private static void testAll(
-            LogicalType nullableType,
+    private static ThrowingConsumer<LogicalType> baseAssertions(
             String serializableString,
             String summaryString,
             Class<?>[] supportedInputClasses,
             Class<?>[] supportedOutputClasses,
             LogicalType[] children,
             LogicalType otherType) {
-
-        testEquality(nullableType, otherType);
-
-        testNullability(nullableType);
-
-        testJavaSerializability(nullableType);
-
-        testStringSerializability(nullableType, serializableString);
-
-        testStringSummary(nullableType, summaryString);
-
-        testConversions(nullableType, supportedInputClasses, supportedOutputClasses);
-
-        testChildren(nullableType, children);
+        return nullableType ->
+                assertThat(nullableType)
+                        .satisfies(nonEqualityCheckWithOtherType(otherType))
+                        .satisfies(LogicalTypesTest::nullability)
+                        .isJavaSerializable()
+                        .hasSerializableString(serializableString)
+                        .hasSummaryString(summaryString)
+                        .satisfies(conversions(supportedInputClasses, supportedOutputClasses))
+                        .hasExactlyChildren(children);
     }
 
-    private static void testEquality(LogicalType nullableType, LogicalType otherType) {
-        assertTrue(nullableType.isNullable());
+    private static ThrowingConsumer<LogicalType> nonEqualityCheckWithOtherType(
+            LogicalType otherType) {
+        return nullableType -> {
+            assertThat(nullableType)
+                    .isNullable()
+                    .isEqualTo(nullableType)
+                    .isEqualTo(nullableType.copy())
+                    .isNotEqualTo(otherType);
 
-        assertEquals(nullableType, nullableType);
-        assertEquals(nullableType.hashCode(), nullableType.hashCode());
-
-        assertEquals(nullableType, nullableType.copy());
-
-        assertNotEquals(nullableType, otherType);
-        assertNotEquals(nullableType.hashCode(), otherType.hashCode());
+            assertThat(nullableType.hashCode())
+                    .isEqualTo(nullableType.hashCode())
+                    .isNotEqualTo(otherType.hashCode());
+        };
     }
 
-    private static void testNullability(LogicalType nullableType) {
+    private static void nullability(LogicalType nullableType) {
         final LogicalType notNullInstance = nullableType.copy(false);
-
-        assertNotEquals(nullableType, notNullInstance);
-
-        assertFalse(notNullInstance.isNullable());
+        assertThat(notNullInstance).isNotNullable();
+        assertThat(nullableType).isNotEqualTo(notNullInstance);
     }
 
-    private static void testJavaSerializability(LogicalType serializableType) {
-        try {
-            final LogicalType deserializedInstance =
-                    InstantiationUtil.deserializeObject(
-                            InstantiationUtil.serializeObject(serializableType),
-                            LogicalTypesTest.class.getClassLoader());
+    private static ThrowingConsumer<LogicalType> conversions(
+            Class<?>[] inputs, Class<?>[] outputs) {
+        return type -> {
+            assertThat(type)
+                    .supportsInputConversion(type.getDefaultConversion())
+                    .supportsOutputConversion(type.getDefaultConversion())
+                    .doesNotSupportInputConversion(LogicalTypesTest.class)
+                    .doesNotSupportOutputConversion(LogicalTypesTest.class);
 
-            assertEquals(serializableType, deserializedInstance);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+            for (Class<?> clazz : inputs) {
+                assertThat(type).supportsInputConversion(clazz);
+            }
 
-    private static void testStringSerializability(
-            LogicalType serializableType, String serializableString) {
-        assertEquals(serializableString, serializableType.asSerializableString());
-    }
-
-    private static void testInvalidStringSerializability(LogicalType nonSerializableType) {
-        try {
-            final String serializedString = nonSerializableType.asSerializableString();
-            fail("No serializablility expected: " + serializedString);
-        } catch (TableException e) {
-            // ok
-        }
-    }
-
-    private static void testStringSummary(LogicalType type, String summaryString) {
-        assertEquals(summaryString, type.asSummaryString());
-    }
-
-    private static void testConversions(LogicalType type, Class<?>[] inputs, Class<?>[] outputs) {
-        for (Class<?> clazz : inputs) {
-            assertTrue(type.supportsInputConversion(clazz));
-        }
-
-        for (Class<?> clazz : outputs) {
-            assertTrue(type.supportsOutputConversion(clazz));
-        }
-
-        assertTrue(type.supportsInputConversion(type.getDefaultConversion()));
-
-        assertTrue(type.supportsOutputConversion(type.getDefaultConversion()));
-
-        assertFalse(type.supportsOutputConversion(LogicalTypesTest.class));
-
-        assertFalse(type.supportsInputConversion(LogicalTypesTest.class));
-    }
-
-    private static void testChildren(LogicalType type, LogicalType[] children) {
-        assertEquals(Arrays.asList(children), type.getChildren());
+            for (Class<?> clazz : outputs) {
+                assertThat(type).supportsOutputConversion(clazz);
+            }
+        };
     }
 
     private DistinctType createDistinctType(String typeName) {

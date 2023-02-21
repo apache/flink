@@ -1,3 +1,4 @@
+
 ---
 title: Kafka
 weight: 3
@@ -26,6 +27,7 @@ under the License.
 
 # Apache Kafka SQL Connector
 
+{{< label "Scan Source: Bounded" >}}
 {{< label "Scan Source: Unbounded" >}}
 {{< label "Sink: Streaming Append Mode" >}}
 
@@ -36,8 +38,8 @@ Dependencies
 
 {{< sql_download_table "kafka" >}}
 
-The Kafka connector is not currently part of the binary distribution.
-See how to link with it for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+The Kafka connector is not part of the binary distribution.
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 How to create a Kafka table
 ----------------
@@ -178,15 +180,17 @@ Connector Options
     <tr>
       <th class="text-left" style="width: 25%">Option</th>
       <th class="text-center" style="width: 8%">Required</th>
+      <th class="text-center" style="width: 8%">Forwarded</th>
       <th class="text-center" style="width: 7%">Default</th>
       <th class="text-center" style="width: 10%">Type</th>
-      <th class="text-center" style="width: 50%">Description</th>
+      <th class="text-center" style="width: 42%">Description</th>
     </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>connector</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Specify what connector to use, for Kafka use <code>'kafka'</code>.</td>
@@ -194,6 +198,7 @@ Connector Options
     <tr>
       <td><h5>topic</h5></td>
       <td>required for sink</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Topic name(s) to read data from when the table is used as source. It also supports topic list for source by separating topic by semicolon like <code>'topic-1;topic-2'</code>. Note, only one of "topic-pattern" and "topic" can be specified for sources. When the table is used as sink, the topic name is the topic to write data to. Note topic list is not supported for sinks.</td>
@@ -201,6 +206,7 @@ Connector Options
     <tr>
       <td><h5>topic-pattern</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The regular expression for a pattern of topic names to read from. All topics with names that match the specified regular expression will be subscribed by the consumer when the job starts running. Note, only one of "topic-pattern" and "topic" can be specified for sources.</td>
@@ -208,20 +214,23 @@ Connector Options
     <tr>
       <td><h5>properties.bootstrap.servers</h5></td>
       <td>required</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Comma separated list of Kafka brokers.</td>
     </tr>
     <tr>
       <td><h5>properties.group.id</h5></td>
-      <td>required by source</td>
+      <td>optional for source, not applicable for sink</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The id of the consumer group for Kafka source, optional for Kafka sink.</td>
+      <td>The id of the consumer group for Kafka source. If group ID is not specified, an automatically generated id "KafkaSource-{tableIdentifier}" will be used.</td>
     </tr>
     <tr>
       <td><h5>properties.*</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>
@@ -231,6 +240,7 @@ Connector Options
     <tr>
       <td><h5>format</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The format used to deserialize and serialize the value part of Kafka messages.
@@ -242,6 +252,7 @@ Connector Options
     <tr>
       <td><h5>key.format</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The format used to deserialize and serialize the key part of Kafka messages.
@@ -253,6 +264,7 @@ Connector Options
     <tr>
       <td><h5>key.fields</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">[]</td>
       <td>List&lt;String&gt;</td>
       <td>Defines an explicit list of physical columns from the table schema that configure the data
@@ -263,6 +275,7 @@ Connector Options
     <tr>
       <td><h5>key.fields-prefix</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Defines a custom prefix for all fields of the key format to avoid name clashes with fields
@@ -276,6 +289,7 @@ Connector Options
     <tr>
       <td><h5>value.format</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The format used to deserialize and serialize the value part of Kafka messages.
@@ -287,6 +301,7 @@ Connector Options
     <tr>
       <td><h5>value.fields-include</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">ALL</td>
       <td><p>Enum</p>Possible values: [ALL, EXCEPT_KEY]</td>
       <td>Defines a strategy how to deal with key columns in the data type of the value format. By
@@ -297,14 +312,16 @@ Connector Options
     <tr>
       <td><h5>scan.startup.mode</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">group-offsets</td>
-      <td>String</td>
+      <td>Enum</td>
       <td>Startup mode for Kafka consumer, valid values are <code>'earliest-offset'</code>, <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> and <code>'specific-offsets'</code>.
        See the following <a href="#start-reading-position">Start Reading Position</a> for more details.</td>
     </tr>
     <tr>
       <td><h5>scan.startup.specific-offsets</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Specify offsets for each partition in case of <code>'specific-offsets'</code> startup mode, e.g. <code>'partition:0,offset:42;partition:1,offset:300'</code>.
@@ -313,13 +330,41 @@ Connector Options
     <tr>
       <td><h5>scan.startup.timestamp-millis</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Long</td>
       <td>Start from the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> startup mode.</td>
     </tr>
     <tr>
+      <td><h5>scan.bounded.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">unbounded</td>
+      <td>Enum</td>
+      <td>Bounded mode for Kafka consumer, valid values are <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> and <code>'specific-offsets'</code>.
+       See the following <a href="#bounded-ending-position">Bounded Ending Position</a> for more details.</td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.specific-offsets</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify offsets for each partition in case of <code>'specific-offsets'</code> bounded mode, e.g. <code>'partition:0,offset:42;partition:1,offset:300'. If an offset
+       for a partition is not provided it will not consume from that partition.</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.timestamp-millis</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>End at the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> bounded mode.</td>
+    </tr>
+    <tr>
       <td><h5>scan.topic-partition-discovery.interval</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
       <td>Interval for consumer to discover dynamically created Kafka topics and partitions periodically.</td>
@@ -327,6 +372,7 @@ Connector Options
     <tr>
       <td><h5>sink.partitioner</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">'default'</td>
       <td>String</td>
       <td>Output partitioning from Flink's partitions into Kafka's partitions. Valid values are
@@ -342,13 +388,31 @@ Connector Options
     <tr>
       <td><h5>sink.semantic</h5></td>
       <td>optional</td>
+      <td>no</td>
+      <td style="word-wrap: break-word;">at-least-once</td>
+      <td>String</td>
+      <td>Deprecated: Please use <code>sink.delivery-guarantee</code>.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.delivery-guarantee</h5></td>
+      <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">at-least-once</td>
       <td>String</td>
       <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-least-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
     </tr>
     <tr>
+      <td><h5>sink.transactional-id-prefix</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>If the delivery guarantee is configured as <code>'exactly-once'</code> this value must be set and is used a prefix for the identifier of all opened Kafka transactions.</td>
+    </tr>
+    <tr>
       <td><h5>sink.parallelism</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>Defines the parallelism of the Kafka sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
@@ -371,7 +435,7 @@ value format but without a key format. The `'format'` option is a synonym for `'
 options are prefixed with the format identifier.
 
 ```sql
-CREATE TABLE KafkaTable (,
+CREATE TABLE KafkaTable (
   `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `user_id` BIGINT,
   `item_id` BIGINT,
@@ -484,13 +548,12 @@ Note that topic list and topic pattern only work in sources. In sinks, Flink cur
 ### Start Reading Position
 
 The config option `scan.startup.mode` specifies the startup mode for Kafka consumer. The valid enumerations are:
-<ul>
-<li><span markdown="span">`group-offsets`</span>: start from committed offsets in ZK / Kafka brokers of a specific consumer group.</li>
-<li><span markdown="span">`earliest-offset`</span>: start from the earliest offset possible.</li>
-<li><span markdown="span">`latest-offset`</span>: start from the latest offset.</li>
-<li><span markdown="span">`timestamp`</span>: start from user-supplied timestamp for each partition.</li>
-<li><span markdown="span">`specific-offsets`</span>: start from user-supplied specific offsets for each partition.</li>
-</ul>
+
+* `group-offsets`: start from committed offsets in ZK / Kafka brokers of a specific consumer group.
+* `earliest-offset`: start from the earliest offset possible.
+* `latest-offset`: start from the latest offset.
+* `timestamp`: start from user-supplied timestamp for each partition.
+* `specific-offsets`: start from user-supplied specific offsets for each partition.
 
 The default option value is `group-offsets` which indicates to consume from last committed offsets in ZK / Kafka brokers.
 
@@ -498,6 +561,23 @@ If `timestamp` is specified, another config option `scan.startup.timestamp-milli
 
 If `specific-offsets` is specified, another config option `scan.startup.specific-offsets` is required to specify specific startup offsets for each partition,
 e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`.
+
+### Bounded Ending Position
+
+The config option `scan.bounded.mode` specifies the bounded mode for Kafka consumer. The valid enumerations are:
+<ul>
+<li><span markdown="span">`group-offsets`</span>: bounded by committed offsets in ZooKeeper / Kafka brokers of a specific consumer group. This is evaluated at the start of consumption from a given partition.</li>
+<li><span markdown="span">`latest-offset`</span>: bounded by latest offsets. This is evaluated at the start of consumption from a given partition.</li>
+<li><span markdown="span">`timestamp`</span>: bounded by a user-supplied timestamp.</li>
+<li><span markdown="span">`specific-offsets`</span>: bounded by user-supplied specific offsets for each partition.</li>
+</ul>
+
+If config option value `scan.bounded.mode` is not set the default is an unbounded table.
+
+If `timestamp` is specified, another config option `scan.bounded.timestamp-millis` is required to specify a specific bounded timestamp in milliseconds since January 1, 1970 00:00:00.000 GMT.
+
+If `specific-offsets` is specified, another config option `scan.bounded.specific-offsets` is required to specify specific bounded offsets for each partition,
+e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`. If an offset for a partition is not provided it will not consume from that partition.
 
 ### CDC Changelog Source
 
@@ -524,7 +604,7 @@ By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka
 
 With Flink's checkpointing enabled, the `kafka` connector can provide exactly-once delivery guarantees.
 
-Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.semantic` option:
+Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.delivery-guarantee` option:
 
  * `none`: Flink will not guarantee anything. Produced records can be lost or they can be duplicated.
  * `at-least-once` (default setting): This guarantees that no records will be lost (although they can be duplicated).
@@ -546,6 +626,58 @@ option in the table configuration.
 
 Please refer to [Kafka watermark strategies]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#watermark-strategies-and-the-kafka-connector)
 for more details.
+
+### Security
+In order to enable security configurations including encryption and authentication, you just need to setup security
+configurations with "properties." prefix in table options. The code snippet below shows configuring Kafka table to
+use PLAIN as SASL mechanism and provide JAAS configuration:
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_PLAINTEXT',
+  'properties.sasl.mechanism' = 'PLAIN',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";'
+)
+```
+For a more complex example, use SASL_SSL as the security protocol and use SCRAM-SHA-256 as SASL mechanism:
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_SSL',
+  /* SSL configurations */
+  /* Configure the path of truststore (CA) provided by the server */
+  'properties.ssl.truststore.location' = '/path/to/kafka.client.truststore.jks',
+  'properties.ssl.truststore.password' = 'test1234',
+  /* Configure the path of keystore (private key) if client authentication is required */
+  'properties.ssl.keystore.location' = '/path/to/kafka.client.keystore.jks',
+  'properties.ssl.keystore.password' = 'test1234',
+  /* SASL configurations */
+  /* Set SASL mechanism as SCRAM-SHA-256 */
+  'properties.sasl.mechanism' = 'SCRAM-SHA-256',
+  /* Set JAAS configurations */
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";'
+)
+```
+
+Please note that the class path of the login module in `sasl.jaas.config` might be different if you relocate Kafka
+client dependencies, so you may need to rewrite it with the actual class path of the module in the JAR.
+For example if you are using SQL client JAR, which has relocate Kafka client dependencies to `org.apache.flink.kafka.shaded.org.apache.kafka`,
+the path of plain login module should be `org.apache.flink.kafka.shaded.org.apache.kafka.common.security.plain.PlainLoginModule` instead.
+
+For detailed explanations of security configurations, please refer to
+<a href="https://kafka.apache.org/documentation/#security">the "Security" section in Apache Kafka documentation</a>.
 
 Data Type Mapping
 ----------------

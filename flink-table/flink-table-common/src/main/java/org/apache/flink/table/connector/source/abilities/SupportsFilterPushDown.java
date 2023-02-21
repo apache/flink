@@ -74,6 +74,7 @@ public interface SupportsFilterPushDown {
      * Result of a filter push down. It represents the communication of the source to the planner
      * during optimization.
      */
+    @PublicEvolving
     final class Result {
         private final List<ResolvedExpression> acceptedFilters;
         private final List<ResolvedExpression> remainingFilters;

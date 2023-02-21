@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
@@ -127,7 +128,7 @@ public final class RocksDBMemoryConfiguration implements Serializable {
     /**
      * Gets whether the state backend is configured to use a fixed amount of memory shared between
      * all RocksDB instances (in all tasks and operators) of a slot. See {@link
-     * RocksDBOptions#USE_MANAGED_MEMORY} for details.
+     * RocksDBOptions#FIX_PER_SLOT_MEMORY_SIZE} for details.
      */
     public boolean isUsingFixedMemoryPerSlot() {
         return fixedMemoryPerSlot != null;
@@ -239,5 +240,9 @@ public final class RocksDBMemoryConfiguration implements Serializable {
                         : config.get(RocksDBOptions.USE_PARTITIONED_INDEX_FILTERS);
 
         return newConfig;
+    }
+
+    public static RocksDBMemoryConfiguration fromConfiguration(Configuration configuration) {
+        return fromOtherAndConfiguration(new RocksDBMemoryConfiguration(), configuration);
     }
 }

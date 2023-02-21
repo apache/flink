@@ -28,6 +28,10 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /** Base test class for the TaskManager side. */
 public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
 
@@ -39,12 +43,18 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
 
     protected static final int TOTAL_PROCESS_MEMORY = 1184;
     protected static final double TASK_MANAGER_CPU = 2.0;
+    protected static final double TASK_MANAGER_CPU_LIMIT_FACTOR = 1.5;
+    protected static final double TASK_MANAGER_MEMORY_LIMIT_FACTOR = 2.0;
+    protected static final String ENTRYPOINT_ARGS = "entrypoint args";
 
     protected TaskExecutorProcessSpec taskExecutorProcessSpec;
 
     protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
     protected KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
+
+    protected static final Set<String> BLOCKED_NODES =
+            new HashSet<>(Arrays.asList("blockedNode1", "blockedNode2"));
 
     @Override
     protected void setupFlinkConfig() {
@@ -60,8 +70,16 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
                         flinkConfig.setString(
                                 ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k,
                                 v));
-        this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
-        this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR,
+                TASK_MANAGER_CPU_LIMIT_FACTOR);
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR,
+                TASK_MANAGER_MEMORY_LIMIT_FACTOR);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_TASKMANAGER_ENTRYPOINT_ARGS, ENTRYPOINT_ARGS);
     }
 
     @Override
@@ -79,6 +97,7 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
                         ExternalResourceUtils.getExternalResourceConfigurationKeys(
                                 flinkConfig,
                                 KubernetesConfigOptions
-                                        .EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
+                                        .EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX),
+                        BLOCKED_NODES);
     }
 }

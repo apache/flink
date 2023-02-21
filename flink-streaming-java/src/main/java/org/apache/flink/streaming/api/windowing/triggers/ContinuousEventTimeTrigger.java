@@ -59,12 +59,10 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
             ctx.registerEventTimeTimer(window.maxTimestamp());
         }
 
-        ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
-        if (fireTimestamp.get() == null) {
-            long start = timestamp - (timestamp % interval);
-            long nextFireTimestamp = start + interval;
-            ctx.registerEventTimeTimer(nextFireTimestamp);
-            fireTimestamp.add(nextFireTimestamp);
+        ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
+        if (fireTimestampState.get() == null) {
+            registerNextFireTimestamp(
+                    timestamp - (timestamp % interval), window, ctx, fireTimestampState);
         }
 
         return TriggerResult.CONTINUE;
@@ -83,8 +81,7 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 
         if (fireTimestamp != null && fireTimestamp == time) {
             fireTimestampState.clear();
-            fireTimestampState.add(time + interval);
-            ctx.registerEventTimeTimer(time + interval);
+            registerNextFireTimestamp(time, window, ctx, fireTimestampState);
             return TriggerResult.FIRE;
         }
 
@@ -148,5 +145,13 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
         public Long reduce(Long value1, Long value2) throws Exception {
             return Math.min(value1, value2);
         }
+    }
+
+    private void registerNextFireTimestamp(
+            long time, W window, TriggerContext ctx, ReducingState<Long> fireTimestampState)
+            throws Exception {
+        long nextFireTimestamp = Math.min(time + interval, window.maxTimestamp());
+        fireTimestampState.add(nextFireTimestamp);
+        ctx.registerEventTimeTimer(nextFireTimestamp);
     }
 }

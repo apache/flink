@@ -2,7 +2,6 @@
 title: "配置参数"
 weight: 3
 type: docs
-bookToc: false
 aliases:
   - /zh/deployment/config.html
   - /zh/ops/config.html
@@ -34,6 +33,10 @@ The configuration is parsed and evaluated when the Flink processes are started. 
 
 The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
 
+You can specify a different configuration directory location by defining the `FLINK_CONF_DIR` environment variable. For resource providers which provide non-session deployments, you can specify per-job configurations this way. Make a copy of the `conf` directory from the Flink distribution and modify the settings on a per-job basis. Note that this is not supported in Docker or standalone Kubernetes deployments. On Docker-based deployments, you can use the `FLINK_PROPERTIES` environment variable for passing configuration values.
+
+On session clusters, the provided configuration will only be used for configuring [execution](#execution) parameters, e.g. configuration parameters affecting the job, not the underlying cluster.
+
 # Basic Setup
 
 The default configuration supports starting a single-node Flink session cluster without any changes.
@@ -43,7 +46,7 @@ The options in this section are the ones most commonly needed for a basic distri
 
 These options are only necessary for *standalone* application- or session deployments ([simple standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) or [Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}})).
 
-If you use Flink with [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}), [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}), or the [*active* Kubernetes integration]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}), the hostnames and ports are automatically discovered.
+If you use Flink with [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) or the [*active* Kubernetes integration]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}), the hostnames and ports are automatically discovered.
 
   - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
@@ -73,13 +76,15 @@ These value are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
   - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
+  - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
 
 **Web UI**
 
   - `web.submit.enable`: Enables uploading and starting jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still accept jobs through REST requests (HTTP calls). This flag only guards the feature to upload jobs in the UI.
+  - `web.cancel.enable`: Enables canceling jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still cancel jobs through REST requests (HTTP calls). This flag only guards the feature to cancel jobs in the UI.  
   - `web.upload.dir`: The directory where to store uploaded jobs. Only used when `web.submit.enable` is true.
 
 **Other**
@@ -90,7 +95,7 @@ You can configure checkpointing directly in code within your Flink job or applic
     
     This data is NOT relied upon for persistence/recovery, but if this data gets deleted, it typically causes a heavyweight recovery operation. It is hence recommended to set this to a directory that is not automatically periodically purged.
     
-    Yarn, Mesos, and Kubernetes setups automatically configure this value to the local working directories by default.
+    Yarn and Kubernetes setups automatically configure this value to the local working directories by default.
 
 ----
 ----
@@ -107,7 +112,7 @@ The JobManager hostname and port are only relevant for standalone setups without
 In that setup, the config values are used by the TaskManagers to find (and connect to) the JobManager.
 In all highly-available setups, the TaskManagers discover the JobManager via the High-Availability-Service (for example ZooKeeper).
 
-Setups using resource orchestration frameworks (K8s, Yarn, Mesos) typically use the framework's service discovery facilities.
+Setups using resource orchestration frameworks (K8s, Yarn) typically use the framework's service discovery facilities.
 
 You do not need to configure any TaskManager hosts and ports, unless the setup requires the use of specific port ranges or specific network interfaces to bind to.
 
@@ -130,6 +135,20 @@ The default restart strategy will only take effect if no job specific restart st
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
 
+### Retryable Cleanup
+
+After jobs reach a globally-terminal state, a cleanup of all related resources is performed. This cleanup can be retried in case of failure. Different retry strategies can be configured to change this behavior:
+
+{{< generated/cleanup_configuration >}}
+
+**Fixed-Delay Cleanup Retry Strategy**
+
+{{< generated/fixed_delay_cleanup_strategy_configuration >}}
+
+**Exponential-Delay Cleanup Retry Strategy**
+
+{{< generated/exponential_delay_cleanup_strategy_configuration >}}
+
 ### Checkpoints and State Backends
 
 These options control the basic setup of state backends and checkpointing behavior.
@@ -146,6 +165,10 @@ High-availability here refers to the ability of the JobManager process to recove
 The JobManager ensures consistency during recovery across TaskManagers. For the JobManager itself to recover consistently, an external service must store a minimal amount of recovery metadata (like "ID of last committed checkpoint"), as well as help to elect and lock which JobManager is the leader (to avoid split-brain situations).
 
 {{< generated/common_high_availability_section >}}
+
+**Options for the JobResultStore in high-availability setups**
+
+{{< generated/common_high_availability_jrs_section >}}
 
 **Options for high-availability setups with ZooKeeper**
 
@@ -181,8 +204,14 @@ Flink's network connections can be secured via SSL. Please refer to the [SSL Set
 
 {{< generated/security_ssl_section >}}
 
-
 ### Auth with External Systems
+
+**Delegation token**
+
+Flink has a pluggable authentication protocol agnostic delegation token framework.
+Please refer to the [Flink and Delegation Token Docs]({{< ref "docs/deployment/security/security-delegation-token" >}}) for further details.
+
+{{< generated/security_delegation_token_section >}}
 
 **ZooKeeper Authentication / Authorization**
 
@@ -201,7 +230,7 @@ Please refer to the [Flink and Kerberos Docs]({{< ref "docs/deployment/security/
 
 # Resource Orchestration Frameworks
 
-This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, Mesos, etc.
+This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, etc.
 
 Note that is not always necessary to integrate Flink with the resource orchestration framework.
 For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) for an example.
@@ -215,14 +244,6 @@ The options in this section are necessary for setups where Flink itself actively
 ### Kubernetes
 
 {{< generated/kubernetes_config_configuration >}}
-
-### Mesos
-
-{{< generated/mesos_configuration >}}
-
-**Mesos TaskManager**
-
-{{< generated/mesos_task_manager_configuration >}}
 
 ----
 ----
@@ -249,7 +270,9 @@ Please refer to the [metrics system documentation]({{< ref "docs/ops/metrics" >}
 ### RocksDB Native Metrics
 
 Flink can report metrics from RocksDB's native code, for applications using the RocksDB state backend.
-The metrics here are scoped to the operators and then further broken down by column family; values are reported as unsigned longs. 
+The metrics here are scoped to the operators with unsigned longs and have two kinds of types：
+1. RocksDB property-based metrics, which is broken down by column family, e.g. number of currently running compactions of one specific column family.
+2. RocksDB statistics-based metrics, which holds at the database level, e.g. total block cache hit count within the DB.
 
 {{< hint warning >}}
 Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
@@ -285,11 +308,36 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 ----
 ----
 
+# Client
+
+{{< generated/client_configuration >}}
+
+----
+----
+
+# Execution
+
+{{< generated/deployment_configuration >}}
+{{< generated/savepoint_config_configuration >}}
+{{< generated/execution_configuration >}}
+
+### Pipeline
+
+{{< generated/pipeline_configuration >}}
+{{< generated/stream_pipeline_configuration >}}
+
+### Checkpointing
+
+{{< generated/execution_checkpointing_configuration >}}
+
+----
+----
+
 # Debugging & Expert Tuning
 
-<div class="alert alert-warning">
-  The options below here are meant for expert users and for fixing/debugging problems. Most setups should not need to configure these options.
-</div>
+{{< hint warning >}}
+The options below here are meant for expert users and for fixing/debugging problems. Most setups should not need to configure these options.
+{{< /hint >}}
 
 ### Class Loading
 
@@ -317,9 +365,20 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
 
+### State Changelog Options
+
+Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
+using State Changelog. {{< hint warning >}} The feature is in experimental status. {{< /hint >}} {{<
+generated/state_backend_changelog_section >}}
+
+#### FileSystem-based Changelog options
+
+These settings take effect when the `state.backend.changelog.storage`  is set to `filesystem` (see [above](#state-backend-changelog-storage)).
+{{< generated/fs_state_changelog_configuration >}}
+
 **RocksDB Configurable Options**
 
-These options give fine-grained control over the behavior and resoures of ColumnFamilies.
+These options give fine-grained control over the behavior and resources of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
 {{< generated/rocksdb_configurable_configuration >}}
@@ -333,6 +392,10 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 ### Advanced Cluster Options
 
 {{< generated/expert_cluster_section >}}
+
+### Advanced JobManager Options
+
+{{< generated/expert_jobmanager_section >}}
 
 ### Advanced Scheduling Options
 
@@ -378,11 +441,13 @@ The Blob Server is a component in the JobManager. It is used for distribution of
 
 **ResourceManager**
 
-These configuration keys control basic Resource Manager behavior, independent of the used resource orchestration management framework (YARN, Mesos, etc.)
+These configuration keys control basic Resource Manager behavior, independent of the used resource orchestration management framework (YARN, etc.)
 
 {{< generated/resource_manager_configuration >}}
 
 ### Full TaskManagerOptions
+
+Please refer to the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}) for details on how to use the `taskmanager.network.memory.buffer-debloat.*` configuration.
 
 {{< generated/all_taskmanager_section >}}
 
@@ -408,7 +473,7 @@ Flink does not use Akka for data transport.
 
 # Forwarding Environment Variables
 
-You can configure environment variables to be set on the JobManager and TaskManager processes started on Yarn/Mesos.
+You can configure environment variables to be set on the JobManager and TaskManager processes started on Yarn.
 
   - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
    For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
@@ -435,29 +500,5 @@ These options may be removed in a future release.
 **DataSet File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
-
-----
-----
-
-# Backup
-
-#### Client
-
-{{< generated/client_configuration >}}
-
-#### Execution
-
-{{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
-{{< generated/execution_configuration >}}
-
-#### Pipeline
-
-{{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
-
-#### Checkpointing
-
-{{< generated/execution_checkpointing_configuration >}}
 
 {{< top >}}

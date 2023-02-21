@@ -20,9 +20,9 @@ package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.ColumnarArrayData;
-import org.apache.flink.table.data.vector.ArrayColumnVector;
-import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.ColumnarArrayData;
+import org.apache.flink.table.data.columnar.vector.ArrayColumnVector;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.ListVector;

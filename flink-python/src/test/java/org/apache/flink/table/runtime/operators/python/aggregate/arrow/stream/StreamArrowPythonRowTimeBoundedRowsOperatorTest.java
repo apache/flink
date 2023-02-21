@@ -25,8 +25,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -35,10 +39,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -51,11 +54,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered
  * </ul>
  */
-public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
+class StreamArrowPythonRowTimeBoundedRowsOperatorTest
         extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
 
     @Test
-    public void testOverWindowAggregateFunction() throws Exception {
+    void testOverWindowAggregateFunction() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
 
@@ -76,17 +79,17 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
 
         testHarness.close();
 
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+        expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
 
     @Test
-    public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
+    void testFinishBundleTriggeredOnWatermark() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -106,16 +109,11 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 2L), initialTime + 3));
         testHarness.processWatermark(new Watermark(10000L));
 
-        expectedOutput.add(new Watermark(10000L));
-        assertOutputEquals(
-                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
-        // checkpoint trigger finishBundle
-        testHarness.prepareSnapshotPreBarrier(0L);
-
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+        expectedOutput.add(new Watermark(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -123,7 +121,7 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 6);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -152,42 +150,6 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
         expectedOutput.add(new Watermark(1000L));
-        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-
-        testHarness.close();
-    }
-
-    @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
-        Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
-
-        long initialTime = 0L;
-        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-        testHarness.open();
-
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 1L), initialTime + 1));
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 1L), initialTime + 2));
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10L), initialTime + 3));
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 2L), initialTime + 3));
-        testHarness.processWatermark(new Watermark(10000L));
-        expectedOutput.add(new Watermark(10000L));
-        assertOutputEquals(
-                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
-
-        testHarness.setProcessingTime(1000L);
-        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
-        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
-        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
-
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.close();
@@ -233,15 +195,28 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
             RowType outputType,
             int[] groupingSet,
             int[] udafInputOffsets) {
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(inputType.getFieldCount(), outputType.getFieldCount())
+                                .project(outputType);
+
         return new PassThroughStreamArrowPythonRowTimeBoundedRowsOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 3,
                 1,
-                groupingSet,
-                udafInputOffsets);
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "UdafInputProjection",
+                        inputType,
+                        udfInputType,
+                        udafInputOffsets));
     }
 
     private static class PassThroughStreamArrowPythonRowTimeBoundedRowsOperator
@@ -251,35 +226,33 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 long lowerBoundary,
-                int[] groupingSet,
-                int[] udafInputOffsets) {
+                GeneratedProjection inputGeneratedProjection) {
             super(
                     config,
                     1000,
                     2000,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     lowerBoundary,
-                    groupingSet,
-                    udafInputOffsets);
+                    inputGeneratedProjection);
         }
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
-                    new HashMap<>(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);
         }

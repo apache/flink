@@ -117,8 +117,8 @@ public class CreatedTest extends TestLogger {
         @Override
         public ArchivedExecutionGraph getArchivedExecutionGraph(
                 JobStatus jobStatus, @Nullable Throwable cause) {
-            return ArchivedExecutionGraph.createFromInitializingJob(
-                    new JobID(), "testJob", jobStatus, cause, 0L);
+            return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
+                    new JobID(), "testJob", jobStatus, cause, null, 0L);
         }
 
         @Override

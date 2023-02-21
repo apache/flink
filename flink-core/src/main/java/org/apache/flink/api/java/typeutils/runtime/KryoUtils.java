@@ -90,28 +90,32 @@ public class KryoUtils {
      * Apply a list of {@link KryoRegistration} to a Kryo instance. The list of registrations is
      * assumed to already be a final resolution of all possible registration overwrites.
      *
-     * <p>The registrations are applied in the given order and always specify the registration id as
-     * the next available id in the Kryo instance (providing the id just extra ensures nothing is
-     * overwritten, and isn't strictly required);
+     * <p>The registrations are applied in the given order and always specify the registration id,
+     * using the given {@code firstRegistrationId} and incrementing it for each registration.
      *
      * @param kryo the Kryo instance to apply the registrations
      * @param resolvedRegistrations the registrations, which should already be resolved of all
      *     possible registration overwrites
+     * @param firstRegistrationId the first registration id to use
      */
     public static void applyRegistrations(
-            Kryo kryo, Collection<KryoRegistration> resolvedRegistrations) {
+            Kryo kryo,
+            Collection<KryoRegistration> resolvedRegistrations,
+            int firstRegistrationId) {
 
+        int currentRegistrationId = firstRegistrationId;
         Serializer<?> serializer;
         for (KryoRegistration registration : resolvedRegistrations) {
             serializer = registration.getSerializer(kryo);
 
             if (serializer != null) {
-                kryo.register(
-                        registration.getRegisteredClass(),
-                        serializer,
-                        kryo.getNextRegistrationId());
+                kryo.register(registration.getRegisteredClass(), serializer, currentRegistrationId);
             } else {
-                kryo.register(registration.getRegisteredClass(), kryo.getNextRegistrationId());
+                kryo.register(registration.getRegisteredClass(), currentRegistrationId);
+            }
+            // if Kryo already had a serializer for that type then it ignores the registration
+            if (kryo.getRegistration(currentRegistrationId) != null) {
+                currentRegistrationId++;
             }
         }
     }

@@ -86,15 +86,21 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
     void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds);
 
     /**
-     * Notify the given task about a completed checkpoint.
+     * Notify the given task about a completed checkpoint and the last subsumed checkpoint id if
+     * possible.
      *
      * @param executionAttemptID identifying the task
      * @param jobId identifying the job to which the task belongs
-     * @param checkpointId of the completed checkpoint
-     * @param timestamp of the completed checkpoint
+     * @param completedCheckpointId of the completed checkpoint
+     * @param completedTimestamp of the completed checkpoint
+     * @param lastSubsumedCheckpointId of the last subsumed checkpoint id,
      */
-    void notifyCheckpointComplete(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp);
+    void notifyCheckpointOnComplete(
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long completedCheckpointId,
+            long completedTimestamp,
+            long lastSubsumedCheckpointId);
 
     /**
      * Notify the given task about a aborted checkpoint.
@@ -102,10 +108,15 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param executionAttemptID identifying the task
      * @param jobId identifying the job to which the task belongs
      * @param checkpointId of the subsumed checkpoint
+     * @param latestCompletedCheckpointId of the latest completed checkpoint
      * @param timestamp of the subsumed checkpoint
      */
     void notifyCheckpointAborted(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp);
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long timestamp);
 
     /**
      * Trigger for the given task a checkpoint.
@@ -115,8 +126,9 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param checkpointId of the checkpoint to trigger
      * @param timestamp of the checkpoint to trigger
      * @param checkpointOptions of the checkpoint to trigger
+     * @return Future acknowledge which is returned once the checkpoint has been triggered
      */
-    void triggerCheckpoint(
+    CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,

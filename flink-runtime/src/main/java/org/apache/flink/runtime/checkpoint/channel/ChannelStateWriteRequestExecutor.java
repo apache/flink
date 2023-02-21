@@ -17,15 +17,17 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import java.io.Closeable;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import java.io.IOException;
 
 /**
  * Executes {@link ChannelStateWriteRequest}s potentially asynchronously. An exception thrown during
  * the execution should be re-thrown on any next call.
  */
-interface ChannelStateWriteRequestExecutor extends Closeable {
+interface ChannelStateWriteRequestExecutor {
 
-    /** @throws IllegalStateException if called more than once or after {@link #close()} */
+    /** @throws IllegalStateException if called more than once or after {@link #releaseSubtask} */
     void start() throws IllegalStateException;
 
     /**
@@ -45,4 +47,10 @@ interface ChannelStateWriteRequestExecutor extends Closeable {
      * @throws Exception if any exception occurred during processing this or other items previously
      */
     void submitPriority(ChannelStateWriteRequest r) throws Exception;
+
+    /** Register subtask. */
+    void registerSubtask(JobVertexID jobVertexID, int subtaskIndex);
+
+    /** Release the subtask. */
+    void releaseSubtask(JobVertexID jobVertexID, int subtaskIndex) throws IOException;
 }

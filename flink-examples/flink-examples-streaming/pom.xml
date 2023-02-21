@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.13-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
@@ -45,7 +44,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -57,19 +56,25 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -82,14 +87,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
+            <artifactId>flink-statebackend-rocksdb</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -124,50 +129,36 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
 			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
 				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
 				</configuration>
 			</plugin>
-			
-			<!-- get default data from flink-examples-batch package -->
+			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
+				<artifactId>maven-compiler-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>unpack</id>
-						<phase>prepare-package</phase>
+						<id>compile</id>
+						<phase>process-sources</phase>
 						<goals>
-							<goal>unpack</goal>
+							<goal>compile</goal>
 						</goals>
 						<configuration>
-							<artifactItems>
-								<!-- For WordCount example data -->
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-									<overWrite>false</overWrite>
-									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</includes>
-								</artifactItem>
-								<!-- For JSON utilities -->
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-									<overWrite>false</overWrite>
-									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/streaming/connectors/json/*</includes>
-								</artifactItem>
-							</artifactItems>
+							<compilerArgument>-Xlint:deprecation</compilerArgument>
+							<failOnWarning>true</failOnWarning>
 						</configuration>
 					</execution>
 				</executions>
@@ -261,32 +252,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- WordCountPOJO -->
-					<execution>
-						<id>WordCountPOJO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>WordCountPOJO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.wordcount.PojoExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
 					<!-- WordCount -->
 					<execution>
 						<id>WordCount</id>
@@ -307,6 +272,7 @@ under the License.
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -357,6 +323,8 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
 								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/util/CarSource.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -441,6 +409,11 @@ under the License.
 						<goals>
 							<goal>compile</goal>
 						</goals>
+						<configuration>
+							<args>
+								<arg>-Xfatal-warnings</arg>
+							</args>
+						</configuration>
 					</execution>
  
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
@@ -490,12 +463,13 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Adding scala source directories to build path -->
+			<!-- Adding scala source directories to build path
+			 	 This is required for the source jar -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
+					<!-- Add src/main/scala to build path -->
 					<execution>
 						<id>add-source</id>
 						<phase>generate-sources</phase>
@@ -508,7 +482,7 @@ under the License.
 							</sources>
 						</configuration>
 					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
+					<!-- Add src/test/scala to build path -->
 					<execution>
 						<id>add-test-source</id>
 						<phase>generate-test-sources</phase>

@@ -19,18 +19,19 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ import static org.junit.Assert.fail;
 /** Tests for the recovery of files of a {@link BlobServer} from a HA store. */
 public class BlobServerRecoveryTest extends TestLogger {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     /**
      * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
@@ -60,16 +61,14 @@ public class BlobServerRecoveryTest extends TestLogger {
         Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TEMPORARY_FOLDER.newFolder().getPath());
 
         BlobStoreService blobStoreService = null;
 
         try {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-            testBlobServerRecovery(config, blobStoreService);
+            testBlobServerRecovery(config, blobStoreService, TEMPORARY_FOLDER.newFolder());
         } finally {
             if (blobStoreService != null) {
                 blobStoreService.closeAndCleanupAllData();
@@ -89,19 +88,23 @@ public class BlobServerRecoveryTest extends TestLogger {
      * @param blobStore shared HA blob store to use
      * @throws IOException in case of failures
      */
-    public static void testBlobServerRecovery(final Configuration config, final BlobStore blobStore)
-            throws IOException {
+    public static void testBlobServerRecovery(
+            final Configuration config, final BlobStore blobStore, final File blobStorage)
+            throws Exception {
         final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
         String storagePath =
                 config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
         Random rand = new Random();
 
-        try (BlobServer server0 = new BlobServer(config, blobStore);
-                BlobServer server1 = new BlobServer(config, blobStore);
+        try (BlobServer server0 =
+                        new BlobServer(config, new File(blobStorage, "server0"), blobStore);
+                BlobServer server1 =
+                        new BlobServer(config, new File(blobStorage, "server1"), blobStore);
                 // use VoidBlobStore as the HA store to force download from server[1]'s HA store
                 BlobCacheService cache1 =
                         new BlobCacheService(
                                 config,
+                                new File(blobStorage, "cache1"),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server1.getPort()))) {
 
@@ -139,8 +142,8 @@ public class BlobServerRecoveryTest extends TestLogger {
             verifyDeleted(cache1, jobId[0], nonHAKey);
 
             // Remove again
-            server1.cleanupJob(jobId[0], true);
-            server1.cleanupJob(jobId[1], true);
+            server1.globalCleanupAsync(jobId[0], Executors.directExecutor()).join();
+            server1.globalCleanupAsync(jobId[1], Executors.directExecutor()).join();
 
             // Verify everything is clean
             assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));

@@ -18,32 +18,23 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
-import org.apache.flink.testutils.migration.MigrationVersion;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
 /** A {@link TypeSerializerUpgradeTestBase} for BaseType Serializers. */
-@RunWith(Parameterized.class)
-public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public BasicTypeSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "big-dec-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.BigDecSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.BigDecSerializerVerifier
@@ -51,7 +42,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "big-int-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.BigIntSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.BigIntSerializerVerifier
@@ -59,7 +50,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "boolean-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.BooleanSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.BooleanSerializerVerifier
@@ -67,7 +58,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "boolean-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.BooleanValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications
@@ -75,14 +66,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "byte-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.ByteSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.ByteSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "byte-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.ByteValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.ByteValueSerializerVerifier
@@ -90,14 +81,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "char-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.CharSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.CharSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "char-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.CharValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.CharValueSerializerVerifier
@@ -105,14 +96,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "date-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.DateSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.DateSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "double-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.DoubleSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.DoubleSerializerVerifier
@@ -120,7 +111,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "double-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.DoubleValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications
@@ -128,14 +119,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "float-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.FloatSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.FloatSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "float-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.FloatValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications
@@ -143,14 +134,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "int-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.IntSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.IntSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "int-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.IntValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.IntValueSerializerVerifier
@@ -158,14 +149,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "long-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.LongSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.LongSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "long-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.LongValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.LongValueSerializerVerifier
@@ -173,7 +164,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "null-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.NullValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.NullValueSerializerVerifier
@@ -181,14 +172,14 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "short-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.ShortSerializerSetup.class,
                             BasicTypeSerializerUpgradeTestSpecifications.ShortSerializerVerifier
                                     .class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "short-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.ShortValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications
@@ -196,7 +187,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "sql-date-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.SqlDateSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.SqlDateSerializerVerifier
@@ -204,7 +195,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "sql-time-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.SqlTimeSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.SqlTimeSerializerVerifier
@@ -212,7 +203,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "sql-timestamp-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.SqlTimestampSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications
@@ -220,7 +211,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "string-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.StringSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications.StringSerializerVerifier
@@ -228,7 +219,7 @@ public class BasicTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBas
             testSpecifications.add(
                     new TestSpecification<>(
                             "string-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BasicTypeSerializerUpgradeTestSpecifications.StringValueSerializerSetup
                                     .class,
                             BasicTypeSerializerUpgradeTestSpecifications

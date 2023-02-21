@@ -38,3 +38,10 @@ rm -rf "$FLINK_ARTIFACT_DIR/.git"
 # AZ Pipelines has a problem with links.
 rm "$FLINK_ARTIFACT_DIR/build-target"
 
+# Remove javadocs because they are not used in later stages
+rm -rf "$FLINK_ARTIFACT_DIR/target/site"
+
+# Remove WebUI node directories; unnecessary because the UI is already fully built
+rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node"
+rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node_modules"
+

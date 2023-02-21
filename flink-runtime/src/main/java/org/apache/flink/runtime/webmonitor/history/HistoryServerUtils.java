@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
-import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.configuration.SecurityOptions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public enum HistoryServerUtils {
 
     public static boolean isSSLEnabled(Configuration config) {
         return config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED)
-                && SSLUtils.isRestSSLEnabled(config);
+                && SecurityOptions.isRestSSLEnabled(config);
     }
 
     public static Optional<URL> getHistoryServerURL(Configuration configuration) {

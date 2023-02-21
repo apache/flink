@@ -25,8 +25,8 @@ import java.io.IOException;
 /**
  * An output stream for checkpoint metadata.
  *
- * <p>This stream is similar to the {@link CheckpointStreamFactory.CheckpointStateOutputStream}, but
- * for metadata files rather thancdata files.
+ * <p>This stream is similar to the {@link CheckpointStateOutputStream}, but for metadata files
+ * rather thancdata files.
  *
  * <p>This stream always creates a file, regardless of the amount of data written.
  */

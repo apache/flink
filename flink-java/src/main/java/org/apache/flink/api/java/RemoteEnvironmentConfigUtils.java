@@ -51,7 +51,7 @@ public class RemoteEnvironmentConfigUtils {
         if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
             throw new InvalidProgramException(
                     "The RemoteEnvironment cannot be instantiated when running in a pre-defined context "
-                            + "(such as Command Line Client, Scala Shell, or TestEnvironment)");
+                            + "(such as Command Line Client or TestEnvironment)");
         }
 
         checkNotNull(host);

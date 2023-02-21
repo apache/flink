@@ -60,7 +60,7 @@ public interface SlotPoolService extends AutoCloseable {
      * @param jobMasterId jobMasterId to start the service with
      * @param address address of the owner
      * @param mainThreadExecutor mainThreadExecutor to run actions in the main thread
-     * @throws Exception if the the service cannot be started
+     * @throws Exception if the service cannot be started
      */
     void start(
             JobMasterId jobMasterId, String address, ComponentMainThreadExecutor mainThreadExecutor)
@@ -112,6 +112,14 @@ public interface SlotPoolService extends AutoCloseable {
      * @return true iff a given registered resource id was removed
      */
     boolean releaseTaskManager(ResourceID taskManagerId, Exception cause);
+
+    /**
+     * Releases all free slots belonging to the owning TaskExecutor if it has been registered.
+     *
+     * @param taskManagerId identifying the TaskExecutor
+     * @param cause cause for failing the slots
+     */
+    void releaseFreeSlotsOnTaskManager(ResourceID taskManagerId, Exception cause);
 
     /**
      * Connects the SlotPool to the given ResourceManager. After this method is called, the SlotPool

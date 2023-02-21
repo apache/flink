@@ -48,17 +48,22 @@ public class DashboardConfigHandler
             MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters>
                     messageHeaders,
             long refreshInterval,
-            boolean webSubmitEnabled) {
+            boolean webSubmitEnabled,
+            boolean webCancelEnabled) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
         dashboardConfiguration =
-                DashboardConfiguration.from(refreshInterval, ZonedDateTime.now(), webSubmitEnabled);
+                DashboardConfiguration.from(
+                        refreshInterval,
+                        ZonedDateTime.now(),
+                        webSubmitEnabled,
+                        webCancelEnabled,
+                        false);
     }
 
     @Override
     public CompletableFuture<DashboardConfiguration> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-            @Nonnull RestfulGateway gateway) {
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway) {
         return CompletableFuture.completedFuture(dashboardConfiguration);
     }
 }

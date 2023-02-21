@@ -20,28 +20,16 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import scala.Option;
-import scala.Tuple2;
-
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This test validates that the RPC service gives a good message when it cannot connect to an
@@ -51,58 +39,36 @@ public class RpcConnectionTest extends TestLogger {
 
     @Test
     public void testConnectFailure() throws Exception {
-        ActorSystem actorSystem = null;
-        RpcService rpcService = null;
-        try {
-            actorSystem =
-                    AkkaUtils.createActorSystem(
-                            new Configuration(),
-                            Option.<Tuple2<String, Object>>apply(new Tuple2<>("localhost", 0)));
+        // we start the RPC service with a very long timeout to ensure that the test
+        // can only pass if the connection problem is not recognized merely via a timeout
+        Configuration configuration = new Configuration();
+        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
 
-            // we start the RPC service with a very long timeout to ensure that the test
-            // can only pass if the connection problem is not recognized merely via a timeout
-            Configuration configuration = new Configuration();
-            configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
-            rpcService =
-                    new AkkaRpcService(
-                            actorSystem,
-                            AkkaRpcServiceConfiguration.fromConfiguration(configuration));
+        try (RpcSystem rpcSystem = RpcSystem.load()) {
+            final RpcService rpcService =
+                    rpcSystem
+                            .remoteServiceBuilder(configuration, null, "8000-9000")
+                            .withBindAddress("localhost")
+                            .withBindPort(0)
+                            .createAndStart();
 
-            CompletableFuture<TaskExecutorGateway> future =
-                    rpcService.connect("foo.bar.com.test.invalid", TaskExecutorGateway.class);
+            final String invalidAddress =
+                    rpcSystem.getRpcUrl(
+                            rpcService.getAddress() + ".invalid",
+                            rpcService.getPort(),
+                            "foo",
+                            AddressResolution.NO_ADDRESS_RESOLUTION,
+                            new Configuration());
 
-            future.get(10000000, TimeUnit.SECONDS);
-            fail("should never complete normally");
-        } catch (TimeoutException e) {
-            fail("should not fail with a generic timeout exception");
-        } catch (ExecutionException e) {
-            // that is what we want
-            assertTrue(e.getCause() instanceof RpcConnectionException);
-            assertTrue(
-                    "wrong error message",
-                    e.getCause().getMessage().contains("foo.bar.com.test.invalid"));
-        } catch (Throwable t) {
-            fail("wrong exception: " + t);
-        } finally {
-            final CompletableFuture<Void> rpcTerminationFuture;
-
-            if (rpcService != null) {
-                rpcTerminationFuture = rpcService.stopService();
-            } else {
-                rpcTerminationFuture = CompletableFuture.completedFuture(null);
-            }
-
-            final CompletableFuture<Terminated> actorSystemTerminationFuture;
-
-            if (actorSystem != null) {
-                actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
-            } else {
-                actorSystemTerminationFuture = CompletableFuture.completedFuture(null);
-            }
-
-            FutureUtils.waitForAll(
-                            Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                    .get();
+            assertThatThrownBy(
+                            () ->
+                                    rpcService
+                                            .connect(invalidAddress, TaskExecutorGateway.class)
+                                            .get(10000000, TimeUnit.SECONDS))
+                    .cause()
+                    .isInstanceOf(RpcConnectionException.class)
+                    .hasMessageContaining(invalidAddress);
+            rpcService.closeAsync().get();
         }
     }
 }

@@ -65,16 +65,6 @@ public class SingleJobJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public void removeJobGraph(JobID jobId) {
-        // ignore
-    }
-
-    @Override
-    public void releaseJobGraph(JobID jobId) {
-        // ignore
-    }
-
-    @Override
     public Collection<JobID> getJobIds() {
         return Collections.singleton(jobGraph.getJobID());
     }

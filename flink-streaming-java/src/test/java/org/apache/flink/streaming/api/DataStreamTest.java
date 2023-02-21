@@ -69,6 +69,8 @@ import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -1104,6 +1106,134 @@ public class DataStreamTest extends TestLogger {
                 });
     }
 
+    /** Tests that verifies window operator has different name and description. */
+    @Test
+    public void testWindowOperatorDescription() {
+        // global window
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<Long> dataStream1 =
+                env.generateSequence(0, 0)
+                        .windowAll(GlobalWindows.create())
+                        .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                        .reduce(
+                                new ReduceFunction<Long>() {
+                                    private static final long serialVersionUID = 1L;
+
+                                    @Override
+                                    public Long reduce(Long value1, Long value2) throws Exception {
+                                        return null;
+                                    }
+                                });
+        // name is simplified
+        assertEquals("GlobalWindows", dataStream1.getTransformation().getName());
+        // description contains detail of function:
+        // TriggerWindow(GlobalWindows(), ReducingStateDescriptor{name=window-contents,
+        // defaultValue=null,
+        // serializer=org.apache.flink.api.common.typeutils.base.LongSerializer@6af9fcb2},
+        // PurgingTrigger(CountTrigger(10)), AllWindowedStream.reduce(AllWindowedStream.java:229))
+        assertTrue(dataStream1.getTransformation().getDescription().contains("PurgingTrigger"));
+
+        // keyed window
+        DataStream<Long> dataStream2 =
+                env.generateSequence(0, 0)
+                        .keyBy(value -> value)
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                        .reduce(
+                                new ReduceFunction<Long>() {
+                                    private static final long serialVersionUID = 1L;
+
+                                    @Override
+                                    public Long reduce(Long value1, Long value2) throws Exception {
+                                        return null;
+                                    }
+                                });
+        // name is simplified
+        assertEquals("TumblingEventTimeWindows", dataStream2.getTransformation().getName());
+        // description contains detail of function:
+        // Window(TumblingEventTimeWindows(1000), PurgingTrigger, ReduceFunction$36,
+        // PassThroughWindowFunction)
+        assertTrue(dataStream2.getTransformation().getDescription().contains("PurgingTrigger"));
+    }
+
+    /**
+     * Tests {@link SingleOutputStreamOperator#setDescription(String)} functionality.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testUserDefinedDescription() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        DataStream<Long> dataStream1 =
+                env.generateSequence(0, 0)
+                        .name("testSource1")
+                        .setDescription("this is test source 1")
+                        .map(
+                                new MapFunction<Long, Long>() {
+                                    @Override
+                                    public Long map(Long value) throws Exception {
+                                        return null;
+                                    }
+                                })
+                        .name("testMap")
+                        .setDescription("this is test map 1");
+
+        DataStream<Long> dataStream2 =
+                env.generateSequence(0, 0)
+                        .name("testSource2")
+                        .setDescription("this is test source 2")
+                        .map(
+                                new MapFunction<Long, Long>() {
+                                    @Override
+                                    public Long map(Long value) throws Exception {
+                                        return null;
+                                    }
+                                })
+                        .name("testMap")
+                        .setDescription("this is test map 2");
+
+        dataStream1
+                .connect(dataStream2)
+                .flatMap(
+                        new CoFlatMapFunction<Long, Long, Long>() {
+
+                            @Override
+                            public void flatMap1(Long value, Collector<Long> out)
+                                    throws Exception {}
+
+                            @Override
+                            public void flatMap2(Long value, Collector<Long> out)
+                                    throws Exception {}
+                        })
+                .name("testCoFlatMap")
+                .setDescription("this is test co flat map")
+                .windowAll(GlobalWindows.create())
+                .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                .reduce(
+                        new ReduceFunction<Long>() {
+                            private static final long serialVersionUID = 1L;
+
+                            @Override
+                            public Long reduce(Long value1, Long value2) throws Exception {
+                                return null;
+                            }
+                        })
+                .name("testWindowReduce")
+                .setDescription("this is test window reduce")
+                .print();
+
+        // test functionality through the operator names in the execution plan
+        String plan = env.getExecutionPlan();
+
+        assertTrue(plan.contains("this is test source 1"));
+        assertTrue(plan.contains("this is test source 2"));
+        assertTrue(plan.contains("this is test map 1"));
+        assertTrue(plan.contains("this is test map 2"));
+        assertTrue(plan.contains("this is test co flat map"));
+        assertTrue(plan.contains("this is test window reduce"));
+    }
+
     private abstract static class CustomWmEmitter<T>
             implements AssignerWithPunctuatedWatermarks<T> {
 
@@ -1634,7 +1764,7 @@ public class DataStreamTest extends TestLogger {
 
     /** Returns the StreamGraph without clearing the transformations. */
     private static StreamGraph getStreamGraph(StreamExecutionEnvironment sEnv) {
-        return sEnv.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false);
+        return sEnv.getStreamGraph(false);
     }
 
     private static Integer createDownStreamId(DataStream<?> dataStream) {

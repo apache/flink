@@ -19,16 +19,18 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Reference;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The BLOB cache provides access to BLOB services for permanent and transient BLOBs. */
-public class BlobCacheService implements BlobService {
+public class BlobCacheService implements TaskExecutorBlobService {
 
     /** Caching store for permanent BLOBs. */
     private final PermanentBlobCache permanentBlobCache;
@@ -36,10 +38,20 @@ public class BlobCacheService implements BlobService {
     /** Store for transient BLOB files. */
     private final TransientBlobCache transientBlobCache;
 
+    public BlobCacheService(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
+        this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
+    }
+
     /**
      * Instantiates a new BLOB cache.
      *
      * @param blobClientConfig global configuration
+     * @param storageDir storage directory for the cached blobs
      * @param blobView (distributed) blob store file system to retrieve files from first
      * @param serverAddress address of the {@link BlobServer} to use for fetching files from or
      *     {@code null} if none yet
@@ -48,13 +60,14 @@ public class BlobCacheService implements BlobService {
      */
     public BlobCacheService(
             final Configuration blobClientConfig,
+            final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress)
             throws IOException {
 
         this(
-                new PermanentBlobCache(blobClientConfig, blobView, serverAddress),
-                new TransientBlobCache(blobClientConfig, serverAddress));
+                new PermanentBlobCache(blobClientConfig, storageDir, blobView, serverAddress),
+                new TransientBlobCache(blobClientConfig, storageDir, serverAddress));
     }
 
     /**

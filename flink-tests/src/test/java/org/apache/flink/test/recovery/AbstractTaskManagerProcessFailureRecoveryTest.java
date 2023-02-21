@@ -18,21 +18,18 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.plugin.PluginManager;
-import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
-import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.util.TestLogger;
@@ -40,8 +37,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -90,11 +85,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         File coordinateTempDir = null;
 
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
         config.setString(JobManagerOptions.ADDRESS, "localhost");
         config.setString(RestOptions.BIND_PORT, "0");
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
+        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 200L);
         config.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+        config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -105,6 +100,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
@@ -263,7 +259,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
     public abstract void testTaskManagerFailure(Configuration configuration, File coordinateDir)
             throws Exception;
 
-    protected static void printProcessLog(String processName, TestProcess process) {
+    static void printProcessLog(String processName, TestProcess process) {
         if (process == null) {
             System.out.println("-----------------------------------------");
             System.out.println(" PROCESS " + processName + " WAS NOT STARTED.");
@@ -323,24 +319,4 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
     // --------------------------------------------------------------------------------------------
 
-    /** The entry point for the TaskExecutor JVM. Simply configures and runs a TaskExecutor. */
-    public static class TaskExecutorProcessEntryPoint {
-
-        private static final Logger LOG =
-                LoggerFactory.getLogger(TaskExecutorProcessEntryPoint.class);
-
-        public static void main(String[] args) {
-            try {
-                final ParameterTool parameterTool = ParameterTool.fromArgs(args);
-                Configuration cfg = parameterTool.getConfiguration();
-                final PluginManager pluginManager =
-                        PluginUtils.createPluginManagerFromRootFolder(cfg);
-
-                TaskManagerRunner.runTaskManager(cfg, pluginManager);
-            } catch (Throwable t) {
-                LOG.error("Failed to run the TaskManager process", t);
-                System.exit(1);
-            }
-        }
-    }
 }

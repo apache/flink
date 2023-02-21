@@ -17,27 +17,24 @@
 
 package org.apache.flink.streaming.kafka.test;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.kafka.test.base.CustomWatermarkExtractor;
-import org.apache.flink.streaming.kafka.test.base.KafkaEvent;
-import org.apache.flink.streaming.kafka.test.base.KafkaEventSchema;
 import org.apache.flink.streaming.kafka.test.base.KafkaExampleUtil;
-import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
+
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.IntegerSerializer;
 
 /**
- * A simple example that shows how to read from and write to modern Kafka. This will read String
- * messages from the input topic, parse them into a POJO type {@link KafkaEvent}, group by some key,
- * and finally perform a rolling addition on each key for which the results are written back to
- * another topic.
- *
- * <p>This example also demonstrates using a watermark assigner to generate per-partition watermarks
- * directly in the Flink Kafka consumer. For demonstration purposes, it is assumed that the String
- * messages are of formatted as a (word,frequency,timestamp) tuple.
+ * A simple application used as smoke test example to forward messages from one topic to another
+ * topic in batch mode.
  *
  * <p>Example usage: --input-topic test-input --output-topic test-output --bootstrap.servers
  * localhost:9092 --group.id myconsumer
@@ -49,24 +46,35 @@ public class KafkaExample extends KafkaExampleUtil {
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
         StreamExecutionEnvironment env = KafkaExampleUtil.prepareExecutionEnv(parameterTool);
 
-        DataStream<KafkaEvent> input =
-                env.addSource(
-                                new FlinkKafkaConsumer<>(
-                                                parameterTool.getRequired("input-topic"),
-                                                new KafkaEventSchema(),
-                                                parameterTool.getProperties())
-                                        .assignTimestampsAndWatermarks(
-                                                new CustomWatermarkExtractor()))
-                        .keyBy("word")
-                        .map(new RollingAdditionMapper());
+        DataStream<Integer> input =
+                env.fromSource(
+                        KafkaSource.<Integer>builder()
+                                .setBootstrapServers(
+                                        parameterTool
+                                                .getProperties()
+                                                .getProperty(
+                                                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG))
+                                .setBounded(OffsetsInitializer.latest())
+                                .setDeserializer(
+                                        KafkaRecordDeserializationSchema.valueOnly(
+                                                IntegerDeserializer.class))
+                                .setTopics(parameterTool.getRequired("input-topic"))
+                                .build(),
+                        WatermarkStrategy.noWatermarks(),
+                        "kafka-source");
 
-        input.addSink(
-                new FlinkKafkaProducer<>(
-                        parameterTool.getRequired("output-topic"),
-                        new KeyedSerializationSchemaWrapper<>(new KafkaEventSchema()),
-                        parameterTool.getProperties(),
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
-
-        env.execute("Modern Kafka Example");
+        input.sinkTo(
+                KafkaSink.<Integer>builder()
+                        .setBootstrapServers(
+                                parameterTool
+                                        .getProperties()
+                                        .getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(parameterTool.getRequired("output-topic"))
+                                        .setKafkaValueSerializer(IntegerSerializer.class)
+                                        .build())
+                        .build());
+        env.execute("Smoke Kafka Example");
     }
 }

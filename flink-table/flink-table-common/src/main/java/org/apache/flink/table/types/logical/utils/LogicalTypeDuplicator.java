@@ -99,7 +99,7 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
         builder.setNullable(structuredType.isNullable());
         builder.setFinal(structuredType.isFinal());
         builder.setInstantiable(structuredType.isInstantiable());
-        builder.comparision(structuredType.getComparision());
+        builder.comparison(structuredType.getComparison());
         structuredType
                 .getSuperType()
                 .ifPresent(

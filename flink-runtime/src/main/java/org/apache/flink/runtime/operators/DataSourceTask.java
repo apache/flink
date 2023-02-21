@@ -36,8 +36,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
@@ -125,8 +125,8 @@ public class DataSourceTask<OT> extends AbstractInvokable {
         {
             Counter tmpNumRecordsOut;
             try {
-                OperatorIOMetricGroup ioMetricGroup =
-                        ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+                InternalOperatorIOMetricGroup ioMetricGroup =
+                        ((InternalOperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
                 ioMetricGroup.reuseInputMetricsForTask();
                 if (this.config.getNumberOfChainedStubs() == 0) {
                     ioMetricGroup.reuseOutputMetricsForTask();

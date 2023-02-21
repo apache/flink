@@ -27,7 +27,7 @@ import java.nio.ByteOrder;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 
-/** Utility class for create not-pooled {@link BufferBuilder}. */
+/** Utility class for create {@link BufferBuilder}, {@link BufferConsumer} and {@link Buffer}. */
 public class BufferBuilderTestUtils {
     public static final int BUFFER_SIZE = 32 * 1024;
 
@@ -39,12 +39,20 @@ public class BufferBuilderTestUtils {
         return createFilledBufferBuilder(size, 0);
     }
 
+    public static BufferBuilder createBufferBuilder(MemorySegment memorySegment) {
+        return createFilledBufferBuilder(memorySegment, 0);
+    }
+
     public static BufferBuilder createFilledBufferBuilder(int size, int dataSize) {
         checkArgument(size >= dataSize);
+        return createFilledBufferBuilder(
+                MemorySegmentFactory.allocateUnpooledSegment(size), dataSize);
+    }
+
+    public static BufferBuilder createFilledBufferBuilder(
+            MemorySegment memorySegment, int dataSize) {
         BufferBuilder bufferBuilder =
-                new BufferBuilder(
-                        MemorySegmentFactory.allocateUnpooledSegment(size),
-                        FreeingBufferRecycler.INSTANCE);
+                new BufferBuilder(memorySegment, FreeingBufferRecycler.INSTANCE);
         return fillBufferBuilder(bufferBuilder, dataSize);
     }
 
@@ -83,6 +91,7 @@ public class BufferBuilderTestUtils {
 
         if (isFinished) {
             bufferBuilder.finish();
+            bufferBuilder.close();
         }
 
         return bufferConsumer;
@@ -90,9 +99,11 @@ public class BufferBuilderTestUtils {
 
     public static BufferConsumer createEventBufferConsumer(int size, Buffer.DataType dataType) {
         return new BufferConsumer(
-                MemorySegmentFactory.allocateUnpooledSegment(size),
-                FreeingBufferRecycler.INSTANCE,
-                dataType);
+                new NetworkBuffer(
+                        MemorySegmentFactory.allocateUnpooledSegment(size),
+                        FreeingBufferRecycler.INSTANCE,
+                        dataType),
+                size);
     }
 
     public static Buffer buildBufferWithAscendingInts(int bufferSize, int numInts, int nextValue) {
@@ -110,6 +121,26 @@ public class BufferBuilderTestUtils {
 
         for (int i = 0; i < numInts; i++) {
             assertEquals(nextValue++, bb.getInt());
+        }
+    }
+
+    public static Buffer buildBufferWithAscendingLongs(
+            int bufferSize, int numLongs, long nextValue) {
+        final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+        for (int i = 0; i < numLongs; i++) {
+            seg.putLongLittleEndian(8 * i, nextValue++);
+        }
+
+        return new NetworkBuffer(
+                seg, MemorySegment::free, Buffer.DataType.DATA_BUFFER, 8 * numLongs);
+    }
+
+    public static void validateBufferWithAscendingLongs(
+            Buffer buffer, int numLongs, long nextValue) {
+        final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int i = 0; i < numLongs; i++) {
+            assertEquals(nextValue++, bb.getLong());
         }
     }
 

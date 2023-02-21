@@ -21,37 +21,36 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link FileSourceSplitState}. */
-public class FileSourceSplitStateTest {
+class FileSourceSplitStateTest {
 
     @Test
-    public void testRoundTripWithoutModification() {
+    void testRoundTripWithoutModification() {
         final FileSourceSplit split = getTestSplit();
         final FileSourceSplitState state = new FileSourceSplitState(split);
 
         final FileSourceSplit resultSplit = state.toFileSourceSplit();
 
-        assertEquals(split.getReaderPosition(), resultSplit.getReaderPosition());
+        assertThat(resultSplit.getReaderPosition()).isEqualTo(split.getReaderPosition());
     }
 
     @Test
-    public void testStateStartsWithSplitValues() {
+    void testStateStartsWithSplitValues() {
         final FileSourceSplit split = getTestSplit(new CheckpointedPosition(123L, 456L));
         final FileSourceSplitState state = new FileSourceSplitState(split);
 
-        assertEquals(123L, state.getOffset());
-        assertEquals(456L, state.getRecordsToSkipAfterOffset());
+        assertThat(state.getOffset()).isEqualTo(123L);
+        assertThat(state.getRecordsToSkipAfterOffset()).isEqualTo(456L);
     }
 
     @Test
-    public void testNewSplitTakesModifiedOffsetAndCount() {
+    void testNewSplitTakesModifiedOffsetAndCount() {
         final FileSourceSplit split = getTestSplit();
         final FileSourceSplitState state = new FileSourceSplitState(split);
 
@@ -59,8 +58,8 @@ public class FileSourceSplitStateTest {
         final Optional<CheckpointedPosition> position =
                 state.toFileSourceSplit().getReaderPosition();
 
-        assertTrue(position.isPresent());
-        assertEquals(new CheckpointedPosition(1234L, 7566L), position.get());
+        assertThat(position).isPresent();
+        assertThat(position.get()).isEqualTo(new CheckpointedPosition(1234L, 7566L));
     }
 
     // ------------------------------------------------------------------------
@@ -75,6 +74,8 @@ public class FileSourceSplitStateTest {
                 new Path("file:/some/random/path"),
                 17,
                 121,
+                0,
+                150,
                 new String[] {"localhost"},
                 position);
     }

@@ -91,13 +91,13 @@ public class StateAssignmentOperation {
         this.tasks = Preconditions.checkNotNull(tasks);
         this.operatorStates = Preconditions.checkNotNull(operatorStates);
         this.allowNonRestoredState = allowNonRestoredState;
-        vertexAssignments = new HashMap<>(tasks.size());
+        this.vertexAssignments = new HashMap<>(tasks.size());
     }
 
     public void assignStates() {
-        Map<OperatorID, OperatorState> localOperators = new HashMap<>(operatorStates);
-
         checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
+
+        Map<OperatorID, OperatorState> localOperators = new HashMap<>(operatorStates);
 
         // find the states of all operators belonging to this task and compute additional
         // information in first pass
@@ -108,6 +108,7 @@ public class StateAssignmentOperation {
                 OperatorID operatorID =
                         operatorIDPair
                                 .getUserDefinedOperatorID()
+                                .filter(localOperators::containsKey)
                                 .orElse(operatorIDPair.getGeneratedOperatorID());
 
                 OperatorState operatorState = localOperators.remove(operatorID);
@@ -135,14 +136,19 @@ public class StateAssignmentOperation {
 
         // repartition state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            if (stateAssignment.hasState) {
+            if (stateAssignment.hasNonFinishedState) {
                 assignAttemptState(stateAssignment);
             }
         }
 
         // actually assign the state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            if (stateAssignment.hasState) {
+            // If upstream has output states, even the empty task state should be assigned for the
+            // current task in order to notify this task that the old states will send to it which
+            // likely should be filtered.
+            if (stateAssignment.hasNonFinishedState
+                    || stateAssignment.isFullyFinished
+                    || stateAssignment.hasUpstreamOutputStates()) {
                 assignTaskStateToExecutionJobVertices(stateAssignment);
             }
         }
@@ -166,7 +172,7 @@ public class StateAssignmentOperation {
          * 		parallelism0 parallelism1 parallelism2
          * op0   states0,0    state0,1	   state0,2
          * op1
-         * op2   states2,0    state2,1	   state1,2
+         * op2   states2,0    state2,1	   state2,2
          * op3   states3,0    state3,1     state3,2
          *
          * The new ManagedOperatorStates with new parallelism 4:
@@ -213,32 +219,45 @@ public class StateAssignmentOperation {
          *
          */
         for (int subTaskIndex = 0; subTaskIndex < newParallelism; subTaskIndex++) {
-
             Execution currentExecutionAttempt =
                     executionJobVertex.getTaskVertices()[subTaskIndex].getCurrentExecutionAttempt();
 
-            TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
-            boolean statelessTask = true;
-
-            for (OperatorIDPair operatorID : operatorIDs) {
-                OperatorInstanceID instanceID =
-                        OperatorInstanceID.of(subTaskIndex, operatorID.getGeneratedOperatorID());
-
-                OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
-
-                if (operatorSubtaskState.hasState()) {
-                    statelessTask = false;
-                }
-                taskState.putSubtaskStateByOperatorID(
-                        operatorID.getGeneratedOperatorID(), operatorSubtaskState);
-            }
-
-            if (!statelessTask) {
-                JobManagerTaskRestore taskRestore =
-                        new JobManagerTaskRestore(restoreCheckpointId, taskState);
-                currentExecutionAttempt.setInitialState(taskRestore);
+            if (assignment.isFullyFinished) {
+                assignFinishedStateToTask(currentExecutionAttempt);
+            } else {
+                assignNonFinishedStateToTask(
+                        assignment, operatorIDs, subTaskIndex, currentExecutionAttempt);
             }
         }
+    }
+
+    private void assignFinishedStateToTask(Execution currentExecutionAttempt) {
+        JobManagerTaskRestore taskRestore =
+                new JobManagerTaskRestore(
+                        restoreCheckpointId, TaskStateSnapshot.FINISHED_ON_RESTORE);
+        currentExecutionAttempt.setInitialState(taskRestore);
+    }
+
+    private void assignNonFinishedStateToTask(
+            TaskStateAssignment assignment,
+            List<OperatorIDPair> operatorIDs,
+            int subTaskIndex,
+            Execution currentExecutionAttempt) {
+        TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size(), false);
+
+        for (OperatorIDPair operatorID : operatorIDs) {
+            OperatorInstanceID instanceID =
+                    OperatorInstanceID.of(subTaskIndex, operatorID.getGeneratedOperatorID());
+
+            OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
+
+            taskState.putSubtaskStateByOperatorID(
+                    operatorID.getGeneratedOperatorID(), operatorSubtaskState);
+        }
+
+        JobManagerTaskRestore taskRestore =
+                new JobManagerTaskRestore(restoreCheckpointId, taskState);
+        currentExecutionAttempt.setInitialState(taskRestore);
     }
 
     public void checkParallelismPreconditions(TaskStateAssignment taskStateAssignment) {
@@ -361,7 +380,8 @@ public class StateAssignmentOperation {
                                     ResultSubpartitionInfo::getPartitionIdx,
                                     partitionIndex);
             final MappingBasedRepartitioner<ResultSubpartitionStateHandle> repartitioner =
-                    new MappingBasedRepartitioner<>(assignment.getOutputMapping(partitionIndex));
+                    new MappingBasedRepartitioner<>(
+                            assignment.getOutputMapping(partitionIndex).getRescaleMappings());
             final Map<OperatorInstanceID, List<ResultSubpartitionStateHandle>> repartitioned =
                     applyRepartitioner(
                             assignment.outputOperatorID,
@@ -406,7 +426,8 @@ public class StateAssignmentOperation {
         // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
         // subtask 0 + 2
         for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
-            final RescaleMappings mapping = stateAssignment.getInputMapping(gateIndex);
+            final RescaleMappings mapping =
+                    stateAssignment.getInputMapping(gateIndex).getRescaleMappings();
 
             final List<List<InputChannelStateHandle>> gateState =
                     inputs.size() == 1
@@ -537,7 +558,7 @@ public class StateAssignmentOperation {
             }
         }
 
-        return subtaskKeyedStateHandles;
+        return subtaskKeyedStateHandles != null ? subtaskKeyedStateHandles : emptyList();
     }
 
     /**
@@ -571,7 +592,7 @@ public class StateAssignmentOperation {
             }
         }
 
-        return extractedKeyedStateHandles;
+        return extractedKeyedStateHandles != null ? extractedKeyedStateHandles : emptyList();
     }
 
     /**
@@ -696,11 +717,13 @@ public class StateAssignmentOperation {
         }
         for (Map.Entry<OperatorID, OperatorState> operatorGroupStateEntry :
                 operatorStates.entrySet()) {
-            OperatorState operatorState = operatorGroupStateEntry.getValue();
             // ----------------------------------------find operator for
             // state---------------------------------------------
 
             if (!allOperatorIDs.contains(operatorGroupStateEntry.getKey())) {
+
+                OperatorState operatorState = operatorGroupStateEntry.getValue();
+
                 if (allowNonRestoredState) {
                     LOG.info(
                             "Skipped checkpoint state for operator {}.",

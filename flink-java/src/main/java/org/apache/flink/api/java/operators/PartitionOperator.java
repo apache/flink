@@ -122,10 +122,10 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
                 "Partitioning requires keys");
         Preconditions.checkArgument(
                 pMethod != PartitionMethod.CUSTOM || customPartitioner != null,
-                "Custom partioning requires a partitioner.");
+                "Custom partitioning requires a partitioner.");
         Preconditions.checkArgument(
                 distribution == null || pMethod == PartitionMethod.RANGE,
-                "Customized data distribution is only neccessary for range partition.");
+                "Customized data distribution is only necessary for range partition.");
 
         if (distribution != null) {
             Preconditions.checkArgument(

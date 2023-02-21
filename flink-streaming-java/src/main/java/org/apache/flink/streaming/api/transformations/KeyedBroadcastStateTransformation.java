@@ -47,14 +47,16 @@ public class KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT>
             final TypeInformation<KEY> keyType,
             final KeySelector<IN1, KEY> keySelector,
             final TypeInformation<OUT> outTypeInfo,
-            final int parallelism) {
+            final int parallelism,
+            final boolean parallelismConfigured) {
         super(
                 name,
                 inputStream,
                 broadcastStream,
                 broadcastStateDescriptors,
                 outTypeInfo,
-                parallelism);
+                parallelism,
+                parallelismConfigured);
         this.userFunction = userFunction;
 
         this.stateKeyType = keyType;

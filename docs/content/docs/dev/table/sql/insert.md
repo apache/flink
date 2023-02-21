@@ -1,6 +1,6 @@
 ---
 title: "INSERT Statement"
-weight: 6
+weight: 7
 type: docs
 aliases:
   - /dev/table/sql/insert.html
@@ -66,8 +66,7 @@ The following examples show how to run a single INSERT statement in SQL CLI.
 {{< tabs "15bc87ce-93fd-4fdd-8c51-3301a432c048" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tEnv = TableEnvironment.create(settings);
+TableEnvironment tEnv = TableEnvironment.create(...);
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
 tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
@@ -99,8 +98,7 @@ System.out.println(tableResult2.getJobClient().get().getJobStatus());
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tEnv = TableEnvironment.create(settings)
+val tEnv = TableEnvironment.create(...)
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
 tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -132,8 +130,7 @@ println(tableResult2.getJobClient().get().getJobStatus())
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # register a source table named "Orders" and a sink table named "RubberOrders"
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -191,7 +188,7 @@ Query Results can be inserted into tables by using the insert clause.
 
 ```sql
 
-INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] [column_list] select_statement
+[EXECUTE] INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] [column_list] select_statement
 
 part_spec:
   (part_col_name1=val1 [, part_col_name2=val2, ...])
@@ -224,6 +221,11 @@ WITH (...)
 -- Appends rows into the static partition (date='2019-8-30', country='China')
 INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
+  
+-- Key word EXECUTE can be added at the beginning of Insert to indicate explicitly that we are going to execute the statement,
+-- it is equivalent to Statement without the key word. 
+EXECUTE INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+  SELECT user, cnt FROM page_view_source;
 
 -- Appends rows into partition (date, country), where date is static partition with value '2019-8-30',
 -- country is dynamic partition whose value is dynamic determined by each row.
@@ -253,10 +255,10 @@ The INSERT...VALUES statement can be used to insert data into tables directly fr
 ### Syntax
 
 ```sql
-INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name VALUES values_row [, values_row ...]
+[EXECUTE] INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name VALUES values_row [, values_row ...]
 
 values_row:
-    : (val1 [, val2, ...])
+    (val1 [, val2, ...])
 ```
 
 **OVERWRITE**
@@ -274,4 +276,37 @@ INSERT INTO students
 
 ```
 
+## Insert into multiple tables
+The `STATEMENT SET` can be used to insert data into multiple tables  in a statement.
+
+### Syntax
+
+```sql
+EXECUTE STATEMENT SET
+BEGIN
+insert_statement;
+...
+insert_statement;
+END;
+
+insert_statement:
+   <insert_from_select>|<insert_from_values>
+```
+
+### Examples
+
+```sql
+
+CREATE TABLE students (name STRING, age INT, gpa DECIMAL(3, 2)) WITH (...);
+
+EXECUTE STATEMENT SET
+BEGIN
+INSERT INTO students
+  VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
+INSERT INTO students
+  VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
+END;
+```
+
 {{< top >}}
+

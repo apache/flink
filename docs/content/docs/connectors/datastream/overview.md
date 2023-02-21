@@ -38,23 +38,27 @@ The [predefined data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sink
 
 Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
 
- * [Apache Kafka](kafka.html) (source/sink)
- * [Apache Cassandra](cassandra.html) (sink)
- * [Amazon Kinesis Streams](kinesis.html) (source/sink)
- * [Elasticsearch](elasticsearch.html) (sink)
- * [FileSystem (Hadoop included) - Streaming only](streamfile_sink.html) (sink)
- * [FileSystem (Hadoop included) - Streaming and Batch](file_sink.html) (sink)
- * [RabbitMQ](rabbitmq.html) (source/sink)
- * [Apache NiFi](nifi.html) (source/sink)
- * [Twitter Streaming API](twitter.html) (source)
- * [Google PubSub](pubsub.html) (source/sink)
- * [JDBC](jdbc.html) (sink)
+ * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
+ * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
+ * [Amazon DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
+ * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
+ * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [DataGen]({{< ref "docs/connectors/datastream/datagen" >}}) (source)
+ * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
+ * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (source/sink)
+ * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
+ * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
+ * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
+ * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.
 Note also that while the streaming connectors listed in this section are part of the
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
+
+Filesystem source formats are gradually replaced with new Flink Source API starting with Flink 1.14.0.
 
 ## Connectors in Apache Bahir
 

@@ -18,9 +18,12 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Properties;
 
 /** A properties class with added utility method to extract primitives. */
+@Public
 public class MetricConfig extends Properties {
 
     public String getString(String key, String defaultValue) {

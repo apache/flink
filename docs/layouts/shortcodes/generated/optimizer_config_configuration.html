@@ -18,6 +18,12 @@ TWO_PHASE: Enforce to use two stage aggregate which has localAggregate and globa
 ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.bushy-join-reorder-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">12</td>
+            <td>Integer</td>
+            <td>The maximum number of joined nodes allowed in the bushy join reorder algorithm, otherwise the left-deep join reorder algorithm will be used. The search space of bushy join reorder algorithm will increase with the increase of this threshold value, so this threshold is not recommended to be set too large. The default value is 12.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.distinct-agg.split.bucket-num</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>Integer</td>
@@ -28,6 +34,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Tells the optimizer whether to split distinct aggregation (e.g. COUNT(DISTINCT col), SUM(DISTINCT col)) into two level. The first aggregation is shuffled by an additional key which is calculated using the hashcode of distinct_key and number of buckets. This optimization is very useful when there is data skew in distinct aggregation and gives the ability to scale-up the job. Default is false.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.dynamic-filtering.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will try to push dynamic filtering into scan table source, the irrelevant partitions or input data will be filtered to reduce scan I/O in runtime.</td>
         </tr>
         <tr>
             <td><h5>table.optimizer.join-reorder-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
@@ -48,6 +60,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>When it is true, the optimizer will merge the operators with pipelined shuffling into a multiple input operator to reduce shuffling and improve performance. Default value is true.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.non-deterministic-update.strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">IGNORE</td>
+            <td><p>Enum</p></td>
+            <td>When it is `TRY_RESOLVE`, the optimizer tries to resolve the correctness issue caused by 'Non-Deterministic Updates' (NDU) in a changelog pipeline. Changelog may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB), Update_After (UA). There's no NDU problem in an insert only changelog pipeline. For updates, there are  three main NDU problems:<br />1. Non-deterministic functions, include scalar, table, aggregate functions, both builtin and custom ones.<br />2. LookupJoin on an evolving source<br />3. Cdc-source carries metadata fields which are system columns, not belongs to the entity data itself.<br /><br />For the first step, the optimizer automatically enables the materialization for No.2(LookupJoin) if needed, and gives the detailed error message for No.1(Non-deterministic functions) and No.3(Cdc-source with metadata) which is relatively easier to solve by changing the SQL.<br />Default value is `IGNORE`, the optimizer does no changes.<br /><br />Possible values:<ul><li>"TRY_RESOLVE"</li><li>"IGNORE"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.reuse-source-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -60,10 +78,22 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>When it is true, the optimizer will try to find out duplicated sub-plans and reuse them.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.source.aggregate-pushdown-enabled</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will push down the local aggregates into the TableSource which implements SupportsAggregatePushDown.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.source.predicate-pushdown-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>When it is true, the optimizer will push down predicates into the FilterableTableSource. Default value is true.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.source.report-statistics-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will collect and use the statistics from source connectors if the source extends from SupportsStatisticReport and the statistics from catalog is UNKNOWN.Default value is true.</td>
         </tr>
     </tbody>
 </table>

@@ -21,6 +21,7 @@ package org.apache.flink.api.common.time;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -140,5 +141,12 @@ public final class Time implements Serializable {
     /** Creates a new {@link Time} that represents the given number of days. */
     public static Time days(long days) {
         return of(days, TimeUnit.DAYS);
+    }
+
+    /**
+     * Creates a new {@link Time} that represents the number of milliseconds in the given duration.
+     */
+    public static Time fromDuration(Duration duration) {
+        return milliseconds(duration.toMillis());
     }
 }

@@ -52,7 +52,7 @@ class JobClient(object):
 
         .. versionadded:: 1.11.0
         """
-        return CompletableFuture(self._j_job_client.getJobStatus(), JobStatus)
+        return CompletableFuture(self._j_job_client.getJobStatus(), JobStatus._from_j_job_status)
 
     def cancel(self) -> CompletableFuture:
         """

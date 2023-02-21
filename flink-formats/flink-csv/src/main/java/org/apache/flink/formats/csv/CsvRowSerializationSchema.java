@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
@@ -56,8 +57,13 @@ import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOC
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link
  * CsvRowDeserializationSchema}.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link SerializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public final class CsvRowSerializationSchema implements SerializationSchema<Row> {
 
     private static final long serialVersionUID = 2098447220136965L;
@@ -69,13 +75,13 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
     private final RuntimeConverter runtimeConverter;
 
     /** CsvMapper used to write {@link JsonNode} into bytes. */
-    private final CsvMapper csvMapper;
+    private transient CsvMapper csvMapper;
 
     /** Schema describing the input CSV data. */
     private final CsvSchema csvSchema;
 
     /** Object writer used to write rows. It is configured by {@link CsvSchema}. */
-    private final ObjectWriter objectWriter;
+    private transient ObjectWriter objectWriter;
 
     /** Reusable object node. */
     private transient ObjectNode root;
@@ -83,8 +89,12 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
     private CsvRowSerializationSchema(RowTypeInfo typeInfo, CsvSchema csvSchema) {
         this.typeInfo = typeInfo;
         this.runtimeConverter = createRowRuntimeConverter(typeInfo, true);
-        this.csvMapper = new CsvMapper();
         this.csvSchema = csvSchema;
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        this.csvMapper = JacksonMapperFactory.createCsvMapper();
         this.objectWriter = csvMapper.writer(csvSchema);
     }
 

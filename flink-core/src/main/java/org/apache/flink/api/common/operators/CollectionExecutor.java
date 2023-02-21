@@ -48,7 +48,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.OptionalFailure;
@@ -126,7 +126,7 @@ public class CollectionExecutor {
             Future<Path> doNothing = new CompletedFuture(new Path(file.getValue().filePath));
             cachedFiles.put(file.getKey(), doNothing);
         }
-    };
+    }
 
     private List<?> execute(Operator<?> operator, JobID jobID) throws Exception {
         return execute(operator, 0, jobID);
@@ -186,33 +186,35 @@ public class CollectionExecutor {
         TaskInfo taskInfo = new TaskInfo(typedSink.getName(), 1, 0, 1, 0);
         RuntimeUDFContext ctx;
 
-        MetricGroup metrics = new UnregisteredMetricsGroup();
-
         if (RichOutputFormat.class.isAssignableFrom(
                 typedSink.getUserCodeWrapper().getUserCodeClass())) {
-            ctx =
-                    superStep == 0
-                            ? new RuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID)
-                            : new IterationRuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID);
+            ctx = createContext(superStep, taskInfo, jobID);
         } else {
             ctx = null;
         }
 
         typedSink.executeOnCollections(input, ctx, executionConfig);
+    }
+
+    private RuntimeUDFContext createContext(int superStep, TaskInfo taskInfo, JobID jobID) {
+        OperatorMetricGroup metrics = UnregisteredMetricsGroup.createOperatorMetricGroup();
+        return superStep == 0
+                ? new RuntimeUDFContext(
+                        taskInfo,
+                        userCodeClassLoader,
+                        executionConfig,
+                        cachedFiles,
+                        accumulators,
+                        metrics,
+                        jobID)
+                : new IterationRuntimeUDFContext(
+                        taskInfo,
+                        userCodeClassLoader,
+                        executionConfig,
+                        cachedFiles,
+                        accumulators,
+                        metrics,
+                        jobID);
     }
 
     private <OUT> List<OUT> executeDataSource(
@@ -224,27 +226,9 @@ public class CollectionExecutor {
 
         RuntimeUDFContext ctx;
 
-        MetricGroup metrics = new UnregisteredMetricsGroup();
         if (RichInputFormat.class.isAssignableFrom(
                 typedSource.getUserCodeWrapper().getUserCodeClass())) {
-            ctx =
-                    superStep == 0
-                            ? new RuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID)
-                            : new IterationRuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID);
+            ctx = createContext(superStep, taskInfo, jobID);
         } else {
             ctx = null;
         }
@@ -269,26 +253,8 @@ public class CollectionExecutor {
         TaskInfo taskInfo = new TaskInfo(typedOp.getName(), 1, 0, 1, 0);
         RuntimeUDFContext ctx;
 
-        MetricGroup metrics = new UnregisteredMetricsGroup();
         if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-            ctx =
-                    superStep == 0
-                            ? new RuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID)
-                            : new IterationRuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID);
+            ctx = createContext(superStep, taskInfo, jobID);
 
             for (Map.Entry<String, Operator<?>> bcInputs :
                     operator.getBroadcastInputs().entrySet()) {
@@ -330,27 +296,8 @@ public class CollectionExecutor {
         TaskInfo taskInfo = new TaskInfo(typedOp.getName(), 1, 0, 1, 0);
         RuntimeUDFContext ctx;
 
-        MetricGroup metrics = new UnregisteredMetricsGroup();
-
         if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-            ctx =
-                    superStep == 0
-                            ? new RuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID)
-                            : new IterationRuntimeUDFContext(
-                                    taskInfo,
-                                    userCodeClassLoader,
-                                    executionConfig,
-                                    cachedFiles,
-                                    accumulators,
-                                    metrics,
-                                    jobID);
+            ctx = createContext(superStep, taskInfo, jobID);
 
             for (Map.Entry<String, Operator<?>> bcInputs :
                     operator.getBroadcastInputs().entrySet()) {
@@ -641,7 +588,7 @@ public class CollectionExecutor {
                 ExecutionConfig executionConfig,
                 Map<String, Future<Path>> cpTasks,
                 Map<String, Accumulator<?, ?>> accumulators,
-                MetricGroup metrics,
+                OperatorMetricGroup metrics,
                 JobID jobID) {
             super(taskInfo, classloader, executionConfig, cpTasks, accumulators, metrics, jobID);
         }

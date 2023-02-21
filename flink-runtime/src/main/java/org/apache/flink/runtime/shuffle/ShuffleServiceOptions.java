@@ -32,6 +32,7 @@ public class ShuffleServiceOptions {
      */
     public static final ConfigOption<String> SHUFFLE_SERVICE_FACTORY_CLASS =
             ConfigOptions.key("shuffle-service-factory.class")
+                    .stringType()
                     .defaultValue("org.apache.flink.runtime.io.network.NettyShuffleServiceFactory")
                     .withDescription(
                             "The full class name of the shuffle service factory implementation to be used by the cluster. "

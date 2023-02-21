@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
- * A data type that contains field data types (i.e. row, structured, and distinct types).
+ * A data type that contains field data types (i.e. row and structured type).
  *
  * @see DataTypes for a list of supported data types
  */

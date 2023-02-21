@@ -21,8 +21,12 @@ package org.apache.flink.util;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashSet;
@@ -47,6 +51,67 @@ public class NetUtilsTest extends TestLogger {
     public void testParseHostPortAddress() {
         final InetSocketAddress socketAddress = new InetSocketAddress("foo.com", 8080);
         assertEquals(socketAddress, NetUtils.parseHostPortAddress("foo.com:8080"));
+    }
+
+    @Test
+    public void testAcceptWithoutTimeoutSuppressesTimeoutException() throws IOException {
+        // Validates that acceptWithoutTimeout suppresses all SocketTimeoutExceptions
+        Socket expected = new Socket();
+        ServerSocket serverSocket =
+                new ServerSocket() {
+                    private int count = 0;
+
+                    @Override
+                    public Socket accept() throws IOException {
+                        if (count < 2) {
+                            count++;
+                            throw new SocketTimeoutException();
+                        }
+
+                        return expected;
+                    }
+                };
+
+        assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+    }
+
+    @Test
+    public void testAcceptWithoutTimeoutDefaultTimeout() throws IOException {
+        // Default timeout (should be zero)
+        final Socket expected = new Socket();
+        try (final ServerSocket serverSocket =
+                new ServerSocket(0) {
+                    @Override
+                    public Socket accept() {
+                        return expected;
+                    }
+                }) {
+            assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+        }
+    }
+
+    @Test
+    public void testAcceptWithoutTimeoutZeroTimeout() throws IOException {
+        // Explicitly sets a timeout of zero
+        final Socket expected = new Socket();
+        try (final ServerSocket serverSocket =
+                new ServerSocket(0) {
+                    @Override
+                    public Socket accept() {
+                        return expected;
+                    }
+                }) {
+            serverSocket.setSoTimeout(0);
+            assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testAcceptWithoutTimeoutRejectsSocketWithSoTimeout() throws IOException {
+        try (final ServerSocket serverSocket = new ServerSocket(0)) {
+            serverSocket.setSoTimeout(5);
+            NetUtils.acceptWithoutTimeout(serverSocket);
+        }
     }
 
     @Test

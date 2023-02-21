@@ -24,10 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import javax.annotation.Nullable;
@@ -59,29 +59,33 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
     private final CsvSchema csvSchema;
 
     /** Object reader used to read rows. It is configured by {@link CsvSchema}. */
-    private final ObjectReader objectReader;
+    private transient ObjectReader objectReader;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
     private CsvRowDataDeserializationSchema(
-            RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
             CsvSchema csvSchema,
+            CsvToRowDataConverters.CsvToRowDataConverter runtimeConverter,
             boolean ignoreParseErrors) {
         this.resultTypeInfo = resultTypeInfo;
-        this.runtimeConverter =
-                new CsvToRowDataConverters(ignoreParseErrors).createRowConverter(rowType, true);
-        this.csvSchema = CsvRowSchemaConverter.convert(rowType);
-        this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
+        this.runtimeConverter = runtimeConverter;
+        this.csvSchema = csvSchema;
         this.ignoreParseErrors = ignoreParseErrors;
+    }
+
+    @Override
+    public void open(InitializationContext context) {
+        this.objectReader =
+                JacksonMapperFactory.createCsvMapper().readerFor(JsonNode.class).with(csvSchema);
     }
 
     /** A builder for creating a {@link CsvRowDataDeserializationSchema}. */
     @Internal
     public static class Builder {
 
-        private final RowType rowType;
+        private final RowType rowResultType;
         private final TypeInformation<RowData> resultTypeInfo;
         private CsvSchema csvSchema;
         private boolean ignoreParseErrors;
@@ -89,11 +93,32 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
         /**
          * Creates a CSV deserialization schema for the given {@link TypeInformation} with optional
          * parameters.
+         *
+         * @param rowReadType The {@link RowType} used for reading CSV rows.
+         * @param rowResultType The {@link RowType} of the produced results. It can be different
+         *     from the {@code rowReadType} if the underlying converter supports the discrepancy
+         *     (for instance for filtering/projection pushdown).
+         * @param resultTypeInfo The result type info.
+         */
+        public Builder(
+                RowType rowReadType,
+                RowType rowResultType,
+                TypeInformation<RowData> resultTypeInfo) {
+            Preconditions.checkNotNull(rowReadType, "RowType must not be null.");
+            Preconditions.checkNotNull(rowResultType, "RowType must not be null.");
+            Preconditions.checkNotNull(resultTypeInfo, "Result type information must not be null.");
+            this.rowResultType = rowResultType;
+            this.resultTypeInfo = resultTypeInfo;
+            this.csvSchema = CsvRowSchemaConverter.convert(rowReadType);
+        }
+
+        /**
+         * Creates a CSV deserialization schema for the given {@link TypeInformation} with optional
+         * parameters.
          */
         public Builder(RowType rowType, TypeInformation<RowData> resultTypeInfo) {
-            Preconditions.checkNotNull(rowType, "RowType must not be null.");
             Preconditions.checkNotNull(resultTypeInfo, "Result type information must not be null.");
-            this.rowType = rowType;
+            this.rowResultType = rowType;
             this.resultTypeInfo = resultTypeInfo;
             this.csvSchema = CsvRowSchemaConverter.convert(rowType);
         }
@@ -141,8 +166,11 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
         }
 
         public CsvRowDataDeserializationSchema build() {
+            CsvToRowDataConverters.CsvToRowDataConverter runtimeConverter =
+                    new CsvToRowDataConverters(ignoreParseErrors)
+                            .createRowConverter(rowResultType, true);
             return new CsvRowDataDeserializationSchema(
-                    rowType, resultTypeInfo, csvSchema, ignoreParseErrors);
+                    resultTypeInfo, csvSchema, runtimeConverter, ignoreParseErrors);
         }
     }
 
@@ -159,7 +187,7 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
                 return null;
             }
             throw new IOException(
-                    "Failed to deserialize CSV row '" + new String(message) + "'.", t);
+                    String.format("Failed to deserialize CSV row '%s'.", new String(message)), t);
         }
     }
 
@@ -206,6 +234,6 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
                 csvSchema.getArrayElementSeparator(),
                 csvSchema.getQuoteChar(),
                 csvSchema.getEscapeChar(),
-                csvSchema.getNullValue());
+                Arrays.hashCode(csvSchema.getNullValue()));
     }
 }

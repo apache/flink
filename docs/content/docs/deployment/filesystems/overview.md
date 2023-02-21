@@ -29,7 +29,7 @@ under the License.
 # File Systems
 
 Apache Flink uses file systems to consume and persistently store data, both for the results of applications and for fault tolerance and recovery.
-These are some of most of the popular file systems, including *local*, *hadoop-compatible*, *Amazon S3*, *MapR FS*, *Aliyun OSS* and *Azure Blob Storage*.
+These are some of most of the popular file systems, including *local*, *hadoop-compatible*, *Amazon S3*, *Aliyun OSS* and *Azure Blob Storage*.
 
 The file system used for a particular file is determined by its URI scheme.
 For example, `file:///home/user/text.txt` refers to a file in the local file system, while `hdfs://namenode:50010/data/user/text.txt` is a file in a specific HDFS cluster.
@@ -50,16 +50,19 @@ The Apache Flink project supports the following file systems:
   - [**Amazon S3**]({{< ref "docs/deployment/filesystems/s3" >}}) object storage is supported by two alternative implementations: `flink-s3-fs-presto` and `flink-s3-fs-hadoop`.
   Both implementations are self-contained with no dependency footprint.
 
-  - **MapR FS** file system adapter is already supported in the main Flink distribution under the *maprfs://* URI scheme.
-  You must provide the MapR libraries in the classpath (for example in `lib` directory).
-
   - **[Aliyun Object Storage Service]({{< ref "docs/deployment/filesystems/oss" >}})** is supported by `flink-oss-fs-hadoop` and registered under the *oss://* URI scheme.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+
+  - **[Azure Data Lake Store Gen2]({{< ref "docs/deployment/filesystems/azure" >}})** is supported by `flink-azure-fs-hadoop` and registered under the *abfs(s)://* URI schemes.
+    The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
   - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
-Except **MapR FS**, you can and should use any of them as [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}). 
+  - **[Google Cloud Storage]({{< ref "docs/deployment/filesystems/gcs" >}})** is supported by `gcs-connector` and registered under the *gs://* URI scheme.
+  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+
+You can and should use any of them as [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}). 
 
 To use a pluggable file systems, copy the corresponding JAR file from the `opt` directory to a directory under `plugins` directory
 of your Flink distribution before starting Flink, e.g.
@@ -106,7 +109,6 @@ This way, Flink seamlessly supports all of Hadoop file systems implementing the 
 and all Hadoop-compatible file systems (HCFS).
 
   - HDFS (tested)
-  - [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
   - [Alluxio](http://alluxio.org/) (tested, see configuration specifics below)
   - [XtreemFS](http://www.xtreemfs.org/) (tested)
   - FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)

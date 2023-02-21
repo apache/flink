@@ -20,19 +20,32 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+
+import javax.annotation.Nullable;
 
 /** Mock implementations of {@link CatalogManager} for testing purposes. */
 public final class CatalogManagerMocks {
 
-    public static final String DEFAULT_CATALOG = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
+    public static final String DEFAULT_CATALOG =
+            TableConfigOptions.TABLE_CATALOG_NAME.defaultValue();
 
-    public static final String DEFAULT_DATABASE = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+    public static final String DEFAULT_DATABASE =
+            TableConfigOptions.TABLE_DATABASE_NAME.defaultValue();
 
     public static CatalogManager createEmptyCatalogManager() {
-        final CatalogManager catalogManager = preparedCatalogManager().build();
+        return createCatalogManager(null);
+    }
+
+    public static CatalogManager createCatalogManager(@Nullable Catalog catalog) {
+        final CatalogManager.Builder builder = preparedCatalogManager();
+        if (catalog != null) {
+            builder.defaultCatalog(DEFAULT_CATALOG, catalog);
+        }
+        final CatalogManager catalogManager = builder.build();
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
         return catalogManager;
     }
@@ -41,10 +54,12 @@ public final class CatalogManagerMocks {
         return CatalogManager.newBuilder()
                 .classLoader(CatalogManagerMocks.class.getClassLoader())
                 .config(new Configuration())
-                .defaultCatalog(
-                        DEFAULT_CATALOG,
-                        new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE))
+                .defaultCatalog(DEFAULT_CATALOG, createEmptyCatalog())
                 .executionConfig(new ExecutionConfig());
+    }
+
+    public static Catalog createEmptyCatalog() {
+        return new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE);
     }
 
     private CatalogManagerMocks() {

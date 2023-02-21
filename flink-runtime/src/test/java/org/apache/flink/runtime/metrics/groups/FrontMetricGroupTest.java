@@ -19,9 +19,12 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.runtime.metrics.filter.MetricFilter;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.junit.Test;
 
@@ -45,7 +48,12 @@ public class FrontMetricGroupTest {
 
         final FrontMetricGroup<?> frontMetricGroup =
                 new FrontMetricGroup<>(
-                        new ReporterScopedSettings(0, delimiter, Collections.emptySet()),
+                        new ReporterScopedSettings(
+                                0,
+                                delimiter,
+                                MetricFilter.NO_OP_FILTER,
+                                Collections.emptySet(),
+                                Collections.emptyMap()),
                         new ProcessMetricGroup(
                                 TestingMetricRegistry.builder()
                                         .setScopeFormats(ScopeFormats.fromConfig(config))
@@ -75,7 +83,12 @@ public class FrontMetricGroupTest {
 
         final FrontMetricGroup<?> frontMetricGroup =
                 new FrontMetricGroup<>(
-                        new ReporterScopedSettings(0, delimiter, Collections.emptySet()),
+                        new ReporterScopedSettings(
+                                0,
+                                delimiter,
+                                MetricFilter.NO_OP_FILTER,
+                                Collections.emptySet(),
+                                Collections.emptyMap()),
                         new ProcessMetricGroup(
                                 TestingMetricRegistry.builder()
                                         .setScopeFormats(ScopeFormats.fromConfig(config))
@@ -94,5 +107,21 @@ public class FrontMetricGroupTest {
         // delimiters in variables should not be filtered, because they are usually not used in a
         // context where the delimiter matters
         assertThat(frontMetricGroup.getAllVariables(), hasEntry(ScopeFormat.SCOPE_HOST, hostName));
+    }
+
+    @Test
+    public void testGetAllVariablesWithAdditionalVariables() {
+        final FrontMetricGroup<?> frontMetricGroup =
+                new FrontMetricGroup<>(
+                        new ReporterScopedSettings(
+                                0,
+                                '.',
+                                MetricFilter.NO_OP_FILTER,
+                                Collections.emptySet(),
+                                ImmutableMap.of(ScopeFormat.asVariable("foo"), "bar")),
+                        new ProcessMetricGroup(TestingMetricRegistry.builder().build(), "host"));
+
+        assertThat(
+                frontMetricGroup.getAllVariables(), hasEntry(ScopeFormat.asVariable("foo"), "bar"));
     }
 }

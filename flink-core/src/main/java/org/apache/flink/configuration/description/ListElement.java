@@ -18,10 +18,13 @@
 
 package org.apache.flink.configuration.description;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Arrays;
 import java.util.List;
 
 /** Represents a list in the {@link Description}. */
+@PublicEvolving
 public class ListElement implements BlockElement {
 
     private final List<InlineElement> entries;

@@ -22,6 +22,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -38,7 +40,8 @@ import java.io.IOException;
  * actions.
  */
 interface BarrierHandlerState {
-    BarrierHandlerState alignmentTimeout(Controller controller, CheckpointBarrier checkpointBarrier)
+    BarrierHandlerState alignedCheckpointTimeout(
+            Controller controller, CheckpointBarrier checkpointBarrier)
             throws IOException, CheckpointException;
 
     BarrierHandlerState announcementReceived(
@@ -48,10 +51,14 @@ interface BarrierHandlerState {
     BarrierHandlerState barrierReceived(
             Controller controller,
             InputChannelInfo channelInfo,
-            CheckpointBarrier checkpointBarrier)
+            CheckpointBarrier checkpointBarrier,
+            boolean markChannelBlocked)
             throws IOException, CheckpointException;
 
     BarrierHandlerState abort(long cancelledId) throws IOException;
+
+    BarrierHandlerState endOfPartitionReceived(Controller controller, InputChannelInfo channelInfo)
+            throws IOException, CheckpointException;
 
     /**
      * An entry point for communication between {@link BarrierHandlerState} and {@link
@@ -59,6 +66,9 @@ interface BarrierHandlerState {
      */
     interface Controller {
         boolean allBarriersReceived();
+
+        @Nullable
+        CheckpointBarrier getPendingCheckpointBarrier();
 
         void triggerGlobalCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException;
 

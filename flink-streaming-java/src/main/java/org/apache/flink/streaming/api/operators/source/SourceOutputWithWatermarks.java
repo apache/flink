@@ -135,6 +135,11 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
         onEventWatermarkOutput.markIdle();
     }
 
+    @Override
+    public void markActive() {
+        onEventWatermarkOutput.markActive();
+    }
+
     public final void emitPeriodicWatermark() {
         watermarkGenerator.onPeriodicEmit(periodicWatermarkOutput);
     }
@@ -142,26 +147,6 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
     // ------------------------------------------------------------------------
     // Factories
     // ------------------------------------------------------------------------
-
-    /**
-     * Creates a new SourceOutputWithWatermarks that emits records to the given DataOutput and
-     * watermarks to the (possibly different) WatermarkOutput.
-     */
-    public static <E> SourceOutputWithWatermarks<E> createWithSameOutputs(
-            PushingAsyncDataInput.DataOutput<E> recordsAndWatermarksOutput,
-            TimestampAssigner<E> timestampAssigner,
-            WatermarkGenerator<E> watermarkGenerator) {
-
-        final WatermarkOutput watermarkOutput =
-                new WatermarkToDataOutput(recordsAndWatermarksOutput);
-
-        return new SourceOutputWithWatermarks<>(
-                recordsAndWatermarksOutput,
-                watermarkOutput,
-                watermarkOutput,
-                timestampAssigner,
-                watermarkGenerator);
-    }
 
     /**
      * Creates a new SourceOutputWithWatermarks that emits records to the given DataOutput and

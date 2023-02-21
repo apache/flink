@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
-    private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
+    private final Map<String, InternalOperatorMetricGroup> operators = new HashMap<>();
 
     static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
@@ -64,32 +64,29 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     // ------------------------------------------------------------------------
 
-    public TaskMetricGroup(
+    TaskMetricGroup(
             MetricRegistry registry,
             TaskManagerJobMetricGroup parent,
-            JobVertexID vertexId,
             ExecutionAttemptID executionId,
-            String taskName,
-            int subtaskIndex,
-            int attemptNumber) {
+            String taskName) {
         super(
                 registry,
                 registry.getScopeFormats()
                         .getTaskFormat()
                         .formatScope(
                                 checkNotNull(parent),
-                                vertexId,
+                                checkNotNull(executionId).getJobVertexId(),
                                 checkNotNull(executionId),
                                 taskName,
-                                subtaskIndex,
-                                attemptNumber),
+                                checkNotNull(executionId).getSubtaskIndex(),
+                                checkNotNull(executionId).getAttemptNumber()),
                 parent);
 
         this.executionId = checkNotNull(executionId);
-        this.vertexId = checkNotNull(vertexId);
+        this.vertexId = executionId.getJobVertexId();
         this.taskName = checkNotNull(taskName);
-        this.subtaskIndex = subtaskIndex;
-        this.attemptNumber = attemptNumber;
+        this.subtaskIndex = executionId.getSubtaskIndex();
+        this.attemptNumber = executionId.getAttemptNumber();
 
         this.ioMetrics = new TaskIOMetricGroup(this);
     }
@@ -137,18 +134,22 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     protected QueryScopeInfo.TaskQueryScopeInfo createQueryServiceMetricInfo(
             CharacterFilter filter) {
         return new QueryScopeInfo.TaskQueryScopeInfo(
-                this.parent.jobId.toString(), String.valueOf(this.vertexId), this.subtaskIndex);
+                this.parent.jobId.toString(),
+                String.valueOf(this.vertexId),
+                this.subtaskIndex,
+                this.attemptNumber);
     }
 
     // ------------------------------------------------------------------------
     //  operators and cleanup
     // ------------------------------------------------------------------------
 
-    public OperatorMetricGroup getOrAddOperator(String operatorName) {
+    public InternalOperatorMetricGroup getOrAddOperator(String operatorName) {
         return getOrAddOperator(OperatorID.fromJobVertexID(vertexId), operatorName);
     }
 
-    public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String operatorName) {
+    public InternalOperatorMetricGroup getOrAddOperator(
+            OperatorID operatorID, String operatorName) {
         final String truncatedOperatorName;
         if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
             LOG.warn(
@@ -168,7 +169,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
             return operators.computeIfAbsent(
                     key,
                     operator ->
-                            new OperatorMetricGroup(
+                            new InternalOperatorMetricGroup(
                                     this.registry, this, operatorID, truncatedOperatorName));
         }
     }

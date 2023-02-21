@@ -17,23 +17,25 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.junit.Test;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link CheckpointInProgressRequest} test. */
-public class CheckpointInProgressRequestTest {
+class CheckpointInProgressRequestTest {
 
     /**
      * Tests that a request can only be cancelled once. This is important for requests to write data
      * to prevent double recycling of their buffers.
      */
     @Test
-    public void testNoCancelTwice() throws Exception {
+    void testNoCancelTwice() throws Exception {
         AtomicInteger counter = new AtomicInteger();
         CyclicBarrier barrier = new CyclicBarrier(10);
         CheckpointInProgressRequest request = cancelCountingRequest(counter, barrier);
@@ -55,20 +57,21 @@ public class CheckpointInProgressRequestTest {
             threads[i].join();
         }
 
-        assertEquals(1, counter.get());
+        assertThat(counter).hasValue(1);
     }
 
     private CheckpointInProgressRequest cancelCountingRequest(
             AtomicInteger cancelCounter, CyclicBarrier cb) {
         return new CheckpointInProgressRequest(
                 "test",
+                new JobVertexID(),
+                0,
                 1L,
                 unused -> {},
                 unused -> {
                     cancelCounter.incrementAndGet();
                     await(cb);
-                },
-                false);
+                });
     }
 
     private void await(CyclicBarrier cb) {

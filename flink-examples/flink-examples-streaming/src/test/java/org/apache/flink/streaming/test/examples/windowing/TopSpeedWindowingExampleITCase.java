@@ -53,7 +53,14 @@ public class TopSpeedWindowingExampleITCase extends TestLogger {
         final String resultPath = temporaryFolder.newFolder().toURI().toString();
 
         TopSpeedWindowing.main(
-                new String[] {"--input", inputFile.getAbsolutePath(), "--output", resultPath});
+                new String[] {
+                    "--input",
+                    inputFile.getAbsolutePath(),
+                    "--output",
+                    resultPath,
+                    "--execution-mode",
+                    "AUTOMATIC"
+                });
 
         compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_SPEEDS, resultPath);
     }

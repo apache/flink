@@ -31,8 +31,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
  * @param <T> Type of the bounded {@link OutputFormat} that this {@link TableSink} expects and
  *     supports.
  * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
- *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
- *     information.
+ *     consumes internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
 @Experimental
@@ -43,8 +42,8 @@ public abstract class OutputFormatTableSink<T> implements StreamTableSink<T> {
 
     @Override
     public final DataStreamSink<T> consumeDataStream(DataStream<T> dataStream) {
-        return dataStream
-                .writeUsingOutputFormat(getOutputFormat())
-                .setParallelism(dataStream.getParallelism());
+        DataStreamSink<T> streamSink = dataStream.writeUsingOutputFormat(getOutputFormat());
+        streamSink.getTransformation().setParallelism(dataStream.getParallelism(), false);
+        return streamSink;
     }
 }

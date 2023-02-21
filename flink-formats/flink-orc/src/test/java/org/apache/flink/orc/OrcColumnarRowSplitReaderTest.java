@@ -27,7 +27,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
@@ -37,13 +36,11 @@ import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -54,18 +51,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.internalToDate;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.orc.OrcColumnarRowInputFormatTest.copyFileFromResource;
+import static org.apache.flink.table.utils.DateTimeUtils.toSQLDate;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcColumnarRowSplitReader}. */
 public class OrcColumnarRowSplitReaderTest {
 
     protected static final int BATCH_SIZE = 10;
 
-    private final Path testFileFlat = new Path(getPath("test-data-flat.orc"));
     private final DataType[] testSchemaFlat =
             new DataType[] {
                 DataTypes.INT(),
@@ -79,13 +73,22 @@ public class OrcColumnarRowSplitReaderTest {
                 DataTypes.INT()
             };
 
-    private final Path testFileDecimal = new Path(getPath("test-data-decimal.orc"));
     private final DataType[] testSchemaDecimal = new DataType[] {DataTypes.DECIMAL(10, 5)};
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    private static Path testFileFlat;
+    private static Path testFileDecimal;
+
+    @BeforeAll
+    static void setupFiles(@TempDir java.nio.file.Path tmpDir) {
+        testFileFlat =
+                copyFileFromResource("test-data-flat.orc", tmpDir.resolve("test-data-flat.orc"));
+        testFileDecimal =
+                copyFileFromResource(
+                        "test-data-decimal.orc", tmpDir.resolve("test-data-decimal.orc"));
+    }
 
     @Test
-    public void testReadFileInSplits() throws IOException {
+    void testReadFileInSplits() throws IOException {
         FileInputSplit[] splits = createSplits(testFileFlat, 4);
 
         long cnt = 0;
@@ -98,32 +101,33 @@ public class OrcColumnarRowSplitReaderTest {
                 // read and count all rows
                 while (!reader.reachedEnd()) {
                     RowData row = reader.nextRecord(null);
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
+                    assertThat(row.isNullAt(0)).isFalse();
+                    assertThat(row.isNullAt(1)).isFalse();
                     totalF0 += row.getInt(0);
-                    Assert.assertNotNull(row.getString(1).toString());
+                    assertThat(row.getString(1).toString()).isNotNull();
                     cnt++;
                 }
             }
         }
         // check that all rows have been read
-        assertEquals(1920800, cnt);
-        assertEquals(1844737280400L, totalF0);
+        assertThat(cnt).isEqualTo(1920800);
+        assertThat(totalF0).isEqualTo(1844737280400L);
     }
 
     @Test
-    public void testReadDecimalTypeFile() throws IOException {
+    void testReadDecimalTypeFile() throws IOException {
         FileInputSplit[] splits = createSplits(testFileDecimal, 1);
 
         try (OrcColumnarRowSplitReader reader =
                 createReader(new int[] {0}, testSchemaDecimal, new HashMap<>(), splits[0])) {
-            assertFalse(reader.reachedEnd());
+            assertThat(reader.reachedEnd()).isFalse();
             RowData row = reader.nextRecord(null);
 
             // validate first row
-            assertNotNull(row);
-            assertEquals(1, row.getArity());
-            assertEquals(DecimalDataUtils.castFrom(-1000.5d, 10, 5), row.getDecimal(0, 10, 5));
+            assertThat(row).isNotNull();
+            assertThat(row.getArity()).isEqualTo(1);
+            assertThat(row.getDecimal(0, 10, 5))
+                    .isEqualTo(DecimalDataUtils.castFrom(-1000.5d, 10, 5));
 
             // check correct number of rows
             long cnt = 1;
@@ -131,19 +135,19 @@ public class OrcColumnarRowSplitReaderTest {
             while (!reader.reachedEnd()) {
                 row = reader.nextRecord(null);
                 if (!row.isNullAt(0)) {
-                    assertNotNull(row.getDecimal(0, 10, 5));
+                    assertThat(row.getDecimal(0, 10, 5)).isNotNull();
                 } else {
                     nullCount++;
                 }
                 cnt++;
             }
-            assertEquals(6000, cnt);
-            assertEquals(2000, nullCount);
+            assertThat(cnt).isEqualTo(6000);
+            assertThat(nullCount).isEqualTo(2000);
         }
     }
 
     @Test
-    public void testReadFileWithSelectFields() throws IOException {
+    void testReadFileWithSelectFields() throws IOException {
         FileInputSplit[] splits = createSplits(testFileFlat, 4);
 
         long cnt = 0;
@@ -184,32 +188,32 @@ public class OrcColumnarRowSplitReaderTest {
                     RowData row = reader.nextRecord(null);
 
                     // data values
-                    Assert.assertFalse(row.isNullAt(3));
-                    Assert.assertFalse(row.isNullAt(5));
+                    assertThat(row.isNullAt(3)).isFalse();
+                    assertThat(row.isNullAt(5)).isFalse();
                     totalF0 += row.getInt(3);
-                    Assert.assertNotNull(row.getString(5).toString());
+                    assertThat(row.getString(5).toString()).isNotNull();
 
                     // part values
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
-                    Assert.assertFalse(row.isNullAt(2));
-                    Assert.assertFalse(row.isNullAt(4));
-                    Assert.assertEquals(
-                            DecimalDataUtils.castFrom(5.333, 10, 5), row.getDecimal(0, 10, 5));
-                    Assert.assertEquals(1, row.getInt(1));
-                    Assert.assertEquals(3, row.getLong(2));
-                    Assert.assertEquals("f5", row.getString(4).toString());
+                    assertThat(row.isNullAt(0)).isFalse();
+                    assertThat(row.isNullAt(1)).isFalse();
+                    assertThat(row.isNullAt(2)).isFalse();
+                    assertThat(row.isNullAt(4)).isFalse();
+                    assertThat(row.getDecimal(0, 10, 5))
+                            .isEqualTo(DecimalDataUtils.castFrom(5.333, 10, 5));
+                    assertThat(row.getInt(1)).isEqualTo(1);
+                    assertThat(row.getLong(2)).isEqualTo(3);
+                    assertThat(row.getString(4).toString()).isEqualTo("f5");
                     cnt++;
                 }
             }
         }
         // check that all rows have been read
-        assertEquals(1920800, cnt);
-        assertEquals(1844737280400L, totalF0);
+        assertThat(cnt).isEqualTo(1920800);
+        assertThat(totalF0).isEqualTo(1844737280400L);
     }
 
     @Test
-    public void testReadFileWithPartitionValues() throws IOException {
+    void testReadFileWithPartitionValues() throws IOException {
         FileInputSplit[] splits = createSplits(testFileFlat, 4);
 
         long cnt = 0;
@@ -222,19 +226,19 @@ public class OrcColumnarRowSplitReaderTest {
                 // read and count all rows
                 while (!reader.reachedEnd()) {
                     RowData row = reader.nextRecord(null);
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
-                    Assert.assertFalse(row.isNullAt(2));
-                    Assert.assertNotNull(row.getString(0).toString());
+                    assertThat(row.isNullAt(0)).isFalse();
+                    assertThat(row.isNullAt(1)).isFalse();
+                    assertThat(row.isNullAt(2)).isFalse();
+                    assertThat(row.getString(0).toString()).isNotNull();
                     totalF0 += row.getInt(1);
-                    Assert.assertNotNull(row.getString(2).toString());
+                    assertThat(row.getString(2).toString()).isNotNull();
                     cnt++;
                 }
             }
         }
         // check that all rows have been read
-        assertEquals(1920800, cnt);
-        assertEquals(1844737280400L, totalF0);
+        assertThat(cnt).isEqualTo(1920800);
+        assertThat(totalF0).isEqualTo(1844737280400L);
     }
 
     protected void prepareReadFileWithTypes(String file, int rowSize) throws IOException {
@@ -292,8 +296,7 @@ public class OrcColumnarRowSplitReaderTest {
     }
 
     @Test
-    public void testReadFileWithTypes() throws IOException {
-        File folder = TEMPORARY_FOLDER.newFolder();
+    void testReadFileWithTypes(@TempDir File folder) throws IOException {
         String file = new File(folder, "testOrc").getPath();
         int rowSize = 1024;
 
@@ -339,54 +342,53 @@ public class OrcColumnarRowSplitReaderTest {
                 RowData row = reader.nextRecord(null);
 
                 if (cnt == rowSize - 1) {
-                    Assert.assertTrue(row.isNullAt(0));
-                    Assert.assertTrue(row.isNullAt(1));
-                    Assert.assertTrue(row.isNullAt(2));
-                    Assert.assertTrue(row.isNullAt(3));
-                    Assert.assertTrue(row.isNullAt(4));
+                    assertThat(row.isNullAt(0)).isTrue();
+                    assertThat(row.isNullAt(1)).isTrue();
+                    assertThat(row.isNullAt(2)).isTrue();
+                    assertThat(row.isNullAt(3)).isTrue();
+                    assertThat(row.isNullAt(4)).isTrue();
                 } else {
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
-                    Assert.assertFalse(row.isNullAt(2));
-                    Assert.assertFalse(row.isNullAt(3));
-                    Assert.assertFalse(row.isNullAt(4));
-                    Assert.assertEquals(
-                            TimestampData.fromTimestamp(toTimestamp(cnt)), row.getTimestamp(0, 9));
-                    Assert.assertEquals(cnt, row.getFloat(1), 0);
-                    Assert.assertEquals(cnt, row.getDouble(2), 0);
-                    Assert.assertEquals((byte) cnt, row.getByte(3));
-                    Assert.assertEquals(cnt, row.getShort(4));
+                    assertThat(row.isNullAt(0)).isFalse();
+                    assertThat(row.isNullAt(1)).isFalse();
+                    assertThat(row.isNullAt(2)).isFalse();
+                    assertThat(row.isNullAt(3)).isFalse();
+                    assertThat(row.isNullAt(4)).isFalse();
+                    assertThat(row.getTimestamp(0, 9))
+                            .isEqualTo(TimestampData.fromTimestamp(toTimestamp(cnt)));
+                    assertThat(row.getFloat(1)).isEqualTo((float) cnt);
+                    assertThat(row.getDouble(2)).isEqualTo(cnt);
+                    assertThat(row.getByte(3)).isEqualTo((byte) cnt);
+                    assertThat(row.getShort(4)).isEqualTo((short) cnt);
                 }
-                Assert.assertTrue(row.getBoolean(5));
-                Assert.assertEquals(
-                        new Date(562423).toString(), internalToDate(row.getInt(6)).toString());
+                assertThat(row.getBoolean(5)).isTrue();
+                assertThat(toSQLDate(row.getInt(6)).toString())
+                        .isEqualTo(new Date(562423).toString());
 
-                Assert.assertEquals(
-                        LocalDateTime.of(1999, 1, 1, 1, 1),
-                        row.getTimestamp(7, 9).toLocalDateTime());
+                assertThat(row.getTimestamp(7, 9).toLocalDateTime())
+                        .isEqualTo(LocalDateTime.of(1999, 1, 1, 1, 1));
 
-                Assert.assertEquals(6.6, row.getDouble(8), 0);
-                Assert.assertTrue(row.isNullAt(9));
-                Assert.assertTrue(row.isNullAt(10));
-                Assert.assertTrue(row.isNullAt(11));
-                Assert.assertTrue(row.isNullAt(12));
-                Assert.assertTrue(row.isNullAt(13));
+                assertThat(row.getDouble(8)).isEqualTo(6.6);
+                assertThat(row.isNullAt(9)).isTrue();
+                assertThat(row.isNullAt(10)).isTrue();
+                assertThat(row.isNullAt(11)).isTrue();
+                assertThat(row.isNullAt(12)).isTrue();
+                assertThat(row.isNullAt(13)).isTrue();
                 cnt++;
             }
         }
         // check that all rows have been read
-        assertEquals(rowSize, cnt);
+        assertThat(cnt).isEqualTo(rowSize);
     }
 
     @Test
-    public void testReachEnd() throws Exception {
+    void testReachEnd() throws Exception {
         FileInputSplit[] splits = createSplits(testFileFlat, 1);
         try (OrcColumnarRowSplitReader reader =
                 createReader(new int[] {0, 1}, testSchemaFlat, new HashMap<>(), splits[0])) {
             while (!reader.reachedEnd()) {
                 reader.nextRecord(null);
             }
-            assertTrue(reader.reachedEnd());
+            assertThat(reader.reachedEnd()).isTrue();
         }
     }
 
@@ -413,19 +415,6 @@ public class OrcColumnarRowSplitReaderTest {
                 split.getPath(),
                 split.getStart(),
                 split.getLength());
-    }
-
-    private String getPath(String fileName) {
-        try {
-            File file = TEMPORARY_FOLDER.newFile();
-            IOUtils.copyBytes(
-                    getClass().getClassLoader().getResource(fileName).openStream(),
-                    new FileOutputStream(file),
-                    true);
-            return file.getPath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private static FileInputSplit[] createSplits(Path path, int minNumSplits) throws IOException {

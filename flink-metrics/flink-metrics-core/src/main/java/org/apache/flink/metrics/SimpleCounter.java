@@ -18,7 +18,10 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Internal;
+
 /** A simple low-overhead {@link org.apache.flink.metrics.Counter} that is not thread-safe. */
+@Internal
 public class SimpleCounter implements Counter {
 
     /** the current count. */

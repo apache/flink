@@ -19,6 +19,12 @@
 
 <configuration>
 
+    <!-- allow integral partition filter pushdown to avoid unstable test -->
+	<property>
+		<name>hive.metastore.integral.jdo.pushdown</name>
+		<value>true</value>
+	</property>
+
 	<property>
 		<name>hive.metastore.schema.verification</name>
 		<value>false</value>
@@ -37,6 +43,11 @@
 	<property>
 		<name>datanucleus.schema.autoCreateAll</name>
 		<value>true</value>
+	</property>
+
+	<property>
+		<name>common-key</name>
+		<value>common-val</value>
 	</property>
 
 </configuration>

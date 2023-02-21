@@ -27,9 +27,13 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.state.ChangelogTestUtils;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.junit.Rule;
@@ -46,6 +50,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -108,7 +114,8 @@ public class MetadataV3SerializerTest {
             final int numTasks = rnd.nextInt(maxTaskStates) + 1;
             final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
             final Collection<OperatorState> taskStates =
-                    CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
+                    CheckpointTestUtils.createOperatorStates(
+                            rnd, basePath, numTasks, 0, 0, numSubtasks);
 
             final Collection<MasterState> masterStates = Collections.emptyList();
 
@@ -139,7 +146,8 @@ public class MetadataV3SerializerTest {
             final int numTasks = rnd.nextInt(maxTaskStates) + 1;
             final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
             final Collection<OperatorState> taskStates =
-                    CheckpointTestUtils.createOperatorStates(rnd, basePath, numTasks, numSubtasks);
+                    CheckpointTestUtils.createOperatorStates(
+                            rnd, basePath, numTasks, 0, 0, numSubtasks);
 
             final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
             final Collection<MasterState> masterStates =
@@ -147,6 +155,48 @@ public class MetadataV3SerializerTest {
 
             testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
         }
+    }
+
+    @Test
+    public void testCheckpointWithFinishedTasksForCheckpoint() throws Exception {
+        testCheckpointWithFinishedTasks(null);
+    }
+
+    @Test
+    public void testCheckpointWithFinishedTasksForSavepoint() throws Exception {
+        testCheckpointWithFinishedTasks(temporaryFolder.newFolder().toURI().toString());
+    }
+
+    private void testCheckpointWithFinishedTasks(String basePath) throws Exception {
+        final Random rnd = new Random();
+
+        final int maxNumMasterStates = 5;
+        final int maxNumSubtasks = 20;
+
+        final int maxAllRunningTaskStates = 20;
+        final int maxPartlyFinishedStates = 10;
+        final int maxFullyFinishedSubtasks = 10;
+
+        final long checkpointId = rnd.nextLong() & 0x7fffffffffffffffL;
+
+        final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
+        final int numAllRunningTasks = rnd.nextInt(maxAllRunningTaskStates) + 1;
+        final int numPartlyFinishedTasks = rnd.nextInt(maxPartlyFinishedStates) + 1;
+        final int numFullyFinishedTasks = rnd.nextInt(maxFullyFinishedSubtasks) + 1;
+        final Collection<OperatorState> taskStates =
+                CheckpointTestUtils.createOperatorStates(
+                        rnd,
+                        basePath,
+                        numAllRunningTasks,
+                        numPartlyFinishedTasks,
+                        numFullyFinishedTasks,
+                        numSubtasks);
+
+        final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
+        final Collection<MasterState> masterStates =
+                CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+
+        testCheckpointSerialization(checkpointId, taskStates, masterStates, basePath);
     }
 
     /**
@@ -170,7 +220,7 @@ public class MetadataV3SerializerTest {
 
         CheckpointMetadata metadata =
                 new CheckpointMetadata(checkpointId, operatorStates, masterStates);
-        MetadataV3Serializer.serialize(metadata, out);
+        MetadataV3Serializer.INSTANCE.serialize(metadata, out);
         out.close();
 
         // The relative pointer resolution in MetadataV2V3SerializerBase currently runs the same
@@ -198,6 +248,13 @@ public class MetadataV3SerializerTest {
                 serializer.deserialize(in, getClass().getClassLoader(), basePath);
         assertEquals(checkpointId, deserialized.getCheckpointId());
         assertEquals(operatorStates, deserialized.getOperatorStates());
+        assertEquals(
+                operatorStates.stream()
+                        .map(OperatorState::isFullyFinished)
+                        .collect(Collectors.toList()),
+                deserialized.getOperatorStates().stream()
+                        .map(OperatorState::isFullyFinished)
+                        .collect(Collectors.toList()));
 
         assertEquals(masterStates.size(), deserialized.getMasterStates().size());
         for (Iterator<MasterState> a = masterStates.iterator(),
@@ -228,5 +285,42 @@ public class MetadataV3SerializerTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testSerializeIncrementalChangelogStateBackendHandle() throws IOException {
+        testSerializeChangelogStateBackendHandle(false);
+    }
+
+    @Test
+    public void testSerializeFullChangelogStateBackendHandle() throws IOException {
+        testSerializeChangelogStateBackendHandle(true);
+    }
+
+    private void testSerializeChangelogStateBackendHandle(boolean fullSnapshot) throws IOException {
+        ChangelogStateBackendHandle handle = createChangelogStateBackendHandle(fullSnapshot);
+        try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+            MetadataV2V3SerializerBase.serializeKeyedStateHandle(handle, new DataOutputStream(out));
+            try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
+                KeyedStateHandle deserialized =
+                        MetadataV2V3SerializerBase.deserializeKeyedStateHandle(
+                                new DataInputStream(in), null);
+                assertTrue(deserialized instanceof ChangelogStateBackendHandleImpl);
+                assertEquals(
+                        ((ChangelogStateBackendHandleImpl) deserialized)
+                                .getMaterializedStateHandles(),
+                        handle.getMaterializedStateHandles());
+            }
+        }
+    }
+
+    private ChangelogStateBackendHandle createChangelogStateBackendHandle(boolean fullSnapshot) {
+        KeyedStateHandle keyedStateHandle =
+                fullSnapshot
+                        ? CheckpointTestUtils.createDummyKeyGroupStateHandle(
+                                ThreadLocalRandom.current(), null)
+                        : CheckpointTestUtils.createDummyIncrementalKeyedStateHandle(
+                                ThreadLocalRandom.current());
+        return ChangelogTestUtils.createChangelogStateBackendHandle(keyedStateHandle);
     }
 }

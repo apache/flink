@@ -33,7 +33,11 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     private static final long serialVersionUID = 1L;
 
-    public PlaceholderStreamStateHandle() {}
+    private final long stateSize;
+
+    public PlaceholderStreamStateHandle(long stateSize) {
+        this.stateSize = stateSize;
+    }
 
     @Override
     public FSDataInputStream openInputStream() {
@@ -48,12 +52,18 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
     }
 
     @Override
+    public PhysicalStateHandleID getStreamStateHandleID() {
+        throw new UnsupportedOperationException(
+                "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+    }
+
+    @Override
     public void discardState() throws Exception {
         // nothing to do.
     }
 
     @Override
     public long getStateSize() {
-        return 0L;
+        return stateSize;
     }
 }

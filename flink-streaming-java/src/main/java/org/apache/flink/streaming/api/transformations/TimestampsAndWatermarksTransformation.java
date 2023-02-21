@@ -25,7 +25,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -59,8 +59,9 @@ public class TimestampsAndWatermarksTransformation<IN> extends PhysicalTransform
             String name,
             int parallelism,
             Transformation<IN> input,
-            WatermarkStrategy<IN> watermarkStrategy) {
-        super(name, input.getOutputType(), parallelism);
+            WatermarkStrategy<IN> watermarkStrategy,
+            boolean parallelismConfigured) {
+        super(name, input.getOutputType(), parallelism, parallelismConfigured);
         this.input = input;
         this.watermarkStrategy = watermarkStrategy;
     }

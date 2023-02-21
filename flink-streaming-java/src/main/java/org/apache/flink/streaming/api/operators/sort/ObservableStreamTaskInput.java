@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 
 import java.io.IOException;
@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * A wrapping {@link StreamTaskInput} that invokes a given {@link BoundedMultiInput} when reaching
- * {@link InputStatus#END_OF_INPUT}.
+ * {@link DataInputStatus#END_OF_INPUT}.
  */
 class ObservableStreamTaskInput<T> implements StreamTaskInput<T> {
 
@@ -43,9 +43,9 @@ class ObservableStreamTaskInput<T> implements StreamTaskInput<T> {
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<T> output) throws Exception {
-        InputStatus result = wrappedInput.emitNext(output);
-        if (result == InputStatus.END_OF_INPUT) {
+    public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
+        DataInputStatus result = wrappedInput.emitNext(output);
+        if (result == DataInputStatus.END_OF_INPUT) {
             endOfInputObserver.endInput(wrappedInput.getInputIndex());
         }
         return result;

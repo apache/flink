@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -27,6 +29,9 @@ import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import java.time.Duration;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 
 /**
  * Execution {@link ConfigOption} for configuring checkpointing related parameters.
@@ -77,33 +82,30 @@ public class ExecutionCheckpointingOptions {
                                                     + "sure that a minimum amount of time passes where no checkpoint is in progress at all.")
                                     .build());
 
-    public static final ConfigOption<Boolean> PREFER_CHECKPOINT_FOR_RECOVERY =
-            ConfigOptions.key("execution.checkpointing.prefer-checkpoint-for-recovery")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "If enabled, a job recovery should fallback to checkpoint when there is a more recent "
-                                    + "savepoint.");
-
     public static final ConfigOption<Integer> TOLERABLE_FAILURE_NUMBER =
             ConfigOptions.key("execution.checkpointing.tolerable-failed-checkpoints")
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The tolerable checkpoint failure number. If set to 0, that means "
-                                    + "we do not tolerance any checkpoint failure.");
+                            "The tolerable checkpoint consecutive failure number. If set to 0, that means "
+                                    + "we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the "
+                                    + "Job Manager, failures in the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures "
+                                    + "originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of "
+                                    + "checkpoint failures (such as checkpoint being subsumed) are being ignored.");
 
     public static final ConfigOption<CheckpointConfig.ExternalizedCheckpointCleanup>
             EXTERNALIZED_CHECKPOINT =
                     ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
                             .enumType(CheckpointConfig.ExternalizedCheckpointCleanup.class)
-                            .noDefaultValue()
+                            .defaultValue(
+                                    CheckpointConfig.ExternalizedCheckpointCleanup
+                                            .NO_EXTERNALIZED_CHECKPOINTS)
                             .withDescription(
                                     Description.builder()
                                             .text(
                                                     "Externalized checkpoints write their meta data out to persistent storage and are not "
                                                             + "automatically cleaned up when the owning job fails or is suspended (terminating with job "
-                                                            + "status %s or %s. In this case, you have to manually clean up the checkpoint state, both the "
+                                                            + "status %s or %s). In this case, you have to manually clean up the checkpoint state, both the "
                                                             + "meta data and actual program state.",
                                                     TextElement.code("JobStatus#FAILED"),
                                                     TextElement.code("JobStatus#SUSPENDED"))
@@ -142,9 +144,10 @@ public class ExecutionCheckpointingOptions {
                                     .build());
 
     public static final ConfigOption<Boolean> ENABLE_UNALIGNED =
-            ConfigOptions.key("execution.checkpointing.unaligned")
+            ConfigOptions.key("execution.checkpointing.unaligned.enabled")
                     .booleanType()
                     .defaultValue(false)
+                    .withDeprecatedKeys("execution.checkpointing.unaligned")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -166,6 +169,30 @@ public class ExecutionCheckpointingOptions {
                                             TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
                                     .build());
 
+    public static final ConfigOption<Duration> ALIGNED_CHECKPOINT_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.aligned-checkpoint-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDeprecatedKeys("execution.checkpointing.alignment-timeout")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Only relevant if %s is enabled.",
+                                            TextElement.code(ENABLE_UNALIGNED.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout is 0, checkpoints will always start unaligned.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout has a positive value, checkpoints will start aligned. "
+                                                    + "If during checkpointing, checkpoint start delay exceeds this timeout, alignment "
+                                                    + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
+                                    .build());
+
+    /** @deprecated Use {@link #ALIGNED_CHECKPOINT_TIMEOUT} instead. */
+    @Deprecated
     public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
             ConfigOptions.key("execution.checkpointing.alignment-timeout")
                     .durationType()
@@ -173,7 +200,8 @@ public class ExecutionCheckpointingOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Only relevant if %s is enabled.",
+                                            "Deprecated. %s should be used instead. Only relevant if %s is enabled.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()),
                                             TextElement.code(ENABLE_UNALIGNED.key()))
                                     .linebreak()
                                     .linebreak()
@@ -196,4 +224,69 @@ public class ExecutionCheckpointingOptions {
                                     .text(
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
+
+    public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
+            ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "It is better to keep this value empty until "
+                                                    + "there is explicit needs to restore from "
+                                                    + "the specific checkpoint without in-flight data.")
+                                    .linebreak()
+                                    .build());
+
+    public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
+            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Feature toggle for enabling checkpointing even if some of tasks"
+                                                    + " have finished. Before you enable it, please take a look at %s ",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta",
+                                                    "the important considerations"))
+                                    .build());
+
+    /**
+     * Access to this option is officially only supported via {@link
+     * CheckpointConfig#setForceCheckpointing(boolean)}, but there is no good reason behind this.
+     *
+     * @deprecated This will be removed once iterations properly participate in checkpointing.
+     */
+    @Internal @Deprecated @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Boolean> FORCE_CHECKPOINTING =
+            key("execution.checkpointing.force")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Flag to force checkpointing in iterative jobs.");
+
+    /**
+     * Access to this option is officially only supported via {@link
+     * CheckpointConfig#enableApproximateLocalRecovery(boolean)}, but there is no good reason behind
+     * this.
+     */
+    @Internal @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Boolean> APPROXIMATE_LOCAL_RECOVERY =
+            key("execution.checkpointing.approximate-local-recovery")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Flag to enable approximate local recovery.");
+
+    public static final ConfigOption<Integer> UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE =
+            key("execution.checkpointing.unaligned.max-subtasks-per-channel-state-file")
+                    .intType()
+                    .defaultValue(5)
+                    .withDescription(
+                            "Defines the maximum number of subtasks that share the same channel state file. "
+                                    + "It can reduce the number of small files when enable unaligned checkpoint. "
+                                    + "Each subtask will create a new channel state file when this is configured to 1.");
 }

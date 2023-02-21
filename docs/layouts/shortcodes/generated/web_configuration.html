@@ -15,10 +15,22 @@
             <td>Access-Control-Allow-Origin header for all responses from the web-frontend.</td>
         </tr>
         <tr>
+            <td><h5>web.cancel.enable</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether jobs can be canceled from the web-frontend.</td>
+        </tr>
+        <tr>
             <td><h5>web.checkpoints.history</h5></td>
             <td style="word-wrap: break-word;">10</td>
             <td>Integer</td>
             <td>Number of checkpoints to remember for recent history.</td>
+        </tr>
+        <tr>
+            <td><h5>web.exception-history-size</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>Integer</td>
+            <td>The maximum number of failures collected by the exception history per job.</td>
         </tr>
         <tr>
             <td><h5>web.history</h5></td>
@@ -54,13 +66,13 @@
             <td><h5>web.tmpdir</h5></td>
             <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
             <td>String</td>
-            <td>Flink web directory which is used by the webmonitor.</td>
+            <td>Local directory that is used by the REST API for temporary files.</td>
         </tr>
         <tr>
             <td><h5>web.upload.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Directory for uploading the job jars. If not specified a dynamic directory will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.</td>
+            <td>Local directory that is used by the REST API for storing uploaded jars. If not specified a dynamic directory will be created under <code class="highlighter-rouge">web.tmpdir</code>.</td>
         </tr>
     </tbody>
 </table>

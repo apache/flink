@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkOldBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 
 
-class BatchTableSortTests(PyFlinkOldBatchTableTestCase):
+class BatchTableSortTests(PyFlinkBatchTableTestCase):
 
     def test_order_by_offset_fetch(self):
         t = self.t_env.from_elements([(1, "Hello")], ["a", "b"])

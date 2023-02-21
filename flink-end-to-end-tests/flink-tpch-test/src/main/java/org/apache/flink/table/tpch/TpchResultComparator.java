@@ -19,6 +19,7 @@
 package org.apache.flink.table.tpch;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
@@ -35,8 +36,19 @@ public class TpchResultComparator {
         String expectedPath = args[0];
         String actualPath = args[1];
 
+        File[] partitions = new File(actualPath).listFiles();
+        if (partitions == null) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The specified actual result path: %s doesn't exists.", actualPath));
+        }
+        if (partitions.length > 1) {
+            throw new UnsupportedOperationException(
+                    "Please set the sink.parallelism 1 to keep the partition number is 1.");
+        }
+
         try (BufferedReader expectedReader = new BufferedReader(new FileReader(expectedPath));
-                BufferedReader actualReader = new BufferedReader(new FileReader(actualPath))) {
+                BufferedReader actualReader = new BufferedReader(new FileReader(partitions[0]))) {
             int expectedLineNum = 0;
             int actualLineNum = 0;
 
@@ -81,7 +93,10 @@ public class TpchResultComparator {
                                 failed = (e * 0.99 > t || e * 1.01 < t);
                             }
                         } catch (NumberFormatException nfe2) {
-                            failed = !expected[i].trim().equals(actual[i].trim());
+                            failed =
+                                    !expected[i]
+                                            .trim()
+                                            .equals(actual[i].replaceAll("\"", "").trim());
                         }
                     }
                     if (failed) {

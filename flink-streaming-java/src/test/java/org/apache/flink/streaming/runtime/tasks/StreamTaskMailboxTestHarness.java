@@ -18,14 +18,15 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 import java.util.Queue;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertTrue;
@@ -66,6 +67,10 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
     public StreamTask<OUT, ?> getStreamTask() {
         return streamTask;
+    }
+
+    public TimerService getTimerService() {
+        return streamTask.getTimerService();
     }
 
     /**
@@ -113,6 +118,13 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         }
     }
 
+    /** Process until {@code condition} is met. */
+    public void processUntil(Supplier<Boolean> condition) throws Exception {
+        while (!condition.get()) {
+            processAll();
+        }
+    }
+
     public void processAll() throws Exception {
         while (processSingleStep()) {}
     }
@@ -129,28 +141,30 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
     }
 
     public void endInput() {
+        endInput(true);
+    }
+
+    public void endInput(boolean allDataProcessed) {
         for (int i = 0; i < inputGates.length; i++) {
-            endInput(i);
+            endInput(i, allDataProcessed);
         }
     }
 
-    public void endInput(int inputIndex) {
+    public void endInput(int inputIndex, boolean emitEndOfData) {
         if (!inputGateEnded[inputIndex]) {
-            inputGates[inputIndex].endInput();
+            inputGates[inputIndex].endInput(emitEndOfData);
             inputGateEnded[inputIndex] = true;
         }
     }
 
     public void waitForTaskCompletion() throws Exception {
         endInput();
-        while (streamTask.isMailboxLoopRunning()) {
-            streamTask.runMailboxStep();
-        }
+        processAll();
     }
 
     public void finishProcessing() throws Exception {
         streamTask.afterInvoke();
-        streamTask.cleanUpInvoke();
+        streamTask.cleanUp(null);
     }
 
     @Override

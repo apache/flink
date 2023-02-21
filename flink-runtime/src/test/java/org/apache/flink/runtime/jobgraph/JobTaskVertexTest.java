@@ -21,153 +21,227 @@ package org.apache.flink.runtime.jobgraph;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.executiongraph.SimpleInitializeOnMasterContext;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("serial")
-public class JobTaskVertexTest {
+class JobTaskVertexTest {
+
+    @RegisterExtension final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @Test
-    public void testConnectDirectly() {
+    void testMultipleConsumersVertices() {
+        JobVertex producer = new JobVertex("producer");
+        JobVertex consumer1 = new JobVertex("consumer1");
+        JobVertex consumer2 = new JobVertex("consumer2");
+
+        IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+        consumer1.connectNewDataSetAsInput(
+                producer,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING,
+                dataSetId,
+                false);
+        consumer2.connectNewDataSetAsInput(
+                producer,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING,
+                dataSetId,
+                false);
+
+        JobVertex consumer3 = new JobVertex("consumer3");
+        consumer3.connectNewDataSetAsInput(
+                producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+        assertThat(producer.getProducedDataSets()).hasSize(2);
+
+        IntermediateDataSet dataSet = producer.getProducedDataSets().get(0);
+        assertThat(dataSet.getId()).isEqualTo(dataSetId);
+
+        List<JobEdge> consumers1 = dataSet.getConsumers();
+        assertThat(consumers1).hasSize(2);
+        assertThat(consumers1.get(0).getTarget().getID()).isEqualTo(consumer1.getID());
+        assertThat(consumers1.get(1).getTarget().getID()).isEqualTo(consumer2.getID());
+
+        List<JobEdge> consumers2 = producer.getProducedDataSets().get(1).getConsumers();
+        assertThat(consumers2).hasSize(1);
+        assertThat(consumers2.get(0).getTarget().getID()).isEqualTo(consumer3.getID());
+    }
+
+    @Test
+    void testConnectDirectly() {
         JobVertex source = new JobVertex("source");
         JobVertex target = new JobVertex("target");
         target.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        assertTrue(source.isInputVertex());
-        assertFalse(source.isOutputVertex());
-        assertFalse(target.isInputVertex());
-        assertTrue(target.isOutputVertex());
+        assertThat(source.isInputVertex()).isTrue();
+        assertThat(source.isOutputVertex()).isFalse();
+        assertThat(target.isInputVertex()).isFalse();
+        assertThat(target.isOutputVertex()).isTrue();
 
-        assertEquals(1, source.getNumberOfProducedIntermediateDataSets());
-        assertEquals(1, target.getNumberOfInputs());
+        assertThat(source.getNumberOfProducedIntermediateDataSets()).isEqualTo(1);
+        assertThat(target.getNumberOfInputs()).isEqualTo(1);
 
-        assertEquals(target.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
+        assertThat(source.getProducedDataSets().get(0))
+                .isEqualTo(target.getInputs().get(0).getSource());
 
-        assertEquals(1, source.getProducedDataSets().get(0).getConsumers().size());
-        assertEquals(target, source.getProducedDataSets().get(0).getConsumers().get(0).getTarget());
+        assertThat(source.getProducedDataSets().get(0).getConsumers().get(0).getTarget())
+                .isEqualTo(target);
     }
 
     @Test
-    public void testConnectMultipleTargets() {
-        JobVertex source = new JobVertex("source");
-        JobVertex target1 = new JobVertex("target1");
-        JobVertex target2 = new JobVertex("target2");
-        target1.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        target2.connectDataSetAsInput(
-                source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
+    void testOutputFormat() throws Exception {
+        final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
 
-        assertTrue(source.isInputVertex());
-        assertFalse(source.isOutputVertex());
-        assertFalse(target1.isInputVertex());
-        assertTrue(target1.isOutputVertex());
-        assertFalse(target2.isInputVertex());
-        assertTrue(target2.isOutputVertex());
+        OperatorID operatorID = new OperatorID();
+        Configuration parameters = new Configuration();
+        parameters.setString("test_key", "test_value");
+        new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+                .addOutputFormat(operatorID, new TestingOutputFormat(parameters))
+                .addParameters(operatorID, parameters)
+                .write(new TaskConfig(vertex.getConfiguration()));
 
-        assertEquals(1, source.getNumberOfProducedIntermediateDataSets());
-        assertEquals(2, source.getProducedDataSets().get(0).getConsumers().size());
+        final ClassLoader cl = new TestClassLoader();
 
-        assertEquals(target1.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
-        assertEquals(target2.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
+        assertThatThrownBy(
+                        () ->
+                                vertex.initializeOnMaster(
+                                        new SimpleInitializeOnMasterContext(
+                                                cl, vertex.getParallelism())))
+                .isInstanceOf(TestException.class);
+
+        InputOutputFormatVertex copy = InstantiationUtil.clone(vertex);
+        ClassLoader ctxCl = Thread.currentThread().getContextClassLoader();
+        assertThatThrownBy(
+                        () ->
+                                copy.initializeOnMaster(
+                                        new SimpleInitializeOnMasterContext(
+                                                cl, copy.getParallelism())))
+                .isInstanceOf(TestException.class);
+
+        assertThat(Thread.currentThread().getContextClassLoader())
+                .as("Previous classloader was not restored.")
+                .isEqualTo(ctxCl);
+
+        assertThatThrownBy(
+                        () ->
+                                copy.finalizeOnMaster(
+                                        new FinalizeOnMasterContext() {
+                                            @Override
+                                            public ClassLoader getClassLoader() {
+                                                return cl;
+                                            }
+
+                                            @Override
+                                            public int getExecutionParallelism() {
+                                                return copy.getParallelism();
+                                            }
+
+                                            @Override
+                                            public int getFinishedAttempt(int subtaskIndex) {
+                                                return 0;
+                                            }
+                                        }))
+                .isInstanceOf(TestException.class);
+        assertThat(Thread.currentThread().getContextClassLoader())
+                .as("Previous classloader was not restored.")
+                .isEqualTo(ctxCl);
     }
 
     @Test
-    public void testOutputFormat() {
-        try {
-            final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
+    void testInputFormat() throws Exception {
+        final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
 
-            OperatorID operatorID = new OperatorID();
-            Configuration parameters = new Configuration();
-            parameters.setString("test_key", "test_value");
-            new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
-                    .addOutputFormat(operatorID, new TestingOutputFormat(parameters))
-                    .addParameters(operatorID, parameters)
-                    .write(new TaskConfig(vertex.getConfiguration()));
+        OperatorID operatorID = new OperatorID();
+        Configuration parameters = new Configuration();
+        parameters.setString("test_key", "test_value");
+        new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+                .addInputFormat(operatorID, new TestInputFormat(parameters))
+                .addParameters(operatorID, "test_key", "test_value")
+                .write(new TaskConfig(vertex.getConfiguration()));
 
-            final ClassLoader cl = new TestClassLoader();
+        final ClassLoader cl = new TestClassLoader();
 
-            try {
-                vertex.initializeOnMaster(cl);
-                fail("Did not throw expected exception.");
-            } catch (TestException e) {
-                // all good
-            }
+        vertex.initializeOnMaster(new SimpleInitializeOnMasterContext(cl, vertex.getParallelism()));
+        InputSplit[] splits = vertex.getInputSplitSource().createInputSplits(77);
 
-            InputOutputFormatVertex copy = InstantiationUtil.clone(vertex);
-            ClassLoader ctxCl = Thread.currentThread().getContextClassLoader();
-            try {
-                copy.initializeOnMaster(cl);
-                fail("Did not throw expected exception.");
-            } catch (TestException e) {
-                // all good
-            }
-            assertEquals(
-                    "Previous classloader was not restored.",
-                    ctxCl,
-                    Thread.currentThread().getContextClassLoader());
-
-            try {
-                copy.finalizeOnMaster(cl);
-                fail("Did not throw expected exception.");
-            } catch (TestException e) {
-                // all good
-            }
-            assertEquals(
-                    "Previous classloader was not restored.",
-                    ctxCl,
-                    Thread.currentThread().getContextClassLoader());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(splits).isNotNull();
+        assertThat(splits).hasSize(1);
+        assertThat(splits[0].getClass()).isEqualTo(TestSplit.class);
     }
 
     @Test
-    public void testInputFormat() {
-        try {
-            final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
+    void testOutputFormatUsesCorrectParallelism() throws Exception {
+        final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
+        int initialParallelism = 1;
+        vertex.setParallelism(initialParallelism);
 
-            OperatorID operatorID = new OperatorID();
-            Configuration parameters = new Configuration();
-            parameters.setString("test_key", "test_value");
-            new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
-                    .addInputFormat(operatorID, new TestInputFormat(parameters))
-                    .addParameters(operatorID, "test_key", "test_value")
-                    .write(new TaskConfig(vertex.getConfiguration()));
+        OperatorID operatorID = new OperatorID();
+        // just a mutable container for integer
+        SharedReference<AtomicInteger> globalParallelism = sharedObjects.add(new AtomicInteger());
+        new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+                .addOutputFormat(operatorID, new TestInitializeOutputFormat(globalParallelism))
+                .write(new TaskConfig(vertex.getConfiguration()));
 
-            final ClassLoader cl = new TestClassLoader();
-
-            vertex.initializeOnMaster(cl);
-            InputSplit[] splits = vertex.getInputSplitSource().createInputSplits(77);
-
-            assertNotNull(splits);
-            assertEquals(1, splits.length);
-            assertEquals(TestSplit.class, splits[0].getClass());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        int executionParallelism = initialParallelism + 3;
+        try (final TestClassLoader cl = new TestClassLoader()) {
+            vertex.initializeOnMaster(
+                    new SimpleInitializeOnMasterContext(cl, executionParallelism));
+            assertThat(globalParallelism.get().get()).isEqualTo(executionParallelism);
         }
     }
 
     // --------------------------------------------------------------------------------------------
+
+    private static final class TestInitializeOutputFormat
+            implements OutputFormat<Object>, InitializeOnMaster {
+
+        private final SharedReference<AtomicInteger> globalParallelism;
+
+        private TestInitializeOutputFormat(SharedReference<AtomicInteger> globalParallelism) {
+            this.globalParallelism = globalParallelism;
+        }
+
+        @Override
+        public void configure(Configuration parameters) {}
+
+        @Override
+        public void open(int taskNumber, int numTasks) throws IOException {}
+
+        @Override
+        public void writeRecord(Object record) throws IOException {}
+
+        @Override
+        public void close() throws IOException {}
+
+        @Override
+        public void initializeGlobal(int parallelism) throws IOException {
+            globalParallelism.get().set(parallelism);
+        }
+    }
 
     private static final class TestException extends IOException {}
 
@@ -216,8 +290,8 @@ public class JobTaskVertexTest {
                 throw new IllegalStateException("Context ClassLoader was not correctly switched.");
             }
             for (String key : expectedParameters.keySet()) {
-                assertEquals(
-                        expectedParameters.getString(key, null), parameters.getString(key, null));
+                assertThat(parameters.getString(key, null))
+                        .isEqualTo(expectedParameters.getString(key, null));
             }
             isConfigured = true;
         }
@@ -269,8 +343,8 @@ public class JobTaskVertexTest {
                 throw new IllegalStateException("Context ClassLoader was not correctly switched.");
             }
             for (String key : expectedParameters.keySet()) {
-                assertEquals(
-                        expectedParameters.getString(key, null), parameters.getString(key, null));
+                assertThat(parameters.getString(key, null))
+                        .isEqualTo(expectedParameters.getString(key, null));
             }
             isConfigured = true;
         }

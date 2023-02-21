@@ -20,14 +20,12 @@ package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
@@ -38,13 +36,15 @@ import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -80,6 +80,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
@@ -105,7 +106,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 
     private static BlobServer blobServer;
 
-    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private static HandlerRequest<EmptyRequestBody> handlerRequest;
 
     private String fileContent1;
 
@@ -118,19 +119,19 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
     @BeforeClass
     public static void setup() throws IOException, HandlerRequestException {
         final Configuration configuration = new Configuration();
-        configuration.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        blobServer = new BlobServer(configuration, new VoidBlobStore());
+        blobServer =
+                new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
 
         handlerRequest =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new TaskManagerFileMessageParameters(),
                         Collections.singletonMap(
                                 TaskManagerIdPathParameter.KEY,
                                 EXPECTED_TASK_MANAGER_ID.getResourceIdString()),
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
     }
 
     @Before
@@ -567,6 +568,11 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
         @Override
         public String getTargetRestEndpointURL() {
             return URL;
+        }
+
+        @Override
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V1);
         }
     }
 }

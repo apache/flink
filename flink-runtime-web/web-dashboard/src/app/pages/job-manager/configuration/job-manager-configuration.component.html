@@ -16,20 +16,8 @@
   ~ limitations under the License.
   -->
 
-<nz-table
-  [nzData]="listOfConfig"
-  [nzFrontPagination]="false"
-  [nzShowPagination]="false">
-  <thead>
-    <tr>
-      <th nzWidth="30%">Key</th>
-      <th>Value</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let config of listOfConfig">
-      <td><strong>{{ config.key }}</strong></td>
-      <td>{{ config.value }}</td>
-    </tr>
-  </tbody>
-</nz-table>
+<flink-configuration-cards
+  [configurations]="listOfConfig"
+  [environmentInfo]="environmentInfo"
+  [loading]="loading"
+></flink-configuration-cards>

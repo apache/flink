@@ -37,7 +37,7 @@ import java.util.Objects;
 
 /**
  * Class containing information for a slot of {@link
- * org.apache.flink.runtime.resourcemanager.slotmanager.TaskManagerSlot}.
+ * org.apache.flink.runtime.resourcemanager.slotmanager.TaskManagerSlotInformation}.
  */
 public class SlotInfo implements ResponseBody, Serializable {
     private static final long serialVersionUID = 1L;

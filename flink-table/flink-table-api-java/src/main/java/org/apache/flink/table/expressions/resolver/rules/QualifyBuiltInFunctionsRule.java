@@ -19,12 +19,13 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -51,25 +52,24 @@ final class QualifyBuiltInFunctionsRule implements ResolverRule {
 
         @Override
         public Expression visit(UnresolvedCallExpression unresolvedCall) {
+            final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
+
+            final List<Expression> args =
+                    unresolvedCall.getChildren().stream()
+                            .map(c -> c.accept(this))
+                            .collect(Collectors.toList());
+
             if (!unresolvedCall.getFunctionIdentifier().isPresent()
-                    && unresolvedCall.getFunctionDefinition()
-                            instanceof BuiltInFunctionDefinition) {
-                final FunctionLookup.Result functionLookup =
+                    && definition instanceof BuiltInFunctionDefinition) {
+                final ContextResolvedFunction resolvedFunction =
                         resolutionContext
                                 .functionLookup()
                                 .lookupBuiltInFunction(
                                         ((BuiltInFunctionDefinition)
                                                 unresolvedCall.getFunctionDefinition()));
-
-                return ApiExpressionUtils.unresolvedCall(
-                        functionLookup.getFunctionIdentifier(),
-                        functionLookup.getFunctionDefinition(),
-                        unresolvedCall.getChildren().stream()
-                                .map(c -> c.accept(this))
-                                .collect(Collectors.toList()));
+                return ApiExpressionUtils.unresolvedCall(resolvedFunction, args);
             }
-
-            return unresolvedCall;
+            return unresolvedCall.replaceArgs(args);
         }
 
         @Override

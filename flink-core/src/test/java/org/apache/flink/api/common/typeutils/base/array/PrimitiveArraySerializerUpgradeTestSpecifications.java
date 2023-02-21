@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 
@@ -76,7 +76,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<boolean[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -127,7 +127,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<byte[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -178,7 +178,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<char[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -229,7 +229,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<double[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -280,7 +280,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<float[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -331,7 +331,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<int[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -382,7 +382,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<long[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -433,7 +433,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<short[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -484,7 +484,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

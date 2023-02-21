@@ -42,7 +42,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeQueryable;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
@@ -64,7 +63,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -749,14 +748,12 @@ public class FieldInfoUtils {
     }
 
     private static boolean isRowtimeField(FieldInfo field) {
-        DataType type = field.getType();
-        return hasRoot(type.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                && isRowtimeAttribute(type.getLogicalType());
+        final LogicalType logicalType = field.getType().getLogicalType();
+        return logicalType.is(TIMESTAMP_WITHOUT_TIME_ZONE) && isRowtimeAttribute(logicalType);
     }
 
     private static boolean isProctimeField(FieldInfo field) {
-        DataType type = field.getType();
-        return isProctimeAttribute(type.getLogicalType());
+        return isProctimeAttribute(field.getType().getLogicalType());
     }
 
     private static boolean isRowTimeExpression(Expression origExpr) {

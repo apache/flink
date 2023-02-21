@@ -25,8 +25,13 @@ import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
 
 import java.util.Map;
 
-/** Rowtime descriptor for describing an event time attribute in the schema. */
+/**
+ * Rowtime descriptor for describing an event time attribute in the schema.
+ *
+ * @deprecated This class was used for legacy connectors using {@link Descriptor}.
+ */
 @PublicEvolving
+@Deprecated
 public class Rowtime implements Descriptor {
 
     private final DescriptorProperties internalProperties = new DescriptorProperties(true);

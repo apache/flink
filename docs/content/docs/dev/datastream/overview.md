@@ -72,6 +72,12 @@ program consists of the same basic parts:
 4. Specify where to put the results of your computations,
 5. Trigger the program execution
 
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
+
 {{< tabs "fa68701c-59e8-4509-858e-3e8a123eeacf" >}}
 {{< tab "Java" >}}
 
@@ -85,11 +91,11 @@ The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on `StreamExecutionEnvironment`:
 
 ```java
-getExecutionEnvironment()
+getExecutionEnvironment();
 
-createLocalEnvironment()
+createLocalEnvironment();
 
-createRemoteEnvironment(String host, int port, String... jarFiles)
+createRemoteEnvironment(String host, int port, String... jarFiles);
 ```
 
 Typically, you only need to use `getExecutionEnvironment()`, since this will do
@@ -136,9 +142,9 @@ an outside system by creating a sink. These are just some example methods for
 creating a sink:
 
 ```java
-writeAsText(String path)
+writeAsText(String path);
 
-print()
+print();
 ```
 
 {{< /tab >}}
@@ -218,7 +224,7 @@ The `execute()` method will wait for the job to finish and then return a
 `JobExecutionResult`, this contains execution times and accumulator results.
 
 If you don't want to wait for the job to finish, you can trigger asynchronous
-job execution by calling `executeAysnc()` on the `StreamExecutionEnvironment`.
+job execution by calling `executeAsync()` on the `StreamExecutionEnvironment`.
 It will return a `JobClient` with which you can communicate with the job you
 just submitted. For instance, here is how to implement the semantics of
 `execute()` by using `executeAsync()`.
@@ -236,7 +242,7 @@ happen directly. Rather, each operation is created and added to a dataflow
 graph. The operations are actually executed when the execution is explicitly
 triggered by an `execute()` call on the execution environment.  Whether the
 program is executed locally or on a cluster depends on the type of execution
-environment
+environment.
 
 The lazy evaluation lets you construct sophisticated programs that Flink
 executes as one holistically planned unit.
@@ -519,7 +525,7 @@ at-least-once semantics. The data flushing to the target system depends on the i
 OutputFormat. This means that not all elements send to the OutputFormat are immediately showing up
 in the target system. Also, in failure cases, those records might be lost.
 
-For reliable, exactly-once delivery of a stream into a file system, use the `StreamingFileSink`.
+For reliable, exactly-once delivery of a stream into a file system, use the `FileSink`.
 Also, custom implementations through the `.addSink(...)` method can participate in Flink's checkpointing
 for exactly-once semantics.
 
@@ -744,7 +750,7 @@ List<Tuple2<String, Integer>> data = ...
 DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 
 // Create a DataStream from an Iterator
-Iterator<Long> longIt = ...
+Iterator<Long> longIt = ...;
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
 {{< /tab >}}
@@ -777,21 +783,16 @@ Flink also provides a sink to collect DataStream results for testing and debuggi
 {{< tabs "125e228e-13b5-4c77-93a7-c0f436fcdd2f" >}}
 {{< tab "Java" >}}
 ```java
-import org.apache.flink.streaming.experimental.DataStreamUtils
-
-DataStream<Tuple2<String, Integer>> myResult = ...
-Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
+DataStream<Tuple2<String, Integer>> myResult = ...;
+Iterator<Tuple2<String, Integer>> myOutput = myResult.collectAsync();
 ```
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.experimental.DataStreamUtils
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
 val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStream).asScala
+val myOutput: Iterator[(String, Int)] = myResult.collectAsync()
 ```
 {{< /tab >}}
 {{< /tabs >}}

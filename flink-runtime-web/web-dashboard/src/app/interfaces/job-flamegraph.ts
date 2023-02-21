@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-export interface JobFlameGraphInterface {
+export interface JobFlameGraph {
   endTimestamp: number;
-  data: JobFlameGraphNodeInterface;
+  data: JobFlameGraphNode;
   graphType: string;
 }
 
-export interface JobFlameGraphNodeInterface {
+export interface JobFlameGraphNode {
   name: string;
   value: number;
-  children: JobFlameGraphNodeInterface[];
+  children: JobFlameGraphNode[];
+}
+
+export enum FlameGraphType {
+  ON_CPU = 'on_cpu',
+  OFF_CPU = 'off_cpu',
+  FULL = 'full'
 }

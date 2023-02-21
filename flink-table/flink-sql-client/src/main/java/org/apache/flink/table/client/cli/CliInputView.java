@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.jline.keymap.KeyMap;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -27,7 +28,7 @@ import org.jline.utils.InfoCmp.Capability;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliInputView.InputOperation.BACKSPACE;
@@ -44,13 +45,13 @@ import static org.jline.keymap.KeyMap.key;
 public class CliInputView extends CliView<CliInputView.InputOperation, String> {
 
     private final String inputTitle;
-    private final Function<String, Boolean> validation;
+    private final Predicate<String> validation;
     private final StringBuilder currentInput;
     private int cursorPos;
     private boolean isError;
 
-    public CliInputView(CliClient client, String inputTitle, Function<String, Boolean> validation) {
-        super(client);
+    public CliInputView(Terminal terminal, String inputTitle, Predicate<String> validation) {
+        super(terminal);
 
         this.inputTitle = inputTitle;
         this.validation = validation;
@@ -73,13 +74,13 @@ public class CliInputView extends CliView<CliInputView.InputOperation, String> {
         for (char i = 32; i < 256; i++) {
             keys.bind(INSERT, Character.toString(i));
         }
-        keys.bind(LEFT, key(client.getTerminal(), Capability.key_left));
-        keys.bind(RIGHT, key(client.getTerminal(), Capability.key_right));
+        keys.bind(LEFT, key(terminal, Capability.key_left));
+        keys.bind(RIGHT, key(terminal, Capability.key_right));
         keys.bind(BACKSPACE, del());
 
-        if (client.isPlainTerminal()) {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             keys.bind(ENTER, "\r", "$");
-            keys.bind(QUIT, key(client.getTerminal(), Capability.key_exit), "!");
+            keys.bind(QUIT, key(terminal, Capability.key_exit), "!");
         } else {
             keys.bind(ENTER, "\r");
             keys.bind(QUIT, esc());
@@ -222,7 +223,7 @@ public class CliInputView extends CliView<CliInputView.InputOperation, String> {
             close();
         }
         // validate and return
-        else if (validation.apply(s)) {
+        else if (validation.test(s)) {
             close(s);
         }
         // show error

@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
@@ -142,13 +141,13 @@ public class BlobCachePutTest extends TestLogger {
     private void testTransientBlobCacheGetStorageLocationConcurrent(@Nullable final JobID jobId)
             throws Exception {
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 final TransientBlobCache cache =
                         new TransientBlobCache(
-                                config, new InetSocketAddress("localhost", server.getPort()))) {
+                                config,
+                                temporaryFolder.newFolder(),
+                                new InetSocketAddress("localhost", server.getPort()))) {
 
             server.start();
 
@@ -168,13 +167,12 @@ public class BlobCachePutTest extends TestLogger {
     public void testPermanentBlobCacheGetStorageLocationConcurrentForJob() throws Exception {
         final JobID jobId = new JobID();
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 final PermanentBlobCache cache =
                         new PermanentBlobCache(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -250,13 +248,13 @@ public class BlobCachePutTest extends TestLogger {
             throws IOException, InterruptedException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -367,13 +365,12 @@ public class BlobCachePutTest extends TestLogger {
             throws IOException, InterruptedException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -484,13 +481,12 @@ public class BlobCachePutTest extends TestLogger {
             throws IOException, InterruptedException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -589,14 +585,13 @@ public class BlobCachePutTest extends TestLogger {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         File tempFileDir = null;
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -653,14 +648,13 @@ public class BlobCachePutTest extends TestLogger {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         File tempFileDir = null;
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -722,14 +716,13 @@ public class BlobCachePutTest extends TestLogger {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         File jobStoreDir = null;
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -797,9 +790,6 @@ public class BlobCachePutTest extends TestLogger {
             @Nullable final JobID jobId, final BlobKey.BlobType blobType)
             throws IOException, InterruptedException, ExecutionException {
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         final BlobStore blobStoreServer = mock(BlobStore.class);
         final BlobStore blobStoreCache = mock(BlobStore.class);
 
@@ -824,10 +814,12 @@ public class BlobCachePutTest extends TestLogger {
 
         ExecutorService executor = Executors.newFixedThreadPool(concurrentPutOperations);
 
-        try (final BlobServer server = new BlobServer(config, blobStoreServer);
+        try (final BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), blobStoreServer);
                 final BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 blobStoreCache,
                                 new InetSocketAddress("localhost", server.getPort()))) {
 

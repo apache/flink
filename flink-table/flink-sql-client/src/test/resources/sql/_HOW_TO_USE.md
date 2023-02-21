@@ -26,7 +26,7 @@ This is a guideline about how to add SQL Script for testing SQL Client.
 Write the following script, and save it as `src/test/resources/sql/emp.q`:
 
 ```
-SET execution.result-mode = tableau;
+SET 'execution.result-mode' = 'tableau';
 !info
 
 SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
@@ -37,7 +37,7 @@ Run `org.apache.flink.table.client.cli.CliClientITCase` using IDE or using maven
 There should be JUnit comparison failure for the `emp.q`. The printed actual result should be:
 
 ```
-SET execution.result-mode = tableau;
+SET 'execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
@@ -109,7 +109,7 @@ Example:
 
 ```
 # test set the removed key
-SET execution.max-idle-state-retention=1000;
+SET 'execution.max-idle-state-retention' = '1000';
 [WARNING] The specified key is not supported anymore.
 !warning
 ```
@@ -165,11 +165,16 @@ Example:
 
 ```
 # test set the deprecated key
-SET execution.planner=blink;
+SET 'execution.planner' = 'blink';
 [WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
 [INFO] Session property has been set.
 !warning
 ```
+
+### Multi line query tests
+
+If you want to test sql client with multiple lines in a statement, you should put the sql file in `sql_multi`.
+The difference is that sql statement and output are separated by `!output`.
 
 ## Limitation
 
@@ -177,5 +182,3 @@ Currently, the SQL Script can't support to test some interactive feature of SQL 
 
 - Statement completion.
 - The `changelog` and `table` result mode which visualizes results in a refreshable paginated table representation.
-- `INSERT INTO` statement. Because all DMLs are executed asynchronously, so we can't check the content written into the sink. This can be supported once FLINK-21669 is resolved.
-

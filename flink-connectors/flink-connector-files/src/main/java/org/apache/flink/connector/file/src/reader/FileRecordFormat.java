@@ -90,7 +90,15 @@ import java.io.Serializable;
  *
  * <p>This batching is by default based a number of records. See {@link
  * FileRecordFormat#RECORDS_PER_FETCH} to configure that handover batch size.
+ *
+ * @deprecated Please use {@link StreamFormat} instead. The main motivation for removing it is the
+ *     inherent design flaw in the batching of FileRecordFormat: StreamFormat can guarantee that
+ *     only a certain amount of memory is being used (unless a single record exceeds that already),
+ *     but FileRecordFormat can only batch by the number of records. By removing FileRecordFormat,
+ *     we relay the responsibility of implementing the batching to the format developer; they need
+ *     to use BulkFormat and find a better way than batch by number of records.
  */
+@Deprecated
 @PublicEvolving
 public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T> {
 
@@ -147,7 +155,7 @@ public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T
      *
      * <p>The number should be large enough so that the thread-to-thread handover overhead is
      * amortized across the records, but small enough so that the these records together do not
-     * consume too memory to be feasible.
+     * consume too much memory.
      */
     ConfigOption<Integer> RECORDS_PER_FETCH =
             ConfigOptions.key("source.file.records.fetch-size")
@@ -158,7 +166,11 @@ public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T
 
     // ------------------------------------------------------------------------
 
-    /** The actual reader that reads the records. */
+    /**
+     * This interface is Deprecated, use {@link StreamFormat.Reader} instead.
+     *
+     * <p>The actual reader that reads the records.
+     */
     interface Reader<T> extends Closeable {
 
         /** Reads the next record. Returns {@code null} when the input has reached its end. */

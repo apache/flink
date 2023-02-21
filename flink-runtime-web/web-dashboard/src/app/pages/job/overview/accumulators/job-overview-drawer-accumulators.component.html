@@ -16,16 +16,20 @@
   ~ limitations under the License.
   -->
 
-<nz-tabset [nzTabBarGutter]="4" [nzSize]="'small'">
+<nz-tabset [nzTabBarGutter]="16" [nzSize]="'small'">
   <nz-tab nzTitle="Vertex Accumulators">
     <nz-table
-      class="no-border small full-height"
-      [nzSize]="'small'"
+      nzSize="small"
       [nzLoading]="isLoading"
       [nzData]="listOfAccumulator"
-      [nzScroll]="{y:'calc( 100% - 72px )'}"
+      [nzScroll]="{ y: '100%' }"
       [nzFrontPagination]="false"
-      [nzShowPagination]="false">
+      [nzShowPagination]="false"
+      [nzVirtualItemSize]="virtualItemSize"
+      [nzVirtualMinBufferPx]="300"
+      [nzVirtualMaxBufferPx]="300"
+      [nzVirtualForTrackBy]="trackByName"
+    >
       <thead>
         <tr>
           <th nzWidth="33.33%">Name</th>
@@ -34,41 +38,53 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let accumulator of listOfAccumulator; trackBy:trackAccumulatorBy;">
-          <td>{{ accumulator.name }}</td>
-          <td>{{ accumulator.type }}</td>
-          <td>{{ (accumulator.value | number:'1.0-3' ) || accumulator.value }}</td>
-        </tr>
+        <ng-template nz-virtual-scroll let-data>
+          <ng-container *ngIf="narrowUserAccumulators(data) as accumulator">
+            <tr>
+              <td>{{ accumulator.name }}</td>
+              <td>{{ accumulator.type }}</td>
+              <td>{{ (accumulator.value | number: '1.0-3') || accumulator.value }}</td>
+            </tr>
+          </ng-container>
+        </ng-template>
       </tbody>
     </nz-table>
   </nz-tab>
   <nz-tab nzTitle="SubTask Accumulators">
     <nz-table
-      class="no-border small full-height"
-      [nzSize]="'small'"
+      nzSize="small"
       [nzLoading]="isLoading"
       [nzData]="listOfSubTaskAccumulator"
-      [nzScroll]="{x:'800px',y:'calc( 100% - 72px )'}"
+      [nzScroll]="{ y: '100%' }"
       [nzFrontPagination]="false"
-      [nzShowPagination]="false">
+      [nzShowPagination]="false"
+      [nzVirtualItemSize]="virtualItemSize"
+      [nzVirtualMinBufferPx]="300"
+      [nzVirtualMaxBufferPx]="300"
+      [nzVirtualForTrackBy]="trackByName"
+    >
       <thead>
         <tr>
-          <th nzWidth="200px" nzLeft="0px">SubTask</th>
-          <th nzWidth="300px">Name</th>
-          <th nzWidth="100px">Type</th>
-          <th nzWidth="200px" nzRight="0px">Value</th>
+          <th nzWidth="25%" nzLeft>SubTask</th>
+          <th nzWidth="25%">Name</th>
+          <th nzWidth="25%">Type</th>
+          <th nzWidth="25%" nzRight>Value</th>
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let accumulator of listOfSubTaskAccumulator; trackBy:trackSubtaskBy;">
-          <tr *ngFor="let data of accumulator['user-accumulators']; trackBy:trackAccumulatorBy;">
-            <td nzLeft="0px">({{ accumulator.subtask }}) {{ accumulator.host }}, attempt: {{ accumulator.attempt + 1 }}</td>
-            <td>{{ data.name }}</td>
-            <td>{{ data.type }}</td>
-            <td nzRight="0px">{{ data.value }}</td>
-          </tr>
-        </ng-container>
-
+        <ng-template nz-virtual-scroll let-data>
+          <ng-container *ngIf="narrowSubTaskAccumulators(data) as subTaskAccumulator">
+            <tr>
+              <td nzLeft>
+                ({{ subTaskAccumulator['subtask'] }}) {{ subTaskAccumulator.host }}, attempt:
+                {{ subTaskAccumulator.attempt + 1 }}
+              </td>
+              <td>{{ subTaskAccumulator.name }}</td>
+              <td>{{ subTaskAccumulator.type }}</td>
+              <td nzRight>{{ subTaskAccumulator.value }}</td>
+            </tr>
+          </ng-container>
+        </ng-template>
       </tbody>
     </nz-table>
   </nz-tab>

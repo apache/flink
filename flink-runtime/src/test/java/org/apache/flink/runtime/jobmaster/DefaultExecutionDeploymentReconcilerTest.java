@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.clusterframework.types.ResourceID.generate;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.junit.Assert.assertThat;
@@ -49,7 +50,7 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new DefaultExecutionDeploymentReconciler(handler);
 
         ResourceID resourceId = generate();
-        ExecutionAttemptID attemptId = new ExecutionAttemptID();
+        ExecutionAttemptID attemptId = createExecutionAttemptId();
 
         reconciler.reconcileExecutionDeployments(
                 resourceId,
@@ -69,7 +70,7 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new DefaultExecutionDeploymentReconciler(handler);
 
         ResourceID resourceId = generate();
-        ExecutionAttemptID attemptId = new ExecutionAttemptID();
+        ExecutionAttemptID attemptId = createExecutionAttemptId();
 
         reconciler.reconcileExecutionDeployments(
                 resourceId,
@@ -89,7 +90,7 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new DefaultExecutionDeploymentReconciler(handler);
 
         ResourceID resourceId = generate();
-        ExecutionAttemptID attemptId = new ExecutionAttemptID();
+        ExecutionAttemptID attemptId = createExecutionAttemptId();
 
         reconciler.reconcileExecutionDeployments(
                 resourceId,
@@ -109,9 +110,9 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new DefaultExecutionDeploymentReconciler(handler);
 
         ResourceID resourceId = generate();
-        ExecutionAttemptID unknownId = new ExecutionAttemptID();
-        ExecutionAttemptID missingId = new ExecutionAttemptID();
-        ExecutionAttemptID matchingId = new ExecutionAttemptID();
+        ExecutionAttemptID unknownId = createExecutionAttemptId();
+        ExecutionAttemptID missingId = createExecutionAttemptId();
+        ExecutionAttemptID matchingId = createExecutionAttemptId();
 
         reconciler.reconcileExecutionDeployments(
                 resourceId,
@@ -132,9 +133,9 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new DefaultExecutionDeploymentReconciler(handler);
 
         ResourceID resourceId = generate();
-        ExecutionAttemptID matchingId = new ExecutionAttemptID();
-        ExecutionAttemptID unknownId = new ExecutionAttemptID();
-        ExecutionAttemptID missingId = new ExecutionAttemptID();
+        ExecutionAttemptID matchingId = createExecutionAttemptId();
+        ExecutionAttemptID unknownId = createExecutionAttemptId();
+        ExecutionAttemptID missingId = createExecutionAttemptId();
 
         reconciler.reconcileExecutionDeployments(
                 resourceId,

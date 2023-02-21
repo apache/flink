@@ -25,17 +25,15 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.CHAR;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
@@ -44,108 +42,182 @@ import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.YEAR;
-import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
-import static org.apache.flink.table.types.TypeTestingUtils.hasNullability;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.table.test.TableAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link DataType}. */
-public class DataTypeTest {
+class DataTypeTest {
 
     @Test
-    public void testNullability() {
-        assertThat(BIGINT().nullable(), hasNullability(true));
-
-        assertThat(BIGINT().notNull(), hasNullability(false));
-
-        assertThat(BIGINT().notNull().nullable(), hasNullability(true));
+    void testNullability() {
+        assertThat(BIGINT().nullable()).isNullable();
+        assertThat(BIGINT().notNull()).isNotNullable();
+        assertThat(BIGINT().notNull().nullable()).isNullable();
     }
 
     @Test
-    public void testAtomicConversion() {
-        assertThat(
-                TIMESTAMP(0).bridgedTo(java.sql.Timestamp.class),
-                hasConversionClass(java.sql.Timestamp.class));
+    void testAtomicConversion() {
+        assertThat(TIMESTAMP(0).bridgedTo(java.sql.Timestamp.class))
+                .hasConversionClass(java.sql.Timestamp.class);
     }
 
     @Test
-    public void testTolerantAtomicConversion() {
+    void testTolerantAtomicConversion() {
         // this is logically only supported as input type because of
         // nullability but is tolerated until the planner complains
         // about an output type
-        assertThat(BIGINT().nullable().bridgedTo(long.class), hasConversionClass(long.class));
-    }
-
-    @Test(expected = ValidationException.class)
-    public void testInvalidAtomicConversion() {
-        TIMESTAMP(0).bridgedTo(DataTypesTest.class);
+        assertThat(BIGINT().nullable().bridgedTo(long.class)).hasConversionClass(long.class);
     }
 
     @Test
-    public void testArrayElementConversion() {
-        assertThat(
-                ARRAY(ARRAY(INT().notNull().bridgedTo(int.class))),
-                hasConversionClass(int[][].class));
+    void testInvalidAtomicConversion() {
+        assertThatThrownBy(() -> TIMESTAMP(0).bridgedTo(DataTypesTest.class))
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testTolerantArrayConversion() {
+    void testArrayElementConversion() {
+        assertThat(ARRAY(ARRAY(INT().notNull().bridgedTo(int.class))))
+                .hasConversionClass(int[][].class);
+    }
+
+    @Test
+    void testTolerantArrayConversion() {
         // this is logically only supported as input type because of
         // nullability but is tolerated until the planner complains
         // about an output type
-        assertThat(
-                ARRAY(ARRAY(INT().nullable())).bridgedTo(int[][].class),
-                hasConversionClass(int[][].class));
-    }
-
-    @Test(expected = ValidationException.class)
-    public void testInvalidArrayConversion() {
-        ARRAY(ARRAY(INT())).bridgedTo(int[][][].class);
+        assertThat(ARRAY(ARRAY(INT().nullable())).bridgedTo(int[][].class))
+                .hasConversionClass(int[][].class);
     }
 
     @Test
-    public void testTolerantMapConversion() {
+    void testInvalidArrayConversion() {
+        assertThatThrownBy(() -> ARRAY(ARRAY(INT())).bridgedTo(int[][][].class))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testTolerantMapConversion() {
         // this doesn't make much sense logically but is supported until the planner complains
-        assertThat(MULTISET(MULTISET(INT().bridgedTo(int.class))), hasConversionClass(Map.class));
+        assertThat(MULTISET(MULTISET(INT().bridgedTo(int.class)))).hasConversionClass(Map.class);
     }
 
     @Test
-    public void testFields() {
-        final DataType rowDataType = ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN()));
-
-        final List<DataType> fields = Arrays.asList(CHAR(2), BOOLEAN());
-        assertEquals(fields, rowDataType.getChildren());
-    }
-
-    @Test(expected = ValidationException.class)
-    public void testInvalidOrderInterval() {
-        INTERVAL(MONTH(), YEAR(2));
+    void testFields() {
+        assertThat(ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN())))
+                .getChildren()
+                .containsExactly(CHAR(2), BOOLEAN());
     }
 
     @Test
-    public void testConversionEquality() {
-        assertEquals(DataTypes.VARCHAR(2).bridgedTo(String.class), DataTypes.VARCHAR(2));
+    void testInvalidOrderInterval() {
+        assertThatThrownBy(() -> INTERVAL(MONTH(), YEAR(2)))
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testArrayInternalElementConversion() {
-        final DataType arrayDataType = ARRAY(STRING()).bridgedTo(ArrayData.class);
-
-        final List<DataType> children =
-                Collections.singletonList(STRING().bridgedTo(StringData.class));
-
-        assertEquals(children, arrayDataType.getChildren());
+    void testConversionEquality() {
+        assertThat(DataTypes.VARCHAR(2).bridgedTo(String.class)).isEqualTo(DataTypes.VARCHAR(2));
     }
 
     @Test
-    public void testMapInternalElementConversion() {
-        final DataType mapDataType = MAP(STRING(), ROW()).bridgedTo(MapData.class);
+    void testArrayInternalElementConversion() {
+        assertThat(ARRAY(STRING()).bridgedTo(ArrayData.class))
+                .getChildren()
+                .containsExactly(STRING().bridgedTo(StringData.class));
+    }
 
-        final List<DataType> children =
-                Arrays.asList(STRING().bridgedTo(StringData.class), ROW().bridgedTo(RowData.class));
+    @Test
+    void testMapInternalElementConversion() {
+        assertThat(MAP(STRING(), ROW()).bridgedTo(MapData.class))
+                .getChildren()
+                .containsExactly(
+                        STRING().bridgedTo(StringData.class), ROW().bridgedTo(RowData.class));
+    }
 
-        assertEquals(children, mapDataType.getChildren());
+    @Test
+    void testGetFieldNames() {
+        assertThat(
+                        DataType.getFieldNames(
+                                ROW(
+                                        FIELD("c0", BOOLEAN()),
+                                        FIELD("c1", DOUBLE()),
+                                        FIELD("c2", INT()))))
+                .containsExactly("c0", "c1", "c2");
+        assertThat(
+                        DataType.getFieldNames(
+                                STRUCTURED(
+                                        DataTypesTest.SimplePojo.class,
+                                        FIELD("name", STRING()),
+                                        FIELD("count", INT().notNull().bridgedTo(int.class)))))
+                .containsExactly("name", "count");
+        assertThat(DataType.getFieldNames(ARRAY(INT()))).isEmpty();
+        assertThat(DataType.getFieldNames(INT())).isEmpty();
+    }
+
+    @Test
+    void testGetFieldDataTypes() {
+        assertThat(
+                        DataType.getFieldDataTypes(
+                                ROW(
+                                        FIELD("c0", BOOLEAN()),
+                                        FIELD("c1", DOUBLE()),
+                                        FIELD("c2", INT()))))
+                .containsExactly(BOOLEAN(), DOUBLE(), INT());
+        assertThat(
+                        DataType.getFieldDataTypes(
+                                STRUCTURED(
+                                        DataTypesTest.SimplePojo.class,
+                                        FIELD("name", STRING()),
+                                        FIELD("count", INT().notNull().bridgedTo(int.class)))))
+                .containsExactly(STRING(), INT().notNull().bridgedTo(int.class));
+        assertThat(DataType.getFieldDataTypes(ARRAY(INT()))).isEmpty();
+        assertThat(DataType.getFieldDataTypes(INT())).isEmpty();
+    }
+
+    @Test
+    void testGetFieldCount() {
+        assertThat(
+                        DataType.getFieldCount(
+                                ROW(
+                                        FIELD("c0", BOOLEAN()),
+                                        FIELD("c1", DOUBLE()),
+                                        FIELD("c2", INT()))))
+                .isEqualTo(3);
+        assertThat(
+                        DataType.getFieldCount(
+                                STRUCTURED(
+                                        DataTypesTest.SimplePojo.class,
+                                        FIELD("name", STRING()),
+                                        FIELD("count", INT().notNull().bridgedTo(int.class)))))
+                .isEqualTo(2);
+        assertThat(DataType.getFieldCount(ARRAY(INT()))).isZero();
+        assertThat(DataType.getFieldCount(INT())).isZero();
+    }
+
+    @Test
+    void testGetFields() {
+        assertThat(
+                        DataType.getFields(
+                                ROW(
+                                        FIELD("c0", BOOLEAN()),
+                                        FIELD("c1", DOUBLE()),
+                                        FIELD("c2", INT()))))
+                .containsExactly(FIELD("c0", BOOLEAN()), FIELD("c1", DOUBLE()), FIELD("c2", INT()));
+        assertThat(
+                        DataType.getFields(
+                                STRUCTURED(
+                                        DataTypesTest.SimplePojo.class,
+                                        FIELD("name", STRING()),
+                                        FIELD("count", INT().notNull().bridgedTo(int.class)))))
+                .containsExactly(
+                        FIELD("name", STRING()),
+                        FIELD("count", INT().notNull().bridgedTo(int.class)));
+        assertThat(DataType.getFields(ARRAY(INT()))).isEmpty();
+        assertThat(DataType.getFields(INT())).isEmpty();
     }
 }

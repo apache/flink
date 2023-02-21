@@ -28,7 +28,7 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.rocksdb.RocksDB;
+import org.rocksdb.NativeLibraryLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ import static org.junit.Assert.fail;
 
 /** Tests for {@link EmbeddedRocksDBStateBackend} on initialization. */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({RocksDB.class})
+@PrepareForTest({NativeLibraryLoader.class})
 public class RocksDBInitTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBInitTest.class);
@@ -57,12 +57,13 @@ public class RocksDBInitTest {
 
     @Test
     public void testTempLibFolderDeletedOnFail() throws Exception {
-        PowerMockito.spy(RocksDB.class);
-        PowerMockito.when(RocksDB.class, "loadLibrary").thenThrow(new ExpectedTestException());
+        PowerMockito.spy(NativeLibraryLoader.class);
+        PowerMockito.when(NativeLibraryLoader.class, "getInstance")
+                .thenThrow(new ExpectedTestException());
 
         File tempFolder = temporaryFolder.newFolder();
         try {
-            EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempFolder.getAbsolutePath(), LOG);
+            EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempFolder.getAbsolutePath());
             fail("Not throwing expected exception.");
         } catch (IOException ignored) {
             // ignored

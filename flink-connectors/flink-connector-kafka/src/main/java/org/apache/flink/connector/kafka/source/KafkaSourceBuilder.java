@@ -18,10 +18,12 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializerValidator;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
@@ -41,9 +43,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * The @builder class for {@link KafkaSource} to make it easier for the users to construct a {@link
+ * The builder class for {@link KafkaSource} to make it easier for the users to construct a {@link
  * KafkaSource}.
  *
  * <p>The following example shows the minimum setup to create a KafkaSource that reads the String
@@ -53,29 +56,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * KafkaSource<String> source = KafkaSource
  *     .<String>builder()
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
- *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .build();
  * }</pre>
  *
- * <p>The bootstrap servers, group id, topics/partitions to consume, and the record deserializer are
- * required fields that must be set.
+ * <p>The bootstrap servers, topics/partitions to consume, and the record deserializer are required
+ * fields that must be set.
  *
  * <p>To specify the starting offsets of the KafkaSource, one can call {@link
  * #setStartingOffsets(OffsetsInitializer)}.
  *
  * <p>By default the KafkaSource runs in an {@link Boundedness#CONTINUOUS_UNBOUNDED} mode and never
- * stops until the Flink job is canceled or fails. To let the KafkaSource run in {@link
- * Boundedness#CONTINUOUS_UNBOUNDED} but stops at some given offsets, one can call {@link
+ * stops until the Flink job is canceled or fails. To let the KafkaSource run as {@link
+ * Boundedness#CONTINUOUS_UNBOUNDED} yet stop at some given offsets, one can call {@link
  * #setUnbounded(OffsetsInitializer)}. For example the following KafkaSource stops after it consumes
- * up to the latest partition offsets at the point when the Flink started.
+ * up to the latest partition offsets at the point when the Flink job started.
  *
  * <pre>{@code
  * KafkaSource<String> source = KafkaSource
  *     .<String>builder()
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
- *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .setUnbounded(OffsetsInitializer.latest())
@@ -85,11 +86,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Check the Java docs of each individual methods to learn more about the settings to build a
  * KafkaSource.
  */
+@PublicEvolving
 public class KafkaSourceBuilder<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceBuilder.class);
-    private static final String[] REQUIRED_CONFIGS = {
-        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumerConfig.GROUP_ID_CONFIG
-    };
+    private static final String[] REQUIRED_CONFIGS = {ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG};
     // The subscriber specifies the partitions to subscribe to.
     private KafkaSubscriber subscriber;
     // Users can specify the starting / stopping offset initializer.
@@ -185,7 +185,19 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * Specify from which offsets the KafkaSource should start consume from by providing an {@link
+     * Set a custom Kafka subscriber to use to discover new splits.
+     *
+     * @param kafkaSubscriber the {@link KafkaSubscriber} to use for split discovery.
+     * @return this KafkaSourceBuilder.
+     */
+    public KafkaSourceBuilder<OUT> setKafkaSubscriber(KafkaSubscriber kafkaSubscriber) {
+        ensureSubscriberIsNull("custom");
+        this.subscriber = checkNotNull(kafkaSubscriber);
+        return this;
+    }
+
+    /**
+     * Specify from which offsets the KafkaSource should start consuming from by providing an {@link
      * OffsetsInitializer}.
      *
      * <p>The following {@link OffsetsInitializer}s are commonly used and provided out of the box.
@@ -223,16 +235,16 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * By default the KafkaSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
-     * and thus never stops until the Flink job fails or is canceled. To let the KafkaSource run as
-     * a streaming source but still stops at some point, one can set an {@link OffsetsInitializer}
-     * to specify the stopping offsets for each partition. When all the partitions have reached
-     * their stopping offsets, the KafkaSource will then exit.
+     * By default the KafkaSource is set to run as {@link Boundedness#CONTINUOUS_UNBOUNDED} and thus
+     * never stops until the Flink job fails or is canceled. To let the KafkaSource run as a
+     * streaming source but still stop at some point, one can set an {@link OffsetsInitializer} to
+     * specify the stopping offsets for each partition. When all the partitions have reached their
+     * stopping offsets, the KafkaSource will then exit.
      *
-     * <p>This method is different from {@link #setBounded(OffsetsInitializer)} that after setting
-     * the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will still return
-     * {@link Boundedness#CONTINUOUS_UNBOUNDED} even though it will stop at the stopping offsets
-     * specified by the stopping offsets {@link OffsetsInitializer}.
+     * <p>This method is different from {@link #setBounded(OffsetsInitializer)} in that after
+     * setting the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will
+     * still return {@link Boundedness#CONTINUOUS_UNBOUNDED} even though it will stop at the
+     * stopping offsets specified by the stopping offsets {@link OffsetsInitializer}.
      *
      * <p>The following {@link OffsetsInitializer} are commonly used and provided out of the box.
      * Users can also implement their own {@link OffsetsInitializer} for custom behaviors.
@@ -264,15 +276,15 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * By default the KafkaSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
-     * and thus never stops until the Flink job fails or is canceled. To let the KafkaSource run in
-     * {@link Boundedness#BOUNDED} manner and stops at some point, one can set an {@link
-     * OffsetsInitializer} to specify the stopping offsets for each partition. When all the
-     * partitions have reached their stopping offsets, the KafkaSource will then exit.
+     * By default the KafkaSource is set to run as {@link Boundedness#CONTINUOUS_UNBOUNDED} and thus
+     * never stops until the Flink job fails or is canceled. To let the KafkaSource run as {@link
+     * Boundedness#BOUNDED} and stop at some point, one can set an {@link OffsetsInitializer} to
+     * specify the stopping offsets for each partition. When all the partitions have reached their
+     * stopping offsets, the KafkaSource will then exit.
      *
-     * <p>This method is different from {@link #setUnbounded(OffsetsInitializer)} that after setting
-     * the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will return
-     * {@link Boundedness#BOUNDED} instead of {@link Boundedness#CONTINUOUS_UNBOUNDED}.
+     * <p>This method is different from {@link #setUnbounded(OffsetsInitializer)} in that after
+     * setting the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will
+     * return {@link Boundedness#BOUNDED} instead of {@link Boundedness#CONTINUOUS_UNBOUNDED}.
      *
      * <p>The following {@link OffsetsInitializer} are commonly used and provided out of the box.
      * Users can also implement their own {@link OffsetsInitializer} for custom behaviors.
@@ -433,8 +445,12 @@ public class KafkaSourceBuilder<OUT> {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 ByteArrayDeserializer.class.getName(),
                 true);
-        maybeOverride(
-                ConsumerConfig.GROUP_ID_CONFIG, "KafkaSource-" + new Random().nextLong(), false);
+        if (!props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+            LOG.warn(
+                    "Offset commit on checkpoint is disabled because {} is not specified",
+                    ConsumerConfig.GROUP_ID_CONFIG);
+            maybeOverride(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key(), "false", false);
+        }
         maybeOverride(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false", false);
         maybeOverride(
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
@@ -447,10 +463,13 @@ public class KafkaSourceBuilder<OUT> {
                 "-1",
                 boundedness == Boundedness.BOUNDED);
 
-        // If the client id prefix is not set, reuse the consumer group id as the client id prefix.
+        // If the client id prefix is not set, reuse the consumer group id as the client id prefix,
+        // or generate a random string if consumer group id is not specified.
         maybeOverride(
                 KafkaSourceOptions.CLIENT_ID_PREFIX.key(),
-                props.getProperty(ConsumerConfig.GROUP_ID_CONFIG),
+                props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)
+                        ? props.getProperty(ConsumerConfig.GROUP_ID_CONFIG)
+                        : "KafkaSource-" + new Random().nextLong(),
                 false);
     }
 
@@ -485,5 +504,31 @@ public class KafkaSourceBuilder<OUT> {
                 "No subscribe mode is specified, "
                         + "should be one of topics, topic pattern and partition set.");
         checkNotNull(deserializationSchema, "Deserialization schema is required but not provided.");
+        // Check consumer group ID
+        checkState(
+                props.containsKey(ConsumerConfig.GROUP_ID_CONFIG) || !offsetCommitEnabledManually(),
+                String.format(
+                        "Property %s is required when offset commit is enabled",
+                        ConsumerConfig.GROUP_ID_CONFIG));
+        // Check offsets initializers
+        if (startingOffsetsInitializer instanceof OffsetsInitializerValidator) {
+            ((OffsetsInitializerValidator) startingOffsetsInitializer).validate(props);
+        }
+        if (stoppingOffsetsInitializer instanceof OffsetsInitializerValidator) {
+            ((OffsetsInitializerValidator) stoppingOffsetsInitializer).validate(props);
+        }
+    }
+
+    private boolean offsetCommitEnabledManually() {
+        boolean autoCommit =
+                props.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
+                        && Boolean.parseBoolean(
+                                props.getProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
+        boolean commitOnCheckpoint =
+                props.containsKey(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key())
+                        && Boolean.parseBoolean(
+                                props.getProperty(
+                                        KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key()));
+        return autoCommit || commitOnCheckpoint;
     }
 }

@@ -136,10 +136,16 @@ public class TaskState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         for (SubtaskState subtaskState : subtaskStates.values()) {
-            subtaskState.registerSharedStates(sharedStateRegistry);
+            subtaskState.registerSharedStates(sharedStateRegistry, checkpointID);
         }
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        // This class is actually deprecated, just return the state size.
+        return getStateSize();
     }
 
     @Override

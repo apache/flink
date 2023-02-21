@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.arrow.serializers;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
@@ -35,11 +36,9 @@ import java.io.OutputStream;
 
 /**
  * The base class ArrowSerializer which will serialize/deserialize RowType data to/from arrow bytes.
- *
- * @param <T> type of the input elements.
  */
 @Internal
-public abstract class ArrowSerializer<T> {
+public final class ArrowSerializer {
 
     static {
         ArrowUtils.checkArrowUsable();
@@ -55,7 +54,7 @@ public abstract class ArrowSerializer<T> {
     private transient BufferAllocator allocator;
 
     /** Reader which is responsible for deserialize the Arrow format data to the Flink rows. */
-    private transient ArrowReader<T> arrowReader;
+    private transient ArrowReader arrowReader;
 
     /**
      * Reader which is responsible for convert the execution result from byte array to arrow format.
@@ -68,7 +67,7 @@ public abstract class ArrowSerializer<T> {
     transient VectorSchemaRoot rootWriter;
 
     /** Writer which is responsible for serialize the input elements to arrow format. */
-    private transient ArrowWriter<T> arrowWriter;
+    private transient ArrowWriter<RowData> arrowWriter;
 
     /** Writer which is responsible for convert the arrow format data into byte array. */
     private transient ArrowStreamWriter arrowStreamWriter;
@@ -105,11 +104,11 @@ public abstract class ArrowSerializer<T> {
         return root.getRowCount();
     }
 
-    public T read(int i) {
+    public RowData read(int i) {
         return arrowReader.read(i);
     }
 
-    public void write(T element) {
+    public void write(RowData element) {
         arrowWriter.write(element);
     }
 
@@ -121,9 +120,13 @@ public abstract class ArrowSerializer<T> {
     }
 
     /** Creates an {@link ArrowWriter}. */
-    public abstract ArrowWriter<T> createArrowWriter();
+    public ArrowWriter<RowData> createArrowWriter() {
+        return ArrowUtils.createRowDataArrowWriter(rootWriter, inputType);
+    }
 
-    public abstract ArrowReader<T> createArrowReader(VectorSchemaRoot root);
+    public ArrowReader createArrowReader(VectorSchemaRoot root) {
+        return ArrowUtils.createArrowReader(root, outputType);
+    }
 
     /**
      * Forces to finish the processing of the current batch of elements. It will serialize the batch

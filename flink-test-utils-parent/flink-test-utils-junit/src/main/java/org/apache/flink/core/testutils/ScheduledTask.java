@@ -59,6 +59,10 @@ public final class ScheduledTask<T> implements ScheduledFuture<T> {
         return period > 0;
     }
 
+    public long getPeriod() {
+        return period;
+    }
+
     public void execute() {
         if (!result.isDone()) {
             if (!isPeriodic()) {
@@ -111,5 +115,9 @@ public final class ScheduledTask<T> implements ScheduledFuture<T> {
     public T get(long timeout, @Nonnull TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException {
         return result.get(timeout, unit);
+    }
+
+    public Callable<T> getCallable() {
+        return this.callable;
     }
 }

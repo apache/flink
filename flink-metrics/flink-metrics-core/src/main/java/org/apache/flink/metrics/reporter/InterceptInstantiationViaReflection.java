@@ -17,22 +17,22 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for {@link MetricReporterFactory MetricReporterFactories} that want to maintain
- * backwards-compatibility with existing reflection-based configurations.
+ * This annotation has no effect and is only kept for compatibility reasons.
  *
- * <p>When a reporter is configured to be used via reflection the annotated factory will be used
- * instead.
- *
- * @see InstantiateViaFactory
+ * @deprecated Will be removed in a future version. Users should use all reporters as plugins.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+@Public
+@Deprecated
 public @interface InterceptInstantiationViaReflection {
     String reporterClassName();
 }

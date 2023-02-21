@@ -15,4 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
+:host {
+  ::ng-deep {
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+  }
+}

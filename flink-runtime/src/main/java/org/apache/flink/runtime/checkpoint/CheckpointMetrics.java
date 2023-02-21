@@ -49,11 +49,13 @@ public class CheckpointMetrics implements Serializable {
     /** Is the checkpoint completed as an unaligned checkpoint. */
     private final boolean unalignedCheckpoint;
 
+    private final long bytesPersistedOfThisCheckpoint;
+
     private final long totalBytesPersisted;
 
     @VisibleForTesting
     public CheckpointMetrics() {
-        this(UNSET, UNSET, UNSET, UNSET, UNSET, UNSET, false, 0L);
+        this(UNSET, UNSET, UNSET, UNSET, UNSET, UNSET, false, 0L, 0L);
     }
 
     public CheckpointMetrics(
@@ -64,6 +66,7 @@ public class CheckpointMetrics implements Serializable {
             long asyncDurationMillis,
             long checkpointStartDelayNanos,
             boolean unalignedCheckpoint,
+            long bytesPersistedOfThisCheckpoint,
             long totalBytesPersisted) {
 
         // these may be "-1", in case the values are unknown or not set
@@ -73,6 +76,7 @@ public class CheckpointMetrics implements Serializable {
         checkArgument(asyncDurationMillis >= -1);
         checkArgument(alignmentDurationNanos >= -1);
         checkArgument(checkpointStartDelayNanos >= -1);
+        checkArgument(bytesPersistedOfThisCheckpoint >= 0);
         checkArgument(totalBytesPersisted >= 0);
 
         this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
@@ -82,6 +86,7 @@ public class CheckpointMetrics implements Serializable {
         this.asyncDurationMillis = asyncDurationMillis;
         this.checkpointStartDelayNanos = checkpointStartDelayNanos;
         this.unalignedCheckpoint = unalignedCheckpoint;
+        this.bytesPersistedOfThisCheckpoint = bytesPersistedOfThisCheckpoint;
         this.totalBytesPersisted = totalBytesPersisted;
     }
 
@@ -113,6 +118,10 @@ public class CheckpointMetrics implements Serializable {
         return unalignedCheckpoint;
     }
 
+    public long getBytesPersistedOfThisCheckpoint() {
+        return bytesPersistedOfThisCheckpoint;
+    }
+
     public long getTotalBytesPersisted() {
         return totalBytesPersisted;
     }
@@ -135,6 +144,7 @@ public class CheckpointMetrics implements Serializable {
                 && asyncDurationMillis == that.asyncDurationMillis
                 && checkpointStartDelayNanos == that.checkpointStartDelayNanos
                 && unalignedCheckpoint == that.unalignedCheckpoint
+                && bytesPersistedOfThisCheckpoint == that.bytesPersistedOfThisCheckpoint
                 && totalBytesPersisted == that.totalBytesPersisted;
     }
 
@@ -148,7 +158,8 @@ public class CheckpointMetrics implements Serializable {
                 asyncDurationMillis,
                 checkpointStartDelayNanos,
                 unalignedCheckpoint,
-                totalBytesPersisted);
+                totalBytesPersisted,
+                bytesPersistedOfThisCheckpoint);
     }
 
     @Override
@@ -168,6 +179,8 @@ public class CheckpointMetrics implements Serializable {
                 + checkpointStartDelayNanos
                 + ", unalignedCheckpoint="
                 + unalignedCheckpoint
+                + ", bytesPersistedOfThisCheckpoint="
+                + bytesPersistedOfThisCheckpoint
                 + ", totalBytesPersisted="
                 + totalBytesPersisted
                 + '}';

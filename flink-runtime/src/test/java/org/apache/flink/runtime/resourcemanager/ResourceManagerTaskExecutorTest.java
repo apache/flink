@@ -23,19 +23,10 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
@@ -46,8 +37,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -56,13 +47,14 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -82,7 +74,12 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10L);
 
-    private static final long HEARTBEAT_TIMEOUT = 5000;
+    private static final ResourceProfile DEFAULT_SLOT_PROFILE =
+            ResourceProfile.fromResources(1.0, 1234);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static TestingRpcService rpcService;
 
@@ -96,15 +93,11 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
     private ResourceID taskExecutorResourceID;
 
-    private ResourceID resourceManagerResourceID;
-
-    private StandaloneResourceManager resourceManager;
+    private TestingResourceManagerService rmService;
 
     private ResourceManagerGateway rmGateway;
 
     private ResourceManagerGateway wronglyFencedGateway;
-
-    private TestingFatalErrorHandler testingFatalErrorHandler;
 
     @BeforeClass
     public static void setupClass() {
@@ -117,22 +110,16 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
         createAndRegisterTaskExecutorGateway();
         taskExecutorResourceID = ResourceID.generate();
-        resourceManagerResourceID = ResourceID.generate();
-        testingFatalErrorHandler = new TestingFatalErrorHandler();
-        TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-        resourceManager =
-                createAndStartResourceManager(rmLeaderElectionService, testingFatalErrorHandler);
-        rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+        createAndStartResourceManager();
+
         wronglyFencedGateway =
                 rpcService
                         .connect(
-                                resourceManager.getAddress(),
+                                rmGateway.getAddress(),
                                 ResourceManagerId.generate(),
                                 ResourceManagerGateway.class)
                         .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-        grantLeadership(rmLeaderElectionService)
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
     }
 
     private void createAndRegisterTaskExecutorGateway() {
@@ -141,67 +128,45 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
     }
 
-    private CompletableFuture<UUID> grantLeadership(
-            TestingLeaderElectionService leaderElectionService) {
-        UUID leaderSessionId = UUID.randomUUID();
-        return leaderElectionService.isLeader(leaderSessionId);
-    }
-
-    private StandaloneResourceManager createAndStartResourceManager(
-            LeaderElectionService rmLeaderElectionService, FatalErrorHandler fatalErrorHandler)
-            throws Exception {
-        TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServices();
-        HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, HEARTBEAT_TIMEOUT);
-        highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-
-        SlotManager slotManager =
-                SlotManagerBuilder.newBuilder()
-                        .setScheduledExecutor(rpcService.getScheduledExecutor())
+    private void createAndStartResourceManager() throws Exception {
+        final TestingLeaderElectionService leaderElectionService =
+                new TestingLeaderElectionService();
+        rmService =
+                TestingResourceManagerService.newBuilder()
+                        .setRpcService(rpcService)
+                        .setRmLeaderElectionService(leaderElectionService)
                         .build();
 
-        JobLeaderIdService jobLeaderIdService =
-                new DefaultJobLeaderIdService(
-                        highAvailabilityServices,
-                        rpcService.getScheduledExecutor(),
-                        Time.minutes(5L));
+        rmService.start();
+        rmService.isLeader(UUID.randomUUID());
 
-        StandaloneResourceManager resourceManager =
-                new StandaloneResourceManager(
-                        rpcService,
-                        resourceManagerResourceID,
-                        highAvailabilityServices,
-                        heartbeatServices,
-                        slotManager,
-                        NoOpResourceManagerPartitionTracker::get,
-                        jobLeaderIdService,
-                        new ClusterInformation("localhost", 1234),
-                        fatalErrorHandler,
-                        UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-                        Time.minutes(5L),
-                        RpcUtils.INF_TIMEOUT,
-                        ForkJoinPool.commonPool());
-
-        resourceManager.start();
-
-        return resourceManager;
+        leaderElectionService
+                .getConfirmationFuture()
+                .thenRun(
+                        () -> {
+                            rmGateway =
+                                    rmService
+                                            .getResourceManagerGateway()
+                                            .orElseThrow(
+                                                    () ->
+                                                            new AssertionError(
+                                                                    "RM not available after confirming leadership."));
+                        })
+                .get(TIMEOUT.getSize(), TIMEOUT.getUnit());
     }
 
     @After
     public void teardown() throws Exception {
-        if (resourceManager != null) {
-            RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
-        }
-
-        if (testingFatalErrorHandler != null && testingFatalErrorHandler.hasExceptionOccurred()) {
-            testingFatalErrorHandler.rethrowError();
+        if (rmService != null) {
+            rmService.rethrowFatalErrorIfAny();
+            rmService.cleanUp();
         }
     }
 
     @AfterClass
     public static void teardownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 
@@ -261,7 +226,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                                         }
                                         return rpcGateway;
                                     },
-                                    TestingUtils.defaultExecutor()));
+                                    EXECUTOR_RESOURCE.getExecutor()));
 
             TaskExecutorRegistration taskExecutorRegistration =
                     new TaskExecutorRegistration(
@@ -272,8 +237,9 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                             hardwareDescription,
                             new TaskExecutorMemoryConfiguration(
                                     1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
-                            ResourceProfile.ZERO,
-                            ResourceProfile.ZERO);
+                            DEFAULT_SLOT_PROFILE,
+                            DEFAULT_SLOT_PROFILE,
+                            taskExecutorGateway.getAddress());
 
             CompletableFuture<RegistrationResponse> firstFuture =
                     rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
@@ -331,13 +297,25 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     /** Tests that a TaskExecutor can disconnect from the {@link ResourceManager}. */
     @Test
     public void testDisconnectTaskExecutor() throws Exception {
+        final int numberSlots = 10;
+        final TaskExecutorRegistration taskExecutorRegistration =
+                new TaskExecutorRegistration(
+                        taskExecutorGateway.getAddress(),
+                        taskExecutorResourceID,
+                        dataPort,
+                        jmxPort,
+                        hardwareDescription,
+                        new TaskExecutorMemoryConfiguration(
+                                1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
+                        DEFAULT_SLOT_PROFILE,
+                        DEFAULT_SLOT_PROFILE.multiply(numberSlots),
+                        taskExecutorGateway.getAddress());
         final RegistrationResponse registrationResponse =
-                registerTaskExecutor(rmGateway, taskExecutorGateway.getAddress()).get();
+                rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT).get();
         assertThat(registrationResponse, instanceOf(TaskExecutorRegistrationSuccess.class));
 
         final InstanceID registrationId =
                 ((TaskExecutorRegistrationSuccess) registrationResponse).getRegistrationId();
-        final int numberSlots = 10;
         final Collection<SlotStatus> slots = createSlots(numberSlots);
         final SlotReport slotReport = new SlotReport(slots);
         rmGateway.sendSlotReport(taskExecutorResourceID, registrationId, slotReport, TIMEOUT).get();
@@ -407,8 +385,9 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         hardwareDescription,
                         new TaskExecutorMemoryConfiguration(
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
-                        ResourceProfile.ZERO,
-                        ResourceProfile.ZERO),
+                        DEFAULT_SLOT_PROFILE,
+                        DEFAULT_SLOT_PROFILE,
+                        taskExecutorAddress),
                 TIMEOUT);
     }
 }

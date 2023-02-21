@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -51,11 +49,21 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
             this.buffer = buffer;
             this.context = context;
         }
+
+        public void close() {
+            buffer.close();
+        }
     }
 
     BufferWithContext<Context> getBuffer(Info info) throws IOException, InterruptedException;
 
-    void recover(Info info, int oldSubtaskIndex, Context context) throws IOException;
+    /**
+     * Recover the data from buffer. This method is taking over the ownership of the
+     * bufferWithContext and is fully responsible for cleaning it up both on the happy path and in
+     * case of an error.
+     */
+    void recover(Info info, int oldSubtaskIndex, BufferWithContext<Context> bufferWithContext)
+            throws IOException;
 }
 
 class InputChannelRecoveredStateHandler
@@ -84,8 +92,12 @@ class InputChannelRecoveredStateHandler
     }
 
     @Override
-    public void recover(InputChannelInfo channelInfo, int oldSubtaskIndex, Buffer buffer)
+    public void recover(
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            BufferWithContext<Buffer> bufferWithContext)
             throws IOException {
+        Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
                 for (final RecoveredInputChannel channel : getMappedChannels(channelInfo)) {
@@ -143,8 +155,7 @@ class InputChannelRecoveredStateHandler
 }
 
 class ResultSubpartitionRecoveredStateHandler
-        implements RecoveredChannelStateHandler<
-                ResultSubpartitionInfo, Tuple2<BufferBuilder, BufferConsumer>> {
+        implements RecoveredChannelStateHandler<ResultSubpartitionInfo, BufferBuilder> {
 
     private final ResultPartitionWriter[] writers;
     private final boolean notifyAndBlockOnCompletion;
@@ -165,51 +176,39 @@ class ResultSubpartitionRecoveredStateHandler
     }
 
     @Override
-    public BufferWithContext<Tuple2<BufferBuilder, BufferConsumer>> getBuffer(
-            ResultSubpartitionInfo subpartitionInfo) throws IOException, InterruptedException {
+    public BufferWithContext<BufferBuilder> getBuffer(ResultSubpartitionInfo subpartitionInfo)
+            throws IOException, InterruptedException {
         // request the buffer from any mapped subpartition as they all will receive the same buffer
         final List<CheckpointedResultSubpartition> channels = getMappedChannels(subpartitionInfo);
         BufferBuilder bufferBuilder = channels.get(0).requestBufferBuilderBlocking();
-        return new BufferWithContext<>(
-                wrap(bufferBuilder),
-                Tuple2.of(bufferBuilder, bufferBuilder.createBufferConsumer()));
+        return new BufferWithContext<>(wrap(bufferBuilder), bufferBuilder);
     }
 
     @Override
     public void recover(
             ResultSubpartitionInfo subpartitionInfo,
             int oldSubtaskIndex,
-            Tuple2<BufferBuilder, BufferConsumer> bufferBuilderAndConsumer)
+            BufferWithContext<BufferBuilder> bufferWithContext)
             throws IOException {
-        try {
-            bufferBuilderAndConsumer.f0.finish();
-            if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
-                NetworkActionsLogger.traceRecover(
-                        "ResultSubpartitionRecoveredStateHandler#recover",
-                        bufferBuilderAndConsumer.f1,
-                        subpartitionInfo);
-                final List<CheckpointedResultSubpartition> channels =
-                        getMappedChannels(subpartitionInfo);
-                for (final CheckpointedResultSubpartition channel : channels) {
-                    // channel selector is created from the downstream's point of view: the subtask
-                    // of
-                    // downstream = subpartition index of recovered buffer
-                    final SubtaskConnectionDescriptor channelSelector =
-                            new SubtaskConnectionDescriptor(
-                                    subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
-                    channel.add(
-                            EventSerializer.toBufferConsumer(channelSelector, false),
-                            Integer.MIN_VALUE);
-                    boolean added =
-                            channel.add(bufferBuilderAndConsumer.f1.copy(), Integer.MIN_VALUE);
-                    if (!added) {
-                        throw new IOException(
-                                "Buffer consumer couldn't be added to ResultSubpartition");
+        try (BufferBuilder bufferBuilder = bufferWithContext.context) {
+            try (BufferConsumer bufferConsumer =
+                    bufferBuilder.createBufferConsumerFromBeginning()) {
+                bufferBuilder.finish();
+                if (bufferConsumer.isDataAvailable()) {
+                    final List<CheckpointedResultSubpartition> channels =
+                            getMappedChannels(subpartitionInfo);
+                    for (final CheckpointedResultSubpartition channel : channels) {
+                        // channel selector is created from the downstream's point of view: the
+                        // subtask of downstream = subpartition index of recovered buffer
+                        final SubtaskConnectionDescriptor channelSelector =
+                                new SubtaskConnectionDescriptor(
+                                        subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
+                        channel.addRecovered(
+                                EventSerializer.toBufferConsumer(channelSelector, false));
+                        channel.addRecovered(bufferConsumer.copy());
                     }
                 }
             }
-        } finally {
-            bufferBuilderAndConsumer.f1.close();
         }
     }
 

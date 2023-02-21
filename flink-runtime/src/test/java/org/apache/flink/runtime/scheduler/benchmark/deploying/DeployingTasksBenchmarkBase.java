@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
+import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
 
 import java.util.List;
 
@@ -33,16 +34,19 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createDefaultJobVertices;
 
 /** The base class of benchmarks related to deploying tasks. */
-public class DeployingTasksBenchmarkBase {
+public class DeployingTasksBenchmarkBase extends SchedulerBenchmarkBase {
 
     List<JobVertex> jobVertices;
     ExecutionGraph executionGraph;
 
-    public void createAndSetupExecutionGraph(JobConfiguration jobConfiguration) throws Exception {
+    public void setup(JobConfiguration jobConfiguration) throws Exception {
+        super.setup();
 
         jobVertices = createDefaultJobVertices(jobConfiguration);
 
-        executionGraph = createAndInitExecutionGraph(jobVertices, jobConfiguration);
+        executionGraph =
+                createAndInitExecutionGraph(
+                        jobVertices, jobConfiguration, scheduledExecutorService);
 
         final TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 
@@ -50,7 +54,7 @@ public class DeployingTasksBenchmarkBase {
             for (ExecutionVertex ev : ejv.getTaskVertices()) {
                 final LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
                 final Execution execution = ev.getCurrentExecutionAttempt();
-                execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
+                execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
                 if (!execution.tryAssignResource(slot)) {
                     throw new RuntimeException("Error when assigning slot to execution.");
                 }

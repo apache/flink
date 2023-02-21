@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -30,6 +31,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -120,15 +122,15 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
+    public int add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
         if (isFinished()) {
             bufferConsumer.close();
-            return false;
+            return -1;
         }
 
         flushCurrentBuffer();
         currentBuffer = bufferConsumer;
-        return true;
+        return Integer.MAX_VALUE;
     }
 
     @Override
@@ -213,6 +215,10 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
             checkState(!isReleased, "data partition already released");
             checkState(isFinished, "writing of blocking partition not yet finished");
 
+            if (!Files.isReadable(data.getFilePath())) {
+                throw new PartitionNotFoundException(parent.getPartitionId());
+            }
+
             final ResultSubpartitionView reader;
             if (useDirectFileTransfer) {
                 reader =
@@ -267,16 +273,36 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    protected long getTotalNumberOfBuffers() {
+    public int getNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    @Override
+    public void bufferSize(int desirableNewBufferSize) {
+        // not supported.
+    }
+
+    @Override
+    protected long getTotalNumberOfBuffersUnsafe() {
         return numBuffersAndEventsWritten;
     }
 
     @Override
-    protected long getTotalNumberOfBytes() {
+    protected long getTotalNumberOfBytesUnsafe() {
         return data.getSize();
     }
 
-    int getBuffersInBacklog() {
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) {
+        // Nothing to do.
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        // Nothing to do.
+    }
+
+    int getBuffersInBacklogUnsafe() {
         return numDataBuffersWritten;
     }
 

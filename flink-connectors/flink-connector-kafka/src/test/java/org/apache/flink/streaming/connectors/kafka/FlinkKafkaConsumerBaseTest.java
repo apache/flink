@@ -69,7 +69,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -84,23 +83,21 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -113,19 +110,19 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
     @Test
     @SuppressWarnings("unchecked")
     public void testEitherWatermarkExtractor() {
-        try {
-            new DummyFlinkKafkaConsumer<String>()
-                    .assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<String>) null);
-            fail();
-        } catch (NullPointerException ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                new DummyFlinkKafkaConsumer<String>()
+                                        .assignTimestampsAndWatermarks(
+                                                (AssignerWithPeriodicWatermarks<String>) null))
+                .isInstanceOf(NullPointerException.class);
 
-        try {
-            new DummyFlinkKafkaConsumer<String>()
-                    .assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<String>) null);
-            fail();
-        } catch (NullPointerException ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                new DummyFlinkKafkaConsumer<String>()
+                                        .assignTimestampsAndWatermarks(
+                                                (AssignerWithPunctuatedWatermarks<String>) null))
+                .isInstanceOf(NullPointerException.class);
 
         final AssignerWithPeriodicWatermarks<String> periodicAssigner =
                 mock(AssignerWithPeriodicWatermarks.class);
@@ -134,19 +131,13 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
         DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>();
         c1.assignTimestampsAndWatermarks(periodicAssigner);
-        try {
-            c1.assignTimestampsAndWatermarks(punctuatedAssigner);
-            fail();
-        } catch (IllegalStateException ignored) {
-        }
+        assertThatThrownBy(() -> c1.assignTimestampsAndWatermarks(punctuatedAssigner))
+                .isInstanceOf(IllegalStateException.class);
 
         DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>();
         c2.assignTimestampsAndWatermarks(punctuatedAssigner);
-        try {
-            c2.assignTimestampsAndWatermarks(periodicAssigner);
-            fail();
-        } catch (IllegalStateException ignored) {
-        }
+        assertThatThrownBy(() -> c2.assignTimestampsAndWatermarks(periodicAssigner))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /** Tests that no checkpoints happen when the fetcher is not running. */
@@ -166,12 +157,12 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(1, 1));
 
         // no state should have been checkpointed
-        assertFalse(listState.get().iterator().hasNext());
+        assertThat(listState.get().iterator().hasNext()).isFalse();
 
         // acknowledgement of the checkpoint should also not result in any offset commits
         consumer.notifyCheckpointComplete(1L);
-        assertNull(fetcher.getAndClearLastCommittedOffsets());
-        assertEquals(0, fetcher.getCommitCount());
+        assertThat(fetcher.getAndClearLastCommittedOffsets()).isNull();
+        assertThat(fetcher.getCommitCount()).isEqualTo(0);
     }
 
     /**
@@ -193,7 +184,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         // ensure that the list was cleared and refilled. while this is an implementation detail, we
         // use it here
         // to figure out that snapshotState() actually did something.
-        Assert.assertTrue(restoredListState.isClearCalled());
+        assertThat(restoredListState.isClearCalled()).isTrue();
 
         Set<Serializable> expected = new HashSet<>();
 
@@ -204,11 +195,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         int counter = 0;
 
         for (Serializable serializable : restoredListState.get()) {
-            assertTrue(expected.contains(serializable));
+            assertThat(expected).contains(serializable);
             counter++;
         }
 
-        assertEquals(expected.size(), counter);
+        assertThat(counter).isEqualTo(expected.size());
     }
 
     @Test
@@ -221,7 +212,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 consumer, false, null, true, // enable checkpointing; auto commit should be ignored
                 0, 1);
 
-        assertEquals(OffsetCommitMode.ON_CHECKPOINTS, consumer.getOffsetCommitMode());
+        assertThat(consumer.getOffsetCommitMode()).isEqualTo(OffsetCommitMode.ON_CHECKPOINTS);
     }
 
     @Test
@@ -231,7 +222,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
         setupConsumer(consumer);
 
-        assertEquals(OffsetCommitMode.KAFKA_PERIODIC, consumer.getOffsetCommitMode());
+        assertThat(consumer.getOffsetCommitMode()).isEqualTo(OffsetCommitMode.KAFKA_PERIODIC);
     }
 
     @Test
@@ -246,7 +237,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 consumer, false, null, true, // enable checkpointing; auto commit should be ignored
                 0, 1);
 
-        assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+        assertThat(consumer.getOffsetCommitMode()).isEqualTo(OffsetCommitMode.DISABLED);
     }
 
     @Test
@@ -256,11 +247,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
         setupConsumer(consumer);
 
-        assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+        assertThat(consumer.getOffsetCommitMode()).isEqualTo(OffsetCommitMode.DISABLED);
     }
 
     /**
-     * Tests that subscribed partitions didn't change when there's no change on the intial topics.
+     * Tests that subscribed partitions didn't change when there's no change on the initial topics.
      * (filterRestoredPartitionsWithDiscovered is active)
      */
     @Test
@@ -299,7 +290,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
     }
 
     /**
-     * Tests that subscribed partitions are the same when there's no change on the intial topics.
+     * Tests that subscribed partitions are the same when there's no change on the initial topics.
      * (filterRestoredPartitionsWithDiscovered is disabled)
      */
     @Test
@@ -374,11 +365,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets =
                 consumer.getSubscribedPartitionsToStartOffsets();
 
-        assertEquals(
-                new HashSet<>(expectedSubscribedPartitions),
-                subscribedPartitionsToStartOffsets.keySet().stream()
-                        .map(partition -> partition.getTopic())
-                        .collect(Collectors.toSet()));
+        assertThat(
+                        subscribedPartitionsToStartOffsets.keySet().stream()
+                                .map(partition -> partition.getTopic())
+                                .collect(Collectors.toSet()))
+                .isEqualTo(new HashSet<>(expectedSubscribedPartitions));
     }
 
     @Test
@@ -425,7 +416,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         runThread.start();
         fetcher.waitUntilRun();
 
-        assertEquals(0, consumer.getPendingOffsetsToCommit().size());
+        assertThat(consumer.getPendingOffsetsToCommit()).isEmpty();
 
         // checkpoint 1
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(138, 138));
@@ -438,9 +429,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
             snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
         }
 
-        assertEquals(state1, snapshot1);
-        assertEquals(1, consumer.getPendingOffsetsToCommit().size());
-        assertEquals(state1, consumer.getPendingOffsetsToCommit().get(138L));
+        assertThat(snapshot1).isEqualTo(state1);
+        assertThat(consumer.getPendingOffsetsToCommit()).hasSize(1);
+        assertThat(consumer.getPendingOffsetsToCommit().get(138L)).isEqualTo(state1);
 
         // checkpoint 2
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(140, 140));
@@ -453,16 +444,16 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
             snapshot2.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
         }
 
-        assertEquals(state2, snapshot2);
-        assertEquals(2, consumer.getPendingOffsetsToCommit().size());
-        assertEquals(state2, consumer.getPendingOffsetsToCommit().get(140L));
+        assertThat(snapshot2).isEqualTo(state2);
+        assertThat(consumer.getPendingOffsetsToCommit()).hasSize(2);
+        assertThat(consumer.getPendingOffsetsToCommit().get(140L)).isEqualTo(state2);
 
         // ack checkpoint 1
         consumer.notifyCheckpointComplete(138L);
-        assertEquals(1, consumer.getPendingOffsetsToCommit().size());
-        assertTrue(consumer.getPendingOffsetsToCommit().containsKey(140L));
-        assertEquals(state1, fetcher.getAndClearLastCommittedOffsets());
-        assertEquals(1, fetcher.getCommitCount());
+        assertThat(consumer.getPendingOffsetsToCommit()).hasSize(1);
+        assertThat(consumer.getPendingOffsetsToCommit()).containsKey(140L);
+        assertThat(fetcher.getAndClearLastCommittedOffsets()).isEqualTo(state1);
+        assertThat(fetcher.getCommitCount()).isEqualTo(1);
 
         // checkpoint 3
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
@@ -475,20 +466,20 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
             snapshot3.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
         }
 
-        assertEquals(state3, snapshot3);
-        assertEquals(2, consumer.getPendingOffsetsToCommit().size());
-        assertEquals(state3, consumer.getPendingOffsetsToCommit().get(141L));
+        assertThat(snapshot3).isEqualTo(state3);
+        assertThat(consumer.getPendingOffsetsToCommit()).hasSize(2);
+        assertThat(consumer.getPendingOffsetsToCommit().get(141L)).isEqualTo(state3);
 
         // ack checkpoint 3, subsumes number 2
         consumer.notifyCheckpointComplete(141L);
-        assertEquals(0, consumer.getPendingOffsetsToCommit().size());
-        assertEquals(state3, fetcher.getAndClearLastCommittedOffsets());
-        assertEquals(2, fetcher.getCommitCount());
+        assertThat(consumer.getPendingOffsetsToCommit()).isEmpty();
+        assertThat(fetcher.getAndClearLastCommittedOffsets()).isEqualTo(state3);
+        assertThat(fetcher.getCommitCount()).isEqualTo(2);
 
         consumer.notifyCheckpointComplete(666); // invalid checkpoint
-        assertEquals(0, consumer.getPendingOffsetsToCommit().size());
-        assertNull(fetcher.getAndClearLastCommittedOffsets());
-        assertEquals(2, fetcher.getCommitCount());
+        assertThat(consumer.getPendingOffsetsToCommit()).isEmpty();
+        assertThat(fetcher.getAndClearLastCommittedOffsets()).isNull();
+        assertThat(fetcher.getCommitCount()).isEqualTo(2);
 
         consumer.cancel();
         runThread.sync();
@@ -538,7 +529,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         runThread.start();
         fetcher.waitUntilRun();
 
-        assertEquals(0, consumer.getPendingOffsetsToCommit().size());
+        assertThat(consumer.getPendingOffsetsToCommit()).isEmpty();
 
         // checkpoint 1
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(138, 138));
@@ -551,11 +542,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
             snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
         }
 
-        assertEquals(state1, snapshot1);
-        assertEquals(
-                0,
-                consumer.getPendingOffsetsToCommit()
-                        .size()); // pending offsets to commit should not be updated
+        assertThat(snapshot1).isEqualTo(state1);
+        assertThat(consumer.getPendingOffsetsToCommit().size())
+                .isEqualTo(0); // pending offsets to commit should not be updated
 
         // checkpoint 2
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(140, 140));
@@ -568,16 +557,15 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
             snapshot2.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
         }
 
-        assertEquals(state2, snapshot2);
-        assertEquals(
-                0,
-                consumer.getPendingOffsetsToCommit()
-                        .size()); // pending offsets to commit should not be updated
+        assertThat(snapshot2).isEqualTo(state2);
+        assertThat(consumer.getPendingOffsetsToCommit().size())
+                .isEqualTo(0); // pending offsets to commit should not be updated
 
         // ack checkpoint 1
         consumer.notifyCheckpointComplete(138L);
-        assertEquals(0, fetcher.getCommitCount());
-        assertNull(fetcher.getAndClearLastCommittedOffsets()); // no offsets should be committed
+        assertThat(fetcher.getCommitCount()).isEqualTo(0);
+        assertThat(fetcher.getAndClearLastCommittedOffsets())
+                .isNull(); // no offsets should be committed
 
         // checkpoint 3
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
@@ -590,20 +578,20 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
             snapshot3.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
         }
 
-        assertEquals(state3, snapshot3);
-        assertEquals(
-                0,
-                consumer.getPendingOffsetsToCommit()
-                        .size()); // pending offsets to commit should not be updated
+        assertThat(snapshot3).isEqualTo(state3);
+        assertThat(consumer.getPendingOffsetsToCommit().size())
+                .isEqualTo(0); // pending offsets to commit should not be updated
 
         // ack checkpoint 3, subsumes number 2
         consumer.notifyCheckpointComplete(141L);
-        assertEquals(0, fetcher.getCommitCount());
-        assertNull(fetcher.getAndClearLastCommittedOffsets()); // no offsets should be committed
+        assertThat(fetcher.getCommitCount()).isEqualTo(0);
+        assertThat(fetcher.getAndClearLastCommittedOffsets())
+                .isNull(); // no offsets should be committed
 
         consumer.notifyCheckpointComplete(666); // invalid checkpoint
-        assertEquals(0, fetcher.getCommitCount());
-        assertNull(fetcher.getAndClearLastCommittedOffsets()); // no offsets should be committed
+        assertThat(fetcher.getCommitCount()).isEqualTo(0);
+        assertThat(fetcher.getAndClearLastCommittedOffsets())
+                .isNull(); // no offsets should be committed
 
         consumer.cancel();
         runThread.sync();
@@ -620,9 +608,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new DummyFlinkKafkaConsumer<>(failingPartitionDiscoverer);
 
         testFailingConsumerLifecycle(consumer, failureCause);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                failingPartitionDiscoverer.isClosed());
+        assertThat(failingPartitionDiscoverer.isClosed())
+                .as("partitionDiscoverer should be closed when consumer is closed")
+                .isTrue();
     }
 
     @Test
@@ -639,9 +627,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                         100L);
 
         testFailingConsumerLifecycle(consumer, failureCause);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                testPartitionDiscoverer.isClosed());
+        assertThat(testPartitionDiscoverer.isClosed())
+                .as("partitionDiscoverer should be closed when consumer is closed")
+                .isTrue();
     }
 
     @Test
@@ -662,9 +650,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new DummyFlinkKafkaConsumer<>(() -> mock, testPartitionDiscoverer, 100L);
 
         testFailingConsumerLifecycle(consumer, failureCause);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                testPartitionDiscoverer.isClosed());
+        assertThat(testPartitionDiscoverer.isClosed())
+                .as("partitionDiscoverer should be closed when consumer is closed")
+                .isTrue();
     }
 
     private void testFailingConsumerLifecycle(
@@ -678,10 +666,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                     "Exception should have been thrown from open / run method of FlinkKafkaConsumerBase.");
         } catch (Exception e) {
             assertThat(
-                    ExceptionUtils.findThrowable(
-                                    e, throwable -> throwable.equals(expectedException))
-                            .isPresent(),
-                    is(true));
+                            ExceptionUtils.findThrowable(
+                                    e, throwable -> throwable.equals(expectedException)))
+                    .isPresent();
         }
         testKafkaConsumer.close();
     }
@@ -694,9 +681,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new TestingFlinkKafkaConsumer<>(testPartitionDiscoverer, 100L);
 
         testNormalConsumerLifecycle(consumer);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                testPartitionDiscoverer.isClosed());
+        assertThat(testPartitionDiscoverer.isClosed())
+                .as("partitionDiscoverer should be closed when consumer is closed")
+                .isTrue();
     }
 
     private void testNormalConsumerLifecycle(FlinkKafkaConsumerBase<String> testKafkaConsumer)
@@ -739,10 +726,10 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         Tuple2<KafkaTopicPartition, Long> actualTuple =
                 InstantiationUtil.deserializeFromByteArray(kafkaConsumerSerializer, bytes);
 
-        Assert.assertEquals(
-                "Explicit Serializer is not compatible with previous method of creating Serializer using TypeHint.",
-                tuple,
-                actualTuple);
+        assertThat(actualTuple)
+                .as(
+                        "Explicit Serializer is not compatible with previous method of creating Serializer using TypeHint.")
+                .isEqualTo(tuple);
     }
 
     @Test
@@ -815,15 +802,14 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
             // make sure that no one else is subscribed to these partitions
             for (KafkaTopicPartition partition : subscribedPartitions.keySet()) {
-                assertThat(globalSubscribedPartitions, not(hasKey(partition)));
+                assertThat(globalSubscribedPartitions).satisfies(matching(not(hasKey(partition))));
             }
             globalSubscribedPartitions.putAll(subscribedPartitions);
         }
 
-        assertThat(globalSubscribedPartitions.values(), hasSize(numPartitions));
-        assertThat(
-                mockFetchedPartitionsOnStartup,
-                everyItem(isIn(globalSubscribedPartitions.keySet())));
+        assertThat(globalSubscribedPartitions.values()).satisfies(matching(hasSize(numPartitions)));
+        assertThat(mockFetchedPartitionsOnStartup)
+                .satisfies(matching(everyItem(isIn(globalSubscribedPartitions.keySet()))));
 
         OperatorSubtaskState[] state = new OperatorSubtaskState[initialParallelism];
 
@@ -884,15 +870,16 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
             // make sure that no one else is subscribed to these partitions
             for (KafkaTopicPartition partition : subscribedPartitions.keySet()) {
-                assertThat(restoredGlobalSubscribedPartitions, not(hasKey(partition)));
+                assertThat(restoredGlobalSubscribedPartitions)
+                        .satisfies(matching(not(hasKey(partition))));
             }
             restoredGlobalSubscribedPartitions.putAll(subscribedPartitions);
         }
 
-        assertThat(restoredGlobalSubscribedPartitions.values(), hasSize(restoredNumPartitions));
-        assertThat(
-                mockFetchedPartitionsOnStartup,
-                everyItem(isIn(restoredGlobalSubscribedPartitions.keySet())));
+        assertThat(restoredGlobalSubscribedPartitions.values())
+                .satisfies(matching(hasSize(restoredNumPartitions)));
+        assertThat(mockFetchedPartitionsOnStartup)
+                .satisfies(matching(everyItem(isIn(restoredGlobalSubscribedPartitions.keySet()))));
     }
 
     @Test
@@ -907,7 +894,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                         0);
 
         testHarness.open();
-        assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
+        assertThat(deserializationSchema.isOpenCalled()).as("Open method was not called").isTrue();
     }
 
     @Test
@@ -921,10 +908,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new TestingListState<>();
         setupConsumer(consumer, true, restoredListState, true, 0, 1);
 
-        assertThat(
-                "DeserializationSchema's open method was not invoked",
-                deserializationSchema.isOpenCalled(),
-                is(true));
+        assertThat(deserializationSchema.isOpenCalled())
+                .as("DeserializationSchema's open method was not invoked")
+                .isTrue();
     }
 
     // ------------------------------------------------------------------------
@@ -1517,6 +1503,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         @Override
         public boolean isRestored() {
             return isRestored;
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return isRestored ? OptionalLong.of(1L) : OptionalLong.empty();
         }
 
         @Override

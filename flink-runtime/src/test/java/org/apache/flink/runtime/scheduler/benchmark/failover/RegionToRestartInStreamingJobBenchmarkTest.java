@@ -36,5 +36,6 @@ public class RegionToRestartInStreamingJobBenchmarkTest extends TestLogger {
                 new RegionToRestartInStreamingJobBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.calculateRegionToRestart();
+        benchmark.teardown();
     }
 }

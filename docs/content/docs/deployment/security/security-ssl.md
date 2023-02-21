@@ -182,7 +182,7 @@ You need to have an appropriate Java Keystore and Truststore accessible from eac
 
   - For standalone setups, this means copying the files to each node, or adding them to a shared mounted directory.
   - For container based setups, add the keystore and truststore files to the container images.
-  - For Yarn/Mesos setups, the cluster deployment phase can automatically distribute the keystore and truststore files.
+  - For Yarn setups, the cluster deployment phase can automatically distribute the keystore and truststore files.
 
 For the externally facing REST endpoint, the common name or subject alternative names in the certificate should match the node's hostname and IP address.
 
@@ -303,9 +303,9 @@ If mutual SSL is enabled:
 $ curl --cacert rest.pem --cert rest.pem flink_url
 ```
 
-## Tips for YARN / Mesos Deployment
+## Tips for YARN Deployment
 
-For YARN and Mesos, you can use the tools of Yarn and Mesos to help:
+For YARN, you can use the tools of Yarn to help:
 
   - Configuring security for internal communication is exactly the same as in the example above.
 

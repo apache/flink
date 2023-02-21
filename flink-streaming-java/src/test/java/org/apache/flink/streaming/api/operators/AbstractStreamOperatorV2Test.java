@@ -21,14 +21,26 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.TestHarnessUtil;
 
+import org.junit.Test;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 
 /** Tests for the facilities provided by {@link AbstractStreamOperatorV2}. */
 public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
@@ -55,6 +67,122 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
         @Override
         public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
             return SingleInputTestOperator.class;
+        }
+    }
+
+    @Test
+    public void testIdleWatermarkHandling() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        KeySelector<Long, Integer> dummyKeySelector = l -> 0;
+        try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
+                new KeyedMultiInputStreamOperatorTestHarness<>(
+                        new WatermarkTestingOperatorFactory(), BasicTypeInfo.INT_TYPE_INFO)) {
+            testHarness.setKeySelector(0, dummyKeySelector);
+            testHarness.setKeySelector(1, dummyKeySelector);
+            testHarness.setKeySelector(2, dummyKeySelector);
+            testHarness.setup();
+            testHarness.open();
+            testHarness.processElement(0, new StreamRecord<>(1L, 1L));
+            testHarness.processElement(0, new StreamRecord<>(3L, 3L));
+            testHarness.processElement(0, new StreamRecord<>(4L, 4L));
+            testHarness.processWatermark(0, new Watermark(1L));
+            assertThat(testHarness.getOutput(), empty());
+
+            testHarness.processWatermarkStatus(1, WatermarkStatus.IDLE);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+            testHarness.processWatermarkStatus(2, WatermarkStatus.IDLE);
+            expectedOutput.add(new StreamRecord<>(1L));
+            expectedOutput.add(new Watermark(1L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+
+            testHarness.processWatermark(0, new Watermark(3L));
+            expectedOutput.add(new StreamRecord<>(3L));
+            expectedOutput.add(new Watermark(3L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+
+            testHarness.processWatermarkStatus(1, WatermarkStatus.ACTIVE);
+            // the other input is active now, we should not emit the watermark
+            testHarness.processWatermark(0, new Watermark(4L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        }
+    }
+
+    @Test
+    public void testIdlenessForwarding() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
+                new KeyedMultiInputStreamOperatorTestHarness<>(
+                        new WatermarkTestingOperatorFactory(), BasicTypeInfo.INT_TYPE_INFO)) {
+            testHarness.setup();
+            testHarness.open();
+
+            testHarness.processWatermarkStatus(0, WatermarkStatus.IDLE);
+            testHarness.processWatermarkStatus(1, WatermarkStatus.IDLE);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+            testHarness.processWatermarkStatus(2, WatermarkStatus.IDLE);
+            expectedOutput.add(WatermarkStatus.IDLE);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        }
+    }
+
+    private static class WatermarkTestingOperatorFactory
+            extends AbstractStreamOperatorFactory<Long> {
+        @Override
+        public <T extends StreamOperator<Long>> T createStreamOperator(
+                StreamOperatorParameters<Long> parameters) {
+            return (T) new WatermarkTestingOperator(parameters);
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return WatermarkTestingOperator.class;
+        }
+    }
+
+    private static class WatermarkTestingOperator extends AbstractStreamOperatorV2<Long>
+            implements MultipleInputStreamOperator<Long>, Triggerable<Integer, VoidNamespace> {
+
+        private transient InternalTimerService<VoidNamespace> timerService;
+
+        public WatermarkTestingOperator(StreamOperatorParameters<Long> parameters) {
+            super(parameters, 3);
+        }
+
+        @Override
+        public void open() throws Exception {
+            super.open();
+
+            this.timerService =
+                    getInternalTimerService("test-timers", VoidNamespaceSerializer.INSTANCE, this);
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            output.collect(new StreamRecord<>(timer.getTimestamp()));
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
+                throws Exception {}
+
+        private Input<Long> createInput(int idx) {
+            return new AbstractInput<Long, Long>(this, idx) {
+                @Override
+                public void processElement(StreamRecord<Long> element) throws Exception {
+                    timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, element.getValue());
+                }
+            };
+        }
+
+        @Override
+        public List<Input> getInputs() {
+            return Arrays.asList(createInput(1), createInput(2), createInput(3));
         }
     }
 

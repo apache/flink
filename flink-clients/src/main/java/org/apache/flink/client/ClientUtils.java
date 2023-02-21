@@ -18,7 +18,9 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -26,13 +28,13 @@ import org.apache.flink.client.program.StreamContextEnvironment;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobInitializationException;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -43,8 +45,11 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utility functions for Flink client. */
@@ -62,21 +67,7 @@ public enum ClientUtils {
         for (int i = 0; i < classpaths.size(); i++) {
             urls[i + jars.size()] = classpaths.get(i);
         }
-        final String[] alwaysParentFirstLoaderPatterns =
-                CoreOptions.getParentFirstLoaderPatterns(configuration);
-        final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-        FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
-                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-        final boolean checkClassloaderLeak =
-                configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
-        return FlinkUserCodeClassLoaders.create(
-                resolveOrder,
-                urls,
-                parent,
-                alwaysParentFirstLoaderPatterns,
-                NOOP_EXCEPTION_HANDLER,
-                checkClassloaderLeak);
+        return FlinkUserCodeClassLoaders.create(urls, parent, configuration);
     }
 
     public static void executeProgram(
@@ -159,5 +150,39 @@ public enum ClientUtils {
             ExceptionUtils.checkInterrupted(throwable);
             throw new RuntimeException("Error while waiting for job to be initialized", throwable);
         }
+    }
+
+    /**
+     * The client reports the heartbeat to the dispatcher for aliveness.
+     *
+     * @param jobClient The job client.
+     * @param interval The heartbeat interval.
+     * @param timeout The heartbeat timeout.
+     * @return The ScheduledExecutorService which reports heartbeat periodically.
+     */
+    public static ScheduledExecutorService reportHeartbeatPeriodically(
+            JobClient jobClient, long interval, long timeout) {
+        checkArgument(
+                interval < timeout,
+                "The client's heartbeat interval "
+                        + "should be less than the heartbeat timeout. Please adjust the param '"
+                        + ClientOptions.CLIENT_HEARTBEAT_INTERVAL
+                        + "' or '"
+                        + ClientOptions.CLIENT_HEARTBEAT_TIMEOUT
+                        + "'");
+
+        JobID jobID = jobClient.getJobID();
+        LOG.info("Begin to report client's heartbeat for the job {}.", jobID);
+
+        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        scheduledExecutor.scheduleAtFixedRate(
+                () -> {
+                    LOG.debug("Report client's heartbeat for the job {}.", jobID);
+                    jobClient.reportHeartbeat(System.currentTimeMillis() + timeout);
+                },
+                interval,
+                interval,
+                TimeUnit.MILLISECONDS);
+        return scheduledExecutor;
     }
 }

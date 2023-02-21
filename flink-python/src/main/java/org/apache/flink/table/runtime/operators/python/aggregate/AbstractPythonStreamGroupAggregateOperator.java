@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -35,7 +35,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -80,13 +80,12 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
             RowType inputType,
             RowType outputType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore,
             long minRetentionTime,
-            long maxRetentionTime,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            long maxRetentionTime) {
         super(
                 config,
                 inputType,
@@ -95,9 +94,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                "flink:coder:schema:aggregate_function:v1",
-                outputMode);
+                generateUpdateBefore);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;
@@ -149,16 +146,16 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawUdfResult = resultTuple.f0;
-        int length = resultTuple.f1;
+    public void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception {
+        byte[] rawUdfResult = resultTuple.f1;
+        int length = resultTuple.f2;
         bais.setBuffer(rawUdfResult, 0, length);
         RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
         rowDataWrapper.collect(udfResult);
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> fields = new ArrayList<>();
         fields.add(new RowType.RowField("record_type", new TinyIntType()));
         fields.add(new RowType.RowField("row", inputType));
@@ -168,7 +165,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         return outputType;
     }
 

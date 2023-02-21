@@ -31,6 +31,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -45,6 +46,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -137,6 +139,29 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 
         StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
         assertThat(actualStateBackend, instanceOf(MemoryStateBackend.class));
+    }
+
+    @Test
+    public void testOverridingChangelogStateBackendWithFromConfigurationWhenSet() {
+        StreamExecutionEnvironment envFromConfiguration =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        assertEquals(
+                TernaryBoolean.UNDEFINED, envFromConfiguration.isChangelogStateBackendEnabled());
+
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(ENABLE_STATE_CHANGE_LOG, true);
+        envFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+        assertEquals(TernaryBoolean.TRUE, envFromConfiguration.isChangelogStateBackendEnabled());
+
+        envFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+        assertEquals(TernaryBoolean.TRUE, envFromConfiguration.isChangelogStateBackendEnabled());
+
+        configuration.setBoolean(ENABLE_STATE_CHANGE_LOG, false);
+        envFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+        assertEquals(TernaryBoolean.FALSE, envFromConfiguration.isChangelogStateBackendEnabled());
     }
 
     @Test

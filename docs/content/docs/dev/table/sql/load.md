@@ -46,7 +46,7 @@ The following examples show how to run a LOAD statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "Python" >}}
 
-LOAD statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful LOAD operation; otherwise, it will throw an exception.
+LOAD statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful LOAD operation; otherwise, it will throw an exception.
 
 The following examples show how to run a LOAD statement in `TableEnvironment`.
 
@@ -67,7 +67,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // load a hive module
-tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')");
+tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.3')");
 tEnv.executeSql("SHOW MODULES").print();
 // +-------------+
 // | module name |
@@ -84,7 +84,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
 // load a hive module
-tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")
+tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.3')")
 tEnv.executeSql("SHOW MODULES").print()
 // +-------------+
 // | module name |
@@ -97,11 +97,10 @@ tEnv.executeSql("SHOW MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 # load a hive module
-table_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")
+table_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '3.1.3')")
 table_env.execute_sql("SHOW MODULES").print()
 # +-------------+
 # | module name |
@@ -114,7 +113,7 @@ table_env.execute_sql("SHOW MODULES").print()
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
-Flink SQL> LOAD MODULE hive WITH ('hive-version' = '3.1.2');
+Flink SQL> LOAD MODULE hive WITH ('hive-version' = '3.1.3');
 [INFO] Load module succeeded!
 
 Flink SQL> SHOW MODULES;

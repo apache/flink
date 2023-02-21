@@ -18,6 +18,8 @@
 
 package org.apache.flink.testutils.junit;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -25,25 +27,34 @@ import java.lang.annotation.Target;
 /**
  * Annotation to use with {@link RetryRule}.
  *
- * <p>Add the {@link RetryRule} to your test and annotate tests with {@link RetryOnFailure}.
+ * <p>Add the {@link RetryRule} to your test class and annotate the class and/or tests with {@link
+ * RetryOnFailure}.
  *
  * <pre>
+ * {@literal @}RetryOnFailure(times=1)
  * public class YourTest {
  *
  *     {@literal @}Rule
  *     public RetryRule retryRule = new RetryRule();
  *
  *     {@literal @}Test
- *     {@literal @}RetryOnFailure(times=1)
  *     public void yourTest() {
  *         // This will be retried 1 time (total runs 2) before failing the test.
+ *         throw new Exception("Failing test");
+ *     }
+ *
+ *     {@literal @}Test
+ *     {@literal @}RetryOnFailure(times=2)
+ *     public void yourTest() {
+ *         // This will be retried 2 time (total runs 3) before failing the test.
  *         throw new Exception("Failing test");
  *     }
  * }
  * </pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({java.lang.annotation.ElementType.METHOD})
+@Target({java.lang.annotation.ElementType.METHOD, ElementType.TYPE})
+@Inherited
 public @interface RetryOnFailure {
     int times();
 }

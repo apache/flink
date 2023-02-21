@@ -35,78 +35,108 @@ Structure of Table API and SQL Programs
 
 The following code example shows the common structure of Table API and SQL programs.
 
+{{< hint warning >}}
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+
+See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
+{{< /hint >}}
+
 {{< tabs "0727d1e7-3f22-4eba-a25f-6a554b6a1359" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.connector.datagen.table.DataGenConnectorOptions;
 
-// create a TableEnvironment for batch or streaming execution
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// Create a TableEnvironment for batch or streaming execution.
+// See the "Create a TableEnvironment" section for details.
+TableEnvironment tableEnv = TableEnvironment.create(/*…*/);
 
-// create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )");
-// register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )");
+// Create a source table
+tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datagen")
+    .schema(Schema.newBuilder()
+      .column("f0", DataTypes.STRING())
+      .build())
+    .option(DataGenConnectorOptions.ROWS_PER_SECOND, 100L)
+    .build());
 
-// create a Table object from a Table API query
-Table table2 = tableEnv.from("table1").select(...);
-// create a Table object from a SQL query
-Table table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
+// Create a sink table (using SQL DDL)
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ");
 
-// emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = table2.executeInsert("outputTable");
-tableResult...
+// Create a Table object from a Table API query
+Table table1 = tableEnv.from("SourceTable");
 
+// Create a Table object from a SQL query
+Table table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+
+// Emit a Table API result Table to a TableSink, same for SQL result
+TableResult tableResult = table1.insertInto("SinkTable").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
+import org.apache.flink.table.api._
+import org.apache.flink.connector.datagen.table.DataGenConnectorOptions
 
-// create a TableEnvironment for batch or streaming execution
-val tableEnv = ... // see "Create a TableEnvironment" section
+// Create a TableEnvironment for batch or streaming execution.
+// See the "Create a TableEnvironment" section for details.
+val tableEnv = TableEnvironment.create(/*…*/)
 
-// create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
-// register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
+// Create a source table
+tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datagen")
+  .schema(Schema.newBuilder()
+    .column("f0", DataTypes.STRING())
+    .build())
+  .option(DataGenConnectorOptions.ROWS_PER_SECOND, 100L)
+  .build())
 
-// create a Table from a Table API query
-val table2 = tableEnv.from("table1").select(...)
-// create a Table from a SQL query
-val table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
+// Create a sink table (using SQL DDL)
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
 
-// emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = table2.executeInsert("outputTable")
-tableResult...
+// Create a Table object from a Table API query
+val table1 = tableEnv.from("SourceTable")
 
+// Create a Table object from a SQL query
+val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable")
+
+// Emit a Table API result Table to a TableSink, same for SQL result
+val tableResult = table1.insertInto("SinkTable").execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.table import *
 
-# create a TableEnvironment for batch or streaming execution
+# Create a TableEnvironment for batch or streaming execution
 table_env = ... # see "Create a TableEnvironment" section
 
-# register an input Table
-table_env.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
-# register an output Table
-table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
+# Create a source table
+table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
+  f0 STRING
+) WITH (
+  'connector' = 'datagen',
+  'rows-per-second' = '100'
+)
+""")
 
-# create a Table from a Table API query
-table2 = table_env.from_path("table1").select(...)
-# create a Table from a SQL query
-table3 = table_env.sql_query("SELECT ... FROM table1 ...")
+# Create a sink table
+table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
 
-# emit a Table API result Table to a TableSink, same for SQL result
-table_result = table3.execute_insert("outputTable")
-table_result...
+# Create a Table from a Table API query
+table1 = table_env.from_path("SourceTable").select(...)
 
+# Create a Table from a SQL query
+table2 = table_env.sql_query("SELECT ... FROM SourceTable ...")
+
+# Emit a Table API result Table to a TableSink, same for SQL result
+table_result = table1.execute_insert("SinkTable")
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< hint info >}}
 Table API and SQL queries can be easily integrated with and embedded into DataStream programs.
-Have a look at the [Integration with DataStream](#integration-with-datastream) section to learn how DataStreams can be converted into Tables and vice versa.
+Have a look at the [DataStream API Integration]({{< ref "docs/dev/table/data_stream_api" >}}) page
+to learn how DataStreams can be converted into Tables and vice versa.
 {{< /hint >}}
 
 {{< top >}}
@@ -121,8 +151,7 @@ The `TableEnvironment` is the entrypoint for Table API and SQL integration and i
 * Loading pluggable modules
 * Executing SQL queries
 * Registering a user-defined (scalar, table, or aggregation) function
-* Converting a `DataStream` into a `Table`
-* In case of `StreamTableEnvironment` holding a reference to a `StreamExecutionEnvironment`
+* Converting between `DataStream` and `Table` (in case of `StreamTableEnvironment`)
 
 A `Table` is always bound to a specific `TableEnvironment`.
 It is not possible to combine tables of different TableEnvironments in the same query, e.g., to join or union them.
@@ -140,7 +169,7 @@ EnvironmentSettings settings = EnvironmentSettings
     //.inBatchMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(setting);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -153,19 +182,19 @@ val settings = EnvironmentSettings
     //.inBatchMode()
     .build()
 
-val tEnv = TableEnvironment.create(setting)
+val tEnv = TableEnvironment.create(settings)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+# create a streaming TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# create a blink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+# create a batch TableEnvironment
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 ```
@@ -251,7 +280,7 @@ the query is correct it can be run against the real production table.
 
 #### Virtual Tables
 
-A `Table` API object corresponds to a `VIEW` (virtual table) in a SQL terms. It encapsulates a logical
+A `Table` API object corresponds to a `VIEW` (virtual table) in SQL terms. It encapsulates a logical
 query plan. It can be created in a catalog as follows:
 
 {{< tabs "180b1bfe-5749-4b96-a120-e186fd361c8d" >}}
@@ -306,9 +335,44 @@ registered `Table` will *not* be shared.
 It is also possible to create a `TABLE` as known from relational databases from a [connector]({{< ref "docs/connectors/table/overview" >}}) declaration.
 The connector describes the external system that stores the data of a table. Storage systems such as Apache Kafka or a regular file system can be declared here.
 
-```sql
-tableEnvironment.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
+Such tables can either be created using the Table API directly, or by switching to SQL DDL.
+
+{{< tabs "059e9a56-282c-5e78-98d3-85be5abd04a2" >}}
+{{< tab "Java" >}}
+```java
+// Using table descriptors
+final TableDescriptor sourceDescriptor = TableDescriptor.forConnector("datagen")
+    .schema(Schema.newBuilder()
+    .column("f0", DataTypes.STRING())
+    .build())
+    .option(DataGenConnectorOptions.ROWS_PER_SECOND, 100L)
+    .build();
+
+tableEnv.createTable("SourceTableA", sourceDescriptor);
+tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
+
+// Using SQL DDL
+tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# Using table descriptors
+source_descriptor = TableDescriptor.for_connector("datagen") \
+    .schema(Schema.new_builder()
+            .column("f0", DataTypes.STRING())
+            .build()) \
+    .option("rows-per-second", "100") \
+    .build()
+
+t_env.create_table("SourceTableA", source_descriptor)
+t_env.create_temporary_table("SourceTableB", source_descriptor)
+
+# Using SQL DDL
+t_env.execute_sql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Expanding Table identifiers
 
@@ -351,11 +415,11 @@ tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table);
 {{< tab "Scala" >}}
 ```scala
 // get a TableEnvironment
-val tEnv: TableEnvironment = ...;
+val tEnv: TableEnvironment = ...
 tEnv.useCatalog("custom_catalog")
 tEnv.useDatabase("custom_database")
 
-val table: Table = ...;
+val table: Table = ...
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -372,6 +436,28 @@ tableEnv.createTemporaryView("`example.View`", table)
 // register the view named 'exampleView' in the catalog named 'other_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# get a TableEnvironment
+t_env = TableEnvironment.create(...)
+t_env.use_catalog("custom_catalog")
+t_env.use_database("custom_database")
+
+table = ...
+
+# register the view named 'exampleView' in the catalog named 'custom_catalog'
+# in the database named 'custom_database'
+t_env.create_temporary_view("other_database.exampleView", table)
+
+# register the view named 'example.View' in the catalog named 'custom_catalog'
+# in the database named 'custom_database'
+t_env.create_temporary_view("`example.View`", table)
+
+# register the view named 'exampleView' in the catalog named 'other_catalog'
+# in the database named 'other_database'
+t_env.create_temporary_view("other_catalog.other_database.exampleView", table)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -402,7 +488,7 @@ Table orders = tableEnv.from("Orders");
 // compute revenue for all customers from France
 Table revenue = orders
   .filter($("cCountry").isEqual("FRANCE"))
-  .groupBy($("cID"), $("cName")
+  .groupBy($("cID"), $("cName"))
   .select($("cID"), $("cName"), $("revenue").sum().as("revSum"));
 
 // emit or convert Table
@@ -443,9 +529,9 @@ table_env = # see "Create a TableEnvironment" section
 orders = table_env.from_path("Orders")
 # compute revenue for all customers from France
 revenue = orders \
-    .filter(orders.cCountry == 'FRANCE') \
-    .group_by(orders.cID, orders.cName) \
-    .select(orders.cID, orders.cName, orders.revenue.sum.alias('revSum'))
+    .filter(col('cCountry') == 'FRANCE') \
+    .group_by(col('cID'), col('cName')) \
+    .select(col('cID'), col('cName'), col('revenue').sum.alias('revSum'))
 
 # emit or convert Table
 # execute query
@@ -607,7 +693,9 @@ A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Ta
 
 Please see the documentation about [Table Sources & Sinks]({{< ref "docs/dev/table/sourcesSinks" >}}) for details about available sinks and instructions for how to implement a custom `DynamicTableSink`.
 
-The `Table.executeInsert(String tableName)` method emits the `Table` to a registered `TableSink`. The method looks up the `TableSink` from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the `TableSink`. 
+The `Table.insertInto(String tableName)` method defines a complete end-to-end pipeline emitting the source table to a registered sink table.
+The method looks up the table sink from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the sink.
+A pipeline can be explained with `TablePipeline.explain()` and executed invoking `TablePipeline.execute()`.
 
 The following examples shows how to emit a `Table`:
 
@@ -618,22 +706,31 @@ The following examples shows how to emit a `Table`:
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // create an output Table
-final Schema schema = new Schema()
-    .field("a", DataTypes.INT())
-    .field("b", DataTypes.STRING())
-    .field("c", DataTypes.BIGINT());
+final Schema schema = Schema.newBuilder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build();
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("CsvSinkTable");
+tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build());
 
 // compute a result Table using Table API operators and/or SQL queries
-Table result = ...
+Table result = ...;
+
+// Prepare the insert into pipeline
+TablePipeline pipeline = result.insertInto("CsvSinkTable");
+
+// Print explain details
+pipeline.printExplain();
 
 // emit the result Table to the registered TableSink
-result.executeInsert("CsvSinkTable");
-
+pipeline.execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -642,21 +739,31 @@ result.executeInsert("CsvSinkTable");
 val tableEnv = ... // see "Create a TableEnvironment" section
 
 // create an output Table
-val schema = new Schema()
-    .field("a", DataTypes.INT())
-    .field("b", DataTypes.STRING())
-    .field("c", DataTypes.BIGINT())
+val schema = Schema.newBuilder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build()
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("CsvSinkTable")
+tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build())
 
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
 
+// Prepare the insert into pipeline
+val pipeline = result.insertInto("CsvSinkTable")
+
+// Print explain details
+pipeline.printExplain()
+
 // emit the result Table to the registered TableSink
-result.executeInsert("CsvSinkTable")
+pipeline.execute()
 
 ```
 {{< /tab >}}
@@ -666,15 +773,19 @@ result.executeInsert("CsvSinkTable")
 table_env = ... # see "Create a TableEnvironment" section
 
 # create a TableSink
-table_env.connect(FileSystem().path("/path/to/file")))
-    .with_format(Csv()
-                 .field_delimiter(',')
-                 .deriveSchema())
-    .with_schema(Schema()
-                 .field("a", DataTypes.INT())
-                 .field("b", DataTypes.STRING())
-                 .field("c", DataTypes.BIGINT()))
-    .create_temporary_table("CsvSinkTable")
+schema = Schema.new_builder()
+    .column("a", DataTypes.INT())
+    .column("b", DataTypes.STRING())
+    .column("c", DataTypes.BIGINT())
+    .build()
+    
+table_env.create_temporary_table("CsvSinkTable", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/path/to/file")
+    .format(FormatDescriptor.for_format("csv")
+        .option("field-delimiter", "|")
+        .build())
+    .build())
 
 # compute a result Table using Table API operators and/or SQL queries
 result = ...
@@ -692,497 +803,21 @@ result.execute_insert("CsvSinkTable")
 Translate and Execute a Query
 -----------------------------
 
-The behavior of translating and executing a query is different for the two planners.
 Table API and SQL queries are translated into [DataStream]({{< ref "docs/dev/datastream/overview" >}}) programs whether their input is streaming or batch.
 A query is internally represented as a logical query plan and is translated in two phases:
 
 1. Optimization of the logical plan,
 2. Translation into a DataStream program.
 
-a Table API or SQL query is translated when:
+A Table API or SQL query is translated when:
 
 * `TableEnvironment.executeSql()` is called. This method is used for executing a given statement, and the sql query is translated immediately once this method is called.
-* `Table.executeInsert()` is called. This method is used for inserting the table content to the given sink path, and the Table API is translated immediately once this method is called.
-* `Table.execute()` is called. This method is used for collecting the table content to local client, and the Table API is translated immediately once this method is called.
-* `StatementSet.execute()` is called. A `Table` (emitted to a sink through `StatementSet.addInsert()`) or an INSERT statement (specified through `StatementSet.addInsertSql()`) will be buffered in `StatementSet` first. They are translated once `StatementSet.execute()` is called. All sinks will be optimized into one DAG.
+* `TablePipeline.execute()` is called. This method is used for executing a source-to-sink pipeline, and the Table API program is translated immediately once this method is called.
+* `Table.execute()` is called. This method is used for collecting the table content to the local client, and the Table API is translated immediately once this method is called.
+* `StatementSet.execute()` is called. A `TablePipeline` (emitted to a sink through `StatementSet.add()`) or an INSERT statement (specified through `StatementSet.addInsertSql()`) will be buffered in `StatementSet` first. They are transformed once `StatementSet.execute()` is called. All sinks will be optimized into one DAG.
 * A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream](#integration-with-datastream)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
 
 {{< top >}}
-
-Integration with DataStream 
----------------------------
-
-Table API and SQL queries can be easily integrated with and embedded into [DataStream]({{< ref "docs/dev/datastream/overview" >}}) programs.
-For instance, it is possible to query an external table (for example from a RDBMS), do some pre-processing, such as filtering, projecting, aggregating, or joining with metadata,
-and then further process the data with the DataStream API.
-Inversely, a Table API or SQL query can also be applied on the result of a DataStream program.
-
-### Implicit Conversion for Scala
-
-The Scala Table API features implicit conversions for `DataStream` and `Table` classes.
-These conversions are enabled by importing the package `org.apache.flink.table.api.bridge.scala._` in addition to `org.apache.flink.api.scala._` for the Scala DataStream API.
-
-### Create a View from a DataStream
-
-A `DataStream` can be registered in a `TableEnvironment` as a View and the schema is dependent only the `DataStream`s underlying data type.
-Please see the section about [mapping of data types to table schema](#mapping-of-data-types-to-table-schema) for details.
-
-**Note:** Views created from a `DataStream` can only be registered as temporary views.
-
-{{< tabs "03d19c44-b994-4991-8c66-00189a2ec5d5" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
-
-DataStream<Tuple2<Long, String>> stream = ...
-
-// register the DataStream as View "myTable" with fields "f0", "f1"
-tableEnv.createTemporaryView("myTable", stream);
-
-// register the DataStream as View "myTable2" with fields "myLong", "myString"
-tableEnv.createTemporaryView("myTable2", stream, $("myLong"), $("myString"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv: StreamTableEnvironment = ???
-
-val stream: DataStream[(Long, String)] = ...
-
-// Register the DataStream as View "myTable" with fields "f0", "f1"
-tableEnv.createTemporaryView("myTable", stream)
-
-// Register the DataStream as View "myTable2" with fields "myLong", "myString"
-tableEnv.createTemporaryView("myTable2", stream, $"myLong", $"myString");
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-{{< top >}}
-
-### Convert a DataStream into a Table
-
-A `DataStream` can be directly converted to a `Table` in a `StreamTableEnvironment`.
-The schema of the resulting view depends on the data type of the registered collection.
-
-{{< tabs "f2b3f22a-9ffe-4373-bf20-e1e24277e5c4" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; 
-DataStream<Tuple2<Long, String>> stream = ...
-
-Table table2 = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv: StreamTableEnvironment = ???
-val stream: DataStream[(Long, String)] = ???
-
-val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-{{< top >}}
-
-### Convert a Table into a DataStream 
-
-The results of a `Table` can be converted into a `DataStream`.
-In this way, custom `DataStream` programs can be run on the result of a Table API or SQL query.
-
-When converting a `Table` into a `DataStream` you need to specify the data type of the resulting records, i.e., the data type into which the rows of the `Table` are to be converted.
-Often the most convenient conversion type is `Row`.
-The following list gives an overview of the features of the different options:
-
-- **Row**: fields are mapped by position, arbitrary number of fields, support for `null` values, no type-safe access.
-- **POJO**: fields are mapped by name (POJO fields must be named as `Table` fields), arbitrary number of fields, support for `null` values, type-safe access.
-- **Case Class**: fields are mapped by position, no support for `null` values, type-safe access.
-- **Tuple**: fields are mapped by position, limitation to 22 (Scala) or 25 (Java) fields, no support for `null` values, type-safe access.
-- **Atomic Type**: `Table` must have a single field, no support for `null` values, type-safe access.
-
-#### Convert a Table into a DataStream
-
-A `Table` that is the result of a streaming query will be updated dynamically, i.e., it is changing as new records arrive on the query's input streams. Hence, the `DataStream` into which such a dynamic query is converted needs to encode the updates of the table. 
-
-There are two modes to convert a `Table` into a `DataStream`:
-
-1. **Append Mode**: This mode can only be used if the dynamic `Table` is only modified by `INSERT` changes, i.e, it is append-only and previously emitted results are never updated.
-2. **Retract Mode**: This mode can always be used. It encodes `INSERT` and `DELETE` changes with a `boolean` flag.
-
-{{< tabs "cbee265a-216d-44c7-8423-cd5cd7f56e35" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; 
-
-Table table = tableEnv.fromValues(
-    DataTypes.Row(
-        DataTypes.FIELD("name", DataTypes.STRING()),
-        DataTypes.FIELD("age", DataTypes.INT()),
-    row("john", 35),
-    row("sarah", 32));
-
-// Convert the Table into an append DataStream of Row by specifying the class
-DataStream<Row> dsRow = tableEnv.toAppendStream(table, Row.class);
-
-// Convert the Table into an append DataStream of Tuple2<String, Integer> with TypeInformation
-TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(Types.STRING(), Types.INT());
-DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toAppendStream(table, tupleType);
-
-// Convert the Table into a retract DataStream of Row.
-// A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
-// The boolean field indicates the type of the change. 
-// True is INSERT, false is DELETE.
-DataStream<Tuple2<Boolean, Row>> retractStream = tableEnv.toRetractStream(table, Row.class);
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv: StreamTableEnvironment = ???
-
-// Table with two fields (String name, Integer age)
-val table: Table = tableEnv.fromValues(
-    DataTypes.Row(
-        DataTypes.FIELD("name", DataTypes.STRING()),
-        DataTypes.FIELD("age", DataTypes.INT()),
-    row("john", 35),
-    row("sarah", 32));
-
-// Convert the Table into an append DataStream of Row by specifying the class
-val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
-
-// Convert the Table into an append DataStream of (String, Integer) with TypeInformation
-val dsTuple: DataStream[(String, Int)] dsTuple = 
-  tableEnv.toAppendStream[(String, Int)](table)
-
-// Convert the Table into a retract DataStream of Row.
-// A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
-// The boolean field indicates the type of the change. 
-// True is INSERT, false is DELETE.
-val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](table)
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document. 
-
-{{< hint warning >}}
-Once the Table is converted to a DataStream, please use the `StreamExecutionEnvironment.execute()` method to execute the DataStream program.
-{{< /hint >}}
-
-{{< top >}}
-
-### Mapping of Data Types to Table Schema
-
-Flink's DataStream API support many diverse types.
-Composite types such as Tuples (built-in Scala and Flink Java tuples), POJOs, Scala case classes, and Flink's Row type allow for nested data structures with multiple fields that can be accessed in table expressions. Other types are treated as atomic types. In the following, we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
-
-The mapping of a data type to a table schema can happen in two ways: **based on the field positions** or **based on the field names**.
-
-**Position-based Mapping**
-
-Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section). Fields can be projected out but can't be renamed using an alias `as`.
-
-When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
-
-{{< tabs "44be95d8-c058-462b-b836-1e0f5e3f52c3" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
-
-DataStream<Tuple2<Long, Integer>> stream = ...
-
-// convert DataStream into Table with default field names "f0" and "f1"
-Table table = tableEnv.fromDataStream(stream);
-
-// convert DataStream into Table with field "myLong" only
-Table table = tableEnv.fromDataStream(stream, $("myLong"));
-
-// convert DataStream into Table with field names "myLong" and "myInt"
-Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myInt"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
-
-val stream: DataStream[(Long, Int)] = ...
-
-// convert DataStream into Table with default field names "_1" and "_2"
-val table: Table = tableEnv.fromDataStream(stream)
-
-// convert DataStream into Table with field "myLong" only
-val table: Table = tableEnv.fromDataStream(stream, $"myLong")
-
-// convert DataStream into Table with field names "myLong" and "myInt"
-val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myInt")
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-**Name-based Mapping**
-
-Name-based mapping can be used for any data type including POJOs. It is the most flexible way of defining a table schema mapping. All fields in the mapping are referenced by name and can be possibly renamed using an alias `as`. Fields can be reordered and projected out.
-
-If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types.
-
-{{< tabs "5885a48d-7d6b-4b08-9993-ce7c8f1bec35" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
-
-DataStream<Tuple2<Long, Integer>> stream = ...
-
-// convert DataStream into Table with default field names "f0" and "f1"
-Table table = tableEnv.fromDataStream(stream);
-
-// convert DataStream into Table with field "f1" only
-Table table = tableEnv.fromDataStream(stream, $("f1"));
-
-// convert DataStream into Table with swapped fields
-Table table = tableEnv.fromDataStream(stream, $("f1"), $("f0"));
-
-// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
-Table table = tableEnv.fromDataStream(stream, $("f1").as("myInt"), $("f0").as("myLong"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
-
-val stream: DataStream[(Long, Int)] = ...
-
-// convert DataStream into Table with default field names "_1" and "_2"
-val table: Table = tableEnv.fromDataStream(stream)
-
-// convert DataStream into Table with field "_2" only
-val table: Table = tableEnv.fromDataStream(stream, $"_2")
-
-// convert DataStream into Table with swapped fields
-val table: Table = tableEnv.fromDataStream(stream, $"_2", $"_1")
-
-// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
-val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myInt", $"_1" as "myLong")
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-#### Atomic Types
-
-Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types that cannot be analyzed and decomposed) as atomic types.
-A `DataStream` of an atomic type is converted into a `Table` with a single column.
-The type of the column is inferred from the atomic type and the name of the column can be specified.
-
-{{< tabs "424695df-5e3a-4a8d-89cd-037b5d6a1a36" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...;
-
-DataStream<Long> stream = ...
-
-// Convert DataStream into Table with default field name "f0"
-Table table = tableEnv.fromDataStream(stream);
-
-// Convert DataStream into Table with field name "myLong"
-Table table = tableEnv.fromDataStream(stream, $("myLong"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv: StreamTableEnvironment = ???
-
-val stream: DataStream[Long] = ...
-
-// Convert DataStream into Table with default field name "f0"
-val table: Table = tableEnv.fromDataStream(stream)
-
-// Convert DataStream into Table with field name "myLong"
-val table: Table = tableEnv.fromDataStream(stream, $"myLong")
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-#### Tuples (Scala and Java) and Case Classes (Scala only)
-
-Flink supports Scala's built-in tuples and provides its own tuple classes for Java.
-DataStreams of both kinds of tuples can be converted into tables.
-Fields can be renamed by providing names for all fields (mapping based on position).
-If no field names are specified, the default field names are used.
-If the original field names (`f0`, `f1`, ... for Flink Tuples and `_1`, `_2`, ... for Scala Tuples) are referenced, the API assumes that the mapping is name-based instead of position-based.
-Name-based mapping allows for reordering fields and projection with alias (`as`).
-
-{{< tabs "27c312af-7427-401c-a1b1-de9fe39f7b59" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
-
-DataStream<Tuple2<Long, String>> stream = ...
-
-// convert DataStream into Table with default field names "f0", "f1"
-Table table = tableEnv.fromDataStream(stream);
-
-// convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
-Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
-
-// convert DataStream into Table with reordered fields "f1", "f0" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("f1"), $("f0"));
-
-// convert DataStream into Table with projected field "f1" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("f1"));
-
-// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("f1").as("myString"), $("f0").as("myLong"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
-
-val stream: DataStream[(Long, String)] = ...
-
-// convert DataStream into Table with renamed default field names '_1, '_2
-val table: Table = tableEnv.fromDataStream(stream)
-
-// convert DataStream into Table with field names "myLong", "myString" (position-based)
-val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
-
-// convert DataStream into Table with reordered fields "_2", "_1" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"_2", $"_1")
-
-// convert DataStream into Table with projected field "_2" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"_2")
-
-// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myString", $"_1" as "myLong")
-
-// define case class
-case class Person(name: String, age: Int)
-val streamCC: DataStream[Person] = ...
-
-// convert DataStream into Table with default field names 'name, 'age
-val table = tableEnv.fromDataStream(streamCC)
-
-// convert DataStream into Table with field names 'myName, 'myAge (position-based)
-val table = tableEnv.fromDataStream(streamCC, $"myName", $"myAge")
-
-// convert DataStream into Table with reordered and aliased fields "myAge", "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as "myName")
-
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-#### POJO (Java and Scala)
-
-Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{< ref "docs/dev/serialization/types_serialization" >}}#pojos).
-
-When converting a POJO `DataStream` into a `Table` without specifying field names, the names of the original POJO fields are used. The name mapping requires the original names and cannot be done by positions. Fields can be renamed using an alias (with the `as` keyword), reordered, and projected.
-
-{{< tabs "3606634a-dfb1-4410-9cb3-6ef406f261aa" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
-
-// Person is a POJO with fields "name" and "age"
-DataStream<Person> stream = ...
-
-// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
-Table table = tableEnv.fromDataStream(stream);
-
-// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("age").as("myAge"), $("name").as("myName"));
-
-// convert DataStream into Table with projected field "name" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("name"));
-
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("name").as("myName"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
-
-// Person is a POJO with field names "name" and "age"
-val stream: DataStream[Person] = ...
-
-// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
-val table: Table = tableEnv.fromDataStream(stream)
-
-// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as "myName")
-
-// convert DataStream into Table with projected field "name" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"name")
-
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-#### Row
-
-The `Row` data type supports an arbitrary number of fields and fields with `null` values. Field names can be specified via a `RowTypeInfo` or when converting a `Row` `DataStream` into a `Table`.
-The row type supports mapping of fields by position and by name.
-Fields can be renamed by providing names for all fields (mapping based on position) or selected individually for projection/ordering/renaming (mapping based on name).
-
-{{< tabs "8a3a527b-820f-4eb0-9d6f-cc546c988888" >}}
-{{< tab "Java" >}}
-```java
-StreamTableEnvironment tableEnv = ...; 
-
-// DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
-DataStream<Row> stream = ...
-
-// Convert DataStream into Table with default field names "name", "age"
-Table table = tableEnv.fromDataStream(stream);
-
-// Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
-Table table = tableEnv.fromDataStream(stream, $("myName"), $("myAge"));
-
-// Convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("name").as("myName"), $("age").as("myAge"));
-
-// Convert DataStream into Table with projected field "name" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("name"));
-
-// Convert DataStream into Table with projected and renamed field "myName" (name-based)
-Table table = tableEnv.fromDataStream(stream, $("name").as("myName"));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv: StreamTableEnvironment = ???
-
-// DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
-val stream: DataStream[Row] = ...
-
-// Convert DataStream into Table with default field names "name", "age"
-val table: Table = tableEnv.fromDataStream(stream)
-
-// Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
-val table: Table = tableEnv.fromDataStream(stream, $"myName", $"myAge")
-
-// Convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName", $"age" as "myAge")
-
-// Convert DataStream into Table with projected field "name" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"name")
-
-// Convert DataStream into Table with projected and renamed field "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-{{< top >}}
-
 
 Query Optimization
 ------------------
@@ -1263,7 +898,7 @@ t_env = StreamTableEnvironment.create(env)
 table1 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table2 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table = table1 \
-    .where(table1.word.like('F%')) \
+    .where(col('word').like('F%')) \
     .union_all(table2)
 print(table.explain())
 
@@ -1271,44 +906,31 @@ print(table.explain())
 {{< /tab >}}
 {{< /tabs >}}
 
-The result of the above exmaple is
+The result of the above example is
 
-{{< expand "Explain" >}}
+{{< details "Explain" >}}
 ```text
 
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-    FlinkLogicalDataStreamScan(id=[1], fields=[count, word])
-  FlinkLogicalDataStreamScan(id=[2], fields=[count, word])
+:- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+:  +- LogicalTableScan(table=[[Unregistered_DataStream_1]])
++- LogicalTableScan(table=[[Unregistered_DataStream_2]])
 
-== Optimized Logical Plan ==
-DataStreamUnion(all=[true], union all=[count, word])
-  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
-    DataStreamScan(id=[1], fields=[count, word])
-  DataStreamScan(id=[2], fields=[count, word])
+== Optimized Physical Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-Stage 2 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 3 : Operator
-		content : from: (count, word)
-		ship_strategy : REBALANCE
-
-		Stage 4 : Operator
-			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
-			ship_strategy : FORWARD
-
-			Stage 5 : Operator
-				content : from: (count, word)
-				ship_strategy : REBALANCE
+== Optimized Execution Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
 ```
-{{< /expand >}}
+{{< /details >}}
 
 The following code shows an example and the corresponding output for multiple-sinks plan using `StatementSet.explain()` method:
 
@@ -1316,37 +938,42 @@ The following code shows an example and the corresponding output for multiple-si
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
-final Schema schema = new Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING());
+final Schema schema = Schema.newBuilder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build();
 
-tEnv.connect(new FileSystem().path("/source/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource1");
-tEnv.connect(new FileSystem().path("/source/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource2");
-tEnv.connect(new FileSystem().path("/sink/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink1");
-tEnv.connect(new FileSystem().path("/sink/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink2");
-    
+tEnv.createTemporaryTable("MySource1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySource2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySink1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build());
+tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build());
+
 StatementSet stmtSet = tEnv.createStatementSet();
 
 Table table1 = tEnv.from("MySource1").where($("word").like("F%"));
-stmtSet.addInsert("MySink1", table1);
+stmtSet.add(table1.insertInto("MySink1"));
 
 Table table2 = table1.unionAll(tEnv.from("MySource2"));
-stmtSet.addInsert("MySink2", table2);
+stmtSet.add(table2.insertInto("MySink2"));
 
 String explanation = stmtSet.explain();
 System.out.println(explanation);
@@ -1355,37 +982,42 @@ System.out.println(explanation);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance.useBlinkPlanner.inStreamingMode.build
+val settings = EnvironmentSettings.inStreamingMode()
 val tEnv = TableEnvironment.create(settings)
 
-val schema = new Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING())
+val schema = Schema.newBuilder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build()
 
-tEnv.connect(new FileSystem().path("/source/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource1")
-tEnv.connect(new FileSystem().path("/source/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySource2")
-tEnv.connect(new FileSystem().path("/sink/path1"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink1")
-tEnv.connect(new FileSystem().path("/sink/path2"))
-    .withFormat(new Csv().deriveSchema())
-    .withSchema(schema)
-    .createTemporaryTable("MySink2")
+tEnv.createTemporaryTable("MySource1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySource2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySink1", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build())
+tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build())
     
 val stmtSet = tEnv.createStatementSet()
 
 val table1 = tEnv.from("MySource1").where($"word".like("F%"))
-stmtSet.addInsert("MySink1", table1)
+stmtSet.add(table1.insertInto("MySink1"))
 
 val table2 = table1.unionAll(tEnv.from("MySource2"))
-stmtSet.addInsert("MySink2", table2)
+stmtSet.add(table2.insertInto("MySink2"))
 
 val explanation = stmtSet.explain()
 println(explanation)
@@ -1394,30 +1026,35 @@ println(explanation)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings=settings)
 
-schema = Schema()
-    .field("count", DataTypes.INT())
-    .field("word", DataTypes.STRING())
+schema = Schema.new_builder()
+    .column("count", DataTypes.INT())
+    .column("word", DataTypes.STRING())
+    .build()
 
-t_env.connect(FileSystem().path("/source/path1")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySource1")
-t_env.connect(FileSystem().path("/source/path2")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySource2")
-t_env.connect(FileSystem().path("/sink/path1")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySink1")
-t_env.connect(FileSystem().path("/sink/path2")))
-    .with_format(Csv().deriveSchema())
-    .with_schema(schema)
-    .create_temporary_table("MySink2")
-    
+t_env.create_temporary_table("MySource1", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path1")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySource2", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/source/path2")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySink1", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path1")
+    .format("csv")
+    .build())
+t_env.create_temporary_table("MySink2", TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .option("path", "/sink/path2")
+    .format("csv")
+    .build())
+
 stmt_set = t_env.create_statement_set()
 
 table1 = t_env.from_path("MySource1").where(col('word').like('F%'))
@@ -1435,84 +1072,45 @@ print(explanation)
 
 the result of multiple-sinks plan is
 
-{{< expand "MultiTable Explain" >}}
+{{< details "MultiTable Explain" >}}
 ```text
+
 == Abstract Syntax Tree ==
-LogicalLegacySink(name=[MySink1], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
 
-LogicalLegacySink(name=[MySink2], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- LogicalUnion(all=[true])
    :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]])
 
-== Optimized Logical Plan ==
-Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')], reuse_id=[1])
-+- TableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
++- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
-LegacySink(name=[MySink1], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
++- Union(all=[true], union=[count, word])
+   :- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+== Optimized Execution Plan ==
+Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])(reuse_id=[1])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- Reused(reference_id=[1])
 
-LegacySink(name=[MySink2], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- Union(all=[true], union=[count, word])
    :- Reused(reference_id=[1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
-
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 2 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 3 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 4 : Operator
-				content : Calc(where: (word LIKE _UTF-16LE'F%'), select: (count, word))
-				ship_strategy : FORWARD
-
-				Stage 5 : Operator
-					content : SinkConversionToRow
-					ship_strategy : FORWARD
-
-					Stage 6 : Operator
-						content : Map
-						ship_strategy : FORWARD
-
-Stage 8 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 9 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 10 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 12 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				Stage 13 : Operator
-					content : Map
-					ship_strategy : FORWARD
-
-					Stage 7 : Data Sink
-						content : Sink: CsvTableSink(count, word)
-						ship_strategy : FORWARD
-
-						Stage 14 : Data Sink
-							content : Sink: CsvTableSink(count, word)
-							ship_strategy : FORWARD
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
 ```
-{{< /expand >}}
+{{< /details >}}
 
 {{< top >}}
 

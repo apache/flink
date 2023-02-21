@@ -42,7 +42,6 @@ import javax.annotation.Nullable;
 
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Implementation of a {@link DataTypeFactory}. */
@@ -75,19 +74,13 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     }
 
     @Override
-    public DataType createDataType(String name) {
-        final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
-        final LogicalType resolvedType = parsedType.accept(resolver);
-        return fromLogicalToDataType(resolvedType);
+    public DataType createDataType(String typeString) {
+        return fromLogicalToDataType(createLogicalType(typeString));
     }
 
     @Override
     public DataType createDataType(UnresolvedIdentifier identifier) {
-        if (!identifier.getDatabaseName().isPresent()) {
-            return createDataType(identifier.getObjectName());
-        }
-        final LogicalType resolvedType = resolveType(identifier);
-        return fromLogicalToDataType(resolvedType);
+        return fromLogicalToDataType(createLogicalType(identifier));
     }
 
     @Override
@@ -111,6 +104,20 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
         // we assume that a RAW type is nullable by default
         return DataTypes.RAW(
                 typeInfo.getTypeClass(), typeInfo.createSerializer(executionConfig.get()));
+    }
+
+    @Override
+    public LogicalType createLogicalType(String typeString) {
+        final LogicalType parsedType = LogicalTypeParser.parse(typeString, classLoader);
+        return parsedType.accept(resolver);
+    }
+
+    @Override
+    public LogicalType createLogicalType(UnresolvedIdentifier identifier) {
+        if (!identifier.getDatabaseName().isPresent()) {
+            return createLogicalType(identifier.getObjectName());
+        }
+        return resolveType(identifier);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -172,7 +179,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
         @Override
         protected LogicalType defaultMethod(LogicalType logicalType) {
-            if (hasRoot(logicalType, LogicalTypeRoot.UNRESOLVED)) {
+            if (logicalType.is(LogicalTypeRoot.UNRESOLVED)) {
                 final UnresolvedUserDefinedType unresolvedType =
                         (UnresolvedUserDefinedType) logicalType;
                 return resolveType(unresolvedType.getUnresolvedIdentifier())
@@ -185,7 +192,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     private LogicalType resolveType(UnresolvedIdentifier identifier) {
         assert identifier != null;
         // TODO validate implementation class of structured types when converting from LogicalType
-        // to DataType
+        //  to DataType
         throw new TableException("User-defined types are not supported yet.");
     }
 }

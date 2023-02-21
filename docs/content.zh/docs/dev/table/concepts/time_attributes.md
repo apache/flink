@@ -28,7 +28,7 @@ under the License.
 
 Flink 可以基于几种不同的 *时间* 概念来处理数据。
 
-- *处理时间* 指的是执行具体操作时的机器时间（也称作"挂钟时间"）
+- *处理时间* 指的是执行具体操作时的机器时间（大家熟知的绝对时间, 例如 Java的 `System.currentTimeMillis()`) ）
 - *事件时间* 指的是数据本身携带的时间。这个时间是在事件产生时的时间。
 - *摄入时间* 指的是数据进入 Flink 的时间；在系统内部，会把它当做事件时间来处理。
 
@@ -39,7 +39,7 @@ Flink 可以基于几种不同的 *时间* 概念来处理数据。
 时间属性介绍
 -------------------------------
 
-像窗口（在 [Table API]({{< ref "docs/dev/table/tableApi" >}}#group-windows) 和 [SQL]({{< ref "docs/dev/table/sql/queries" >}}#group-windows) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
+像窗口（在 [Table API]({{< ref "docs/dev/table/tableApi" >}}#group-windows) 和 [SQL]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
 
 每种类型的表都可以有时间属性，可以在用CREATE TABLE DDL创建表的时候指定、也可以在 `DataStream` 中指定、也可以在定义 `TableSource` 时指定。一旦时间属性定义好，它就可以像普通列一样使用，也可以在时间相关的操作中使用。
 
@@ -94,7 +94,7 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 
 ### 在创建表的 DDL 中定义
 
-处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) 
+处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间，函数 `PROCTIME()` 的返回类型是 TIMESTAMP_LTZ 。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) 
 
 ```sql
 
@@ -233,6 +233,7 @@ val windowedTable = tEnv
 
 事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
 
+Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。如果源数据中的时间戳数据表示为年-月-日-时-分-秒，则通常为不带时区信息的字符串值，例如 `2020-04-15 20:13:40.564`，建议将事件时间属性定义在 `TIMESTAMP` 列上:
 ```sql
 
 CREATE TABLE user_actions (
@@ -251,10 +252,30 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ```
 
+源数据中的时间戳数据表示为一个纪元 (epoch) 时间，通常是一个 long 值，例如 `1618989564564`，建议将事件时间属性定义在 `TIMESTAMP_LTZ` 列上：
+ ```sql
+
+CREATE TABLE user_actions (
+  user_name STRING,
+  data STRING,
+  ts BIGINT,
+  time_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
+  -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
+  WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
+) WITH (
+  ...
+);
+
+SELECT TUMBLE_START(time_ltz, INTERVAL '10' MINUTE), COUNT(DISTINCT user_name)
+FROM user_actions
+GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
+
+```
 
 ### 在 DataStream 到 Table 转换时定义
 
-事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。
+事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。 
+在从 DataStream 转换到 Table 时，由于 `DataStream` 没有时区概念，因此 Flink 总是将 `rowtime` 属性解析成 `TIMESTAMP WITHOUT TIME ZONE` 类型，并且将所有事件时间的值都视为 UTC 时区的值。
 
 在从 `DataStream` 到 `Table` 转换时定义事件时间属性有两种方式。取决于用 `.rowtime` 后缀修饰的字段名字是否是已有字段，事件时间字段可以是：
 

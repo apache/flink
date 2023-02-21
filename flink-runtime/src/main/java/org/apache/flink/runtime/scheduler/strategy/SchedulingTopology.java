@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.runtime.topology.Topology;
+
+import java.util.List;
 
 /** Topology of {@link SchedulingExecutionVertex}. */
 public interface SchedulingTopology
@@ -49,4 +52,13 @@ public interface SchedulingTopology
      */
     SchedulingResultPartition getResultPartition(
             IntermediateResultPartitionID intermediateResultPartitionId);
+
+    /**
+     * Register a scheduling topology listener. The listener will be notified by {@link
+     * SchedulingTopologyListener#notifySchedulingTopologyUpdated(SchedulingTopology, List)} when
+     * the scheduling topology is updated.
+     *
+     * @param listener the registered listener.
+     */
+    void registerSchedulingTopologyListener(SchedulingTopologyListener listener);
 }

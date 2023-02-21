@@ -40,8 +40,11 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
@@ -311,6 +314,38 @@ public interface Catalog {
     void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException;
 
+    /**
+     * Modifies an existing table or view. Note that the new and old {@link CatalogBaseTable} must
+     * be of the same kind. For example, this doesn't allow altering a regular table to partitioned
+     * table, or altering a view to a table, and vice versa.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogTable} or {@link ResolvedCatalogView}. Those instances are easy to serialize
+     * for a durable catalog implementation.
+     *
+     * @param tablePath path of the table or view to be modified
+     * @param newTable the new table definition
+     * @param tableChanges change to describe the modification between the newTable and the original
+     *     table.
+     * @param ignoreIfNotExists flag to specify behavior when the table or view does not exist: if
+     *     set to false, throw an exception, if set to true, do nothing.
+     * @throws TableNotExistException if the table does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterTable(
+            ObjectPath tablePath,
+            CatalogBaseTable newTable,
+            List<TableChange> tableChanges,
+            boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException {
+        alterTable(tablePath, newTable, ignoreIfNotExists);
+    }
+
+    /** If true, tables which do not specify a connector will be translated to managed tables. */
+    default boolean supportsManagedTable() {
+        return false;
+    }
+
     // ------ partitions ------
 
     /**
@@ -396,8 +431,9 @@ public interface Catalog {
      * @param tablePath path of the table.
      * @param partitionSpec partition spec of the partition
      * @param partition the partition to add.
-     * @param ignoreIfExists flag to specify behavior if a table with the given name already exists:
-     *     if set to false, it throws a TableAlreadyExistException, if set to true, nothing happens.
+     * @param ignoreIfExists flag to specify behavior if a partition with the given name already
+     *     exists: if set to false, it throws a PartitionAlreadyExistsException, if set to true,
+     *     nothing happens.
      * @throws TableNotExistException thrown if the target table does not exist
      * @throws TableNotPartitionedException thrown if the target table is not partitioned
      * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
@@ -418,7 +454,7 @@ public interface Catalog {
      *
      * @param tablePath path of the table.
      * @param partitionSpec partition spec of the partition to drop
-     * @param ignoreIfNotExists flag to specify behavior if the database does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the partition does not exist: if set to
      *     false, throw an exception, if set to true, nothing happens.
      * @throws PartitionNotExistException thrown if the target partition does not exist
      * @throws CatalogException in case of any runtime exception
@@ -433,7 +469,7 @@ public interface Catalog {
      * @param tablePath path of the table
      * @param partitionSpec partition spec of the partition
      * @param newPartition new partition to replace the old one
-     * @param ignoreIfNotExists flag to specify behavior if the database does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the partition does not exist: if set to
      *     false, throw an exception, if set to true, nothing happens.
      * @throws PartitionNotExistException thrown if the target partition does not exist
      * @throws CatalogException in case of any runtime exception
@@ -512,7 +548,7 @@ public interface Catalog {
      * Drop a function. Function name should be handled in a case insensitive way.
      *
      * @param functionPath path of the function to be dropped
-     * @param ignoreIfNotExists plag to specify behavior if the function does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the function does not exist: if set to
      *     false, throw an exception if set to true, nothing happens
      * @throws FunctionNotExistException if the function does not exist
      * @throws CatalogException in case of any runtime exception
@@ -558,6 +594,31 @@ public interface Catalog {
             throws PartitionNotExistException, CatalogException;
 
     /**
+     * Get a list of statistics of given partitions.
+     *
+     * @param tablePath path of the table
+     * @param partitionSpecs partition specs of partitions that will be used to filter out all other
+     *     unrelated statistics, i.e. the statistics fetch will be limited within the given
+     *     partitions
+     * @return list of statistics of given partitions
+     * @throws PartitionNotExistException if one partition does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<CatalogTableStatistics> bulkGetPartitionStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs, "partitionSpecs cannot be null");
+
+        List<CatalogTableStatistics> result = new ArrayList<>(partitionSpecs.size());
+        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
+            result.add(getPartitionStatistics(tablePath, partitionSpec));
+        }
+
+        return result;
+    }
+
+    /**
      * Get the column statistics of a partition.
      *
      * @param tablePath path of the table
@@ -569,6 +630,31 @@ public interface Catalog {
     CatalogColumnStatistics getPartitionColumnStatistics(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
             throws PartitionNotExistException, CatalogException;
+
+    /**
+     * Get a list of column statistics for given partitions.
+     *
+     * @param tablePath path of the table
+     * @param partitionSpecs partition specs of partitions that will be used to filter out all other
+     *     unrelated statistics, i.e. the statistics fetch will be limited within the given
+     *     partitions
+     * @return list of column statistics for given partitions
+     * @throws PartitionNotExistException if one partition does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs, "partitionSpecs cannot be null");
+
+        List<CatalogColumnStatistics> result = new ArrayList<>(partitionSpecs.size());
+        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
+            result.add(getPartitionColumnStatistics(tablePath, partitionSpec));
+        }
+
+        return result;
+    }
 
     /**
      * Update the statistics of a table.

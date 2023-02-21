@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -99,7 +100,7 @@ public final class RestClientConfiguration {
         Preconditions.checkNotNull(config);
 
         final SSLHandlerFactory sslHandlerFactory;
-        if (SSLUtils.isRestSSLEnabled(config)) {
+        if (SecurityOptions.isRestSSLEnabled(config)) {
             try {
                 sslHandlerFactory = SSLUtils.createRestClientSSLEngineFactory(config);
             } catch (Exception e) {

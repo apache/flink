@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 /** A factory to create {@link FunctionDefinition}. */
+@PublicEvolving
 public interface FunctionDefinitionFactory {
 
     /**
@@ -30,6 +33,41 @@ public interface FunctionDefinitionFactory {
      * @param name name of the {@link CatalogFunction}
      * @param catalogFunction the catalog function
      * @return a {@link FunctionDefinition}
+     * @deprecated Please implement {@link #createFunctionDefinition(String, CatalogFunction,
+     *     Context)} instead.
      */
-    FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction);
+    @Deprecated
+    default FunctionDefinition createFunctionDefinition(
+            String name, CatalogFunction catalogFunction) {
+        throw new RuntimeException(
+                "Please implement FunctionDefinitionFactory#createFunctionDefinition(String, CatalogFunction, Context) instead.");
+    }
+
+    /**
+     * Creates a {@link FunctionDefinition} from given {@link CatalogFunction} with the given {@link
+     * Context} containing the class loader of the current session, which is useful when it's needed
+     * to load class from class name.
+     *
+     * <p>The default implementation will call {@link #createFunctionDefinition(String,
+     * CatalogFunction)} directly.
+     *
+     * @param name name of the {@link CatalogFunction}
+     * @param catalogFunction the catalog function
+     * @param context the {@link Context} for creating function definition
+     * @return a {@link FunctionDefinition}
+     */
+    default FunctionDefinition createFunctionDefinition(
+            String name, CatalogFunction catalogFunction, Context context) {
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(context.getClassLoader())) {
+            return createFunctionDefinition(name, catalogFunction);
+        }
+    }
+
+    /** Context provided when a function definition is created. */
+    @PublicEvolving
+    interface Context {
+        /** Returns the class loader of the current session. */
+        ClassLoader getClassLoader();
+    }
 }

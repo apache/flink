@@ -19,17 +19,22 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
+import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -38,6 +43,7 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -51,9 +57,13 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -61,29 +71,37 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.streaming.util.TestExpandingSink;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.hamcrest.Description;
+import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.Matchers.iterableWithSize;
 
 /**
  * Tests for {@link StreamGraphGenerator}. This only tests correct translation of split/select,
@@ -128,19 +146,19 @@ public class StreamGraphGeneratorTest extends TestLogger {
         for (StreamNode node : sg.getStreamNodes()) {
             switch (node.getOperatorName()) {
                 case "A":
-                    assertEquals(77L, node.getBufferTimeout());
+                    Assertions.assertThat(77L).isEqualTo(node.getBufferTimeout());
                     break;
                 case "B":
-                    assertEquals(0L, node.getBufferTimeout());
+                    Assertions.assertThat(node.getBufferTimeout()).isEqualTo(0L);
                     break;
                 case "C":
-                    assertEquals(12L, node.getBufferTimeout());
+                    Assertions.assertThat(node.getBufferTimeout()).isEqualTo(12L);
                     break;
                 case "D":
-                    assertEquals(77L, node.getBufferTimeout());
+                    Assertions.assertThat(node.getBufferTimeout()).isEqualTo(77L);
                     break;
                 default:
-                    assertTrue(node.getOperator() instanceof StreamSource);
+                    Assertions.assertThat(node.getOperator()).isInstanceOf(StreamSource.class);
             }
         }
     }
@@ -186,29 +204,47 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamGraph graph = env.getStreamGraph();
 
         // rebalanceMap
-        assertTrue(
-                graph.getStreamNode(rebalanceMap.getId()).getInEdges().get(0).getPartitioner()
-                        instanceof RebalancePartitioner);
+        Assertions.assertThat(
+                        graph.getStreamNode(rebalanceMap.getId())
+                                .getInEdges()
+                                .get(0)
+                                .getPartitioner())
+                .isInstanceOf(RebalancePartitioner.class);
 
         // verify that only last partitioning takes precedence
-        assertTrue(
-                graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0).getPartitioner()
-                        instanceof BroadcastPartitioner);
-        assertEquals(
-                rebalanceMap.getId(),
-                graph.getSourceVertex(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0))
-                        .getId());
+        Assertions.assertThat(
+                        graph.getStreamNode(broadcastMap.getId())
+                                .getInEdges()
+                                .get(0)
+                                .getPartitioner())
+                .isInstanceOf(BroadcastPartitioner.class);
+        Assertions.assertThat(
+                        graph.getSourceVertex(
+                                        graph.getStreamNode(broadcastMap.getId())
+                                                .getInEdges()
+                                                .get(0))
+                                .getId())
+                .isEqualTo(rebalanceMap.getId());
 
         // verify that partitioning in unions is preserved
-        assertTrue(
-                graph.getStreamNode(broadcastOperator.getId()).getOutEdges().get(0).getPartitioner()
-                        instanceof BroadcastPartitioner);
-        assertTrue(
-                graph.getStreamNode(globalOperator.getId()).getOutEdges().get(0).getPartitioner()
-                        instanceof GlobalPartitioner);
-        assertTrue(
-                graph.getStreamNode(shuffleOperator.getId()).getOutEdges().get(0).getPartitioner()
-                        instanceof ShufflePartitioner);
+        Assertions.assertThat(
+                        graph.getStreamNode(broadcastOperator.getId())
+                                .getOutEdges()
+                                .get(0)
+                                .getPartitioner())
+                .isInstanceOf(BroadcastPartitioner.class);
+        Assertions.assertThat(
+                        graph.getStreamNode(globalOperator.getId())
+                                .getOutEdges()
+                                .get(0)
+                                .getPartitioner())
+                .isInstanceOf(GlobalPartitioner.class);
+        Assertions.assertThat(
+                        graph.getStreamNode(shuffleOperator.getId())
+                                .getOutEdges()
+                                .get(0)
+                                .getPartitioner())
+                .isInstanceOf(ShufflePartitioner.class);
     }
 
     @Test
@@ -226,8 +262,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         env.getStreamGraph();
 
-        assertTrue(udfOperator instanceof AbstractUdfStreamOperator);
-        assertEquals(BasicTypeInfo.INT_TYPE_INFO, function.getTypeInformation());
+        Assertions.assertThat(udfOperator).isInstanceOf(AbstractUdfStreamOperator.class);
+        Assertions.assertThat(function.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
     }
 
     /**
@@ -253,8 +289,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         env.getStreamGraph();
 
-        assertEquals(
-                BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+        Assertions.assertThat(outputTypeConfigurableOperation.getTypeInformation())
+                .isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
     }
 
     @Test
@@ -279,8 +315,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         env.getStreamGraph();
 
-        assertEquals(
-                BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+        Assertions.assertThat(outputTypeConfigurableOperation.getTypeInformation())
+                .isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
     }
 
     @Test
@@ -305,15 +341,18 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         .addInput(source3.getTransformation()));
 
         StreamGraph streamGraph = env.getStreamGraph();
-        assertEquals(4, streamGraph.getStreamNodes().size());
+        Assertions.assertThat(streamGraph.getStreamNodes().size()).isEqualTo(4);
 
-        assertEquals(1, streamGraph.getStreamEdges(source1.getId(), transform.getId()).size());
-        assertEquals(1, streamGraph.getStreamEdges(source2.getId(), transform.getId()).size());
-        assertEquals(1, streamGraph.getStreamEdges(source3.getId(), transform.getId()).size());
-        assertEquals(1, streamGraph.getStreamEdges(source1.getId()).size());
-        assertEquals(1, streamGraph.getStreamEdges(source2.getId()).size());
-        assertEquals(1, streamGraph.getStreamEdges(source3.getId()).size());
-        assertEquals(0, streamGraph.getStreamEdges(transform.getId()).size());
+        Assertions.assertThat(streamGraph.getStreamEdges(source1.getId(), transform.getId()).size())
+                .isEqualTo(1);
+        Assertions.assertThat(streamGraph.getStreamEdges(source2.getId(), transform.getId()).size())
+                .isEqualTo(1);
+        Assertions.assertThat(streamGraph.getStreamEdges(source3.getId(), transform.getId()).size())
+                .isEqualTo(1);
+        Assertions.assertThat(streamGraph.getStreamEdges(source1.getId()).size()).isEqualTo(1);
+        Assertions.assertThat(streamGraph.getStreamEdges(source2.getId()).size()).isEqualTo(1);
+        Assertions.assertThat(streamGraph.getStreamEdges(source3.getId()).size()).isEqualTo(1);
+        Assertions.assertThat(streamGraph.getStreamEdges(transform.getId()).size()).isEqualTo(0);
     }
 
     @Test
@@ -347,28 +386,77 @@ public class StreamGraphGeneratorTest extends TestLogger {
         DataStream<Long> map4 = map3.rescale().map(l -> l).setParallelism(1337);
 
         StreamGraph streamGraph = env.getStreamGraph();
-        assertEquals(7, streamGraph.getStreamNodes().size());
+        Assertions.assertThat(streamGraph.getStreamNodes().size()).isEqualTo(7);
 
         // forward
-        assertFalse(supportsUnalignedCheckpoints(streamGraph, source1, map1));
+        assertThat(edge(streamGraph, source1, map1), supportsUnalignedCheckpoints(false));
         // shuffle
-        assertTrue(supportsUnalignedCheckpoints(streamGraph, source2, map2));
+        assertThat(edge(streamGraph, source2, map2), supportsUnalignedCheckpoints(true));
         // broadcast, but other channel is forwarded
-        assertFalse(supportsUnalignedCheckpoints(streamGraph, map1, joined));
+        assertThat(edge(streamGraph, map1, joined), supportsUnalignedCheckpoints(false));
         // forward
-        assertFalse(supportsUnalignedCheckpoints(streamGraph, map2, joined));
+        assertThat(edge(streamGraph, map2, joined), supportsUnalignedCheckpoints(false));
         // shuffle
-        assertTrue(supportsUnalignedCheckpoints(streamGraph, joined, map3));
+        assertThat(edge(streamGraph, joined, map3), supportsUnalignedCheckpoints(true));
         // rescale
-        assertFalse(supportsUnalignedCheckpoints(streamGraph, map3, map4));
+        assertThat(edge(streamGraph, map3, map4), supportsUnalignedCheckpoints(false));
     }
 
-    private boolean supportsUnalignedCheckpoints(
+    @Test
+    public void testUnalignedCheckpointDisabledOnBroadcast() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(42);
+
+        DataStream<Long> source1 = env.fromSequence(1L, 10L);
+        DataStream<Long> map1 = source1.broadcast().map(l -> l);
+        DataStream<Long> source2 = env.fromSequence(2L, 11L);
+        DataStream<Long> keyed = source2.keyBy(r -> 0L);
+
+        final MapStateDescriptor<Long, Long> descriptor =
+                new MapStateDescriptor<>(
+                        "broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+        final BroadcastStream<Long> broadcast = map1.broadcast(descriptor);
+        final SingleOutputStreamOperator<Long> joined =
+                keyed.connect(broadcast)
+                        .process(
+                                new KeyedBroadcastProcessFunction<Long, Long, Long, Long>() {
+                                    @Override
+                                    public void processElement(
+                                            Long value, ReadOnlyContext ctx, Collector<Long> out) {}
+
+                                    @Override
+                                    public void processBroadcastElement(
+                                            Long value, Context ctx, Collector<Long> out) {}
+                                });
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        Assertions.assertThat(streamGraph.getStreamNodes().size()).isEqualTo(4);
+
+        // single broadcast
+        assertThat(edge(streamGraph, source1, map1), supportsUnalignedCheckpoints(false));
+        // keyed, connected with broadcast
+        assertThat(edge(streamGraph, source2, joined), supportsUnalignedCheckpoints(false));
+        // broadcast, connected with keyed
+        assertThat(edge(streamGraph, map1, joined), supportsUnalignedCheckpoints(false));
+    }
+
+    private static StreamEdge edge(
             StreamGraph streamGraph, DataStream<Long> op1, DataStream<Long> op2) {
-        return streamGraph
-                .getStreamEdges(op1.getId(), op2.getId())
-                .get(0)
-                .supportsUnalignedCheckpoints();
+        List<StreamEdge> streamEdges = streamGraph.getStreamEdges(op1.getId(), op2.getId());
+        assertThat(streamEdges, iterableWithSize(1));
+        return streamEdges.get(0);
+    }
+
+    private static Matcher<StreamEdge> supportsUnalignedCheckpoints(boolean enabled) {
+        return new FeatureMatcher<StreamEdge, Boolean>(
+                equalTo(enabled),
+                "supports unaligned checkpoint",
+                "supports unaligned checkpoint") {
+            @Override
+            protected Boolean featureValueOf(StreamEdge actual) {
+                return actual.supportsUnalignedCheckpoints();
+            }
+        };
     }
 
     /**
@@ -421,8 +509,9 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamNode keyedResult1Node = graph.getStreamNode(keyedResult1.getId());
         StreamNode keyedResult2Node = graph.getStreamNode(keyedResult2.getId());
 
-        assertEquals(globalMaxParallelism, keyedResult1Node.getMaxParallelism());
-        assertEquals(keyedResult2MaxParallelism, keyedResult2Node.getMaxParallelism());
+        Assertions.assertThat(keyedResult1Node.getMaxParallelism()).isEqualTo(globalMaxParallelism);
+        Assertions.assertThat(keyedResult2Node.getMaxParallelism())
+                .isEqualTo(keyedResult2MaxParallelism);
     }
 
     /**
@@ -467,8 +556,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamNode keyedResult3Node = graph.getStreamNode(keyedResult3.getId());
         StreamNode keyedResult4Node = graph.getStreamNode(keyedResult4.getId());
 
-        assertEquals(maxParallelism, keyedResult3Node.getMaxParallelism());
-        assertEquals(maxParallelism, keyedResult4Node.getMaxParallelism());
+        Assertions.assertThat(keyedResult3Node.getMaxParallelism()).isEqualTo(maxParallelism);
+        Assertions.assertThat(keyedResult4Node.getMaxParallelism()).isEqualTo(maxParallelism);
     }
 
     /** Tests that the max parallelism is properly set for connected streams. */
@@ -541,15 +630,14 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamGraph streamGraph = env.getStreamGraph();
         for (Tuple2<StreamNode, StreamNode> iterationPair :
                 streamGraph.getIterationSourceSinkPairs()) {
-            assertNotNull(iterationPair.f0.getCoLocationGroup());
-            assertEquals(
-                    iterationPair.f0.getCoLocationGroup(), iterationPair.f1.getCoLocationGroup());
+            Assertions.assertThat(iterationPair.f0.getCoLocationGroup()).isNotNull();
+            Assertions.assertThat(iterationPair.f1.getCoLocationGroup())
+                    .isEqualTo(iterationPair.f0.getCoLocationGroup());
 
-            assertEquals(
-                    StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP,
-                    iterationPair.f0.getSlotSharingGroup());
-            assertEquals(
-                    iterationPair.f0.getSlotSharingGroup(), iterationPair.f1.getSlotSharingGroup());
+            Assertions.assertThat(iterationPair.f0.getSlotSharingGroup())
+                    .isEqualTo(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP);
+            Assertions.assertThat(iterationPair.f1.getSlotSharingGroup())
+                    .isEqualTo(iterationPair.f0.getSlotSharingGroup());
 
             final ResourceSpec sourceMinResources = iterationPair.f0.getMinResources();
             final ResourceSpec sinkMinResources = iterationPair.f1.getMinResources();
@@ -581,9 +669,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
         for (StreamNode streamNode : streamNodes) {
-            assertEquals(
-                    StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP,
-                    streamNode.getSlotSharingGroup());
+            Assertions.assertThat(streamNode.getSlotSharingGroup())
+                    .isEqualTo(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP);
         }
     }
 
@@ -653,6 +740,309 @@ public class StreamGraphGeneratorTest extends TestLogger {
                                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
                         .get(),
                 equalTo(resourceProfile3));
+    }
+
+    @Test
+    public void testSettingSavepointRestoreSettings() {
+        Configuration config = new Configuration();
+        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+
+        final StreamGraph streamGraph =
+                new StreamGraphGenerator(
+                                Collections.emptyList(),
+                                new ExecutionConfig(),
+                                new CheckpointConfig(),
+                                config)
+                        .generate();
+
+        SavepointRestoreSettings savepointRestoreSettings =
+                streamGraph.getSavepointRestoreSettings();
+        assertThat(
+                savepointRestoreSettings,
+                equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint")));
+    }
+
+    @Test
+    public void testSettingSavepointRestoreSettingsSetterOverrides() {
+        Configuration config = new Configuration();
+        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+
+        StreamGraphGenerator generator =
+                new StreamGraphGenerator(
+                        Collections.emptyList(),
+                        new ExecutionConfig(),
+                        new CheckpointConfig(),
+                        config);
+        generator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("/tmp/savepoint1"));
+        final StreamGraph streamGraph = generator.generate();
+
+        SavepointRestoreSettings savepointRestoreSettings =
+                streamGraph.getSavepointRestoreSettings();
+        assertThat(
+                savepointRestoreSettings,
+                equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint1")));
+    }
+
+    @Test
+    public void testConfigureSlotSharingGroupResource() {
+        final SlotSharingGroup ssg1 =
+                SlotSharingGroup.newBuilder("ssg1").setCpuCores(1).setTaskHeapMemoryMB(100).build();
+        final SlotSharingGroup ssg2 =
+                SlotSharingGroup.newBuilder("ssg2").setCpuCores(2).setTaskHeapMemoryMB(200).build();
+        final SlotSharingGroup ssg3 =
+                SlotSharingGroup.newBuilder(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                        .setCpuCores(3)
+                        .setTaskHeapMemoryMB(300)
+                        .build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        source.map(value -> value)
+                .slotSharingGroup(ssg2)
+                .map(value -> value * 2)
+                .map(value -> value * 3)
+                .slotSharingGroup(SlotSharingGroup.newBuilder("ssg4").build())
+                .map(value -> value * 4)
+                .slotSharingGroup(ssg3)
+                .addSink(new DiscardingSink<>())
+                .slotSharingGroup(ssg1);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertThat(
+                streamGraph.getSlotSharingGroupResource("ssg1").get(),
+                is(ResourceProfile.fromResources(1, 100)));
+        assertThat(
+                streamGraph.getSlotSharingGroupResource("ssg2").get(),
+                is(ResourceProfile.fromResources(2, 200)));
+        assertThat(
+                streamGraph
+                        .getSlotSharingGroupResource(
+                                StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                        .get(),
+                is(ResourceProfile.fromResources(3, 300)));
+    }
+
+    @Test
+    public void testConflictSlotSharingGroup() {
+        final SlotSharingGroup ssg =
+                SlotSharingGroup.newBuilder("ssg").setCpuCores(1).setTaskHeapMemoryMB(100).build();
+        final SlotSharingGroup ssgConflict =
+                SlotSharingGroup.newBuilder("ssg").setCpuCores(2).setTaskHeapMemoryMB(200).build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup(ssg);
+        source.map(value -> value)
+                .slotSharingGroup(ssgConflict)
+                .addSink(new DiscardingSink<>())
+                .slotSharingGroup(ssgConflict);
+
+        Assertions.assertThatThrownBy(env::getStreamGraph)
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void testTrackTransformationsByIdentity() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final Transformation<?> noopTransformation = env.fromSequence(1, 2).getTransformation();
+
+        final StreamGraphGenerator generator =
+                new StreamGraphGenerator(
+                        Arrays.asList(
+                                noopTransformation,
+                                new FailingTransformation(noopTransformation.hashCode())),
+                        new ExecutionConfig(),
+                        new CheckpointConfig());
+        assertThatThrownBy(generator::generate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unknown transformation: FailingTransformation");
+    }
+
+    @Test
+    public void testResetBatchExchangeModeInStreamingExecution() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        PartitionTransformation<Integer> transformation =
+                new PartitionTransformation<>(
+                        sourceDataStream.getTransformation(),
+                        new RebalancePartitioner<>(),
+                        StreamExchangeMode.BATCH);
+        DataStream<Integer> partitionStream = new DataStream<>(env, transformation);
+        partitionStream.map(value -> value).print();
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        final List<Integer> nodeIds =
+                streamGraph.getStreamNodes().stream()
+                        .map(StreamNode::getId)
+                        .sorted(Integer::compare)
+                        .collect(Collectors.toList());
+        Assertions.assertThat(streamGraph.getStreamEdges(nodeIds.get(0), nodeIds.get(1)))
+                .hasSize(1)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(e.get(0).getExchangeMode())
+                                        .isEqualTo(StreamExchangeMode.UNDEFINED));
+    }
+
+    @Test
+    public void testAutoParallelismForExpandedTransformations() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        env.setParallelism(2);
+
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
+        // the table planner. Parallelism should be set automatically after translating.
+        sourceDataStream.sinkTo(new TestExpandingSink()).setParallelism(-1);
+
+        StreamGraph graph = env.getStreamGraph();
+
+        graph.getStreamNodes()
+                .forEach(
+                        node -> {
+                            if (!node.getOperatorName().startsWith("Source")) {
+                                Assertions.assertThat(node.getParallelism()).isEqualTo(2);
+                            }
+                        });
+    }
+
+    @Test
+    public void testCacheTransformation() {
+        final TestingStreamExecutionEnvironment env = new TestingStreamExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        final int upstreamParallelism = 3;
+        CachedDataStream<Integer> cachedStream =
+                source.keyBy(i -> i)
+                        .reduce(Integer::sum)
+                        .setParallelism(upstreamParallelism)
+                        .cache();
+        Assertions.assertThat(cachedStream.getTransformation())
+                .isInstanceOf(CacheTransformation.class);
+        CacheTransformation<Integer> cacheTransformation =
+                (CacheTransformation<Integer>) cachedStream.getTransformation();
+
+        cachedStream.print();
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        verifyCacheProduceNode(upstreamParallelism, cacheTransformation, streamGraph, null);
+
+        env.addCompletedClusterDatasetIds(cacheTransformation.getDatasetId());
+        cachedStream.print();
+
+        verifyCacheConsumeNode(env, upstreamParallelism, cacheTransformation);
+    }
+
+    @Test
+    public void testCacheSideOutput() {
+        final TestingStreamExecutionEnvironment env = new TestingStreamExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final int upstreamParallelism = 2;
+        SingleOutputStreamOperator<Integer> stream =
+                env.fromElements(1, 2, 3).map(i -> i).setParallelism(upstreamParallelism);
+        final DataStream<Integer> sideOutputCache =
+                stream.getSideOutput(new OutputTag<Integer>("1") {}).cache();
+        Assertions.assertThat(sideOutputCache.getTransformation())
+                .isInstanceOf(CacheTransformation.class);
+        final CacheTransformation<Integer> cacheTransformation =
+                (CacheTransformation<Integer>) sideOutputCache.getTransformation();
+        sideOutputCache.print();
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        verifyCacheProduceNode(upstreamParallelism, cacheTransformation, streamGraph, "1");
+
+        env.addCompletedClusterDatasetIds(cacheTransformation.getDatasetId());
+        sideOutputCache.print();
+
+        verifyCacheConsumeNode(env, upstreamParallelism, cacheTransformation);
+    }
+
+    private void verifyCacheProduceNode(
+            int upstreamParallelism,
+            CacheTransformation<Integer> cacheTransformation,
+            StreamGraph streamGraph,
+            String expectedTagId) {
+        Assertions.assertThat(streamGraph.getStreamNodes())
+                .anyMatch(
+                        node -> {
+                            if (!CacheTransformationTranslator.CACHE_PRODUCER_OPERATOR_NAME.equals(
+                                    node.getOperatorName())) {
+                                return false;
+                            }
+
+                            Assertions.assertThat(node.getParallelism())
+                                    .isEqualTo(upstreamParallelism);
+                            Assertions.assertThat(node.getInEdges().size()).isEqualTo(1);
+                            final StreamEdge inEdge = node.getInEdges().get(0);
+                            Assertions.assertThat(inEdge.getPartitioner())
+                                    .isInstanceOf(ForwardPartitioner.class);
+                            if (expectedTagId != null) {
+                                Assertions.assertThat(inEdge.getOutputTag().getId())
+                                        .isEqualTo(expectedTagId);
+                            }
+
+                            Assertions.assertThat(inEdge.getIntermediateDatasetIdToProduce())
+                                    .isNotNull();
+                            Assertions.assertThat(
+                                            new AbstractID(
+                                                    inEdge.getIntermediateDatasetIdToProduce()))
+                                    .isEqualTo(cacheTransformation.getDatasetId());
+                            return true;
+                        });
+    }
+
+    private void verifyCacheConsumeNode(
+            StreamExecutionEnvironment env,
+            int upstreamParallelism,
+            CacheTransformation<Integer> cacheTransformation) {
+        Assertions.assertThat(env.getStreamGraph().getStreamNodes())
+                .anyMatch(
+                        node -> {
+                            if (!CacheTransformationTranslator.CACHE_CONSUMER_OPERATOR_NAME.equals(
+                                    node.getOperatorName())) {
+                                return false;
+                            }
+
+                            Assertions.assertThat(node.getParallelism())
+                                    .isEqualTo(upstreamParallelism);
+                            Assertions.assertThat(new AbstractID(node.getConsumeClusterDatasetId()))
+                                    .isEqualTo(cacheTransformation.getDatasetId());
+                            return true;
+                        });
+    }
+
+    private static class FailingTransformation extends Transformation<String> {
+        private final int hashCode;
+
+        FailingTransformation(int hashCode) {
+            super("FailingTransformation", BasicTypeInfo.STRING_TYPE_INFO, 1);
+            this.hashCode = hashCode;
+        }
+
+        @Override
+        public List<Transformation<?>> getTransitivePredecessors() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<Transformation<?>> getInputs() {
+            return Collections.emptyList();
+        }
+
+        // Overwrite equal to test transformation based on identity
+        @Override
+        public boolean equals(Object o) {
+            return true;
+        }
+
+        // Overwrite hashCode to test transformation based on identity
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
     }
 
     private static class OutputTypeConfigurableFunction<T>
@@ -811,6 +1201,19 @@ public class StreamGraphGeneratorTest extends TestLogger {
         @Override
         public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class TestingStreamExecutionEnvironment extends StreamExecutionEnvironment {
+        Set<AbstractID> completedClusterDatasetIds = new HashSet<>();
+
+        public void addCompletedClusterDatasetIds(AbstractID id) {
+            completedClusterDatasetIds.add(id);
+        }
+
+        @Override
+        public Set<AbstractID> listCompletedClusterDatasets() {
+            return new HashSet<>(completedClusterDatasetIds);
         }
     }
 }

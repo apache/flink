@@ -22,13 +22,14 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Headers for the {@link TaskManagerLogListHandler}. */
 public class TaskManagerLogsHeaders
-        implements MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
 
     private static final TaskManagerLogsHeaders INSTANCE = new TaskManagerLogsHeaders();
 

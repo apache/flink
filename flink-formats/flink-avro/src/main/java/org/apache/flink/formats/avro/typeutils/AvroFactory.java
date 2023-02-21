@@ -68,7 +68,7 @@ public final class AvroFactory<T> {
      * Creates Avro Writer and Reader for a specific type.
      *
      * <p>Given an input type, and possible the current schema, and a previously known schema (also
-     * known as writer schema) create will deduce the best way to initalize a reader and writer
+     * known as writer schema) create will deduce the best way to initialize a reader and writer
      * according to the following rules:
      *
      * <ul>

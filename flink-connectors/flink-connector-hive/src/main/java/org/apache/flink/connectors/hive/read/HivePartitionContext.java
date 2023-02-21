@@ -19,8 +19,8 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.file.table.PartitionFetcher;
 import org.apache.flink.connectors.hive.HiveTablePartition;
-import org.apache.flink.table.filesystem.PartitionFetcher;
 
 /**
  * Context for Hive partition fetcher.

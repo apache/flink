@@ -26,6 +26,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -43,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getKeyedCepOpearator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -420,7 +420,7 @@ public class CEPRescalingTest {
         KeySelector<Event, Integer> keySelector = new TestKeySelector();
         KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
-                        getKeyedCepOpearator(false, new NFAFactory()),
+                        CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
                         keySelector,
                         BasicTypeInfo.INT_TYPE_INFO,
                         maxParallelism,
@@ -449,39 +449,12 @@ public class CEPRescalingTest {
 
             Pattern<Event, ?> pattern =
                     Pattern.<Event>begin("start")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                5726188262756267490L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("start");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("start")))
                             .followedBy("middle")
                             .subtype(SubEvent.class)
-                            .where(
-                                    new SimpleCondition<SubEvent>() {
-                                        private static final long serialVersionUID =
-                                                6215754202506583964L;
-
-                                        @Override
-                                        public boolean filter(SubEvent value) throws Exception {
-                                            return value.getVolume() > 5.0;
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getVolume() > 5.0))
                             .followedBy("end")
-                            .where(
-                                    new SimpleCondition<Event>() {
-                                        private static final long serialVersionUID =
-                                                7056763917392056548L;
-
-                                        @Override
-                                        public boolean filter(Event value) throws Exception {
-                                            return value.getName().equals("end");
-                                        }
-                                    })
+                            .where(SimpleCondition.of(value -> value.getName().equals("end")))
                             // add a window timeout to test whether timestamps of elements in the
                             // priority queue in CEP operator are correctly checkpointed/restored
                             .within(Time.milliseconds(10L));

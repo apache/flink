@@ -20,7 +20,6 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -33,30 +32,36 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
-import org.apache.flink.test.recovery.AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint;
+import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -81,6 +86,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
     private static final String TASK_DEPLOYED_MARKER = "deployed";
     private static final Duration TIMEOUT = Duration.ofMinutes(2);
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
     @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
@@ -98,7 +107,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
         Configuration config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -114,7 +123,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
         config.setInteger(RestOptions.PORT, 0);
 
         final RpcService rpcService =
-                AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
+                RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
         final int jobManagerPort = rpcService.getPort();
         config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
@@ -123,12 +132,14 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                         StandaloneResourceManagerFactory.getInstance());
         DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
 
-        final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
+        final ScheduledExecutorService ioExecutor = EXECUTOR_RESOURCE.getExecutor();
         final HighAvailabilityServices haServices =
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         config,
                         ioExecutor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        AddressResolution.NO_ADDRESS_RESOLUTION,
+                        RpcSystem.load(),
+                        NoOpFatalErrorHandler.INSTANCE);
 
         final AtomicReference<Throwable> programException = new AtomicReference<>();
 
@@ -136,11 +147,13 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             dispatcherResourceManagerComponent =
                     resourceManagerComponentFactory.create(
                             config,
+                            ResourceID.generate(),
                             ioExecutor,
                             rpcService,
                             haServices,
                             blobServerResource.getBlobServer(),
-                            new HeartbeatServices(100L, 1000L),
+                            new HeartbeatServicesImpl(100L, 10000L, 2),
+                            new NoOpDelegationTokenManager(),
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
@@ -225,7 +238,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             fatalErrorHandler.rethrowError();
 
-            RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+            RpcUtils.terminateRpcService(rpcService);
 
             haServices.closeAndCleanupAllData();
         }

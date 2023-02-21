@@ -21,9 +21,12 @@ package org.apache.flink.core.fs.local;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 
 /**
  * The <code>LocalDataOutputStream</code> class is a wrapper class for a data output stream to the
@@ -34,6 +37,8 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 
     /** The file output stream used to write data. */
     private final FileOutputStream fos;
+
+    private boolean closed = false;
 
     /**
      * Constructs a new <code>LocalDataOutputStream</code> object from a given {@link File} object.
@@ -47,31 +52,49 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 
     @Override
     public void write(final int b) throws IOException {
+        checkOpen();
+        fos.write(b);
+    }
+
+    @Override
+    public void write(@Nonnull final byte[] b) throws IOException {
+        checkOpen();
         fos.write(b);
     }
 
     @Override
     public void write(final byte[] b, final int off, final int len) throws IOException {
+        checkOpen();
         fos.write(b, off, len);
     }
 
     @Override
     public void close() throws IOException {
+        closed = true;
         fos.close();
     }
 
     @Override
     public void flush() throws IOException {
+        checkOpen();
         fos.flush();
     }
 
     @Override
     public void sync() throws IOException {
+        checkOpen();
         fos.getFD().sync();
     }
 
     @Override
     public long getPos() throws IOException {
+        checkOpen();
         return fos.getChannel().position();
+    }
+
+    private void checkOpen() throws IOException {
+        if (closed) {
+            throw new ClosedChannelException();
+        }
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.lib.util;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 
@@ -36,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <SplitT> The type of the splits used by the source.
  */
+@Public
 public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>>
         implements SplitEnumerator<SplitT, Collection<SplitT>> {
 
@@ -72,16 +74,14 @@ public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>>
     }
 
     @Override
-    public Collection<SplitT> snapshotState() throws Exception {
+    public Collection<SplitT> snapshotState(long checkpointId) throws Exception {
         return remainingSplits;
     }
 
     @Override
     public void addReader(int subtaskId) {
-        // we don't assign any splits here, because this registration happens after fist startup
-        // and after each reader restart/recovery
-        // we only want to assign splits once, initially, which we get by reacting to the readers
-        // explicit
-        // split request
+        // we don't assign any splits here, because this registration happens after fist startup and
+        // after each reader restart/recovery we only want to assign splits once, initially, which
+        // we get by reacting to the readers explicit split request
     }
 }

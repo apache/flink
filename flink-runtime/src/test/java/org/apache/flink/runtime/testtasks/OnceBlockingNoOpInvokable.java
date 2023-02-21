@@ -21,26 +21,23 @@ package org.apache.flink.runtime.testtasks;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
- * Simple {@link AbstractInvokable} which blocks the first time it is run. Moreover, one can wait
- * until n instances of this invokable are running by calling {@link #waitUntilOpsAreRunning()}.
+ * Mimics a task that is doing something until some external condition is fulfilled. {@link
+ * #unblock()} signals that no more work is to be done, unblocking all instances and allowing all
+ * future instances to immediately finish as well.
  *
- * <p>Before using this class it is important to call {@link #resetFor}.
+ * <p>The main use-case is keeping a task running while supporting restarts, until some condition is
+ * met, at which point it should finish.
+ *
+ * <p>Before using this class it is important to call {@link #reset}.
  */
 public class OnceBlockingNoOpInvokable extends AbstractInvokable {
 
-    private static final AtomicInteger instanceCount = new AtomicInteger(0);
-
-    private static volatile CountDownLatch numOpsPending = new CountDownLatch(1);
-
     private static volatile boolean isBlocking = true;
 
-    private final Object lock = new Object();
+    private static final Object lock = new Object();
 
-    private volatile boolean running = true;
+    private static volatile boolean running = true;
 
     public OnceBlockingNoOpInvokable(Environment environment) {
         super(environment);
@@ -48,17 +45,13 @@ public class OnceBlockingNoOpInvokable extends AbstractInvokable {
 
     @Override
     public void invoke() throws Exception {
-
-        instanceCount.incrementAndGet();
-        numOpsPending.countDown();
-
-        synchronized (lock) {
-            while (isBlocking && running) {
-                lock.wait();
+        if (isBlocking) {
+            synchronized (lock) {
+                while (running) {
+                    lock.wait();
+                }
             }
         }
-
-        isBlocking = false;
     }
 
     @Override
@@ -69,20 +62,16 @@ public class OnceBlockingNoOpInvokable extends AbstractInvokable {
         }
     }
 
-    public static void waitUntilOpsAreRunning() throws InterruptedException {
-        numOpsPending.await();
+    public static void unblock() {
+        running = false;
+        isBlocking = false;
+        synchronized (lock) {
+            lock.notifyAll();
+        }
     }
 
-    public static int getInstanceCount() {
-        return instanceCount.get();
-    }
-
-    public static void resetInstanceCount() {
-        instanceCount.set(0);
-    }
-
-    public static void resetFor(int parallelism) {
-        numOpsPending = new CountDownLatch(parallelism);
+    public static void reset() {
         isBlocking = true;
+        running = true;
     }
 }

@@ -22,13 +22,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.KryoUtils;
 import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
 import org.apache.flink.core.memory.DataInputView;
@@ -44,6 +42,8 @@ import org.apache.commons.lang3.exception.CloneFailedException;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -67,6 +67,35 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This serializer is intended as a fallback serializer for the cases that are not covered by the
  * basic types, tuples, and POJOs.
  *
+ * <p>The set of serializers registered with Kryo via {@link Kryo#register}, with their respective
+ * IDs, depends on whether flink-java or flink-scala are on the classpath. This is for
+ * backwards-compatibility reasons.
+ *
+ * <p>If neither are available (which should only apply to tests in flink-core), then:
+ *
+ * <ul>
+ *   <li>0-9 are used for Java primitives
+ *   <li>10+ are used for user-defined registration
+ * </ul>
+ *
+ * <p>If flink-scala is available, then:
+ *
+ * <ul>
+ *   <li>0-9 are used for Java primitives
+ *   <li>10-72 are used for Scala classes
+ *   <li>73-84 are used for Java classes
+ *   <li>85+ are used for user-defined registration
+ * </ul>
+ *
+ * <p>If *only* flink-java is available, then:
+ *
+ * <ul>
+ *   <li>0-9 are used for Java primitives
+ *   <li>10-72 are unused (to maintain compatibility)
+ *   <li>73-84 are used for Java classes
+ *   <li>85+ are used for user-defined registration
+ * </ul>
+ *
  * @param <T> The type to be serialized.
  */
 public class KryoSerializer<T> extends TypeSerializer<T> {
@@ -84,6 +113,23 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
     static {
         configureKryoLogging();
+    }
+
+    @Nullable
+    private static final ChillSerializerRegistrar flinkChillPackageRegistrar =
+            loadFlinkChillPackageRegistrar();
+
+    @Nullable
+    private static ChillSerializerRegistrar loadFlinkChillPackageRegistrar() {
+        try {
+            return (ChillSerializerRegistrar)
+                    Class.forName(
+                                    "org.apache.flink.api.java.typeutils.runtime.kryo.FlinkChillPackageRegistrar")
+                            .getDeclaredConstructor()
+                            .newInstance();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -448,15 +494,21 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 | IllegalAccessException
                 | InvocationTargetException e) {
 
-            LOG.warn(
-                    "Falling back to default Kryo serializer because Chill serializer couldn't be found.",
-                    e);
+            if (LOG.isDebugEnabled()) {
+                LOG.info("Kryo serializer scala extensions are not available.", e);
+            } else {
+                LOG.info("Kryo serializer scala extensions are not available.");
+            }
 
             Kryo.DefaultInstantiatorStrategy initStrategy = new Kryo.DefaultInstantiatorStrategy();
             initStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
 
             Kryo kryo = new Kryo();
             kryo.setInstantiatorStrategy(initStrategy);
+
+            if (flinkChillPackageRegistrar != null) {
+                flinkChillPackageRegistrar.registerSerializers(kryo);
+            }
 
             return kryo;
         }
@@ -487,7 +539,12 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 kryo.addDefaultSerializer(entry.getKey(), entry.getValue());
             }
 
-            KryoUtils.applyRegistrations(this.kryo, kryoRegistrations.values());
+            KryoUtils.applyRegistrations(
+                    this.kryo,
+                    kryoRegistrations.values(),
+                    flinkChillPackageRegistrar != null
+                            ? flinkChillPackageRegistrar.getNextRegistrationId()
+                            : kryo.getNextRegistrationId());
 
             kryo.setRegistrationRequired(false);
             kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
@@ -502,43 +559,6 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
     public TypeSerializerSnapshot<T> snapshotConfiguration() {
         return new KryoSerializerSnapshot<>(
                 type, defaultSerializers, defaultSerializerClasses, kryoRegistrations);
-    }
-
-    @Deprecated
-    public static final class KryoSerializerConfigSnapshot<T>
-            extends KryoRegistrationSerializerConfigSnapshot<T> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public KryoSerializerConfigSnapshot() {}
-
-        public KryoSerializerConfigSnapshot(
-                Class<T> typeClass, LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
-
-            super(typeClass, kryoRegistrations);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-            KryoSerializer<T> javaSerializedKryoSerializer =
-                    (KryoSerializer<T>) super.restoreSerializer();
-
-            KryoSerializerSnapshot<T> snapshot =
-                    new KryoSerializerSnapshot<>(
-                            javaSerializedKryoSerializer.getType(),
-                            javaSerializedKryoSerializer.getDefaultKryoSerializers(),
-                            javaSerializedKryoSerializer.getDefaultKryoSerializerClasses(),
-                            javaSerializedKryoSerializer.getKryoRegistrations());
-
-            return snapshot.resolveSchemaCompatibility(newSerializer);
-        }
     }
 
     // --------------------------------------------------------------------------------------------

@@ -104,6 +104,7 @@ public final class DayTimeIntervalType extends LogicalType {
      *
      * <p>Note: The order of this enum reflects the granularity from coarse to fine.
      */
+    @PublicEvolving
     public enum DayTimeResolution {
         DAY,
         DAY_TO_HOUR,

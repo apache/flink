@@ -73,10 +73,7 @@ public class ResourceProfile implements Serializable {
      */
     public static final ResourceProfile UNKNOWN = new ResourceProfile();
 
-    /**
-     * A ResourceProfile that indicates infinite resource that matches any resource requirement, for
-     * testability purpose only.
-     */
+    /** A ResourceProfile that indicates infinite resource that matches any resource requirement. */
     @VisibleForTesting
     public static final ResourceProfile ANY =
             newBuilder()
@@ -174,7 +171,7 @@ public class ResourceProfile implements Serializable {
      * @return The cpu cores, 1.0 means a full cpu thread
      */
     public CPUResource getCpuCores() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return cpuCores;
     }
 
@@ -184,7 +181,7 @@ public class ResourceProfile implements Serializable {
      * @return The task heap memory
      */
     public MemorySize getTaskHeapMemory() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return taskHeapMemory;
     }
 
@@ -194,7 +191,7 @@ public class ResourceProfile implements Serializable {
      * @return The task off-heap memory
      */
     public MemorySize getTaskOffHeapMemory() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return taskOffHeapMemory;
     }
 
@@ -204,7 +201,7 @@ public class ResourceProfile implements Serializable {
      * @return The managed memory
      */
     public MemorySize getManagedMemory() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return managedMemory;
     }
 
@@ -214,7 +211,7 @@ public class ResourceProfile implements Serializable {
      * @return The network memory
      */
     public MemorySize getNetworkMemory() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return networkMemory;
     }
 
@@ -224,7 +221,7 @@ public class ResourceProfile implements Serializable {
      * @return The total memory
      */
     public MemorySize getTotalMemory() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return getOperatorsMemory().add(networkMemory);
     }
 
@@ -234,7 +231,7 @@ public class ResourceProfile implements Serializable {
      * @return The operator memory
      */
     public MemorySize getOperatorsMemory() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return taskHeapMemory.add(taskOffHeapMemory).add(managedMemory);
     }
 
@@ -244,11 +241,11 @@ public class ResourceProfile implements Serializable {
      * @return The extended resources
      */
     public Map<String, ExternalResource> getExtendedResources() {
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
         return Collections.unmodifiableMap(extendedResources);
     }
 
-    private void throwUnsupportedOperationExecptionIfUnknown() {
+    private void throwUnsupportedOperationExceptionIfUnknown() {
         if (this.equals(UNKNOWN)) {
             throw new UnsupportedOperationException();
         }
@@ -262,7 +259,7 @@ public class ResourceProfile implements Serializable {
      */
     public boolean isMatching(final ResourceProfile required) {
         checkNotNull(required, "Cannot check matching with null resources");
-        throwUnsupportedOperationExecptionIfUnknown();
+        throwUnsupportedOperationExceptionIfUnknown();
 
         if (this.equals(ANY)) {
             return true;

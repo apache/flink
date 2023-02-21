@@ -34,14 +34,15 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Default implementation of {@link SchedulingPipelinedRegion}. */
 public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegion {
 
     private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVertices;
 
-    private Set<ConsumedPartitionGroup> blockingConsumedPartitionGroups;
+    private Set<ConsumedPartitionGroup> nonPipelinedConsumedPartitionGroups;
+
+    private Set<ConsumedPartitionGroup> releaseBySchedulerConsumedPartitionGroups;
 
     private final Function<IntermediateResultPartitionID, DefaultResultPartition>
             resultPartitionRetriever;
@@ -76,34 +77,45 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
         return executionVertex;
     }
 
-    private void initializeAllBlockingConsumedPartitionGroups() {
-        final Set<ConsumedPartitionGroup> consumedPartitionGroupSet = new HashSet<>();
+    private void initializeConsumedPartitionGroups() {
+        final Set<ConsumedPartitionGroup> nonPipelinedConsumedPartitionGroupSet = new HashSet<>();
+        final Set<ConsumedPartitionGroup> releaseBySchedulerConsumedPartitionGroupSet =
+                new HashSet<>();
         for (DefaultExecutionVertex executionVertex : executionVertices.values()) {
             for (ConsumedPartitionGroup consumedPartitionGroup :
                     executionVertex.getConsumedPartitionGroups()) {
                 SchedulingResultPartition consumedPartition =
                         resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-                checkState(
-                        consumedPartition.getConsumerVertexGroups().size() <= 1,
-                        "Currently there has to be exactly one consumer for each partition in real jobs.");
-
-                if (consumedPartition.getResultType().isBlocking()) {
-                    consumedPartitionGroupSet.add(consumedPartitionGroup);
+                if (!consumedPartition.getResultType().mustBePipelinedConsumed()) {
+                    nonPipelinedConsumedPartitionGroupSet.add(consumedPartitionGroup);
+                }
+                if (consumedPartition.getResultType().isReleaseByScheduler()) {
+                    releaseBySchedulerConsumedPartitionGroupSet.add(consumedPartitionGroup);
                 }
             }
         }
 
-        this.blockingConsumedPartitionGroups =
-                Collections.unmodifiableSet(consumedPartitionGroupSet);
+        this.nonPipelinedConsumedPartitionGroups =
+                Collections.unmodifiableSet(nonPipelinedConsumedPartitionGroupSet);
+        this.releaseBySchedulerConsumedPartitionGroups =
+                Collections.unmodifiableSet(releaseBySchedulerConsumedPartitionGroupSet);
     }
 
     @Override
-    public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
-        if (blockingConsumedPartitionGroups == null) {
-            initializeAllBlockingConsumedPartitionGroups();
+    public Iterable<ConsumedPartitionGroup> getAllNonPipelinedConsumedPartitionGroups() {
+        if (nonPipelinedConsumedPartitionGroups == null) {
+            initializeConsumedPartitionGroups();
         }
-        return blockingConsumedPartitionGroups;
+        return nonPipelinedConsumedPartitionGroups;
+    }
+
+    @Override
+    public Iterable<ConsumedPartitionGroup> getAllReleaseBySchedulerConsumedPartitionGroups() {
+        if (releaseBySchedulerConsumedPartitionGroups == null) {
+            initializeConsumedPartitionGroups();
+        }
+        return releaseBySchedulerConsumedPartitionGroups;
     }
 
     @Override

@@ -59,6 +59,7 @@ public interface TransformationTranslator<OUT, T extends Transformation<OUT>> {
     Collection<Integer> translateForStreaming(final T transformation, final Context context);
 
     /** A context giving the necessary information for the translation of a given transformation. */
+    @Internal
     interface Context {
 
         /**
@@ -84,5 +85,8 @@ public interface TransformationTranslator<OUT, T extends Transformation<OUT>> {
 
         /** Retrieves additional configuration for the graph generation process. */
         ReadableConfig getGraphGeneratorConfig();
+
+        /** Transforms the transformation and updates the current stream graph. */
+        Collection<Integer> transform(Transformation<?> transformation);
     }
 }

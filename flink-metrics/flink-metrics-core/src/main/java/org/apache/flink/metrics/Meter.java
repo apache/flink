@@ -18,7 +18,10 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 /** Metric for measuring throughput. */
+@Public
 public interface Meter extends Metric {
 
     /** Mark occurrence of an event. */
@@ -44,4 +47,9 @@ public interface Meter extends Metric {
      * @return number of events marked on the meter
      */
     long getCount();
+
+    @Override
+    default MetricType getMetricType() {
+        return MetricType.METER;
+    }
 }

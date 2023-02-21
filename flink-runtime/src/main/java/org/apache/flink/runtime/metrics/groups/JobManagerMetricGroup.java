@@ -20,13 +20,16 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing a JobManager.
@@ -34,18 +37,24 @@ import java.util.Map;
  * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do not contain
  * tasks any more
  */
-public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup> {
+public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup>
+        implements LocallyCleanableResource {
 
     private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
     private final String hostname;
 
-    public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
+    JobManagerMetricGroup(MetricRegistry registry, String hostname) {
         super(
                 registry,
                 registry.getScopeFormats().getJobManagerFormat().formatScope(hostname),
                 null);
         this.hostname = hostname;
+    }
+
+    public static JobManagerMetricGroup createJobManagerMetricGroup(
+            final MetricRegistry metricRegistry, final String hostname) {
+        return new JobManagerMetricGroup(metricRegistry, hostname);
     }
 
     public String hostname() {
@@ -62,9 +71,7 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
     //  job groups
     // ------------------------------------------------------------------------
 
-    public JobManagerJobMetricGroup addJob(JobGraph job) {
-        JobID jobId = job.getJobID();
-        String jobName = job.getName();
+    public JobManagerJobMetricGroup addJob(JobID jobId, String jobName) {
         // get or create a jobs metric group
         JobManagerJobMetricGroup currentJobGroup;
         synchronized (this) {
@@ -82,9 +89,10 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
         }
     }
 
-    public void removeJob(JobID jobId) {
+    @Override
+    public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor ignoredExecutor) {
         if (jobId == null) {
-            return;
+            return FutureUtils.completedVoidFuture();
         }
 
         synchronized (this) {
@@ -93,6 +101,8 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
                 containedGroup.close();
             }
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     public int numRegisteredJobMetricGroups() {

@@ -27,23 +27,29 @@ import javax.annotation.Nonnull;
 /** Factory for {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolServiceFactory {
 
+    private final RequestSlotMatchingStrategy requestSlotMatchingStrategy;
+
     public DeclarativeSlotPoolBridgeServiceFactory(
             @Nonnull Clock clock,
             @Nonnull Time rpcTimeout,
             @Nonnull Time slotIdleTimeout,
-            @Nonnull Time batchSlotTimeout) {
+            @Nonnull Time batchSlotTimeout,
+            @Nonnull RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
         super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+        this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
     }
 
     @Nonnull
     @Override
-    public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
+    public SlotPoolService createSlotPoolService(
+            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
         return new DeclarativeSlotPoolBridge(
                 jobId,
-                new DefaultDeclarativeSlotPoolFactory(),
+                declarativeSlotPoolFactory,
                 clock,
                 rpcTimeout,
                 slotIdleTimeout,
-                batchSlotTimeout);
+                batchSlotTimeout,
+                requestSlotMatchingStrategy);
     }
 }

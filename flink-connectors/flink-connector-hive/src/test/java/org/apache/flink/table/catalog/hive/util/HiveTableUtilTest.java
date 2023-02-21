@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for HiveTableUtil. */
 public class HiveTableUtilTest {
@@ -48,28 +48,28 @@ public class HiveTableUtilTest {
         ResolvedExpression p2Ref = new FieldReferenceExpression("p2", DataTypes.STRING(), 0, 3);
         ResolvedExpression p3Ref = new FieldReferenceExpression("p3", DataTypes.DOUBLE(), 0, 4);
         ResolvedExpression p1Exp =
-                new CallExpression(
+                CallExpression.permanent(
                         BuiltInFunctionDefinitions.EQUALS,
                         Arrays.asList(p1Ref, valueLiteral(1)),
                         DataTypes.BOOLEAN());
         ResolvedExpression p2Exp =
-                new CallExpression(
+                CallExpression.permanent(
                         BuiltInFunctionDefinitions.EQUALS,
                         Arrays.asList(p2Ref, valueLiteral("a", DataTypes.STRING().notNull())),
                         DataTypes.BOOLEAN());
         ResolvedExpression p3Exp =
-                new CallExpression(
+                CallExpression.permanent(
                         BuiltInFunctionDefinitions.EQUALS,
                         Arrays.asList(p3Ref, valueLiteral(1.1)),
                         DataTypes.BOOLEAN());
         Optional<String> filter =
                 HiveTableUtil.makePartitionFilter(2, partColNames, Arrays.asList(p1Exp), hiveShim);
-        assertEquals("(p1 = 1)", filter.orElse(null));
+        assertThat(filter.orElse(null)).isEqualTo("(p1 = 1)");
 
         filter =
                 HiveTableUtil.makePartitionFilter(
                         2, partColNames, Arrays.asList(p1Exp, p3Exp), hiveShim);
-        assertEquals("(p1 = 1) and (p3 = 1.1)", filter.orElse(null));
+        assertThat(filter.orElse(null)).isEqualTo("(p1 = 1) and (p3 = 1.1)");
 
         filter =
                 HiveTableUtil.makePartitionFilter(
@@ -77,11 +77,11 @@ public class HiveTableUtilTest {
                         partColNames,
                         Arrays.asList(
                                 p2Exp,
-                                new CallExpression(
+                                CallExpression.permanent(
                                         BuiltInFunctionDefinitions.OR,
                                         Arrays.asList(p1Exp, p3Exp),
                                         DataTypes.BOOLEAN())),
                         hiveShim);
-        assertEquals("(p2 = 'a') and ((p1 = 1) or (p3 = 1.1))", filter.orElse(null));
+        assertThat(filter.orElse(null)).isEqualTo("(p2 = 'a') and ((p1 = 1) or (p3 = 1.1))");
     }
 }

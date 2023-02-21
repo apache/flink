@@ -24,8 +24,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public enum JobStatus {
     /**
-     * The job has been received by the Dispatcher, and is waiting for the job manager to be
-     * created.
+     * The job has been received by the Dispatcher, and is waiting for the job manager to receive
+     * leadership and to be created.
      */
     INITIALIZING(TerminalState.NON_TERMINAL),
 
@@ -96,7 +96,7 @@ public enum JobStatus {
      * terminal, the JobManager will not continue executing or recovering the job.
      *
      * <p>The only state that is locally terminal, but not globally terminal is {@link #SUSPENDED},
-     * which is typically entered when the executing JobManager looses its leader status.
+     * which is typically entered when the executing JobManager loses its leader status.
      *
      * @return True, if this job status is terminal, false otherwise.
      */

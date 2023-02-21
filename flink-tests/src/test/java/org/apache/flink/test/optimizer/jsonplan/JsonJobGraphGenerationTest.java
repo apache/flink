@@ -32,6 +32,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -40,6 +41,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -86,6 +88,11 @@ public class JsonJobGraphGenerationTest {
         if (err != null) {
             System.setOut(err);
         }
+    }
+
+    @AfterClass
+    public static void resetContextEnvironment() {
+        TestingExecutionEnvironment.unset();
     }
 
     @Test
@@ -239,6 +246,8 @@ public class JsonJobGraphGenerationTest {
 
     private static class GenericValidator implements JsonValidator {
 
+        private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+
         private final int expectedParallelism;
         private final int numNodes;
 
@@ -252,18 +261,20 @@ public class JsonJobGraphGenerationTest {
             final Map<String, JsonNode> idToNode = new HashMap<>();
 
             // validate the produced JSON
-            ObjectMapper m = new ObjectMapper();
-            JsonNode rootNode = m.readTree(json);
+            JsonNode rootNode = OBJECT_MAPPER.readTree(json);
 
             JsonNode idField = rootNode.get("jid");
             JsonNode nameField = rootNode.get("name");
+            JsonNode typeField = rootNode.get("type");
             JsonNode arrayField = rootNode.get("nodes");
 
             assertNotNull(idField);
             assertNotNull(nameField);
+            assertNotNull(typeField);
             assertNotNull(arrayField);
             assertTrue(idField.isTextual());
             assertTrue(nameField.isTextual());
+            assertTrue(typeField.isTextual());
             assertTrue(arrayField.isArray());
 
             ArrayNode array = (ArrayNode) arrayField;
@@ -363,6 +374,10 @@ public class JsonJobGraphGenerationTest {
                             return env;
                         }
                     });
+        }
+
+        public static void unset() {
+            ExecutionEnvironment.resetContextEnvironment();
         }
     }
 }

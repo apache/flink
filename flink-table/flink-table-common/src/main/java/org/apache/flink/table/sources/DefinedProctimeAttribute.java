@@ -29,8 +29,8 @@ import javax.annotation.Nullable;
  * Extends a {@link TableSource} to specify a processing time attribute.
  *
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. Use the concept of computed
- *     columns instead. See FLIP-95 for more information.
+ *     DynamicTableSource}. Use the concept of computed columns instead. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 @PublicEvolving

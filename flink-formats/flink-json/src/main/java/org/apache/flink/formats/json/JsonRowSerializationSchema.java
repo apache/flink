@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,8 +65,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link
  * JsonRowDeserializationSchema}.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link SerializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
     private static final long serialVersionUID = -2885556750743978636L;
@@ -74,7 +80,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
     private final RowTypeInfo typeInfo;
 
     /** Object mapper that is used to create output JSON objects. */
-    private final ObjectMapper mapper = new ObjectMapper();
+    private transient ObjectMapper mapper;
 
     private final SerializationRuntimeConverter runtimeConverter;
 
@@ -87,6 +93,11 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
                 typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
         this.typeInfo = (RowTypeInfo) typeInfo;
         this.runtimeConverter = createConverter(typeInfo);
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        mapper = JacksonMapperFactory.createObjectMapper();
     }
 
     /** Builder for {@link JsonRowSerializationSchema}. */

@@ -22,8 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -90,7 +89,7 @@ public class FsCheckpointStateOutputStreamTest {
 
     @Test
     public void testEmptyState() throws Exception {
-        FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
+        CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
                         Path.fromLocalFile(tempDir.newFolder()),
                         FileSystem.getLocalFileSystem(),
@@ -124,7 +123,7 @@ public class FsCheckpointStateOutputStreamTest {
 
     @Test
     public void testGetPos() throws Exception {
-        FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
+        CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
                         Path.fromLocalFile(tempDir.newFolder()),
                         FileSystem.getLocalFileSystem(),
@@ -172,7 +171,7 @@ public class FsCheckpointStateOutputStreamTest {
         when(fs.create(pathCaptor.capture(), any(FileSystem.WriteMode.class)))
                 .thenReturn(outputStream);
 
-        CheckpointStreamFactory.CheckpointStateOutputStream stream =
+        CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
                         Path.fromLocalFile(tempDir.newFolder()), fs, 4, 0, relativePaths);
 
@@ -198,7 +197,7 @@ public class FsCheckpointStateOutputStreamTest {
                 .thenReturn(outputStream);
         doThrow(new IOException("Test IOException.")).when(outputStream).close();
 
-        CheckpointStreamFactory.CheckpointStateOutputStream stream =
+        CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
                         Path.fromLocalFile(tempDir.newFolder()), fs, 4, 0, relativePaths);
 
@@ -219,7 +218,7 @@ public class FsCheckpointStateOutputStreamTest {
 
     private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile)
             throws Exception {
-        FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
+        CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
                         Path.fromLocalFile(tempDir.newFolder()),
                         FileSystem.getLocalFileSystem(),
@@ -335,13 +334,13 @@ public class FsCheckpointStateOutputStreamTest {
 
         // use with try-with-resources
         StreamStateHandle handle4;
-        try (CheckpointStreamFactory.CheckpointStateOutputStream stream4 = factory.get()) {
+        try (CheckpointStateOutputStream stream4 = factory.get()) {
             stream4.write(state4);
             handle4 = stream4.closeAndGetHandle();
         }
 
         // close before accessing handle
-        CheckpointStreamFactory.CheckpointStateOutputStream stream5 = factory.get();
+        CheckpointStateOutputStream stream5 = factory.get();
         stream5.write(state4);
         stream5.close();
         try {

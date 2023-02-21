@@ -19,12 +19,13 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
-import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP;
 import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
@@ -38,22 +39,28 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
             ConfigOptions.key("state.backend.rocksdb.localdir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
                     .withDescription(
-                            "The local directory (on the TaskManager) where RocksDB puts its files.");
+                            Description.builder()
+                                    .text(
+                                            "The local directory (on the TaskManager) where RocksDB puts its files. Per default, it will be <WORKING_DIR>/tmp. See %s for more details.",
+                                            TextElement.code(
+                                                    ClusterOptions
+                                                            .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
+                                                            .key()))
+                                    .build());
 
     /** Choice of timer service implementation. */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
-    public static final ConfigOption<PriorityQueueStateType> TIMER_SERVICE_FACTORY =
-            ConfigOptions.key("state.backend.rocksdb.timer-service.factory")
-                    .enumType(PriorityQueueStateType.class)
-                    .defaultValue(ROCKSDB)
-                    .withDescription(
-                            String.format(
-                                    "This determines the factory for timer service state implementation. Options "
-                                            + "are either %s (heap-based) or %s for an implementation based on RocksDB.",
-                                    HEAP.name(), ROCKSDB.name()));
+    public static final ConfigOption<EmbeddedRocksDBStateBackend.PriorityQueueStateType>
+            TIMER_SERVICE_FACTORY =
+                    ConfigOptions.key("state.backend.rocksdb.timer-service.factory")
+                            .enumType(EmbeddedRocksDBStateBackend.PriorityQueueStateType.class)
+                            .defaultValue(ROCKSDB)
+                            .withDescription(
+                                    "This determines the factory for timer service state implementation.");
 
     /**
      * The number of threads used to transfer (download and upload) files in RocksDBStateBackend.
@@ -61,7 +68,8 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
             ConfigOptions.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
-                    .defaultValue(1)
+                    .intType()
+                    .defaultValue(4)
                     .withDescription(
                             "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
 
@@ -69,6 +77,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> PREDEFINED_OPTIONS =
             ConfigOptions.key("state.backend.rocksdb.predefined-options")
+                    .stringType()
                     .defaultValue(DEFAULT.name())
                     .withDescription(
                             String.format(
@@ -84,12 +93,12 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> OPTIONS_FACTORY =
             ConfigOptions.key("state.backend.rocksdb.options-factory")
-                    .defaultValue(DefaultConfigurableOptionsFactory.class.getName())
+                    .stringType()
+                    .noDefaultValue()
                     .withDescription(
-                            String.format(
-                                    "The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions. "
-                                            + "The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
-                                    DefaultConfigurableOptionsFactory.class.getName()));
+                            "The options factory class for users to add customized options in DBOptions and ColumnFamilyOptions for RocksDB. "
+                                    + "If set, the RocksDB state backend will load the class and apply configs to DBOptions and ColumnFamilyOptions "
+                                    + "after loading ones from 'RocksDBConfigurableOptions' and pre-defined options.");
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
     public static final ConfigOption<Boolean> USE_MANAGED_MEMORY =
@@ -109,10 +118,23 @@ public class RocksDBOptions {
                     .withDescription(
                             String.format(
                                     "The fixed total amount of memory, shared among all RocksDB instances per slot. "
-                                            + "This option overrides the '%s' option when configured. If neither this option, nor the '%s' option"
-                                            + "are set, then each RocksDB column family state has its own memory caches (as controlled by the column "
-                                            + "family options).",
-                                    USE_MANAGED_MEMORY.key(), USE_MANAGED_MEMORY.key()));
+                                            + "This option overrides the '%s' option when configured.",
+                                    USE_MANAGED_MEMORY.key()));
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<MemorySize> FIX_PER_TM_MEMORY_SIZE =
+            ConfigOptions.key("state.backend.rocksdb.memory.fixed-per-tm")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            String.format(
+                                    "The fixed total amount of memory, shared among all RocksDB instances per Task Manager (cluster-level option). "
+                                            + "This option only takes effect if neither '%s' nor '%s' are not configured. If none is configured "
+                                            + "then each RocksDB column family state has its own memory caches (as controlled by the column "
+                                            + "family options). "
+                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml)."
+                                            + "Note, that this feature breaks resource isolation between the slots",
+                                    USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
     public static final ConfigOption<Double> WRITE_BUFFER_RATIO =

@@ -116,7 +116,7 @@ public class LocalRecoverableWriter implements RecoverableWriter {
     }
 
     @VisibleForTesting
-    static File generateStagingTempFilePath(File targetFile) {
+    public static File generateStagingTempFilePath(File targetFile) {
         checkArgument(!targetFile.isDirectory(), "targetFile must not be a directory");
 
         final File parent = targetFile.getParentFile();

@@ -33,7 +33,6 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,14 +63,14 @@ public class RowDataToJsonConverters implements Serializable {
     private final TimestampFormat timestampFormat;
 
     /** The handling mode when serializing null keys for map data. */
-    private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+    private final JsonFormatOptions.MapNullKeyMode mapNullKeyMode;
 
     /** The string literal when handling mode for map null key LITERAL. is */
     private final String mapNullKeyLiteral;
 
     public RowDataToJsonConverters(
             TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
+            JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral) {
         this.timestampFormat = timestampFormat;
         this.mapNullKeyMode = mapNullKeyMode;
@@ -249,7 +248,7 @@ public class RowDataToJsonConverters implements Serializable {
 
     private RowDataToJsonConverter createMapConverter(
             String typeSummary, LogicalType keyType, LogicalType valueType) {
-        if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
+        if (!keyType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new UnsupportedOperationException(
                     "JSON format doesn't support non-string as key type of map. "
                             + "The type is: "
@@ -286,7 +285,7 @@ public class RowDataToJsonConverters implements Serializable {
                                     String.format(
                                             "JSON format doesn't support to serialize map data with null keys. "
                                                     + "You can drop null key entries or encode null in literals by specifying %s option.",
-                                            JsonOptions.MAP_NULL_KEY_MODE.key()));
+                                            JsonFormatOptions.MAP_NULL_KEY_MODE.key()));
                         default:
                             throw new RuntimeException(
                                     "Unsupported map null key mode. Validator should have checked that.");
@@ -330,8 +329,15 @@ public class RowDataToJsonConverters implements Serializable {
             RowData row = (RowData) value;
             for (int i = 0; i < fieldCount; i++) {
                 String fieldName = fieldNames[i];
-                Object field = fieldGetters[i].getFieldOrNull(row);
-                node.set(fieldName, fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                try {
+                    Object field = fieldGetters[i].getFieldOrNull(row);
+                    node.set(
+                            fieldName,
+                            fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                } catch (Throwable t) {
+                    throw new RuntimeException(
+                            String.format("Fail to serialize at field: %s.", fieldName), t);
+                }
             }
             return node;
         };

@@ -19,51 +19,41 @@
 package org.apache.flink.runtime.scheduler.benchmark.scheduling;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
-
-import java.lang.reflect.Field;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The benchmark of scheduling downstream task in a BATCH job. The related method is {@link
  * PipelinedRegionSchedulingStrategy#onExecutionStateChange}.
  */
 public class SchedulingDownstreamTasksInBatchJobBenchmark extends SchedulingBenchmarkBase {
-
-    private ExecutionVertexID executionVertexID;
     private PipelinedRegionSchedulingStrategy schedulingStrategy;
 
+    private int parallelism;
+
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        initSchedulingTopology(jobConfiguration);
+        super.setup(jobConfiguration);
 
         schedulingStrategy =
                 new PipelinedRegionSchedulingStrategy(schedulerOperations, schedulingTopology);
 
-        // When we trying to scheduling downstream tasks via
-        // onExecutionStateChange(ExecutionState.FINISHED),
-        // the result partitions of upstream tasks need to be CONSUMABLE.
-        // The CONSUMABLE status is determined by the variable "numberOfRunningProducers" of the
-        // IntermediateResult.
-        // Its value cannot be changed by any public methods.
-        // So here we use reflections to modify this value and then schedule the downstream tasks.
-        for (IntermediateResult result : executionGraph.getAllIntermediateResults().values()) {
-            Field f = result.getClass().getDeclaredField("numberOfRunningProducers");
-            f.setAccessible(true);
-            AtomicInteger numberOfRunningProducers = (AtomicInteger) f.get(result);
-            numberOfRunningProducers.set(0);
-        }
-
-        executionVertexID =
-                executionGraph
-                        .getJobVertex(jobVertices.get(0).getID())
-                        .getTaskVertices()[0]
-                        .getID();
+        parallelism = jobConfiguration.getParallelism();
     }
 
     public void schedulingDownstreamTasks() {
-        schedulingStrategy.onExecutionStateChange(executionVertexID, ExecutionState.FINISHED);
+        for (int i = 0; i < parallelism - 1; i++) {
+            ExecutionVertex taskVertex =
+                    executionGraph.getJobVertex(jobVertices.get(0).getID()).getTaskVertices()[i];
+            taskVertex.finishPartitionsIfNeeded();
+
+            schedulingStrategy.onExecutionStateChange(taskVertex.getID(), ExecutionState.FINISHED);
+        }
+        ExecutionVertex lastVertex =
+                executionGraph.getJobVertex(jobVertices.get(0).getID())
+                        .getTaskVertices()[parallelism - 1];
+        lastVertex.finishPartitionsIfNeeded();
+        schedulingStrategy.onExecutionStateChange(lastVertex.getID(), ExecutionState.FINISHED);
     }
 }

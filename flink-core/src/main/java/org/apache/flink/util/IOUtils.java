@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -120,7 +121,7 @@ public final class IOUtils {
         while (toRead > 0) {
             final int ret = in.read(buf, off, toRead);
             if (ret < 0) {
-                throw new IOException("Premeture EOF from inputStream");
+                throw new IOException("Premature EOF from inputStream");
             }
             toRead -= ret;
             off += ret;
@@ -230,6 +231,20 @@ public final class IOUtils {
      * @throws Exception collected exceptions that occurred during closing
      */
     public static void closeAll(Iterable<? extends AutoCloseable> closeables) throws Exception {
+        closeAll(closeables, Exception.class);
+    }
+
+    /**
+     * Closes all {@link AutoCloseable} objects in the parameter, suppressing exceptions. Exception
+     * will be emitted after calling close() on every object.
+     *
+     * @param closeables iterable with closeables to close.
+     * @param suppressedException class of exceptions which should be suppressed during the closing.
+     * @throws Exception collected exceptions that occurred during closing
+     */
+    public static <T extends Throwable> void closeAll(
+            Iterable<? extends AutoCloseable> closeables, Class<T> suppressedException)
+            throws Exception {
         if (null != closeables) {
 
             Exception collectedExceptions = null;
@@ -239,8 +254,13 @@ public final class IOUtils {
                     if (null != closeable) {
                         closeable.close();
                     }
-                } catch (Exception e) {
-                    collectedExceptions = ExceptionUtils.firstOrSuppressed(e, collectedExceptions);
+                } catch (Throwable e) {
+                    if (!suppressedException.isAssignableFrom(e.getClass())) {
+                        throw e;
+                    }
+
+                    Exception ex = e instanceof Exception ? (Exception) e : new Exception(e);
+                    collectedExceptions = ExceptionUtils.firstOrSuppressed(ex, collectedExceptions);
                 }
             }
 
@@ -275,6 +295,22 @@ public final class IOUtils {
                 closeable.close();
             }
         } catch (Throwable ignored) {
+        }
+    }
+
+    /** Delete the given directory or file recursively. */
+    public static void deleteFilesRecursively(Path path) throws Exception {
+        File[] files = path.toFile().listFiles();
+        if (files == null || files.length == 0) {
+            return;
+        }
+
+        for (File file : files) {
+            if (!file.isDirectory()) {
+                Files.deleteIfExists(file.toPath());
+            } else {
+                deleteFilesRecursively(file.toPath());
+            }
         }
     }
 

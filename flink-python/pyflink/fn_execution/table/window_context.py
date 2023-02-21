@@ -15,21 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable
 
-from apache_beam.coders import Coder, PickleCoder
-
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
-from pyflink.datastream.timerservice import InternalTimerService
 from pyflink.datastream.window import TimeWindow, CountWindow
-from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-
-MAX_LONG_VALUE = sys.maxsize
 
 K = TypeVar('K')
 W = TypeVar('W', TimeWindow, CountWindow)
@@ -119,9 +114,9 @@ class WindowContext(Context[K, W]):
     def __init__(self,
                  window_operator,
                  trigger_context: 'TriggerContext',
-                 state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
-                 timer_service: InternalTimerServiceImpl,
+                 state_backend,
+                 state_value_coder,
+                 timer_service: LegacyInternalTimerServiceImpl,
                  is_event_time: bool):
         self._window_operator = window_operator
         self._trigger_context = trigger_context
@@ -182,8 +177,8 @@ class TriggerContext(object):
 
     def __init__(self,
                  trigger,
-                 timer_service: InternalTimerService[W],
-                 state_backend: RemoteKeyedStateBackend):
+                 timer_service: LegacyInternalTimerServiceImpl[W],
+                 state_backend):
         self._trigger = trigger
         self._timer_service = timer_service
         self._state_backend = state_backend
@@ -228,12 +223,18 @@ class TriggerContext(object):
 
     def get_partitioned_state(self, state_descriptor: StateDescriptor) -> State:
         if isinstance(state_descriptor, ValueStateDescriptor):
-            state = self._state_backend.get_value_state(state_descriptor.name, PickleCoder())
+            state = self._state_backend.get_value_state(
+                state_descriptor.name, from_type_info(state_descriptor.type_info))
         elif isinstance(state_descriptor, ListStateDescriptor):
-            state = self._state_backend.get_list_state(state_descriptor.name, PickleCoder())
+            array_coder = from_type_info(state_descriptor.type_info)  # type: GenericArrayCoder
+            state = self._state_backend.get_list_state(
+                state_descriptor.name, array_coder._elem_coder)
         elif isinstance(state_descriptor, MapStateDescriptor):
+            map_coder = from_type_info(state_descriptor.type_info)  # type: MapCoder
+            key_coder = map_coder._key_coder
+            value_coder = map_coder._value_coder
             state = self._state_backend.get_map_state(
-                state_descriptor.name, PickleCoder(), PickleCoder())
+                state_descriptor.name, key_coder, value_coder)
         else:
             raise Exception("Unknown supported StateDescriptor %s" % state_descriptor)
         state.set_current_namespace(self.window)

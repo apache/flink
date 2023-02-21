@@ -18,13 +18,16 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -78,7 +81,7 @@ final class OperatorCoordinatorCheckpoints {
             throws Exception {
 
         final CompletableFuture<AllCoordinatorSnapshots> snapshots =
-                triggerAllCoordinatorCheckpoints(coordinators, checkpoint.getCheckpointId());
+                triggerAllCoordinatorCheckpoints(coordinators, checkpoint.getCheckpointID());
 
         return snapshots.thenAcceptAsync(
                 (allSnapshots) -> {
@@ -121,14 +124,17 @@ final class OperatorCoordinatorCheckpoints {
                 final Throwable error =
                         checkpoint.isDisposed() ? checkpoint.getFailureCause() : null;
 
+                CheckpointFailureReason reason = CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE;
                 if (error != null) {
-                    throw new CheckpointException(
-                            errorMessage,
-                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
-                            error);
+                    final Optional<IOException> ioExceptionOptional =
+                            ExceptionUtils.findThrowable(error, IOException.class);
+                    if (ioExceptionOptional.isPresent()) {
+                        reason = CheckpointFailureReason.IO_EXCEPTION;
+                    }
+
+                    throw new CheckpointException(errorMessage, reason, error);
                 } else {
-                    throw new CheckpointException(
-                            errorMessage, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE);
+                    throw new CheckpointException(errorMessage, reason);
                 }
             }
         }

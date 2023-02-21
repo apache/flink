@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -25,6 +27,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -34,6 +37,7 @@ import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.types.Row;
@@ -48,7 +52,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -225,12 +232,12 @@ public class StreamExecutionEnvironmentTest {
         Assert.assertEquals(1 << 15, operator.getParallelism());
 
         // default value after generating
-        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
+        env.getStreamGraph(false).getJobGraph();
         Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
         // configured value after generating
         env.setMaxParallelism(42);
-        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
+        env.getStreamGraph(false).getJobGraph();
         Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
 
         // bounds configured parallelism 1
@@ -270,8 +277,47 @@ public class StreamExecutionEnvironmentTest {
         Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
 
         // override config
-        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
+        env.getStreamGraph(false).getJobGraph();
         Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
+    }
+
+    @Test
+    public void testRegisterSlotSharingGroup() {
+        final SlotSharingGroup ssg1 =
+                SlotSharingGroup.newBuilder("ssg1").setCpuCores(1).setTaskHeapMemoryMB(100).build();
+        final SlotSharingGroup ssg2 =
+                SlotSharingGroup.newBuilder("ssg2").setCpuCores(2).setTaskHeapMemoryMB(200).build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerSlotSharingGroup(ssg1);
+        env.registerSlotSharingGroup(ssg2);
+        env.registerSlotSharingGroup(SlotSharingGroup.newBuilder("ssg3").build());
+
+        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        source.map(value -> value).slotSharingGroup(ssg2).addSink(new DiscardingSink<>());
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertThat(
+                streamGraph.getSlotSharingGroupResource("ssg1").get(),
+                is(ResourceProfile.fromResources(1, 100)));
+        assertThat(
+                streamGraph.getSlotSharingGroupResource("ssg2").get(),
+                is(ResourceProfile.fromResources(2, 200)));
+        assertFalse(streamGraph.getSlotSharingGroupResource("ssg3").isPresent());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testRegisterSlotSharingGroupConflict() {
+        final SlotSharingGroup ssg =
+                SlotSharingGroup.newBuilder("ssg1").setCpuCores(1).setTaskHeapMemoryMB(100).build();
+        final SlotSharingGroup ssgConflict =
+                SlotSharingGroup.newBuilder("ssg1").setCpuCores(2).setTaskHeapMemoryMB(200).build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerSlotSharingGroup(ssg);
+
+        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        source.map(value -> value).slotSharingGroup(ssgConflict).addSink(new DiscardingSink<>());
+
+        env.getStreamGraph();
     }
 
     @Test
@@ -298,7 +344,7 @@ public class StreamExecutionEnvironmentTest {
             DataStreamSource<Integer> dataStream4 =
                     env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
             dataStream4.addSink(new DiscardingSink<Integer>());
-            assertEquals(4, env.getStreamGraph("TestJob").getStreamNodes().size());
+            assertEquals(4, env.getStreamGraph().getStreamNodes().size());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -308,7 +354,11 @@ public class StreamExecutionEnvironmentTest {
     @Test
     public void testDefaultJobName() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        testJobName(StreamExecutionEnvironment.DEFAULT_JOB_NAME, env);
+
+        testJobName(StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME, env);
+
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        testJobName(StreamGraphGenerator.DEFAULT_BATCH_JOB_NAME, env);
     }
 
     @Test

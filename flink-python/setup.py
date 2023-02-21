@@ -26,8 +26,8 @@ from shutil import copytree, copy, rmtree
 
 from setuptools import setup, Extension
 
-if sys.version_info < (3, 6):
-    print("Python versions prior to 3.6 are not supported for PyFlink.",
+if sys.version_info < (3, 7):
+    print("Python versions prior to 3.7 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
 
@@ -116,12 +116,12 @@ else:
                 sources=["pyflink/fn_execution/table/window_aggregate_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/table/"]),
             Extension(
-                name="pyflink.fn_execution.stream",
-                sources=["pyflink/fn_execution/stream.pyx"],
+                name="pyflink.fn_execution.stream_fast",
+                sources=["pyflink/fn_execution/stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
-                name="pyflink.fn_execution.beam.beam_stream",
-                sources=["pyflink/fn_execution/beam/beam_stream.pyx"],
+                name="pyflink.fn_execution.beam.beam_stream_fast",
+                sources=["pyflink/fn_execution/beam/beam_stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/beam"]),
             Extension(
                 name="pyflink.fn_execution.beam.beam_coder_impl_fast",
@@ -148,12 +148,12 @@ else:
                     sources=["pyflink/fn_execution/table/window_aggregate_fast.c"],
                     include_dirs=["pyflink/fn_execution/table/"]),
                 Extension(
-                    name="pyflink.fn_execution.stream",
-                    sources=["pyflink/fn_execution/stream.c"],
+                    name="pyflink.fn_execution.stream_fast",
+                    sources=["pyflink/fn_execution/stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
-                    name="pyflink.fn_execution.beam.beam_stream",
-                    sources=["pyflink/fn_execution/beam/beam_stream.c"],
+                    name="pyflink.fn_execution.beam.beam_stream_fast",
+                    sources=["pyflink/fn_execution/beam/beam_stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/beam"]),
                 Extension(
                     name="pyflink.fn_execution.beam.beam_coder_impl_fast",
@@ -213,7 +213,7 @@ try:
         FLINK_DIST = os.path.join(FLINK_ROOT, "flink-dist")
         FLINK_BIN = os.path.join(FLINK_DIST, "src/main/flink-bin")
 
-        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/table/examples")
+        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/examples")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_ROOT, "LICENSE")
         README_FILE_PATH = os.path.join(FLINK_BIN, "README.txt")
@@ -269,18 +269,28 @@ try:
                 'pyflink.table',
                 'pyflink.util',
                 'pyflink.datastream',
-                'pyflink.dataset',
+                'pyflink.datastream.connectors',
+                'pyflink.datastream.formats',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
                 'pyflink.fn_execution.datastream',
+                'pyflink.fn_execution.datastream.embedded',
+                'pyflink.fn_execution.datastream.process',
+                'pyflink.fn_execution.datastream.window',
+                'pyflink.fn_execution.embedded',
+                'pyflink.fn_execution.formats',
+                'pyflink.fn_execution.metrics',
+                'pyflink.fn_execution.metrics.embedded',
+                'pyflink.fn_execution.metrics.process',
                 'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
                 'pyflink.conf',
                 'pyflink.log',
                 'pyflink.examples',
-                'pyflink.bin']
+                'pyflink.bin',
+                'pyflink.testing']
 
     PACKAGE_DIR = {
         'pyflink.conf': TEMP_PATH + '/conf',
@@ -295,6 +305,16 @@ try:
         'pyflink.examples': ['*.py', '*/*.py'],
         'pyflink.bin': ['*']}
 
+    install_requires = ['py4j==0.10.9.7', 'python-dateutil>=2.8.0,<3', 'apache-beam==2.43.0',
+                        'cloudpickle==2.2.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
+                        'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
+                        'protobuf>=3.19.0,<=3.21',
+                        'numpy>=1.21.4,<1.22.0',
+                        'pandas>=1.3.0,<1.4.0',
+                        'pyarrow>=5.0.0,<9.0.0',
+                        'pemja==0.3.0;platform_system != "Windows"',
+                        'httplib2>=0.19.0,<=0.20.4', apache_flink_libraries_dependency]
+
     setup(
         name='apache-flink',
         version=VERSION,
@@ -307,14 +327,9 @@ try:
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.6',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
-                          'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
-                          'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
-                          'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
-                          apache_flink_libraries_dependency],
+        python_requires='>=3.7',
+        install_requires=install_requires,
         cmdclass={'build_ext': build_ext},
-        tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
         long_description=long_description,
         long_description_content_type='text/markdown',
@@ -322,9 +337,10 @@ try:
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
-            'Programming Language :: Python :: 3.8'],
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10'],
         ext_modules=extensions
     )
 finally:

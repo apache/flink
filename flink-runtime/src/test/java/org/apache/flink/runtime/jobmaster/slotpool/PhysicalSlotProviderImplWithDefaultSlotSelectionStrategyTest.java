@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,14 +27,14 @@ import org.junit.Test;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
  * DefaultLocationPreferenceSlotSelectionStrategy}.
  */
-public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
+public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest extends TestLogger {
 
     @Rule
     public final PhysicalSlotProviderResource physicalSlotProviderResource =
@@ -65,12 +66,15 @@ public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
     @Test
     public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
             throws Exception {
-        TestingSlotPoolImpl slotPool =
-                new SlotPoolBuilder(physicalSlotProviderResource.getMainThreadExecutor()).build();
+        DeclarativeSlotPoolBridge slotPool =
+                new DeclarativeSlotPoolBridgeBuilder()
+                        .buildAndStart(physicalSlotProviderResource.getMainThreadExecutor());
         assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
 
-        new PhysicalSlotProviderImpl(
-                LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+        final PhysicalSlotProvider slotProvider =
+                new PhysicalSlotProviderImpl(
+                        LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+        slotProvider.disableBatchSlotRequestTimeoutCheck();
         assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
     }
 }

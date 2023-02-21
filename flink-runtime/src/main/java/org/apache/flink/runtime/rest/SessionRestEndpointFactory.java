@@ -51,7 +51,6 @@ public enum SessionRestEndpointFactory implements RestEndpointFactory<Dispatcher
                 RestHandlerConfiguration.fromConfiguration(configuration);
 
         return new DispatcherRestEndpoint(
-                RestServerEndpointConfiguration.fromConfiguration(configuration),
                 dispatcherGatewayRetriever,
                 configuration,
                 restHandlerConfiguration,

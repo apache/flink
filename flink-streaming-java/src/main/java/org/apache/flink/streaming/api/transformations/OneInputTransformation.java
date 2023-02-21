@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -74,10 +74,50 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     public OneInputTransformation(
             Transformation<IN> input,
             String name,
+            OneInputStreamOperator<IN, OUT> operator,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        this(
+                input,
+                name,
+                SimpleOperatorFactory.of(operator),
+                outputType,
+                parallelism,
+                parallelismConfigured);
+    }
+
+    public OneInputTransformation(
+            Transformation<IN> input,
+            String name,
             StreamOperatorFactory<OUT> operatorFactory,
             TypeInformation<OUT> outputType,
             int parallelism) {
         super(name, outputType, parallelism);
+        this.input = input;
+        this.operatorFactory = operatorFactory;
+    }
+
+    /**
+     * Creates a new {@code LegacySinkTransformation} from the given input {@code Transformation}.
+     *
+     * @param input The input {@code Transformation}
+     * @param name The name of the {@code Transformation}, this will be shown in Visualizations and
+     *     the Log
+     * @param operatorFactory The {@code TwoInputStreamOperator} factory
+     * @param outputType The type of the elements produced by this {@code OneInputTransformation}
+     * @param parallelism The parallelism of this {@code OneInputTransformation}
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
+     */
+    public OneInputTransformation(
+            Transformation<IN> input,
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
         this.input = input;
         this.operatorFactory = operatorFactory;
     }

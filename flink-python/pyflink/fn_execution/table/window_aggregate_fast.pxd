@@ -15,14 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-cimport libc
+from libc.stdint cimport int64_t
 from pyflink.fn_execution.table.aggregate_fast cimport RowKeySelector
 from pyflink.fn_execution.coder_impl_fast cimport InternalRow
 
 cdef class NamespaceAggsHandleFunctionBase:
     cdef void open(self, object state_data_view_store)
-    cdef void accumulate(self, list input_data)
-    cdef void retract(self, list input_data)
+    cdef void accumulate(self, InternalRow input_data)
+    cdef void retract(self, InternalRow input_data)
     cpdef void merge(self, object namespace, list accumulators)
     cpdef void set_accumulators(self, object namespace, list accumulators)
     cdef list get_accumulators(self)
@@ -50,7 +50,7 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
     cdef size_t _get_value_indexes_length
 
 cdef class GroupWindowAggFunctionBase:
-    cdef libc.stdint.int64_t _allowed_lateness
+    cdef int64_t _allowed_lateness
     cdef int _rowtime_index
     cdef str _shift_timezone
     cdef RowKeySelector _key_selector
@@ -68,12 +68,12 @@ cdef class GroupWindowAggFunctionBase:
     cpdef void open(self, object function_context)
     cpdef void close(self)
     cpdef list process_element(self, InternalRow input_data)
-    cpdef void process_watermark(self, libc.stdint.int64_t watermark)
+    cpdef void process_watermark(self, int64_t watermark)
     cpdef list on_event_time(self, object timer)
     cpdef list on_processing_time(self, object timer)
     cpdef list get_timers(self)
-    cpdef libc.stdint.int64_t to_utc_timestamp_mills(self, libc.stdint.int64_t epoch_mills)
-    cpdef libc.stdint.int64_t cleanup_time(self, object window)
+    cpdef int64_t to_utc_timestamp_mills(self, int64_t epoch_mills)
+    cpdef int64_t cleanup_time(self, object window)
     cdef void _register_cleanup_timer(self, object window)
     cdef InternalRow _emit_window_result(self, list key, object window)
 

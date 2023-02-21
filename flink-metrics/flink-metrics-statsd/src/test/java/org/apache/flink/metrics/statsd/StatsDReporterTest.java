@@ -18,10 +18,7 @@
 
 package org.apache.flink.metrics.statsd;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -29,123 +26,72 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.metrics.util.TestMetricGroup;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the StatsDReporter. */
-public class StatsDReporterTest extends TestLogger {
+class StatsDReporterTest {
 
     @Test
-    public void testReplaceInvalidChars()
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    void testReplaceInvalidChars() {
         StatsDReporter reporter = new StatsDReporter();
 
-        assertEquals("", reporter.filterCharacters(""));
-        assertEquals("abc", reporter.filterCharacters("abc"));
-        assertEquals("a-b--", reporter.filterCharacters("a:b::"));
+        assertThat(reporter.filterCharacters("")).isEqualTo("");
+        assertThat(reporter.filterCharacters("abc")).isEqualTo("abc");
+        assertThat(reporter.filterCharacters("a:b::")).isEqualTo("a-b--");
     }
 
     /** Tests that the registered metrics' names don't contain invalid characters. */
     @Test
-    public void testAddingMetrics() throws Exception {
-        Configuration configuration = new Configuration();
-        String taskName = "testTask";
-        String jobName = "testJob:-!ax..?";
-        String hostname = "local::host:";
-        String taskManagerId = "tas:kMana::ger";
+    void testAddingMetrics() {
         String counterName = "testCounter";
 
-        configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
-        configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
+        final String scope = "scope";
+        final char delimiter = '_';
 
-        MetricRegistryImpl metricRegistry =
-                new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(configuration),
-                        Collections.singletonList(
-                                ReporterSetup.forReporter("test", new TestingStatsDReporter())));
+        MetricGroup metricGroup =
+                TestMetricGroup.newBuilder()
+                        .setMetricIdentifierFunction(
+                                (metricName, characterFilter) -> scope + delimiter + metricName)
+                        .build();
 
-        char delimiter = metricRegistry.getDelimiter();
-
-        TaskManagerMetricGroup tmMetricGroup =
-                new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
-        TaskManagerJobMetricGroup tmJobMetricGroup =
-                new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
-        TaskMetricGroup taskMetricGroup =
-                new TaskMetricGroup(
-                        metricRegistry,
-                        tmJobMetricGroup,
-                        new JobVertexID(),
-                        new ExecutionAttemptID(),
-                        taskName,
-                        0,
-                        0);
+        TestingStatsDReporter reporter = new TestingStatsDReporter();
+        reporter.open(new MetricConfig());
 
         SimpleCounter myCounter = new SimpleCounter();
-
-        taskMetricGroup.counter(counterName, myCounter);
-
-        List<MetricReporter> reporters = metricRegistry.getReporters();
-
-        assertTrue(reporters.size() == 1);
-
-        MetricReporter metricReporter = reporters.get(0);
-
-        assertTrue(
-                "Reporter should be of type StatsDReporter",
-                metricReporter instanceof StatsDReporter);
-
-        TestingStatsDReporter reporter = (TestingStatsDReporter) metricReporter;
+        reporter.notifyOfAddedMetric(myCounter, counterName, metricGroup);
 
         Map<Counter, String> counters = reporter.getCounters();
 
-        assertTrue(counters.containsKey(myCounter));
+        assertThat(counters).containsKey(myCounter);
 
         String expectedCounterName =
-                reporter.filterCharacters(hostname)
-                        + delimiter
-                        + reporter.filterCharacters(taskManagerId)
-                        + delimiter
-                        + reporter.filterCharacters(jobName)
+                reporter.filterCharacters(scope)
                         + delimiter
                         + reporter.filterCharacters(counterName);
 
-        assertEquals(expectedCounterName, counters.get(myCounter));
-
-        metricRegistry.shutdown().get();
+        assertThat(counters.get(myCounter)).isEqualTo(expectedCounterName);
     }
 
     /** Tests that histograms are properly reported via the StatsD reporter. */
     @Test
-    public void testStatsDHistogramReporting() throws Exception {
+    void testStatsDHistogramReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(6);
         expectedLines.add("metric.count:1|g");
         expectedLines.add("metric.mean:4.0|g");
@@ -163,7 +109,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDHistogramReportingOfNegativeValues() throws Exception {
+    void testStatsDHistogramReportingOfNegativeValues() throws Exception {
         TestHistogram histogram = new TestHistogram();
         histogram.setCount(-101);
         histogram.setMean(-104);
@@ -194,7 +140,7 @@ public class StatsDReporterTest extends TestLogger {
 
     /** Tests that meters are properly reported via the StatsD reporter. */
     @Test
-    public void testStatsDMetersReporting() throws Exception {
+    void testStatsDMetersReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(4);
         expectedLines.add("metric.rate:5.0|g");
         expectedLines.add("metric.count:100|g");
@@ -203,7 +149,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDMetersReportingOfNegativeValues() throws Exception {
+    void testStatsDMetersReportingOfNegativeValues() throws Exception {
         Set<String> expectedLines = new HashSet<>();
         expectedLines.add("metric.rate:0|g");
         expectedLines.add("metric.rate:-5.3|g");
@@ -215,7 +161,7 @@ public class StatsDReporterTest extends TestLogger {
 
     /** Tests that counter are properly reported via the StatsD reporter. */
     @Test
-    public void testStatsDCountersReporting() throws Exception {
+    void testStatsDCountersReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(2);
         expectedLines.add("metric:100|g");
 
@@ -223,7 +169,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDCountersReportingOfNegativeValues() throws Exception {
+    void testStatsDCountersReportingOfNegativeValues() throws Exception {
         Set<String> expectedLines = new HashSet<>();
         expectedLines.add("metric:0|g");
         expectedLines.add("metric:-51|g");
@@ -232,20 +178,20 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDGaugesReporting() throws Exception {
+    void testStatsDGaugesReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(2);
         expectedLines.add("metric:75|g");
 
-        testMetricAndAssert((Gauge) () -> 75, "metric", expectedLines);
+        testMetricAndAssert((Gauge<Integer>) () -> 75, "metric", expectedLines);
     }
 
     @Test
-    public void testStatsDGaugesReportingOfNegativeValues() throws Exception {
+    void testStatsDGaugesReportingOfNegativeValues() throws Exception {
         Set<String> expectedLines = new HashSet<>();
         expectedLines.add("metric:0|g");
         expectedLines.add("metric:-12345|g");
 
-        testMetricAndAssert((Gauge) () -> -12345, "metric", expectedLines);
+        testMetricAndAssert((Gauge<Integer>) () -> -12345, "metric", expectedLines);
     }
 
     private void testMetricAndAssert(Metric metric, String metricName, Set<String> expectation)
@@ -270,14 +216,14 @@ public class StatsDReporterTest extends TestLogger {
             config.setProperty("port", String.valueOf(port));
 
             reporter = new StatsDReporter();
-            ReporterSetup.forReporter("test", config, reporter);
+            reporter.open(config);
             MetricGroup metricGroup = new UnregisteredMetricsGroup();
 
             reporter.notifyOfAddedMetric(metric, metricName, metricGroup);
             reporter.report();
 
             receiver.waitUntilNumLines(expectation.size(), timeout);
-            assertEquals(expectation, receiver.getLines());
+            assertThat(receiver.getLines()).isEqualTo(expectation);
 
         } finally {
             if (reporter != null) {

@@ -18,28 +18,48 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for the parameter handling of the {@link JarPlanHandler}. */
-public class JarPlanHandlerParameterTest
+class JarPlanHandlerParameterTest
         extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
     private static JarPlanHandler handler;
+    private static final Configuration FLINK_CONFIGURATION =
+            new Configuration()
+                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
+                    .set(CoreOptions.DEFAULT_PARALLELISM, 57);
 
-    @BeforeClass
-    public static void setup() throws Exception {
-        init();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
+
+    @BeforeAll
+    static void setup(@TempDir File tempDir) throws Exception {
+        init(tempDir);
         handler =
                 new JarPlanHandler(
                         gatewayRetriever,
@@ -48,7 +68,7 @@ public class JarPlanHandlerParameterTest
                         JarPlanGetHeaders.getInstance(),
                         jarDir,
                         new Configuration(),
-                        executor,
+                        EXECUTOR_EXTENSION.getExecutor(),
                         jobGraph -> {
                             LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
                             return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
@@ -110,17 +130,31 @@ public class JarPlanHandlerParameterTest
                 getProgramArgsString(programArgsParType),
                 getProgramArgsList(programArgsParType),
                 PARALLELISM,
+                null,
                 null);
     }
 
     @Override
     JarPlanRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarPlanRequestBody(null, null, null, null, jobId);
+        return new JarPlanRequestBody(null, null, null, null, jobId, null);
     }
 
     @Override
-    void handleRequest(HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request)
-            throws Exception {
+    JarPlanRequestBody getJarRequestWithConfiguration() {
+        return new JarPlanRequestBody(null, null, null, null, null, FLINK_CONFIGURATION.toMap());
+    }
+
+    @Override
+    void handleRequest(HandlerRequest<JarPlanRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
+    }
+
+    @Override
+    void validateGraphWithFlinkConfig(JobGraph jobGraph) {
+        final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
+        assertThat(executionConfig.getParallelism())
+                .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
+        assertThat(executionConfig.getTaskCancellationTimeout())
+                .isEqualTo(FLINK_CONFIGURATION.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT));
     }
 }

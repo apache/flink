@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 
@@ -41,7 +42,7 @@ import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for data type mappings in HiveCatalog. */
 public class HiveCatalogDataTypeTest {
@@ -199,7 +200,7 @@ public class HiveCatalogDataTypeTest {
                 new HashMap<String, String>() {
                     {
                         put("is_streaming", "false");
-                        put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
+                        put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
                     }
                 },
                 "");
@@ -211,7 +212,7 @@ public class HiveCatalogDataTypeTest {
         catalog.createDatabase(db1, createDb(), false);
         catalog.createTable(path1, table, false);
 
-        assertEquals(table.getSchema(), catalog.getTable(path1).getSchema());
+        assertThat(catalog.getTable(path1).getSchema()).isEqualTo(table.getSchema());
     }
 
     private static CatalogDatabase createDb() {

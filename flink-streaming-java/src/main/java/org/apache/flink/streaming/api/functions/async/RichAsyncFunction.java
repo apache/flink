@@ -44,7 +44,7 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
@@ -116,7 +116,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
-        public MetricGroup getMetricGroup() {
+        public OperatorMetricGroup getMetricGroup() {
             return runtimeContext.getMetricGroup();
         }
 
@@ -236,7 +236,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         @Override
         public DoubleCounter getDoubleCounter(String name) {
             throw new UnsupportedOperationException(
-                    "Long counters are not supported in rich async functions.");
+                    "Double counters are not supported in rich async functions.");
         }
 
         @Override

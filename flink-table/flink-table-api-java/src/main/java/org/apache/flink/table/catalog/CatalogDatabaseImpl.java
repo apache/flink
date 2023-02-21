@@ -58,6 +58,11 @@ public class CatalogDatabaseImpl implements CatalogDatabase {
      * @return a copy of CatalogDatabase instance
      */
     public CatalogDatabase copy() {
+        return copy(getProperties());
+    }
+
+    @Override
+    public CatalogDatabase copy(Map<String, String> properties) {
         return new CatalogDatabaseImpl(new HashMap<>(properties), comment);
     }
 

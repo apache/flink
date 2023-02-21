@@ -42,7 +42,7 @@ Catalog 提供了元数据信息，例如数据库、表、分区、视图以及
 
 ### JdbcCatalog
 
-`JdbcCatalog` 使得用户可以将 Flink 通过 JDBC 协议连接到关系数据库。`PostgresCatalog` 是当前实现的唯一一种 JDBC Catalog。
+`JdbcCatalog` 使得用户可以将 Flink 通过 JDBC 协议连接到关系数据库。Postgres Catalog 和 MySQL Catalog 是目前 JDBC Catalog 仅有的两种实现。
 参考 [JdbcCatalog 文档]({{< ref "docs/connectors/table/jdbc" >}}) 获取关于配置 JDBC catalog 的详细信息。
 
 ### HiveCatalog
@@ -61,6 +61,10 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
 `CatalogFactory` 定义了一组属性，用于 SQL CLI 启动时配置 Catalog。
 这组属性集将传递给发现服务，在该服务中，服务会尝试将属性关联到 `CatalogFactory` 并初始化相应的 Catalog 实例。
 
+{{< hint warning >}}从 Flink v1.16 开始, TableEnvironment 引入了一个用户类加载器，以在 table 程序、SQL Client、SQL Gateway 中保持一致的类加载行为。该类加载器会统一管理所有的用户 jar 包，包括通过 `ADD JAR` 或 `CREATE FUNCTION .. USING JAR ..` 添加的 jar 资源。
+ 在用户自定义 catalog 中，应该将 `Thread.currentThread().getContextClassLoader()` 替换成该用户类加载器去加载类。否则，可能会发生 `ClassNotFoundException` 的异常。该用户类加载器可以通过 `CatalogFactory.Context#getClassLoader` 获得。
+{{< /hint >}}
+
 ## 如何创建 Flink 表并将其注册到 Catalog
 
 ### 使用 SQL DDL
@@ -70,7 +74,7 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
 {{< tabs "88ed733a-cf54-4676-9685-7d77d3cc9771" >}}
 {{< tab "Java" >}}
 ```java
-TableEnvironment tableEnv = ...
+TableEnvironment tableEnv = ...;
 
 // Create a HiveCatalog 
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
@@ -155,9 +159,8 @@ mytable
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.descriptors.Kafka;
 
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
 // Create a HiveCatalog
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
@@ -169,24 +172,15 @@ tableEnv.registerCatalog("myhive", catalog);
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...));
 
 // Create a catalog table
-TableSchema schema = TableSchema.builder()
-    .field("name", DataTypes.STRING())
-    .field("age", DataTypes.INT())
+final Schema schema = Schema.newBuilder()
+    .column("name", DataTypes.STRING())
+    .column("age", DataTypes.INT())
     .build();
 
-catalog.createTable(
-        new ObjectPath("mydb", "mytable"),
-        new CatalogTableImpl(
-            schema,
-            new Kafka()
-                .version("0.11")
-                ....
-                .startFromEarlist()
-                .toProperties(),
-            "my comment"
-        ),
-        false
-    );
+tableEnv.createTable("myhive.mydb.mytable", TableDescriptor.forConnector("kafka")
+    .schema(schema)
+    // …
+    .build());
 
 List<String> tables = catalog.listTables("mydb"); // tables should contain "mytable"
 ```
@@ -197,9 +191,8 @@ List<String> tables = catalog.listTables("mydb"); // tables should contain "myta
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.hive.HiveCatalog
-import org.apache.flink.table.descriptors.Kafka
 
-val tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance.build)
+val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
 
 // Create a HiveCatalog
 val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>")
@@ -211,24 +204,15 @@ tableEnv.registerCatalog("myhive", catalog)
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
 
 // Create a catalog table
-val schema = TableSchema.builder()
-    .field("name", DataTypes.STRING())
-    .field("age", DataTypes.INT())
+val schema = Schema.newBuilder()
+    .column("name", DataTypes.STRING())
+    .column("age", DataTypes.INT())
     .build()
 
-catalog.createTable(
-        new ObjectPath("mydb", "mytable"),
-        new CatalogTableImpl(
-            schema,
-            new Kafka()
-                .version("0.11")
-                ....
-                .startFromEarlist()
-                .toProperties(),
-            "my comment"
-        ),
-        false
-    )
+tableEnv.createTable("myhive.mydb.mytable", TableDescriptor.forConnector("kafka")
+    .schema(schema)
+    // …
+    .build())
 
 val tables = catalog.listTables("mydb") // tables should contain "mytable"
 ```
@@ -240,7 +224,7 @@ from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog, CatalogDatabase, ObjectPath, CatalogBaseTable
 from pyflink.table.descriptors import Kafka
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # Create a HiveCatalog
@@ -254,23 +238,15 @@ database = CatalogDatabase.create_instance({"k1": "v1"}, None)
 catalog.create_database("mydb", database)
 
 # Create a catalog table
-table_schema = TableSchema.builder() \
-    .field("name", DataTypes.STRING()) \
-    .field("age", DataTypes.INT()) \
+schema = Schema.new_builder() \
+    .column("name", DataTypes.STRING()) \
+    .column("age", DataTypes.INT()) \
     .build()
-
-table_properties = Kafka() \
-    .version("0.11") \
-    .start_from_earlist() \
-    .to_properties()
-
-catalog_table = CatalogBaseTable.create_table(
-    schema=table_schema, properties=table_properties, comment="my comment")
-
-catalog.create_table(
-    ObjectPath("mydb", "mytable"),
-    catalog_table,
-    False)
+    
+catalog_table = t_env.create_table("myhive.mydb.mytable", TableDescriptor.for_connector("kafka")
+    .schema(schema)
+    # …
+    .build())
 
 # tables should contain "mytable"
 tables = catalog.list_tables("mydb")
@@ -299,7 +275,7 @@ catalog.dropDatabase("mydb", false);
 // alter database
 catalog.alterDatabase("mydb", new CatalogDatabaseImpl(...), false);
 
-// get databse
+// get database
 catalog.getDatabase("mydb");
 
 // check if a database exist

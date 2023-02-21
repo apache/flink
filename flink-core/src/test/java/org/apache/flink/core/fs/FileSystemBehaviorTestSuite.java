@@ -21,17 +21,17 @@ package org.apache.flink.core.fs;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Common tests for the behavior of {@link FileSystem} methods. */
 public abstract class FileSystemBehaviorTestSuite {
@@ -49,27 +49,27 @@ public abstract class FileSystemBehaviorTestSuite {
     // ------------------------------------------------------------------------
 
     /** Gets an instance of the {@code FileSystem} to be tested. */
-    public abstract FileSystem getFileSystem() throws Exception;
+    protected abstract FileSystem getFileSystem() throws Exception;
 
     /** Gets the base path in the file system under which tests will place their temporary files. */
-    public abstract Path getBasePath() throws Exception;
+    protected abstract Path getBasePath() throws Exception;
 
     /** Gets the kind of the file system (file system, object store, ...). */
-    public abstract FileSystemKind getFileSystemKind();
+    protected abstract FileSystemKind getFileSystemKind();
 
     // ------------------------------------------------------------------------
     //  Init / Cleanup
     // ------------------------------------------------------------------------
 
-    @Before
-    public void prepare() throws Exception {
+    @BeforeEach
+    void prepare() throws Exception {
         fs = getFileSystem();
         basePath = new Path(getBasePath(), randomName());
         fs.mkdirs(basePath);
     }
 
-    @After
-    public void cleanup() throws Exception {
+    @AfterEach
+    void cleanup() throws Exception {
         fs.delete(basePath, true);
     }
 
@@ -80,55 +80,146 @@ public abstract class FileSystemBehaviorTestSuite {
     // --- file system kind
 
     @Test
-    public void testFileSystemKind() {
-        assertEquals(getFileSystemKind(), fs.getKind());
+    void testFileSystemKind() {
+        assertThat(fs.getKind()).isEqualTo(getFileSystemKind());
     }
 
     // --- access and scheme
 
     @Test
-    public void testPathAndScheme() throws Exception {
-        assertEquals(fs.getUri(), getBasePath().getFileSystem().getUri());
-        assertEquals(fs.getUri().getScheme(), getBasePath().toUri().getScheme());
+    void testPathAndScheme() throws Exception {
+        assertThat(fs.getUri()).isEqualTo(getBasePath().getFileSystem().getUri());
+        assertThat(fs.getUri().getScheme()).isEqualTo(getBasePath().toUri().getScheme());
     }
 
     @Test
-    public void testHomeAndWorkDir() {
-        assertEquals(fs.getUri().getScheme(), fs.getWorkingDirectory().toUri().getScheme());
-        assertEquals(fs.getUri().getScheme(), fs.getHomeDirectory().toUri().getScheme());
+    void testHomeDirScheme() {
+        assertThat(fs.getHomeDirectory().toUri().getScheme()).isEqualTo(fs.getUri().getScheme());
+    }
+
+    @Test
+    void testWorkDirScheme() {
+        assertThat(fs.getWorkingDirectory().toUri().getScheme()).isEqualTo(fs.getUri().getScheme());
+    }
+
+    // --- exists
+
+    @Test
+    void testFileExists() throws IOException {
+        final Path filePath = createRandomFileInDirectory(basePath);
+        assertThat(fs.exists(filePath)).isTrue();
+    }
+
+    @Test
+    void testFileDoesNotExist() throws IOException {
+        assertThat(fs.exists(new Path(basePath, randomName()))).isFalse();
+    }
+
+    // --- delete
+
+    @Test
+    void testExistingFileDeletion() throws IOException {
+        testSuccessfulDeletion(createRandomFileInDirectory(basePath), false);
+    }
+
+    @Test
+    void testExistingFileRecursiveDeletion() throws IOException {
+        testSuccessfulDeletion(createRandomFileInDirectory(basePath), true);
+    }
+
+    @Test
+    void testNotExistingFileDeletion() throws IOException {
+        testSuccessfulDeletion(new Path(basePath, randomName()), false);
+    }
+
+    @Test
+    void testNotExistingFileRecursiveDeletion() throws IOException {
+        testSuccessfulDeletion(new Path(basePath, randomName()), true);
+    }
+
+    @Test
+    void testExistingEmptyDirectoryDeletion() throws IOException {
+        final Path path = new Path(basePath, randomName());
+        fs.mkdirs(path);
+        testSuccessfulDeletion(path, false);
+    }
+
+    @Test
+    void testExistingEmptyDirectoryRecursiveDeletion() throws IOException {
+        final Path path = new Path(basePath, randomName());
+        fs.mkdirs(path);
+        testSuccessfulDeletion(path, true);
+    }
+
+    private void testSuccessfulDeletion(Path path, boolean recursionEnabled) throws IOException {
+        fs.delete(path, recursionEnabled);
+        assertThat(fs.exists(path)).isFalse();
+    }
+
+    @Test
+    void testExistingNonEmptyDirectoryDeletion() throws IOException {
+        final Path directoryPath = new Path(basePath, randomName());
+        final Path filePath = createRandomFileInDirectory(directoryPath);
+
+        assertThatThrownBy(() -> fs.delete(directoryPath, false)).isInstanceOf(IOException.class);
+        assertThat(fs.exists(directoryPath)).isTrue();
+        assertThat(fs.exists(filePath)).isTrue();
+    }
+
+    @Test
+    void testExistingNonEmptyDirectoryRecursiveDeletion() throws IOException {
+        final Path directoryPath = new Path(basePath, randomName());
+        final Path filePath = createRandomFileInDirectory(directoryPath);
+
+        fs.delete(directoryPath, true);
+        assertThat(fs.exists(directoryPath)).isFalse();
+        assertThat(fs.exists(filePath)).isFalse();
+    }
+
+    @Test
+    void testExistingNonEmptyDirectoryWithSubDirRecursiveDeletion() throws IOException {
+        final Path level1SubDirWithFile = new Path(basePath, randomName());
+        final Path fileInLevel1Subdir = createRandomFileInDirectory(level1SubDirWithFile);
+        final Path level2SubDirWithFile = new Path(level1SubDirWithFile, randomName());
+        final Path fileInLevel2Subdir = createRandomFileInDirectory(level2SubDirWithFile);
+
+        testSuccessfulDeletion(level1SubDirWithFile, true);
+        assertThat(fs.exists(fileInLevel1Subdir)).isFalse();
+        assertThat(fs.exists(level2SubDirWithFile)).isFalse();
+        assertThat(fs.exists(fileInLevel2Subdir)).isFalse();
     }
 
     // --- mkdirs
 
     @Test
-    public void testMkdirsReturnsTrueWhenCreatingDirectory() throws Exception {
+    void testMkdirsReturnsTrueWhenCreatingDirectory() throws Exception {
         // this test applies to object stores as well, as rely on the fact that they
         // return true when things are not bad
 
         final Path directory = new Path(basePath, randomName());
-        assertTrue(fs.mkdirs(directory));
+        assertThat(fs.mkdirs(directory)).isTrue();
 
         if (getFileSystemKind() != FileSystemKind.OBJECT_STORE) {
-            assertTrue(fs.exists(directory));
+            assertThat(fs.exists(directory)).isTrue();
         }
     }
 
     @Test
-    public void testMkdirsCreatesParentDirectories() throws Exception {
+    void testMkdirsCreatesParentDirectories() throws Exception {
         // this test applies to object stores as well, as rely on the fact that they
         // return true when things are not bad
 
         final Path directory =
                 new Path(new Path(new Path(basePath, randomName()), randomName()), randomName());
-        assertTrue(fs.mkdirs(directory));
+        assertThat(fs.mkdirs(directory)).isTrue();
 
         if (getFileSystemKind() != FileSystemKind.OBJECT_STORE) {
-            assertTrue(fs.exists(directory));
+            assertThat(fs.exists(directory)).isTrue();
         }
     }
 
     @Test
-    public void testMkdirsReturnsTrueForExistingDirectory() throws Exception {
+    void testMkdirsReturnsTrueForExistingDirectory() throws Exception {
         // this test applies to object stores as well, as rely on the fact that they
         // return true when things are not bad
 
@@ -137,11 +228,11 @@ public abstract class FileSystemBehaviorTestSuite {
         // make sure the directory exists
         createRandomFileInDirectory(directory);
 
-        assertTrue(fs.mkdirs(directory));
+        assertThat(fs.mkdirs(directory)).isTrue();
     }
 
     @Test
-    public void testMkdirsFailsForExistingFile() throws Exception {
+    protected void testMkdirsFailsForExistingFile() throws Exception {
         // test is not defined for object stores, they have no proper notion
         // of directories
         assumeNotObjectStore();
@@ -158,7 +249,7 @@ public abstract class FileSystemBehaviorTestSuite {
     }
 
     @Test
-    public void testMkdirsFailsWithExistingParentFile() throws Exception {
+    void testMkdirsFailsWithExistingParentFile() throws Exception {
         // test is not defined for object stores, they have no proper notion
         // of directories
         assumeNotObjectStore();
@@ -189,14 +280,17 @@ public abstract class FileSystemBehaviorTestSuite {
         }
     }
 
-    private void createRandomFileInDirectory(Path directory) throws IOException {
+    private Path createRandomFileInDirectory(Path directory) throws IOException {
         fs.mkdirs(directory);
-        createFile(new Path(directory, randomName()));
+        final Path filePath = new Path(directory, randomName());
+        createFile(filePath);
+
+        return filePath;
     }
 
     private void assumeNotObjectStore() {
-        Assume.assumeTrue(
-                "Test does not apply to object stores",
-                getFileSystemKind() != FileSystemKind.OBJECT_STORE);
+        assumeThat(getFileSystemKind() != FileSystemKind.OBJECT_STORE)
+                .describedAs("Test does not apply to object stores")
+                .isTrue();
     }
 }

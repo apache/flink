@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.data.utils;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
@@ -28,34 +28,67 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.RowKind;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 
-/** An implementation of {@link RowData} which is backed by two concatenated {@link RowData}. */
-@Internal
+/**
+ * An implementation of {@link RowData} which is backed by two concatenated {@link RowData}.
+ *
+ * <p>This implementation is mutable to allow for performant changes in hot code paths.
+ */
+@PublicEvolving
 public class JoinedRowData implements RowData {
 
     private RowKind rowKind = RowKind.INSERT;
     private RowData row1;
     private RowData row2;
 
+    /**
+     * Creates a new {@link JoinedRowData} of kind {@link RowKind#INSERT}, but without backing rows.
+     *
+     * <p>Note that it must be ensured that the backing rows are set to non-{@code null} values
+     * before accessing data from this {@link JoinedRowData}.
+     */
     public JoinedRowData() {}
 
-    public JoinedRowData(RowKind rowKind, RowData row1, RowData row2) {
+    /**
+     * Creates a new {@link JoinedRowData} of kind {@link RowKind#INSERT} backed by {@param row1}
+     * and {@param row2}.
+     *
+     * <p>Note that it must be ensured that the backing rows are set to non-{@code null} values
+     * before accessing data from this {@link JoinedRowData}.
+     */
+    public JoinedRowData(@Nullable RowData row1, @Nullable RowData row2) {
+        this(RowKind.INSERT, row1, row2);
+    }
+
+    /**
+     * Creates a new {@link JoinedRowData} of kind {@param rowKind} backed by {@param row1} and
+     * {@param row2}.
+     *
+     * <p>Note that it must be ensured that the backing rows are set to non-{@code null} values
+     * before accessing data from this {@link JoinedRowData}.
+     */
+    public JoinedRowData(RowKind rowKind, @Nullable RowData row1, @Nullable RowData row2) {
         this.rowKind = rowKind;
         this.row1 = row1;
         this.row2 = row2;
     }
 
-    public JoinedRowData(RowData row1, RowData row2) {
-        this.row1 = row1;
-        this.row2 = row2;
-    }
-
+    /**
+     * Replaces the {@link RowData} backing this {@link JoinedRowData}.
+     *
+     * <p>This method replaces the backing rows in place and does not return a new object. This is
+     * done for performance reasons.
+     */
     public JoinedRowData replace(RowData row1, RowData row2) {
         this.row1 = row1;
         this.row2 = row2;
         return this;
     }
+
+    // ---------------------------------------------------------------------------------------------
 
     @Override
     public int getArity() {

@@ -37,50 +37,48 @@ If you see a **back pressure warning** (e.g. `High`) for a task, this means that
 Take a simple `Source -> Sink` job as an example. If you see a warning for `Source`, this means that `Sink` is consuming data slower than `Source` is producing. `Sink` is back pressuring the upstream operator `Source`.
 
 
-## Sampling Back Pressure
+## Task performance metrics
 
-Back pressure monitoring works by repeatedly taking back pressure samples of your running tasks. The JobManager triggers repeated calls to `Task.isBackPressured()` for the tasks of your job.
+Every parallel instance of a task (subtask) is exposing a group of three metrics:
+- `backPressureTimeMsPerSecond`, time that subtask spent being back pressured
+- `idleTimeMsPerSecond`, time that subtask spent waiting for something to process
+- `busyTimeMsPerSecond`, time that subtask was busy doing some actual work
+At any point of time these three metrics are adding up approximately to `1000ms`.
 
-{{< img src="/fig/back_pressure_sampling.png" class="img-responsive" >}}
-<!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
+These metrics are being updated every couple of seconds, and the reported value represents the
+average time that subtask was back pressured (or idle or busy) during the last couple of seconds.
+Keep this in mind if your job has a varying load. For example, a subtask with a constant load of 50%
+and another subtask that is alternating every second between fully loaded and idling will both have
+the same value of `busyTimeMsPerSecond`: around `500ms`.
 
-Internally, back pressure is judged based on the availability of output buffers. If there is no available buffer (at least one) for output, then it indicates that there is back pressure for the task.
-
-By default, the job manager triggers 100 samples every 50ms for each task in order to determine back pressure. The ratio you see in the web interface tells you how many of these samples were indicating back pressure, e.g. `0.01` indicates that only 1 in 100 was back pressured.
-
-- **OK**: 0 <= Ratio <= 0.10
-- **LOW**: 0.10 < Ratio <= 0.5
-- **HIGH**: 0.5 < Ratio <= 1
-
-In order to not overload the task managers with back pressure samples, the web interface refreshes samples only after 60 seconds.
-
-## Configuration
-
-You can configure the number of samples for the job manager with the following configuration keys:
-
-- `web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: 60000, 1 min).
-- `web.backpressure.num-samples`: Number of samples to take to determine back pressure (DEFAULT: 100).
-- `web.backpressure.delay-between-samples`: Delay between samples to determine back pressure (DEFAULT: 50, 50 ms).
-
+Internally, back pressure is judged based on the availability of output buffers.
+If a task has no available output buffers, then that task is considered back pressured.
+Idleness, on the other hand, is determined by whether or not there is input available.
 
 ## Example
 
-You can find the *Back Pressure* tab next to the job overview.
+The WebUI aggregates the maximum value of the back pressure and busy metrics from all of the
+subtasks and presents those aggregated values inside the JobGraph. Besides displaying the raw
+values, tasks are also color-coded to make the investigation easier.
 
-### Sampling In Progress
+{{< img src="/fig/back_pressure_job_graph.png" class="img-responsive" >}}
 
-This means that the JobManager triggered a back pressure sample of the running tasks. With the default configuration, this takes about 5 seconds to complete.
-
-Note that clicking the row, you trigger the sample for all subtasks of this operator.
-
-{{< img src="/fig/back_pressure_sampling_in_progress.png" class="img-responsive" >}}
+Idling tasks are blue, fully back pressured tasks are black, and fully busy tasks are colored red.
+All values in between are represented as shades between those three colors.
 
 ### Back Pressure Status
 
-If you see status **OK** for the tasks, there is no indication of back pressure. **HIGH** on the other hand means that the tasks are back pressured.
+In the *Back Pressure* tab next to the job overview you can find more detailed metrics.
 
-{{< img src="/fig/back_pressure_sampling_ok.png" class="img-responsive" >}}
+{{< img src="/fig/back_pressure_subtasks.png" class="img-responsive" >}}
 
-{{< img src="/fig/back_pressure_sampling_high.png" class="img-responsive" >}}
+For subtasks whose status is **OK**, there is no indication of back pressure. **HIGH**, on the
+other hand, means that a subtask is back pressured. Status is defined in the following way:
+
+- **OK**: 0% <= back pressured <= 10%
+- **LOW**: 10% < back pressured <= 50%
+- **HIGH**: 50% < back pressured <= 100%
+
+Additionally, you can find the percentage of time each subtask is back pressured, idle, or busy.
 
 {{< top >}}

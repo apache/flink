@@ -47,7 +47,6 @@ Other file system types are accessed by an implementation that bridges to the su
   - `hdfs`: Hadoop Distributed File System
   - `s3`, `s3n`, and `s3a`: Amazon S3 file system
   - `gcs`: Google Cloud Storage
-  - `maprfs`: The MapR distributed file system
   - ...
 
 Flink loads Hadoop's file systems transparently if it finds the Hadoop File System classes in the class path and finds a valid
@@ -104,7 +103,7 @@ The `FSDataOutputStream` has to guarantee data persistence for the written bytes
     requirements exist.
  
     The above implies specifically that data may still be in the OS cache when considered
-    persistent from the local file system's perspective. Crashes that cause the OS cache to loose
+    persistent from the local file system's perspective. Crashes that cause the OS cache to lose
     data are considered fatal to the local machine and are not covered by the local file system's
     guarantees as defined by Flink.
 

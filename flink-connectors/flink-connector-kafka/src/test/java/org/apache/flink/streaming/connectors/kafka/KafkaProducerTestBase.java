@@ -23,16 +23,10 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -50,22 +44,19 @@ import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Abstract test base for all Kafka producer tests. */
 @SuppressWarnings("serial")
 public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
-
-    private static final long KAFKA_READ_TIMEOUT = 60_000L;
 
     /**
      * This tests verifies that custom partitioning works correctly, with a default topic and
@@ -100,10 +91,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         try {
             LOG.info("Starting KafkaProducerITCase.testCustomPartitioning()");
 
-            final String defaultTopic = "defaultTopic";
+            final String defaultTopic = "defaultTopic-" + UUID.randomUUID();
             final int defaultTopicPartitions = 2;
 
-            final String dynamicTopic = "dynamicTopic";
+            final String dynamicTopic = "dynamicTopic-" + UUID.randomUUID();
             final int dynamicTopicPartitions = 3;
 
             createTestTopic(defaultTopic, defaultTopicPartitions, 1);
@@ -211,135 +202,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         }
     }
 
-    /** Tests the at-least-once semantic for the simple writes into Kafka. */
-    @Test
-    public void testOneToOneAtLeastOnceRegularSink() throws Exception {
-        testOneToOneAtLeastOnce(true);
-    }
-
-    /** Tests the at-least-once semantic for the simple writes into Kafka. */
-    @Test
-    public void testOneToOneAtLeastOnceCustomOperator() throws Exception {
-        testOneToOneAtLeastOnce(false);
-    }
-
-    /**
-     * This test sets KafkaProducer so that it will not automatically flush the data and simulate
-     * network failure between Flink and Kafka to check whether FlinkKafkaProducer flushed records
-     * manually on snapshotState.
-     *
-     * <p>Due to legacy reasons there are two different ways of instantiating a Kafka 0.10 sink. The
-     * parameter controls which method is used.
-     */
-    protected void testOneToOneAtLeastOnce(boolean regularSink) throws Exception {
-        final String topic =
-                regularSink ? "oneToOneTopicRegularSink" : "oneToOneTopicCustomOperator";
-        final int partition = 0;
-        final int numElements = 1000;
-        final int failAfterElements = 333;
-
-        createTestTopic(topic, 1, 1);
-
-        TypeInformationSerializationSchema<Integer> schema =
-                new TypeInformationSerializationSchema<>(
-                        BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
-
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(500);
-        env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.noRestart());
-
-        Properties properties = new Properties();
-        properties.putAll(standardProps);
-        properties.putAll(secureProps);
-        // decrease timeout and block time from 60s down to 10s - this is how long KafkaProducer
-        // will try send pending (not flushed) data on close()
-        properties.setProperty("timeout.ms", "10000");
-        // KafkaProducer prior to KIP-91 (release 2.1) uses request timeout to expire the unsent
-        // records.
-        properties.setProperty("request.timeout.ms", "3000");
-        // KafkaProducer in 2.1.0 and above uses delivery timeout to expire the the records.
-        properties.setProperty("delivery.timeout.ms", "5000");
-        properties.setProperty("max.block.ms", "10000");
-        // increase batch.size and linger.ms - this tells KafkaProducer to batch produced events
-        // instead of flushing them immediately
-        properties.setProperty("batch.size", "10240000");
-        properties.setProperty("linger.ms", "10000");
-        // kafka producer messages guarantee
-        properties.setProperty("retries", "3");
-        properties.setProperty("acks", "all");
-
-        BrokerRestartingMapper.resetState(kafkaServer::blockProxyTraffic);
-
-        // process exactly failAfterElements number of elements and then shutdown Kafka broker and
-        // fail application
-        DataStream<Integer> inputStream =
-                env.addSource(new InfiniteIntegerSource())
-                        .map(new BrokerRestartingMapper<>(failAfterElements));
-
-        StreamSink<Integer> kafkaSink =
-                kafkaServer.getProducerSink(
-                        topic,
-                        schema,
-                        properties,
-                        new FlinkKafkaPartitioner<Integer>() {
-                            @Override
-                            public int partition(
-                                    Integer record,
-                                    byte[] key,
-                                    byte[] value,
-                                    String targetTopic,
-                                    int[] partitions) {
-                                return partition;
-                            }
-                        });
-
-        if (regularSink) {
-            inputStream.addSink(kafkaSink.getUserFunction());
-        } else {
-            kafkaServer.produceIntoKafka(
-                    inputStream,
-                    topic,
-                    schema,
-                    properties,
-                    new FlinkKafkaPartitioner<Integer>() {
-                        @Override
-                        public int partition(
-                                Integer record,
-                                byte[] key,
-                                byte[] value,
-                                String targetTopic,
-                                int[] partitions) {
-                            return partition;
-                        }
-                    });
-        }
-
-        try {
-            env.execute("One-to-one at least once test");
-            fail("Job should fail!");
-        } catch (JobExecutionException ex) {
-            // ignore error, it can be one of many errors so it would be hard to check the exception
-            // message/cause
-        } finally {
-            kafkaServer.unblockProxyTraffic();
-        }
-
-        // assert that before failure we successfully snapshot/flushed all expected elements
-        assertAtLeastOnceForTopic(
-                properties,
-                topic,
-                partition,
-                Collections.unmodifiableSet(
-                        new HashSet<>(
-                                getIntegersSequence(
-                                        BrokerRestartingMapper
-                                                .lastSnapshotedElementBeforeShutdown))),
-                KAFKA_READ_TIMEOUT);
-
-        deleteTestTopic(topic);
-    }
-
     /** Tests the exactly-once semantic for the simple writes into Kafka. */
     @Test
     public void testExactlyOnceRegularSink() throws Exception {
@@ -357,15 +219,18 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
      * broker to check whether flushed records since last checkpoint were not duplicated.
      */
     protected void testExactlyOnce(boolean regularSink, int sinksCount) throws Exception {
-        final String topic =
+        final String topicNamePrefix =
                 (regularSink ? "exactlyOnceTopicRegularSink" : "exactlyTopicCustomOperator")
                         + sinksCount;
         final int partition = 0;
         final int numElements = 1000;
         final int failAfterElements = 333;
 
+        final List<String> topics = new ArrayList<>();
         for (int i = 0; i < sinksCount; i++) {
-            createTestTopic(topic + i, 1, 1);
+            final String topic = topicNamePrefix + i + "-" + UUID.randomUUID();
+            topics.add(topic);
+            createTestTopic(topic, 1, 1);
         }
 
         TypeInformationSerializationSchema<Integer> schema =
@@ -405,11 +270,11 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
             if (regularSink) {
                 StreamSink<Integer> kafkaSink =
-                        kafkaServer.getProducerSink(topic + i, schema, properties, partitioner);
+                        kafkaServer.getProducerSink(topics.get(i), schema, properties, partitioner);
                 inputStream.addSink(kafkaSink.getUserFunction());
             } else {
                 kafkaServer.produceIntoKafka(
-                        inputStream, topic + i, schema, properties, partitioner);
+                        inputStream, topics.get(i), schema, properties, partitioner);
             }
         }
 
@@ -418,9 +283,8 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
         for (int i = 0; i < sinksCount; i++) {
             // assert that before failure we successfully snapshot/flushed all expected elements
-            assertExactlyOnceForTopic(
-                    properties, topic + i, partition, expectedElements, KAFKA_READ_TIMEOUT);
-            deleteTestTopic(topic + i);
+            assertExactlyOnceForTopic(properties, topics.get(i), expectedElements);
+            deleteTestTopic(topics.get(i));
         }
     }
 
@@ -450,7 +314,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
                 byte[] serializedValue,
                 String topic,
                 int[] partitions) {
-            assertEquals(expectedTopicsToNumPartitions.get(topic).intValue(), partitions.length);
+            assertThat(partitions).hasSize(expectedTopicsToNumPartitions.get(topic).intValue());
 
             return (int) (next.f0 % partitions.length);
         }
@@ -499,7 +363,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         public Integer map(Tuple2<Long, String> value) throws Exception {
             int partition = value.f0.intValue() % numPartitions;
             if (ourPartition != -1) {
-                assertEquals("inconsistent partitioning", ourPartition, partition);
+                assertThat(partition).as("inconsistent partitioning").isEqualTo(ourPartition);
             } else {
                 ourPartition = partition;
             }
@@ -532,83 +396,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
             if (!missing) {
                 throw new SuccessException();
             }
-        }
-    }
-
-    private static class BrokerRestartingMapper<T> extends RichMapFunction<T, T>
-            implements CheckpointedFunction, CheckpointListener {
-
-        private static final long serialVersionUID = 6334389850158707313L;
-
-        public static volatile boolean triggeredShutdown;
-        public static volatile int lastSnapshotedElementBeforeShutdown;
-        public static volatile Runnable shutdownAction;
-
-        private final int failCount;
-        private int numElementsTotal;
-
-        private boolean failer;
-
-        public static void resetState(Runnable shutdownAction) {
-            triggeredShutdown = false;
-            lastSnapshotedElementBeforeShutdown = 0;
-            BrokerRestartingMapper.shutdownAction = shutdownAction;
-        }
-
-        public BrokerRestartingMapper(int failCount) {
-            this.failCount = failCount;
-        }
-
-        @Override
-        public void open(Configuration parameters) {
-            failer = getRuntimeContext().getIndexOfThisSubtask() == 0;
-        }
-
-        @Override
-        public T map(T value) throws Exception {
-            numElementsTotal++;
-            Thread.sleep(10);
-
-            if (!triggeredShutdown && failer && numElementsTotal >= failCount) {
-                // shut down a Kafka broker
-                triggeredShutdown = true;
-                shutdownAction.run();
-            }
-            return value;
-        }
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) {}
-
-        @Override
-        public void notifyCheckpointAborted(long checkpointId) {}
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            if (!triggeredShutdown) {
-                lastSnapshotedElementBeforeShutdown = numElementsTotal;
-            }
-        }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {}
-    }
-
-    private static final class InfiniteIntegerSource implements SourceFunction<Integer> {
-
-        private volatile boolean running = true;
-        private int counter = 0;
-
-        @Override
-        public void run(SourceContext<Integer> ctx) throws Exception {
-            while (running) {
-                ctx.collect(counter++);
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
         }
     }
 }

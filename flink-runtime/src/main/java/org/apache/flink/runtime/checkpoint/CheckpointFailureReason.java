@@ -22,9 +22,6 @@ package org.apache.flink.runtime.checkpoint;
 public enum CheckpointFailureReason {
     PERIODIC_SCHEDULER_SHUTDOWN(true, "Periodic checkpoint scheduler is shut down."),
 
-    TOO_MANY_CONCURRENT_CHECKPOINTS(
-            true, "The maximum number of concurrent checkpoints is exceeded"),
-
     TOO_MANY_CHECKPOINT_REQUESTS(true, "The maximum number of queued checkpoint requests exceeded"),
 
     MINIMUM_TIME_BETWEEN_CHECKPOINTS(
@@ -34,9 +31,14 @@ public enum CheckpointFailureReason {
 
     NOT_ALL_REQUIRED_TASKS_RUNNING(true, "Not all required tasks are currently running."),
 
-    EXCEPTION(true, "An Exception occurred while triggering the checkpoint."),
+    IO_EXCEPTION(
+            true, "An Exception occurred while triggering the checkpoint. IO-problem detected."),
 
     CHECKPOINT_ASYNC_EXCEPTION(false, "Asynchronous task checkpoint failed."),
+
+    CHANNEL_STATE_SHARED_STREAM_EXCEPTION(
+            false,
+            "The checkpoint was aborted due to exception of other subtasks sharing the ChannelState file."),
 
     CHECKPOINT_EXPIRED(false, "Checkpoint expired before completing."),
 
@@ -46,10 +48,7 @@ public enum CheckpointFailureReason {
 
     CHECKPOINT_DECLINED_TASK_NOT_READY(false, "Checkpoint was declined (tasks not ready)"),
 
-    CHECKPOINT_DECLINED_TASK_CLOSING(
-            false, "Checkpoint was declined (task's operators partially closed)"),
-
-    CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING(false, "Task does not support checkpointing"),
+    CHECKPOINT_DECLINED_TASK_CLOSING(false, "Checkpoint was declined (task is closing)"),
 
     CHECKPOINT_DECLINED_SUBSUMED(
             false, "Checkpoint was canceled because a barrier from newer checkpoint was received."),
@@ -57,18 +56,12 @@ public enum CheckpointFailureReason {
     CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER(
             false, "Task received cancellation from one of its inputs"),
 
-    CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED(
-            false,
-            "The checkpoint alignment phase needed to buffer more than the configured maximum bytes"),
-
     CHECKPOINT_DECLINED_INPUT_END_OF_STREAM(
             false, "Checkpoint was declined because one input stream is finished"),
 
     CHECKPOINT_COORDINATOR_SHUTDOWN(false, "CheckpointCoordinator shutdown."),
 
     CHECKPOINT_COORDINATOR_SUSPEND(false, "Checkpoint Coordinator is suspending."),
-
-    JOB_FAILURE(false, "The job has failed."),
 
     JOB_FAILOVER_REGION(false, "FailoverRegion is restarting."),
 

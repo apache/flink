@@ -19,7 +19,6 @@
 package org.apache.flink.state.api.input.splits;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -30,7 +29,7 @@ import java.util.List;
 
 /** An input split representing a key-group range from a savepoint. */
 @Internal
-public final class KeyGroupRangeInputSplit implements InputSplit {
+public final class KeyGroupRangeInputSplit implements PrioritizedOperatorSubtaskStateInputSplit {
 
     private static final long serialVersionUID = -3715297712294815706L;
 
@@ -60,6 +59,7 @@ public final class KeyGroupRangeInputSplit implements InputSplit {
         return split;
     }
 
+    @Override
     public PrioritizedOperatorSubtaskState getPrioritizedOperatorSubtaskState() {
         final OperatorSubtaskState subtaskState =
                 OperatorSubtaskState.builder()

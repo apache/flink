@@ -72,7 +72,7 @@ public class TestingCheckpointStorageAccessCoordinatorView
     }
 
     @Override
-    public void initializeBaseLocations() throws IOException {}
+    public void initializeBaseLocationsForCheckpoint() throws IOException {}
 
     @Override
     public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
@@ -93,8 +93,13 @@ public class TestingCheckpointStorageAccessCoordinatorView
     }
 
     @Override
-    public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream() {
+    public CheckpointStateOutputStream createTaskOwnedStateStream() {
         return new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(Integer.MAX_VALUE);
+    }
+
+    @Override
+    public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
+        return new NotDuplicatingCheckpointStateToolset();
     }
 
     // ------------------------------------------------------------------------

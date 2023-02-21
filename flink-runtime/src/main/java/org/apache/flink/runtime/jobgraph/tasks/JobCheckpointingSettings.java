@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
 
@@ -42,6 +43,9 @@ public class JobCheckpointingSettings implements Serializable {
     /** The default state backend, if configured by the user in the job */
     @Nullable private final SerializedValue<StateBackend> defaultStateBackend;
 
+    /** The enable flag for change log state backend, if configured by the user in the job */
+    private final TernaryBoolean changelogStateBackendEnabled;
+
     /** The default checkpoint storage, if configured by the user in the job */
     @Nullable private final SerializedValue<CheckpointStorage> defaultCheckpointStorage;
 
@@ -52,18 +56,23 @@ public class JobCheckpointingSettings implements Serializable {
             CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
             @Nullable SerializedValue<StateBackend> defaultStateBackend) {
 
-        this(checkpointCoordinatorConfiguration, defaultStateBackend, null, null);
+        this(checkpointCoordinatorConfiguration, defaultStateBackend, null, null, null);
     }
 
     public JobCheckpointingSettings(
             CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
             @Nullable SerializedValue<StateBackend> defaultStateBackend,
+            @Nullable TernaryBoolean changelogStateBackendEnabled,
             @Nullable SerializedValue<CheckpointStorage> defaultCheckpointStorage,
             @Nullable SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks) {
 
         this.checkpointCoordinatorConfiguration =
                 Preconditions.checkNotNull(checkpointCoordinatorConfiguration);
         this.defaultStateBackend = defaultStateBackend;
+        this.changelogStateBackendEnabled =
+                changelogStateBackendEnabled == null
+                        ? TernaryBoolean.UNDEFINED
+                        : changelogStateBackendEnabled;
         this.defaultCheckpointStorage = defaultCheckpointStorage;
         this.masterHooks = masterHooks;
     }
@@ -77,6 +86,10 @@ public class JobCheckpointingSettings implements Serializable {
     @Nullable
     public SerializedValue<StateBackend> getDefaultStateBackend() {
         return defaultStateBackend;
+    }
+
+    public TernaryBoolean isChangelogStateBackendEnabled() {
+        return changelogStateBackendEnabled;
     }
 
     @Nullable

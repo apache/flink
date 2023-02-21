@@ -19,7 +19,13 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
@@ -30,11 +36,11 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocati
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionExpression;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionSpec;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitioningSpec;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.NotNullConstraint;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.PrimaryKey;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.tree.Tree;
 import org.antlr.runtime.tree.TreeVisitor;
@@ -42,13 +48,19 @@ import org.antlr.runtime.tree.TreeVisitorAction;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.rex.RexWindowBounds;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -60,10 +72,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -72,12 +81,9 @@ import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.lib.Node;
-import org.apache.hadoop.hive.ql.metadata.Hive;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.hadoop.hive.ql.metadata.InvalidTableException;
-import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
+import org.apache.hadoop.hive.ql.optimizer.calcite.reloperators.HiveFilter;
 import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.Order;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.parse.WindowingSpec;
@@ -89,6 +95,8 @@ import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.DelimitedJSONSerDe;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
@@ -99,8 +107,9 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import javax.annotation.Nullable;
+
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.util.ArrayDeque;
@@ -114,11 +123,15 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.removeASTChild;
+import static org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer.encodeRowFormat;
 
 /**
  * Counterpart of hive's org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer, and also contains
@@ -214,7 +227,6 @@ public class HiveParserBaseSemanticAnalyzer {
         int numCh = ast.getChildCount();
         List<PKInfo> pkInfos = new ArrayList<>();
         Map<String, FieldSchema> nametoFS = new HashMap<>();
-        Tree parent = ast.getParent();
 
         for (int i = 0; i < numCh; i++) {
             FieldSchema col = new FieldSchema();
@@ -251,16 +263,9 @@ public class HiveParserBaseSemanticAnalyzer {
                         constraintChild = (HiveParserASTNode) child.getChild(2);
                     }
                     if (constraintChild != null) {
-                        String[] qualifiedTabName =
-                                getQualifiedTableName((HiveParserASTNode) parent.getChild(0));
                         switch (constraintChild.getToken().getType()) {
                             case HiveASTParser.TOK_NOT_NULL:
-                                notNulls.add(
-                                        processNotNull(
-                                                constraintChild,
-                                                qualifiedTabName[0],
-                                                qualifiedTabName[1],
-                                                col.getName()));
+                                notNulls.add(processNotNull(constraintChild, col.getName()));
                                 break;
                             default:
                                 throw new SemanticException(
@@ -273,13 +278,12 @@ public class HiveParserBaseSemanticAnalyzer {
             }
         }
         if (!pkInfos.isEmpty()) {
-            processPrimaryKeys((HiveParserASTNode) parent, pkInfos, primaryKeys, nametoFS);
+            processPrimaryKeys(pkInfos, primaryKeys, nametoFS);
         }
         return colList;
     }
 
-    private static NotNullConstraint processNotNull(
-            HiveParserASTNode nnNode, String dbName, String tblName, String colName)
+    private static NotNullConstraint processNotNull(HiveParserASTNode nnNode, String colName)
             throws SemanticException {
         boolean enable = true;
         boolean validate = false;
@@ -305,30 +309,17 @@ public class HiveParserBaseSemanticAnalyzer {
                             "Unexpected node for NOT NULL constraint: " + child);
             }
         }
-        return new NotNullConstraint(dbName, tblName, colName, null, enable, validate, rely);
+        return new NotNullConstraint(colName, null, enable, validate, rely);
     }
 
     private static void processPrimaryKeys(
-            HiveParserASTNode parent,
-            List<PKInfo> pkInfos,
-            List<PrimaryKey> primaryKeys,
-            Map<String, FieldSchema> nametoFS)
+            List<PKInfo> pkInfos, List<PrimaryKey> primaryKeys, Map<String, FieldSchema> nametoFS)
             throws SemanticException {
-        int cnt = 1;
-        String[] qualifiedTabName = getQualifiedTableName((HiveParserASTNode) parent.getChild(0));
-
         for (PKInfo pkInfo : pkInfos) {
             String pk = pkInfo.colName;
             if (nametoFS.containsKey(pk)) {
                 PrimaryKey currPrimaryKey =
-                        new PrimaryKey(
-                                qualifiedTabName[0],
-                                qualifiedTabName[1],
-                                pk,
-                                pkInfo.constraintName,
-                                false,
-                                false,
-                                pkInfo.rely);
+                        new PrimaryKey(pk, pkInfo.constraintName, false, false, pkInfo.rely);
                 primaryKeys.add(currPrimaryKey);
             } else {
                 throw new SemanticException(ErrorMsg.INVALID_COLUMN.getMsg(pk));
@@ -392,17 +383,15 @@ public class HiveParserBaseSemanticAnalyzer {
     }
 
     private static void checkColumnName(String columnName) throws SemanticException {
-        if (VirtualColumn.VIRTUAL_COLUMN_NAMES.contains(columnName.toUpperCase())) {
+        ColumnInfo columnInfo = new ColumnInfo();
+        columnInfo.setAlias(columnName);
+        if (VirtualColumn.isVirtualColumnBasedOnAlias(columnInfo)) {
             throw new SemanticException("Invalid column name " + columnName);
         }
     }
 
-    public static String getDotName(String[] qname) throws SemanticException {
-        String genericName = StringUtils.join(qname, ".");
-        if (qname.length != 2) {
-            throw new SemanticException(ErrorMsg.INVALID_TABLE_NAME, genericName);
-        }
-        return genericName;
+    public static String getDotName(String... names) {
+        return Stream.of(names).filter(Objects::nonNull).collect(Collectors.joining("."));
     }
 
     /**
@@ -423,20 +412,44 @@ public class HiveParserBaseSemanticAnalyzer {
         }
     }
 
-    public static String[] getQualifiedTableName(HiveParserASTNode tabNameNode)
+    public static ObjectIdentifier getObjectIdentifier(
+            CatalogManager catalogManager, HiveParserASTNode tabNameNode) throws SemanticException {
+        UnresolvedIdentifier qualifiedTableName = getQualifiedTableName(tabNameNode);
+        return catalogManager.qualifyIdentifier(qualifiedTableName);
+    }
+
+    public static ObjectIdentifier parseCompoundName(
+            CatalogManager catalogManager, String compoundName) {
+        String[] names = compoundName.split("\\.");
+        return catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(names));
+    }
+
+    public static UnresolvedIdentifier getQualifiedTableName(HiveParserASTNode tabNameNode)
             throws SemanticException {
-        if (tabNameNode.getType() != HiveASTParser.TOK_TABNAME
-                || (tabNameNode.getChildCount() != 1 && tabNameNode.getChildCount() != 2)) {
+        if (tabNameNode.getType() != HiveASTParser.TOK_TABNAME) {
             throw new SemanticException(
                     HiveParserErrorMsg.getMsg(ErrorMsg.INVALID_TABLE_NAME, tabNameNode));
         }
-        if (tabNameNode.getChildCount() == 2) {
-            String dbName = unescapeIdentifier(tabNameNode.getChild(0).getText());
-            String tableName = unescapeIdentifier(tabNameNode.getChild(1).getText());
-            return new String[] {dbName, tableName};
+        String catalogName;
+        String dbName;
+        String tableName;
+        switch (tabNameNode.getChildCount()) {
+            case 1:
+                tableName = unescapeIdentifier(tabNameNode.getChild(0).getText());
+                return UnresolvedIdentifier.of(tableName);
+            case 2:
+                dbName = unescapeIdentifier(tabNameNode.getChild(0).getText());
+                tableName = unescapeIdentifier(tabNameNode.getChild(1).getText());
+                return UnresolvedIdentifier.of(dbName, tableName);
+            case 3:
+                catalogName = unescapeIdentifier(tabNameNode.getChild(0).getText());
+                dbName = unescapeIdentifier(tabNameNode.getChild(1).getText());
+                tableName = unescapeIdentifier(tabNameNode.getChild(2).getText());
+                return UnresolvedIdentifier.of(catalogName, dbName, tableName);
+            default:
+                throw new SemanticException(
+                        HiveParserErrorMsg.getMsg(ErrorMsg.INVALID_TABLE_NAME, tabNameNode));
         }
-        String tableName = unescapeIdentifier(tabNameNode.getChild(0).getText());
-        return Utilities.getDbTableName(tableName);
     }
 
     public static Tuple2<String, String> charSetString(String charSetName, String charSetString)
@@ -493,19 +506,18 @@ public class HiveParserBaseSemanticAnalyzer {
 
     /**
      * Get the unqualified name from a table node. This method works for table names qualified with
-     * their schema (e.g., "db.table") and table names without schema qualification. In both cases,
-     * it returns the table name without the schema.
+     * their schema (e.g., "catalog.db.table") and table names without schema qualification. In both
+     * cases, it returns the table name without the schema.
      *
      * @param node the table node
-     * @return the table name without schema qualification (i.e., if name is "db.table" or "table",
-     *     returns "table")
+     * @return the table name without schema qualification (i.e., if name is "catalog.db.table" or
+     *     "table", returns "table")
      */
-    public static String getUnescapedUnqualifiedTableName(HiveParserASTNode node) {
-        assert node.getChildCount() <= 2;
+    public static String getUnescapedUnqualifiedTableName(HiveParserASTNode node)
+            throws SemanticException {
+        assert node.getChildCount() <= 3;
 
-        if (node.getChildCount() == 2) {
-            node = (HiveParserASTNode) node.getChild(1);
-        }
+        node = (HiveParserASTNode) node.getChild(node.getChildCount() - 1);
 
         return getUnescapedName(node);
     }
@@ -514,10 +526,48 @@ public class HiveParserBaseSemanticAnalyzer {
      * Get dequoted name from a table/column node.
      *
      * @param tableOrColumnNode the table or column node
-     * @return for table node, db.tab or tab. for column node column.
+     * @return for table node, return the table that users specific like catalog.db.tab, db.tab or
+     *     tab. For column node column, return col.
      */
-    public static String getUnescapedName(HiveParserASTNode tableOrColumnNode) {
-        return getUnescapedName(tableOrColumnNode, null);
+    public static String getUnescapedName(HiveParserASTNode tableOrColumnNode)
+            throws SemanticException {
+        return getUnescapedName(tableOrColumnNode, null, null);
+    }
+
+    public static String getUnescapedName(
+            HiveParserASTNode tableOrColumnNode,
+            @Nullable String currentCatalog,
+            @Nullable String currentDatabase)
+            throws SemanticException {
+        int tokenType = tableOrColumnNode.getToken().getType();
+        if (tokenType == HiveASTParser.TOK_TABNAME) {
+            // table node
+            UnresolvedIdentifier tableIdentifier = getQualifiedTableName(tableOrColumnNode);
+            return getDotName(
+                    tableIdentifier.getCatalogName().orElse(currentCatalog),
+                    tableIdentifier.getDatabaseName().orElse(currentDatabase),
+                    tableIdentifier.getObjectName());
+        } else if (tokenType == HiveASTParser.StringLiteral) {
+            return unescapeSQLString(tableOrColumnNode.getText());
+        }
+        // column node
+        return unescapeIdentifier(tableOrColumnNode.getText());
+    }
+
+    /**
+     * Get the unescaped origin table name for the table node. This method returns
+     * "catalog.db.table","db.table" or "table" according to what the table node actually specifies
+     *
+     * @param node the table node
+     * @return "catalog.db.table", "db.table" or "table"
+     */
+    public static String getUnescapedOriginTableName(HiveParserASTNode node)
+            throws SemanticException {
+        UnresolvedIdentifier tableIdentifier = getQualifiedTableName(node);
+        return getDotName(
+                tableIdentifier.getCatalogName().orElse(null),
+                tableIdentifier.getDatabaseName().orElse(null),
+                tableIdentifier.getObjectName());
     }
 
     public static String getUnescapedName(
@@ -656,19 +706,6 @@ public class HiveParserBaseSemanticAnalyzer {
         return sb.toString();
     }
 
-    public static void validatePartSpec(
-            Table tbl,
-            Map<String, String> partSpec,
-            HiveParserASTNode astNode,
-            HiveConf conf,
-            boolean shouldBeFull,
-            FrameworkConfig frameworkConfig,
-            RelOptCluster cluster)
-            throws SemanticException {
-        tbl.validatePartColumnNames(partSpec, shouldBeFull);
-        validatePartColumnType(tbl, partSpec, astNode, conf, frameworkConfig, cluster);
-    }
-
     private static boolean getPartExprNodeDesc(
             HiveParserASTNode astNode,
             HiveConf conf,
@@ -737,7 +774,8 @@ public class HiveParserBaseSemanticAnalyzer {
         return exprs;
     }
 
-    static String findSimpleTableName(HiveParserASTNode tabref, int aliasIndex) {
+    static String findSimpleTableName(HiveParserASTNode tabref, int aliasIndex)
+            throws SemanticException {
         assert tabref.getType() == HiveASTParser.TOK_TABREF;
         HiveParserASTNode tableTree = (HiveParserASTNode) (tabref.getChild(0));
 
@@ -791,8 +829,7 @@ public class HiveParserBaseSemanticAnalyzer {
                 return "-"
                         + unparseExprForValuesClause((HiveParserASTNode) expr.getChildren().get(0));
             case HiveASTParser.TOK_NULL:
-                // Hive's text input will translate this as a null
-                return "\\N";
+                return null;
             default:
                 throw new SemanticException(
                         "Expression of type " + expr.getText() + " not supported in insert/values");
@@ -936,12 +973,12 @@ public class HiveParserBaseSemanticAnalyzer {
                 case PRECEDING:
                     if (amt == null) {
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         SqlWindow.createUnboundedPreceding(dummyPos), null);
                     } else {
                         SqlCall call = (SqlCall) SqlWindow.createPreceding(amt, dummyPos);
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         call,
                                         cluster.getRexBuilder()
                                                 .makeCall(call.getOperator(), amtLiteral));
@@ -949,18 +986,18 @@ public class HiveParserBaseSemanticAnalyzer {
                     break;
 
                 case CURRENT:
-                    res = RexWindowBound.create(SqlWindow.createCurrentRow(dummyPos), null);
+                    res = RexWindowBounds.create(SqlWindow.createCurrentRow(dummyPos), null);
                     break;
 
                 case FOLLOWING:
                     if (amt == null) {
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         SqlWindow.createUnboundedFollowing(dummyPos), null);
                     } else {
                         SqlCall call = (SqlCall) SqlWindow.createFollowing(amt, dummyPos);
                         res =
-                                RexWindowBound.create(
+                                RexWindowBounds.create(
                                         call,
                                         cluster.getRexBuilder()
                                                 .makeCall(call.getOperator(), amtLiteral));
@@ -1705,8 +1742,8 @@ public class HiveParserBaseSemanticAnalyzer {
                                 GroupByDesc.Mode.COMPLETE, isDistinct);
 
                 GenericUDAFEvaluator genericUDAFEvaluator;
-                if (aggName.toLowerCase().equals(FunctionRegistry.LEAD_FUNC_NAME)
-                        || aggName.toLowerCase().equals(FunctionRegistry.LAG_FUNC_NAME)) {
+                if (aggName.equalsIgnoreCase(FunctionRegistry.LEAD_FUNC_NAME)
+                        || aggName.equalsIgnoreCase(FunctionRegistry.LAG_FUNC_NAME)) {
                     ArrayList<ObjectInspector> originalParameterTypeInfos =
                             HiveParserUtils.getWritableObjectInspector(aggParameters);
                     genericUDAFEvaluator =
@@ -1765,126 +1802,174 @@ public class HiveParserBaseSemanticAnalyzer {
 
     public static RelNode genValues(
             String tabAlias,
-            Table tmpTable,
+            CatalogTable catalogTable,
             HiveParserRowResolver rowResolver,
-            HiveParserSemanticAnalyzer semanticAnalyzer,
-            RelOptCluster cluster) {
-        try {
-            Path dataFile = new Path(tmpTable.getSd().getLocation(), "data_file");
-            FileSystem fs = dataFile.getFileSystem(semanticAnalyzer.getConf());
-            List<List<RexLiteral>> rows = new ArrayList<>();
-            // TODO: leverage Hive to read the data
-            try (BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(fs.open(dataFile)))) {
-                List<TypeInfo> tmpTableTypes =
-                        tmpTable.getCols().stream()
-                                .map(f -> TypeInfoUtils.getTypeInfoFromTypeString(f.getType()))
-                                .collect(Collectors.toList());
-
-                RexBuilder rexBuilder = cluster.getRexBuilder();
-
-                // calcite types for each field
-                List<RelDataType> calciteTargetTypes =
-                        tmpTableTypes.stream()
-                                .map(
-                                        i ->
-                                                HiveParserTypeConverter.convert(
-                                                        (PrimitiveTypeInfo) i,
-                                                        rexBuilder.getTypeFactory()))
-                                .collect(Collectors.toList());
-
-                // calcite field names
-                List<String> calciteFieldNames =
-                        IntStream.range(0, calciteTargetTypes.size())
-                                .mapToObj(SqlUtil::deriveAliasFromOrdinal)
-                                .collect(Collectors.toList());
-
-                // calcite type for each row
-                List<RelDataType> calciteRowTypes = new ArrayList<>();
-
-                String line = reader.readLine();
-                while (line != null) {
-                    String[] values = line.split("\u0001");
-                    List<RexLiteral> row = new ArrayList<>();
-                    for (int i = 0; i < tmpTableTypes.size(); i++) {
-                        PrimitiveTypeInfo primitiveTypeInfo =
-                                (PrimitiveTypeInfo) tmpTableTypes.get(i);
-                        RelDataType calciteType = calciteTargetTypes.get(i);
-                        if (i >= values.length || values[i].equals("\\N")) {
-                            row.add(rexBuilder.makeNullLiteral(calciteType));
-                        } else {
-                            String val = values[i];
-                            switch (primitiveTypeInfo.getPrimitiveCategory()) {
-                                case BYTE:
-                                case SHORT:
-                                case INT:
-                                case LONG:
-                                    row.add(
-                                            rexBuilder.makeExactLiteral(
-                                                    new BigDecimal(val), calciteType));
-                                    break;
-                                case DECIMAL:
-                                    BigDecimal bigDec = new BigDecimal(val);
-                                    row.add(
-                                            SqlTypeUtil.isValidDecimalValue(bigDec, calciteType)
-                                                    ? rexBuilder.makeExactLiteral(
-                                                            bigDec, calciteType)
-                                                    : rexBuilder.makeNullLiteral(calciteType));
-                                    break;
-                                case FLOAT:
-                                case DOUBLE:
-                                    row.add(
-                                            rexBuilder.makeApproxLiteral(
-                                                    new BigDecimal(val), calciteType));
-                                    break;
-                                case BOOLEAN:
-                                    row.add(rexBuilder.makeLiteral(Boolean.parseBoolean(val)));
-                                    break;
-                                default:
-                                    row.add(
-                                            rexBuilder.makeCharLiteral(
-                                                    HiveParserUtils.asUnicodeString(val)));
-                            }
-                        }
-                    }
-
-                    calciteRowTypes.add(
-                            rexBuilder
-                                    .getTypeFactory()
-                                    .createStructType(
-                                            row.stream()
-                                                    .map(RexLiteral::getType)
-                                                    .collect(Collectors.toList()),
-                                            calciteFieldNames));
-                    rows.add(row);
-                    line = reader.readLine();
-                }
-
-                // compute the final row type
-                RelDataType calciteRowType =
-                        rexBuilder.getTypeFactory().leastRestrictive(calciteRowTypes);
-                for (int i = 0; i < calciteFieldNames.size(); i++) {
-                    ColumnInfo colInfo =
-                            new ColumnInfo(
-                                    calciteFieldNames.get(i),
-                                    HiveParserTypeConverter.convert(
-                                            calciteRowType.getFieldList().get(i).getType()),
-                                    tabAlias,
-                                    false);
-                    rowResolver.put(tabAlias, calciteFieldNames.get(i), colInfo);
-                }
-                return HiveParserUtils.genValuesRelNode(
-                        cluster,
-                        rexBuilder.getTypeFactory().createStructType(calciteRowType.getFieldList()),
-                        rows);
-            }
-        } catch (Exception e) {
-            throw new FlinkHiveException("Failed to convert temp table to LogicalValues", e);
+            RelOptCluster cluster,
+            List<List<String>> values) {
+        List<TypeInfo> tmpTableTypes = new ArrayList<>();
+        DataType[] dataTypes = catalogTable.getSchema().getFieldDataTypes();
+        for (DataType dataType : dataTypes) {
+            tmpTableTypes.add(HiveTypeUtil.toHiveTypeInfo(dataType, false));
         }
+
+        RexBuilder rexBuilder = cluster.getRexBuilder();
+        // calcite types for each field
+        List<RelDataType> calciteTargetTypes =
+                tmpTableTypes.stream()
+                        .map(
+                                ti ->
+                                        HiveParserTypeConverter.convert(
+                                                (PrimitiveTypeInfo) ti,
+                                                rexBuilder.getTypeFactory()))
+                        .collect(Collectors.toList());
+        // calcite field names
+        List<String> calciteFieldNames =
+                IntStream.range(0, calciteTargetTypes.size())
+                        .mapToObj(SqlUtil::deriveAliasFromOrdinal)
+                        .collect(Collectors.toList());
+
+        // calcite type for each row
+        List<RelDataType> calciteRowTypes = new ArrayList<>();
+
+        List<List<RexLiteral>> rows = new ArrayList<>();
+        for (List<String> value : values) {
+            Preconditions.checkArgument(
+                    value.size() == tmpTableTypes.size(),
+                    String.format(
+                            "Values table col length (%d) and data length (%d) mismatch",
+                            tmpTableTypes.size(), value.size()));
+            List<RexLiteral> row = new ArrayList<>();
+            for (int i = 0; i < tmpTableTypes.size(); i++) {
+                PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) tmpTableTypes.get(i);
+                RelDataType calciteType = calciteTargetTypes.get(i);
+                String col = value.get(i);
+                if (col == null) {
+                    row.add(rexBuilder.makeNullLiteral(calciteType));
+                } else {
+                    switch (primitiveTypeInfo.getPrimitiveCategory()) {
+                        case BYTE:
+                        case SHORT:
+                        case INT:
+                        case LONG:
+                            row.add(rexBuilder.makeExactLiteral(new BigDecimal(col), calciteType));
+                            break;
+                        case DECIMAL:
+                            BigDecimal bigDec = new BigDecimal(col);
+                            row.add(
+                                    SqlTypeUtil.isValidDecimalValue(bigDec, calciteType)
+                                            ? rexBuilder.makeExactLiteral(bigDec, calciteType)
+                                            : rexBuilder.makeNullLiteral(calciteType));
+                            break;
+                        case FLOAT:
+                        case DOUBLE:
+                            row.add(rexBuilder.makeApproxLiteral(new BigDecimal(col), calciteType));
+                            break;
+                        case BOOLEAN:
+                            row.add(rexBuilder.makeLiteral(Boolean.parseBoolean(col)));
+                            break;
+                        default:
+                            row.add(
+                                    rexBuilder.makeCharLiteral(
+                                            HiveParserUtils.asUnicodeString(col)));
+                    }
+                }
+            }
+
+            calciteRowTypes.add(
+                    rexBuilder
+                            .getTypeFactory()
+                            .createStructType(
+                                    row.stream()
+                                            .map(RexLiteral::getType)
+                                            .collect(Collectors.toList()),
+                                    calciteFieldNames));
+            rows.add(row);
+        }
+
+        // compute the final row type
+        RelDataType calciteRowType = rexBuilder.getTypeFactory().leastRestrictive(calciteRowTypes);
+        for (int i = 0; i < calciteFieldNames.size(); i++) {
+            ColumnInfo colInfo =
+                    new ColumnInfo(
+                            calciteFieldNames.get(i),
+                            HiveParserTypeConverter.convert(
+                                    calciteRowType.getFieldList().get(i).getType()),
+                            tabAlias,
+                            false);
+            rowResolver.put(tabAlias, calciteFieldNames.get(i), colInfo);
+        }
+        return HiveParserUtils.genValuesRelNode(
+                cluster,
+                rexBuilder.getTypeFactory().createStructType(calciteRowType.getFieldList()),
+                rows);
     }
 
-    private static void validatePartColumnType(
-            Table tbl,
+    /**
+     * traverse the given node to find all correlated variables, the main logic is from {@link
+     * HiveFilter#getVariablesSet()}.
+     */
+    public static Set<CorrelationId> getVariablesSetForFilter(RexNode rexNode) {
+        Set<CorrelationId> correlationVariables = new HashSet<>();
+        if (rexNode instanceof RexSubQuery) {
+            RexSubQuery rexSubQuery = (RexSubQuery) rexNode;
+            // we expect correlated variables in Filter only for now.
+            // also check case where operator has 0 inputs .e.g TableScan
+            if (rexSubQuery.rel.getInputs().isEmpty()) {
+                return correlationVariables;
+            }
+            RelNode input = rexSubQuery.rel.getInput(0);
+            while (input != null
+                    && !(input instanceof LogicalFilter)
+                    && input.getInputs().size() >= 1) {
+                // we don't expect corr vars within UNION for now
+                if (input.getInputs().size() > 1) {
+                    if (input instanceof LogicalJoin) {
+                        correlationVariables.addAll(
+                                findCorrelatedVar(((LogicalJoin) input).getCondition()));
+                    }
+                    // todo: throw Unsupported exception when the input isn't LogicalJoin and
+                    // contains correlate variables in FLINK-28317
+                    return correlationVariables;
+                }
+                input = input.getInput(0);
+            }
+            if (input instanceof LogicalFilter) {
+                correlationVariables.addAll(
+                        findCorrelatedVar(((LogicalFilter) input).getCondition()));
+            }
+            return correlationVariables;
+        }
+        // AND, NOT etc
+        if (rexNode instanceof RexCall) {
+            int numOperands = ((RexCall) rexNode).getOperands().size();
+            for (int i = 0; i < numOperands; i++) {
+                RexNode op = ((RexCall) rexNode).getOperands().get(i);
+                correlationVariables.addAll(getVariablesSetForFilter(op));
+            }
+        }
+        return correlationVariables;
+    }
+
+    private static Set<CorrelationId> findCorrelatedVar(RexNode node) {
+        Set<CorrelationId> allVars = new HashSet<>();
+        if (node instanceof RexCall) {
+            RexCall nd = (RexCall) node;
+            for (RexNode rn : nd.getOperands()) {
+                if (rn instanceof RexFieldAccess) {
+                    final RexNode ref = ((RexFieldAccess) rn).getReferenceExpr();
+                    if (ref instanceof RexCorrelVariable) {
+                        allVars.add(((RexCorrelVariable) ref).id);
+                    }
+                } else {
+                    allVars.addAll(findCorrelatedVar(rn));
+                }
+            }
+        }
+        return allVars;
+    }
+
+    public static void validatePartColumnType(
+            CatalogTable catalogTable,
             Map<String, String> partSpec,
             HiveParserASTNode astNode,
             HiveConf conf,
@@ -1907,10 +1992,22 @@ public class HiveParserBaseSemanticAnalyzer {
             return; // All columns are dynamic, nothing to do.
         }
 
-        List<FieldSchema> parts = tbl.getPartitionKeys();
-        Map<String, String> partCols = new HashMap<>(parts.size());
-        for (FieldSchema col : parts) {
-            partCols.put(col.getName(), col.getType().toLowerCase());
+        List<String> parts = catalogTable.getPartitionKeys();
+        Map<String, TypeInfo> partColsTypes = new HashMap<>(parts.size());
+        for (String col : parts) {
+            Optional<DataType> dataType =
+                    HiveParserUtils.fromUnresolvedSchema(catalogTable.getUnresolvedSchema())
+                            .getFieldDataType(col);
+            TypeInfo hiveType =
+                    HiveTypeUtil.toHiveTypeInfo(
+                            dataType.orElseThrow(
+                                    () ->
+                                            new SemanticException(
+                                                    String.format(
+                                                            "Can't get data type for column %s.",
+                                                            col))),
+                            false);
+            partColsTypes.put(col, hiveType);
         }
         for (Map.Entry<HiveParserASTNode, ExprNodeDesc> astExprNodePair :
                 astExprNodeMap.entrySet()) {
@@ -1918,12 +2015,11 @@ public class HiveParserBaseSemanticAnalyzer {
             if (astExprNodePair.getKey().getType() == HiveASTParser.Identifier) {
                 astKeyName = stripIdentifierQuotes(astKeyName);
             }
-            String colType = partCols.get(astKeyName);
+
+            TypeInfo expectedType = partColsTypes.get(astKeyName);
             ObjectInspector inputOI =
                     TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(
                             astExprNodePair.getValue().getTypeInfo());
-
-            TypeInfo expectedType = TypeInfoUtils.getTypeInfoFromTypeString(colType);
             ObjectInspector outputOI =
                     TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(expectedType);
             //  Since partVal is a constant, it is safe to cast ExprNodeDesc to
@@ -1954,9 +2050,9 @@ public class HiveParserBaseSemanticAnalyzer {
                                     + " but input value is in type "
                                     + inputOI.getTypeName()
                                     + ". Convert "
-                                    + value.toString()
+                                    + value
                                     + " to "
-                                    + convertedValue.toString());
+                                    + convertedValue);
                 }
             }
 
@@ -1969,17 +2065,17 @@ public class HiveParserBaseSemanticAnalyzer {
                                 + " has been changed to "
                                 + astKeyName
                                 + "="
-                                + convertedValue.toString());
+                                + convertedValue);
             }
             partSpec.put(astKeyName, convertedValue.toString());
         }
     }
 
-    private static void errorPartSpec(Map<String, String> partSpec, List<FieldSchema> parts)
+    private static void errorPartSpec(Map<String, String> partSpec, List<String> parts)
             throws SemanticException {
         StringBuilder sb = new StringBuilder("Partition columns in the table schema are: (");
-        for (FieldSchema fs : parts) {
-            sb.append(fs.getName()).append(", ");
+        for (String part : parts) {
+            sb.append(part).append(", ");
         }
         sb.setLength(sb.length() - 2); // remove the last ", "
         sb.append("), while the partitions specified in the query are: (");
@@ -1993,15 +2089,27 @@ public class HiveParserBaseSemanticAnalyzer {
         throw new SemanticException(ErrorMsg.PARTSPEC_DIFFER_FROM_SCHEMA.getMsg(sb.toString()));
     }
 
+    public static CatalogBaseTable getCatalogBaseTable(
+            CatalogManager catalogManager, ObjectIdentifier tableIdentifier) {
+        return catalogManager
+                .getTable(tableIdentifier)
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        String.format(
+                                                "Table %s doesn't exist.",
+                                                tableIdentifier.asSummaryString())))
+                .getResolvedTable();
+    }
+
     /** Counterpart of hive's BaseSemanticAnalyzer.TableSpec. */
     public static class TableSpec {
+        public ObjectIdentifier tableIdentifier;
         public String tableName;
-        public Table tableHandle;
-        public Map<String, String> partSpec; // has to use LinkedHashMap to enforce order
-        public Partition partHandle;
+        public CatalogBaseTable table;
+        public Map<String, String> partSpec = new HashMap<>();
+        public CatalogPartitionSpec partHandle;
         public int numDynParts; // number of dynamic partition columns
-        public List<Partition>
-                partitions; // involved partitions in TableScanOperator/FileSinkOperator
 
         /** SpecType. */
         public enum SpecType {
@@ -2013,21 +2121,9 @@ public class HiveParserBaseSemanticAnalyzer {
         public TableSpec.SpecType specType;
 
         public TableSpec(
-                Hive db,
+                CatalogManager catalogManager,
                 HiveConf conf,
                 HiveParserASTNode ast,
-                FrameworkConfig frameworkConfig,
-                RelOptCluster cluster)
-                throws SemanticException {
-            this(db, conf, ast, true, false, frameworkConfig, cluster);
-        }
-
-        public TableSpec(
-                Hive db,
-                HiveConf conf,
-                HiveParserASTNode ast,
-                boolean allowDynamicPartitionsSpec,
-                boolean allowPartialPartitionsSpec,
                 FrameworkConfig frameworkConfig,
                 RelOptCluster cluster)
                 throws SemanticException {
@@ -2039,22 +2135,12 @@ public class HiveParserBaseSemanticAnalyzer {
             int childIndex = 0;
             numDynParts = 0;
 
-            try {
-                // get table metadata
-                tableName = getUnescapedName((HiveParserASTNode) ast.getChild(0));
-                boolean testMode = conf.getBoolVar(HiveConf.ConfVars.HIVETESTMODE);
-                if (testMode) {
-                    tableName = conf.getVar(HiveConf.ConfVars.HIVETESTMODEPREFIX) + tableName;
-                }
-                if (ast.getToken().getType() != HiveASTParser.TOK_CREATETABLE
-                        && ast.getToken().getType() != HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW) {
-                    tableHandle = db.getTable(tableName);
-                }
-            } catch (InvalidTableException ite) {
-                throw new SemanticException(
-                        HiveParserErrorMsg.getMsg(ErrorMsg.INVALID_TABLE, ast.getChild(0)), ite);
-            } catch (HiveException e) {
-                throw new SemanticException("Error while retrieving table metadata", e);
+            // get table metadata
+            tableIdentifier =
+                    getObjectIdentifier(catalogManager, (HiveParserASTNode) ast.getChild(0));
+            if (ast.getToken().getType() != HiveASTParser.TOK_CREATETABLE
+                    && ast.getToken().getType() != HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW) {
+                table = getCatalogBaseTable(catalogManager, tableIdentifier);
             }
 
             // get partition metadata if partition specified
@@ -2063,7 +2149,6 @@ public class HiveParserBaseSemanticAnalyzer {
                     && ast.getToken().getType() != HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW) {
                 childIndex = 1;
                 HiveParserASTNode partspec = (HiveParserASTNode) ast.getChild(1);
-                partitions = new ArrayList<Partition>();
                 // partSpec is a mapping from partition column name to its value.
                 Map<String, String> tmpPartSpec = new HashMap<>(partspec.getChildCount());
                 for (int i = 0; i < partspec.getChildCount(); ++i) {
@@ -2072,28 +2157,27 @@ public class HiveParserBaseSemanticAnalyzer {
                     String colName =
                             unescapeIdentifier(partspecVal.getChild(0).getText().toLowerCase());
                     if (partspecVal.getChildCount() < 2) { // DP in the form of T partition (ds, hr)
-                        if (allowDynamicPartitionsSpec) {
-                            ++numDynParts;
-                        } else {
-                            throw new SemanticException(
-                                    ErrorMsg.INVALID_PARTITION.getMsg(
-                                            " - Dynamic partitions not allowed"));
-                        }
+                        ++numDynParts;
                     } else { // in the form of T partition (ds="2010-03-03")
                         val = stripQuotes(partspecVal.getChild(1).getText());
                     }
                     tmpPartSpec.put(colName, val);
                 }
 
-                // check if the columns, as well as value types in the partition() clause are valid
-                validatePartSpec(
-                        tableHandle, tmpPartSpec, ast, conf, false, frameworkConfig, cluster);
+                if (!(table instanceof CatalogTable)) {
+                    throw new IllegalArgumentException(
+                            tableIdentifier.asSummaryString()
+                                    + " is not a table, partition is only allowed for table.");
+                }
 
-                List<FieldSchema> parts = tableHandle.getPartitionKeys();
-                partSpec = new LinkedHashMap<String, String>(partspec.getChildCount());
-                for (FieldSchema fs : parts) {
-                    String partKey = fs.getName();
-                    partSpec.put(partKey, tmpPartSpec.get(partKey));
+                // check if the columns value type in the partition() clause are valid
+                validatePartColumnType(
+                        (CatalogTable) table, tmpPartSpec, ast, conf, frameworkConfig, cluster);
+
+                List<String> parts = ((CatalogTable) table).getPartitionKeys();
+                partSpec = new LinkedHashMap<>(partspec.getChildCount());
+                for (String part : parts) {
+                    partSpec.put(part, tmpPartSpec.get(part));
                 }
 
                 // check if the partition spec is valid
@@ -2111,15 +2195,15 @@ public class HiveParserBaseSemanticAnalyzer {
                         errorPartSpec(partSpec, parts);
                     }
                     Iterator<String> itrPsKeys = partSpec.keySet().iterator();
-                    for (FieldSchema fs : parts) {
-                        if (!itrPsKeys.next().toLowerCase().equals(fs.getName().toLowerCase())) {
+                    for (String part : parts) {
+                        if (!itrPsKeys.next().equalsIgnoreCase(part)) {
                             errorPartSpec(partSpec, parts);
                         }
                     }
 
                     // check if static partition appear after dynamic partitions
-                    for (FieldSchema fs : parts) {
-                        if (partSpec.get(fs.getName().toLowerCase()) == null) {
+                    for (String part : parts) {
+                        if (partSpec.get(part.toLowerCase()) == null) {
                             if (numStaPart > 0) { // found a DP, but there exists ST as subpartition
                                 throw new SemanticException(
                                         HiveParserErrorMsg.getMsg(
@@ -2134,26 +2218,7 @@ public class HiveParserBaseSemanticAnalyzer {
                     partHandle = null;
                     specType = TableSpec.SpecType.DYNAMIC_PARTITION;
                 } else {
-                    try {
-                        if (allowPartialPartitionsSpec) {
-                            partitions = db.getPartitions(tableHandle, partSpec);
-                        } else {
-                            // this doesn't create partition.
-                            partHandle = db.getPartition(tableHandle, partSpec, false);
-                            if (partHandle == null) {
-                                // if partSpec doesn't exists in DB, return a delegate one
-                                // and the actual partition is created in MoveTask
-                                partHandle = new Partition(tableHandle, partSpec, null);
-                            } else {
-                                partitions.add(partHandle);
-                            }
-                        }
-                    } catch (HiveException e) {
-                        throw new SemanticException(
-                                HiveParserErrorMsg.getMsg(
-                                        ErrorMsg.INVALID_PARTITION, ast.getChild(childIndex)),
-                                e);
-                    }
+                    partHandle = new CatalogPartitionSpec(partSpec);
                     specType = TableSpec.SpecType.STATIC_PARTITION;
                 }
             } else {
@@ -2174,7 +2239,11 @@ public class HiveParserBaseSemanticAnalyzer {
             if (partHandle != null) {
                 return partHandle.toString();
             } else {
-                return tableHandle.toString();
+                return String.format(
+                        "Table kind: %s, table schema: %s, table options: %s",
+                        table.getTableKind(),
+                        HiveParserUtils.fromUnresolvedSchema(table.getUnresolvedSchema()),
+                        table.getOptions());
             }
         }
     }
@@ -2228,12 +2297,6 @@ public class HiveParserBaseSemanticAnalyzer {
 
         public PKInfo(String colName) {
             this.colName = colName;
-        }
-
-        public PKInfo(String colName, String constraintName, boolean rely) {
-            this.colName = colName;
-            this.constraintName = constraintName;
-            this.rely = rely;
         }
     }
 
@@ -2359,7 +2422,10 @@ public class HiveParserBaseSemanticAnalyzer {
         }
 
         public void analyzeRowFormat(HiveParserASTNode child) throws SemanticException {
-            child = (HiveParserASTNode) child.getChild(0);
+            analyzeSerdeProps((HiveParserASTNode) child.getChild(0));
+        }
+
+        public void analyzeSerdeProps(HiveParserASTNode child) throws SemanticException {
             int numChildRowFormat = child.getChildCount();
             for (int numC = 0; numC < numChildRowFormat; numC++) {
                 HiveParserASTNode rowChild = (HiveParserASTNode) child.getChild(numC);
@@ -2389,9 +2455,193 @@ public class HiveParserBaseSemanticAnalyzer {
                         nullFormat = unescapeSQLString(rowChild.getChild(0).getText());
                         break;
                     default:
-                        throw new AssertionError("Unkown Token: " + rowChild);
+                        throw new AssertionError("Unknown Token: " + rowChild);
                 }
             }
+        }
+    }
+
+    /** Counterpart of hive's SQLPrimaryKey. */
+    public static class PrimaryKey implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String pk;
+        private final String constraintName;
+        private final boolean enable;
+        private final boolean validate;
+        private final boolean rely;
+
+        public PrimaryKey(
+                String pk, String constraintName, boolean enable, boolean validate, boolean rely) {
+            this.pk = pk;
+            this.constraintName = constraintName;
+            this.enable = enable;
+            this.validate = validate;
+            this.rely = rely;
+        }
+
+        public String getPk() {
+            return pk;
+        }
+
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public boolean isValidate() {
+            return validate;
+        }
+
+        public boolean isRely() {
+            return rely;
+        }
+    }
+
+    /** Counterpart of hive's SQLNotNullConstraint. */
+    public static class NotNullConstraint implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String colName;
+        private final String constraintName;
+        private final boolean enable;
+        private final boolean validate;
+        private final boolean rely;
+
+        public NotNullConstraint(
+                String colName,
+                String constraintName,
+                boolean enable,
+                boolean validate,
+                boolean rely) {
+            this.colName = colName;
+            this.constraintName = constraintName;
+            this.enable = enable;
+            this.validate = validate;
+            this.rely = rely;
+        }
+
+        public String getColName() {
+            return colName;
+        }
+
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public boolean isValidate() {
+            return validate;
+        }
+
+        public boolean isRely() {
+            return rely;
+        }
+    }
+
+    /** including serde class name and the properties. */
+    public static class SerDeClassProps implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String serdeClassName;
+        private final Map<String, String> properties;
+
+        public SerDeClassProps(String serdeClassName, Map<String, String> properties) {
+            this.serdeClassName = serdeClassName;
+            this.properties = properties;
+        }
+
+        public String getSerdeClassName() {
+            return serdeClassName;
+        }
+
+        public Map<String, String> getProperties() {
+            return properties;
+        }
+
+        public static SerDeClassProps analyzeSerDeInfo(
+                HiveParserASTNode astNode, String cols, String colTypes, boolean defaultCols)
+                throws SemanticException {
+            String serdeClassName = LazySimpleSerDe.class.getName();
+            Map<String, String> properties = new HashMap<>();
+            if (astNode.getType() == HiveASTParser.TOK_SERDENAME) {
+                serdeClassName = unescapeSQLString(astNode.getChild(0).getText());
+                properties.putAll(
+                        getDefaultSerDeProps(
+                                serdeClassName,
+                                String.valueOf(Utilities.tabCode),
+                                cols,
+                                colTypes,
+                                defaultCols,
+                                false));
+                // copy all the properties
+                if (astNode.getChildCount() == 2) {
+                    HiveParserASTNode propNode =
+                            (HiveParserASTNode) astNode.getChild(1).getChild(0);
+                    for (int propChild = 0; propChild < propNode.getChildCount(); propChild++) {
+                        String key =
+                                unescapeSQLString(
+                                        propNode.getChild(propChild).getChild(0).getText());
+                        String value =
+                                unescapeSQLString(
+                                        propNode.getChild(propChild).getChild(1).getText());
+                        properties.put(key, value);
+                    }
+                }
+            } else if (astNode.getType() == HiveASTParser.TOK_SERDEPROPS) {
+                properties.putAll(
+                        getDefaultSerDeProps(
+                                serdeClassName,
+                                String.valueOf(Utilities.ctrlaCode),
+                                cols,
+                                colTypes,
+                                defaultCols,
+                                false));
+                HiveParserRowFormatParams rowFormatParams = new HiveParserRowFormatParams();
+                rowFormatParams.analyzeSerdeProps(astNode);
+                encodeRowFormat(rowFormatParams, properties);
+            } else {
+                throw new SemanticException("Encounter an unexpected ASTNode: " + astNode);
+            }
+            return new SerDeClassProps(serdeClassName, properties);
+        }
+
+        public static Map<String, String> getDefaultSerDeProps(
+                String serdeClass,
+                String separatorCode,
+                String columns,
+                String columnTypes,
+                boolean lastColumnTakesRestOfTheLine,
+                boolean useDelimitedJSON) {
+            Map<String, String> props = new HashMap<>();
+            props.put(serdeConstants.SERIALIZATION_FORMAT, separatorCode);
+            props.put(serdeConstants.LIST_COLUMNS, columns);
+
+            if (!separatorCode.equals(Integer.toString(Utilities.ctrlaCode))) {
+                props.put(serdeConstants.FIELD_DELIM, separatorCode);
+            }
+
+            if (columnTypes != null) {
+                props.put(serdeConstants.LIST_COLUMN_TYPES, columnTypes);
+            }
+
+            if (lastColumnTakesRestOfTheLine) {
+                props.put(serdeConstants.SERIALIZATION_LAST_COLUMN_TAKES_REST, "true");
+            }
+            if (useDelimitedJSON) {
+                serdeClass = DelimitedJSONSerDe.class.getName();
+            }
+            props.put(serdeConstants.SERIALIZATION_LIB, serdeClass);
+            return props;
         }
     }
 }

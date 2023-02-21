@@ -33,7 +33,7 @@ public class KeyedStateCheckpointOutputStreamTest {
     private static final int STREAM_CAPACITY = 128;
 
     private static KeyedStateCheckpointOutputStream createStream(KeyGroupRange keyGroupRange) {
-        CheckpointStreamFactory.CheckpointStateOutputStream checkStream =
+        CheckpointStateOutputStream checkStream =
                 new TestMemoryCheckpointOutputStream(STREAM_CAPACITY);
         return new KeyedStateCheckpointOutputStream(checkStream, keyGroupRange);
     }

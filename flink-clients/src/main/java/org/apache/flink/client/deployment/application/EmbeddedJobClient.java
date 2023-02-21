@@ -25,15 +25,17 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
@@ -91,14 +93,24 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory) {
-        return dispatcherGateway.stopWithSavepoint(
-                jobId, savepointDirectory, advanceToEndOfEventTime, timeout);
+            final boolean advanceToEndOfEventTime,
+            @Nullable final String savepointDirectory,
+            SavepointFormatType formatType) {
+        return dispatcherGateway.stopWithSavepointAndGetLocation(
+                jobId,
+                savepointDirectory,
+                formatType,
+                advanceToEndOfEventTime
+                        ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                        : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
+                timeout);
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(@Nullable final String savepointDirectory) {
-        return dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, false, timeout);
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable final String savepointDirectory, SavepointFormatType formatType) {
+        return dispatcherGateway.triggerSavepointAndGetLocation(
+                jobId, savepointDirectory, formatType, TriggerSavepointMode.SAVEPOINT, timeout);
     }
 
     @Override

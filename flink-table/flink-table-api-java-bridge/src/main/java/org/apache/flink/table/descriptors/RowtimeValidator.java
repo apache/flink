@@ -51,8 +51,13 @@ import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED;
 
-/** Validator for {@link Rowtime}. */
+/**
+ * Validator for {@link Rowtime}.
+ *
+ * @deprecated See {@link Rowtime} for details.
+ */
 @PublicEvolving
+@Deprecated
 public class RowtimeValidator implements DescriptorValidator {
 
     private final boolean supportsSourceTimestamps;

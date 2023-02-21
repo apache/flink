@@ -21,20 +21,21 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,6 +44,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -90,7 +92,7 @@ class TaskExecutorManager implements AutoCloseable {
     private final Time taskManagerTimeout;
 
     /** Callbacks for resource (de-)allocations. */
-    private final ResourceActions resourceActions;
+    private final ResourceAllocator resourceAllocator;
 
     /** All currently registered task managers. */
     private final Map<InstanceID, TaskManagerRegistration> taskManagerRegistrations =
@@ -102,6 +104,11 @@ class TaskExecutorManager implements AutoCloseable {
 
     private final ScheduledFuture<?> taskManagerTimeoutsAndRedundancyCheck;
 
+    private final Set<InstanceID> unWantedWorkers;
+    private final ScheduledExecutor scheduledExecutor;
+    private final Duration declareNeededResourceDelay;
+    private CompletableFuture<Void> declareNeededResourceFuture;
+
     TaskExecutorManager(
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
@@ -109,9 +116,10 @@ class TaskExecutorManager implements AutoCloseable {
             boolean waitResultConsumedBeforeRelease,
             int redundantTaskManagerNum,
             Time taskManagerTimeout,
+            Duration declareNeededResourceDelay,
             ScheduledExecutor scheduledExecutor,
             Executor mainThreadExecutor,
-            ResourceActions resourceActions) {
+            ResourceAllocator resourceAllocator) {
 
         this.defaultWorkerResourceSpec = defaultWorkerResourceSpec;
         this.numSlotsPerWorker = numSlotsPerWorker;
@@ -122,8 +130,10 @@ class TaskExecutorManager implements AutoCloseable {
         this.defaultSlotResourceProfile =
                 SlotManagerUtils.generateDefaultSlotResourceProfile(
                         defaultWorkerResourceSpec, numSlotsPerWorker);
-
-        this.resourceActions = Preconditions.checkNotNull(resourceActions);
+        this.scheduledExecutor = scheduledExecutor;
+        this.declareNeededResourceDelay = declareNeededResourceDelay;
+        this.unWantedWorkers = new HashSet<>();
+        this.resourceAllocator = Preconditions.checkNotNull(resourceAllocator);
         this.mainThreadExecutor = mainThreadExecutor;
         taskManagerTimeoutsAndRedundancyCheck =
                 scheduledExecutor.scheduleWithFixedDelay(
@@ -155,11 +165,9 @@ class TaskExecutorManager implements AutoCloseable {
             ResourceProfile defaultSlotResourceProfile) {
         if (isMaxSlotNumExceededAfterRegistration(initialSlotReport)) {
             LOG.info(
-                    "The total number of slots exceeds the max limitation {}, releasing the excess task executor.",
-                    maxSlotNum);
-            resourceActions.releaseResource(
-                    taskExecutorConnection.getInstanceID(),
-                    new FlinkException("The total number of slots exceeds the max limitation."));
+                    "The total number of slots exceeds the max limitation {}, could not register the excess task executor {}.",
+                    maxSlotNum,
+                    taskExecutorConnection.getInstanceID());
             return false;
         }
 
@@ -234,6 +242,7 @@ class TaskExecutorManager implements AutoCloseable {
 
     public void unregisterTaskExecutor(InstanceID instanceId) {
         taskManagerRegistrations.remove(instanceId);
+        unWantedWorkers.remove(instanceId);
     }
 
     public Collection<InstanceID> getTaskExecutors() {
@@ -253,6 +262,11 @@ class TaskExecutorManager implements AutoCloseable {
      */
     public Optional<ResourceRequirement> allocateWorker(
             ResourceProfile requestedSlotResourceProfile) {
+        if (!resourceAllocator.isSupported()) {
+            // resource cannot be allocated
+            return Optional.empty();
+        }
+
         final int numRegisteredSlots = getNumberRegisteredSlots();
         final int numPendingSlots = getNumberPendingTaskManagerSlots();
         if (isMaxSlotNumExceededAfterAdding(numSlotsPerWorker)) {
@@ -269,16 +283,13 @@ class TaskExecutorManager implements AutoCloseable {
             return Optional.empty();
         }
 
-        if (!resourceActions.allocateResource(defaultWorkerResourceSpec)) {
-            // resource cannot be allocated
-            return Optional.empty();
-        }
-
         for (int i = 0; i < numSlotsPerWorker; ++i) {
             PendingTaskManagerSlot pendingTaskManagerSlot =
                     new PendingTaskManagerSlot(defaultSlotResourceProfile);
             pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
         }
+
+        declareNeededResourcesWithDelay();
 
         return Optional.of(
                 ResourceRequirement.create(defaultSlotResourceProfile, numSlotsPerWorker));
@@ -289,12 +300,43 @@ class TaskExecutorManager implements AutoCloseable {
                 > maxSlotNum;
     }
 
-    public Map<WorkerResourceSpec, Integer> getRequiredWorkers() {
+    private Collection<ResourceDeclaration> getResourceDeclaration() {
         final int pendingWorkerNum =
                 MathUtils.divideRoundUp(getNumberPendingTaskManagerSlots(), numSlotsPerWorker);
-        return pendingWorkerNum > 0
-                ? Collections.singletonMap(defaultWorkerResourceSpec, pendingWorkerNum)
-                : Collections.emptyMap();
+        Set<InstanceID> neededRegisteredWorkers = new HashSet<>(taskManagerRegistrations.keySet());
+        neededRegisteredWorkers.removeAll(unWantedWorkers);
+        final int totalWorkerNum = pendingWorkerNum + neededRegisteredWorkers.size();
+
+        return Collections.singleton(
+                new ResourceDeclaration(
+                        defaultWorkerResourceSpec, totalWorkerNum, new HashSet<>(unWantedWorkers)));
+    }
+
+    private void declareNeededResourcesWithDelay() {
+        Preconditions.checkState(resourceAllocator.isSupported());
+
+        if (declareNeededResourceDelay.toMillis() <= 0) {
+            declareNeededResources();
+        } else {
+            if (declareNeededResourceFuture == null || declareNeededResourceFuture.isDone()) {
+                declareNeededResourceFuture = new CompletableFuture<>();
+                scheduledExecutor.schedule(
+                        () ->
+                                mainThreadExecutor.execute(
+                                        () -> {
+                                            declareNeededResources();
+                                            Preconditions.checkNotNull(declareNeededResourceFuture)
+                                                    .complete(null);
+                                        }),
+                        declareNeededResourceDelay.toMillis(),
+                        TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
+    /** DO NOT call this method directly. Use {@link #declareNeededResourcesWithDelay()} instead. */
+    private void declareNeededResources() {
+        resourceAllocator.declareResourceNeeded(getResourceDeclaration());
     }
 
     @VisibleForTesting
@@ -320,7 +362,7 @@ class TaskExecutorManager implements AutoCloseable {
                         >= taskManagerTimeout.toMilliseconds()) {
                     // we collect the instance ids first in order to avoid concurrent modifications
                     // by the
-                    // ResourceActions.releaseResource call
+                    // ResourceAllocator.releaseResource call
                     timedOutTaskManagers.add(taskManagerRegistration);
                 }
             }
@@ -400,11 +442,13 @@ class TaskExecutorManager implements AutoCloseable {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        final FlinkException cause = new FlinkException("TaskExecutor exceeded the idle timeout.");
-        LOG.debug(
-                "Release TaskExecutor {} because it exceeded the idle timeout.",
-                timedOutTaskManagerId);
-        resourceActions.releaseResource(timedOutTaskManagerId, cause);
+        if (resourceAllocator.isSupported()) {
+            LOG.debug(
+                    "Release TaskExecutor {} because it exceeded the idle timeout.",
+                    timedOutTaskManagerId);
+            unWantedWorkers.add(timedOutTaskManagerId);
+            declareNeededResourcesWithDelay();
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -481,6 +525,38 @@ class TaskExecutorManager implements AutoCloseable {
 
     public Collection<PendingTaskManagerSlot> getPendingTaskManagerSlots() {
         return pendingSlots.values();
+    }
+
+    /**
+     * remove unused pending task manager slots.
+     *
+     * @param unusedResourceCounter the count of unused resources.
+     */
+    public void removePendingTaskManagerSlots(ResourceCounter unusedResourceCounter) {
+        if (!resourceAllocator.isSupported()) {
+            return;
+        }
+        Preconditions.checkState(unusedResourceCounter.getResources().size() == 1);
+        Preconditions.checkState(
+                unusedResourceCounter.getResources().contains(defaultSlotResourceProfile));
+
+        int wantedPendingSlotsNumber =
+                pendingSlots.size()
+                        - unusedResourceCounter.getResourceCount(defaultSlotResourceProfile);
+        pendingSlots.entrySet().removeIf(ignore -> pendingSlots.size() > wantedPendingSlotsNumber);
+
+        declareNeededResourcesWithDelay();
+    }
+
+    /** clear all pending task manager slots. */
+    public void clearPendingTaskManagerSlots() {
+        if (!resourceAllocator.isSupported()) {
+            return;
+        }
+        if (!pendingSlots.isEmpty()) {
+            this.pendingSlots.clear();
+            declareNeededResourcesWithDelay();
+        }
     }
 
     // ---------------------------------------------------------------------------------------------

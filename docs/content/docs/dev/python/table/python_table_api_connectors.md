@@ -26,26 +26,28 @@ under the License.
 
 # Connectors
 
-This page describes how to use connectors in PyFlink and highlights the details to be aware of when using Flink connectors in Python programs.
+This page describes how to use connectors in PyFlink and highlights the details to be aware of when
+using Flink connectors in Python programs.
 
-<span class="label label-info">Note</span> For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({{< ref "docs/connectors/table/overview" >}}). 
+<span class="label label-info">Note</span> For general connector information and common
+configuration, please refer to the corresponding [Java/Scala documentation]({{< ref "docs/connectors/table/overview" >}}). 
 
 ## Download connector and format jars
 
-Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{< ref "docs/dev/python/table/dependency_management" >}}).
+Since Flink is a Java/Scala-based project, for both connectors and formats, implementations
+are available as jars that need to be specified as job [dependencies]({{< ref "docs/dev/python/dependency_management" >}}).
 
 ```python
-
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
-
+table_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
 ```
 
 ## How to use connectors
 
-In PyFink's Table API, DDL is the recommended way to define sources and sinks, executed via the `execute_sql()` method on the `TableEnvironment`. This makes the table available for use by the application.
+In PyFlink's Table API, DDL is the recommended way to define sources and sinks, executed via the
+`execute_sql()` method on the `TableEnvironment`.
+This makes the table available for use by the application.
 
 ```python
-
 source_ddl = """
         CREATE TABLE source_table(
             a VARCHAR,
@@ -81,15 +83,13 @@ t_env.sql_query("SELECT a FROM source_table") \
 Below is a complete example of how to use a Kafka source/sink and the JSON format in PyFlink.
 
 ```python
-
 from pyflink.table import TableEnvironment, EnvironmentSettings
 
-
 def log_processing():
-    env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+    env_settings = EnvironmentSettings.in_streaming_mode()
     t_env = TableEnvironment.create(env_settings)
     # specify connector and format jars
-    t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
+    t_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
     
     source_ddl = """
             CREATE TABLE source_table(
@@ -127,23 +127,25 @@ if __name__ == '__main__':
     log_processing()
 ```
 
-
 ## Predefined Sources and Sinks
 
-Some data sources and sinks are built into Flink and are available out-of-the-box. These predefined data sources include reading from Pandas DataFrame, or ingesting data from collections. The predefined data sinks support writing to Pandas DataFrame.
+Some data sources and sinks are built into Flink and are available out-of-the-box.
+These predefined data sources include reading from Pandas DataFrame, or ingesting data from collections.
+The predefined data sinks support writing to Pandas DataFrame.
 
 ### from/to Pandas
 
 PyFlink Tables support conversion to and from Pandas DataFrame.
 
 ```python
+from pyflink.table.expressions import col
 
 import pandas as pd
 import numpy as np
 
 # Create a PyFlink Table
 pdf = pd.DataFrame(np.random.rand(1000, 2))
-table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
+table = t_env.from_pandas(pdf, ["a", "b"]).filter(col('a') > 0.5)
 
 # Convert the PyFlink Table to a Pandas DataFrame
 pdf = table.to_pandas()
@@ -151,9 +153,11 @@ pdf = table.to_pandas()
 
 ### from_elements()
 
-`from_elements()` is used to create a table from a collection of elements. The element types must be acceptable atomic types or acceptable composite types.
+`from_elements()` is used to create a table from a collection of elements. The element types must
+be acceptable atomic types or acceptable composite types.
 
 ```python
+from pyflink.table import DataTypes
 
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 
@@ -180,5 +184,7 @@ The above query returns a Table like:
 
 ## User-defined sources & sinks
 
-In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala, but you can define a `TableFactory` to support their use via DDL. More details can be found in the [Java/Scala documentation]({{< ref "docs/dev/table/sourcessinks" >}}).
+In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must
+be implemented in Java/Scala, but you can define a `TableFactory` to support their use via DDL.
+More details can be found in the [Java/Scala documentation]({{< ref "docs/dev/table/sourcessinks" >}}).
 

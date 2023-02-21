@@ -21,6 +21,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import static org.apache.flink.util.ExceptionUtils.rethrow;
 
 /**
@@ -77,6 +80,22 @@ public class MockChannelStateWriter implements ChannelStateWriter {
         checkCheckpointId(checkpointId);
         for (final Buffer buffer : data) {
             buffer.recycleBuffer();
+        }
+    }
+
+    @Override
+    public void addOutputDataFuture(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            int startSeqNum,
+            CompletableFuture<List<Buffer>> data)
+            throws IllegalArgumentException {
+        checkCheckpointId(checkpointId);
+        try {
+            for (final Buffer buffer : data.get()) {
+                buffer.recycleBuffer();
+            }
+        } catch (Exception ignored) {
         }
     }
 

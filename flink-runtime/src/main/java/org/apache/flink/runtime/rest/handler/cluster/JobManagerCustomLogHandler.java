@@ -50,7 +50,7 @@ public class JobManagerCustomLogHandler
     }
 
     @Override
-    protected File getFile(HandlerRequest<EmptyRequestBody, FileMessageParameters> handlerRequest) {
+    protected File getFile(HandlerRequest<EmptyRequestBody> handlerRequest) {
         if (logDir == null) {
             return null;
         }

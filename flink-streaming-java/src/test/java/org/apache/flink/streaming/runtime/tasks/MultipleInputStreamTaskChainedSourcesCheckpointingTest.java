@@ -21,31 +21,70 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
+import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.addSourceRecords;
+import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.applyObjectReuse;
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.buildTestHarness;
+import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -53,8 +92,17 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link MultipleInputStreamTask} combined with {@link
  * org.apache.flink.streaming.api.operators.SourceOperator} chaining.
  */
+@RunWith(Parameterized.class)
 public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
+
     private static final int MAX_STEPS = 100;
+
+    @Parameters(name = "objectReuse = {0}")
+    public static Boolean[] parameters() {
+        return new Boolean[] {true, false};
+    }
+
+    @Parameter public boolean objectReuse;
 
     private final CheckpointMetaData metaData =
             new CheckpointMetaData(1L, System.currentTimeMillis());
@@ -65,7 +113,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      */
     @Test
     public void testSourceCheckpointFirst() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
             CheckpointBarrier barrier = createBarrier(testHarness);
@@ -97,7 +145,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      */
     @Test
     public void testSourceCheckpointFirstUnaligned() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(true)) {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                buildTestHarness(true, objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
             addRecords(testHarness);
@@ -132,7 +181,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      */
     @Test
     public void testSourceCheckpointLast() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
             CheckpointBarrier barrier = createBarrier(testHarness);
@@ -172,7 +221,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     @Test
     public void testSourceCheckpointLastUnaligned() throws Exception {
         boolean unaligned = true;
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(unaligned)) {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                buildTestHarness(unaligned, objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -194,16 +244,90 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         }
     }
 
+    /**
+     * In this scenario:
+     *
+     * <ul>
+     *   <li>Network inputs are processed until CheckpointBarriers for synchronous savepoint are
+     *       processed.
+     *   <li>RPC for stop-with-savepoint comes for sources
+     *   <li>Sources keep being invoked until they return END_OF_DATA
+     *   <li>Synchronous savepoint is triggered
+     * </ul>
+     */
+    @Test
+    public void testStopWithSavepointDrainWaitsForSourcesFinish() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .setCollectNetworkEvents()
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new MapToStringMultipleInputOperatorFactory(4, true))
+                        .build(); ) {
+            testHarness.setAutoProcess(false);
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+            CheckpointBarrier barrier = createStopWithSavepointDrainBarrier();
+
+            testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
+            testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0);
+            testHarness.processEvent(barrier, 0);
+            testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
+            testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1);
+            testHarness.processEvent(barrier, 1);
+
+            addSourceRecords(testHarness, 1, Boundedness.CONTINUOUS_UNBOUNDED, 1, 2);
+            addSourceRecords(testHarness, 2, Boundedness.CONTINUOUS_UNBOUNDED, 3, 4);
+
+            testHarness.processAll();
+
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
+            processSingleStepUntil(testHarness, checkpointFuture::isDone);
+
+            expectedOutput.add(new StreamRecord<>("3", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("1", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("4", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("2", TimestampAssigner.NO_TIMESTAMP));
+
+            ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
+            assertThat(
+                    actualOutput.subList(0, expectedOutput.size()),
+                    containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(
+                    actualOutput.subList(actualOutput.size() - 3, actualOutput.size()),
+                    contains(new StreamRecord<>("FINISH"), new EndOfData(StopMode.DRAIN), barrier));
+        }
+    }
+
     @Test
     public void testOnlyOneSource() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new MockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .setupOutputForSingletonOperatorChain(
                                 new MapToStringMultipleInputOperatorFactory(1))
                         .build()) {
@@ -230,11 +354,205 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         }
     }
 
+    @Test
+    public void testTriggerAlignedNoTimeoutCheckpointWithFinishedChannelsAndSourceChain()
+            throws Exception {
+        testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+                CheckpointOptions.alignedNoTimeout(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
+    }
+
+    @Test
+    public void testTriggerUnalignedCheckpointWithFinishedChannelsAndSourceChain()
+            throws Exception {
+        testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
+    }
+
+    @Test
+    public void testTriggerAlignedWithTimeoutCheckpointWithFinishedChannelsAndSourceChain()
+            throws Exception {
+        testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+                CheckpointOptions.alignedWithTimeout(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        10L));
+    }
+
+    private void testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+            CheckpointOptions checkpointOptions) throws Exception {
+        ResultPartition[] partitionWriters = new ResultPartition[2];
+        try {
+            for (int i = 0; i < partitionWriters.length; ++i) {
+                partitionWriters[i] =
+                        PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+                partitionWriters[i].setup();
+            }
+
+            CompletingCheckpointResponder checkpointResponder = new CompletingCheckpointResponder();
+            try (StreamTaskMailboxTestHarness<String> testHarness =
+                    new StreamTaskMailboxTestHarnessBuilder<>(
+                                    MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                            .modifyStreamConfig(
+                                    config -> {
+                                        config.setCheckpointingEnabled(true);
+                                        config.setUnalignedCheckpointsEnabled(
+                                                checkpointOptions.isUnalignedCheckpoint()
+                                                        || checkpointOptions.isTimeoutable());
+                                    })
+                            .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                            .setCheckpointResponder(checkpointResponder)
+                            .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                            .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                            .addSourceInput(
+                                    new SourceOperatorFactory<>(
+                                            new MultipleInputStreamTaskTest
+                                                    .LifeCycleTrackingMockSource(
+                                                    Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                            WatermarkStrategy.noWatermarks()),
+                                    BasicTypeInfo.INT_TYPE_INFO)
+                            .addSourceInput(
+                                    new SourceOperatorFactory<>(
+                                            new MultipleInputStreamTaskTest
+                                                    .LifeCycleTrackingMockSource(
+                                                    Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                            WatermarkStrategy.noWatermarks()),
+                                    BasicTypeInfo.INT_TYPE_INFO)
+                            .addAdditionalOutput(partitionWriters)
+                            .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(4))
+                            .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                            .build()) {
+
+                checkpointResponder.setHandlers(
+                        testHarness.streamTask::notifyCheckpointCompleteAsync,
+                        testHarness.streamTask::notifyCheckpointAbortAsync);
+                testHarness.getStreamTask().getCheckpointBarrierHandler().get();
+
+                CompletableFuture<Boolean> checkpointFuture =
+                        triggerCheckpoint(testHarness, 2, checkpointOptions);
+                testHarness.processAll();
+
+                // The checkpoint 2 would be aligned after received all the EndOfPartitionEvent.
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1, 0);
+                testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+                testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
+                testHarness.getTaskStateManager().getWaitForReportLatch().await();
+                assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
+
+                // Tests triggering checkpoint after all the inputs have received EndOfPartition.
+                checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
+
+                // Notifies the result partition that all records are processed after the
+                // last checkpoint is triggered.
+                checkpointFuture.thenAccept(
+                        (ignored) -> {
+                            for (ResultPartition resultPartition : partitionWriters) {
+                                resultPartition.onSubpartitionAllDataProcessed(0);
+                            }
+                        });
+
+                // The checkpoint 4 would be triggered successfully.
+                testHarness.processAll();
+                testHarness.finishProcessing();
+                assertTrue(checkpointFuture.isDone());
+                testHarness.getTaskStateManager().getWaitForReportLatch().await();
+                assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
+
+                // Each result partition should have emitted 2 barriers and 1 EndOfUserRecordsEvent.
+                for (ResultPartition resultPartition : partitionWriters) {
+                    assertEquals(3, resultPartition.getNumberOfQueuedBuffers());
+                }
+            }
+        } finally {
+            for (ResultPartitionWriter writer : partitionWriters) {
+                if (writer != null) {
+                    writer.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testSkipExecutionsIfFinishedOnRestoreWithSourceChained() throws Exception {
+        OperatorID firstSourceOperatorId = new OperatorID();
+        OperatorID secondSourceOperatorId = new OperatorID();
+        OperatorID nonSourceOperatorId = new OperatorID();
+
+        List<Object> output = new ArrayList<>();
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addAdditionalOutput(
+                                new RecordOrEventCollectingResultPartitionWriter<StreamElement>(
+                                        output,
+                                        new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
+                                    @Override
+                                    public void notifyEndOfData(StopMode mode) throws IOException {
+                                        broadcastEvent(new EndOfData(mode), false);
+                                    }
+                                })
+                        .addSourceInput(
+                                firstSourceOperatorId,
+                                new SourceOperatorFactory<>(
+                                        new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
+                                                Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addSourceInput(
+                                secondSourceOperatorId,
+                                new SourceOperatorFactory<>(
+                                        new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
+                                                Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setupOperatorChain(
+                                nonSourceOperatorId,
+                                new LifeCycleMonitorMultipleInputOperatorFactory())
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
+                        .build()) {
+
+            testHarness.processElement(Watermark.MAX_WATERMARK);
+            assertThat(output, is(empty()));
+            testHarness.waitForTaskCompletion();
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
+
+            for (StreamOperatorWrapper<?, ?> wrapper :
+                    testHarness.getStreamTask().operatorChain.getAllOperators()) {
+                if (wrapper.getStreamOperator() instanceof SourceOperator<?, ?>) {
+                    SourceOperatorStreamTaskTest.LifeCycleMonitorSourceReader sourceReader =
+                            (SourceOperatorStreamTaskTest.LifeCycleMonitorSourceReader)
+                                    ((SourceOperator<?, ?>) wrapper.getStreamOperator())
+                                            .getSourceReader();
+                    sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+                }
+            }
+        }
+    }
+
     private void addRecordsAndBarriers(
             StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier)
             throws Exception {
         addRecords(testHarness);
         addBarriers(testHarness, checkpointBarrier);
+    }
+
+    private CheckpointBarrier createStopWithSavepointDrainBarrier() {
+        CheckpointOptions checkpointOptions =
+                CheckpointOptions.alignedNoTimeout(
+                        SavepointType.terminate(SavepointFormatType.CANONICAL),
+                        CheckpointStorageLocationReference.getDefault());
+
+        return new CheckpointBarrier(
+                metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
     }
 
     private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
@@ -245,7 +563,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         CheckpointStorageLocationReference.getDefault(),
                         config.isExactlyOnceCheckpointMode(),
                         config.isUnalignedCheckpointsEnabled(),
-                        config.getAlignmentTimeout());
+                        config.getAlignedCheckpointTimeout().toMillis());
 
         return new CheckpointBarrier(
                 metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
@@ -279,5 +597,62 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             testHarness.processSingleStep();
         }
         assertTrue(condition.get());
+    }
+
+    static class LifeCycleMonitorMultipleInputOperator extends TestFinishedOnRestoreStreamOperator
+            implements MultipleInputStreamOperator<String> {
+
+        public LifeCycleMonitorMultipleInputOperator() {}
+
+        @Override
+        public List<Input> getInputs() {
+            ArrayList<Input> inputs = new ArrayList<>();
+            inputs.add(new TestFinishedOnRestoreInput());
+            inputs.add(new TestFinishedOnRestoreInput());
+            inputs.add(new TestFinishedOnRestoreInput());
+            return inputs;
+        }
+
+        private static class TestFinishedOnRestoreInput implements Input {
+            @Override
+            public void processElement(StreamRecord element) throws Exception {
+                throw new IllegalStateException(MESSAGE);
+            }
+
+            @Override
+            public void processWatermark(Watermark mark) throws Exception {
+                throw new IllegalStateException(MESSAGE);
+            }
+
+            @Override
+            public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+                throw new IllegalStateException(MESSAGE);
+            }
+
+            @Override
+            public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+                throw new IllegalStateException(MESSAGE);
+            }
+
+            @Override
+            public void setKeyContextElement(StreamRecord record) throws Exception {
+                throw new IllegalStateException(MESSAGE);
+            }
+        }
+    }
+
+    static class LifeCycleMonitorMultipleInputOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new LifeCycleMonitorMultipleInputOperator();
+        }
+
+        @Override
+        public Class<? extends StreamOperator<String>> getStreamOperatorClass(
+                ClassLoader classLoader) {
+            return LifeCycleMonitorMultipleInputOperator.class;
+        }
     }
 }

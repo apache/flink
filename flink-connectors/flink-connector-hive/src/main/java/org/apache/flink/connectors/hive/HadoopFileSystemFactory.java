@@ -18,9 +18,9 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
-import org.apache.flink.table.filesystem.FileSystemFactory;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;

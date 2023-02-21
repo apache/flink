@@ -53,4 +53,11 @@ public interface SchedulingResultPartition
      * @return list of {@link ConsumerVertexGroup}s
      */
     List<ConsumerVertexGroup> getConsumerVertexGroups();
+
+    /**
+     * Gets the {@link ConsumedPartitionGroup}s this partition belongs to.
+     *
+     * @return list of {@link ConsumedPartitionGroup}s
+     */
+    List<ConsumedPartitionGroup> getConsumedPartitionGroups();
 }

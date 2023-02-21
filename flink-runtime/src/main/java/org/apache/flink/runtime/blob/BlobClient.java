@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -81,7 +82,7 @@ public final class BlobClient implements Closeable {
 
         try {
             // create an SSL socket if configured
-            if (SSLUtils.isInternalSSLEnabled(clientConfig)
+            if (SecurityOptions.isInternalSSLEnabled(clientConfig)
                     && clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
                 LOG.info("Using ssl connection to the blob server");
 

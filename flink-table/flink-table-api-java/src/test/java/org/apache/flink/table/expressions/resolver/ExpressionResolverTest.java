@@ -26,7 +26,10 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -38,208 +41,259 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.FunctionLookupMock;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.col;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for resolving expressions with {@link ExpressionResolver} created with Expression DSL. See
  * also {@link FunctionLookupMock} for a set of supported functions.
  */
-@RunWith(Parameterized.class)
-public class ExpressionResolverTest {
+class ExpressionResolverTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> parameters() {
-        return Arrays.asList(
-                TestSpec.test("Columns range")
-                        .inputSchemas(
-                                TableSchema.builder()
-                                        .field("f0", DataTypes.BIGINT())
-                                        .field("f1", DataTypes.STRING())
-                                        .field("f2", DataTypes.SMALLINT())
-                                        .build())
-                        .select(withColumns(range("f1", "f2")), withColumns(range(1, 2)))
-                        .equalTo(
-                                new FieldReferenceExpression("f1", DataTypes.STRING(), 0, 1),
-                                new FieldReferenceExpression("f2", DataTypes.SMALLINT(), 0, 2),
-                                new FieldReferenceExpression("f0", DataTypes.BIGINT(), 0, 0),
-                                new FieldReferenceExpression("f1", DataTypes.STRING(), 0, 1)),
-                TestSpec.test("Flatten call")
-                        .inputSchemas(
-                                TableSchema.builder()
-                                        .field(
-                                                "f0",
-                                                DataTypes.ROW(
-                                                        DataTypes.FIELD("n0", DataTypes.BIGINT()),
-                                                        DataTypes.FIELD("n1", DataTypes.STRING())))
-                                        .build())
-                        .select($("f0").flatten())
-                        .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("get"),
-                                        BuiltInFunctionDefinitions.GET,
-                                        Arrays.asList(
-                                                new FieldReferenceExpression(
+    static Stream<Arguments> parameters() {
+        return Stream.of(
+                Arguments.of(
+                        TestSpec.test("Columns range")
+                                .inputSchemas(
+                                        TableSchema.builder()
+                                                .field("f0", DataTypes.BIGINT())
+                                                .field("f1", DataTypes.STRING())
+                                                .field("f2", DataTypes.SMALLINT())
+                                                .build())
+                                .select(withColumns(range("f1", "f2")), withColumns(range(1, 2)))
+                                .equalTo(
+                                        new FieldReferenceExpression(
+                                                "f1", DataTypes.STRING(), 0, 1),
+                                        new FieldReferenceExpression(
+                                                "f2", DataTypes.SMALLINT(), 0, 2),
+                                        new FieldReferenceExpression(
+                                                "f0", DataTypes.BIGINT(), 0, 0),
+                                        new FieldReferenceExpression(
+                                                "f1", DataTypes.STRING(), 0, 1))),
+                Arguments.of(
+                        TestSpec.test("Flatten call")
+                                .inputSchemas(
+                                        TableSchema.builder()
+                                                .field(
                                                         "f0",
                                                         DataTypes.ROW(
                                                                 DataTypes.FIELD(
                                                                         "n0", DataTypes.BIGINT()),
                                                                 DataTypes.FIELD(
-                                                                        "n1", DataTypes.STRING())),
-                                                        0,
-                                                        0),
-                                                new ValueLiteralExpression("n0")),
-                                        DataTypes.BIGINT()),
-                                new CallExpression(
-                                        FunctionIdentifier.of("get"),
-                                        BuiltInFunctionDefinitions.GET,
-                                        Arrays.asList(
-                                                new FieldReferenceExpression(
-                                                        "f0",
-                                                        DataTypes.ROW(
-                                                                DataTypes.FIELD(
-                                                                        "n0", DataTypes.BIGINT()),
-                                                                DataTypes.FIELD(
-                                                                        "n1", DataTypes.STRING())),
-                                                        0,
-                                                        0),
-                                                new ValueLiteralExpression("n1")),
-                                        DataTypes.STRING())),
-                TestSpec.test("Builtin function calls")
-                        .inputSchemas(
-                                TableSchema.builder()
-                                        .field("f0", DataTypes.INT())
-                                        .field("f1", DataTypes.DOUBLE())
-                                        .build())
-                        .select($("f0").isEqual($("f1")))
-                        .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("equals"),
-                                        BuiltInFunctionDefinitions.EQUALS,
-                                        Arrays.asList(
-                                                new FieldReferenceExpression(
-                                                        "f0", DataTypes.INT(), 0, 0),
-                                                new FieldReferenceExpression(
-                                                        "f1", DataTypes.DOUBLE(), 0, 1)),
-                                        DataTypes.BOOLEAN())),
-                TestSpec.test("Lookup legacy scalar function call")
-                        .inputSchemas(TableSchema.builder().field("f0", DataTypes.INT()).build())
-                        .lookupFunction(
-                                "func",
-                                new ScalarFunctionDefinition("func", new LegacyScalarFunc()))
-                        .select(call("func", 1, $("f0")))
-                        .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("func"),
+                                                                        "n1", DataTypes.STRING())))
+                                                .build())
+                                .select($("f0").flatten())
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                BuiltInFunctionDefinitions.GET,
+                                                Arrays.asList(
+                                                        new FieldReferenceExpression(
+                                                                "f0",
+                                                                DataTypes.ROW(
+                                                                        DataTypes.FIELD(
+                                                                                "n0",
+                                                                                DataTypes.BIGINT()),
+                                                                        DataTypes.FIELD(
+                                                                                "n1",
+                                                                                DataTypes
+                                                                                        .STRING())),
+                                                                0,
+                                                                0),
+                                                        new ValueLiteralExpression("n0")),
+                                                DataTypes.BIGINT()),
+                                        CallExpression.permanent(
+                                                BuiltInFunctionDefinitions.GET,
+                                                Arrays.asList(
+                                                        new FieldReferenceExpression(
+                                                                "f0",
+                                                                DataTypes.ROW(
+                                                                        DataTypes.FIELD(
+                                                                                "n0",
+                                                                                DataTypes.BIGINT()),
+                                                                        DataTypes.FIELD(
+                                                                                "n1",
+                                                                                DataTypes
+                                                                                        .STRING())),
+                                                                0,
+                                                                0),
+                                                        new ValueLiteralExpression("n1")),
+                                                DataTypes.STRING()))),
+                Arguments.of(
+                        TestSpec.test("Builtin function calls")
+                                .inputSchemas(
+                                        TableSchema.builder()
+                                                .field("f0", DataTypes.INT())
+                                                .field("f1", DataTypes.DOUBLE())
+                                                .build())
+                                .select($("f0").isEqual($("f1")))
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                BuiltInFunctionDefinitions.EQUALS,
+                                                Arrays.asList(
+                                                        new FieldReferenceExpression(
+                                                                "f0", DataTypes.INT(), 0, 0),
+                                                        new FieldReferenceExpression(
+                                                                "f1", DataTypes.DOUBLE(), 0, 1)),
+                                                DataTypes.BOOLEAN()))),
+                Arguments.of(
+                        TestSpec.test("Lookup legacy scalar function call")
+                                .inputSchemas(
+                                        TableSchema.builder().field("f0", DataTypes.INT()).build())
+                                .lookupFunction(
+                                        "func",
                                         new ScalarFunctionDefinition(
-                                                "func", new LegacyScalarFunc()),
-                                        Arrays.asList(
-                                                valueLiteral(1),
-                                                new FieldReferenceExpression(
-                                                        "f0", DataTypes.INT(), 0, 0)),
-                                        DataTypes.INT().bridgedTo(Integer.class))),
-                TestSpec.test("Lookup system function call")
-                        .inputSchemas(TableSchema.builder().field("f0", DataTypes.INT()).build())
-                        .lookupFunction("func", new ScalarFunc())
-                        .select(call("func", 1, $("f0")))
-                        .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("func"),
-                                        new ScalarFunc(),
-                                        Arrays.asList(
-                                                valueLiteral(1),
-                                                new FieldReferenceExpression(
-                                                        "f0", DataTypes.INT(), 0, 0)),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))),
-                TestSpec.test("Inline function call via a class")
-                        .inputSchemas(TableSchema.builder().field("f0", DataTypes.INT()).build())
-                        .select(call(ScalarFunc.class, 1, $("f0")))
-                        .equalTo(
-                                new CallExpression(
-                                        new ScalarFunc(),
-                                        Arrays.asList(
-                                                valueLiteral(1),
-                                                new FieldReferenceExpression(
-                                                        "f0", DataTypes.INT(), 0, 0)),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))),
-                TestSpec.test("Lookup catalog function call")
-                        .inputSchemas(TableSchema.builder().field("f0", DataTypes.INT()).build())
-                        .lookupFunction(ObjectIdentifier.of("cat", "db", "func"), new ScalarFunc())
-                        .select(call("cat.db.func", 1, $("f0")))
-                        .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of(
-                                                ObjectIdentifier.of("cat", "db", "func")),
-                                        new ScalarFunc(),
-                                        Arrays.asList(
-                                                valueLiteral(1),
-                                                new FieldReferenceExpression(
-                                                        "f0", DataTypes.INT(), 0, 0)),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))),
-                TestSpec.test("Deeply nested user-defined inline calls")
-                        .inputSchemas(TableSchema.builder().field("f0", DataTypes.INT()).build())
-                        .lookupFunction("func", new ScalarFunc())
-                        .select(call("func", call(new ScalarFunc(), call("func", 1, $("f0")))))
-                        .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("func"),
-                                        new ScalarFunc(),
-                                        Collections.singletonList(
-                                                new CallExpression(
-                                                        new ScalarFunc(),
-                                                        Collections.singletonList(
-                                                                new CallExpression(
-                                                                        FunctionIdentifier.of(
-                                                                                "func"),
-                                                                        new ScalarFunc(),
-                                                                        Arrays.asList(
-                                                                                valueLiteral(1),
-                                                                                new FieldReferenceExpression(
-                                                                                        "f0",
-                                                                                        DataTypes
-                                                                                                .INT(),
-                                                                                        0,
-                                                                                        0)),
-                                                                        DataTypes.INT()
-                                                                                .notNull()
-                                                                                .bridgedTo(
-                                                                                        int
-                                                                                                .class))),
-                                                        DataTypes.INT()
-                                                                .notNull()
-                                                                .bridgedTo(int.class))),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))));
+                                                "func", new LegacyScalarFunc()))
+                                .select(call("func", 1, $("f0")))
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                FunctionIdentifier.of("func"),
+                                                new ScalarFunctionDefinition(
+                                                        "func", new LegacyScalarFunc()),
+                                                Arrays.asList(
+                                                        valueLiteral(1),
+                                                        new FieldReferenceExpression(
+                                                                "f0", DataTypes.INT(), 0, 0)),
+                                                DataTypes.INT().bridgedTo(Integer.class)))),
+                Arguments.of(
+                        TestSpec.test("Lookup system function call")
+                                .inputSchemas(
+                                        TableSchema.builder().field("f0", DataTypes.INT()).build())
+                                .lookupFunction("func", new ScalarFunc())
+                                .select(call("func", 1, $("f0")))
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                FunctionIdentifier.of("func"),
+                                                new ScalarFunc(),
+                                                Arrays.asList(
+                                                        valueLiteral(1),
+                                                        new FieldReferenceExpression(
+                                                                "f0", DataTypes.INT(), 0, 0)),
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                Arguments.of(
+                        TestSpec.test("Inline function call via a class")
+                                .inputSchemas(
+                                        TableSchema.builder().field("f0", DataTypes.INT()).build())
+                                .select(call(ScalarFunc.class, 1, $("f0")))
+                                .equalTo(
+                                        CallExpression.anonymous(
+                                                new ScalarFunc(),
+                                                Arrays.asList(
+                                                        valueLiteral(1),
+                                                        new FieldReferenceExpression(
+                                                                "f0", DataTypes.INT(), 0, 0)),
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                Arguments.of(
+                        TestSpec.test("Lookup catalog function call")
+                                .inputSchemas(
+                                        TableSchema.builder().field("f0", DataTypes.INT()).build())
+                                .lookupFunction(
+                                        ObjectIdentifier.of("cat", "db", "func"), new ScalarFunc())
+                                .select(call("cat.db.func", 1, $("f0")))
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                FunctionIdentifier.of(
+                                                        ObjectIdentifier.of("cat", "db", "func")),
+                                                new ScalarFunc(),
+                                                Arrays.asList(
+                                                        valueLiteral(1),
+                                                        new FieldReferenceExpression(
+                                                                "f0", DataTypes.INT(), 0, 0)),
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                Arguments.of(
+                        TestSpec.test("Deeply nested user-defined inline calls")
+                                .inputSchemas(
+                                        TableSchema.builder().field("f0", DataTypes.INT()).build())
+                                .lookupFunction("func", new ScalarFunc())
+                                .select(
+                                        call(
+                                                "func",
+                                                call(new ScalarFunc(), call("func", 1, $("f0")))))
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                FunctionIdentifier.of("func"),
+                                                new ScalarFunc(),
+                                                Collections.singletonList(
+                                                        CallExpression.anonymous(
+                                                                new ScalarFunc(),
+                                                                Collections.singletonList(
+                                                                        CallExpression.permanent(
+                                                                                FunctionIdentifier
+                                                                                        .of("func"),
+                                                                                new ScalarFunc(),
+                                                                                Arrays.asList(
+                                                                                        valueLiteral(
+                                                                                                1),
+                                                                                        new FieldReferenceExpression(
+                                                                                                "f0",
+                                                                                                DataTypes
+                                                                                                        .INT(),
+                                                                                                0,
+                                                                                                0)),
+                                                                                DataTypes.INT()
+                                                                                        .notNull()
+                                                                                        .bridgedTo(
+                                                                                                int
+                                                                                                        .class))),
+                                                                DataTypes.INT()
+                                                                        .notNull()
+                                                                        .bridgedTo(int.class))),
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                Arguments.of(
+                        TestSpec.test("Star expression as parameter of user-defined func")
+                                .inputSchemas(
+                                        TableSchema.builder()
+                                                .field("f0", DataTypes.INT())
+                                                .field("f1", DataTypes.STRING())
+                                                .build())
+                                .lookupFunction("func", new ScalarFunc())
+                                .select(call("func", $("*")))
+                                .equalTo(
+                                        CallExpression.permanent(
+                                                FunctionIdentifier.of("func"),
+                                                new ScalarFunc(),
+                                                Arrays.asList(
+                                                        new FieldReferenceExpression(
+                                                                "f0", DataTypes.INT(), 0, 0),
+                                                        new FieldReferenceExpression(
+                                                                "f1", DataTypes.STRING(), 0, 1)),
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                Arguments.of(
+                        TestSpec.test("Test field reference with col()")
+                                .inputSchemas(
+                                        TableSchema.builder().field("i", DataTypes.INT()).build())
+                                .select(col("i"))
+                                .equalTo(
+                                        new FieldReferenceExpression("i", DataTypes.INT(), 0, 0))));
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Test
-    public void testResolvingExpressions() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    void testResolvingExpressions(TestSpec testSpec) {
         List<ResolvedExpression> resolvedExpressions =
                 testSpec.getResolver().resolve(Arrays.asList(testSpec.expressions));
-        assertThat(resolvedExpressions, equalTo(testSpec.expectedExpressions));
+        assertThat(resolvedExpressions).isEqualTo(testSpec.expectedExpressions);
     }
 
     /** Test scalar function. */
@@ -328,23 +382,35 @@ public class ExpressionResolverTest {
 
         public ExpressionResolver getResolver() {
             return ExpressionResolver.resolverFor(
-                            new TableConfig(),
+                            TableConfig.getDefault(),
+                            Thread.currentThread().getContextClassLoader(),
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),
-                            (sqlExpression, inputSchema) -> {
+                            (sqlExpression, inputRowType, outputType) -> {
                                 throw new UnsupportedOperationException();
                             },
                             Arrays.stream(schemas)
                                     .map(
                                             schema ->
                                                     (QueryOperation)
-                                                            new CatalogQueryOperation(
-                                                                    ObjectIdentifier.of("", "", ""),
-                                                                    ResolvedSchema.physical(
-                                                                            schema.getFieldNames(),
-                                                                            schema
-                                                                                    .getFieldDataTypes())))
+                                                            new SourceQueryOperation(
+                                                                    ContextResolvedTable.anonymous(
+                                                                            new ResolvedCatalogTable(
+                                                                                    CatalogTable.of(
+                                                                                            schema
+                                                                                                    .toSchema(),
+                                                                                            null,
+                                                                                            Collections
+                                                                                                    .emptyList(),
+                                                                                            Collections
+                                                                                                    .emptyMap()),
+                                                                                    ResolvedSchema
+                                                                                            .physical(
+                                                                                                    schema
+                                                                                                            .getFieldNames(),
+                                                                                                    schema
+                                                                                                            .getFieldDataTypes())))))
                                     .toArray(QueryOperation[]::new))
                     .build();
         }

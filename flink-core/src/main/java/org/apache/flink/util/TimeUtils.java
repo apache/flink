@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -51,7 +50,7 @@ public class TimeUtils {
      * <ul>
      *   <li>DAYS： "d", "day"
      *   <li>HOURS： "h", "hour"
-     *   <li>MINUTES： "min", "minute"
+     *   <li>MINUTES： "m", "min", "minute"
      *   <li>SECONDS： "s", "sec", "second"
      *   <li>MILLISECONDS： "ms", "milli", "millisecond"
      *   <li>MICROSECONDS： "µs", "micro", "microsecond"
@@ -179,7 +178,7 @@ public class TimeUtils {
     private enum TimeUnit {
         DAYS(ChronoUnit.DAYS, singular("d"), plural("day")),
         HOURS(ChronoUnit.HOURS, singular("h"), plural("hour")),
-        MINUTES(ChronoUnit.MINUTES, singular("min"), plural("minute")),
+        MINUTES(ChronoUnit.MINUTES, singular("min"), singular("m"), plural("minute")),
         SECONDS(ChronoUnit.SECONDS, singular("s"), plural("sec"), plural("second")),
         MILLISECONDS(ChronoUnit.MILLIS, singular("ms"), plural("milli"), plural("millisecond")),
         MICROSECONDS(ChronoUnit.MICROS, singular("µs"), plural("micro"), plural("microsecond")),

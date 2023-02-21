@@ -45,10 +45,8 @@ public class BlobServerRangeTest extends TestLogger {
     public void testOnEphemeralPort() throws IOException {
         Configuration conf = new Configuration();
         conf.setString(BlobServerOptions.PORT, "0");
-        conf.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        BlobServer server = new BlobServer(conf, new VoidBlobStore());
+        BlobServer server = new BlobServer(conf, temporaryFolder.newFolder(), new VoidBlobStore());
         server.start();
         server.close();
     }
@@ -67,12 +65,11 @@ public class BlobServerRangeTest extends TestLogger {
 
         Configuration conf = new Configuration();
         conf.setString(BlobServerOptions.PORT, String.valueOf(socket.getLocalPort()));
-        conf.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
         // this thing is going to throw an exception
         try {
-            BlobServer server = new BlobServer(conf, new VoidBlobStore());
+            BlobServer server =
+                    new BlobServer(conf, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
         } finally {
             socket.close();
@@ -96,12 +93,11 @@ public class BlobServerRangeTest extends TestLogger {
         conf.setString(
                 BlobServerOptions.PORT,
                 sockets[0].getLocalPort() + "," + sockets[1].getLocalPort() + ",50000-50050");
-        conf.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
         // this thing is going to throw an exception
         try {
-            BlobServer server = new BlobServer(conf, new VoidBlobStore());
+            BlobServer server =
+                    new BlobServer(conf, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
             assertThat(
                     server.getPort(), allOf(greaterThanOrEqualTo(50000), lessThanOrEqualTo(50050)));

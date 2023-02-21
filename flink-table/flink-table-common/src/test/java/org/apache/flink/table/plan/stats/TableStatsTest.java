@@ -18,17 +18,20 @@
 
 package org.apache.flink.table.plan.stats;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for {@link TableStats}. */
-public class TableStatsTest {
+class TableStatsTest {
 
     @Test
-    public void testMerge() {
+    void testMerge() {
         Map<String, ColumnStats> colStats1 = new HashMap<>();
         colStats1.put("a", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
         TableStats stats1 = new TableStats(30, colStats1);
@@ -38,12 +41,47 @@ public class TableStatsTest {
         TableStats stats2 = new TableStats(32, colStats2);
 
         Map<String, ColumnStats> colStatsMerge = new HashMap<>();
-        colStatsMerge.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
-        Assert.assertEquals(new TableStats(62, colStatsMerge), stats1.merge(stats2));
+        colStatsMerge.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(62, colStatsMerge));
+
+        Map<String, ColumnStats> colStatsMerge2 = new HashMap<>();
+        colStatsMerge2.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>()))
+                .isEqualTo(new TableStats(62, colStatsMerge2));
+
+        // test column stats merge while column 'a' is partition key. Merged Ndv for columns which
+        // are partition keys using sum instead of max.
+        Map<String, ColumnStats> colStatsMerge3 = new HashMap<>();
+        colStatsMerge3.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
+                .isEqualTo(new TableStats(62, colStatsMerge3));
+
+        Map<String, ColumnStats> colStats3 = new HashMap<>();
+        colStats3.put("a", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
+        colStats3.put("b", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
+        stats1 = new TableStats(30, colStats3);
+        Map<String, ColumnStats> colStats4 = new HashMap<>();
+        colStats4.put("a", new ColumnStats(3L, 15L, 12D, 23, 35, 6));
+        colStats4.put("b", new ColumnStats(3L, 15L, 12D, 23, 35, 6));
+        stats2 = new TableStats(32, colStats4);
+
+        Map<String, ColumnStats> colStatsMerge4 = new HashMap<>();
+        colStatsMerge4.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        colStatsMerge4.put("b", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
+                .isEqualTo(new TableStats(62, colStatsMerge4));
+
+        // test merge with one side is TableStats.UNKNOWN.
+        stats2 = TableStats.UNKNOWN;
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
+
+        // test merge with one side have no column stats.
+        stats2 = new TableStats(32);
+        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(62));
     }
 
     @Test
-    public void testMergeLackColumnStats() {
+    void testMergeLackColumnStats() {
         Map<String, ColumnStats> colStats1 = new HashMap<>();
         colStats1.put("a", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
         colStats1.put("b", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
@@ -54,27 +92,39 @@ public class TableStatsTest {
         TableStats stats2 = new TableStats(32, colStats2);
 
         Map<String, ColumnStats> colStatsMerge = new HashMap<>();
-        colStatsMerge.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
-        Assert.assertEquals(new TableStats(62, colStatsMerge), stats1.merge(stats2));
+        colStatsMerge.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(62, colStatsMerge));
+
+        Map<String, ColumnStats> colStatsMerge2 = new HashMap<>();
+        colStatsMerge2.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>()))
+                .isEqualTo(new TableStats(62, colStatsMerge2));
+
+        // test column stats merge while column 'a' is partition key. Merged Ndv for columns which
+        // are partition keys using sum instead of max.
+        Map<String, ColumnStats> colStatsMerge3 = new HashMap<>();
+        colStatsMerge3.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
+                .isEqualTo(new TableStats(62, colStatsMerge3));
     }
 
     @Test
-    public void testMergeUnknownRowCount() {
+    void testMergeUnknownRowCount() {
         TableStats stats1 = new TableStats(-1, new HashMap<>());
         TableStats stats2 = new TableStats(32, new HashMap<>());
-        Assert.assertEquals(new TableStats(-1, new HashMap<>()), stats1.merge(stats2));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
 
         stats1 = new TableStats(-1, new HashMap<>());
         stats2 = new TableStats(-1, new HashMap<>());
-        Assert.assertEquals(new TableStats(-1, new HashMap<>()), stats1.merge(stats2));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
 
         stats1 = new TableStats(-3, new HashMap<>());
         stats2 = new TableStats(-2, new HashMap<>());
-        Assert.assertEquals(new TableStats(-1, new HashMap<>()), stats1.merge(stats2));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
     }
 
     @Test
-    public void testMergeColumnStatsUnknown() {
+    void testMergeColumnStatsUnknown() {
         ColumnStats columnStats0 = new ColumnStats(4L, 5L, 2D, 3, 15, 2);
         ColumnStats columnStats1 = new ColumnStats(4L, null, 2D, 3, 15, 2);
         ColumnStats columnStats2 = new ColumnStats(4L, 5L, 2D, null, 15, 2);
@@ -83,19 +133,25 @@ public class TableStatsTest {
         ColumnStats columnStats5 = new ColumnStats(4L, 5L, 2D, 3, 15, null);
         ColumnStats columnStats6 = new ColumnStats(4L, 5L, null, 3, 15, 2);
 
-        Assert.assertEquals(
-                new ColumnStats(8L, null, 2D, 3, 15, 2), columnStats0.merge(columnStats1));
-        Assert.assertEquals(
-                new ColumnStats(8L, 10L, 2D, null, 15, 2), columnStats0.merge(columnStats2));
-        Assert.assertEquals(
-                new ColumnStats(null, 10L, 2D, 3, 15, 2), columnStats0.merge(columnStats3));
-        Assert.assertEquals(
-                new ColumnStats(8L, 10L, 2D, 3, null, 2), columnStats0.merge(columnStats4));
-        Assert.assertEquals(
-                new ColumnStats(8L, 10L, 2D, 3, 15, null), columnStats0.merge(columnStats5));
-        Assert.assertEquals(
-                new ColumnStats(8L, 10L, null, 3, 15, 2), columnStats0.merge(columnStats6));
-        Assert.assertEquals(
-                new ColumnStats(8L, 10L, null, 3, 15, 2), columnStats6.merge(columnStats6));
+        assertThat(columnStats0.merge(columnStats1, false))
+                .isEqualTo(new ColumnStats(4L, null, 2D, 3, 15, 2));
+        assertThat(columnStats0.merge(columnStats2, false))
+                .isEqualTo(new ColumnStats(4L, 10L, 2D, null, 15, 2));
+        assertThat(columnStats0.merge(columnStats3, false))
+                .isEqualTo(new ColumnStats(null, 10L, 2D, 3, 15, 2));
+        assertThat(columnStats0.merge(columnStats4, false))
+                .isEqualTo(new ColumnStats(4L, 10L, 2D, 3, null, 2));
+        assertThat(columnStats0.merge(columnStats5, false))
+                .isEqualTo(new ColumnStats(4L, 10L, 2D, 3, 15, null));
+        assertThat(columnStats0.merge(columnStats6, false))
+                .isEqualTo(new ColumnStats(4L, 10L, null, 3, 15, 2));
+        assertThat(columnStats6.merge(columnStats6, false))
+                .isEqualTo(new ColumnStats(4L, 10L, null, 3, 15, 2));
+
+        // tet column stats merge while partition key is true.
+        assertThat(columnStats0.merge(columnStats1, true))
+                .isEqualTo(new ColumnStats(8L, null, 2D, 3, 15, 2));
+        assertThat(columnStats0.merge(columnStats3, true))
+                .isEqualTo(new ColumnStats(null, 10L, 2D, 3, 15, 2));
     }
 }

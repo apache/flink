@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.scheduler.stopwithsavepoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointScheduling;
@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -151,10 +150,6 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                 createTestInstance(globalFailOverTriggered::complete);
 
         final ExecutionState expectedNonFinishedState = ExecutionState.FAILED;
-        final String expectedErrorMessage =
-                String.format(
-                        "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: %s. A global fail-over is triggered to recover the job %s.",
-                        expectedNonFinishedState, JOB_ID);
 
         final EmptyStreamStateHandle streamStateHandle = new EmptyStreamStateHandle();
         final CompletedCheckpoint completedSavepoint = createCompletedSavepoint(streamStateHandle);
@@ -167,24 +162,14 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
             testInstance.getSavepointPath().get();
             fail("An ExecutionException is expected.");
         } catch (Throwable e) {
-            final Optional<FlinkException> actualFlinkException =
-                    ExceptionUtils.findThrowable(e, FlinkException.class);
+            final Optional<StopWithSavepointStoppingException> actualFlinkException =
+                    ExceptionUtils.findThrowable(e, StopWithSavepointStoppingException.class);
             assertTrue(
                     "A FlinkException should have been thrown.", actualFlinkException.isPresent());
-            assertThat(
-                    actualFlinkException.get(),
-                    FlinkMatchers.containsMessage(expectedErrorMessage));
         }
 
         assertTrue("Global fail-over was not triggered.", globalFailOverTriggered.isDone());
-        assertThat(
-                globalFailOverTriggered.get(), FlinkMatchers.containsMessage(expectedErrorMessage));
-
         assertFalse("Savepoint should not be discarded.", streamStateHandle.isDisposed());
-
-        assertFalse(
-                "Checkpoint scheduling should not be enabled in case of failure.",
-                checkpointScheduling.isEnabled());
     }
 
     @Test(expected = UnsupportedOperationException.class)
@@ -221,7 +206,8 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                 0L,
                 new HashMap<>(),
                 null,
-                CheckpointProperties.forSavepoint(true),
-                new TestCompletedCheckpointStorageLocation(streamStateHandle, "savepoint-path"));
+                CheckpointProperties.forSavepoint(true, SavepointFormatType.CANONICAL),
+                new TestCompletedCheckpointStorageLocation(streamStateHandle, "savepoint-path"),
+                null);
     }
 }

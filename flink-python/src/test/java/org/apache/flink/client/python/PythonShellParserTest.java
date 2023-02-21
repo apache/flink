@@ -18,44 +18,45 @@
 
 package org.apache.flink.client.python;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for the {@link PythonShellParser}. */
-public class PythonShellParserTest {
+class PythonShellParserTest {
     @Test
-    public void testParseLocalWithoutOptions() {
+    void testParseLocalWithoutOptions() {
         String[] args = {"local"};
         List<String> commandOptions = PythonShellParser.parseLocal(args);
         String[] expectedCommandOptions = {"local"};
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
     }
 
     @Test
-    public void testParseRemoteWithoutOptions() {
+    void testParseRemoteWithoutOptions() {
         String[] args = {"remote", "localhost", "8081"};
         List<String> commandOptions = PythonShellParser.parseRemote(args);
         String[] expectedCommandOptions = {"remote", "-m", "localhost:8081"};
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
     }
 
     @Test
-    public void testParseYarnWithoutOptions() {
+    void testParseYarnWithoutOptions() {
         String[] args = {"yarn"};
         List<String> commandOptions = PythonShellParser.parseYarn(args);
         String[] expectedCommandOptions = {"yarn", "-m", "yarn-cluster"};
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
     }
 
     @Test
-    public void testParseYarnWithOptions() {
+    void testParseYarnWithOptions() {
         String[] args = {"yarn", "-jm", "1024m", "-tm", "4096m"};
         List<String> commandOptions = PythonShellParser.parseYarn(args);
         String[] expectedCommandOptions = {
             "yarn", "-m", "yarn-cluster", "-yjm", "1024m", "-ytm", "4096m"
         };
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        assertThat(commandOptions.toArray()).isEqualTo(expectedCommandOptions);
     }
 }

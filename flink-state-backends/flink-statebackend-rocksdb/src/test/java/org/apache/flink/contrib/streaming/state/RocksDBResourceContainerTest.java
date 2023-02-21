@@ -44,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
-import static org.apache.flink.contrib.streaming.state.RocksDBResourceContainer.getFilterFromBlockBasedTableConfig;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -173,15 +172,15 @@ public class RocksDBResourceContainerTest {
         }
         Field cacheField = null;
         try {
-            cacheField = BlockBasedTableConfig.class.getDeclaredField("blockCache_");
+            cacheField = BlockBasedTableConfig.class.getDeclaredField("blockCache");
         } catch (NoSuchFieldException e) {
-            fail("blockCache_ is not defined");
+            fail("blockCache is not defined");
         }
         cacheField.setAccessible(true);
         try {
             return (Cache) cacheField.get(blockBasedTableConfig);
         } catch (IllegalAccessException e) {
-            fail("Cannot access blockCache_ field.");
+            fail("Cannot access blockCache field.");
             return null;
         }
     }
@@ -318,7 +317,7 @@ public class RocksDBResourceContainerTest {
             assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
             assertThat(actual.partitionFilters(), is(true));
             assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
-            assertThat(getFilterFromBlockBasedTableConfig(actual), not(blockBasedFilter));
+            assertThat(actual.filterPolicy(), not(blockBasedFilter));
         }
         assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
     }

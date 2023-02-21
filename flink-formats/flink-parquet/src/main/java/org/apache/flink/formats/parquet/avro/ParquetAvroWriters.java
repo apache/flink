@@ -18,25 +18,19 @@
 
 package org.apache.flink.formats.parquet.avro;
 
-import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.parquet.avro.AvroParquetWriter;
-import org.apache.parquet.hadoop.ParquetWriter;
-import org.apache.parquet.io.OutputFile;
-
-import java.io.IOException;
 
 /**
  * Convenience builder to create {@link ParquetWriterFactory} instances for the different Avro
  * types.
+ *
+ * @deprecated use {@link AvroParquetWriters} instead.
  */
+@Deprecated
 public class ParquetAvroWriters {
 
     /**
@@ -47,10 +41,7 @@ public class ParquetAvroWriters {
      */
     public static <T extends SpecificRecordBase> ParquetWriterFactory<T> forSpecificRecord(
             Class<T> type) {
-        final String schemaString = SpecificData.get().getSchema(type).toString();
-        final ParquetBuilder<T> builder =
-                (out) -> createAvroParquetWriter(schemaString, SpecificData.get(), out);
-        return new ParquetWriterFactory<>(builder);
+        return AvroParquetWriters.forSpecificRecord(type);
     }
 
     /**
@@ -60,10 +51,7 @@ public class ParquetAvroWriters {
      * @param schema The schema of the generic type.
      */
     public static ParquetWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
-        final String schemaString = schema.toString();
-        final ParquetBuilder<GenericRecord> builder =
-                (out) -> createAvroParquetWriter(schemaString, GenericData.get(), out);
-        return new ParquetWriterFactory<>(builder);
+        return AvroParquetWriters.forGenericRecord(schema);
     }
 
     /**
@@ -73,21 +61,7 @@ public class ParquetAvroWriters {
      * @param type The class of the type to write.
      */
     public static <T> ParquetWriterFactory<T> forReflectRecord(Class<T> type) {
-        final String schemaString = ReflectData.get().getSchema(type).toString();
-        final ParquetBuilder<T> builder =
-                (out) -> createAvroParquetWriter(schemaString, ReflectData.get(), out);
-        return new ParquetWriterFactory<>(builder);
-    }
-
-    private static <T> ParquetWriter<T> createAvroParquetWriter(
-            String schemaString, GenericData dataModel, OutputFile out) throws IOException {
-
-        final Schema schema = new Schema.Parser().parse(schemaString);
-
-        return AvroParquetWriter.<T>builder(out)
-                .withSchema(schema)
-                .withDataModel(dataModel)
-                .build();
+        return AvroParquetWriters.forReflectRecord(type);
     }
 
     // ------------------------------------------------------------------------

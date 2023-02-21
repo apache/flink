@@ -39,8 +39,9 @@ import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,10 +55,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -110,10 +113,13 @@ public class RemoteInputChannel extends InputChannel {
 
     private final ChannelStatePersister channelStatePersister;
 
+    private long totalQueueSizeInBytes;
+
     public RemoteInputChannel(
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             ConnectionID connectionId,
             ConnectionManager connectionManager,
             int initialBackOff,
@@ -127,10 +133,12 @@ public class RemoteInputChannel extends InputChannel {
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackOff,
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn);
+        checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
@@ -164,13 +172,12 @@ public class RemoteInputChannel extends InputChannel {
     /** Requests a remote subpartition. */
     @VisibleForTesting
     @Override
-    public void requestSubpartition(int subpartitionIndex)
-            throws IOException, InterruptedException {
+    public void requestSubpartition() throws IOException, InterruptedException {
         if (partitionRequestClient == null) {
             LOG.debug(
                     "{}: Requesting REMOTE subpartition {} of partition {}. {}",
                     this,
-                    subpartitionIndex,
+                    consumedSubpartitionIndex,
                     partitionId,
                     channelStatePersister);
             // Create a client and request the partition
@@ -183,17 +190,18 @@ public class RemoteInputChannel extends InputChannel {
                 throw new PartitionConnectionException(partitionId, e);
             }
 
-            partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
+            partitionRequestClient.requestSubpartition(
+                    partitionId, consumedSubpartitionIndex, this, 0);
         }
     }
 
     /** Retriggers a remote subpartition request. */
-    void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException {
+    void retriggerSubpartitionRequest() throws IOException {
         checkPartitionRequestQueueInitialized();
 
         if (increaseBackoff()) {
             partitionRequestClient.requestSubpartition(
-                    partitionId, subpartitionIndex, this, getCurrentBackoff());
+                    partitionId, consumedSubpartitionIndex, this, getCurrentBackoff());
         } else {
             failPartitionRequest();
         }
@@ -208,6 +216,10 @@ public class RemoteInputChannel extends InputChannel {
 
         synchronized (receivedBuffers) {
             next = receivedBuffers.poll();
+
+            if (next != null) {
+                totalQueueSizeInBytes -= next.buffer.getSize();
+            }
             nextDataType =
                     receivedBuffers.peek() != null
                             ? receivedBuffers.peek().buffer.getDataType()
@@ -222,6 +234,13 @@ public class RemoteInputChannel extends InputChannel {
             return Optional.empty();
         }
 
+        NetworkActionsLogger.traceInput(
+                "RemoteInputChannel#getNextBuffer",
+                next.buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.sequenceNumber);
         numBytesIn.inc(next.buffer.getSize());
         numBuffersIn.inc();
         return Optional.of(
@@ -276,6 +295,21 @@ public class RemoteInputChannel extends InputChannel {
         }
     }
 
+    @Override
+    int getBuffersInUseCount() {
+        return getNumberOfQueuedBuffers()
+                + Math.max(0, bufferManager.getNumberOfRequiredBuffers() - initialCredit);
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        try {
+            notifyNewBufferSize(newBufferSize);
+        } catch (Throwable t) {
+            ExceptionUtils.rethrow(t);
+        }
+    }
+
     private void failPartitionRequest() {
         setError(new PartitionNotFoundException(partitionId));
     }
@@ -296,6 +330,13 @@ public class RemoteInputChannel extends InputChannel {
         checkPartitionRequestQueueInitialized();
 
         partitionRequestClient.notifyCreditAvailable(this);
+    }
+
+    private void notifyNewBufferSize(int newBufferSize) throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.notifyNewBufferSize(this, newBufferSize);
     }
 
     @VisibleForTesting
@@ -350,9 +391,37 @@ public class RemoteInputChannel extends InputChannel {
         checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
 
+        if (initialCredit == 0) {
+            // this unannounced credit can be a positive value because credit assignment and the
+            // increase of this value is not an atomic operation and as a result, this unannounced
+            // credit value can be get increased even after this channel has been blocked and all
+            // floating credits are released, it is important to clear this unannounced credit and
+            // at the same time reset the sender's available credits to keep consistency
+            unannouncedCredit.set(0);
+        }
+
         // notifies the producer that this channel is ready to
         // unblock from checkpoint and resume data consumption
         partitionRequestClient.resumeConsumption(this);
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.acknowledgeAllRecordsProcessed(this);
+    }
+
+    private void onBlockingUpstream() {
+        if (initialCredit == 0) {
+            // release the allocated floating buffers so that they can be used by other channels if
+            // no exclusive buffer is configured, it is important because a blocked channel can not
+            // transmit any data so the allocated floating buffers can not be recycled, as a result,
+            // other channels may can't allocate new buffers for data transmission (an extreme case
+            // is that we only have 1 floating buffer and 0 exclusive buffer)
+            bufferManager.releaseFloatingBuffers();
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -391,6 +460,11 @@ public class RemoteInputChannel extends InputChannel {
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return Math.max(0, receivedBuffers.size());
+    }
+
+    @Override
+    public long unsynchronizedGetSizeOfQueuedBuffers() {
+        return Math.max(0, totalQueueSizeInBytes);
     }
 
     public int unsynchronizedGetExclusiveBuffersUsed() {
@@ -436,13 +510,14 @@ public class RemoteInputChannel extends InputChannel {
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
-    void onSenderBacklog(int backlog) throws IOException {
-        int numRequestedBuffers = bufferManager.requestFloatingBuffers(backlog + initialCredit);
-        if (numRequestedBuffers > 0 && unannouncedCredit.getAndAdd(numRequestedBuffers) == 0) {
-            notifyCreditAvailable();
-        }
+    public void onSenderBacklog(int backlog) throws IOException {
+        notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
     }
 
+    /**
+     * Handles the input buffer. This method is taking over the ownership of the buffer and is fully
+     * responsible for cleaning it up both on the happy path and in case of an error.
+     */
     public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
         boolean recycleBuffer = true;
 
@@ -450,6 +525,11 @@ public class RemoteInputChannel extends InputChannel {
             if (expectedSequenceNumber != sequenceNumber) {
                 onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
                 return;
+            }
+
+            if (buffer.getDataType().isBlockingUpstream()) {
+                onBlockingUpstream();
+                checkArgument(backlog == 0, "Illegal number of backlog: %s, should be 0.", backlog);
             }
 
             final boolean wasEmpty;
@@ -475,27 +555,27 @@ public class RemoteInputChannel extends InputChannel {
                 DataType dataType = buffer.getDataType();
                 if (dataType.hasPriority()) {
                     firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
+                    recycleBuffer = false;
                 } else {
                     receivedBuffers.add(sequenceBuffer);
+                    recycleBuffer = false;
                     if (dataType.requiresAnnouncement()) {
                         firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
                     }
                 }
-                channelStatePersister
-                        .checkForBarrier(sequenceBuffer.buffer)
-                        .filter(id -> id > lastBarrierId)
-                        .ifPresent(
-                                id -> {
-                                    // checkpoint was not yet started by task thread,
-                                    // so remember the numbers of buffers to spill for the time when
-                                    // it will be started
-                                    lastBarrierId = id;
-                                    lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
-                                });
+                totalQueueSizeInBytes += buffer.getSize();
+                final OptionalLong barrierId =
+                        channelStatePersister.checkForBarrier(sequenceBuffer.buffer);
+                if (barrierId.isPresent() && barrierId.getAsLong() > lastBarrierId) {
+                    // checkpoint was not yet started by task thread,
+                    // so remember the numbers of buffers to spill for the time when
+                    // it will be started
+                    lastBarrierId = barrierId.getAsLong();
+                    lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
+                }
                 channelStatePersister.maybePersist(buffer);
                 ++expectedSequenceNumber;
             }
-            recycleBuffer = false;
 
             if (firstPriorityEvent) {
                 notifyPriorityEvent(sequenceNumber);
@@ -719,7 +799,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     public void onFailedPartitionRequest() {
-        inputGate.triggerPartitionStateCheck(partitionId);
+        inputGate.triggerPartitionStateCheck(partitionId, consumedSubpartitionIndex);
     }
 
     public void onError(Throwable cause) {

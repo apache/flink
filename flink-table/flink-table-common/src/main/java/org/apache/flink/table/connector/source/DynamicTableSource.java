@@ -20,7 +20,7 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
@@ -52,7 +52,7 @@ import java.io.Serializable;
  * <p>Note: Both interfaces can be implemented at the same time. The planner decides about their
  * usage depending on the specified query.
  *
- * <p>Instances of the above mentioned interfaces can be seen as factories that eventually produce
+ * <p>Instances of the above-mentioned interfaces can be seen as factories that eventually produce
  * concrete runtime implementation for reading the actual data.
  *
  * <p>Depending on the optionally declared abilities such as {@link SupportsProjectionPushDown} or
@@ -88,15 +88,22 @@ public interface DynamicTableSource {
      * instances are {@link Serializable} and can be directly passed into the runtime implementation
      * class.
      */
+    @PublicEvolving
     interface Context {
 
         /**
          * Creates type information describing the internal data structures of the given {@link
          * DataType}.
          *
-         * @see TableSchema#toPhysicalRowDataType()
+         * @see ResolvedSchema#toPhysicalRowDataType()
          */
         <T> TypeInformation<T> createTypeInformation(DataType producedDataType);
+
+        /**
+         * Creates type information describing the internal data structures of the given {@link
+         * LogicalType}.
+         */
+        <T> TypeInformation<T> createTypeInformation(LogicalType producedLogicalType);
 
         /**
          * Creates a converter for mapping between objects specified by the given {@link DataType}
@@ -107,7 +114,7 @@ public interface DynamicTableSource {
          * types.
          *
          * @see LogicalType#supportsInputConversion(Class)
-         * @see TableSchema#toPhysicalRowDataType()
+         * @see ResolvedSchema#toPhysicalRowDataType()
          */
         DataStructureConverter createDataStructureConverter(DataType producedDataType);
     }
@@ -124,6 +131,7 @@ public interface DynamicTableSource {
      *
      * @see LogicalType#supportsInputConversion(Class)
      */
+    @PublicEvolving
     interface DataStructureConverter extends RuntimeConverter {
 
         /** Converts the given object into an internal data structure. */

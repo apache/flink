@@ -27,8 +27,7 @@ under the License.
 Flink is a distributed system and requires effective allocation and management
 of compute resources in order to execute streaming applications. It integrates
 with all common cluster resource managers such as [Hadoop
-YARN](https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/YARN.html),
-[Apache Mesos](https://mesos.apache.org/) and
+YARN](https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/YARN.html) and
 [Kubernetes](https://kubernetes.io/), but can also be set up to run as a
 standalone cluster or even as a library.
 
@@ -50,8 +49,7 @@ that triggers the execution, or in the command line process `./bin/flink run
 
 The JobManager and TaskManagers can be started in various ways: directly on
 the machines as a [standalone cluster]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}), in containers, or managed by resource
-frameworks like [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})
-or [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}).
+frameworks like [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}}).
 TaskManagers connect to JobManagers, announcing themselves as available, and
 are assigned work.
 
@@ -68,7 +66,7 @@ failures, among others. This process consists of three different components:
     provisioning in a Flink cluster — it manages **task slots**, which are the
     unit of resource scheduling in a Flink cluster (see [TaskManagers](#taskmanagers)).
     Flink implements multiple ResourceManagers for different environments and
-    resource providers such as YARN, Mesos, Kubernetes and standalone
+    resource providers such as YARN, Kubernetes and standalone
     deployments. In a standalone setup, the ResourceManager can only distribute
     the slots of available TaskManagers and cannot start new TaskManagers on
     its own.  
@@ -169,9 +167,27 @@ the outside world (see [Anatomy of a Flink Program]({{< ref "docs/dev/datastream
 
 The jobs of a Flink Application can either be submitted to a long-running
 [Flink Session Cluster]({{< ref "docs/concepts/glossary" >}}#flink-session-cluster), a dedicated [Flink Job
-Cluster]({{< ref "docs/concepts/glossary" >}}#flink-job-cluster), or a
+Cluster (deprecated)]({{< ref "docs/concepts/glossary" >}}#flink-job-cluster), or a
 [Flink Application Cluster]({{< ref "docs/concepts/glossary" >}}#flink-application-cluster). The difference between these options is mainly related to the cluster’s lifecycle and to resource
 isolation guarantees.
+
+### Flink Application Cluster
+
+* **Cluster Lifecycle**: a Flink Application Cluster is a dedicated Flink
+  cluster that only executes jobs from one Flink Application and where the
+  ``main()`` method runs on the cluster rather than the client. The job
+  submission is a one-step process: you don’t need to start a Flink cluster
+  first and then submit a job to the existing cluster session; instead, you
+  package your application logic and dependencies into a executable job JAR and
+  the cluster entrypoint (``ApplicationClusterEntryPoint``)
+  is responsible for calling the ``main()`` method to extract the JobGraph.
+  This allows you to deploy a Flink Application like any other application on
+  Kubernetes, for example. The lifetime of a Flink Application Cluster is
+  therefore bound to the lifetime of the Flink Application.
+
+* **Resource Isolation**: in a Flink Application Cluster, the ResourceManager
+  and Dispatcher are scoped to a single Flink Application, which provides a
+  better separation of concerns than the Flink Session Cluster.
 
 ### Flink Session Cluster
 
@@ -201,10 +217,16 @@ isolation guarantees.
 Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session mode`.
 {{< /hint >}}
 
-### Flink Job Cluster
+### Flink Job Cluster (deprecated)
+
+{{< hint danger >}}
+Per-job mode is only supported by YARN and has been deprecated in Flink 1.15.
+It will be dropped in [FLINK-26000](https://issues.apache.org/jira/browse/FLINK-26000).
+Please consider application mode to launch a dedicated cluster per-job on YARN.
+{{< /hint >}}
 
 * **Cluster Lifecycle**: in a Flink Job Cluster, the available cluster manager
-  (like YARN or Kubernetes) is used to spin up a cluster for each submitted job
+  (like YARN) is used to spin up a cluster for each submitted job
   and this cluster is available to that job only. Here, the client first
   requests resources from the cluster manager to start the JobManager and
   submits the job to the Dispatcher running inside this process. TaskManagers
@@ -222,27 +244,8 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session 
 {{< hint info >}}
 Formerly, a Flink Job Cluster was also known as a Flink Cluster in `job (or per-job) mode`.
 {{< /hint >}}
-
-### Flink Application Cluster
-
-* **Cluster Lifecycle**: a Flink Application Cluster is a dedicated Flink
-  cluster that only executes jobs from one Flink Application and where the
-  ``main()`` method runs on the cluster rather than the client. The job
-  submission is a one-step process: you don’t need to start a Flink cluster
-  first and then submit a job to the existing cluster session; instead, you
-  package your application logic and dependencies into a executable job JAR and
-  the cluster entrypoint (``ApplicationClusterEntryPoint``)
-  is responsible for calling the ``main()`` method to extract the JobGraph.
-  This allows you to deploy a Flink Application like any other application on
-  Kubernetes, for example. The lifetime of a Flink Application Cluster is
-  therefore bound to the lifetime of the Flink Application.
-
-* **Resource Isolation**: in a Flink Application Cluster, the ResourceManager
-  and Dispatcher are scoped to a single Flink Application, which provides a
-  better separation of concerns than the Flink Session Cluster.
-
 {{< hint info >}}
-A Flink Job Cluster can be seen as a “run-on-client” alternative to Flink Application Clusters.
+Flink Job Clusters are only supported with YARN.
 {{< /hint >}}
 
 {{< top >}}

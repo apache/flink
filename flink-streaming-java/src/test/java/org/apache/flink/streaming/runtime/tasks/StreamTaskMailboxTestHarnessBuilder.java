@@ -19,13 +19,18 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -33,7 +38,14 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.TestTaskStateManagerBuilder;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
+import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.NetworkInputConfig;
@@ -46,6 +58,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.util.function.FunctionWithException;
 
@@ -53,13 +66,16 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -79,11 +95,21 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     protected TaskMetricGroup taskMetricGroup =
             UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
     protected Map<Long, TaskStateSnapshot> taskStateSnapshots;
+    protected CheckpointResponder checkpointResponder = new TestCheckpointResponder();
+    protected boolean collectNetworkEvents;
 
     protected final ArrayList<InputConfig> inputs = new ArrayList<>();
     protected final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
 
+    protected final ArrayList<ResultPartitionWriter> additionalOutputs = new ArrayList<>();
+
     private boolean setupCalled = false;
+
+    private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+    private Function<SingleInputGateBuilder, SingleInputGateBuilder> modifyGateBuilder =
+            Function.identity();
+
+    private StreamPartitioner<?> partitioner = new BroadcastPartitioner<>();
 
     public StreamTaskMailboxTestHarnessBuilder(
             FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
@@ -102,6 +128,29 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyStreamConfig(
             Consumer<StreamConfig> action) {
         action.accept(streamConfig);
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setCheckpointResponder(
+            CheckpointResponder checkpointResponder) {
+        this.checkpointResponder = checkpointResponder;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setTaskManagerRuntimeInfo(
+            TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+        this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setCollectNetworkEvents() {
+        this.collectNetworkEvents = true;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyGateBuilder(
+            Function<SingleInputGateBuilder, SingleInputGateBuilder> singleInputGateBuilder) {
+        this.modifyGateBuilder = singleInputGateBuilder;
         return this;
     }
 
@@ -126,31 +175,70 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         return this;
     }
 
-    public StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
-            SourceOperatorFactory<?> sourceOperatorFactory) {
-        inputs.add(new SourceInputConfigPlaceHolder(sourceOperatorFactory));
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeInformation<SourceType> sourceType) {
+        return addSourceInput(new OperatorID(), sourceOperatorFactory, sourceType);
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            OperatorID operatorId,
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeInformation<SourceType> sourceType) {
+        return addSourceInput(
+                operatorId, sourceOperatorFactory, sourceType.createSerializer(executionConfig));
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeSerializer<SourceType> sourceSerializer) {
+        return addSourceInput(new OperatorID(), sourceOperatorFactory, sourceSerializer);
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            OperatorID operatorId,
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeSerializer<SourceType> sourceSerializer) {
+        inputs.add(
+                new SourceInputConfigPlaceHolder<>(
+                        operatorId, sourceOperatorFactory, sourceSerializer));
         return this;
     }
 
-    public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
+    public StreamTaskMailboxTestHarnessBuilder<OUT> addAdditionalOutput(
+            ResultPartitionWriter... writers) {
+        checkState(!setupCalled, "Additional outputs must be added before harness was setup.");
+        additionalOutputs.addAll(Arrays.asList(writers));
+        return this;
+    }
 
-        TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
+    public StreamTaskMailboxTestHarness<OUT> buildUnrestored() throws Exception {
+        TestTaskStateManagerBuilder taskStateManagerBuilder =
+                TestTaskStateManager.builder()
+                        .setLocalRecoveryConfig(localRecoveryConfig)
+                        .setCheckpointResponder(checkpointResponder);
         if (taskStateSnapshots != null) {
-            taskStateManager.setReportedCheckpointId(taskStateSnapshots.keySet().iterator().next());
-            taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshots);
+            taskStateManagerBuilder
+                    .setReportedCheckpointId(taskStateSnapshots.keySet().iterator().next())
+                    .setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshots);
         }
 
+        TestTaskStateManager taskStateManager = taskStateManagerBuilder.build();
         StreamMockEnvironment streamMockEnvironment =
                 new StreamMockEnvironment(
+                        new JobID(),
+                        createExecutionAttemptId(),
                         jobConfig,
                         streamConfig.getConfiguration(),
                         executionConfig,
                         memorySize,
                         new MockInputSplitProvider(),
                         bufferSize,
-                        taskStateManager);
+                        taskStateManager,
+                        collectNetworkEvents);
 
         streamMockEnvironment.setCheckpointResponder(taskStateManager.getCheckpointResponder());
+        streamMockEnvironment.setTaskManagerInfo(taskManagerRuntimeInfo);
         initializeInputs(streamMockEnvironment);
 
         checkState(inputGates != null, "InputGates hasn't been initialised");
@@ -162,11 +250,21 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         streamMockEnvironment.addOutput(outputList, outputStreamRecordSerializer);
         streamMockEnvironment.setTaskMetricGroup(taskMetricGroup);
 
+        for (ResultPartitionWriter writer : additionalOutputs) {
+            streamMockEnvironment.addOutput(writer);
+        }
+
         StreamTask<OUT, ?> task = taskFactory.apply(streamMockEnvironment);
-        task.restore();
 
         return new StreamTaskMailboxTestHarness<>(
                 task, outputList, inputGates, streamMockEnvironment);
+    }
+
+    public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
+        StreamTaskMailboxTestHarness<OUT> harness = buildUnrestored();
+        harness.streamTask.restore();
+
+        return harness;
     }
 
     protected void initializeInputs(StreamMockEnvironment streamMockEnvironment) {
@@ -199,6 +297,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         streamConfig.setInPhysicalEdges(inPhysicalEdges);
         streamConfig.setNumberOfNetworkInputs(inputGates.length);
         streamConfig.setInputs(inputs.toArray(new InputConfig[inputs.size()]));
+        streamConfig.serializeAllConfigs();
     }
 
     private void initializeNetworkInput(
@@ -214,18 +313,21 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         inputChannelsPerGate.get(gateIndex),
                         gateIndex,
                         inputSerializer,
-                        bufferSize);
+                        bufferSize,
+                        modifyGateBuilder.apply(
+                                new SingleInputGateBuilder()
+                                        .setBufferDebloatConfiguration(
+                                                BufferDebloatConfiguration.fromConfiguration(
+                                                        streamMockEnvironment
+                                                                .getTaskManagerInfo()
+                                                                .getConfiguration()))));
 
         StreamNode sourceVertexDummy =
                 new StreamNode(
                         0, null, null, (StreamOperator<?>) null, null, SourceStreamTask.class);
         StreamEdge streamEdge =
                 new StreamEdge(
-                        sourceVertexDummy,
-                        targetVertexDummy,
-                        gateIndex + 1,
-                        new BroadcastPartitioner<>(),
-                        null);
+                        sourceVertexDummy, targetVertexDummy, gateIndex + 1, partitioner, null);
 
         inPhysicalEdges.add(streamEdge);
         streamMockEnvironment.addInputGate(inputGates[gateIndex].getInputGate());
@@ -240,7 +342,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         ? StreamConfigChainer.MAIN_NODE_ID
                         : Collections.max(transitiveChainedTaskConfigs.keySet());
 
-        List<StreamEdge> outEdgesInOrder = new LinkedList<>();
+        List<StreamEdge> chainedOutputs = new LinkedList<>();
 
         StreamEdge sourceToMainEdge =
                 new StreamEdge(
@@ -255,18 +357,32 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         0,
                         new ForwardPartitioner<>(),
                         null);
-        outEdgesInOrder.add(sourceToMainEdge);
+        chainedOutputs.add(sourceToMainEdge);
+
+        List<NonChainedOutput> streamOutputsInOrder = new LinkedList<>();
+        streamOutputsInOrder.add(
+                new NonChainedOutput(
+                        true,
+                        sourceToMainEdge.getSourceId(),
+                        1,
+                        1,
+                        100,
+                        false,
+                        new IntermediateDataSetID(),
+                        null,
+                        new ForwardPartitioner<>(),
+                        ResultPartitionType.PIPELINED_BOUNDED));
 
         StreamConfig sourceConfig = new StreamConfig(new Configuration());
         sourceConfig.setTimeCharacteristic(streamConfig.getTimeCharacteristic());
-        sourceConfig.setOutEdgesInOrder(outEdgesInOrder);
-        sourceConfig.setChainedOutputs(outEdgesInOrder);
-        sourceConfig.setTypeSerializerOut(outputSerializer);
-        sourceConfig.setOperatorID(new OperatorID());
+        sourceConfig.setVertexNonChainedOutputs(streamOutputsInOrder);
+        sourceConfig.setChainedOutputs(chainedOutputs);
+        sourceConfig.setTypeSerializerOut(sourceInput.getSourceSerializer());
+        sourceConfig.setOperatorID(sourceInput.getOperatorId());
         sourceConfig.setStreamOperatorFactory(sourceInput.getSourceOperatorFactory());
-
+        sourceConfig.serializeAllConfigs();
         transitiveChainedTaskConfigs.put(sourceToMainEdge.getSourceId(), sourceConfig);
-        streamConfig.setTransitiveChainedTaskConfigs(transitiveChainedTaskConfigs);
+        streamConfig.setAndSerializeTransitiveChainedTaskConfigs(transitiveChainedTaskConfigs);
         return new SourceInputConfig(sourceToMainEdge);
     }
 
@@ -298,7 +414,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             StreamOperatorFactory<?> factory, OperatorID operatorID) {
         checkState(!setupCalled, "This harness was already setup.");
         return setupOperatorChain(operatorID, factory)
-                .finishForSingletonOperatorChain(outputSerializer);
+                .finishForSingletonOperatorChain(outputSerializer, partitioner);
     }
 
     public StreamConfigChainer<StreamTaskMailboxTestHarnessBuilder<OUT>> setupOperatorChain(
@@ -321,7 +437,11 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         checkState(!setupCalled, "This harness was already setup.");
         setupCalled = true;
         streamConfig.setStreamOperatorFactory(headOperatorFactory);
-        return new StreamConfigChainer<>(headOperatorId, streamConfig, this);
+        streamConfig.serializeAllConfigs();
+
+        // There is always 1 default output other than the additional ones.
+        return new StreamConfigChainer<>(
+                headOperatorId, streamConfig, this, 1 + additionalOutputs.size());
     }
 
     public StreamTaskMailboxTestHarnessBuilder<OUT> setTaskMetricGroup(
@@ -341,19 +461,40 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         return this;
     }
 
+    public StreamTaskMailboxTestHarnessBuilder<OUT> setOutputPartitioner(
+            StreamPartitioner partitioner) {
+        this.partitioner = partitioner;
+        return this;
+    }
+
     /**
      * A place holder representation of a {@link SourceInputConfig}. When building the test harness
      * it is replaced with {@link SourceInputConfig}.
      */
-    public static class SourceInputConfigPlaceHolder implements InputConfig {
-        private SourceOperatorFactory<?> sourceOperatorFactory;
+    public static class SourceInputConfigPlaceHolder<SourceOut> implements InputConfig {
+        private OperatorID operatorId;
+        private SourceOperatorFactory<SourceOut> sourceOperatorFactory;
+        private TypeSerializer<SourceOut> sourceSerializer;
 
-        public SourceInputConfigPlaceHolder(SourceOperatorFactory<?> sourceOperatorFactory) {
+        public SourceInputConfigPlaceHolder(
+                OperatorID operatorId,
+                SourceOperatorFactory<SourceOut> sourceOperatorFactory,
+                TypeSerializer<SourceOut> sourceSerializer) {
+            this.operatorId = operatorId;
             this.sourceOperatorFactory = sourceOperatorFactory;
+            this.sourceSerializer = sourceSerializer;
         }
 
-        public SourceOperatorFactory<?> getSourceOperatorFactory() {
+        public OperatorID getOperatorId() {
+            return operatorId;
+        }
+
+        public SourceOperatorFactory<SourceOut> getSourceOperatorFactory() {
             return sourceOperatorFactory;
+        }
+
+        public TypeSerializer<SourceOut> getSourceSerializer() {
+            return sourceSerializer;
         }
     }
 }

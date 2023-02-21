@@ -31,15 +31,17 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 /** Integration tests for interval joins. */
 public class IntervalJoinITCase {
@@ -153,6 +155,28 @@ public class IntervalJoinITCase {
                 "(key2,3):(key2,3)",
                 "(key1,4):(key1,4)",
                 "(key2,5):(key2,5)");
+    }
+
+    private DataStream<Tuple2<String, Integer>> buildSourceStream(
+            final StreamExecutionEnvironment env, final SourceConsumer sourceConsumer) {
+        return env.addSource(
+                new SourceFunction<Tuple2<String, Integer>>() {
+                    @Override
+                    public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+                        sourceConsumer.accept(ctx);
+                    }
+
+                    @Override
+                    public void cancel() {
+                        // do nothing
+                    }
+                });
+    }
+
+    // Ensure consumer func is serializable
+    private interface SourceConsumer
+            extends Serializable, Consumer<SourceFunction.SourceContext<Tuple2<String, Integer>>> {
+        long serialVersionUID = 1L;
     }
 
     @Test

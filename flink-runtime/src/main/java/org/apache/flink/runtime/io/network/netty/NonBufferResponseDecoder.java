@@ -23,6 +23,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 
 import java.net.ProtocolException;
 
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.BacklogAnnouncement;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 
@@ -59,6 +60,8 @@ class NonBufferResponseDecoder extends NettyMessageDecoder {
         switch (msgId) {
             case ErrorResponse.ID:
                 return DecodingResult.fullMessage(ErrorResponse.readFrom(fullFrameHeaderBuf));
+            case BacklogAnnouncement.ID:
+                return DecodingResult.fullMessage(BacklogAnnouncement.readFrom(fullFrameHeaderBuf));
             default:
                 throw new ProtocolException("Received unknown message from producer: " + msgId);
         }

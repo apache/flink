@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,30 +32,30 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
+import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
+import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.util.PythonDependencyUtils.CACHE;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE;
-import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ARCHIVES;
-import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_FILES;
-import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
 import static org.apache.flink.python.util.PythonDependencyUtils.merge;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for PythonDependencyUtils. */
-public class PythonDependencyUtilsTest {
+class PythonDependencyUtilsTest {
 
     private List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         cachedFiles = new ArrayList<>();
     }
 
     @Test
-    public void testPythonFiles() {
+    void testPythonFiles() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_FILES,
@@ -74,20 +74,20 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/test_dir");
         verifyCachedFiles(expectedCachedFiles);
 
-        Configuration expectedConfiguration = new Configuration(config);
-        expectedConfiguration.set(PYTHON_FILES, new HashMap<>());
+        Configuration expectedConfiguration = new Configuration();
+        expectedConfiguration.set(PYTHON_FILES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
         expectedConfiguration
-                .get(PYTHON_FILES)
+                .get(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)
                 .put(
                         "python_file_83bbdaee494ad7d9b334c02ec71dc86a0868f7f8e49d1249a37c517dc6ee15a7",
                         "test_file1.py");
         expectedConfiguration
-                .get(PYTHON_FILES)
+                .get(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)
                 .put(
                         "python_file_e57a895cb1256500098be0874128680cd9f56000d48fcd393c48d6371bd2d947",
                         "test_file2.py");
         expectedConfiguration
-                .get(PYTHON_FILES)
+                .get(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)
                 .put(
                         "python_file_e56bc55ff643576457b3d012b2bba888727c71cf05a958930f2263398c4e9798",
                         "test_dir");
@@ -95,7 +95,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonRequirements() {
+    void testPythonRequirements() {
         Configuration config = new Configuration();
         config.set(PYTHON_REQUIREMENTS, "tmp_dir/requirements.txt");
         Configuration actual = configurePythonDependencies(cachedFiles, config);
@@ -106,10 +106,10 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/requirements.txt");
         verifyCachedFiles(expectedCachedFiles);
 
-        Configuration expectedConfiguration = new Configuration(config);
-        expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
+        Configuration expectedConfiguration = new Configuration();
+        expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
         expectedConfiguration
-                .get(PYTHON_REQUIREMENTS_FILE)
+                .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                 .put(
                         FILE,
                         "python_requirements_file_69390ca43c69ada3819226fcfbb5b6d27e111132a9427e7f201edd82e9d65ff6");
@@ -127,15 +127,15 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/cache");
         verifyCachedFiles(expectedCachedFiles);
 
-        expectedConfiguration = new Configuration(config);
-        expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
+        expectedConfiguration = new Configuration();
+        expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
         expectedConfiguration
-                .get(PYTHON_REQUIREMENTS_FILE)
+                .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                 .put(
                         FILE,
                         "python_requirements_file_56fd0c530faaa7129dca8d314cf69cbfc7c1c5c952f5176a003253e2f418873e");
         expectedConfiguration
-                .get(PYTHON_REQUIREMENTS_FILE)
+                .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                 .put(
                         CACHE,
                         "python_requirements_cache_2f563dd6731c2c7c5e1ef1ef8279f61e907dc3bfc698adb71b109e43ed93e143");
@@ -143,7 +143,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonArchives() {
+    void testPythonArchives() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_ARCHIVES,
@@ -159,43 +159,43 @@ public class PythonDependencyUtilsTest {
                 "python_archive_4cc74e4003de886434723f351771df2a84f72531c52085acc0915e19d70df2ba",
                 "hdfs:///tmp_dir/file1.zip");
         expectedCachedFiles.put(
-                "python_archive_b9ceeb8434d3335ec0ba298bbd52768bf5e4d136df3e157500fe4f413a1f416c",
+                "python_archive_f8a1c874251230f21094880d9dd878ffb5714454b69184d8ad268a6563269f0c",
                 "tmp_dir/py37.zip");
         expectedCachedFiles.put(
                 "python_archive_5f3fca2a4165c7d9c94b00bfab956c15f14c41e9e03f6037c83eb61157fce09c",
                 "tmp_dir/py37.zip");
         expectedCachedFiles.put(
-                "python_archive_44532e54ce38086fcc235a2af12479a7305820f7f39767f0215c454df54024dd",
+                "python_archive_c7d970ce1c5794367974ce8ef536c2343bed8fcfe7c2422c51548e58007eee6a",
                 "tmp_dir/py37.zip");
         verifyCachedFiles(expectedCachedFiles);
 
-        Configuration expectedConfiguration = new Configuration(config);
-        expectedConfiguration.set(PYTHON_ARCHIVES, new HashMap<>());
+        Configuration expectedConfiguration = new Configuration();
+        expectedConfiguration.set(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
         expectedConfiguration
-                .get(PYTHON_ARCHIVES)
+                .get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
                 .put(
                         "python_archive_4cc74e4003de886434723f351771df2a84f72531c52085acc0915e19d70df2ba",
                         "file1.zip");
         expectedConfiguration
-                .get(PYTHON_ARCHIVES)
+                .get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
                 .put(
                         "python_archive_5f3fca2a4165c7d9c94b00bfab956c15f14c41e9e03f6037c83eb61157fce09c",
                         "py37.zip");
         expectedConfiguration
-                .get(PYTHON_ARCHIVES)
+                .get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
                 .put(
-                        "python_archive_b9ceeb8434d3335ec0ba298bbd52768bf5e4d136df3e157500fe4f413a1f416c",
-                        "venv");
+                        "python_archive_f8a1c874251230f21094880d9dd878ffb5714454b69184d8ad268a6563269f0c",
+                        "py37.zip#venv2");
         expectedConfiguration
-                .get(PYTHON_ARCHIVES)
+                .get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
                 .put(
-                        "python_archive_44532e54ce38086fcc235a2af12479a7305820f7f39767f0215c454df54024dd",
-                        "venv2");
+                        "python_archive_c7d970ce1c5794367974ce8ef536c2343bed8fcfe7c2422c51548e58007eee6a",
+                        "py37.zip#venv");
         verifyConfiguration(expectedConfiguration, actual);
     }
 
     @Test
-    public void testPythonExecutables() {
+    void testPythonExecutables() {
         Configuration config = new Configuration();
         config.set(PYTHON_EXECUTABLE, "venv/bin/python3");
         config.set(PYTHON_CLIENT_EXECUTABLE, "python37");
@@ -208,7 +208,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonDependencyConfigMerge() {
+    void testPythonDependencyConfigMerge() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_ARCHIVES,
@@ -238,7 +238,7 @@ public class PythonDependencyUtilsTest {
         Map<String, String> actual =
                 cachedFiles.stream().collect(Collectors.toMap(t -> t.f0, t -> t.f1.filePath));
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     private void verifyConfiguration(Configuration expected, Configuration actual) {
@@ -246,6 +246,6 @@ public class PythonDependencyUtilsTest {
         actual.addAllToProperties(actualProperties);
         Properties expectedProperties = new Properties();
         expected.addAllToProperties(expectedProperties);
-        assertEquals(expectedProperties, actualProperties);
+        assertThat(actualProperties).isEqualTo(expectedProperties);
     }
 }

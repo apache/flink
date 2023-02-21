@@ -58,8 +58,10 @@ import java.util.OptionalInt;
  * @see OperatorTransformation
  * @see OneInputOperatorTransformation
  * @param <T> The input type of the transformation.
+ * @deprecated Use {@link StateBootstrapTransformation} instead.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public class BootstrapTransformation<T> {
 
@@ -132,19 +134,21 @@ public class BootstrapTransformation<T> {
     /**
      * @param operatorID The operator id for the stream operator.
      * @param stateBackend The state backend for the job.
+     * @param config Additional configurations applied to the bootstrap stream tasks.
      * @param globalMaxParallelism Global max parallelism set for the savepoint.
      * @param savepointPath The path where the savepoint will be written.
      * @return The operator subtask states for this bootstrap transformation.
      */
     DataSet<OperatorState> writeOperatorState(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
+            Configuration config,
             int globalMaxParallelism,
             Path savepointPath) {
         int localMaxParallelism = getMaxParallelism(globalMaxParallelism);
 
         return writeOperatorSubtaskStates(
-                        operatorID, stateBackend, savepointPath, localMaxParallelism)
+                        operatorID, stateBackend, config, savepointPath, localMaxParallelism)
                 .reduceGroup(new OperatorSubtaskStateReducer(operatorID, localMaxParallelism))
                 .name("reduce(OperatorSubtaskState)");
     }
@@ -152,7 +156,17 @@ public class BootstrapTransformation<T> {
     @VisibleForTesting
     MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
+            Path savepointPath,
+            int localMaxParallelism) {
+        return writeOperatorSubtaskStates(
+                operatorID, stateBackend, new Configuration(), savepointPath, localMaxParallelism);
+    }
+
+    private MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
+            OperatorID operatorID,
+            @Nullable StateBackend stateBackend,
+            Configuration additionalConfig,
             Path savepointPath,
             int localMaxParallelism) {
 
@@ -168,7 +182,7 @@ public class BootstrapTransformation<T> {
 
         operator = dataSet.clean(operator);
 
-        final StreamConfig config = getConfig(operatorID, stateBackend, operator);
+        final StreamConfig config = getConfig(operatorID, stateBackend, additionalConfig, operator);
 
         BoundedOneInputStreamTaskRunner<T> operatorRunner =
                 new BoundedOneInputStreamTaskRunner<>(config, localMaxParallelism, timestamper);
@@ -190,13 +204,16 @@ public class BootstrapTransformation<T> {
     @VisibleForTesting
     StreamConfig getConfig(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
+            Configuration additionalConfig,
             StreamOperator<TaggedOperatorSubtaskState> operator) {
         // Eagerly perform a deep copy of the configuration, otherwise it will result in undefined
         // behavior
         // when deploying with multiple bootstrap transformations.
         Configuration deepCopy =
                 new Configuration(dataSet.getExecutionEnvironment().getConfiguration());
+        deepCopy.addAll(additionalConfig);
+
         final StreamConfig config = new StreamConfig(deepCopy);
         config.setChainStart();
         config.setCheckpointingEnabled(true);
@@ -215,6 +232,7 @@ public class BootstrapTransformation<T> {
         config.setOperatorID(operatorID);
         config.setStateBackend(stateBackend);
         config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        config.serializeAllConfigs();
         return config;
     }
 

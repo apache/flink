@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
@@ -27,12 +28,9 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTes
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Cat;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Dog;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Parrot;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,39 +41,33 @@ import static org.hamcrest.Matchers.is;
 
 /** Tests migrations for {@link KryoSerializerSnapshot}. */
 @SuppressWarnings("WeakerAccess")
-@RunWith(Parameterized.class)
-public class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public KryoSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "kryo-type-serializer-empty-config",
-                            migrationVersion,
+                            flinkVersion,
                             KryoTypeSerializerEmptyConfigSetup.class,
                             KryoTypeSerializerEmptyConfigVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "kryo-type-serializer-unrelated-config-after-restore",
-                            migrationVersion,
+                            flinkVersion,
                             KryoTypeSerializerEmptyConfigSetup.class,
                             KryoTypeSerializerWithUnrelatedConfigVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "kryo-type-serializer-changed-registration-order",
-                            migrationVersion,
+                            flinkVersion,
                             KryoTypeSerializerChangedRegistrationOrderSetup.class,
                             KryoTypeSerializerChangedRegistrationOrderVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "kryo-custom-type-serializer-changed-registration-order",
-                            migrationVersion,
+                            flinkVersion,
                             KryoCustomTypeSerializerChangedRegistrationOrderSetup.class,
                             KryoCustomTypeSerializerChangedRegistrationOrderVerifier.class));
         }
@@ -116,7 +108,7 @@ public class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Animal>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -145,7 +137,7 @@ public class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Animal>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return hasSameCompatibilityAs(
                     compatibleWithReconfiguredSerializer(
                             new KryoSerializer<>(Animal.class, new ExecutionConfig())));
@@ -197,7 +189,7 @@ public class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Animal>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return hasSameCompatibilityAs(
                     compatibleWithReconfiguredSerializer(
                             new KryoSerializer<>(Animal.class, new ExecutionConfig())));
@@ -253,7 +245,7 @@ public class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Animal>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return hasSameCompatibilityAs(
                     compatibleWithReconfiguredSerializer(
                             new KryoSerializer<>(Animal.class, new ExecutionConfig())));

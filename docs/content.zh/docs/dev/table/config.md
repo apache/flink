@@ -28,13 +28,15 @@ under the License.
 
 Table 和 SQL API 的默认配置能够确保结果准确，同时也提供可接受的性能。
 
-根据 Table 程序的需求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态是有限的(请参阅 [流式概念](./streaming/query_configuration.html)).
+根据 Table 程序的需求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态是有限的(请参阅 [流式概念]({{< ref "docs/dev/table/concepts/overview" >}})).
 
 
 
 ### 概览
 
-在每个 TableEnvironment 中，`TableConfig` 提供用于当前会话的配置项。
+当实例化一个 `TableEnvironment` 时，可以使用 `EnvironmentSettings` 来传递用于当前会话的所期望的配置项 —— 传递一个 `Configuration` 对象到 `EnvironmentSettings`。
+
+此外，在每个 TableEnvironment 中，`TableConfig` 提供用于当前会话的配置项。
 
 对于常见或者重要的配置项，`TableConfig` 提供带有详细注释的 `getters` 和 `setters` 方法。
 
@@ -46,66 +48,94 @@ Table 和 SQL API 的默认配置能够确保结果准确，同时也提供可�
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
-
-// access flink configuration
-Configuration configuration = tEnv.getConfig().getConfiguration();
+Configuration configuration = new Configuration();
 // set low-level key-value options
 configuration.setString("table.exec.mini-batch.enabled", "true");
 configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
 configuration.setString("table.exec.mini-batch.size", "5000");
+EnvironmentSettings settings = EnvironmentSettings.newInstance()
+        .inStreamingMode().withConfiguration(configuration).build();
+TableEnvironment tEnv = TableEnvironment.create(settings);
+
+// access flink configuration after table environment instantiation
+TableConfig tableConfig = tEnv.getConfig();
+// set low-level key-value options
+tableConfig.set("table.exec.mini-batch.enabled", "true");
+tableConfig.set("table.exec.mini-batch.allow-latency", "5 s");
+tableConfig.set("table.exec.mini-batch.size", "5000");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 // instantiate table environment
-val tEnv: TableEnvironment = ...
-
-// access flink configuration
-val configuration = tEnv.getConfig().getConfiguration()
+val configuration = new Configuration;
 // set low-level key-value options
 configuration.setString("table.exec.mini-batch.enabled", "true")
 configuration.setString("table.exec.mini-batch.allow-latency", "5 s")
 configuration.setString("table.exec.mini-batch.size", "5000")
+val settings = EnvironmentSettings.newInstance
+  .inStreamingMode.withConfiguration(configuration).build
+val tEnv: TableEnvironment = TableEnvironment.create(settings)
+
+// access flink configuration after table environment instantiation
+val tableConfig = tEnv.getConfig()
+// set low-level key-value options
+tableConfig.set("table.exec.mini-batch.enabled", "true")
+tableConfig.set("table.exec.mini-batch.allow-latency", "5 s")
+tableConfig.set("table.exec.mini-batch.size", "5000")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
 # instantiate table environment
-t_env = ...
+configuration = Configuration()
+configuration.set("table.exec.mini-batch.enabled", "true")
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
+settings = EnvironmentSettings.new_instance() \
+...     .in_streaming_mode() \
+...     .with_configuration(configuration) \
+...     .build()
 
-# access flink configuration
-configuration = t_env.get_config().get_configuration();
+t_env = TableEnvironment.create(settings)
+
+# access flink configuration after table environment instantiation
+table_config = t_env.get_config()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true");
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
-configuration.set_string("table.exec.mini-batch.size", "5000");
+table_config.set("table.exec.mini-batch.enabled", "true")
+table_config.set("table.exec.mini-batch.allow-latency", "5 s")
+table_config.set("table.exec.mini-batch.size", "5000")
+```
+{{< /tab >}}
+{{< tab "SQL CLI" >}}
+```
+Flink SQL> SET 'table.exec.mini-batch.enabled' = 'true';
+Flink SQL> SET 'table.exec.mini-batch.allow-latency' = '5s';
+Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 ```
 {{< /tab >}}
 {{< /tabs >}}
-
-<span class="label label-danger">注意</span> 目前，key-value 配置项仅被 Blink planner 支持。
 
 ### 执行配置
 
 以下选项可用于优化查询执行的性能。
 
-{% include generated/execution_config_configuration.html %}
+{{< generated/execution_config_configuration >}}
 
 ### 优化器配置
 
 以下配置可以用于调整查询优化器的行为以获得更好的执行计划。
 
-{% include generated/optimizer_config_configuration.html %}
+{{< generated/optimizer_config_configuration >}}
 
 ### Planner 配置
 
 以下配置可以用于调整 planner 的行为。
 
-{% include generated/table_config_configuration.html %}
+{{< generated/table_config_configuration >}}
 
 ### SQL Client 配置
 
 以下配置可以用于调整 sql client 的行为。
 
-{% include generated/sql_client_configuration.html %}
+{{< generated/sql_client_configuration >}}

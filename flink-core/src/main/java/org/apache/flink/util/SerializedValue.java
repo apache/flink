@@ -43,7 +43,7 @@ public class SerializedValue<T> implements java.io.Serializable {
     /** The serialized data. */
     private final byte[] serializedData;
 
-    private SerializedValue(byte[] serializedData) {
+    protected SerializedValue(byte[] serializedData) {
         Preconditions.checkNotNull(serializedData, "Serialized data must not be null");
         Preconditions.checkArgument(
                 serializedData.length != 0, "Serialized data must not be empty");

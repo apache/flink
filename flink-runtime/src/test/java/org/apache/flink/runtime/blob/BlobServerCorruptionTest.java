@@ -22,12 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -39,6 +39,7 @@ import java.util.Random;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -49,9 +50,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class BlobServerCorruptionTest extends TestLogger {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     /**
      * Checks the GET operation fails when the downloaded file (from {@link BlobServer} or HA store)
@@ -63,16 +62,17 @@ public class BlobServerCorruptionTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+                BlobServerOptions.STORAGE_DIRECTORY,
+                TEMPORARY_FOLDER.newFolder().getAbsolutePath());
         config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TEMPORARY_FOLDER.newFolder().getPath());
 
         BlobStoreService blobStoreService = null;
 
         try {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-            testGetFailsFromCorruptFile(config, blobStoreService, exception);
+            testGetFailsFromCorruptFile(config, blobStoreService, TEMPORARY_FOLDER.newFolder());
         } finally {
             if (blobStoreService != null) {
                 blobStoreService.closeAndCleanupAllData();
@@ -88,16 +88,14 @@ public class BlobServerCorruptionTest extends TestLogger {
      *     HighAvailabilityOptions#HA_STORAGE_PATH} and {@link
      *     HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
      * @param blobStore shared HA blob store to use
-     * @param expectedException expected exception rule to use
      */
     public static void testGetFailsFromCorruptFile(
-            Configuration config, BlobStore blobStore, ExpectedException expectedException)
-            throws IOException {
+            Configuration config, BlobStore blobStore, File blobStorage) throws IOException {
 
         Random rnd = new Random();
         JobID jobId = new JobID();
 
-        try (BlobServer server = new BlobServer(config, blobStore)) {
+        try (BlobServer server = new BlobServer(config, blobStorage, blobStore)) {
 
             server.start();
 
@@ -124,11 +122,9 @@ public class BlobServerCorruptionTest extends TestLogger {
                 tmpFile.delete();
             }
 
-            // issue a GET request that fails
-            expectedException.expect(IOException.class);
-            expectedException.expectMessage("data corruption");
-
-            get(server, jobId, key);
+            assertThatThrownBy(() -> get(server, jobId, key))
+                    .satisfies(
+                            FlinkAssertions.anyCauseMatches(IOException.class, "data corruption"));
         }
     }
 }

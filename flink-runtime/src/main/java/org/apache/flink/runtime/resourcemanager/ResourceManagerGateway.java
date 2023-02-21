@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.blocklist.BlocklistListener;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -36,8 +37,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
-import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.slots.ResourceRequirements;
@@ -55,7 +56,7 @@ import java.util.concurrent.CompletableFuture;
 
 /** The {@link ResourceManager}'s RPC gateway interface. */
 public interface ResourceManagerGateway
-        extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager {
+        extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager, BlocklistListener {
 
     /**
      * Register a {@link JobMaster} at the resource manager.
@@ -67,22 +68,12 @@ public interface ResourceManagerGateway
      * @param timeout Timeout for the future to complete
      * @return Future registration response
      */
-    CompletableFuture<RegistrationResponse> registerJobManager(
+    CompletableFuture<RegistrationResponse> registerJobMaster(
             JobMasterId jobMasterId,
             ResourceID jobMasterResourceId,
             String jobMasterAddress,
             JobID jobId,
             @RpcTimeout Time timeout);
-
-    /**
-     * Requests a slot from the resource manager.
-     *
-     * @param jobMasterId id of the JobMaster
-     * @param slotRequest The slot to request
-     * @return The confirmation that the slot gets allocated
-     */
-    CompletableFuture<Acknowledge> requestSlot(
-            JobMasterId jobMasterId, SlotRequest slotRequest, @RpcTimeout Time timeout);
 
     /**
      * Declares the absolute resource requirements for a job.
@@ -95,13 +86,6 @@ public interface ResourceManagerGateway
             JobMasterId jobMasterId,
             ResourceRequirements resourceRequirements,
             @RpcTimeout Time timeout);
-
-    /**
-     * Cancel the slot allocation requests from the resource manager.
-     *
-     * @param allocationID The slot to request
-     */
-    void cancelSlotRequest(AllocationID allocationID);
 
     /**
      * Register a {@link TaskExecutor} at the resource manager.
@@ -155,20 +139,22 @@ public interface ResourceManagerGateway
     CompletableFuture<Integer> getNumberOfRegisteredTaskManagers();
 
     /**
-     * Sends the heartbeat to resource manager from task manager
+     * Sends the heartbeat to resource manager from task manager.
      *
      * @param heartbeatOrigin unique id of the task manager
      * @param heartbeatPayload payload from the originating TaskManager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromTaskManager(
+    CompletableFuture<Void> heartbeatFromTaskManager(
             final ResourceID heartbeatOrigin, final TaskExecutorHeartbeatPayload heartbeatPayload);
 
     /**
-     * Sends the heartbeat to resource manager from job manager
+     * Sends the heartbeat to resource manager from job manager.
      *
      * @param heartbeatOrigin unique id of the job manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromJobManager(final ResourceID heartbeatOrigin);
+    CompletableFuture<Void> heartbeatFromJobManager(final ResourceID heartbeatOrigin);
 
     /**
      * Disconnects a TaskManager specified by the given resourceID from the {@link ResourceManager}.

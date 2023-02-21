@@ -17,7 +17,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
+<project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
@@ -25,11 +25,10 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.13-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
+	<artifactId>flink-runtime-web</artifactId>
 	<name>Flink : Runtime web</name>
 
 	<packaging>jar</packaging>
@@ -48,12 +47,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -87,16 +86,8 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -131,6 +122,17 @@ under the License.
 				</pluginManagement>
 			</build>
 		</profile>
+		<profile>
+			<id>use-alibaba-mirror</id>
+			<activation>
+				<property>
+					<name>use-alibaba-mirror</name>
+				</property>
+			</activation>
+			<properties>
+				<npm.proxy>--registry http://172.17.0.1:8888/repository/npm/</npm.proxy>
+			</properties>
+		</profile>
 	</profiles>
 
 	<build>
@@ -152,11 +154,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
 					<execution>
 						<!-- Used for JarHandler tests -->
 						<id>test-program-jar</id>
@@ -253,7 +250,7 @@ under the License.
 			<plugin>
 				<groupId>com.github.eirslett</groupId>
 				<artifactId>frontend-maven-plugin</artifactId>
-				<version>1.6</version>
+				<version>1.11.0</version>
 				<executions>
 					<execution>
 						<id>install node and npm</id>
@@ -261,7 +258,8 @@ under the License.
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v10.9.0</nodeVersion>
+							<nodeVersion>v16.13.2</nodeVersion>
+							<npmVersion>8.1.2</npmVersion>
 						</configuration>
 					</execution>
 					<execution>
@@ -270,19 +268,19 @@ under the License.
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>ci --cache-max=0 --no-save</arguments>
+							<arguments>ci --cache-max=0 --no-save ${npm.proxy}</arguments>
 							<environmentVariables>
 								<HUSKY_SKIP_INSTALL>true</HUSKY_SKIP_INSTALL>
 							</environmentVariables>
 						</configuration>
 					</execution>
 					<execution>
-						<id>npm run build</id>
+						<id>npm run ci-check</id>
 						<goals>
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>run build</arguments>
+							<arguments>run ci-check</arguments>
 						</configuration>
 					</execution>
 				</executions>

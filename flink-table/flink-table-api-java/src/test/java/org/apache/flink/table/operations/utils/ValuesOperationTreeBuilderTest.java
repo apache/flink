@@ -29,7 +29,6 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.types.DataType;
@@ -37,11 +36,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.FunctionLookupMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -49,9 +45,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -59,16 +55,14 @@ import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link OperationTreeBuilder#values}. */
-@RunWith(Parameterized.class)
 public class ValuesOperationTreeBuilderTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> parameters() {
-        return asList(
+    static Stream<TestSpec> parameters() {
+        return Stream.of(
                 TestSpec.test("Flattening row constructor")
                         .values(row(1, "ABC"), row(2, "EFG"))
                         .equalTo(
@@ -288,7 +282,7 @@ public class ValuesOperationTreeBuilderTest {
                                         asList(
                                                 singletonList(
                                                         cast(
-                                                                new CallExpression(
+                                                                CallExpression.anonymous(
                                                                         new IntScalarFunction(),
                                                                         Collections.emptyList(),
                                                                         DataTypes.INT()),
@@ -305,7 +299,7 @@ public class ValuesOperationTreeBuilderTest {
                                 new ValuesQueryOperation(
                                         singletonList(
                                                 singletonList(
-                                                        new CallExpression(
+                                                        CallExpression.anonymous(
                                                                 new RowScalarFunction(),
                                                                 Collections.emptyList(),
                                                                 DataTypes.ROW(
@@ -407,16 +401,25 @@ public class ValuesOperationTreeBuilderTest {
         }
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testValues() {
-
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    public void testValues(TestSpec testSpec) {
         if (testSpec.exceptionMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(testSpec.exceptionMessage);
+            if (testSpec.expectedRowType != null) {
+                assertThatThrownBy(
+                                () ->
+                                        testSpec.getTreeBuilder()
+                                                .values(
+                                                        testSpec.expectedRowType,
+                                                        testSpec.expressions))
+                        .isInstanceOf(ValidationException.class)
+                        .hasMessage(testSpec.exceptionMessage);
+            } else {
+                assertThatThrownBy(() -> testSpec.getTreeBuilder().values(testSpec.expressions))
+                        .isInstanceOf(ValidationException.class)
+                        .hasMessage(testSpec.exceptionMessage);
+            }
+            return;
         }
 
         ValuesQueryOperation operation;
@@ -431,24 +434,19 @@ public class ValuesOperationTreeBuilderTest {
         }
 
         if (testSpec.queryOperation != null) {
-            assertThat(
-                    operation.getResolvedSchema(),
-                    equalTo(testSpec.queryOperation.getResolvedSchema()));
-            assertThat(operation.getValues(), equalTo(testSpec.queryOperation.getValues()));
+            assertThat(operation.getResolvedSchema())
+                    .isEqualTo(testSpec.queryOperation.getResolvedSchema());
+            assertThat(operation.getValues()).isEqualTo(testSpec.queryOperation.getValues());
         }
     }
 
     private static ResolvedExpression rowCtor(DataType dataType, ResolvedExpression... expression) {
-        return new CallExpression(
-                FunctionIdentifier.of("row"),
-                BuiltInFunctionDefinitions.ROW,
-                Arrays.asList(expression),
-                dataType);
+        return CallExpression.permanent(
+                BuiltInFunctionDefinitions.ROW, Arrays.asList(expression), dataType);
     }
 
     private static ResolvedExpression cast(ResolvedExpression expression, DataType dataType) {
-        return new CallExpression(
-                FunctionIdentifier.of("cast"),
+        return CallExpression.permanent(
                 BuiltInFunctionDefinitions.CAST,
                 Arrays.asList(expression, typeLiteral(dataType)),
                 dataType);
@@ -492,11 +490,12 @@ public class ValuesOperationTreeBuilderTest {
 
         public OperationTreeBuilder getTreeBuilder() {
             return OperationTreeBuilder.create(
-                    new TableConfig(),
+                    TableConfig.getDefault(),
+                    Thread.currentThread().getContextClassLoader(),
                     new FunctionLookupMock(Collections.emptyMap()),
                     new DataTypeFactoryMock(),
                     name -> Optional.empty(), // do not support
-                    (sqlExpression, inputSchema) -> {
+                    (sqlExpression, inputRowType, outputType) -> {
                         throw new UnsupportedOperationException();
                     },
                     true);

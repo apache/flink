@@ -18,16 +18,14 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.Either;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,29 +33,22 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link GenericArraySerializer}. */
-@RunWith(Parameterized.class)
-public class CompositeTypeSerializerUpgradeTest
-        extends TypeSerializerUpgradeTestBase<Object, Object> {
+class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public CompositeTypeSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "either-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             EitherSerializerSetup.class,
                             EitherSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "generic-array-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             GenericArraySerializerSetup.class,
                             GenericArraySerializerVerifier.class));
         }
@@ -103,7 +94,7 @@ public class CompositeTypeSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Either<String, Integer>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -149,7 +140,7 @@ public class CompositeTypeSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

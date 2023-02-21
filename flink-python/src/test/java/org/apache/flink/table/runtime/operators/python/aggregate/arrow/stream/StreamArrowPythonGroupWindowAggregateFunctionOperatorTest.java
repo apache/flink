@@ -25,12 +25,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -45,12 +49,11 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -64,13 +67,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered
  * </ul>
  */
-public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
+class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     @Test
-    public void testGroupWindowAggregateFunction() throws Exception {
+    void testGroupWindowAggregateFunction() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
         long initialTime = 0L;
@@ -90,8 +93,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 new StreamRecord<>(newBinaryRow(false, "c3", "c8", 3L, 0L), initialTime + 6));
         testHarness.processWatermark(Long.MAX_VALUE);
         testHarness.close();
-
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
         expectedOutput.add(
                 new StreamRecord<>(
@@ -146,11 +147,13 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
 
+        expectedOutput.add(new Watermark(Long.MAX_VALUE));
+
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
 
     @Test
-    public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
+    void testFinishBundleTriggeredOnCheckpoint() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -172,51 +175,49 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         // checkpoint trigger finishBundle
         testHarness.prepareSnapshotPreBarrier(0L);
 
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+
         expectedOutput.add(new Watermark(10000L));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                0L,
-                                TimestampData.fromEpochMillis(-5000L),
-                                TimestampData.fromEpochMillis(5000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c2",
-                                3L,
-                                TimestampData.fromEpochMillis(-5000L),
-                                TimestampData.fromEpochMillis(5000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c2",
-                                3L,
-                                TimestampData.fromEpochMillis(0L),
-                                TimestampData.fromEpochMillis(10000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                0L,
-                                TimestampData.fromEpochMillis(0L),
-                                TimestampData.fromEpochMillis(10000L))));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processWatermark(20000L);
 
         testHarness.close();
-
-        expectedOutput.add(new Watermark(20000L));
 
         expectedOutput.add(
                 new StreamRecord<>(
@@ -235,11 +236,13 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
 
+        expectedOutput.add(new Watermark(20000L));
+
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 4);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -301,8 +304,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         testHarness.processWatermark(20000L);
         testHarness.close();
 
-        expectedOutput.add(new Watermark(20000L));
-
         expectedOutput.add(
                 new StreamRecord<>(
                         newRow(
@@ -320,90 +321,9 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
 
-        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-    }
-
-    @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
-        Configuration conf = new Configuration();
-        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
-
-        long initialTime = 0L;
-        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-        testHarness.open();
-
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
-        testHarness.processElement(
-                new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 4));
-        testHarness.processWatermark(new Watermark(20000L));
         expectedOutput.add(new Watermark(20000L));
-        assertOutputEquals(
-                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
-
-        testHarness.setProcessingTime(1000L);
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                0L,
-                                TimestampData.fromEpochMillis(-5000L),
-                                TimestampData.fromEpochMillis(5000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c2",
-                                3L,
-                                TimestampData.fromEpochMillis(-5000L),
-                                TimestampData.fromEpochMillis(5000L))));
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c2",
-                                3L,
-                                TimestampData.fromEpochMillis(0L),
-                                TimestampData.fromEpochMillis(10000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                0L,
-                                TimestampData.fromEpochMillis(0L),
-                                TimestampData.fromEpochMillis(10000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                1L,
-                                TimestampData.fromEpochMillis(5000L),
-                                TimestampData.fromEpochMillis(15000L))));
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                2L,
-                                TimestampData.fromEpochMillis(10000L),
-                                TimestampData.fromEpochMillis(20000L))));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-
-        testHarness.close();
     }
 
     @Override
@@ -447,66 +367,78 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 SlidingWindowAssigner.of(Duration.ofMillis(size), Duration.ofMillis(slide))
                         .withEventTime();
         EventTimeTriggers.AfterEndOfWindow<Window> trigger = EventTimeTriggers.afterEndOfWindow();
+
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(groupingSet.length, outputType.getFieldCount() - 2)
+                                .project(outputType);
+
         return new PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 3,
                 windowAssigner,
                 trigger,
                 0,
-                new PlannerNamedWindowProperty[] {
-                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
-                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
+                new NamedWindowProperty[] {
+                    new NamedWindowProperty("start", new WindowStart(null)),
+                    new NamedWindowProperty("end", new WindowEnd(null))
                 },
-                groupingSet,
-                udafInputOffsets,
-                UTC_ZONE_ID);
+                UTC_ZONE_ID,
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "UdafInputProjection",
+                        inputType,
+                        udfInputType,
+                        udafInputOffsets));
     }
 
     private static class PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator
             extends StreamArrowPythonGroupWindowAggregateFunctionOperator {
 
-        public PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
+        PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 int inputTimeFieldIndex,
                 WindowAssigner windowAssigner,
                 Trigger trigger,
                 long allowedLateness,
-                PlannerNamedWindowProperty[] namedProperties,
-                int[] groupingSet,
-                int[] udafInputOffsets,
-                ZoneId shiftTimeZone) {
+                NamedWindowProperty[] namedProperties,
+                ZoneId shiftTimeZone,
+                GeneratedProjection generatedProjection) {
             super(
                     config,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    udfInputType,
+                    udfOutputType,
                     inputTimeFieldIndex,
                     windowAssigner,
                     trigger,
                     allowedLateness,
                     namedProperties,
-                    groupingSet,
-                    udafInputOffsets,
-                    shiftTimeZone);
+                    shiftTimeZone,
+                    generatedProjection);
         }
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
-                    new HashMap<>(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);
         }

@@ -75,7 +75,7 @@ public final class ConfigConstants {
      */
     @Deprecated @PublicEvolving
     public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY =
-            key("restart-strategy.fixed-delay.delay").defaultValue("0 s");
+            key("restart-strategy.fixed-delay.delay").stringType().defaultValue("0 s");
 
     /**
      * Maximum number of restarts in given time interval {@link
@@ -362,11 +362,11 @@ public final class ConfigConstants {
     public static final String USE_LARGE_RECORD_HANDLER_KEY =
             "taskmanager.runtime.large-record-handler";
 
-    // -------- Common Resource Framework Configuration (YARN & Mesos) --------
+    // -------- Common Resource Framework Configuration (YARN) --------
 
     /**
-     * Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate
-     * for other JVM memory usage.
+     * Percentage of heap space to remove from containers (YARN / Kubernetes), to compensate for
+     * other JVM memory usage.
      *
      * @deprecated Not used anymore, but remain here until Flink 2.0
      */
@@ -523,90 +523,50 @@ public final class ConfigConstants {
 
     // ------------------------ Mesos Configuration ------------------------
 
-    /**
-     * The initial number of Mesos tasks to allocate.
-     *
-     * @deprecated in favor of {@code MesosOptions#INITIAL_TASKS}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final String MESOS_INITIAL_TASKS = "mesos.initial-tasks";
 
-    /**
-     * The maximum number of failed Mesos tasks before entirely stopping the Mesos session / job on
-     * Mesos.
-     *
-     * <p>By default, we take the number of initially requested tasks.
-     *
-     * @deprecated in favor of {@code MesosOptions#MAX_FAILED_TASKS}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final String MESOS_MAX_FAILED_TASKS = "mesos.maximum-failed-tasks";
 
-    /**
-     * The Mesos master URL.
-     *
-     * <p>The value should be in one of the following forms:
-     *
-     * <pre>{@code
-     * host:port
-     * zk://host1:port1,host2:port2,.../path
-     * zk://username:password@host1:port1,host2:port2,.../path
-     * file:///path/to/file (where file contains one of the above)
-     * }</pre>
-     *
-     * @deprecated in favor of {@code MesosOptions#MASTER_URL}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final String MESOS_MASTER_URL = "mesos.master";
 
-    /**
-     * The failover timeout for the Mesos scheduler, after which running tasks are automatically
-     * shut down.
-     *
-     * <p>The default value is 600 (seconds).
-     *
-     * @deprecated in favor of {@code MesosOptions#FAILOVER_TIMEOUT_SECONDS}.
-     */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_FAILOVER_TIMEOUT_SECONDS = "mesos.failover-timeout";
 
-    /**
-     * The config parameter defining the Mesos artifact server port to use. Setting the port to 0
-     * will let the OS choose an available port.
-     *
-     * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_PORT_KEY}.
-     */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_ARTIFACT_SERVER_PORT_KEY =
             "mesos.resourcemanager.artifactserver.port";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_NAME}. */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_NAME =
             "mesos.resourcemanager.framework.name";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_ROLE}. */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE =
             "mesos.resourcemanager.framework.role";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_PRINCIPAL}. */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL =
             "mesos.resourcemanager.framework.principal";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_SECRET}. */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET =
             "mesos.resourcemanager.framework.secret";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_USER}. */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_USER =
             "mesos.resourcemanager.framework.user";
 
-    /**
-     * Config parameter to override SSL support for the Artifact Server.
-     *
-     * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_SSL_ENABLED}.
-     */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String MESOS_ARTIFACT_SERVER_SSL_ENABLED =
             "mesos.resourcemanager.artifactserver.ssl.enabled";
@@ -1013,7 +973,7 @@ public final class ConfigConstants {
     public static final String HA_ZOOKEEPER_NAMESPACE_KEY =
             "high-availability.zookeeper.path.namespace";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LATCH_PATH}. */
+    /** @deprecated no longer used. */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_LATCH_PATH = "high-availability.zookeeper.path.latch";
 
@@ -1026,14 +986,14 @@ public final class ConfigConstants {
     public static final String HA_ZOOKEEPER_JOBGRAPHS_PATH =
             "high-availability.zookeeper.path.jobgraphs";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LEADER_PATH}. */
+    /** @deprecated no longer used. */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_LEADER_PATH = "high-availability.zookeeper.path.leader";
 
     /**
      * ZooKeeper root path (ZNode) for completed checkpoints.
      *
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINTS_PATH}.
+     * @deprecated no longer used.
      */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_CHECKPOINTS_PATH =
@@ -1042,17 +1002,13 @@ public final class ConfigConstants {
     /**
      * ZooKeeper root path (ZNode) for checkpoint counters.
      *
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}.
+     * @deprecated no longer used.
      */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH =
             "high-availability.zookeeper.path.checkpoint-counter";
 
-    /**
-     * ZooKeeper root path (ZNode) for Mesos workers.
-     *
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_MESOS_WORKERS_PATH}.
-     */
+    /** @deprecated has no effect */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH =
             "high-availability.zookeeper.path.mesos-workers";
@@ -1122,7 +1078,7 @@ public final class ConfigConstants {
     public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH =
             "recovery.zookeeper.path.checkpoint-counter";
 
-    /** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_MESOS_WORKERS_PATH}. */
+    /** @deprecated has no effect */
     @Deprecated
     public static final String ZOOKEEPER_MESOS_WORKERS_PATH =
             "recovery.zookeeper.path.mesos-workers";
@@ -1157,26 +1113,25 @@ public final class ConfigConstants {
      */
     public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
 
-    /** The class of the reporter to use. This is used as a suffix in an actual reporter config */
-    public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
+    /** @deprecated use {@link MetricOptions#REPORTER_CLASS} */
+    @Deprecated public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
 
-    /**
-     * The class of the reporter factory to use. This is used as a suffix in an actual reporter
-     * config
-     */
-    public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
+    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} */
+    @Deprecated public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
 
-    /** The interval between reports. This is used as a suffix in an actual reporter config */
-    public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
+    /** @deprecated use {@link MetricOptions#REPORTER_INTERVAL} */
+    @Deprecated public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
-    /**
-     * The delimiter used to assemble the metric identifier. This is used as a suffix in an actual
-     * reporter config.
-     */
-    public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
+    /** @deprecated use {@link MetricOptions#REPORTER_SCOPE_DELIMITER} */
+    @Deprecated public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
 
-    /** The set of variables that should be excluded. */
+    /** @deprecated use {@link MetricOptions#REPORTER_EXCLUDED_VARIABLES} */
+    @Deprecated
     public static final String METRICS_REPORTER_EXCLUDED_VARIABLES = "scope.variables.excludes";
+
+    /** @deprecated use {@link MetricOptions#REPORTER_ADDITIONAL_VARIABLES} */
+    @Deprecated
+    public static final String METRICS_REPORTER_ADDITIONAL_VARIABLES = "scope.variables.additional";
 
     /** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
     @Deprecated public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
@@ -1432,38 +1387,22 @@ public final class ConfigConstants {
     // ------ Mesos-Specific Configuration ------
     // For more configuration entries please see {@code MesosTaskManagerParameters}.
 
-    /**
-     * The default failover timeout provided to Mesos (10 mins).
-     *
-     * @deprecated in favor of {@code MesosOptions#FAILOVER_TIMEOUT_SECONDS}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final int DEFAULT_MESOS_FAILOVER_TIMEOUT_SECS = 10 * 60;
 
-    /**
-     * The default network port to listen on for the Mesos artifact server.
-     *
-     * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_PORT_KEY}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final int DEFAULT_MESOS_ARTIFACT_SERVER_PORT = 0;
 
-    /**
-     * The default Mesos framework name for the ResourceManager to use.
-     *
-     * @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_NAME}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_ROLE}. */
+    /** @deprecated has no effect */
     @Deprecated public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
 
-    /** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_USER}. */
+    /** @deprecated has no effect */
     @Deprecated public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_USER = "";
 
-    /**
-     * Default value to override SSL support for the Artifact Server.
-     *
-     * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_SSL_ENABLED}.
-     */
+    /** @deprecated has no effect */
     @Deprecated public static final boolean DEFAULT_MESOS_ARTIFACT_SERVER_SSL_ENABLED = true;
 
     // ------------------------ File System Behavior ------------------------
@@ -1517,7 +1456,7 @@ public final class ConfigConstants {
      */
     @Deprecated
     public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
-            key("jobmanager.web.address").noDefaultValue();
+            key("jobmanager.web.address").stringType().noDefaultValue();
 
     /**
      * The config key for the port of the JobManager web frontend. Setting this value to {@code -1}
@@ -1691,25 +1630,23 @@ public final class ConfigConstants {
     /** @deprecated in favor of {@link HighAvailabilityOptions#HA_CLUSTER_ID}. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LATCH_PATH}. */
+    /** @deprecated no longer used. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LEADER_PATH}. */
+    /** @deprecated no longer used. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_LEADER_PATH = "/leader";
 
     /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH = "/jobgraphs";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
+    /** @deprecated no longer used. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH = "/checkpoints";
 
-    /**
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}
-     */
+    /** @deprecated no longer used. */
     @Deprecated
     public static final String DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "/checkpoint-counter";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_MESOS_WORKERS_PATH}. */
+    /** @deprecated has no effect */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH = "/mesos-workers";
 
     /** @deprecated in favor of {@link HighAvailabilityOptions#ZOOKEEPER_SESSION_TIMEOUT}. */
@@ -1788,8 +1725,18 @@ public final class ConfigConstants {
     /** The environment variable name which contains the location of the lib folder. */
     public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
 
+    /**
+     * The default Flink lib directory if none has been specified via {@link #ENV_FLINK_LIB_DIR}.
+     */
+    public static final String DEFAULT_FLINK_LIB_DIR = "lib";
+
     /** The environment variable name which contains the location of the opt directory. */
     public static final String ENV_FLINK_OPT_DIR = "FLINK_OPT_DIR";
+
+    /**
+     * The default Flink opt directory if none has been specified via {@link #ENV_FLINK_OPT_DIR}.
+     */
+    public static final String DEFAULT_FLINK_OPT_DIR = "opt";
 
     /** The environment variable name which contains the location of the plugins folder. */
     public static final String ENV_FLINK_PLUGINS_DIR = "FLINK_PLUGINS_DIR";

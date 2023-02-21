@@ -70,11 +70,7 @@ public class ClientCoordinationHandler
 
     @Override
     protected CompletableFuture<ClientCoordinationResponseBody> handleRequest(
-            @Nonnull
-                    HandlerRequest<
-                                    ClientCoordinationRequestBody,
-                                    ClientCoordinationMessageParameters>
-                            request,
+            @Nonnull HandlerRequest<ClientCoordinationRequestBody> request,
             @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         JobID jobId = request.getPathParameter(JobIDPathParameter.class);

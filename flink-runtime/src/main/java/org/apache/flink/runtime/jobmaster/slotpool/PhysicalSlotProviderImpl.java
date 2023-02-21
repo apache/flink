@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -44,6 +45,10 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
             SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
         this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
         this.slotPool = checkNotNull(slotPool);
+    }
+
+    @Override
+    public void disableBatchSlotRequestTimeoutCheck() {
         slotPool.disableBatchSlotRequestTimeoutCheck();
     }
 
@@ -71,6 +76,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                         requestNewSlot(
                                                 slotRequestId,
                                                 resourceProfile,
+                                                slotProfile.getPreferredAllocations(),
                                                 physicalSlotRequest
                                                         .willSlotBeOccupiedIndefinitely()));
 
@@ -99,11 +105,14 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
     private CompletableFuture<PhysicalSlot> requestNewSlot(
             SlotRequestId slotRequestId,
             ResourceProfile resourceProfile,
+            Collection<AllocationID> preferredAllocations,
             boolean willSlotBeOccupiedIndefinitely) {
         if (willSlotBeOccupiedIndefinitely) {
-            return slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null);
+            return slotPool.requestNewAllocatedSlot(
+                    slotRequestId, resourceProfile, preferredAllocations, null);
         } else {
-            return slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
+            return slotPool.requestNewAllocatedBatchSlot(
+                    slotRequestId, resourceProfile, preferredAllocations);
         }
     }
 

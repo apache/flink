@@ -40,12 +40,17 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handlers to trigger the disposal of a savepoint. */
 public class SavepointDisposalHandlers
         extends AbstractAsynchronousOperationHandlers<OperationKey, Acknowledge> {
+
+    public SavepointDisposalHandlers(Duration cacheDuration) {
+        super(cacheDuration);
+    }
 
     /** {@link TriggerHandler} implementation for the savepoint disposal operation. */
     public class SavepointDisposalTriggerHandler
@@ -65,8 +70,7 @@ public class SavepointDisposalHandlers
 
         @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
-                HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request,
-                RestfulGateway gateway)
+                HandlerRequest<SavepointDisposalRequest> request, RestfulGateway gateway)
                 throws RestHandlerException {
             final String savepointPath = request.getRequestBody().getSavepointPath();
             if (savepointPath == null) {
@@ -81,7 +85,7 @@ public class SavepointDisposalHandlers
 
         @Override
         protected OperationKey createOperationKey(
-                HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request) {
+                HandlerRequest<SavepointDisposalRequest> request) {
             return new OperationKey(new TriggerId());
         }
     }
@@ -105,9 +109,7 @@ public class SavepointDisposalHandlers
         }
 
         @Override
-        protected OperationKey getOperationKey(
-                HandlerRequest<EmptyRequestBody, SavepointDisposalStatusMessageParameters>
-                        request) {
+        protected OperationKey getOperationKey(HandlerRequest<EmptyRequestBody> request) {
             final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
             return new OperationKey(triggerId);
         }

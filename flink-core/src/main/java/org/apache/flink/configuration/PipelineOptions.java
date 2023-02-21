@@ -24,12 +24,12 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
-import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The {@link ConfigOption configuration options} for job execution. */
 @PublicEvolving
@@ -96,7 +96,7 @@ public class PipelineOptions {
     public static final ConfigOption<Duration> AUTO_WATERMARK_INTERVAL =
             key("pipeline.auto-watermark-interval")
                     .durationType()
-                    .defaultValue(Duration.ZERO)
+                    .defaultValue(Duration.ofMillis(200))
                     .withDescription(
                             "The interval of the automatic watermark emission. Watermarks are used throughout"
                                     + " the streaming system to keep track of the progress of time. They are used, for example,"
@@ -106,20 +106,7 @@ public class PipelineOptions {
             key("pipeline.closure-cleaner-level")
                     .enumType(ClosureCleanerLevel.class)
                     .defaultValue(ClosureCleanerLevel.RECURSIVE)
-                    .withDescription(
-                            Description.builder()
-                                    .text("Configures the mode in which the closure cleaner works")
-                                    .list(
-                                            text(
-                                                    "%s - disables the closure cleaner completely",
-                                                    code(ClosureCleanerLevel.NONE.toString())),
-                                            text(
-                                                    "%s - cleans only the top-level class without recursing into fields",
-                                                    code(ClosureCleanerLevel.TOP_LEVEL.toString())),
-                                            text(
-                                                    "%s - cleans all the fields recursively",
-                                                    code(ClosureCleanerLevel.RECURSIVE.toString())))
-                                    .build());
+                    .withDescription("Configures the mode in which the closure cleaner works.");
 
     public static final ConfigOption<Boolean> FORCE_AVRO =
             key("pipeline.force-avro")
@@ -179,6 +166,14 @@ public class PipelineOptions {
                             "Register a custom, serializable user configuration object. The configuration can be "
                                     + " accessed in operators");
 
+    public static final ConfigOption<Map<String, String>> PARALLELISM_OVERRIDES =
+            key("pipeline.jobvertex-parallelism-overrides")
+                    .mapType()
+                    .defaultValue(Collections.emptyMap())
+                    .withDescription(
+                            "A parallelism override map (jobVertexId -> parallelism) which will be used to update"
+                                    + " the parallelism of the corresponding job vertices of submitted JobGraphs.");
+
     public static final ConfigOption<Integer> MAX_PARALLELISM =
             key("pipeline.max-parallelism")
                     .intType()
@@ -186,7 +181,8 @@ public class PipelineOptions {
                     .withDescription(
                             "The program-wide maximum parallelism used for operators which haven't specified a"
                                     + " maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and"
-                                    + " the number of key groups used for partitioned state.");
+                                    + " the number of key groups used for partitioned state."
+                                    + " Changing the value explicitly when recovery from original job will lead to state incompatibility.");
 
     public static final ConfigOption<Boolean> OBJECT_REUSE =
             key("pipeline.object-reuse")
@@ -273,4 +269,44 @@ public class PipelineOptions {
                                             TextElement.code(
                                                     "name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
                                     .build());
+
+    public static final ConfigOption<VertexDescriptionMode> VERTEX_DESCRIPTION_MODE =
+            key("pipeline.vertex-description-mode")
+                    .enumType(VertexDescriptionMode.class)
+                    .defaultValue(VertexDescriptionMode.TREE)
+                    .withDescription("The mode how we organize description of a job vertex.");
+
+    /** The mode how we organize description of a vertex. */
+    @PublicEvolving
+    public enum VertexDescriptionMode {
+        /** Organizes the description in a multi line tree mode. */
+        TREE,
+        /** Organizes the description in a single line cascading mode, which is similar to name. */
+        CASCADING
+    }
+
+    public static final ConfigOption<Boolean> VERTEX_NAME_INCLUDE_INDEX_PREFIX =
+            key("pipeline.vertex-name-include-index-prefix")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether name of vertex includes topological index or not. "
+                                    + "When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default");
+
+    /** Will be removed in future Flink releases. */
+    public static final ConfigOption<Boolean> ALLOW_UNALIGNED_SOURCE_SPLITS =
+            key("pipeline.watermark-alignment.allow-unaligned-source-splits")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If watermark alignment is used, sources with multiple splits will "
+                                    + "attempt to pause/resume split readers to avoid watermark "
+                                    + "drift of source splits. "
+                                    + "However, if split readers don't support pause/resume an "
+                                    + "UnsupportedOperationException will be thrown when there is "
+                                    + "an attempt to pause/resume. To allow use of split readers that "
+                                    + "don't support pause/resume and, hence, t allow unaligned splits "
+                                    + "while still using watermark alignment, set this parameter to true. "
+                                    + "The default value is false. Note: This parameter may be "
+                                    + "removed in future releases.");
 }

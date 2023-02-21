@@ -153,7 +153,7 @@ class CountTumblingWindowAssigner(WindowAssigner[CountWindow]):
             current_count = 0
         else:
             current_count = count_value
-        id = current_count / self._size
+        id = current_count // self._size
         self._count.update(current_count + 1)
         return [CountWindow(id)]
 

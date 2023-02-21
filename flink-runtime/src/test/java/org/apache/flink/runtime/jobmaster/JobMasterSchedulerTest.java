@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -65,29 +66,36 @@ public class JobMasterSchedulerTest extends TestLogger {
         final SchedulerNGFactory schedulerFactory = new FailingSchedulerFactory();
         final JobMasterBuilder.TestingOnCompletionActions onCompletionActions =
                 new JobMasterBuilder.TestingOnCompletionActions();
-        final JobMaster jobMaster =
-                new JobMasterBuilder(
-                                JobGraphTestUtils.emptyJobGraph(),
-                                TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
-                        .withSlotPoolServiceSchedulerFactory(
-                                DefaultSlotPoolServiceSchedulerFactory.create(
-                                        TestingSlotPoolServiceBuilder.newBuilder(),
-                                        schedulerFactory))
-                        .withOnCompletionActions(onCompletionActions)
-                        .createJobMaster();
-
-        jobMaster.start();
-
-        assertThat(
-                onCompletionActions.getJobMasterFailedFuture().join(),
-                is(instanceOf(JobMasterException.class)));
-
-        // close the jobMaster to remove it from the testing rpc service so that it can shut down
-        // cleanly
+        final JobManagerSharedServices jobManagerSharedServices =
+                new TestingJobManagerSharedServicesBuilder().build();
         try {
-            jobMaster.close();
-        } catch (Exception expected) {
-            // expected
+            final JobMaster jobMaster =
+                    new JobMasterBuilder(
+                                    JobGraphTestUtils.emptyJobGraph(),
+                                    TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
+                            .withSlotPoolServiceSchedulerFactory(
+                                    DefaultSlotPoolServiceSchedulerFactory.create(
+                                            TestingSlotPoolServiceBuilder.newBuilder(),
+                                            schedulerFactory))
+                            .withOnCompletionActions(onCompletionActions)
+                            .withJobManagerSharedServices(jobManagerSharedServices)
+                            .createJobMaster();
+
+            jobMaster.start();
+
+            assertThat(
+                    onCompletionActions.getJobMasterFailedFuture().join(),
+                    is(instanceOf(JobMasterException.class)));
+
+            // close the jobMaster to remove it from the testing rpc service so that it can shut
+            // down cleanly
+            try {
+                jobMaster.close();
+            } catch (Exception expected) {
+                // expected
+            }
+        } finally {
+            jobManagerSharedServices.shutdown();
         }
     }
 
@@ -112,7 +120,8 @@ public class JobMasterSchedulerTest extends TestLogger {
                 long initializationTimestamp,
                 ComponentMainThreadExecutor mainThreadExecutor,
                 FatalErrorHandler fatalErrorHandler,
-                JobStatusListener jobStatusListener) {
+                JobStatusListener jobStatusListener,
+                BlocklistOperations blocklistOperations) {
             return TestingSchedulerNG.newBuilder()
                     .setStartSchedulingRunnable(
                             () -> {
@@ -123,7 +132,7 @@ public class JobMasterSchedulerTest extends TestLogger {
 
         @Override
         public JobManagerOptions.SchedulerType getSchedulerType() {
-            return JobManagerOptions.SchedulerType.Ng;
+            return JobManagerOptions.SchedulerType.Default;
         }
     }
 }

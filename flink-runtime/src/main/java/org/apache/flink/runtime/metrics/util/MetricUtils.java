@@ -25,18 +25,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.util.Preconditions;
@@ -44,6 +42,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
@@ -101,21 +100,14 @@ public class MetricUtils {
         return processMetricGroup;
     }
 
-    public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
-            final MetricRegistry metricRegistry, final String hostname) {
-        final JobManagerMetricGroup jobManagerMetricGroup =
-                new JobManagerMetricGroup(metricRegistry, hostname);
-
-        return jobManagerMetricGroup;
-    }
-
     public static Tuple2<TaskManagerMetricGroup, MetricGroup> instantiateTaskManagerMetricGroup(
             MetricRegistry metricRegistry,
             String hostName,
             ResourceID resourceID,
             Optional<Time> systemResourceProbeInterval) {
         final TaskManagerMetricGroup taskManagerMetricGroup =
-                new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        metricRegistry, hostName, resourceID);
 
         MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 
@@ -190,32 +182,37 @@ public class MetricUtils {
     }
 
     public static RpcService startRemoteMetricsRpcService(
-            Configuration configuration, String hostname) throws Exception {
+            Configuration configuration,
+            String externalAddress,
+            @Nullable String bindAddress,
+            RpcSystem rpcSystem)
+            throws Exception {
         final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
 
-        return startMetricRpcService(
-                configuration,
-                AkkaRpcServiceUtils.remoteServiceBuilder(configuration, hostname, portRange));
+        final RpcSystem.RpcServiceBuilder rpcServiceBuilder =
+                rpcSystem.remoteServiceBuilder(configuration, externalAddress, portRange);
+        if (bindAddress != null) {
+            rpcServiceBuilder.withBindAddress(bindAddress);
+        }
+
+        return startMetricRpcService(configuration, rpcServiceBuilder);
     }
 
-    public static RpcService startLocalMetricsRpcService(Configuration configuration)
-            throws Exception {
-        return startMetricRpcService(
-                configuration, AkkaRpcServiceUtils.localServiceBuilder(configuration));
+    public static RpcService startLocalMetricsRpcService(
+            Configuration configuration, RpcSystem rpcSystem) throws Exception {
+        return startMetricRpcService(configuration, rpcSystem.localServiceBuilder(configuration));
     }
 
     private static RpcService startMetricRpcService(
-            Configuration configuration,
-            AkkaRpcServiceUtils.AkkaRpcServiceBuilder rpcServiceBuilder)
+            Configuration configuration, RpcSystem.RpcServiceBuilder rpcServiceBuilder)
             throws Exception {
         final int threadPriority =
                 configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 
         return rpcServiceBuilder
-                .withActorSystemName(METRICS_ACTOR_SYSTEM_NAME)
-                .withActorSystemExecutorConfiguration(
-                        new BootstrapTools.FixedThreadPoolExecutorConfiguration(
-                                1, 1, threadPriority))
+                .withComponentName(METRICS_ACTOR_SYSTEM_NAME)
+                .withExecutorConfiguration(
+                        new RpcSystem.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority))
                 .createAndStart();
     }
 

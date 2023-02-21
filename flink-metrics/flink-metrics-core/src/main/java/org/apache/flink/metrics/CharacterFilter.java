@@ -18,10 +18,13 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Interface for a character filter function. The filter function is given a string which the filter
  * can transform. The returned string is the transformation result.
  */
+@Public
 public interface CharacterFilter {
     CharacterFilter NO_OP_FILTER = input -> input;
 

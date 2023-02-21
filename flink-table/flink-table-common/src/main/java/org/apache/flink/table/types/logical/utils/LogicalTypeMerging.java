@@ -101,8 +101,6 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utilities for merging multiple {@link LogicalType}. */
 @Internal
@@ -113,6 +111,7 @@ public final class LogicalTypeMerging {
             YEAR_MONTH_RES_TO_BOUNDARIES = new HashMap<>();
     private static final Map<List<YearMonthResolution>, YearMonthResolution>
             YEAR_MONTH_BOUNDARIES_TO_RES = new HashMap<>();
+    private static final int MINIMUM_ADJUSTED_SCALE = 6;
 
     static {
         addYearMonthMapping(YEAR, YEAR);
@@ -190,7 +189,7 @@ public final class LogicalTypeMerging {
         if (foundType != null) {
             final LogicalType typeWithNullability = foundType.copy(hasNullableTypes);
             // NULL is reserved for untyped literals only
-            if (hasRoot(typeWithNullability, NULL)) {
+            if (typeWithNullability.is(NULL)) {
                 return Optional.empty();
             }
             return Optional.of(typeWithNullability);
@@ -198,50 +197,50 @@ public final class LogicalTypeMerging {
         return Optional.empty();
     }
 
+    // ========================= Decimal Precision Deriving ==========================
+    // Adopted from "https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-
+    // scale-and-length-transact-sql"
+    //
+    // Operation    Result Precision                        Result Scale
+    // e1 + e2      max(s1, s2) + max(p1-s1, p2-s2) + 1     max(s1, s2)
+    // e1 - e2      max(s1, s2) + max(p1-s1, p2-s2) + 1     max(s1, s2)
+    // e1 * e2      p1 + p2 + 1                             s1 + s2
+    // e1 / e2      p1 - s1 + s2 + max(6, s1 + p2 + 1)      max(6, s1 + p2 + 1)
+    // e1 % e2      min(p1-s1, p2-s2) + max(s1, s2)         max(s1, s2)
+    //
+    // Also, if the precision / scale are out of the range, the scale may be sacrificed
+    // in order to prevent the truncation of the integer part of the decimals.
+
     /** Finds the result type of a decimal division operation. */
     public static DecimalType findDivisionDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from
-        // https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
         int scale = Math.max(6, scale1 + precision2 + 1);
         int precision = precision1 - scale1 + scale2 + scale;
-        if (precision > DecimalType.MAX_PRECISION) {
-            scale = Math.max(6, DecimalType.MAX_PRECISION - (precision - scale));
-            precision = DecimalType.MAX_PRECISION;
-        }
-        return new DecimalType(false, precision, scale);
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal modulo operation. */
     public static DecimalType findModuloDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from Calcite
         final int scale = Math.max(scale1, scale2);
-        int precision =
-                Math.min(precision1 - scale1, precision2 - scale2) + Math.max(scale1, scale2);
-        precision = Math.min(precision, DecimalType.MAX_PRECISION);
-        return new DecimalType(false, precision, scale);
+        int precision = Math.min(precision1 - scale1, precision2 - scale2) + scale;
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal multiplication operation. */
     public static DecimalType findMultiplicationDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from Calcite
         int scale = scale1 + scale2;
-        scale = Math.min(scale, DecimalType.MAX_PRECISION);
-        int precision = precision1 + precision2;
-        precision = Math.min(precision, DecimalType.MAX_PRECISION);
-        return new DecimalType(false, precision, scale);
+        int precision = precision1 + precision2 + 1;
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal addition operation. */
     public static DecimalType findAdditionDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from Calcite
         final int scale = Math.max(scale1, scale2);
         int precision = Math.max(precision1 - scale1, precision2 - scale2) + scale + 1;
-        precision = Math.min(precision, DecimalType.MAX_PRECISION);
-        return new DecimalType(false, precision, scale);
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal rounding operation. */
@@ -261,7 +260,7 @@ public final class LogicalTypeMerging {
     /** Finds the result type of a decimal average aggregation. */
     public static LogicalType findAvgAggType(LogicalType argType) {
         final LogicalType resultType;
-        if (hasRoot(argType, LogicalTypeRoot.DECIMAL)) {
+        if (argType.is(DECIMAL)) {
             // a hack to make legacy types possible until we drop them
             if (argType instanceof LegacyTypeInformationType) {
                 return argType;
@@ -282,7 +281,7 @@ public final class LogicalTypeMerging {
         // adopted from
         // https://docs.microsoft.com/en-us/sql/t-sql/functions/sum-transact-sql
         final LogicalType resultType;
-        if (hasRoot(argType, LogicalTypeRoot.DECIMAL)) {
+        if (argType.is(DECIMAL)) {
             // a hack to make legacy types possible until we drop them
             if (argType instanceof LegacyTypeInformationType) {
                 return argType;
@@ -295,6 +294,41 @@ public final class LogicalTypeMerging {
     }
 
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Scale adjustment implementation is inspired to SQLServer's one. In particular, when a result
+     * precision is greater than MAX_PRECISION, the corresponding scale is reduced to prevent the
+     * integral part of a result from being truncated.
+     *
+     * <p>https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
+     *
+     * <p>The rules (although inspired by SQL Server) are not followed 100%, instead the approach of
+     * Spark/Hive is followed for adjusting the precision.
+     *
+     * <p>http://www.openkb.info/2021/05/understand-decimal-precision-and-scale.html
+     *
+     * <p>For (38, 8) + (32, 8) -> (39, 8) (The rules for addition, initially calculate a decimal
+     * type, assuming its precision is infinite) results in a decimal with integral part of 31
+     * digits.
+     *
+     * <p>This method is called subsequently to adjust the resulting decimal since the maximum
+     * allowed precision is 38 (so far a precision of 39 is calculated in the first step). So, the
+     * rounding for SQL Server would be: (39, 8) -> (38, 8) // integral part: 30, but instead we
+     * follow the Hive/Spark approach which gives: (39, 8) -> (38, 7) // integral part: 31
+     */
+    private static DecimalType adjustPrecisionScale(int precision, int scale) {
+        if (precision <= DecimalType.MAX_PRECISION) {
+            // Adjustment only needed when we exceed max precision
+            return new DecimalType(false, precision, scale);
+        } else {
+            int digitPart = precision - scale;
+            // If original scale is less than MINIMUM_ADJUSTED_SCALE, use original scale value;
+            // otherwise preserve at least MINIMUM_ADJUSTED_SCALE fractional digits
+            int minScalePart = Math.min(scale, MINIMUM_ADJUSTED_SCALE);
+            int adjustScale = Math.max(DecimalType.MAX_PRECISION - digitPart, minScalePart);
+            return new DecimalType(false, DecimalType.MAX_PRECISION, adjustScale);
+        }
+    }
 
     private static @Nullable LogicalType findCommonCastableType(List<LogicalType> normalizedTypes) {
         LogicalType resultType = normalizedTypes.get(0);
@@ -369,19 +403,19 @@ public final class LogicalTypeMerging {
             }
 
             // for types of family CHARACTER_STRING or BINARY_STRING
-            if (hasFamily(type, CHARACTER_STRING) || hasFamily(type, BINARY_STRING)) {
+            if (type.is(CHARACTER_STRING) | type.is(BINARY_STRING)) {
                 final int length = combineLength(resultType, type);
 
-                if (hasRoot(resultType, VARCHAR) || hasRoot(resultType, VARBINARY)) {
+                if (resultType.isAnyOf(VARCHAR, VARBINARY)) {
                     // variable length types remain variable length types
                     resultType = createStringType(resultType.getTypeRoot(), length);
                 } else if (getLength(resultType) != getLength(type)) {
                     // for different fixed lengths
                     // this is different from the SQL standard but prevents whitespace
                     // padding/modification of strings
-                    if (hasRoot(resultType, CHAR)) {
+                    if (resultType.is(CHAR)) {
                         resultType = createStringType(VARCHAR, length);
-                    } else if (hasRoot(resultType, BINARY)) {
+                    } else if (resultType.is(BINARY)) {
                         resultType = createStringType(VARBINARY, length);
                     }
                 } else {
@@ -390,10 +424,10 @@ public final class LogicalTypeMerging {
                 }
             }
             // for EXACT_NUMERIC types
-            else if (hasFamily(type, EXACT_NUMERIC)) {
-                if (hasFamily(resultType, EXACT_NUMERIC)) {
+            else if (type.is(EXACT_NUMERIC)) {
+                if (resultType.is(EXACT_NUMERIC)) {
                     resultType = createCommonExactNumericType(resultType, type);
-                } else if (hasFamily(resultType, APPROXIMATE_NUMERIC)) {
+                } else if (resultType.is(APPROXIMATE_NUMERIC)) {
                     // the result is already approximate
                     if (typeRoot == DECIMAL) {
                         // in case of DECIMAL we enforce DOUBLE
@@ -404,10 +438,10 @@ public final class LogicalTypeMerging {
                 }
             }
             // for APPROXIMATE_NUMERIC types
-            else if (hasFamily(type, APPROXIMATE_NUMERIC)) {
-                if (hasFamily(resultType, APPROXIMATE_NUMERIC)) {
+            else if (type.is(APPROXIMATE_NUMERIC)) {
+                if (resultType.is(APPROXIMATE_NUMERIC)) {
                     resultType = createCommonApproximateNumericType(resultType, type);
-                } else if (hasFamily(resultType, EXACT_NUMERIC)) {
+                } else if (resultType.is(EXACT_NUMERIC)) {
                     // the result was exact so far
                     if (typeRoot == DECIMAL) {
                         // in case of DECIMAL we enforce DOUBLE
@@ -421,24 +455,24 @@ public final class LogicalTypeMerging {
                 }
             }
             // for DATE
-            else if (hasRoot(type, DATE)) {
-                if (hasRoot(resultType, DATE)) {
+            else if (type.is(DATE)) {
+                if (resultType.is(DATE)) {
                     resultType = new DateType(); // for enabling findCommonTypePattern
                 } else {
                     return null;
                 }
             }
             // for TIME
-            else if (hasFamily(type, TIME)) {
-                if (hasFamily(resultType, TIME)) {
+            else if (type.is(TIME)) {
+                if (resultType.is(TIME)) {
                     resultType = new TimeType(combinePrecision(resultType, type));
                 } else {
                     return null;
                 }
             }
             // for TIMESTAMP
-            else if (hasFamily(type, TIMESTAMP)) {
-                if (hasFamily(resultType, TIMESTAMP)) {
+            else if (type.is(TIMESTAMP)) {
+                if (resultType.is(TIMESTAMP)) {
                     resultType = createCommonTimestampType(resultType, type);
                 } else {
                     return null;
@@ -474,15 +508,15 @@ public final class LogicalTypeMerging {
         // two types are similar iff they can be the operands of an SQL equality predicate
 
         // similarity based on families
-        if (hasFamily(left, CHARACTER_STRING) && hasFamily(right, CHARACTER_STRING)) {
+        if (left.is(CHARACTER_STRING) && right.is(CHARACTER_STRING)) {
             return true;
-        } else if (hasFamily(left, BINARY_STRING) && hasFamily(right, BINARY_STRING)) {
+        } else if (left.is(BINARY_STRING) && right.is(BINARY_STRING)) {
             return true;
-        } else if (hasFamily(left, NUMERIC) && hasFamily(right, NUMERIC)) {
+        } else if (left.is(NUMERIC) && right.is(NUMERIC)) {
             return true;
-        } else if (hasFamily(left, TIME) && hasFamily(right, TIME)) {
+        } else if (left.is(TIME) && right.is(TIME)) {
             return true;
-        } else if (hasFamily(left, TIMESTAMP) && hasFamily(right, TIMESTAMP)) {
+        } else if (left.is(TIMESTAMP) && right.is(TIMESTAMP)) {
             return true;
         }
         // similarity based on root
@@ -501,15 +535,13 @@ public final class LogicalTypeMerging {
 
     private static @Nullable LogicalType findCommonTypePattern(
             LogicalType resultType, LogicalType type) {
-        if (hasFamily(resultType, DATETIME) && hasFamily(type, INTERVAL)) {
+        if (resultType.is(DATETIME) && type.is(INTERVAL)) {
             return resultType;
-        } else if (hasFamily(resultType, INTERVAL) && hasFamily(type, DATETIME)) {
+        } else if (resultType.is(INTERVAL) && type.is(DATETIME)) {
             return type;
-        } else if ((hasFamily(resultType, TIMESTAMP) || hasRoot(resultType, DATE))
-                && hasFamily(type, EXACT_NUMERIC)) {
+        } else if ((resultType.is(TIMESTAMP) || resultType.is(DATE)) && type.is(EXACT_NUMERIC)) {
             return resultType;
-        } else if (hasFamily(resultType, EXACT_NUMERIC)
-                && (hasFamily(type, TIMESTAMP) || hasRoot(type, DATE))) {
+        } else if (resultType.is(EXACT_NUMERIC) && (type.is(TIMESTAMP) || type.is(DATE))) {
             return type;
         }
         // for "DATETIME + EXACT_NUMERIC", EXACT_NUMERIC is always treated as an interval of days
@@ -641,7 +673,7 @@ public final class LogicalTypeMerging {
 
     private static LogicalType createCommonApproximateNumericType(
             LogicalType resultType, LogicalType type) {
-        if (hasRoot(resultType, DOUBLE) || hasRoot(type, DOUBLE)) {
+        if (resultType.is(DOUBLE) || type.is(DOUBLE)) {
             return new DoubleType();
         }
         return resultType;

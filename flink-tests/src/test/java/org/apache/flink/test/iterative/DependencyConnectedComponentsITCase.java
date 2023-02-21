@@ -32,6 +32,8 @@ import org.apache.flink.util.Collector;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /**
  * Iterative Connected Components test case which recomputes only the elements of the solution set
  * whose at least one dependency (in-neighbor) has changed since the last iteration. Requires two

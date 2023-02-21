@@ -21,8 +21,9 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
@@ -30,16 +31,19 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrapConfig;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
@@ -61,7 +65,9 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -69,18 +75,21 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** An abstract class for netty-based REST server endpoints. */
-public abstract class RestServerEndpoint implements AutoCloseableAsync {
+public abstract class RestServerEndpoint implements RestService {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     private final Object lock = new Object();
 
+    private final Configuration configuration;
     private final String restAddress;
     private final String restBindAddress;
     private final String restBindPortRange;
@@ -96,24 +105,51 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
     private ServerBootstrap bootstrap;
     private Channel serverChannel;
     private String restBaseUrl;
+    private int port;
 
     private State state = State.CREATED;
 
-    public RestServerEndpoint(RestServerEndpointConfiguration configuration) throws IOException {
+    @VisibleForTesting List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
+
+    public RestServerEndpoint(Configuration configuration)
+            throws IOException, ConfigurationException {
         Preconditions.checkNotNull(configuration);
+        RestServerEndpointConfiguration restConfiguration =
+                RestServerEndpointConfiguration.fromConfiguration(configuration);
+        Preconditions.checkNotNull(restConfiguration);
 
-        this.restAddress = configuration.getRestAddress();
-        this.restBindAddress = configuration.getRestBindAddress();
-        this.restBindPortRange = configuration.getRestBindPortRange();
-        this.sslHandlerFactory = configuration.getSslHandlerFactory();
+        this.configuration = configuration;
+        this.restAddress = restConfiguration.getRestAddress();
+        this.restBindAddress = restConfiguration.getRestBindAddress();
+        this.restBindPortRange = restConfiguration.getRestBindPortRange();
+        this.sslHandlerFactory = restConfiguration.getSslHandlerFactory();
 
-        this.uploadDir = configuration.getUploadDir();
+        this.uploadDir = restConfiguration.getUploadDir();
         createUploadDir(uploadDir, log, true);
 
-        this.maxContentLength = configuration.getMaxContentLength();
-        this.responseHeaders = configuration.getResponseHeaders();
+        this.maxContentLength = restConfiguration.getMaxContentLength();
+        this.responseHeaders = restConfiguration.getResponseHeaders();
 
         terminationFuture = new CompletableFuture<>();
+
+        inboundChannelHandlerFactories = new ArrayList<>();
+        ServiceLoader<InboundChannelHandlerFactory> loader =
+                ServiceLoader.load(InboundChannelHandlerFactory.class);
+        final Iterator<InboundChannelHandlerFactory> factories = loader.iterator();
+        while (factories.hasNext()) {
+            try {
+                final InboundChannelHandlerFactory factory = factories.next();
+                if (factory != null) {
+                    inboundChannelHandlerFactories.add(factory);
+                    log.info("Loaded channel inbound factory: {}", factory);
+                }
+            } catch (Throwable e) {
+                log.error("Could not load channel inbound factory.", e);
+                throw e;
+            }
+        }
+        inboundChannelHandlerFactories.sort(
+                Comparator.comparingInt(InboundChannelHandlerFactory::priority).reversed());
     }
 
     /**
@@ -159,7 +195,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                     new ChannelInitializer<SocketChannel>() {
 
                         @Override
-                        protected void initChannel(SocketChannel ch) {
+                        protected void initChannel(SocketChannel ch) throws ConfigurationException {
                             RouterHandler handler = new RouterHandler(router, responseHeaders);
 
                             // SSL should be the first handler in the pipeline
@@ -178,7 +214,18 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                                     .addLast(new FileUploadHandler(uploadDir))
                                     .addLast(
                                             new FlinkHttpObjectAggregator(
-                                                    maxContentLength, responseHeaders))
+                                                    maxContentLength, responseHeaders));
+
+                            for (InboundChannelHandlerFactory factory :
+                                    inboundChannelHandlerFactories) {
+                                Optional<ChannelHandler> channelHandler =
+                                        factory.createHandler(configuration, responseHeaders);
+                                if (channelHandler.isPresent()) {
+                                    ch.pipeline().addLast(channelHandler.get());
+                                }
+                            }
+
+                            ch.pipeline()
                                     .addLast(new ChunkedWriteHandler())
                                     .addLast(handler.getName(), handler)
                                     .addLast(new PipelineErrorHandler(log, responseHeaders));
@@ -221,10 +268,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                     serverChannel = channel.syncUninterruptibly().channel();
                     break;
                 } catch (final Exception e) {
+                    // syncUninterruptibly() throws checked exceptions via Unsafe
                     // continue if the exception is due to the port being in use, fail early
                     // otherwise
-                    if (!(e instanceof org.jboss.netty.channel.ChannelException
-                            || e instanceof java.net.BindException)) {
+                    if (!(e instanceof java.net.BindException)) {
                         throw e;
                     }
                 }
@@ -245,7 +292,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
             } else {
                 advertisedAddress = bindAddress.getAddress().getHostAddress();
             }
-            final int port = bindAddress.getPort();
+
+            port = bindAddress.getPort();
 
             log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
@@ -274,8 +322,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
     @Nullable
     public InetSocketAddress getServerAddress() {
         synchronized (lock) {
-            Preconditions.checkState(
-                    state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+            assertRestServerHasBeenStarted();
             Channel server = this.serverChannel;
 
             if (server != null) {
@@ -297,9 +344,21 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
      */
     public String getRestBaseUrl() {
         synchronized (lock) {
-            Preconditions.checkState(
-                    state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+            assertRestServerHasBeenStarted();
             return restBaseUrl;
+        }
+    }
+
+    private void assertRestServerHasBeenStarted() {
+        Preconditions.checkState(
+                state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+    }
+
+    @Override
+    public int getRestPort() {
+        synchronized (lock) {
+            assertRestServerHasBeenStarted();
+            return port;
         }
     }
 
@@ -499,13 +558,15 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
             case PATCH:
                 router.addPatch(handlerURL, handler);
                 break;
+            case PUT:
+                router.addPut(handlerURL, handler);
+                break;
             default:
                 throw new RuntimeException("Unsupported http method: " + httpMethod + '.');
         }
     }
 
     /** Creates the upload dir if needed. */
-    @VisibleForTesting
     static void createUploadDir(
             final Path uploadDir, final Logger log, final boolean initialCreation)
             throws IOException {
@@ -566,9 +627,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
             }
 
             final RestHandlerSpecification headers = handler.f0;
-            for (RestAPIVersion supportedAPIVersion : headers.getSupportedAPIVersions()) {
+            for (RestAPIVersion supportedRestAPIVersion : headers.getSupportedAPIVersions()) {
                 final String parameterizedEndpoint =
-                        supportedAPIVersion.toString()
+                        supportedRestAPIVersion.toString()
                                 + headers.getHttpMethod()
                                 + headers.getTargetRestEndpointURL();
                 // normalize path parameters; distinct path parameters still clash at runtime
@@ -579,7 +640,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                     throw new FlinkRuntimeException(
                             String.format(
                                     "REST handler registration overlaps with another registration for: version=%s, method=%s, url=%s.",
-                                    supportedAPIVersion,
+                                    supportedRestAPIVersion,
                                     headers.getHttpMethod(),
                                     headers.getTargetRestEndpointURL()));
                 }
@@ -605,9 +666,6 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
         private static final Comparator<String> CASE_INSENSITIVE_ORDER =
                 new CaseInsensitiveOrderComparator();
 
-        private static final Comparator<RestAPIVersion> API_VERSION_ORDER =
-                new RestAPIVersion.RestAPIVersionComparator();
-
         static final RestHandlerUrlComparator INSTANCE = new RestHandlerUrlComparator();
 
         @Override
@@ -620,9 +678,13 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
             if (urlComparisonResult != 0) {
                 return urlComparisonResult;
             } else {
-                return API_VERSION_ORDER.compare(
-                        Collections.min(o1.f0.getSupportedAPIVersions()),
-                        Collections.min(o2.f0.getSupportedAPIVersions()));
+                Collection<? extends RestAPIVersion> o1APIVersions =
+                        o1.f0.getSupportedAPIVersions();
+                RestAPIVersion o1Version = Collections.min(o1APIVersions);
+                Collection<? extends RestAPIVersion> o2APIVersions =
+                        o2.f0.getSupportedAPIVersions();
+                RestAPIVersion o2Version = Collections.min(o2APIVersions);
+                return o1Version.compareTo(o2Version);
             }
         }
 

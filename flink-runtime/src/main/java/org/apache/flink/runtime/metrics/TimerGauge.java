@@ -32,47 +32,127 @@ import org.apache.flink.util.clock.SystemClock;
  * happen in a couple of hours, the returned value will account for this ongoing measurement.
  */
 public class TimerGauge implements Gauge<Long>, View {
+
+    private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
+
     private final Clock clock;
 
-    private long previousCount;
+    /** The time-span over which the average is calculated. */
+    private final int timeSpanInSeconds;
+    /** Circular array containing the history of values. */
+    private final long[] values;
+    /** The index in the array for the current time. */
+    private int idx = 0;
+
+    private boolean fullWindow = false;
+
+    private long currentValue;
     private long currentCount;
-    private long currentMeasurementStart;
+    private long currentMeasurementStartTS;
+    /**
+     * This differ from {@link #currentMeasurementStartTS} that {@link #currentUpdateTS} is bumped
+     * on every {@link #update()} call, while {@link #currentMeasurementStartTS} always marks the
+     * last {@link #markStart()} call.
+     */
+    private long currentUpdateTS;
+
+    private long previousMaxSingleMeasurement;
+    private long currentMaxSingleMeasurement;
+
+    private long accumulatedCount;
 
     public TimerGauge() {
-        this(SystemClock.getInstance());
+        this(DEFAULT_TIME_SPAN_IN_SECONDS);
+    }
+
+    public TimerGauge(int timeSpanInSeconds) {
+        this(SystemClock.getInstance(), timeSpanInSeconds);
     }
 
     public TimerGauge(Clock clock) {
+        this(clock, DEFAULT_TIME_SPAN_IN_SECONDS);
+    }
+
+    public TimerGauge(Clock clock, int timeSpanInSeconds) {
         this.clock = clock;
+        this.timeSpanInSeconds =
+                Math.max(
+                        timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS),
+                        UPDATE_INTERVAL_SECONDS);
+        this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS];
     }
 
     public synchronized void markStart() {
-        if (currentMeasurementStart == 0) {
-            currentMeasurementStart = clock.absoluteTimeMillis();
+        if (currentMeasurementStartTS == 0) {
+            currentUpdateTS = clock.absoluteTimeMillis();
+            currentMeasurementStartTS = currentUpdateTS;
         }
     }
 
     public synchronized void markEnd() {
-        if (currentMeasurementStart != 0) {
-            currentCount += clock.absoluteTimeMillis() - currentMeasurementStart;
-            currentMeasurementStart = 0;
+        if (currentMeasurementStartTS != 0) {
+            long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
+            currentCount += currentMeasurement;
+            accumulatedCount += currentMeasurement;
+            currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
+            currentUpdateTS = 0;
+            currentMeasurementStartTS = 0;
         }
     }
 
     @Override
     public synchronized void update() {
-        if (currentMeasurementStart != 0) {
+        if (currentMeasurementStartTS != 0) {
             long now = clock.absoluteTimeMillis();
-            currentCount += now - currentMeasurementStart;
-            currentMeasurementStart = now;
+            // we adding to the current count only the time elapsed since last markStart or update
+            // call
+            currentCount += now - currentUpdateTS;
+            accumulatedCount += now - currentUpdateTS;
+            currentUpdateTS = now;
+            // on the other hand, max measurement has to be always checked against last markStart
+            // call
+            currentMaxSingleMeasurement =
+                    Math.max(currentMaxSingleMeasurement, now - currentMeasurementStartTS);
         }
-        previousCount = Math.max(Math.min(currentCount / UPDATE_INTERVAL_SECONDS, 1000), 0);
+        updateCurrentValue();
+        previousMaxSingleMeasurement = currentMaxSingleMeasurement;
         currentCount = 0;
+        currentMaxSingleMeasurement = 0;
+    }
+
+    private void updateCurrentValue() {
+        if (idx == values.length - 1) {
+            fullWindow = true;
+        }
+        values[idx] = currentCount;
+        idx = (idx + 1) % values.length;
+
+        int maxIndex = fullWindow ? values.length : idx;
+        long totalTime = 0;
+        for (int i = 0; i < maxIndex; i++) {
+            totalTime += values[i];
+        }
+
+        currentValue =
+                Math.max(Math.min(totalTime / (UPDATE_INTERVAL_SECONDS * maxIndex), 1000), 0);
     }
 
     @Override
     public synchronized Long getValue() {
-        return previousCount;
+        return currentValue;
+    }
+
+    /**
+     * @return the longest marked period as measured by the given * TimerGauge. For example the
+     *     longest consecutive back pressured period.
+     */
+    public synchronized long getMaxSingleMeasurement() {
+        return previousMaxSingleMeasurement;
+    }
+
+    /** @return the accumulated period by the given * TimerGauge. */
+    public synchronized long getAccumulatedCount() {
+        return accumulatedCount;
     }
 
     @VisibleForTesting
@@ -82,6 +162,6 @@ public class TimerGauge implements Gauge<Long>, View {
 
     @VisibleForTesting
     public synchronized boolean isMeasuring() {
-        return currentMeasurementStart != 0;
+        return currentMeasurementStartTS != 0;
     }
 }

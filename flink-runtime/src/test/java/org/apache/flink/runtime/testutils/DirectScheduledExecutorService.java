@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;

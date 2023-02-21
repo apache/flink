@@ -19,29 +19,32 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Builder for the {@link TestingBlobStoreBuilder}. */
 public class TestingBlobStoreBuilder {
-    private static final Function<Tuple3<File, JobID, BlobKey>, Boolean> DEFAULT_PUT_FUNCTION =
-            ignored -> true;
+    private static final TriFunctionWithException<File, JobID, BlobKey, Boolean, IOException>
+            DEFAULT_PUT_FUNCTION = (ignoredA, ignoredB, ignoredC) -> true;
     private static final BiFunction<JobID, BlobKey, Boolean> DEFAULT_DELETE_FUNCTION =
             (ignoredA, ignoredB) -> true;
     private static final Function<JobID, Boolean> DEFAULT_DELETE_ALL_FUNCTION = ignored -> true;
-    private static final Function<Tuple3<JobID, BlobKey, File>, Boolean> DEFAULT_GET_FUNCTION =
-            ignored -> true;
+    private static final TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException>
+            DEFAULT_GET_FUNCTION = (ignoredA, ignoredB, ignoredC) -> true;
 
-    private Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction = DEFAULT_PUT_FUNCTION;
+    private TriFunctionWithException<File, JobID, BlobKey, Boolean, IOException> putFunction =
+            DEFAULT_PUT_FUNCTION;
     private BiFunction<JobID, BlobKey, Boolean> deleteFunction = DEFAULT_DELETE_FUNCTION;
     private Function<JobID, Boolean> deleteAllFunction = DEFAULT_DELETE_ALL_FUNCTION;
-    private Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction = DEFAULT_GET_FUNCTION;
+    private TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException> getFunction =
+            DEFAULT_GET_FUNCTION;
 
     public TestingBlobStoreBuilder setPutFunction(
-            Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction) {
+            TriFunctionWithException<File, JobID, BlobKey, Boolean, IOException> putFunction) {
         this.putFunction = putFunction;
         return this;
     }
@@ -59,7 +62,7 @@ public class TestingBlobStoreBuilder {
     }
 
     public TestingBlobStoreBuilder setGetFunction(
-            Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction) {
+            TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException> getFunction) {
         this.getFunction = getFunction;
         return this;
     }

@@ -52,4 +52,14 @@ class ExecutionSlotSharingGroup {
     Set<ExecutionVertexID> getExecutionVertexIds() {
         return Collections.unmodifiableSet(executionVertexIds);
     }
+
+    @Override
+    public String toString() {
+        return "ExecutionSlotSharingGroup{"
+                + "executionVertexIds="
+                + executionVertexIds
+                + ", resourceProfile="
+                + resourceProfile
+                + '}';
+    }
 }

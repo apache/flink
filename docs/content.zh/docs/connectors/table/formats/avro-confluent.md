@@ -35,7 +35,7 @@ Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluen
 
 当以这种格式读取（反序列化）记录时，将根据记录中编码的 schema 版本 id 从配置的 Confluent Schema Registry 中获取 Avro writer schema ，而从 table schema 中推断出 reader schema。
 
-当以这种格式写入（序列化）记录时，Avro schema 是从 table schema 中推断出来的，并会用来检索要与数据一起编码的 schema id。我们会在配置的 Confluent Schema Registry 中配置的 [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) 下，检索 schema id。subject 通过 `avro-confluent.schema-registry.subject` 参数来制定。
+当以这种格式写入（序列化）记录时，Avro schema 是从 table schema 中推断出来的，并会用来检索要与数据一起编码的 schema id。我们会在配置的 Confluent Schema Registry 中配置的 [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) 下，检索 schema id。subject 通过 `avro-confluent.subject` 参数来制定。
 
 Avro Schema Registry 格式只能与 [Apache Kafka SQL 连接器]({{< ref "docs/connectors/table/kafka" >}})或 [Upsert Kafka SQL 连接器]({{< ref "docs/connectors/table/upsert-kafka" >}})一起使用。
 
@@ -43,6 +43,8 @@ Avro Schema Registry 格式只能与 [Apache Kafka SQL 连接器]({{< ref "docs/
 ------------
 
 {{< sql_download_table "avro-confluent" >}}
+
+For Maven, SBT, Gradle, or other build automation tools, please also ensure that Confluent's maven repository at `https://packages.confluent.io/maven/` is configured in your project's build files.
 
 如何创建使用 Avro-Confluent 格式的表
 ----------------
@@ -76,7 +78,7 @@ CREATE TABLE user_created (
   'key.fields' = 'the_kafka_key',
 
   'value.format' = 'avro-confluent',
-  'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'value.avro-confluent.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY'
 )
 ```
@@ -117,7 +119,7 @@ CREATE TABLE user_created (
 
   -- 注意：由于哈希分区，在 Kafka key 的上下文中，schema 升级几乎从不向后也不向前兼容。
   'key.format' = 'avro-confluent',
-  'key.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'key.avro-confluent.url' = 'http://localhost:8082',
   'key.fields' = 'kafka_key_id',
 
   -- 在本例中，我们希望 Kafka 的 key 和 value 的 Avro 类型都包含 'id' 字段
@@ -125,12 +127,12 @@ CREATE TABLE user_created (
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',
-  'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'value.avro-confluent.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY',
    
   -- 自 Flink 1.13 起，subjects 具有一个默认值, 但是可以被覆盖：
-  'key.avro-confluent.schema-registry.subject' = 'user_events_example2-key2',
-  'value.avro-confluent.schema-registry.subject' = 'user_events_example2-value2'
+  'key.avro-confluent.subject' = 'user_events_example2-key2',
+  'value.avro-confluent.subject' = 'user_events_example2-value2'
 )
 ```
 
@@ -166,7 +168,7 @@ CREATE TABLE user_created (
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',
-  'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'value.avro-confluent.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY'
 )
 ```
@@ -187,27 +189,90 @@ Format 参数
       </tr>
     </thead>
     <tbody>
-    <tr>
-      <td><h5>format</h5></td>
-      <td>必选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>指定要使用的格式，这里应该是 <code>'avro-confluent'</code>。</td>
-    </tr>
-    <tr>
-      <td><h5>avro-confluent.schema-registry.url</h5></td>
-      <td>必选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>用于获取/注册 schemas 的 Confluent Schema Registry 的URL。</td>
-    </tr>
-    <tr>
-      <td><h5>avro-confluent.schema-registry.subject</h5></td>
-      <td>可选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>Confluent Schema Registry 主题，用于在序列化期间注册此格式使用的 schema。默认 kafka 和 upsert-kafka 连接器会使用 "&lt;topic_name&gt;-value" 或者 "&lt;topic_name&gt;-key" 作为 subject 名字。但是对于其他连接器（如 filesystem）则在当做 sink 使用时需要显式指定 subject 名字。</td>
-    </tr>
+        <tr>
+            <td><h5>format</h5></td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify what format to use, here should be <code>'avro-confluent'</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.basic-auth.credentials-source</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Basic auth credentials source for Schema Registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.basic-auth.user-info</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Basic auth user info for schema registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.bearer-auth.credentials-source</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Bearer auth credentials source for Schema Registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.bearer-auth.token</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Bearer auth token for Schema Registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.properties</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>Properties map that is forwarded to the underlying Schema Registry. This is useful for options that are not officially exposed via Flink config options. However, note that Flink options have higher precedence.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.keystore.location</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Location / File of SSL keystore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.keystore.password</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Password for SSL keystore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.truststore.location</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Location / File of SSL truststore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.truststore.password</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Password for SSL truststore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.subject</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization. By default, 'kafka' and 'upsert-kafka' connectors use '&lt;topic_name&gt;-value' or '&lt;topic_name&gt;-key' as the default subject name if this format is used as the value or key format. But for other connectors (e.g. 'filesystem'), the subject option is required when used as sink.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.url</h5></td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
+        </tr>
     </tbody>
 </table>
 

@@ -28,13 +28,15 @@ import org.apache.flink.runtime.checkpoint.StateHandleDummyUtil;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,6 +47,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
 public class TaskStateManagerImplTest extends TestLogger {
 
     /** Test reporting and retrieving prioritized local and remote state. */
@@ -52,10 +56,11 @@ public class TaskStateManagerImplTest extends TestLogger {
     public void testStateReportingAndRetrieving() {
 
         JobID jobID = new JobID();
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
 
         TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
         TestTaskLocalStateStore testTaskLocalStateStore = new TestTaskLocalStateStore();
+        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
 
         TaskStateManager taskStateManager =
                 taskStateManager(
@@ -63,7 +68,8 @@ public class TaskStateManagerImplTest extends TestLogger {
                         executionAttemptID,
                         testCheckpointResponder,
                         null,
-                        testTaskLocalStateStore);
+                        testTaskLocalStateStore,
+                        changelogStorage);
 
         // ---------------------------------------- test reporting
         // -----------------------------------------
@@ -139,7 +145,8 @@ public class TaskStateManagerImplTest extends TestLogger {
                         executionAttemptID,
                         testCheckpointResponder,
                         taskRestore,
-                        testTaskLocalStateStore);
+                        testTaskLocalStateStore,
+                        changelogStorage);
 
         // this has remote AND local managed keyed state.
         PrioritizedOperatorSubtaskState prioritized_1 =
@@ -153,9 +160,8 @@ public class TaskStateManagerImplTest extends TestLogger {
 
         Assert.assertTrue(prioritized_1.isRestored());
         Assert.assertTrue(prioritized_2.isRestored());
-        Assert.assertFalse(prioritized_3.isRestored());
-        Assert.assertFalse(
-                taskStateManager.prioritizedOperatorState(new OperatorID()).isRestored());
+        Assert.assertTrue(prioritized_3.isRestored());
+        Assert.assertTrue(taskStateManager.prioritizedOperatorState(new OperatorID()).isRestored());
 
         // checks for operator 1.
         Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState_1 =
@@ -187,15 +193,15 @@ public class TaskStateManagerImplTest extends TestLogger {
     }
 
     /**
-     * This tests if the {@link TaskStateManager} properly returns the the subtask local state dir
-     * from the corresponding {@link TaskLocalStateStoreImpl}.
+     * This tests if the {@link TaskStateManager} properly returns the subtask local state dir from
+     * the corresponding {@link TaskLocalStateStoreImpl}.
      */
     @Test
     public void testForwardingSubtaskLocalStateBaseDirFromLocalStateStore() throws IOException {
         JobID jobID = new JobID(42L, 43L);
         AllocationID allocationID = new AllocationID(4711L, 23L);
         JobVertexID jobVertexID = new JobVertexID(12L, 34L);
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId(jobVertexID);
         TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
         Executor directExecutor = Executors.directExecutor();
@@ -213,8 +219,7 @@ public class TaskStateManagerImplTest extends TestLogger {
             LocalRecoveryDirectoryProviderImpl directoryProvider =
                     new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
 
-            LocalRecoveryConfig localRecoveryConfig =
-                    new LocalRecoveryConfig(true, directoryProvider);
+            LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
 
             TaskLocalStateStore taskLocalStateStore =
                     new TaskLocalStateStoreImpl(
@@ -225,13 +230,16 @@ public class TaskStateManagerImplTest extends TestLogger {
                             localRecoveryConfig,
                             directExecutor);
 
+            InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
+
             TaskStateManager taskStateManager =
                     taskStateManager(
                             jobID,
                             executionAttemptID,
                             checkpointResponderMock,
                             null,
-                            taskLocalStateStore);
+                            taskLocalStateStore,
+                            changelogStorage);
 
             LocalRecoveryConfig localRecoveryConfFromTaskLocalStateStore =
                     taskLocalStateStore.getLocalRecoveryConfig();
@@ -244,11 +252,13 @@ public class TaskStateManagerImplTest extends TestLogger {
                         allocBaseDirs[i % allocBaseDirs.length],
                         localRecoveryConfFromTaskLocalStateStore
                                 .getLocalStateDirectoryProvider()
+                                .get()
                                 .allocationBaseDirectory(i));
                 Assert.assertEquals(
                         allocBaseDirs[i % allocBaseDirs.length],
                         localRecoveryConfFromTaskStateManager
                                 .getLocalStateDirectoryProvider()
+                                .get()
                                 .allocationBaseDirectory(i));
             }
 
@@ -260,17 +270,62 @@ public class TaskStateManagerImplTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testStateRetrievingWithFinishedOperator() {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
+
+        JobManagerTaskRestore jobManagerTaskRestore =
+                new JobManagerTaskRestore(2, taskStateSnapshot);
+        TaskStateManagerImpl stateManager =
+                new TaskStateManagerImpl(
+                        new JobID(),
+                        createExecutionAttemptId(),
+                        new TestTaskLocalStateStore(),
+                        null,
+                        new TaskExecutorStateChangelogStoragesManager(),
+                        jobManagerTaskRestore,
+                        new TestCheckpointResponder());
+        Assert.assertTrue(stateManager.isTaskDeployedAsFinished());
+    }
+
+    public void testAcquringRestoreCheckpointId() {
+        TaskStateManagerImpl emptyStateManager =
+                new TaskStateManagerImpl(
+                        new JobID(),
+                        createExecutionAttemptId(),
+                        new TestTaskLocalStateStore(),
+                        null,
+                        new TaskExecutorStateChangelogStoragesManager(),
+                        null,
+                        new TestCheckpointResponder());
+        Assert.assertFalse(emptyStateManager.getRestoreCheckpointId().isPresent());
+
+        TaskStateManagerImpl nonEmptyStateManager =
+                new TaskStateManagerImpl(
+                        new JobID(),
+                        createExecutionAttemptId(),
+                        new TestTaskLocalStateStore(),
+                        null,
+                        new TaskExecutorStateChangelogStoragesManager(),
+                        new JobManagerTaskRestore(2, new TaskStateSnapshot()),
+                        new TestCheckpointResponder());
+        Assert.assertEquals(2L, (long) nonEmptyStateManager.getRestoreCheckpointId().get());
+    }
+
     public static TaskStateManager taskStateManager(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
             CheckpointResponder checkpointResponderMock,
             JobManagerTaskRestore jobManagerTaskRestore,
-            TaskLocalStateStore localStateStore) {
+            TaskLocalStateStore localStateStore,
+            StateChangelogStorage<?> stateChangelogStorage) {
 
         return new TaskStateManagerImpl(
                 jobID,
                 executionAttemptID,
                 localStateStore,
+                stateChangelogStorage,
+                new TaskExecutorStateChangelogStoragesManager(),
                 jobManagerTaskRestore,
                 checkpointResponderMock);
     }

@@ -21,16 +21,40 @@
             <td>Custom JobListeners to be registered with the execution environment. The registered listeners cannot have constructors with arguments.</td>
         </tr>
         <tr>
+            <td><h5>execution.program-config.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Determines whether configurations in the user program are allowed. By default, configuration can be set both on a cluster-level (via options) or within the user program (i.e. programmatic via environment setters). If disabled, all configuration must be defined on a cluster-level and programmatic setters in the user program are prohibited.<br /><br />Depending on your deployment mode failing the job might have different implications. Either your client that is trying to submit the job to an external cluster (session cluster deployment) throws the exception or the job manager (application mode deployment).<br /><br />The 'execution.program-config.wildcards' option lists configuration keys that are allowed to be set in user programs regardless of this setting.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.program-config.wildcards</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>List of configuration keys that are allowed to be set in a user program regardless whether program configuration is enabled or not.<br /><br />Currently changes that are not backed by the Configuration class are always allowed.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.shutdown-on-application-finish</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether a Flink Application cluster should shut down automatically after its application finishes (either successfully or as result of a failure). Has no effect for other deployment modes.</td>
+        </tr>
+        <tr>
             <td><h5>execution.shutdown-on-attached-exit</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If the job is submitted in attached mode, perform a best-effort cluster shutdown when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.</td>
         </tr>
         <tr>
+            <td><h5>execution.submit-failed-job-on-application-error</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If a failed job should be submitted (in the application mode) when there is an error in the application driver before an actual job submission. This is intended for providing a clean way of reporting failures back to the user and is especially useful in combination with 'execution.shutdown-on-application-finish'. This option only works when the single job submission is enforced ('high-availability.type' is enabled). Please note that this is an experimental option and may be changed in the future.</td>
+        </tr>
+        <tr>
             <td><h5>execution.target</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The deployment target for the execution. This can take one of the following values:<ul><li>remote</li><li>local</li><li>yarn-per-job</li><li>yarn-session</li><li>kubernetes-session</li></ul>.</td>
+            <td>The deployment target for the execution. This can take one of the following values when calling <code class="highlighter-rouge">bin/flink run</code>:<ul><li>remote</li><li>local</li><li>yarn-per-job (deprecated)</li><li>yarn-session</li><li>kubernetes-session</li></ul>And one of the following values when calling <code class="highlighter-rouge">bin/flink run-application</code>:<ul><li>yarn-application</li><li>kubernetes-application</li></ul></td>
         </tr>
     </tbody>
 </table>

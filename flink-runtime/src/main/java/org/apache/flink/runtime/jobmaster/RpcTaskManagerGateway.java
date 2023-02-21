@@ -34,7 +34,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -76,29 +75,42 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds) {
-        taskExecutorGateway.releaseOrPromotePartitions(jobId, partitionIds, Collections.emptySet());
+        taskExecutorGateway.releasePartitions(jobId, partitionIds);
     }
 
     @Override
-    public void notifyCheckpointComplete(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-        taskExecutorGateway.confirmCheckpoint(executionAttemptID, checkpointId, timestamp);
+    public void notifyCheckpointOnComplete(
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long completedCheckpointId,
+            long completedTimestamp,
+            long lastSubsumedCheckpointId) {
+        taskExecutorGateway.confirmCheckpoint(
+                executionAttemptID,
+                completedCheckpointId,
+                completedTimestamp,
+                lastSubsumedCheckpointId);
     }
 
     @Override
     public void notifyCheckpointAborted(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-        taskExecutorGateway.abortCheckpoint(executionAttemptID, checkpointId, timestamp);
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long timestamp) {
+        taskExecutorGateway.abortCheckpoint(
+                executionAttemptID, checkpointId, latestCompletedCheckpointId, timestamp);
     }
 
     @Override
-    public void triggerCheckpoint(
+    public CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,
             long timestamp,
             CheckpointOptions checkpointOptions) {
-        taskExecutorGateway.triggerCheckpoint(
+        return taskExecutorGateway.triggerCheckpoint(
                 executionAttemptID, checkpointId, timestamp, checkpointOptions);
     }
 

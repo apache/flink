@@ -20,7 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.FlinkSecurityManager;
+import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -94,6 +94,7 @@ public class FlinkSecurityManagerITCase extends TestLogger {
         }
     }
 
+    /** An entry point that attempts to force exit the process. */
     public static final class ForcedExitEntryPoint {
 
         public static void main(String[] args) throws Exception {
@@ -110,6 +111,7 @@ public class FlinkSecurityManagerITCase extends TestLogger {
         }
     }
 
+    /** An entry point that attempts to exit the process but expects that call to be ignored. */
     public static final class IgnoredExitEntryPoint {
 
         public static void main(String[] args) throws Exception {

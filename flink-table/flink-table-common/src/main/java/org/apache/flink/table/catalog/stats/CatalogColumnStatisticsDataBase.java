@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 
 /** Column statistics value base class. */
+@PublicEvolving
 public abstract class CatalogColumnStatisticsDataBase {
     /** number of null values. */
     private final Long nullCount;

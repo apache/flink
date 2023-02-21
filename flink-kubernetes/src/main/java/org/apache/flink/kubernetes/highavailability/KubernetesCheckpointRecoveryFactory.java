@@ -25,6 +25,10 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -44,7 +48,9 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
 
     private final Configuration configuration;
 
-    private final String lockIdentity;
+    @Nullable private final String lockIdentity;
+
+    private final String clusterId;
 
     /**
      * Create a KubernetesCheckpointRecoveryFactory.
@@ -55,38 +61,71 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
      * @param function Function to get the ConfigMap name for checkpoint.
      * @param lockIdentity Lock identity of current HA service
      */
-    public KubernetesCheckpointRecoveryFactory(
+    private KubernetesCheckpointRecoveryFactory(
             FlinkKubeClient kubeClient,
             Configuration configuration,
             Executor executor,
             Function<JobID, String> function,
-            String lockIdentity) {
+            String clusterId,
+            @Nullable String lockIdentity) {
 
         this.kubeClient = checkNotNull(kubeClient);
         this.configuration = checkNotNull(configuration);
         this.executor = checkNotNull(executor);
         this.getConfigMapNameFunction = checkNotNull(function);
-        this.lockIdentity = checkNotNull(lockIdentity);
+        this.lockIdentity = lockIdentity;
+        this.clusterId = clusterId;
     }
 
     @Override
-    public CompletedCheckpointStore createCheckpointStore(
-            JobID jobID, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+    public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
+            JobID jobID,
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor,
+            RestoreMode restoreMode)
             throws Exception {
-
         final String configMapName = getConfigMapNameFunction.apply(jobID);
+        KubernetesUtils.createConfigMapIfItDoesNotExist(kubeClient, configMapName, clusterId);
+
         return KubernetesUtils.createCompletedCheckpointStore(
                 configuration,
                 kubeClient,
                 executor,
                 configMapName,
                 lockIdentity,
-                maxNumberOfCheckpointsToRetain);
+                maxNumberOfCheckpointsToRetain,
+                sharedStateRegistryFactory,
+                ioExecutor,
+                restoreMode);
     }
 
     @Override
-    public CheckpointIDCounter createCheckpointIDCounter(JobID jobID) {
-        return new KubernetesCheckpointIDCounter(
-                kubeClient, getConfigMapNameFunction.apply(jobID), lockIdentity);
+    public CheckpointIDCounter createCheckpointIDCounter(JobID jobID) throws Exception {
+        final String configMapName = getConfigMapNameFunction.apply(jobID);
+        KubernetesUtils.createConfigMapIfItDoesNotExist(kubeClient, configMapName, clusterId);
+
+        return new KubernetesCheckpointIDCounter(kubeClient, configMapName, lockIdentity);
+    }
+
+    public static KubernetesCheckpointRecoveryFactory withLeadershipValidation(
+            FlinkKubeClient kubeClient,
+            Configuration configuration,
+            Executor executor,
+            String clusterId,
+            Function<JobID, String> function,
+            String lockIdentity) {
+        return new KubernetesCheckpointRecoveryFactory(
+                kubeClient, configuration, executor, function, clusterId, lockIdentity);
+    }
+
+    public static KubernetesCheckpointRecoveryFactory withoutLeadershipValidation(
+            FlinkKubeClient kubeClient,
+            Configuration configuration,
+            Executor executor,
+            String clusterId,
+            Function<JobID, String> function) {
+        return new KubernetesCheckpointRecoveryFactory(
+                kubeClient, configuration, executor, function, clusterId, null);
     }
 }

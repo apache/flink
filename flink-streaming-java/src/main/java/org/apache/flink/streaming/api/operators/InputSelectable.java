@@ -31,10 +31,14 @@ import org.apache.flink.annotation.PublicEvolving;
  * that it does not currently want to process. Therefore, if an operator needs a strict convention,
  * it must cache the unexpected data itself and handle them correctly.
  *
- * <p>This interface also makes the following conventions: 1.The runtime must call {@code
- * nextSelection()} to determine the input to read the first record. 2.When the input being read
- * reaches the end, the runtime must call {@code nextSelection()} to determine the next input to be
- * read.
+ * <p>This interface also makes the following conventions:
+ *
+ * <ol>
+ *   <li>The runtime must call {@code nextSelection()} to determine the input to read the first
+ *       record.
+ *   <li>When the input being read reaches the end, the runtime must call {@code nextSelection()} to
+ *       determine the next input to be read.
+ * </ol>
  */
 @PublicEvolving
 public interface InputSelectable {

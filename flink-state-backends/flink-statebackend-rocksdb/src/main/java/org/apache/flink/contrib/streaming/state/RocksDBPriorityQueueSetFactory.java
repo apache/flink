@@ -102,9 +102,20 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        return create(stateName, byteOrderedElementSerializer, false);
+    }
+
+    @Nonnull
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
 
         final RocksDBKeyedStateBackend.RocksDbKvStateInfo stateCFHandle =
-                tryRegisterPriorityQueueMetaInfo(stateName, byteOrderedElementSerializer);
+                tryRegisterPriorityQueueMetaInfo(
+                        stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
 
         final ColumnFamilyHandle columnFamilyHandle = stateCFHandle.columnFamilyHandle;
 
@@ -141,7 +152,9 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
     @Nonnull
     private <T> RocksDBKeyedStateBackend.RocksDbKvStateInfo tryRegisterPriorityQueueMetaInfo(
-            @Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+            @Nonnull String stateName,
+            @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+            boolean allowFutureMetadataUpdates) {
 
         RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo = kvStateInformation.get(stateName);
 
@@ -151,6 +164,12 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
             RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
                     new RegisteredPriorityQueueStateBackendMetaInfo<>(
                             stateName, byteOrderedElementSerializer);
+
+            metaInfo =
+                    allowFutureMetadataUpdates
+                            ? metaInfo.withSerializerUpgradesAllowed()
+                            : metaInfo;
+
             stateInfo =
                     RocksDBOperationUtils.createStateInfo(
                             metaInfo,
@@ -187,12 +206,19 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
                                     "The new priority queue serializer must not be incompatible."));
                 }
 
+                RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
+                        new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                stateName, byteOrderedElementSerializer);
+
+                metaInfo =
+                        allowFutureMetadataUpdates
+                                ? metaInfo.withSerializerUpgradesAllowed()
+                                : metaInfo;
+
                 // update meta info with new serializer
                 stateInfo =
                         new RocksDBKeyedStateBackend.RocksDbKvStateInfo(
-                                stateInfo.columnFamilyHandle,
-                                new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                        stateName, byteOrderedElementSerializer));
+                                stateInfo.columnFamilyHandle, metaInfo);
                 kvStateInformation.put(stateName, stateInfo);
             }
         }

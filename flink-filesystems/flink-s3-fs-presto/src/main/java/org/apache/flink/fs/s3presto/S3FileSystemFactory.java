@@ -65,6 +65,25 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     }
 
     @Override
+    protected org.apache.flink.core.fs.FileSystem createFlinkFileSystem(
+            FileSystem fs,
+            String localTmpDirectory,
+            String entropyInjectionKey,
+            int numEntropyChars,
+            S3AccessHelper s3AccessHelper,
+            long s3minPartSize,
+            int maxConcurrentUploads) {
+        return new FlinkS3PrestoFileSystem(
+                fs,
+                localTmpDirectory,
+                entropyInjectionKey,
+                numEntropyChars,
+                s3AccessHelper,
+                s3minPartSize,
+                maxConcurrentUploads);
+    }
+
+    @Override
     protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
         return new PrestoS3FileSystem();
     }

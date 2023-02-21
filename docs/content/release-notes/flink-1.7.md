@@ -65,7 +65,7 @@ Before Flink 1.7, serializer snapshots were implemented as a `TypeSerializerConf
 Moreover, the responsibility of serializer schema compatibility checks lived within the `TypeSerializer`, implemented in the `TypeSerializer#ensureCompatibility(TypeSerializerConfigSnapshot)` method. 
 
 To be future-proof and to have flexibility to migrate your state serializers and schema, it is highly recommended to migrate from the old abstractions. 
-Details and migration guides can be found [here](https://ci.apache.org/projects/flink/flink-docs-master/dev/stream/state/custom_serialization.html).
+Details and migration guides can be found [here](https://nightlies.apache.org/flink/flink-docs-master/dev/stream/state/custom_serialization.html).
 
 ### Removal of the legacy mode
 

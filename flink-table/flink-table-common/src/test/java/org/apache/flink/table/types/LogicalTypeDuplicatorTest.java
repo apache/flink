@@ -34,55 +34,47 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDuplicator;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.stream.Stream;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalTypeDuplicator}. */
-@RunWith(Parameterized.class)
-public class LogicalTypeDuplicatorTest {
+class LogicalTypeDuplicatorTest {
 
     private static final LogicalTypeDuplicator DUPLICATOR = new LogicalTypeDuplicator();
 
     private static final LogicalTypeDuplicator INT_REPLACER = new IntReplacer();
 
-    @Parameters(name = "{index}: {0}")
-    public static List<Object[]> testData() {
-        return Arrays.asList(
-                new Object[][] {
-                    {new CharType(2), new CharType(2)},
-                    {createMultisetType(new IntType()), createMultisetType(new BigIntType())},
-                    {createArrayType(new IntType()), createArrayType(new BigIntType())},
-                    {createMapType(new IntType()), createMapType(new BigIntType())},
-                    {createRowType(new IntType()), createRowType(new BigIntType())},
-                    {createDistinctType(new IntType()), createDistinctType(new BigIntType())},
-                    {createUserType(new IntType()), createUserType(new BigIntType())},
-                    {createHumanType(), createHumanType()}
-                });
+    private static Stream<Arguments> testData() {
+        return Stream.of(
+                Arguments.of(new CharType(2), new CharType(2)),
+                Arguments.of(
+                        createMultisetType(new IntType()), createMultisetType(new BigIntType())),
+                Arguments.of(createArrayType(new IntType()), createArrayType(new BigIntType())),
+                Arguments.of(createMapType(new IntType()), createMapType(new BigIntType())),
+                Arguments.of(createRowType(new IntType()), createRowType(new BigIntType())),
+                Arguments.of(
+                        createDistinctType(new IntType()), createDistinctType(new BigIntType())),
+                Arguments.of(createUserType(new IntType()), createUserType(new BigIntType())),
+                Arguments.of(createHumanType(), createHumanType()));
     }
 
-    @Parameter public LogicalType logicalType;
-
-    @Parameter(1)
-    public LogicalType replacedLogicalType;
-
-    @Test
-    public void testDuplication() {
-        assertThat(logicalType.accept(DUPLICATOR), equalTo(logicalType));
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testDuplication(LogicalType logicalType, LogicalType replacedLogicalType) {
+        assertThat(logicalType.accept(DUPLICATOR)).isEqualTo(logicalType);
     }
 
-    @Test
-    public void testReplacement() {
-        assertThat(logicalType.accept(INT_REPLACER), equalTo(replacedLogicalType));
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testReplacement(LogicalType logicalType, LogicalType replacedLogicalType) {
+        assertThat(logicalType.accept(INT_REPLACER)).isEqualTo(replacedLogicalType);
     }
 
     // --------------------------------------------------------------------------------------------

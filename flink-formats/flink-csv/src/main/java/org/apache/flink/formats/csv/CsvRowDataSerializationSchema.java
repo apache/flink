@@ -23,7 +23,10 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SerializableSupplier;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -53,23 +56,38 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
     /** Runtime instance that performs the actual work. */
     private final RowDataToCsvConverters.RowDataToCsvConverter runtimeConverter;
 
+    private final SerializableSupplier<CsvMapper> csvMapperSuppler;
+
     /** CsvMapper used to write {@link JsonNode} into bytes. */
-    private final CsvMapper csvMapper;
+    private transient CsvMapper csvMapper;
 
     /** Schema describing the input CSV data. */
     private final CsvSchema csvSchema;
 
     /** Object writer used to write rows. It is configured by {@link CsvSchema}. */
-    private final ObjectWriter objectWriter;
+    private transient ObjectWriter objectWriter;
 
     /** Reusable object node. */
     private transient ObjectNode root;
 
-    private CsvRowDataSerializationSchema(RowType rowType, CsvSchema csvSchema) {
+    /** Reusable converter context. */
+    private transient RowDataToCsvConverters.RowDataToCsvConverter
+                    .RowDataToCsvFormatConverterContext
+            converterContext;
+
+    private CsvRowDataSerializationSchema(
+            RowType rowType,
+            CsvSchema csvSchema,
+            SerializableSupplier<CsvMapper> csvMapperSupplier) {
         this.rowType = rowType;
         this.runtimeConverter = RowDataToCsvConverters.createRowConverter(rowType);
-        this.csvMapper = new CsvMapper();
         this.csvSchema = csvSchema.withLineSeparator("");
+        this.csvMapperSuppler = csvMapperSupplier;
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        this.csvMapper = csvMapperSuppler.get();
         this.objectWriter = csvMapper.writer(this.csvSchema);
     }
 
@@ -79,6 +97,7 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
 
         private final RowType rowType;
         private CsvSchema csvSchema;
+        private boolean isScientificNotation;
 
         /**
          * Creates a {@link CsvRowDataSerializationSchema} expecting the given {@link RowType}.
@@ -123,8 +142,23 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
             return this;
         }
 
+        public void setWriteBigDecimalInScientificNotation(boolean isScientificNotation) {
+            this.isScientificNotation = isScientificNotation;
+        }
+
         public CsvRowDataSerializationSchema build() {
-            return new CsvRowDataSerializationSchema(rowType, csvSchema);
+            // assign to local variable to avoid reference to non-serializable builder
+            final boolean isScientificNotation = this.isScientificNotation;
+            return new CsvRowDataSerializationSchema(
+                    rowType,
+                    csvSchema,
+                    () -> {
+                        final CsvMapper csvMapper = JacksonMapperFactory.createCsvMapper();
+                        csvMapper.configure(
+                                JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN,
+                                !isScientificNotation);
+                        return csvMapper;
+                    });
         }
     }
 
@@ -132,12 +166,15 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
     public byte[] serialize(RowData row) {
         if (root == null) {
             root = csvMapper.createObjectNode();
+            converterContext =
+                    new RowDataToCsvConverters.RowDataToCsvConverter
+                            .RowDataToCsvFormatConverterContext(csvMapper, root);
         }
         try {
-            runtimeConverter.convert(csvMapper, root, row);
+            runtimeConverter.convert(row, converterContext);
             return objectWriter.writeValueAsBytes(root);
         } catch (Throwable t) {
-            throw new RuntimeException("Could not serialize row '" + row + "'.", t);
+            throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);
         }
     }
 

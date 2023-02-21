@@ -33,8 +33,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FlinkKafkaProducer}. */
 public class FlinkKafkaProducerTest {
@@ -55,7 +54,7 @@ public class FlinkKafkaProducerTest {
 
         testHarness.open();
 
-        assertThat(schema.openCalled, equalTo(true));
+        assertThat(schema.openCalled).isTrue();
     }
 
     @Test
@@ -81,7 +80,7 @@ public class FlinkKafkaProducerTest {
 
         testHarness.open();
 
-        assertThat(schema.openCalled, equalTo(true));
+        assertThat(schema.openCalled).isTrue();
     }
 
     @Test
@@ -107,7 +106,15 @@ public class FlinkKafkaProducerTest {
 
         testHarness.open();
 
-        assertThat(partitioner.openCalled, equalTo(true));
+        assertThat(partitioner.openCalled).isTrue();
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testProvidedNullTransactionalIdPrefix() {
+        FlinkKafkaProducer<Integer> kafkaProducer =
+                new FlinkKafkaProducer<>(
+                        "localhost:9092", "test-topic", new OpenTestingSerializationSchema());
+        kafkaProducer.setTransactionalIdPrefix(null);
     }
 
     private static class CustomPartitioner<T> extends FlinkKafkaPartitioner<T> {

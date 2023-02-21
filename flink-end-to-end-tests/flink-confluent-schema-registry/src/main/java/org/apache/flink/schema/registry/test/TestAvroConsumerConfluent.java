@@ -20,16 +20,18 @@ package org.apache.flink.schema.registry.test;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 
 import example.avro.User;
 import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.kafka.clients.producer.ProducerConfig;
 
 import java.util.Properties;
 
@@ -74,22 +76,36 @@ public class TestAvroConsumerConfluent {
         SingleOutputStreamOperator<String> mapToString =
                 input.map((MapFunction<User, String>) SpecificRecordBase::toString);
 
-        FlinkKafkaProducer<String> stringFlinkKafkaProducer =
-                new FlinkKafkaProducer<>(
-                        parameterTool.getRequired("output-string-topic"),
-                        new SimpleStringSchema(),
-                        config);
-        mapToString.addSink(stringFlinkKafkaProducer);
+        KafkaSink<String> stringSink =
+                KafkaSink.<String>builder()
+                        .setBootstrapServers(
+                                config.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setValueSerializationSchema(new SimpleStringSchema())
+                                        .setTopic(parameterTool.getRequired("output-string-topic"))
+                                        .build())
+                        .setKafkaProducerConfig(config)
+                        .build();
+        mapToString.sinkTo(stringSink);
 
-        FlinkKafkaProducer<User> avroFlinkKafkaProducer =
-                new FlinkKafkaProducer<>(
-                        parameterTool.getRequired("output-avro-topic"),
-                        ConfluentRegistryAvroSerializationSchema.forSpecific(
-                                User.class,
-                                parameterTool.getRequired("output-subject"),
-                                schemaRegistryUrl),
-                        config);
-        input.addSink(avroFlinkKafkaProducer);
+        KafkaSink<User> avroSink =
+                KafkaSink.<User>builder()
+                        .setBootstrapServers(
+                                config.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setValueSerializationSchema(
+                                                ConfluentRegistryAvroSerializationSchema
+                                                        .forSpecific(
+                                                                User.class,
+                                                                parameterTool.getRequired(
+                                                                        "output-subject"),
+                                                                schemaRegistryUrl))
+                                        .setTopic(parameterTool.getRequired("output-avro-topic"))
+                                        .build())
+                        .build();
+        input.sinkTo(avroSink);
 
         env.execute("Kafka Confluent Schema Registry AVRO Example");
     }

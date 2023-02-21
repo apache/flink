@@ -28,8 +28,7 @@ import org.mockito.stubbing.Answer;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -65,18 +64,19 @@ public class TestPartitionDiscoverer extends AbstractPartitionDiscoverer {
 
     @Override
     protected List<String> getAllTopics() {
-        assertTrue(topicsDescriptor.isTopicPattern());
+        assertThat(topicsDescriptor.isTopicPattern()).isTrue();
         return mockGetAllTopicsReturnSequence.get(getAllTopicsInvokeCount++);
     }
 
     @Override
     protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) {
         if (topicsDescriptor.isFixedTopics()) {
-            assertEquals(topicsDescriptor.getFixedTopics(), topics);
+            assertThat(topics).isEqualTo(topicsDescriptor.getFixedTopics());
         } else {
-            assertEquals(
-                    mockGetAllTopicsReturnSequence.get(getAllPartitionsForTopicsInvokeCount - 1),
-                    topics);
+            assertThat(topics)
+                    .isEqualTo(
+                            mockGetAllTopicsReturnSequence.get(
+                                    getAllPartitionsForTopicsInvokeCount - 1));
         }
         return mockGetAllPartitionsForTopicsReturnSequence.get(
                 getAllPartitionsForTopicsInvokeCount++);

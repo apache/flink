@@ -39,6 +39,9 @@ public interface InternalPriorityQueue<T> {
      * Retrieves and removes the first element (w.r.t. the order) of this set, or returns {@code
      * null} if this set is empty.
      *
+     * <p>NOTE: Correct key (i.e. the key of the polled element) must be set on KeyContext before
+     * calling this method.
+     *
      * @return the first element of this ordered set, or {@code null} if this set is empty.
      */
     @Nullable
@@ -66,6 +69,9 @@ public interface InternalPriorityQueue<T> {
 
     /**
      * Removes the given element from the set, if is contained in the set.
+     *
+     * <p>NOTE: Correct key (i.e. the key of the polled element) must be set on KeyContext before
+     * calling this method.
      *
      * @param toRemove the element to remove.
      * @return <code>true</code> if the operation changed the head element or if it is unclear if

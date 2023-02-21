@@ -45,6 +45,8 @@ public class KerberosUtils {
 
     private static final boolean IBM_JAVA;
 
+    private static final String DEFAULT_KERBEROS_INIT_APP_ENTRY_NAME;
+
     private static final Map<String, String> debugOptions = new HashMap<>();
 
     private static final Map<String, String> kerberosCacheOptions = new HashMap<>();
@@ -58,8 +60,18 @@ public class KerberosUtils {
                 : "com.sun.security.auth.module.Krb5LoginModule";
     }
 
+    public static String getDefaultKerberosInitAppEntryName() {
+        return DEFAULT_KERBEROS_INIT_APP_ENTRY_NAME;
+    }
+
     static {
         IBM_JAVA = JAVA_VENDOR_NAME.contains("IBM");
+
+        if (IBM_JAVA) {
+            DEFAULT_KERBEROS_INIT_APP_ENTRY_NAME = "com.ibm.security.jgss.krb5.initiate";
+        } else {
+            DEFAULT_KERBEROS_INIT_APP_ENTRY_NAME = "com.sun.security.jgss.krb5.initiate";
+        }
 
         if (LOG.isDebugEnabled()) {
             debugOptions.put("debug", "true");

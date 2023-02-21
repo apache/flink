@@ -23,7 +23,6 @@ source "$(dirname "$0")"/common_ha.sh
 TEST_PROGRAM_JAR_NAME=DataStreamAllroundTestProgram.jar
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/${TEST_PROGRAM_JAR_NAME}
 FLINK_LIB_DIR=${FLINK_DIR}/lib
-JOB_ID="00000000000000000000000000000000"
 
 #
 # NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
@@ -98,9 +97,8 @@ function run_ha_test() {
     local BACKEND=$2
     local ASYNC=$3
     local INCREM=$4
-    local ZOOKEEPER_VERSION=$5
 
-    local JM_KILLS=3
+    local JM_KILLS=2
 
     CLEARED=0
 
@@ -114,10 +112,9 @@ function run_ha_test() {
     # jm killing loop
     set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
 
-    setup_flink_shaded_zookeeper ${ZOOKEEPER_VERSION}
     start_local_zk
 
-    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, incremSnapshots=${INCREM} and zk=${ZOOKEEPER_VERSION}."
+    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, incremSnapshots=${INCREM}."
 
     # submit a job in detached mode and let it run
     run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
@@ -126,6 +123,8 @@ function run_ha_test() {
     local neededTaskmanagers=$(( (${PARALLELISM} + ${TASK_SLOTS_PER_TM_HA} - 1)  / ${TASK_SLOTS_PER_TM_HA} ))
     start_taskmanagers ${neededTaskmanagers}
 
+    wait_num_of_occurence_in_logs "Job [a-z0-9]+ is submitted." 1 "standalonejob"
+    JOB_ID=$(grep -E -o 'Job [a-z0-9]+ is submitted' $FLINK_LOG_DIR/*standalonejob*.log* | awk '{print $2}')
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
@@ -153,6 +152,5 @@ function run_ha_test() {
 STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
-ZOOKEEPER_VERSION=${4:-3.4}
 
-run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}
+run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}

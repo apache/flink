@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.IOReadableWritable;
 
 import java.io.IOException;
@@ -70,5 +71,10 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
         if (flushAlways) {
             flushAll();
         }
+    }
+
+    @VisibleForTesting
+    public ChannelSelector<T> getChannelSelector() {
+        return channelSelector;
     }
 }

@@ -30,7 +30,7 @@ public abstract class AlterPartitionOperation extends AlterTableOperation {
 
     public AlterPartitionOperation(
             ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
-        super(tableIdentifier);
+        super(tableIdentifier, false);
         this.partitionSpec = partitionSpec;
     }
 

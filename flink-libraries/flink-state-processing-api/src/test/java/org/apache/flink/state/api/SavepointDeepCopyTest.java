@@ -21,16 +21,17 @@ package org.apache.flink.state.api;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.utils.JobResultRetriever;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
@@ -42,13 +43,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertThat;
@@ -57,9 +62,10 @@ import static org.junit.Assert.assertThat;
 @RunWith(value = Parameterized.class)
 public class SavepointDeepCopyTest extends AbstractTestBase {
 
+    private static final MemorySize FILE_STATE_SIZE_THRESHOLD = new MemorySize(1);
+
     private static final String TEXT = "The quick brown fox jumps over the lazy dog";
     private static final String RANDOM_VALUE = RandomStringUtils.randomAlphanumeric(120);
-    private static final int FILE_STATE_SIZE_THRESHOLD = 1;
 
     private final StateBackend backend;
 
@@ -69,11 +75,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
 
     @Parameterized.Parameters(name = "State Backend: {0}")
     public static Collection<StateBackend> data() {
-        return Arrays.asList(
-                new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD),
-                new RocksDBStateBackend(
-                        new FsStateBackend(
-                                new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD)));
+        return Arrays.asList(new HashMapStateBackend(), new EmbeddedRocksDBStateBackend());
     }
 
     /** To bootstrapper a savepoint for testing. */
@@ -132,15 +134,11 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
      */
     @Test
     public void testSavepointDeepCopy() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // set up the execution environment
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataStream<String> words = env.fromElements(TEXT.split(" "));
 
-        // construct DataSet
-        DataSet<String> words = env.fromElements(TEXT.split(" "));
-
-        // create BootstrapTransformation
-        BootstrapTransformation<String> transformation =
+        StateBootstrapTransformation<String> transformation =
                 OperatorTransformation.bootstrapWith(words)
                         .keyBy(e -> e)
                         .transform(new WordMapBootstrapper());
@@ -148,56 +146,65 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         File savepointUrl1 = createAndRegisterTempFile(new AbstractID().toHexString());
         String savepointPath1 = savepointUrl1.getPath();
 
-        // create a savepoint with BootstrapTransformations (one per operator)
-        // write the created savepoint to a given path
-        Savepoint.create(backend, 128)
-                .withOperator("Operator1", transformation)
+        SavepointWriter.newSavepoint(env, backend, 128)
+                .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD)
+                .withOperator(OperatorIdentifier.forUid("Operator1"), transformation)
                 .write(savepointPath1);
 
         env.execute("bootstrap savepoint1");
 
+        Set<String> stateFiles1 = getFileNamesInDirectory(Paths.get(savepointPath1));
+
         Assert.assertTrue(
                 "Failed to bootstrap savepoint1 with additional state files",
-                Files.list(Paths.get(savepointPath1)).count() > 1);
-
-        Set<String> stateFiles1 =
-                Files.list(Paths.get(savepointPath1))
-                        .map(path -> path.getFileName().toString())
-                        .collect(Collectors.toSet());
+                stateFiles1.size() > 1);
 
         // create savepoint2 from savepoint1 created above
         File savepointUrl2 = createAndRegisterTempFile(new AbstractID().toHexString());
         String savepointPath2 = savepointUrl2.getPath();
 
-        ExistingSavepoint savepoint2 = Savepoint.load(env, savepointPath1, backend);
-        savepoint2.withOperator("Operator2", transformation).write(savepointPath2);
+        SavepointWriter savepoint2 =
+                SavepointWriter.fromExistingSavepoint(env, savepointPath1, backend)
+                        .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD);
+
+        savepoint2
+                .withOperator(OperatorIdentifier.forUid("Operator2"), transformation)
+                .write(savepointPath2);
         env.execute("create savepoint2");
+
+        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
 
         Assert.assertTrue(
                 "Failed to create savepoint2 from savepoint1 with additional state files",
-                Files.list(Paths.get(savepointPath2)).count() > 1);
-
-        Set<String> stateFiles2 =
-                Files.list(Paths.get(savepointPath2))
-                        .map(path -> path.getFileName().toString())
-                        .collect(Collectors.toSet());
+                stateFiles2.size() > 1);
 
         assertThat(
                 "At least one state file in savepoint1 are not in savepoint2",
                 stateFiles1,
                 everyItem(isIn(stateFiles2)));
 
-        // Try to load savepoint2 and read the state of "Operator1" (which has not been
+        // Try to fromExistingSavepoint savepoint2 and read the state of "Operator1" (which has not
+        // been
         // touched/changed when savepoint2
         // was created) and make sure the number of keys remain same
         long actuallyKeyNum =
-                Savepoint.load(env, savepointPath2, backend)
-                        .readKeyedState("Operator1", new ReadFunction())
-                        .count();
+                JobResultRetriever.collect(
+                                SavepointReader.read(env, savepointPath2, backend)
+                                        .readKeyedState(
+                                                OperatorIdentifier.forUid("Operator1"),
+                                                new ReadFunction()))
+                        .size();
+
         long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();
         Assert.assertEquals(
                 "Unexpected number of keys in the state of Operator1",
                 expectedKeyNum,
                 actuallyKeyNum);
+    }
+
+    private static Set<String> getFileNamesInDirectory(Path path) throws IOException {
+        try (Stream<Path> files = Files.list(path)) {
+            return files.map(file -> file.getFileName().toString()).collect(Collectors.toSet());
+        }
     }
 }

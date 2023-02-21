@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -53,7 +52,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
     }
 
     private static Configuration validateAndGetConfiguration(final Configuration configuration) {
-        if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+        if (!areExplicitEnvironmentsAllowed()) {
             throw new InvalidProgramException(
                     "The LocalStreamEnvironment cannot be used when submitting a program through a client, "
                             + "or running in a TestEnvironment context.");

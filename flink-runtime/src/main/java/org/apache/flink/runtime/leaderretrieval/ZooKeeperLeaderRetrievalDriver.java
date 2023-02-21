@@ -18,24 +18,23 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.UnhandledErrorListener;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.UUID;
 
@@ -47,22 +46,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link ZooKeeperLeaderElectionDriver}. The leader address as well as the current leader session
  * ID is retrieved from ZooKeeper.
  */
-public class ZooKeeperLeaderRetrievalDriver
-        implements LeaderRetrievalDriver, NodeCacheListener, UnhandledErrorListener {
+public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderRetrievalDriver.class);
 
     /** Connection to the used ZooKeeper quorum. */
     private final CuratorFramework client;
 
     /** Curator recipe to watch changes of a specific ZooKeeper node. */
-    private final NodeCache cache;
+    private final TreeCache cache;
 
-    private final String retrievalPath;
+    private final String connectionInformationPath;
 
     private final ConnectionStateListener connectionStateListener =
             (client, newState) -> handleStateChange(newState);
 
     private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
+
+    private final LeaderInformationClearancePolicy leaderInformationClearancePolicy;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -72,24 +72,31 @@ public class ZooKeeperLeaderRetrievalDriver
      * Creates a leader retrieval service which uses ZooKeeper to retrieve the leader information.
      *
      * @param client Client which constitutes the connection to the ZooKeeper quorum
-     * @param retrievalPath Path of the ZooKeeper node which contains the leader information
+     * @param path Path of the ZooKeeper node which contains the leader information
      * @param leaderRetrievalEventHandler Handler to notify the leader changes.
+     * @param leaderInformationClearancePolicy leaderInformationClearancePolicy controls when the
+     *     leader information is being cleared
      * @param fatalErrorHandler Fatal error handler
      */
     public ZooKeeperLeaderRetrievalDriver(
             CuratorFramework client,
-            String retrievalPath,
+            String path,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
+            LeaderInformationClearancePolicy leaderInformationClearancePolicy,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
         this.client = checkNotNull(client, "CuratorFramework client");
-        this.cache = new NodeCache(client, retrievalPath);
-        this.retrievalPath = checkNotNull(retrievalPath);
+        this.connectionInformationPath = ZooKeeperUtils.generateConnectionInformationPath(path);
+        this.cache =
+                ZooKeeperUtils.createTreeCache(
+                        client,
+                        connectionInformationPath,
+                        this::retrieveLeaderInformationFromZooKeeper);
+
         this.leaderRetrievalEventHandler = checkNotNull(leaderRetrievalEventHandler);
+        this.leaderInformationClearancePolicy = leaderInformationClearancePolicy;
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
-        client.getUnhandledErrorListenable().addListener(this);
-        cache.getListenable().addListener(this);
         cache.start();
 
         client.getConnectionStateListenable().addListener(connectionStateListener);
@@ -107,26 +114,16 @@ public class ZooKeeperLeaderRetrievalDriver
 
         LOG.info("Closing {}.", this);
 
-        client.getUnhandledErrorListenable().removeListener(this);
         client.getConnectionStateListenable().removeListener(connectionStateListener);
 
-        try {
-            cache.close();
-        } catch (IOException e) {
-            throw new Exception("Could not properly stop the ZooKeeperLeaderRetrievalDriver.", e);
-        }
-    }
-
-    @Override
-    public void nodeChanged() {
-        retrieveLeaderInformationFromZooKeeper();
+        cache.close();
     }
 
     private void retrieveLeaderInformationFromZooKeeper() {
         try {
             LOG.debug("Leader node has changed.");
 
-            final ChildData childData = cache.getCurrentData();
+            final ChildData childData = cache.getCurrentData(connectionInformationPath);
 
             if (childData != null) {
                 final byte[] data = childData.getData();
@@ -141,7 +138,7 @@ public class ZooKeeperLeaderRetrievalDriver
                     return;
                 }
             }
-            leaderRetrievalEventHandler.notifyLeaderAddress(LeaderInformation.empty());
+            notifyNoLeader();
         } catch (Exception e) {
             fatalErrorHandler.onFatalError(
                     new LeaderRetrievalException("Could not handle node changed event.", e));
@@ -155,10 +152,11 @@ public class ZooKeeperLeaderRetrievalDriver
                 LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
                 break;
             case SUSPENDED:
-                LOG.warn(
-                        "Connection to ZooKeeper suspended. Can no longer retrieve the leader from "
-                                + "ZooKeeper.");
-                leaderRetrievalEventHandler.notifyLeaderAddress(LeaderInformation.empty());
+                LOG.warn("Connection to ZooKeeper suspended, waiting for reconnection.");
+                if (leaderInformationClearancePolicy
+                        == LeaderInformationClearancePolicy.ON_SUSPENDED_CONNECTION) {
+                    notifyNoLeader();
+                }
                 break;
             case RECONNECTED:
                 LOG.info(
@@ -169,9 +167,13 @@ public class ZooKeeperLeaderRetrievalDriver
                 LOG.warn(
                         "Connection to ZooKeeper lost. Can no longer retrieve the leader from "
                                 + "ZooKeeper.");
-                leaderRetrievalEventHandler.notifyLeaderAddress(LeaderInformation.empty());
+                notifyNoLeader();
                 break;
         }
+    }
+
+    private void notifyNoLeader() {
+        leaderRetrievalEventHandler.notifyLeaderAddress(LeaderInformation.empty());
     }
 
     private void onReconnectedConnectionState() {
@@ -180,14 +182,25 @@ public class ZooKeeperLeaderRetrievalDriver
     }
 
     @Override
-    public void unhandledError(String s, Throwable throwable) {
-        fatalErrorHandler.onFatalError(
-                new LeaderRetrievalException(
-                        "Unhandled error in ZooKeeperLeaderRetrievalDriver:" + s, throwable));
+    public String toString() {
+        return "ZookeeperLeaderRetrievalDriver{"
+                + "connectionInformationPath='"
+                + connectionInformationPath
+                + '\''
+                + '}';
     }
 
-    @Override
-    public String toString() {
-        return "ZookeeperLeaderRetrievalDriver{" + "retrievalPath='" + retrievalPath + '\'' + '}';
+    @VisibleForTesting
+    public String getConnectionInformationPath() {
+        return connectionInformationPath;
+    }
+
+    /** Policy when to clear the leader information and to notify the listener about it. */
+    public enum LeaderInformationClearancePolicy {
+        // clear the leader information as soon as the ZK connection is suspended
+        ON_SUSPENDED_CONNECTION,
+
+        // clear the leader information only once the ZK connection is lost
+        ON_LOST_CONNECTION
     }
 }

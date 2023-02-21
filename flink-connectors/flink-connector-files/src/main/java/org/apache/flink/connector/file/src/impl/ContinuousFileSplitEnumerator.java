@@ -124,7 +124,8 @@ public class ContinuousFileSplitEnumerator
     }
 
     @Override
-    public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() throws Exception {
+    public PendingSplitsCheckpoint<FileSourceSplit> snapshotState(long checkpointId)
+            throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
                         splitAssigner.remainingSplits(), pathsAlreadyProcessed);

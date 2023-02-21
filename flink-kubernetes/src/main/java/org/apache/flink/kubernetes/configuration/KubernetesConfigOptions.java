@@ -23,17 +23,25 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ExternalResourceOptions;
+import org.apache.flink.configuration.FallbackKey;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.kubernetes.kubeclient.services.ClusterIPService;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
+import org.apache.flink.kubernetes.kubeclient.services.LoadBalancerService;
+import org.apache.flink.kubernetes.kubeclient.services.NodePortService;
+import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** This class holds configuration constants used by Flink's kubernetes runners. */
 @PublicEvolving
@@ -54,10 +62,29 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<ServiceExposedType> REST_SERVICE_EXPOSED_TYPE =
             key("kubernetes.rest-service.exposed.type")
                     .enumType(ServiceExposedType.class)
-                    .defaultValue(ServiceExposedType.LoadBalancer)
+                    .defaultValue(ServiceExposedType.ClusterIP)
                     .withDescription(
-                            "The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). "
+                            "The exposed type of the rest service. "
                                     + "The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.");
+
+    public static final ConfigOption<NodePortAddressType>
+            REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE =
+                    key("kubernetes.rest-service.exposed.node-port-address-type")
+                            .enumType(NodePortAddressType.class)
+                            .defaultValue(NodePortAddressType.InternalIP)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "The user-specified %s that is used for filtering node IPs when constructing a %s connection string. This option is only considered when '%s' is set to '%s'.",
+                                                    link(
+                                                            "https://kubernetes.io/docs/concepts/architecture/nodes/#addresses",
+                                                            "address type"),
+                                                    link(
+                                                            "https://kubernetes.io/docs/concepts/services-networking/service/#nodeport",
+                                                            "node port"),
+                                                    text(REST_SERVICE_EXPOSED_TYPE.key()),
+                                                    text(ServiceExposedType.NodePort.name()))
+                                            .build());
 
     public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
             key("kubernetes.jobmanager.service-account")
@@ -112,29 +139,63 @@ public class KubernetesConfigOptions {
                                                     + "apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;"
                                                     + "apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid",
                                             link(
-                                                    "https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup",
+                                                    "https://nightlies.apache.org/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup",
                                                     "Owner References"))
                                     .build());
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
-            key("kubernetes.jobmanager.cpu")
+            key("kubernetes.jobmanager.cpu.amount")
                     .doubleType()
                     .defaultValue(1.0)
+                    .withDeprecatedKeys("kubernetes.jobmanager.cpu")
                     .withDescription("The number of cpu used by job manager");
 
+    public static final ConfigOption<Double> JOB_MANAGER_CPU_LIMIT_FACTOR =
+            key("kubernetes.jobmanager.cpu.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of cpu used by job manager. "
+                                    + "The resources limit cpu will be set to cpu * limit-factor.");
+
+    public static final ConfigOption<Double> JOB_MANAGER_MEMORY_LIMIT_FACTOR =
+            key("kubernetes.jobmanager.memory.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of memory used by job manager. "
+                                    + "The resources limit memory will be set to memory * limit-factor.");
+
     public static final ConfigOption<Double> TASK_MANAGER_CPU =
-            key("kubernetes.taskmanager.cpu")
+            key("kubernetes.taskmanager.cpu.amount")
                     .doubleType()
                     .defaultValue(-1.0)
+                    .withDeprecatedKeys("kubernetes.taskmanager.cpu")
                     .withDescription(
                             "The number of cpu used by task manager. By default, the cpu is set "
                                     + "to the number of slots per TaskManager");
+
+    public static final ConfigOption<Double> TASK_MANAGER_CPU_LIMIT_FACTOR =
+            key("kubernetes.taskmanager.cpu.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of cpu used by task manager. "
+                                    + "The resources limit cpu will be set to cpu * limit-factor.");
+
+    public static final ConfigOption<Double> TASK_MANAGER_MEMORY_LIMIT_FACTOR =
+            key("kubernetes.taskmanager.memory.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of memory used by task manager. "
+                                    + "The resources limit memory will be set to memory * limit-factor.");
 
     public static final ConfigOption<ImagePullPolicy> CONTAINER_IMAGE_PULL_POLICY =
             key("kubernetes.container.image.pull-policy")
                     .enumType(ImagePullPolicy.class)
                     .defaultValue(ImagePullPolicy.IfNotPresent)
                     .withDescription(
-                            "The Kubernetes container image pull policy (IfNotPresent or Always or Never). "
+                            "The Kubernetes container image pull policy. "
                                     + "The default policy is IfNotPresent to avoid putting pressure to image repository.");
 
     public static final ConfigOption<List<String>> CONTAINER_IMAGE_PULL_SECRETS =
@@ -210,9 +271,10 @@ public class KubernetesConfigOptions {
     @Documentation.OverrideDefault(
             "The default value depends on the actually running version. In general it looks like \"flink:<FLINK_VERSION>-scala_<SCALA_VERSION>\"")
     public static final ConfigOption<String> CONTAINER_IMAGE =
-            key("kubernetes.container.image")
+            key("kubernetes.container.image.ref")
                     .stringType()
                     .defaultValue(getDefaultFlinkImage())
+                    .withDeprecatedKeys("kubernetes.container.image")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -245,9 +307,10 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<String> FLINK_LOG_DIR =
             key("kubernetes.flink.log.dir")
                     .stringType()
-                    .defaultValue("/opt/flink/log")
+                    .noDefaultValue()
                     .withDescription(
-                            "The directory that logs of jobmanager and taskmanager be saved in the pod.");
+                            "The directory that logs of jobmanager and taskmanager be saved in the pod. "
+                                    + "The default value is $FLINK_HOME/log.");
 
     public static final ConfigOption<String> HADOOP_CONF_CONFIG_MAP =
             key("kubernetes.hadoop.conf.config-map.name")
@@ -272,6 +335,18 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The user-specified annotations that are set to the TaskManager pod. The value could be "
                                     + "in the form of a1:v1,a2:v2");
+
+    public static final ConfigOption<String> KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS =
+            key("kubernetes.jobmanager.entrypoint.args")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription("Extra arguments used when starting the job manager.");
+
+    public static final ConfigOption<String> KUBERNETES_TASKMANAGER_ENTRYPOINT_ARGS =
+            key("kubernetes.taskmanager.entrypoint.args")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription("Extra arguments used when starting the task manager.");
 
     public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_TOLERATIONS =
             key("kubernetes.jobmanager.tolerations")
@@ -365,53 +440,16 @@ public class KubernetesConfigOptions {
                                             code("FlinkKubeClient#checkAndUpdateConfigMap"))
                                     .build());
 
-    public static final ConfigOption<String> JOB_MANAGER_POD_TEMPLATE =
-            key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".jobmanager")
-                    .stringType()
-                    .noDefaultValue()
-                    .withFallbackKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
-                    .withDescription(
-                            "Specify a local file that contains the jobmanager pod template definition. "
-                                    + "It will be used to initialize the jobmanager pod. "
-                                    + "The main container should be defined with name '"
-                                    + Constants.MAIN_CONTAINER_NAME
-                                    + "'. If not explicitly configured, config option '"
-                                    + KUBERNETES_POD_TEMPLATE_FILE_KEY
-                                    + "' will be used.");
+    public static final ConfigOption<String> JOB_MANAGER_POD_TEMPLATE;
 
-    public static final ConfigOption<String> TASK_MANAGER_POD_TEMPLATE =
-            key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".taskmanager")
-                    .stringType()
-                    .noDefaultValue()
-                    .withFallbackKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
-                    .withDescription(
-                            "Specify a local file that contains the taskmanager pod template definition. "
-                                    + "It will be used to initialize the taskmanager pod. "
-                                    + "The main container should be defined with name '"
-                                    + Constants.MAIN_CONTAINER_NAME
-                                    + "'. If not explicitly configured, config option '"
-                                    + KUBERNETES_POD_TEMPLATE_FILE_KEY
-                                    + "' will be used.");
+    public static final ConfigOption<String> TASK_MANAGER_POD_TEMPLATE;
 
     /**
      * This option is here only for documentation generation, it is the fallback key of
      * JOB_MANAGER_POD_TEMPLATE and TASK_MANAGER_POD_TEMPLATE.
      */
     @SuppressWarnings("unused")
-    public static final ConfigOption<String> KUBERNETES_POD_TEMPLATE =
-            key(KUBERNETES_POD_TEMPLATE_FILE_KEY)
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Specify a local file that contains the pod template definition. "
-                                    + "It will be used to initialize the jobmanager and taskmanager pod. "
-                                    + "The main container should be defined with name '"
-                                    + Constants.MAIN_CONTAINER_NAME
-                                    + "'. Notice that this can be overwritten by config options '"
-                                    + JOB_MANAGER_POD_TEMPLATE.key()
-                                    + "' and '"
-                                    + TASK_MANAGER_POD_TEMPLATE.key()
-                                    + "' for jobmanager and taskmanager respectively.");
+    public static final ConfigOption<String> KUBERNETES_POD_TEMPLATE;
 
     public static final ConfigOption<Integer> KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE =
             ConfigOptions.key("kubernetes.client.io-pool.size")
@@ -421,6 +459,64 @@ public class KubernetesConfigOptions {
                             "The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations "
                                     + "(e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). "
                                     + "Increasing the pool size allows to run more IO operations concurrently.");
+
+    public static final ConfigOption<Integer> KUBERNETES_JOBMANAGER_REPLICAS =
+            key("kubernetes.jobmanager.replicas")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "Specify how many JobManager pods will be started simultaneously. "
+                                    + "Configure the value to greater than 1 to start standby JobManagers. "
+                                    + "It will help to achieve faster recovery. "
+                                    + "Notice that high availability should be enabled when starting standby JobManagers.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_HOSTNETWORK_ENABLED =
+            key("kubernetes.hostnetwork.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable HostNetwork mode. "
+                                    + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
+
+    public static final ConfigOption<String> KUBERNETES_CLIENT_USER_AGENT =
+            key("kubernetes.client.user-agent")
+                    .stringType()
+                    .defaultValue("flink")
+                    .withDescription(
+                            "The user agent to be used for contacting with Kubernetes APIServer.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED =
+            key("kubernetes.decorator.hadoop-conf-mount.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable Hadoop configuration mount decorator. This "
+                                    + "must be set to false when Hadoop config is mounted outside of "
+                                    + "Flink. A typical use-case is when one uses Flink Kubernetes "
+                                    + "Operator.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED =
+            key("kubernetes.decorator.kerberos-mount.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable Kerberos mount decorator. This must be set "
+                                    + "to false when Kerberos config and keytab is mounted outside of "
+                                    + "Flink. A typical use-case is when one uses Flink Kubernetes "
+                                    + "Operator.");
+
+    /**
+     * This will only be used to support blocklist mechanism, which is experimental currently, so we
+     * do not want to expose this option in the documentation.
+     */
+    @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<String> KUBERNETES_NODE_NAME_LABEL =
+            key("kubernetes.node-name-label")
+                    .stringType()
+                    .defaultValue("kubernetes.io/hostname")
+                    .withDescription(
+                            "The node label whose value is the same as the node name. "
+                                    + "Currently, this will only be used to set the node affinity of TM pods to avoid being scheduled on blocked nodes.");
 
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
@@ -440,9 +536,31 @@ public class KubernetesConfigOptions {
 
     /** The flink rest service exposed type. */
     public enum ServiceExposedType {
-        ClusterIP,
-        NodePort,
-        LoadBalancer
+        ClusterIP(ClusterIPService.INSTANCE),
+        NodePort(NodePortService.INSTANCE),
+        LoadBalancer(LoadBalancerService.INSTANCE),
+        Headless_ClusterIP(HeadlessClusterIPService.INSTANCE);
+
+        private final ServiceType serviceType;
+
+        ServiceExposedType(ServiceType serviceType) {
+            this.serviceType = serviceType;
+        }
+
+        public ServiceType serviceType() {
+            return serviceType;
+        }
+
+        /** Check whether it is ClusterIP type. */
+        public boolean isClusterIP() {
+            return this == ClusterIP || this == Headless_ClusterIP;
+        }
+    }
+
+    /** The flink rest service exposed type. */
+    public enum NodePortAddressType {
+        InternalIP,
+        ExternalIP,
     }
 
     /** The container image pull policy. */
@@ -450,6 +568,63 @@ public class KubernetesConfigOptions {
         IfNotPresent,
         Always,
         Never
+    }
+
+    static {
+        final ConfigOption<String> defaultPodTemplate =
+                key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".default")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDeprecatedKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY);
+
+        JOB_MANAGER_POD_TEMPLATE =
+                key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".jobmanager")
+                        .stringType()
+                        .noDefaultValue()
+                        .withFallbackKeys(defaultPodTemplate.key())
+                        .withFallbackKeys(getDeprecatedKeys(defaultPodTemplate))
+                        .withDescription(
+                                "Specify a local file that contains the jobmanager pod template definition. "
+                                        + "It will be used to initialize the jobmanager pod. "
+                                        + "The main container should be defined with name '"
+                                        + Constants.MAIN_CONTAINER_NAME
+                                        + "'. If not explicitly configured, config option '"
+                                        + defaultPodTemplate.key()
+                                        + "' will be used.");
+
+        TASK_MANAGER_POD_TEMPLATE =
+                key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".taskmanager")
+                        .stringType()
+                        .noDefaultValue()
+                        .withFallbackKeys(defaultPodTemplate.key())
+                        .withFallbackKeys(getDeprecatedKeys(defaultPodTemplate))
+                        .withDescription(
+                                "Specify a local file that contains the taskmanager pod template definition. "
+                                        + "It will be used to initialize the taskmanager pod. "
+                                        + "The main container should be defined with name '"
+                                        + Constants.MAIN_CONTAINER_NAME
+                                        + "'. If not explicitly configured, config option '"
+                                        + defaultPodTemplate.key()
+                                        + "' will be used.");
+
+        KUBERNETES_POD_TEMPLATE =
+                defaultPodTemplate.withDescription(
+                        "Specify a local file that contains the pod template definition. "
+                                + "It will be used to initialize the jobmanager and taskmanager pod. "
+                                + "The main container should be defined with name '"
+                                + Constants.MAIN_CONTAINER_NAME
+                                + "'. Notice that this can be overwritten by config options '"
+                                + JOB_MANAGER_POD_TEMPLATE.key()
+                                + "' and '"
+                                + TASK_MANAGER_POD_TEMPLATE.key()
+                                + "' for jobmanager and taskmanager respectively.");
+    }
+
+    private static String[] getDeprecatedKeys(ConfigOption<?> from) {
+        return StreamSupport.stream(from.fallbackKeys().spliterator(), false)
+                .filter(FallbackKey::isDeprecated)
+                .map(FallbackKey::getKey)
+                .toArray(String[]::new);
     }
 
     /** This class is not meant to be instantiated. */

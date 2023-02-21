@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -72,18 +71,13 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             new WriteAndFlushNextMessageIfPossibleListener();
 
     /**
-     * Set of cancelled partition requests. A request is cancelled iff an input channel is cleared
-     * while data is still coming in for this channel.
-     */
-    private final ConcurrentMap<InputChannelID, InputChannelID> cancelled =
-            new ConcurrentHashMap<>();
-
-    /**
      * The channel handler context is initialized in channel active event by netty thread, the
      * context may also be accessed by task thread or canceler thread to cancel partition request
      * during releasing resources.
      */
     private volatile ChannelHandlerContext ctx;
+
+    private ConnectionID connectionID;
 
     // ------------------------------------------------------------------------
     // Input channel/receiver registration
@@ -112,29 +106,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             return;
         }
 
-        if (cancelled.putIfAbsent(inputChannelId, inputChannelId) == null) {
-            ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
-        }
-    }
-
-    @Override
-    public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new AddCreditMessage(inputChannel)));
-    }
-
-    @Override
-    public void resumeConsumption(RemoteInputChannel inputChannel) {
-        ctx.executor()
-                .execute(
-                        () ->
-                                ctx.pipeline()
-                                        .fireUserEventTriggered(
-                                                new ResumeConsumptionMessage(inputChannel)));
+        ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
     }
 
     // ------------------------------------------------------------------------
@@ -152,19 +124,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        // Unexpected close. In normal operation, the client closes the connection after all input
-        // channels have been removed. This indicates a problem with the remote task manager.
-        if (!inputChannels.isEmpty()) {
-            final SocketAddress remoteAddr = ctx.channel().remoteAddress();
+        final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
-            notifyAllChannelsOfErrorAndClose(
-                    new RemoteTransportException(
-                            "Connection unexpectedly closed by remote task manager '"
-                                    + remoteAddr
-                                    + "'. "
-                                    + "This might indicate that the remote task manager was lost.",
-                            remoteAddr));
-        }
+        notifyAllChannelsOfErrorAndClose(
+                new RemoteTransportException(
+                        "Connection unexpectedly closed by remote task manager '"
+                                + remoteAddr
+                                + " [ "
+                                + connectionID.getResourceID().getStringWithMetadata()
+                                + " ] "
+                                + "'. "
+                                + "This might indicate that the remote task manager was lost.",
+                        remoteAddr));
 
         super.channelInactive(ctx);
     }
@@ -184,12 +155,15 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             final TransportException tex;
 
             // Improve on the connection reset by peer error message
-            if (cause instanceof IOException
-                    && cause.getMessage().equals("Connection reset by peer")) {
+            if (cause.getMessage() != null
+                    && cause.getMessage().contains("Connection reset by peer")) {
                 tex =
                         new RemoteTransportException(
                                 "Lost connection to task manager '"
                                         + remoteAddr
+                                        + " [ "
+                                        + connectionID.getResourceID().getStringWithMetadata()
+                                        + " ] "
                                         + "'. "
                                         + "This indicates that the remote task manager was lost.",
                                 remoteAddr,
@@ -199,7 +173,10 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                 tex =
                         new LocalTransportException(
                                 String.format(
-                                        "%s (connection to '%s')", cause.getMessage(), remoteAddr),
+                                        "%s (connection to '%s [%s]')",
+                                        cause.getMessage(),
+                                        remoteAddr,
+                                        connectionID.getResourceID().getStringWithMetadata()),
                                 localAddr,
                                 cause);
             }
@@ -233,9 +210,21 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             if (triggerWrite) {
                 writeAndFlushNextMessageIfPossible(ctx.channel());
             }
+        } else if (msg instanceof ConnectionErrorMessage) {
+            notifyAllChannelsOfErrorAndClose(((ConnectionErrorMessage) msg).getCause());
         } else {
             ctx.fireUserEventTriggered(msg);
         }
+    }
+
+    @Override
+    public boolean hasChannelError() {
+        return channelError.get() != null;
+    }
+
+    @Override
+    public void setConnectionId(ConnectionID connectionId) {
+        this.connectionID = checkNotNull(connectionId);
     }
 
     @Override
@@ -243,7 +232,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         writeAndFlushNextMessageIfPossible(ctx.channel());
     }
 
-    private void notifyAllChannelsOfErrorAndClose(Throwable cause) {
+    @VisibleForTesting
+    void notifyAllChannelsOfErrorAndClose(Throwable cause) {
         if (channelError.compareAndSet(null, cause)) {
             try {
                 for (RemoteInputChannel inputChannel : inputChannels.values()) {
@@ -281,7 +271,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         }
     }
 
-    private void decodeMsg(Object msg) throws Throwable {
+    private void decodeMsg(Object msg) {
         final Class<?> msgClazz = msg.getClass();
 
         // ---- Buffer --------------------------------------------------------
@@ -312,7 +302,12 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             if (error.isFatalError()) {
                 notifyAllChannelsOfErrorAndClose(
                         new RemoteTransportException(
-                                "Fatal error at remote task manager '" + remoteAddr + "'.",
+                                "Fatal error at remote task manager '"
+                                        + remoteAddr
+                                        + " [ "
+                                        + connectionID.getResourceID().getStringWithMetadata()
+                                        + " ] "
+                                        + "'.",
                                 remoteAddr,
                                 error.cause));
             } else {
@@ -324,11 +319,32 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     } else {
                         inputChannel.onError(
                                 new RemoteTransportException(
-                                        "Error at remote task manager '" + remoteAddr + "'.",
+                                        "Error at remote task manager '"
+                                                + remoteAddr
+                                                + " [ "
+                                                + connectionID
+                                                        .getResourceID()
+                                                        .getStringWithMetadata()
+                                                + " ] "
+                                                + "'.",
                                         remoteAddr,
                                         error.cause));
                     }
                 }
+            }
+        } else if (msgClazz == NettyMessage.BacklogAnnouncement.class) {
+            NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) msg;
+
+            RemoteInputChannel inputChannel = inputChannels.get(announcement.receiverId);
+            if (inputChannel == null || inputChannel.isReleased()) {
+                cancelRequestFor(announcement.receiverId);
+                return;
+            }
+
+            try {
+                inputChannel.onSenderBacklog(announcement.backlog);
+            } catch (Throwable throwable) {
+                inputChannel.onError(throwable);
             }
         } else {
             throw new IllegalStateException(
@@ -373,6 +389,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             // It is no need to notify credit or resume data consumption for the released channel.
             if (!outboundMessage.inputChannel.isReleased()) {
                 Object msg = outboundMessage.buildMessage();
+                if (msg == null) {
+                    continue;
+                }
 
                 // Write and flush and wait until this is done before
                 // trying to continue with the next input channel.
@@ -399,41 +418,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             } catch (Throwable t) {
                 notifyAllChannelsOfErrorAndClose(t);
             }
-        }
-    }
-
-    private abstract static class ClientOutboundMessage {
-        protected final RemoteInputChannel inputChannel;
-
-        ClientOutboundMessage(RemoteInputChannel inputChannel) {
-            this.inputChannel = inputChannel;
-        }
-
-        abstract Object buildMessage();
-    }
-
-    private static class AddCreditMessage extends ClientOutboundMessage {
-
-        AddCreditMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        public Object buildMessage() {
-            return new AddCredit(
-                    inputChannel.getAndResetUnannouncedCredit(), inputChannel.getInputChannelId());
-        }
-    }
-
-    private static class ResumeConsumptionMessage extends ClientOutboundMessage {
-
-        ResumeConsumptionMessage(RemoteInputChannel inputChannel) {
-            super(checkNotNull(inputChannel));
-        }
-
-        @Override
-        Object buildMessage() {
-            return new ResumeConsumption(inputChannel.getInputChannelId());
         }
     }
 }

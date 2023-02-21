@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.factories.TableFormatFactory;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
@@ -41,20 +40,10 @@ import java.util.Optional;
 
 import static java.lang.String.format;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME;
-import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
-import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_SERIALIZED;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD;
-import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_CLASS;
-import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_DELAY;
-import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_SERIALIZED;
-import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
@@ -62,8 +51,13 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
-/** Validator for {@link Schema}. */
+/**
+ * Validator for {@link Schema}.
+ *
+ * @deprecated See {@link Schema} for details.
+ */
 @PublicEvolving
+@Deprecated
 public class SchemaValidator implements DescriptorValidator {
 
     private final boolean isStreamEnvironment;
@@ -132,44 +126,6 @@ public class SchemaValidator implements DescriptorValidator {
                 properties.validateExclusion(proctime);
             }
         }
-    }
-
-    /**
-     * Returns keys for a {@link TableFormatFactory#supportedProperties()} method that are accepted
-     * for schema derivation using {@code deriveFormatFields(DescriptorProperties)}.
-     */
-    public static List<String> getSchemaDerivationKeys() {
-        List<String> keys = new ArrayList<>();
-
-        // schema
-        keys.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
-        keys.add(SCHEMA + ".#." + SCHEMA_TYPE);
-        keys.add(SCHEMA + ".#." + SCHEMA_NAME);
-        keys.add(SCHEMA + ".#." + SCHEMA_FROM);
-        // computed column
-        keys.add(SCHEMA + ".#." + EXPR);
-
-        // time attributes
-        keys.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
-        keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
-        keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
-        keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_CLASS);
-        keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED);
-        keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
-        keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
-        keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
-        keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
-
-        // watermark
-        keys.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_ROWTIME);
-        keys.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
-        keys.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
-
-        // table constraint
-        keys.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-        keys.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
-
-        return keys;
     }
 
     /** Finds the proctime attribute if defined. */

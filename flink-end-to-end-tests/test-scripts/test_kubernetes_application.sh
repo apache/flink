@@ -45,7 +45,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
 "$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
+    -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME} \
     -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
@@ -59,4 +59,4 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 # The Flink cluster will be destroyed immediately once the job finished or failed. So we check jobmanager logs
 # instead of checking the result
 kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
-grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
+grep -E "Job [A-Za-z0-9]+ reached terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log

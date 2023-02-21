@@ -28,10 +28,10 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import java.io.IOException;
@@ -57,8 +57,13 @@ import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOC
  * Row}.
  *
  * <p>Failure during deserialization are forwarded as wrapped {@link IOException}s.
+ *
+ * @deprecated The format was developed for the Table API users and will not be maintained for
+ *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
+ *     own {@link DeserializationSchema}.
  */
 @PublicEvolving
+@Deprecated
 public final class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 
     private static final long serialVersionUID = 2135553495874539201L;
@@ -73,7 +78,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
     private final CsvSchema csvSchema;
 
     /** Object reader used to read rows. It is configured by {@link CsvSchema}. */
-    private final ObjectReader objectReader;
+    private transient ObjectReader objectReader;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
@@ -83,8 +88,13 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
         this.typeInfo = typeInfo;
         this.runtimeConverter = createRowRuntimeConverter(typeInfo, ignoreParseErrors, true);
         this.csvSchema = csvSchema;
-        this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
         this.ignoreParseErrors = ignoreParseErrors;
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        objectReader =
+                JacksonMapperFactory.createCsvMapper().readerFor(JsonNode.class).with(csvSchema);
     }
 
     /** A builder for creating a {@link CsvRowDeserializationSchema}. */
@@ -321,7 +331,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
         } else if (info.equals(Types.LOCAL_TIME)) {
             return (node) -> Time.valueOf(node.asText()).toLocalTime();
         } else if (info.equals(Types.LOCAL_DATE_TIME)) {
-            return (node) -> LocalDateTime.parse(node.asText(), SQL_TIMESTAMP_FORMAT);
+            return (node) -> LocalDateTime.parse(node.asText().trim(), SQL_TIMESTAMP_FORMAT);
         } else if (info.equals(Types.INSTANT)) {
             return (node) ->
                     LocalDateTime.parse(node.asText(), SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT)

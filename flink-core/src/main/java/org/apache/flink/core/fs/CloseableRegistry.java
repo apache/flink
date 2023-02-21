@@ -19,16 +19,18 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.AbstractCloseableRegistry;
+import org.apache.flink.util.AbstractAutoCloseableRegistry;
+import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Lists.reverse;
 
 /**
  * This class allows to register instances of {@link Closeable}, which are all closed if this
@@ -42,7 +44,9 @@ import java.util.Map;
  * <p>This class closes all registered {@link Closeable}s in the reverse registration order.
  */
 @Internal
-public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
+public class CloseableRegistry
+        extends AbstractAutoCloseableRegistry<Closeable, Closeable, Object, IOException>
+        implements Closeable {
 
     private static final Object DUMMY = new Object();
 
@@ -62,10 +66,11 @@ public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Obje
         return closeableMap.remove(closeable) != null;
     }
 
+    /**
+     * This implementation doesn't imply any exception during closing due to backward compatibility.
+     */
     @Override
-    protected Collection<Closeable> getReferencesToClose() {
-        ArrayList<Closeable> closeablesToClose = new ArrayList<>(closeableToRef.keySet());
-        Collections.reverse(closeablesToClose);
-        return closeablesToClose;
+    public void doClose(List<Closeable> toClose) throws IOException {
+        IOUtils.closeAllQuietly(reverse(toClose));
     }
 }

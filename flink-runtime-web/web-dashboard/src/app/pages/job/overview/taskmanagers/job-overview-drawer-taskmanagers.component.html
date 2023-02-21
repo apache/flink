@@ -17,69 +17,85 @@
   -->
 
 <nz-table
-  class="no-border small full-height"
-  [nzSize]="'small'"
+  nzSize="small"
   [nzLoading]="isLoading"
   [nzData]="listOfTaskManager"
-  [nzScroll]="{x:'1500px',y:'calc( 100% - 35px )'}"
+  [nzScroll]="{ x: '1550px', y: 'calc( 100% - 36px )' }"
   [nzFrontPagination]="false"
-  [nzShowPagination]="false">
-  <thead (nzSortChange)="sort($event)" nzSingleSort>
+  [nzShowPagination]="false"
+  [nzVirtualItemSize]="virtualItemSize"
+  [nzVirtualMinBufferPx]="300"
+  [nzVirtualMaxBufferPx]="300"
+  [nzVirtualForTrackBy]="trackByHost"
+>
+  <thead>
     <tr>
-      <th nzWidth="160px" nzLeft="0px" nzShowSort nzSortKey="host">Host</th>
-      <th nzWidth="50px" nzLeft="160px">LOG</th>
-      <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-bytes">Bytes received</th>
-      <th nzWidth="150px" nzShowSort nzSortKey="metrics.read-records">Records received</th>
-      <th nzWidth="120px" nzShowSort nzSortKey="metrics.write-bytes">Bytes sent</th>
-      <th nzWidth="150px" nzShowSort nzSortKey="metrics.write-records">Records sent</th>
-      <th nzWidth="200px" nzShowSort nzSortKey="start-time">Start Time</th>
-      <th nzWidth="200px" nzShowSort nzSortKey="end-time">End Time</th>
-      <th nzWidth="100px" nzShowSort nzSortKey="duration">Duration</th>
+      <th nzWidth="160px" nzLeft [nzSortFn]="sortHostFn">Host</th>
+      <th nzWidth="150px" [nzSortFn]="sortReadBytesFn">Bytes received</th>
+      <th nzWidth="150px" [nzSortFn]="sortReadRecordsFn">Records received</th>
+      <th nzWidth="120px" [nzSortFn]="sortWriteBytesFn">Bytes sent</th>
+      <th nzWidth="150px" [nzSortFn]="sortWriteRecordsFn">Records sent</th>
+      <th nzWidth="200px" [nzSortFn]="sortStartTimeFn">Start Time</th>
+      <th nzWidth="200px" [nzSortFn]="sortEndTimeFn">End Time</th>
+      <th nzWidth="150px" [nzSortFn]="sortDurationFn">Duration</th>
       <th nzWidth="120px">Tasks</th>
-      <th nzWidth="100px" nzRight="0px" nzShowSort nzSortKey="status">Status</th>
+      <th nzWidth="100px" nzRight [nzSortFn]="sortStatusFn">Status</th>
+      <th nzWidth="50px" nzRight>More</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let taskManager of listOfTaskManager; trackBy:trackTaskManagerBy;">
-      <td nzLeft="0px">{{ taskManager.host }}</td>
-      <td nzLeft="160px">
-        <span *ngIf="!taskManager['taskmanager-id'] || taskManager['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
-        <ng-template #hrefTpl>
-          <a [routerLink]="['/task-manager',taskManager['taskmanager-id'],'logs']" target="_blank">LOG</a>
-        </ng-template>
-      </td>
-      <td>
-        <span *ngIf="taskManager.metrics['read-bytes-complete'];else loadingTemplate">
-          {{ taskManager.metrics['read-bytes'] | humanizeBytes }}
-        </span>
-      </td>
-      <td>
-        <span *ngIf="taskManager.metrics['read-records-complete'];else loadingTemplate">
-          {{ taskManager.metrics['read-records'] | number }}
-        </span>
-      </td>
-      <td>
-        <span *ngIf="taskManager.metrics['write-bytes-complete'];else loadingTemplate">
-          {{ taskManager.metrics['write-bytes'] | humanizeBytes }}
-        </span>
-      </td>
-      <td>
-        <span *ngIf="taskManager.metrics['write-records-complete'];else loadingTemplate">
-          {{ taskManager.metrics['write-records'] | number }}
-        </span>
-      </td>
-      <td>{{ taskManager['start-time'] | humanizeDate:'yyyy-MM-dd HH:mm:ss' }}</td>
-      <td>{{ taskManager['end-time'] | humanizeDate:'yyyy-MM-dd HH:mm:ss' }}</td>
-      <td>{{ taskManager['duration'] | humanizeDuration }}</td>
-      <td>
-        <flink-task-badge [tasks]="taskManager['status-counts']"></flink-task-badge>
-      </td>
-      <td nzRight="0px">
-        <flink-job-badge [state]="taskManager.status"></flink-job-badge>
-      </td>
-    </tr>
+    <ng-template nz-virtual-scroll let-data>
+      <ng-container *ngIf="narrowLogData(data) as taskManager">
+        <tr>
+          <td nzLeft>
+            <span class="ellipsis-cell">{{ taskManager.host }}</span>
+          </td>
+          <td>
+            <span *ngIf="taskManager['metrics']['read-bytes-complete']; else loadingTemplate">
+              {{ taskManager['metrics']['read-bytes'] | humanizeBytes }}
+            </span>
+          </td>
+          <td>
+            <span *ngIf="taskManager['metrics']['read-records-complete']; else loadingTemplate">
+              {{ taskManager['metrics']['read-records'] | number }}
+            </span>
+          </td>
+          <td>
+            <span *ngIf="taskManager['metrics']['write-bytes-complete']; else loadingTemplate">
+              {{ taskManager['metrics']['write-bytes'] | humanizeBytes }}
+            </span>
+          </td>
+          <td>
+            <span *ngIf="taskManager['metrics']['write-records-complete']; else loadingTemplate">
+              {{ taskManager['metrics']['write-records'] | number }}
+            </span>
+          </td>
+          <td>{{ taskManager['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ taskManager['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ taskManager['duration'] | humanizeDuration }}</td>
+          <td>
+            <flink-dynamic-host
+              [data]="{ tasks: taskManager['status-counts'] }"
+              [component]="taskCountBadgeComponent"
+            ></flink-dynamic-host>
+          </td>
+          <td nzRight>
+            <flink-dynamic-host
+              [data]="{ state: taskManager['status'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
+          </td>
+          <td nzRight>
+            <flink-dynamic-host
+              [data]="{ taskManager }"
+              [component]="actionComponent"
+            ></flink-dynamic-host>
+          </td>
+        </tr>
+      </ng-container>
+    </ng-template>
   </tbody>
 </nz-table>
 <ng-template #loadingTemplate>
-  <i nz-icon type="loading"></i>
+  <i nz-icon nzType="loading"></i>
 </ng-template>

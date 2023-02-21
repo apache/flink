@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
-import org.apache.flink.runtime.util.NonClosingOutpusStreamDecorator;
+import org.apache.flink.runtime.util.NonClosingOutputStreamDecorator;
 
 import org.xerial.snappy.SnappyFramedInputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
@@ -42,7 +42,7 @@ public class SnappyStreamCompressionDecorator extends StreamCompressionDecorator
     private static final double MIN_COMPRESSION_RATIO = 0.85d;
 
     @Override
-    protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream)
+    protected OutputStream decorateWithCompression(NonClosingOutputStreamDecorator stream)
             throws IOException {
         return new SnappyFramedOutputStream(stream, COMPRESSION_BLOCK_SIZE, MIN_COMPRESSION_RATIO);
     }

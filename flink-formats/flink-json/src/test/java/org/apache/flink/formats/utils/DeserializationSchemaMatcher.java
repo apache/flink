@@ -28,6 +28,7 @@ import org.hamcrest.TypeSafeMatcher;
 import java.io.IOException;
 import java.util.Objects;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.util.InstantiationUtil.deserializeObject;
 import static org.apache.flink.util.InstantiationUtil.serializeObject;
 
@@ -141,6 +142,7 @@ public abstract class DeserializationSchemaMatcher extends TypeSafeMatcher<byte[
                         deserializeObject(
                                 serializeObject(deserializationSchema),
                                 this.getClass().getClassLoader());
+                open(this.deserializationSchema);
             } catch (IOException | ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }

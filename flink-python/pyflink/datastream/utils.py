@@ -7,7 +7,7 @@
 #  "License"); you may not use this file except in compliance
 #  with the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,40 +18,75 @@
 import ast
 import datetime
 import pickle
+from abc import abstractmethod
 
-from pyflink.common.typeinfo import RowTypeInfo, TupleTypeInfo, Types, \
-    BasicArrayTypeInfo, \
-    PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo
+from pyflink.common import Row, RowKind, Configuration
+from pyflink.common.typeinfo import (RowTypeInfo, TupleTypeInfo, Types, BasicArrayTypeInfo,
+                                     PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo,
+                                     ObjectArrayTypeInfo, ExternalTypeInfo, TypeInformation)
 from pyflink.java_gateway import get_gateway
+
+
+class ResultTypeQueryable(object):
+
+    @abstractmethod
+    def get_produced_type(self) -> TypeInformation:
+        pass
+
+
+def create_hadoop_configuration(config: Configuration):
+    jvm = get_gateway().jvm
+    hadoop_config = jvm.org.apache.hadoop.conf.Configuration()
+    for k, v in config.to_dict().items():
+        hadoop_config.set(k, v)
+    return hadoop_config
+
+
+def create_java_properties(config: Configuration):
+    jvm = get_gateway().jvm
+    properties = jvm.java.util.Properties()
+    for k, v in config.to_dict().items():
+        properties.put(k, v)
+    return properties
 
 
 def convert_to_python_obj(data, type_info):
     if type_info == Types.PICKLED_BYTE_ARRAY():
         return pickle.loads(data)
+    elif isinstance(type_info, ExternalTypeInfo):
+        return convert_to_python_obj(data, type_info._type_info)
     else:
         gateway = get_gateway()
         pickle_bytes = gateway.jvm.PythonBridgeUtils. \
             getPickledBytesFromJavaObject(data, type_info.get_java_type_info())
         if isinstance(type_info, RowTypeInfo) or isinstance(type_info, TupleTypeInfo):
-            field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
+            if isinstance(type_info, RowTypeInfo):
+                field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
+            else:
+                field_data = zip(pickle_bytes, type_info.get_field_types())
             fields = []
             for data, field_type in field_data:
                 if len(data) == 0:
                     fields.append(None)
                 else:
                     fields.append(pickled_bytes_to_python_converter(data, field_type))
-            return tuple(fields)
+            if isinstance(type_info, RowTypeInfo):
+                return Row.of_kind(RowKind(int.from_bytes(pickle_bytes[0], 'little')), *fields)
+            else:
+                return tuple(fields)
         else:
             return pickled_bytes_to_python_converter(pickle_bytes, type_info)
 
 
 def pickled_bytes_to_python_converter(data, field_type):
     if isinstance(field_type, RowTypeInfo):
+        row_kind = RowKind(int.from_bytes(data[0], 'little'))
         data = zip(list(data[1:]), field_type.get_field_types())
         fields = []
         for d, d_type in data:
             fields.append(pickled_bytes_to_python_converter(d, d_type))
-        return tuple(fields)
+        row = Row.of_kind(row_kind, *fields)
+        return row
     else:
         data = pickle.loads(data)
         if field_type == Types.SQL_TIME():
@@ -65,8 +100,8 @@ def pickled_bytes_to_python_converter(data, field_type):
             return field_type.from_internal_type(int(data.timestamp() * 10 ** 6))
         elif field_type == Types.FLOAT():
             return field_type.from_internal_type(ast.literal_eval(data))
-        elif isinstance(field_type, BasicArrayTypeInfo) or \
-                isinstance(field_type, PrimitiveArrayTypeInfo):
+        elif isinstance(field_type,
+                        (BasicArrayTypeInfo, PrimitiveArrayTypeInfo, ObjectArrayTypeInfo)):
             element_type = field_type._element_type
             elements = []
             for element_bytes in data:

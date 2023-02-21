@@ -18,20 +18,48 @@
 
 @import "theme";
 
-:host {
+.handler {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
   display: block;
+  padding: 12px 0;
+  border: 1px solid @border-color-split;
+  background: @background-color-light;
+  font-size: 14px;
+  transform: translateY(-50%);
+
+  &.close {
+    left: -16px;
+    margin-top: -25px;
+  }
+
+  &.full {
+    left: -16px;
+    margin-top: 25px;
+  }
+
+  &:hover {
+    background: @primary-color;
+    color: #fff;
+  }
+}
+
+:host {
+  position: absolute;
+  top: 0;
+  right: 0;
   z-index: 10;
+  display: block;
   width: 60%;
   height: 100%;
-  position: absolute;
-  right: 0;
-  top: 0;
-  background: @component-background;
   border-left: solid 1px @border-color-split;
+  background: @component-background;
 
   &.full-width {
     width: 100%;
     border-left: none;
+
     .handler {
       &.close {
         left: -1px;
@@ -47,37 +75,14 @@
     .ant-tabs-bar {
       margin: 0;
     }
+
+    .ant-tabs-tab:first-of-type {
+      margin: 0 0 0 @margin-md;
+    }
   }
 }
 
 .drawer-content {
-  height: calc(~"100% - 34px");
   overflow: auto;
-}
-
-.handler {
-  z-index: 2;
-  font-size: 14px;
-  top: 50%;
-  display: block;
-  transform: translateY(-50%);
-  position: absolute;
-  background: @background-color-light;
-  padding: 12px 0;
-  border: 1px solid @border-color-split;
-
-  &.close {
-    left: -16px;
-    margin-top: -25px;
-  }
-
-  &.full {
-    left: -16px;
-    margin-top: 25px;
-  }
-
-  &:hover {
-    color: #ffffff;
-    background: @primary-color;
-  }
+  height: calc(~"100% - 38px");
 }

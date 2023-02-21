@@ -19,18 +19,24 @@
 package org.apache.flink.connector.hbase2.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.source.AbstractHBaseDynamicTableSource;
 import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
+
+import javax.annotation.Nullable;
+
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -38,13 +44,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
 
+    private final boolean lookupAsync;
+
     public HBaseDynamicTableSource(
             Configuration conf,
             String tableName,
             HBaseTableSchema hbaseSchema,
             String nullStringLiteral,
-            HBaseLookupOptions lookupOptions) {
-        super(conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+            int maxRetryTimes,
+            boolean lookupAsync,
+            @Nullable LookupCache cache) {
+        super(conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes, cache);
+        this.lookupAsync = lookupAsync;
     }
 
     @Override
@@ -56,27 +67,35 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
                 hbaseSchema.getRowKeyName().isPresent(),
                 "HBase schema must have a row key when used in lookup mode.");
         checkArgument(
-                hbaseSchema
-                        .convertsToTableSchema()
-                        .getTableColumn(context.getKeys()[0][0])
-                        .filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
-                        .isPresent(),
+                DataType.getFieldNames(hbaseSchema.convertToDataType())
+                        .get(context.getKeys()[0][0])
+                        .equals(hbaseSchema.getRowKeyName().get()),
                 "Currently, HBase table only supports lookup by rowkey field.");
-        if (lookupOptions.getLookupAsync()) {
-            return AsyncTableFunctionProvider.of(
+        if (lookupAsync) {
+            HBaseRowDataAsyncLookupFunction asyncLookupFunction =
                     new HBaseRowDataAsyncLookupFunction(
-                            conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
+                            conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes);
+            if (cache != null) {
+                return PartialCachingAsyncLookupProvider.of(asyncLookupFunction, cache);
+            } else {
+                return AsyncLookupFunctionProvider.of(asyncLookupFunction);
+            }
         } else {
-            return TableFunctionProvider.of(
+            HBaseRowDataLookupFunction lookupFunction =
                     new HBaseRowDataLookupFunction(
-                            conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
+                            conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes);
+            if (cache != null) {
+                return PartialCachingLookupProvider.of(lookupFunction, cache);
+            } else {
+                return LookupFunctionProvider.of(lookupFunction);
+            }
         }
     }
 
     @Override
     public DynamicTableSource copy() {
         return new HBaseDynamicTableSource(
-                conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+                conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes, lookupAsync, cache);
     }
 
     @Override
@@ -84,8 +103,24 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
         return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
     }
 
-    @VisibleForTesting
-    public HBaseLookupOptions getLookupOptions() {
-        return this.lookupOptions;
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof HBaseDynamicTableSource)) {
+            return false;
+        }
+        HBaseDynamicTableSource that = (HBaseDynamicTableSource) o;
+        return Objects.equals(conf, that.conf)
+                && Objects.equals(tableName, that.tableName)
+                && Objects.equals(hbaseSchema, that.hbaseSchema)
+                && Objects.equals(nullStringLiteral, that.nullStringLiteral)
+                && Objects.equals(maxRetryTimes, that.maxRetryTimes)
+                && Objects.equals(cache, that.cache)
+                && Objects.equals(lookupAsync, that.lookupAsync);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes, cache, lookupAsync);
     }
 }

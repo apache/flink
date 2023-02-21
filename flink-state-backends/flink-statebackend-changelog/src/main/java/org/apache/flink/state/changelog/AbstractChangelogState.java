@@ -21,6 +21,9 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Base class for changelog state wrappers of state objects.
  *
@@ -30,15 +33,30 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
  * @param <S> Type of originally wrapped state object
  */
 abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V>>
-        implements InternalKvState<K, N, V> {
-    protected final S delegatedState;
+        implements InternalKvState<K, N, V>, ChangelogState {
 
-    AbstractChangelogState(S state) {
-        this.delegatedState = state;
+    protected S delegatedState;
+    protected final KvStateChangeLogger<V, N> changeLogger;
+    private N currentNamespace;
+
+    AbstractChangelogState(S state, KvStateChangeLogger<V, N> changeLogger) {
+        checkArgument(!(state instanceof AbstractChangelogState));
+        this.delegatedState = checkNotNull(state);
+        this.changeLogger = checkNotNull(changeLogger);
     }
 
     public S getDelegatedState() {
         return delegatedState;
+    }
+
+    public StateChangeLogger<V, N> getStateChangeLogger() {
+        return changeLogger;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <IS> void setDelegatedState(IS state) {
+        this.delegatedState = (S) checkNotNull(state);
     }
 
     @Override
@@ -58,6 +76,7 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
 
     @Override
     public void setCurrentNamespace(N namespace) {
+        currentNamespace = namespace;
         delegatedState.setCurrentNamespace(namespace);
     }
 
@@ -79,5 +98,14 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
             int recommendedMaxNumberOfReturnedRecords) {
         return delegatedState.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+    }
+
+    @Override
+    public void resetWritingMetaFlag() {
+        changeLogger.resetWritingMetaFlag();
+    }
+
+    protected N getCurrentNamespace() throws NullPointerException {
+        return checkNotNull(currentNamespace);
     }
 }

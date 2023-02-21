@@ -14,15 +14,9 @@
 # limitations under the License.
 
 jobs:
-  - job: build_wheels
-    strategy:
-      matrix:
-        linux:
-          vm-label: 'ubuntu-16.04'
-        mac:
-          vm-label: 'macOS-10.15'
+  - job: build_wheels_on_Linux
     pool:
-      vmImage: $(vm-label)
+      vmImage: 'ubuntu-20.04'
     steps:
       - script: |
           cd flink-python
@@ -32,3 +26,21 @@ jobs:
         inputs:
           artifactName: 'wheel_$(Agent.OS)_$(Agent.JobName)'
           targetPath: 'flink-python/dist'
+
+  - job: build_wheels_on_macos
+    pool:
+      vmImage: 'macOS-latest'
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.9'
+      - script: |
+          cd flink-python
+          python -m pip install --upgrade pip
+          pip install cibuildwheel==2.8.0
+          cibuildwheel --platform macos --output-dir dist .
+      - task: PublishPipelineArtifact@0
+        inputs:
+          artifactName: 'wheel_$(Agent.OS)_$(Agent.JobName)'
+          targetPath: 'flink-python/dist'
+

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.FinishedOperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.FullyFinishedOperatorState;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
@@ -66,108 +69,143 @@ public class CheckpointTestUtils {
      * handles.
      *
      * @param basePath The basePath for savepoint, will be null for checkpoint.
-     * @param numTaskStates Number of tasks.
-     * @param numSubtasksPerTask Number of subtask for each task.
+     * @param numAllRunningTaskStates Number of tasks belong to all running vertex.
+     * @param numPartlyFinishedTaskStates Number of tasks belong to partly finished vertex.
+     * @param numFullyFinishedTaskStates Number of tasks belong to fully finished vertex.
+     * @param numSubtasksPerTask Number of subtasks for each task.
      */
     public static Collection<OperatorState> createOperatorStates(
-            Random random, @Nullable String basePath, int numTaskStates, int numSubtasksPerTask) {
+            Random random,
+            @Nullable String basePath,
+            int numAllRunningTaskStates,
+            int numPartlyFinishedTaskStates,
+            int numFullyFinishedTaskStates,
+            int numSubtasksPerTask) {
 
-        List<OperatorState> taskStates = new ArrayList<>(numTaskStates);
+        List<OperatorState> taskStates =
+                new ArrayList<>(
+                        numAllRunningTaskStates
+                                + numPartlyFinishedTaskStates
+                                + numFullyFinishedTaskStates);
 
-        for (int stateIdx = 0; stateIdx < numTaskStates; ++stateIdx) {
-
+        for (int stateIdx = 0; stateIdx < numAllRunningTaskStates; ++stateIdx) {
             OperatorState taskState = new OperatorState(new OperatorID(), numSubtasksPerTask, 128);
-
-            final boolean hasCoordinatorState = random.nextBoolean();
-            if (hasCoordinatorState) {
-                final ByteStreamStateHandle stateHandle =
-                        createDummyByteStreamStreamStateHandle(random);
-                taskState.setCoordinatorState(stateHandle);
-            }
-
-            boolean hasOperatorStateBackend = random.nextBoolean();
-            boolean hasOperatorStateStream = random.nextBoolean();
-
-            boolean hasKeyedBackend = random.nextInt(4) != 0;
-            boolean hasKeyedStream = random.nextInt(4) != 0;
-            boolean isIncremental = random.nextInt(3) == 0;
-
-            for (int subtaskIdx = 0; subtaskIdx < numSubtasksPerTask; subtaskIdx++) {
-
-                StreamStateHandle operatorStateBackend =
-                        new ByteStreamStateHandle(
-                                "b", ("Beautiful").getBytes(ConfigConstants.DEFAULT_CHARSET));
-                StreamStateHandle operatorStateStream =
-                        new ByteStreamStateHandle(
-                                "b", ("Beautiful").getBytes(ConfigConstants.DEFAULT_CHARSET));
-
-                Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
-                offsetsMap.put(
-                        "A",
-                        new OperatorStateHandle.StateMetaInfo(
-                                new long[] {0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
-                offsetsMap.put(
-                        "B",
-                        new OperatorStateHandle.StateMetaInfo(
-                                new long[] {30, 40, 50},
-                                OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
-                offsetsMap.put(
-                        "C",
-                        new OperatorStateHandle.StateMetaInfo(
-                                new long[] {60, 70, 80}, OperatorStateHandle.Mode.UNION));
-
-                final OperatorSubtaskState.Builder state = OperatorSubtaskState.builder();
-                if (hasOperatorStateBackend) {
-                    state.setManagedOperatorState(
-                            new OperatorStreamStateHandle(offsetsMap, operatorStateBackend));
-                }
-
-                if (hasOperatorStateStream) {
-                    state.setRawOperatorState(
-                            new OperatorStreamStateHandle(offsetsMap, operatorStateStream));
-                }
-
-                if (hasKeyedBackend) {
-                    final KeyedStateHandle stateHandle;
-                    if (isSavepoint(basePath)) {
-                        stateHandle = createDummyKeyGroupSavepointStateHandle(random, basePath);
-                    } else if (isIncremental) {
-                        stateHandle = createDummyIncrementalKeyedStateHandle(random);
-                    } else {
-                        stateHandle = createDummyKeyGroupStateHandle(random, null);
-                    }
-                    state.setRawKeyedState(stateHandle);
-                }
-
-                if (hasKeyedStream) {
-                    final KeyedStateHandle stateHandle;
-                    if (isSavepoint(basePath)) {
-                        stateHandle = createDummyKeyGroupSavepointStateHandle(random, basePath);
-                    } else {
-                        stateHandle = createDummyKeyGroupStateHandle(random, null);
-                    }
-                    state.setManagedKeyedState(stateHandle);
-                }
-
-                state.setInputChannelState(
-                        (random.nextBoolean() && !isSavepoint(basePath))
-                                ? singleton(
-                                        createNewInputChannelStateHandle(random.nextInt(5), random))
-                                : empty());
-                state.setResultSubpartitionState(
-                        (random.nextBoolean() && !isSavepoint(basePath))
-                                ? singleton(
-                                        createNewResultSubpartitionStateHandle(
-                                                random.nextInt(5), random))
-                                : empty());
-
-                taskState.putState(subtaskIdx, state.build());
-            }
-
+            randomlySetCoordinatorState(taskState, random);
+            randomlySetSubtaskState(
+                    taskState, IntStream.range(0, numSubtasksPerTask).toArray(), random, basePath);
             taskStates.add(taskState);
         }
 
+        for (int stateIdx = 0; stateIdx < numPartlyFinishedTaskStates; ++stateIdx) {
+            OperatorState taskState = new OperatorState(new OperatorID(), numSubtasksPerTask, 128);
+            randomlySetCoordinatorState(taskState, random);
+            randomlySetSubtaskState(
+                    taskState,
+                    IntStream.range(0, numSubtasksPerTask / 2).toArray(),
+                    random,
+                    basePath);
+            IntStream.range(numSubtasksPerTask / 2, numSubtasksPerTask)
+                    .forEach(
+                            index ->
+                                    taskState.putState(
+                                            index, FinishedOperatorSubtaskState.INSTANCE));
+            taskStates.add(taskState);
+        }
+
+        for (int stateIdx = 0; stateIdx < numFullyFinishedTaskStates; ++stateIdx) {
+            taskStates.add(
+                    new FullyFinishedOperatorState(new OperatorID(), numSubtasksPerTask, 128));
+        }
+
         return taskStates;
+    }
+
+    private static void randomlySetCoordinatorState(OperatorState taskState, Random random) {
+        final boolean hasCoordinatorState = random.nextBoolean();
+        if (hasCoordinatorState) {
+            final ByteStreamStateHandle stateHandle =
+                    createDummyByteStreamStreamStateHandle(random);
+            taskState.setCoordinatorState(stateHandle);
+        }
+    }
+
+    private static void randomlySetSubtaskState(
+            OperatorState taskState, int[] subtasksToSet, Random random, String basePath) {
+        boolean hasOperatorStateBackend = random.nextBoolean();
+        boolean hasOperatorStateStream = random.nextBoolean();
+
+        boolean hasKeyedBackend = random.nextInt(4) != 0;
+        boolean hasKeyedStream = random.nextInt(4) != 0;
+        boolean isIncremental = random.nextInt(3) == 0;
+
+        for (int subtaskIdx : subtasksToSet) {
+            StreamStateHandle operatorStateBackend =
+                    new ByteStreamStateHandle(
+                            "b", ("Beautiful").getBytes(ConfigConstants.DEFAULT_CHARSET));
+            StreamStateHandle operatorStateStream =
+                    new ByteStreamStateHandle(
+                            "b", ("Beautiful").getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
+            offsetsMap.put(
+                    "A",
+                    new OperatorStateHandle.StateMetaInfo(
+                            new long[] {0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+            offsetsMap.put(
+                    "B",
+                    new OperatorStateHandle.StateMetaInfo(
+                            new long[] {30, 40, 50}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+            offsetsMap.put(
+                    "C",
+                    new OperatorStateHandle.StateMetaInfo(
+                            new long[] {60, 70, 80}, OperatorStateHandle.Mode.UNION));
+
+            final OperatorSubtaskState.Builder state = OperatorSubtaskState.builder();
+            if (hasOperatorStateBackend) {
+                state.setManagedOperatorState(
+                        new OperatorStreamStateHandle(offsetsMap, operatorStateBackend));
+            }
+
+            if (hasOperatorStateStream) {
+                state.setRawOperatorState(
+                        new OperatorStreamStateHandle(offsetsMap, operatorStateStream));
+            }
+
+            if (hasKeyedBackend) {
+                final KeyedStateHandle stateHandle;
+                if (isSavepoint(basePath)) {
+                    stateHandle = createDummyKeyGroupSavepointStateHandle(random, basePath);
+                } else if (isIncremental) {
+                    stateHandle = createDummyIncrementalKeyedStateHandle(random);
+                } else {
+                    stateHandle = createDummyKeyGroupStateHandle(random, null);
+                }
+                state.setRawKeyedState(stateHandle);
+            }
+
+            if (hasKeyedStream) {
+                final KeyedStateHandle stateHandle;
+                if (isSavepoint(basePath)) {
+                    stateHandle = createDummyKeyGroupSavepointStateHandle(random, basePath);
+                } else {
+                    stateHandle = createDummyKeyGroupStateHandle(random, null);
+                }
+                state.setManagedKeyedState(stateHandle);
+            }
+
+            state.setInputChannelState(
+                    (random.nextBoolean() && !isSavepoint(basePath))
+                            ? singleton(createNewInputChannelStateHandle(random.nextInt(5), random))
+                            : empty());
+            state.setResultSubpartitionState(
+                    (random.nextBoolean() && !isSavepoint(basePath))
+                            ? singleton(
+                                    createNewResultSubpartitionStateHandle(
+                                            random.nextInt(5), random))
+                            : empty());
+
+            taskState.putState(subtaskIdx, state.build());
+        }
     }
 
     private static boolean isSavepoint(String basePath) {
@@ -209,10 +247,15 @@ public class CheckpointTestUtils {
 
     public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(
             Random rnd) {
+        return createDummyIncrementalKeyedStateHandle(42L, rnd);
+    }
+
+    public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(
+            long checkpointId, Random rnd) {
         return new IncrementalRemoteKeyedStateHandle(
                 createRandomUUID(rnd),
                 new KeyGroupRange(1, 1),
-                42L,
+                checkpointId,
                 createRandomStateHandleMap(rnd),
                 createRandomStateHandleMap(rnd),
                 createDummyStreamStateHandle(rnd, null));

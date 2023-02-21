@@ -59,7 +59,8 @@ public class OperatorIDGeneratorTest {
                 .disableChaining()
                 .addSink(new DiscardingSink<>());
 
-        JobGraph graph = env.getStreamGraph().getJobGraph(new JobID());
+        JobGraph graph =
+                env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), new JobID());
         JobVertex vertex =
                 StreamSupport.stream(graph.getVertices().spliterator(), false)
                         .filter(node -> node.getName().contains(OPERATOR_NAME))

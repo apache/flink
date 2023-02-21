@@ -124,8 +124,6 @@ import java.util.List;
  *
  * <p>Regardless if this interface is implemented or not, a final aggregation is always applied in a
  * subsequent operation after the source.
- *
- * <p>Note: currently, the {@link SupportsAggregatePushDown} is not supported by planner.
  */
 @PublicEvolving
 public interface SupportsAggregatePushDown {

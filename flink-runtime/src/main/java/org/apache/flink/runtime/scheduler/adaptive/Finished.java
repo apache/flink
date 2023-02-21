@@ -54,7 +54,12 @@ class Finished implements State {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {}
+    public void handleGlobalFailure(Throwable cause) {
+        logger.debug(
+                "Ignore global failure because we already finished the job {}.",
+                archivedExecutionGraph.getJobID(),
+                cause);
+    }
 
     @Override
     public Logger getLogger() {

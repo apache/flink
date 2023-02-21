@@ -49,6 +49,7 @@ public class KeyedBroadcastOperatorTestHarness<K, IN1, IN2, OUT>
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(0, keySelector);
         config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+        config.serializeAllConfigs();
     }
 
     public <KS, V> BroadcastState<KS, V> getBroadcastState(

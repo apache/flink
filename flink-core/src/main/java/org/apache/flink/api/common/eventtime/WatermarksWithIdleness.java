@@ -40,6 +40,8 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
 
     private final IdlenessTimer idlenessTimer;
 
+    private boolean isIdleNow = false;
+
     /**
      * Creates a new WatermarksWithIdleness generator to the given generator idleness detection with
      * the given timeout.
@@ -65,12 +67,16 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
         watermarks.onEvent(event, eventTimestamp, output);
         idlenessTimer.activity();
+        isIdleNow = false;
     }
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
         if (idlenessTimer.checkIfIdle()) {
-            output.markIdle();
+            if (!isIdleNow) {
+                output.markIdle();
+                isIdleNow = true;
+            }
         } else {
             watermarks.onPeriodicEmit(output);
         }

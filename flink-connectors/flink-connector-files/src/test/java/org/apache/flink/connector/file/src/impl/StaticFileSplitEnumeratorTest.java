@@ -25,19 +25,15 @@ import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.testutils.source.reader.TestingSplitEnumeratorContext;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Arrays;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link ContinuousFileSplitEnumerator}. */
-public class StaticFileSplitEnumeratorTest {
+class StaticFileSplitEnumeratorTest {
 
     // this is no JUnit temporary folder, because we don't create actual files, we just
     // need some random file path.
@@ -46,19 +42,19 @@ public class StaticFileSplitEnumeratorTest {
     private static long splitId = 1L;
 
     @Test
-    public void testCheckpointNoSplitRequested() throws Exception {
+    void testCheckpointNoSplitRequested() throws Exception {
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
         final FileSourceSplit split = createRandomSplit();
         final StaticFileSplitEnumerator enumerator = createEnumerator(context, split);
 
-        final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = enumerator.snapshotState();
+        final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = enumerator.snapshotState(1L);
 
-        assertThat(checkpoint.getSplits(), contains(split));
+        assertThat(checkpoint.getSplits()).contains(split);
     }
 
     @Test
-    public void testSplitRequestForRegisteredReader() throws Exception {
+    void testSplitRequestForRegisteredReader() throws Exception {
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
         final FileSourceSplit split = createRandomSplit();
@@ -68,12 +64,12 @@ public class StaticFileSplitEnumeratorTest {
         enumerator.addReader(3);
         enumerator.handleSplitRequest(3, "somehost");
 
-        assertThat(enumerator.snapshotState().getSplits(), empty());
-        assertThat(context.getSplitAssignments().get(3).getAssignedSplits(), contains(split));
+        assertThat(enumerator.snapshotState(1L).getSplits()).isEmpty();
+        assertThat(context.getSplitAssignments().get(3).getAssignedSplits()).contains(split);
     }
 
     @Test
-    public void testSplitRequestForNonRegisteredReader() throws Exception {
+    void testSplitRequestForNonRegisteredReader() throws Exception {
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
         final FileSourceSplit split = createRandomSplit();
@@ -81,12 +77,12 @@ public class StaticFileSplitEnumeratorTest {
 
         enumerator.handleSplitRequest(3, "somehost");
 
-        assertFalse(context.getSplitAssignments().containsKey(3));
-        assertThat(enumerator.snapshotState().getSplits(), contains(split));
+        assertThat(context.getSplitAssignments()).doesNotContainKey(3);
+        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
     }
 
     @Test
-    public void testNoMoreSplits() throws Exception {
+    void testNoMoreSplits() throws Exception {
         final TestingSplitEnumeratorContext<FileSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
         final FileSourceSplit split = createRandomSplit();
@@ -100,8 +96,8 @@ public class StaticFileSplitEnumeratorTest {
         // second request has no more split
         enumerator.handleSplitRequest(1, "somehost");
 
-        assertThat(context.getSplitAssignments().get(1).getAssignedSplits(), contains(split));
-        assertTrue(context.getSplitAssignments().get(1).hasReceivedNoMoreSplitsSignal());
+        assertThat(context.getSplitAssignments().get(1).getAssignedSplits()).contains(split);
+        assertThat(context.getSplitAssignments().get(1).hasReceivedNoMoreSplitsSignal()).isTrue();
     }
 
     // ------------------------------------------------------------------------
@@ -110,7 +106,12 @@ public class StaticFileSplitEnumeratorTest {
 
     private static FileSourceSplit createRandomSplit() {
         return new FileSourceSplit(
-                String.valueOf(splitId++), Path.fromLocalFile(new File(TMP_DIR, "foo")), 0L, 0L);
+                String.valueOf(splitId++),
+                Path.fromLocalFile(new File(TMP_DIR, "foo")),
+                0L,
+                0L,
+                0L,
+                0L);
     }
 
     private static StaticFileSplitEnumerator createEnumerator(

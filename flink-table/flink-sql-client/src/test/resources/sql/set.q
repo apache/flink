@@ -15,27 +15,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# validation test
-set execution.parallelism = 10a;
-[ERROR] Could not execute SQL statement. Reason:
-java.lang.NumberFormatException: For input string: "10a"
-!error
-
-# test set the removed key
-SET execution.max-idle-state-retention=1000;
-[WARNING] The specified key is not supported anymore.
-!warning
-
-# test set the deprecated key
-SET execution.planner=blink;
-[WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
-[INFO] Session property has been set.
-!warning
-
 # test set a configuration
-SET table.sql-dialect=hive;
-[INFO] Session property has been set.
+SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Execute statement succeed.
 !info
+
+SET 'table.sql-dialect' = 'hive';
+[INFO] Execute statement succeed.
+!info
+
+create catalog hivecatalog with (
+ 'type' = 'hive-test',
+ 'hive-version' = '2.3.4'
+);
+[INFO] Execute statement succeed.
+!info
+
+use catalog hivecatalog;
+[INFO] Execute statement succeed.
+!info
+
+# test SET command
+set table.sql-dialect;
++------------------------+
+|              variables |
++------------------------+
+| table.sql-dialect=hive |
++------------------------+
+1 row in set
+!ok
+
+set k1=v1;
+[INFO] Execute statement succeed.
+!info
+
+set k1;
++-----------+
+| variables |
++-----------+
+|     k1=v1 |
++-----------+
+1 row in set
+!ok
 
 # test create a hive table to verify the configuration works
 CREATE TABLE hive_table (
@@ -45,7 +66,7 @@ CREATE TABLE hive_table (
   pv_count BIGINT,
   like_count BIGINT,
   comment_count BIGINT,
-  update_time TIMESTAMP(3),
+  update_time TIMESTAMP,
   update_user STRING
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
@@ -53,35 +74,109 @@ CREATE TABLE hive_table (
 [INFO] Execute statement succeed.
 !info
 
+SET table.dml-sync = true;
+[INFO] Execute statement succeed.
+!info
+
+# test "ctas" in Hive Dialect
+CREATE TABLE foo as select 1;
+[INFO] Complete execution of the SQL update statement.
+!info
+
+RESET table.dml-sync;
+[INFO] Execute statement succeed.
+!info
+
+SELECT * from foo;
++----+-------------+
+| op |      _o__c0 |
++----+-------------+
+| +I |           1 |
++----+-------------+
+Received a total of 1 row
+!ok
+
+# test add jar
+ADD JAR $VAR_UDF_JAR_PATH;
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
+!ok
+
+CREATE FUNCTION hive_add_one as 'HiveAddOneFunc';
+[INFO] Execute statement succeed.
+!info
+
+SELECT hive_add_one(1);
++----+-------------+
+| op |      _o__c0 |
++----+-------------+
+| +I |           2 |
++----+-------------+
+Received a total of 1 row
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
+Empty set
+!ok
+
+reset table.resources.download-dir;
+[INFO] Execute statement succeed.
+!info
+
 # list the configured configuration
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
-table.planner=blink
-table.sql-dialect=hive
-[DEPRECATED] execution.planner=blink
++--------------------------------------------+-----------+
+|                                        key |     value |
++--------------------------------------------+-----------+
+|                         execution.attached |      true |
+|           execution.savepoint-restore-mode |  NO_CLAIM |
+| execution.savepoint.ignore-unclaimed-state |     false |
+|        execution.shutdown-on-attached-exit |     false |
+|                           execution.target |    remote |
+|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                                         k1 |        v1 |
+|                        pipeline.classpaths |           |
+|                              pipeline.jars |           |
+|                                  rest.port |     $VAR_REST_PORT |
+|           sql-client.execution.result-mode |   tableau |
+|           table.exec.legacy-cast-behaviour |  DISABLED |
+|                          table.sql-dialect |      hive |
++--------------------------------------------+-----------+
+13 rows in set
 !ok
 
 # reset the configuration
 reset;
-[INFO] All session properties have been set to their default values.
+[INFO] Execute statement succeed.
 !info
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
++--------------------------------------------+-----------+
+|                                        key |     value |
++--------------------------------------------+-----------+
+|                         execution.attached |      true |
+|           execution.savepoint-restore-mode |  NO_CLAIM |
+| execution.savepoint.ignore-unclaimed-state |     false |
+|        execution.shutdown-on-attached-exit |     false |
+|                           execution.target |    remote |
+|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                        pipeline.classpaths |           |
+|                              pipeline.jars |           |
+|                                  rest.port |     $VAR_REST_PORT |
++--------------------------------------------+-----------+
+9 rows in set
 !ok
 
 # should fail because default dialect doesn't support hive dialect
@@ -102,71 +197,122 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "STRING" at line 10
 Was expecting one of:
     ")" ...
     "," ...
-
 !error
 
-# test reset remove key
-reset execution.max-idle-state-retention;
-[WARNING] The specified key is not supported anymore.
-!warning
-
-# test reset the deprecated key
-set execution.max-table-result-rows=200;
-[WARNING] The specified key 'execution.max-table-result-rows' is deprecated. Please use 'sql-client.execution.max-table-result.rows' instead.
-[INFO] Session property has been set.
-!warning
-
-reset sql-client.execution.max-table-result.rows;
-[INFO] Session property has been reset.
+set 'sql-client.verbose' = 'true';
+[INFO] Execute statement succeed.
 !info
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
++--------------------------------------------+-----------+
+|                                        key |     value |
++--------------------------------------------+-----------+
+|                         execution.attached |      true |
+|           execution.savepoint-restore-mode |  NO_CLAIM |
+| execution.savepoint.ignore-unclaimed-state |     false |
+|        execution.shutdown-on-attached-exit |     false |
+|                           execution.target |    remote |
+|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                        pipeline.classpaths |           |
+|                              pipeline.jars |           |
+|                                  rest.port |     $VAR_REST_PORT |
+|                         sql-client.verbose |      true |
++--------------------------------------------+-----------+
+10 rows in set
 !ok
 
-set parallelism.default=3;
-[INFO] Session property has been set.
+set 'execution.attached' = 'false';
+[INFO] Execute statement succeed.
 !info
 
-# test reset deprecated key
-reset execution.parallelism;
-[WARNING] The specified key 'execution.parallelism' is deprecated. Please use 'parallelism.default' instead.
-[INFO] Session property has been reset.
-!warning
+reset 'execution.attached';
+[INFO] Execute statement succeed.
+!info
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
++--------------------------------------------+-----------+
+|                                        key |     value |
++--------------------------------------------+-----------+
+|                         execution.attached |      true |
+|           execution.savepoint-restore-mode |  NO_CLAIM |
+| execution.savepoint.ignore-unclaimed-state |     false |
+|        execution.shutdown-on-attached-exit |     false |
+|                           execution.target |    remote |
+|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                        pipeline.classpaths |           |
+|                              pipeline.jars |           |
+|                                  rest.port |     $VAR_REST_PORT |
+|                         sql-client.verbose |      true |
++--------------------------------------------+-----------+
+10 rows in set
 !ok
 
-set execution.attached=false;
-[INFO] Session property has been set.
+# test reset can work with add jar
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
 !info
 
-reset execution.attached;
-[INFO] Session property has been reset.
-!info
+SHOW JARS;
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
+!ok
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
++--------------------------------------------+-----------+
+|                                        key |     value |
++--------------------------------------------+-----------+
+|                         execution.attached |      true |
+|           execution.savepoint-restore-mode |  NO_CLAIM |
+| execution.savepoint.ignore-unclaimed-state |     false |
+|        execution.shutdown-on-attached-exit |     false |
+|                           execution.target |    remote |
+|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                        pipeline.classpaths |           |
+|                              pipeline.jars |           |
+|                                  rest.port |     $VAR_REST_PORT |
+|                         sql-client.verbose |      true |
++--------------------------------------------+-----------+
+10 rows in set
+!ok
+
+reset;
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
+!ok
+
+SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Execute statement succeed.
+!info
+
+create function func1 as 'LowerUDF' LANGUAGE JAVA;
+[INFO] Execute statement succeed.
+!info
+
+SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
++----+-------------+--------------------------------+
+| op |          id |                         EXPR$1 |
++----+-------------+--------------------------------+
+| +I |           1 |                    hello world |
++----+-------------+--------------------------------+
+Received a total of 1 row
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
+Empty set
 !ok

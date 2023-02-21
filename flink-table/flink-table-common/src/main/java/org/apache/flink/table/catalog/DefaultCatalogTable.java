@@ -33,14 +33,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default implementation of a {@link CatalogTable}. */
 @Internal
-class DefaultCatalogTable implements CatalogTable {
+public class DefaultCatalogTable implements CatalogTable {
 
     private final Schema schema;
     private final @Nullable String comment;
     private final List<String> partitionKeys;
     private final Map<String, String> options;
 
-    DefaultCatalogTable(
+    protected DefaultCatalogTable(
             Schema schema,
             @Nullable String comment,
             List<String> partitionKeys,
@@ -125,5 +125,20 @@ class DefaultCatalogTable implements CatalogTable {
     @Override
     public int hashCode() {
         return Objects.hash(schema, comment, partitionKeys, options);
+    }
+
+    @Override
+    public String toString() {
+        return "DefaultCatalogTable{"
+                + "schema="
+                + schema
+                + ", comment='"
+                + comment
+                + '\''
+                + ", partitionKeys="
+                + partitionKeys
+                + ", options="
+                + options
+                + '}';
     }
 }

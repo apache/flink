@@ -17,19 +17,19 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.aggregation.UnsupportedAggregationTypeException
-import org.junit.Test
-
 import org.apache.flink.api.scala._
+
+import org.junit.Assert
+import org.junit.Test
 
 class AggregateOperatorTest {
 
-  private final val emptyTupleData = Array[(Int, Long, String, Long, Int)]()
-  private final val tupleTypeInfo = createTypeInformation[(Int, Long, String, Long, Int)]
-  private final val emptyLongData = Array[Long]()
+  final private val emptyTupleData = Array[(Int, Long, String, Long, Int)]()
+  final private val tupleTypeInfo = createTypeInformation[(Int, Long, String, Long, Int)]
+  final private val emptyLongData = Array[Long]()
 
   @Test
   def testFieldsAggregate(): Unit = {
@@ -130,4 +130,3 @@ class AggregateOperatorTest {
   }
 
 }
-

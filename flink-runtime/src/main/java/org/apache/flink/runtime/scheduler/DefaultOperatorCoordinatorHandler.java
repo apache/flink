@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -38,10 +40,10 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Default handler for the {@link OperatorCoordinator OperatorCoordinators}. */
 public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
@@ -49,10 +51,10 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
-    private final Consumer<Throwable> globalFailureHandler;
+    private final GlobalFailureHandler globalFailureHandler;
 
     public DefaultOperatorCoordinatorHandler(
-            ExecutionGraph executionGraph, Consumer<Throwable> globalFailureHandler) {
+            ExecutionGraph executionGraph, GlobalFailureHandler globalFailureHandler) {
         this.executionGraph = executionGraph;
 
         this.coordinatorMap = createCoordinatorMap(executionGraph);
@@ -61,34 +63,27 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
     private static Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap(
             ExecutionGraph executionGraph) {
-        Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
-        for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
-            for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
-                coordinatorMap.put(holder.operatorId(), holder);
-            }
-        }
-        return coordinatorMap;
+        return executionGraph.getAllVertices().values().stream()
+                .filter(ExecutionJobVertex::isInitialized)
+                .flatMap(v -> v.getOperatorCoordinators().stream())
+                .collect(
+                        Collectors.toMap(
+                                OperatorCoordinatorHolder::operatorId, Function.identity()));
     }
 
     @Override
-    public void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
+    public void initializeOperatorCoordinators(
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
         for (OperatorCoordinatorHolder coordinatorHolder : coordinatorMap.values()) {
-            coordinatorHolder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+            coordinatorHolder.lazyInitialize(
+                    globalFailureHandler, mainThreadExecutor, jobManagerJobMetricGroup);
         }
     }
 
     @Override
     public void startAllOperatorCoordinators() {
-        final Collection<OperatorCoordinatorHolder> coordinators = coordinatorMap.values();
-        try {
-            for (OperatorCoordinatorHolder coordinator : coordinators) {
-                coordinator.start();
-            }
-        } catch (Throwable t) {
-            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            coordinators.forEach(IOUtils::closeQuietly);
-            throw new FlinkRuntimeException("Failed to start the operator coordinators", t);
-        }
+        startOperatorCoordinators(coordinatorMap.values());
     }
 
     @Override
@@ -127,10 +122,11 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
         }
 
         try {
-            coordinator.handleEventFromOperator(exec.getParallelSubtaskIndex(), evt);
+            coordinator.handleEventFromOperator(
+                    exec.getParallelSubtaskIndex(), exec.getAttemptNumber(), evt);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            globalFailureHandler.accept(t);
+            globalFailureHandler.handleGlobalFailure(t);
         }
     }
 
@@ -140,7 +136,10 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
         final OperatorCoordinatorHolder coordinatorHolder = coordinatorMap.get(operator);
         if (coordinatorHolder == null) {
-            throw new FlinkException("Coordinator of operator " + operator + " does not exist");
+            throw new FlinkException(
+                    "Coordinator of operator "
+                            + operator
+                            + " does not exist or the job vertex this operator belongs to is not initialized.");
         }
 
         final OperatorCoordinator coordinator = coordinatorHolder.coordinator();
@@ -150,5 +149,36 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
             throw new FlinkException(
                     "Coordinator of operator " + operator + " cannot handle client event");
         }
+    }
+
+    @Override
+    public void registerAndStartNewCoordinators(
+            Collection<OperatorCoordinatorHolder> coordinators,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
+
+        for (OperatorCoordinatorHolder coordinator : coordinators) {
+            coordinatorMap.put(coordinator.operatorId(), coordinator);
+            coordinator.lazyInitialize(
+                    globalFailureHandler, mainThreadExecutor, jobManagerJobMetricGroup);
+        }
+        startOperatorCoordinators(coordinators);
+    }
+
+    private void startOperatorCoordinators(Collection<OperatorCoordinatorHolder> coordinators) {
+        try {
+            for (OperatorCoordinatorHolder coordinator : coordinators) {
+                coordinator.start();
+            }
+        } catch (Throwable t) {
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+            coordinators.forEach(IOUtils::closeQuietly);
+            throw new FlinkRuntimeException("Failed to start the operator coordinators", t);
+        }
+    }
+
+    @VisibleForTesting
+    Map<OperatorID, OperatorCoordinatorHolder> getCoordinatorMap() {
+        return coordinatorMap;
     }
 }

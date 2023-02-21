@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -25,11 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.BufferEntry;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.BufferEntrySerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,24 +36,17 @@ import static org.apache.flink.streaming.api.operators.co.BufferEntryMatchers.bu
 import static org.hamcrest.Matchers.is;
 
 /** State migration tests for {@link BufferEntrySerializer}. */
-@RunWith(Parameterized.class)
-public class BufferEntrySerializerUpgradeTest
+class BufferEntrySerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<BufferEntry<String>, BufferEntry<String>> {
 
-    public BufferEntrySerializerUpgradeTest(
-            TestSpecification<BufferEntry<String>, BufferEntry<String>> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "buffer-entry-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             BufferEntrySerializerSetup.class,
                             BufferEntrySerializerVerifier.class));
         }
@@ -106,7 +97,7 @@ public class BufferEntrySerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<BufferEntry<String>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

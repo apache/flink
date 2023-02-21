@@ -23,11 +23,13 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -36,6 +38,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for {@link SlotPoolService} and {@link SchedulerNG}. */
@@ -45,9 +48,11 @@ public interface SlotPoolServiceSchedulerFactory {
      * Creates a {@link SlotPoolService}.
      *
      * @param jid jid is the JobID to pass to the service
+     * @param declarativeSlotPoolFactory the declarative slot pool factory
      * @return created SlotPoolService
      */
-    SlotPoolService createSlotPoolService(JobID jid);
+    SlotPoolService createSlotPoolService(
+            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory);
 
     /**
      * Returns the scheduler type this factory is creating.
@@ -65,10 +70,10 @@ public interface SlotPoolServiceSchedulerFactory {
     SchedulerNG createScheduler(
             Logger log,
             JobGraph jobGraph,
-            ScheduledExecutorService scheduledExecutorService,
+            Executor ioExecutor,
             Configuration configuration,
             SlotPoolService slotPoolService,
-            ScheduledExecutorService executorService,
+            ScheduledExecutorService futureExecutor,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Time rpcTimeout,
@@ -81,6 +86,7 @@ public interface SlotPoolServiceSchedulerFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            BlocklistOperations blocklistOperations)
             throws Exception;
 }

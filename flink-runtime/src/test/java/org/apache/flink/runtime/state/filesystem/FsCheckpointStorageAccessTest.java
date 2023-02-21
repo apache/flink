@@ -19,26 +19,32 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.NotDuplicatingCheckpointStateToolset;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
+import org.apache.flink.testutils.TestFileSystem;
 
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -230,7 +236,7 @@ public class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorage
         assertFalse(baseDir.exists());
 
         // mkdirs would only be called when initializeBaseLocations
-        storage.initializeBaseLocations();
+        storage.initializeBaseLocationsForCheckpoint();
         assertTrue(baseDir.exists());
 
         // mkdir would not be called when resolveCheckpointStorageLocation
@@ -278,6 +284,42 @@ public class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorage
                         storage.resolveCheckpointStorageLocation(2L, savepointLocationReference);
         final FileSystem fileSystem = savepointStreamFactory.getFileSystem();
         assertTrue(fileSystem instanceof LocalFileSystem);
+    }
+
+    @Test
+    public void testNotDuplicationCheckpointStateToolset() throws Exception {
+        CheckpointStorageAccess checkpointStorage = createCheckpointStorage(randomTempPath());
+        assertThat(
+                checkpointStorage.createTaskOwnedCheckpointStateToolset(),
+                instanceOf(NotDuplicatingCheckpointStateToolset.class));
+    }
+
+    @Test
+    public void testDuplicationCheckpointStateToolset() throws Exception {
+        CheckpointStorageAccess checkpointStorage =
+                new FsCheckpointStorageAccess(
+                        new TestDuplicatingFileSystem(),
+                        randomTempPath(),
+                        null,
+                        new JobID(),
+                        FILE_SIZE_THRESHOLD,
+                        WRITE_BUFFER_SIZE);
+
+        assertThat(
+                checkpointStorage.createTaskOwnedCheckpointStateToolset(),
+                instanceOf(FsCheckpointStateToolset.class));
+    }
+
+    private static final class TestDuplicatingFileSystem extends TestFileSystem
+            implements DuplicatingFileSystem {
+
+        @Override
+        public boolean canFastDuplicate(Path source, Path destination) throws IOException {
+            return !source.equals(destination);
+        }
+
+        @Override
+        public void duplicate(List<CopyRequest> requests) throws IOException {}
     }
 
     // ------------------------------------------------------------------------

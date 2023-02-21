@@ -90,10 +90,10 @@ public enum TimeCharacteristic {
      * watermarks", this means that the cost typically depends on how early or late the watermarks
      * can be generated for their timestamp.
      *
-     * <p>In relation to {@link #IngestionTime}, the event time is similar, but refers the the
-     * event's original time, rather than the time assigned at the data source. Practically, that
-     * means that event time has generally more meaning, but also that it takes longer to determine
-     * that all elements for a certain time have arrived.
+     * <p>In relation to {@link #IngestionTime}, the event time is similar, but refers the event's
+     * original time, rather than the time assigned at the data source. Practically, that means that
+     * event time has generally more meaning, but also that it takes longer to determine that all
+     * elements for a certain time have arrived.
      */
     EventTime
 }

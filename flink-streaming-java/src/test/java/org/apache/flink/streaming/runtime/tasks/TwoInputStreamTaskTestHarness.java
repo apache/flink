@@ -49,7 +49,11 @@ import java.util.List;
  * <p>When Elements or Events are offered to the Task they are put into a queue. The input gates of
  * the Task read from this queue. Use {@link #waitForInputProcessing()} to wait until all queues are
  * empty. This must be used after entering some elements before checking the desired output.
+ *
+ * @deprecated Please use {@link StreamTaskMailboxTestHarness} and {@link
+ *     StreamTaskMailboxTestHarnessBuilder}. Do not add new code using this test harness.
  */
+@Deprecated
 public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTestHarness<OUT> {
 
     private TypeSerializer<IN1> inputSerializer1;

@@ -19,6 +19,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.formats.common.Converter;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
@@ -57,8 +58,23 @@ public class RowDataToCsvConverters implements Serializable {
      * Runtime converter that converts objects of Flink Table & SQL internal data structures to
      * corresponding {@link JsonNode}s.
      */
-    public interface RowDataToCsvConverter extends Serializable {
-        JsonNode convert(CsvMapper csvMapper, ContainerNode<?> container, RowData row);
+    interface RowDataToCsvConverter
+            extends Converter<
+                    RowData, JsonNode, RowDataToCsvConverter.RowDataToCsvFormatConverterContext> {
+        /**
+         * Converter context for passing the {@code CsvMapper} and the {@code container} that can be
+         * reused between transformations of the individual elements for performance reasons.
+         */
+        class RowDataToCsvFormatConverterContext {
+            CsvMapper csvMapper;
+            ContainerNode<?> container;
+
+            public RowDataToCsvFormatConverterContext(
+                    CsvMapper csvMapper, ContainerNode<?> container) {
+                this.csvMapper = csvMapper;
+                this.container = container;
+            }
+        }
     }
 
     private interface RowFieldConverter extends Serializable {
@@ -80,12 +96,19 @@ public class RowDataToCsvConverters implements Serializable {
                         .map(RowDataToCsvConverters::createNullableRowFieldConverter)
                         .toArray(RowFieldConverter[]::new);
         final int rowArity = type.getFieldCount();
-        return (csvMapper, container, row) -> {
+        return (row, context) -> {
             // top level reuses the object node container
-            final ObjectNode objectNode = (ObjectNode) container;
+            final ObjectNode objectNode = (ObjectNode) context.container;
             for (int i = 0; i < rowArity; i++) {
-                objectNode.set(
-                        fieldNames[i], fieldConverters[i].convert(csvMapper, container, row, i));
+                try {
+                    objectNode.set(
+                            fieldNames[i],
+                            fieldConverters[i].convert(
+                                    context.csvMapper, context.container, row, i));
+                } catch (Throwable t) {
+                    throw new RuntimeException(
+                            String.format("Fail to serialize at field: %s.", fieldNames[i]), t);
+                }
             }
             return objectNode;
         };

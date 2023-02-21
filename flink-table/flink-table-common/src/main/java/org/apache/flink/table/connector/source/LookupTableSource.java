@@ -19,6 +19,8 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
 import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
@@ -56,8 +58,8 @@ public interface LookupTableSource extends DynamicTableSource {
      * <p>The given {@link LookupContext} offers utilities by the planner for creating runtime
      * implementation with minimal dependencies to internal data structures.
      *
-     * @see TableFunctionProvider
-     * @see AsyncTableFunctionProvider
+     * @see LookupFunctionProvider
+     * @see AsyncLookupFunctionProvider
      */
     LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context);
 
@@ -75,6 +77,7 @@ public interface LookupTableSource extends DynamicTableSource {
      * instances that are {@link Serializable} can be directly passed into the runtime
      * implementation class.
      */
+    @PublicEvolving
     interface LookupContext extends DynamicTableSource.Context {
 
         /**
@@ -96,9 +99,10 @@ public interface LookupTableSource extends DynamicTableSource {
      * <p>There exist different interfaces for runtime implementation which is why {@link
      * LookupRuntimeProvider} serves as the base interface.
      *
-     * @see TableFunctionProvider
-     * @see AsyncTableFunctionProvider
+     * @see LookupFunctionProvider
+     * @see AsyncLookupFunctionProvider
      */
+    @PublicEvolving
     interface LookupRuntimeProvider {
         // marker interface
     }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.split;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -30,11 +31,12 @@ import java.util.Optional;
 import java.util.Set;
 
 /** A {@link SourceSplit} for a Kafka partition. */
+@Internal
 public class KafkaPartitionSplit implements SourceSplit {
     public static final long NO_STOPPING_OFFSET = Long.MIN_VALUE;
-    // Indicating the split should consume from the earliest.
-    public static final long LATEST_OFFSET = -1;
     // Indicating the split should consume from the latest.
+    public static final long LATEST_OFFSET = -1;
+    // Indicating the split should consume from the earliest.
     public static final long EARLIEST_OFFSET = -2;
     // Indicating the split should consume from the last committed offset.
     public static final long COMMITTED_OFFSET = -3;
@@ -77,7 +79,7 @@ public class KafkaPartitionSplit implements SourceSplit {
     }
 
     public Optional<Long> getStoppingOffset() {
-        return stoppingOffset > 0
+        return stoppingOffset >= 0
                         || stoppingOffset == LATEST_OFFSET
                         || stoppingOffset == COMMITTED_OFFSET
                 ? Optional.of(stoppingOffset)

@@ -12,13 +12,19 @@
             <td><h5>cluster.evenly-spread-out-slots</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <span markdown="span">`TaskExecutors`</span>.</td>
+            <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.fine-grained-resource-management.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether the cluster uses fine-grained resource management.</td>
         </tr>
         <tr>
             <td><h5>cluster.intercept-user-system-exit</h5></td>
             <td style="word-wrap: break-word;">DISABLED</td>
-            <td><p>Enum</p>Possible values: [DISABLED, LOG, THROW]</td>
-            <td>Flag to check user code exiting system by terminating JVM (e.g., System.exit())<ul><li>DISABLED - Flink is not monitoring or intercepting calls to System.exit()</li><li>LOG - Log exit attempt with stack trace but still allowing exit to be performed</li><li>THROW - Throw exception when exit is attempted disallowing JVM termination</li></ul><br />Note that this configuration option can interfere with <span markdown="span">`cluster.processes.halt-on-fatal-error`</span>: In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when <span markdown="span">`THROW`</span> is configured.</td>
+            <td><p>Enum</p></td>
+            <td>Flag to check user code exiting system by terminating JVM (e.g., System.exit()). Note that this configuration option can interfere with <code class="highlighter-rouge">cluster.processes.halt-on-fatal-error</code>: In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when <code class="highlighter-rouge">THROW</code> is configured.<br /><br />Possible values:<ul><li>"DISABLED": Flink is not monitoring or intercepting calls to System.exit()</li><li>"LOG": Log exit attempt with stack trace but still allowing exit to be performed</li><li>"THROW": Throw exception when exit is attempted disallowing JVM termination</li></ul></td>
         </tr>
         <tr>
             <td><h5>cluster.io-pool.size</h5></td>
@@ -61,6 +67,42 @@
             <td style="word-wrap: break-word;">30000</td>
             <td>Long</td>
             <td>The shutdown timeout for cluster services like executors in milliseconds.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
+            <td style="word-wrap: break-word;">50</td>
+            <td>Integer</td>
+            <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.uncaught-exception-handling</h5></td>
+            <td style="word-wrap: break-word;">LOG</td>
+            <td><p>Enum</p></td>
+            <td>Defines whether cluster will handle any uncaught exceptions by just logging them (LOG mode), or by failing job (FAIL mode)<br /><br />Possible values:<ul><li>"LOG"</li><li>"FAIL"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>process.jobmanager.working-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Working directory for Flink JobManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to <code class="highlighter-rouge">process.working-dir</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>process.taskmanager.working-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Working directory for Flink TaskManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to <code class="highlighter-rouge">process.working-dir</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>process.working-dir</h5></td>
+            <td style="word-wrap: break-word;">io.tmp.dirs</td>
+            <td>String</td>
+            <td>Local working directory for Flink processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to a randomly picked temporary directory defined via <code class="highlighter-rouge">io.tmp.dirs</code>.</td>
         </tr>
     </tbody>
 </table>

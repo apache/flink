@@ -19,9 +19,11 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import java.util.List;
 
@@ -29,9 +31,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
-import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.DISABLED;
-import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.FIRST;
-import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.LAST;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.ORDER;
 
 /**
@@ -50,22 +49,19 @@ public class YarnConfigOptions {
                             "The number of virtual cores (vcores) used by YARN application master.");
 
     /**
-     * Defines whether user-jars are included in the system class path for per-job-clusters as well
-     * as their positioning in the path. They can be positioned at the beginning (FIRST), at the end
-     * (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are
-     * excluded from the system class path.
+     * Defines whether user-jars are included in the system class path as well as their positioning
+     * in the path. They can be positioned at the beginning (FIRST), at the end (LAST), or be
+     * positioned based on their name (ORDER). DISABLED means the user-jars are excluded from the
+     * system class path and as a result these jars will be loaded by user classloader.
      */
     public static final ConfigOption<UserJarInclusion> CLASSPATH_INCLUDE_USER_JAR =
-            key("yarn.per-job-cluster.include-user-jar")
+            key("yarn.classpath.include-user-jar")
                     .enumType(UserJarInclusion.class)
                     .defaultValue(ORDER)
+                    .withDeprecatedKeys("yarn.per-job-cluster.include-user-jar")
                     .withDescription(
-                            String.format(
-                                    "Defines whether user-jars are included in the system class path for per-job-clusters as"
-                                            + " well as their positioning in the path. They can be positioned at the beginning (%s), at the"
-                                            + " end (%s), or be positioned based on their name (%s). %s means the user-jars"
-                                            + " are excluded from the system class path.",
-                                    FIRST.name(), LAST.name(), ORDER.name(), DISABLED.name()));
+                            "Defines whether user-jars are included in the system class path "
+                                    + "as well as their positioning in the path.");
 
     /** The vcores exposed by YARN. */
     public static final ConfigOption<Integer> VCORES =
@@ -120,7 +116,7 @@ public class YarnConfigOptions {
                                                     + "Set this value to -1 in order to count globally. "
                                                     + "See %s for more information.",
                                             link(
-                                                    "https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/",
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Application_Attempts_API",
                                                     "here"))
                                     .build());
 
@@ -198,7 +194,7 @@ public class YarnConfigOptions {
      * unset yarn priority setting and use cluster default priority.
      *
      * @see <a
-     *     href="https://hadoop.apache.org/docs/r2.8.5/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN
+     *     href="https://hadoop.apache.org/docs/r2.10.2/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN
      *     Capacity Scheduling Doc</a>
      */
     public static final ConfigOption<Integer> APPLICATION_PRIORITY =
@@ -301,6 +297,14 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription("Specify YARN node label for the YARN application.");
 
+    public static final ConfigOption<String> TASK_MANAGER_NODE_LABEL =
+            key("yarn.taskmanager.node-label")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify YARN node label for the Flink TaskManagers, it will "
+                                    + "override the yarn.application.node-label for TaskManagers if both are set.");
+
     public static final ConfigOption<Boolean> SHIP_LOCAL_KEYTAB =
             key("yarn.security.kerberos.ship-local-keytab")
                     .booleanType()
@@ -336,13 +340,20 @@ public class YarnConfigOptions {
                                     + "they doesn't need to be downloaded every time for each application. An example could be "
                                     + "hdfs://$namenode_address/path/of/flink/lib");
 
-    public static final ConfigOption<List<String>> YARN_ACCESS =
-            key("yarn.security.kerberos.additionalFileSystems")
+    /**
+     * Allows users to directly utilize usrlib directory in HDFS for YARN application mode. The
+     * classloader for loading jars under the usrlib will be controlled by {@link
+     * YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR}.
+     */
+    public static final ConfigOption<String> PROVIDED_USRLIB_DIR =
+            key("yarn.provided.usrlib.dir")
                     .stringType()
-                    .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
+                            "The provided usrlib directory in remote. It should be pre-uploaded and "
+                                    + "world-readable. Flink will use it to exclude the local usrlib directory(i.e. usrlib/ under the parent directory of FLINK_LIB_DIR)."
+                                    + " Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be "
+                                    + "hdfs://$namenode_address/path/of/flink/usrlib");
 
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =
@@ -407,10 +418,21 @@ public class YarnConfigOptions {
     private YarnConfigOptions() {}
 
     /** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
-    public enum UserJarInclusion {
-        DISABLED,
-        FIRST,
-        LAST,
-        ORDER
+    public enum UserJarInclusion implements DescribedEnum {
+        DISABLED(text("Exclude user jars from the system class path")),
+        FIRST(text("Position at the beginning")),
+        LAST(text("Position at the end")),
+        ORDER(text("Position based on the name of the jar"));
+
+        private final InlineElement description;
+
+        UserJarInclusion(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

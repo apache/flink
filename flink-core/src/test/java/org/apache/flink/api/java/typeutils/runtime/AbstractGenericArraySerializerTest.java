@@ -29,7 +29,6 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Array;
@@ -196,41 +195,29 @@ public abstract class AbstractGenericArraySerializerTest {
 
     @SafeVarargs
     private final <T> void runTests(T[]... instances) {
-        try {
-            @SuppressWarnings("unchecked")
-            Class<T> type = (Class<T>) instances[0][0].getClass();
-            TypeSerializer<T> serializer = createComponentSerializer(type);
-            runTests(type, serializer, instances);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
-        }
+        @SuppressWarnings("unchecked")
+        Class<T> type = (Class<T>) instances[0][0].getClass();
+        TypeSerializer<T> serializer = createComponentSerializer(type);
+        runTests(type, serializer, instances);
     }
 
     @SafeVarargs
     private final <T> void runTests(
             Class<T> type, TypeSerializer<T> componentSerializer, T[]... instances) {
-        try {
-            if (type == null
-                    || componentSerializer == null
-                    || instances == null
-                    || instances.length == 0) {
-                throw new IllegalArgumentException();
-            }
-
-            @SuppressWarnings("unchecked")
-            Class<T[]> arrayClass = (Class<T[]>) (Class<?>) Array.newInstance(type, 0).getClass();
-
-            GenericArraySerializer<T> serializer = createSerializer(type, componentSerializer);
-            SerializerTestInstance<T[]> test =
-                    new SerializerTestInstance<T[]>(serializer, arrayClass, -1, instances);
-            test.testAll();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
+        if (type == null
+                || componentSerializer == null
+                || instances == null
+                || instances.length == 0) {
+            throw new IllegalArgumentException();
         }
+
+        @SuppressWarnings("unchecked")
+        Class<T[]> arrayClass = (Class<T[]>) (Class<?>) Array.newInstance(type, 0).getClass();
+
+        GenericArraySerializer<T> serializer = createSerializer(type, componentSerializer);
+        SerializerTestInstance<T[]> test =
+                new SerializerTestInstance<T[]>(serializer, arrayClass, -1, instances) {};
+        test.testAll();
     }
 
     private <T> GenericArraySerializer<T> createSerializer(

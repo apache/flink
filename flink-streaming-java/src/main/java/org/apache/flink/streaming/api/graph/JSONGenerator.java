@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -45,7 +46,7 @@ public class JSONGenerator {
     public static final String PARALLELISM = "parallelism";
 
     private StreamGraph streamGraph;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
     public JSONGenerator(StreamGraph streamGraph) {
         this.streamGraph = streamGraph;
@@ -182,7 +183,7 @@ public class JSONGenerator {
             node.put(PACT, "Operator");
         }
 
-        node.put(CONTENTS, vertex.getOperatorName());
+        node.put(CONTENTS, vertex.getOperatorDescription());
 
         node.put(PARALLELISM, streamGraph.getStreamNode(vertexID).getParallelism());
     }

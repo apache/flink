@@ -18,8 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connector.file.table.RowPartitionComputer;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.filesystem.RowPartitionComputer;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.DataType;

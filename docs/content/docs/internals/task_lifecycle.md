@@ -26,14 +26,13 @@ under the License.
 
 # Task Lifecycle
 
-A task in Flink is the basic unit of execution. It is the place where each parallel instance of an operator is executed.
-As an example, an operator with a parallelism of *5* will have each of its instances executed by a separate task. 
+A task in Flink is the basic unit of execution. It is the place where each parallel instance of an
+operator is executed. As an example, an operator with a parallelism of *5* will have each of its
+instances executed by a separate task.
 
-The `StreamTask` is the base for all different task sub-types in Flink's streaming engine. This document goes through 
-the different phases in the lifecycle of the `StreamTask` and describes the main methods representing each of these 
-phases.
-
-
+The `StreamTask` is the base for all different task sub-types in Flink's streaming engine. This
+document goes through the different phases in the lifecycle of the `StreamTask` and describes the
+main methods representing each of these phases.
 
 ## Operator Lifecycle in a nutshell
 
@@ -50,7 +49,7 @@ the `AbstractUdfStreamOperator`, which is the basic class for all operators that
         OPERATOR::initializeState
         OPERATOR::open
             UDF::open
-        
+
         // processing phase (called on every element/watermark)
         OPERATOR::processElement
             UDF::run
@@ -58,11 +57,13 @@ the `AbstractUdfStreamOperator`, which is the basic class for all operators that
         
         // checkpointing phase (called asynchronously on every checkpoint)
         OPERATOR::snapshotState
-                
+
+        // notify the operator about the end of processing records
+        OPERATOR::finish
+
         // termination phase
         OPERATOR::close
             UDF::close
-        OPERATOR::dispose
     
 In a nutshell, the `setup()` is called to initialize some operator-specific machinery, such as its `RuntimeContext` and 
 its metric collection data-structures. After this, the `initializeState()` gives an operator its initial state, and the 
@@ -82,13 +83,14 @@ checkpoint which invokes (asynchronously) the `snapshotState()` method, which we
 depending on its type one of the aforementioned methods is called. Note that the `processElement()` is also the place 
 where the UDF's logic is invoked, *e.g.* the `map()` method of your `MapFunction`.
 
-Finally, in the case of a normal, fault-free termination of the operator (*e.g.* if the stream is finite and its end is 
-reached), the `close()` method is called to perform any final bookkeeping action required by the operator's logic (*e.g.* 
-close any connections or I/O streams opened during the operator's execution), and the `dispose()` is called after that 
-to free any resources held by the operator (*e.g.* native memory held by the operator's data). 
+Finally, in the case of a normal, fault-free termination of the operator (*e.g.* if the stream is
+finite and its end is reached), the `finish()` method is called to perform any final bookkeeping
+action required by the operator's logic (*e.g.* flush any buffered data, or emit data to mark end of
+processing), and the `close()` is called after that to free any resources held by the operator
+(*e.g.* open network connections, io streams, or native memory held by the operator's data).
 
-In the case of a termination due to a failure or due to manual cancellation, the execution jumps directly to the `dispose()` 
-and skips any intermediate phases between the phase the operator was in when the failure happened and the `dispose()`.
+In the case of a termination due to a failure or due to manual cancellation, the execution jumps directly to the `close()`
+and skips any intermediate phases between the phase the operator was in when the failure happened and the `close()`.
 
 **Checkpoints:** The `snapshotState()` method of the operator is called asynchronously to the rest of the methods described 
 above whenever a checkpoint barrier is received. Checkpoints are performed during the processing phase, *i.e.* after the 
@@ -111,18 +113,19 @@ either manually, or due some other reason, *e.g.* an exception thrown during exe
 
 The steps a task goes through when executed until completion without being interrupted are illustrated below:
 
-	    TASK::setInitialState
-	    TASK::invoke
-    	    create basic utils (config, etc) and load the chain of operators
-    	    setup-operators
-    	    task-specific-init
-    	    initialize-operator-states
-       	    open-operators
-    	    run
-    	    close-operators
-    	    dispose-operators
-    	    task-specific-cleanup
-    	    common-cleanup
+        TASK::setInitialState
+        TASK::invoke
+            create basic utils (config, etc) and load the chain of operators
+            setup-operators
+            task-specific-init
+            initialize-operator-states
+            open-operators
+            run
+            finish-operators
+            wait for the final checkpoint completed (if enabled)
+            close-operators
+            task-specific-cleanup
+            common-cleanup
 
 As shown above, after recovering the task configuration and initializing some important runtime parameters, the very 
 first step for the task is to retrieve its initial, task-wide state. This is done in the `setInitialState()`, and it is 
@@ -166,10 +169,13 @@ methods are called.
 In the case of running till completion, *i.e.* there is no more input data to process, after exiting from the `run()` 
 method, the task enters its shutdown process. Initially, the timer service stops registering any new timers (*e.g.* from 
 fired timers that are being executed), clears all not-yet-started timers, and awaits the completion of currently 
-executing timers. Then the `closeAllOperators()` tries to gracefully close the operators involved in the computation by 
-calling the `close()` method of each operator. Then, any buffered output data is flushed so that they can be processed 
-by the downstream tasks, and finally the task tries to clear all the resources held by the operators by calling the 
-`dispose()` method of each one. When opening the different operators, we mentioned that the order is from the 
+executing timers. Then the `finishAllOperators()` notifies the operators involved in the computation by
+calling the `finish()` method of each operator. Then, any buffered output data is flushed so that they can be processed
+by the downstream tasks. Then if final checkpoint is enabled, the task would
+[wait for the final checkpoint completed]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing#waiting-for-the-final-checkpoint-before-task-exit" >}})
+to ensure operators using two-phase committing have committed all the records.
+Finally the task tries to clear all the resources held by the operators by calling the
+`close()` method of each one. When opening the different operators, we mentioned that the order is from the
 last to the first. Closing happens in the opposite manner, from first to last.
 
 {{< hint info >}}
@@ -196,7 +202,7 @@ completed.
 
 In the previous sections we described the lifecycle of a task that runs till completion. In case the task is cancelled 
 at any point, then the normal execution is interrupted and the only operations performed from that point on are the timer 
-service shutdown, the task-specific cleanup, the disposal of the operators, and the general task cleanup, as described 
+service shutdown, the task-specific cleanup, the closing of the operators, and the general task cleanup, as described
 above.
 
 {{< top >}}

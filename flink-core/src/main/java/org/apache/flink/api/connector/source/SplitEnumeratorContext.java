@@ -18,25 +18,29 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 
 /**
- * A context class for the {@link SplitEnumerator}. This class serves the following purposes: 1.
- * Host information necessary for the SplitEnumerator to make split assignment decisions. 2. Accept
- * and track the split assignment from the enumerator. 3. Provide a managed threading model so the
- * split enumerators do not need to create their own internal threads.
+ * A context class for the {@link SplitEnumerator}. This class serves the following purposes:
+ *
+ * <ol>
+ *   <li>Host information necessary for the SplitEnumerator to make split assignment decisions.
+ *   <li>Accept and track the split assignment from the enumerator.
+ *   <li>Provide a managed threading model so the split enumerators do not need to create their own
+ *       internal threads.
+ * </ol>
  *
  * @param <SplitT> the type of the splits.
  */
-@PublicEvolving
+@Public
 public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
-    MetricGroup metricGroup();
+    SplitEnumeratorMetricGroup metricGroup();
 
     /**
      * Send a source event to a source reader. The source reader is identified by its subtask id.
@@ -45,6 +49,24 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * @param event the source event to send.
      */
     void sendEventToSourceReader(int subtaskId, SourceEvent event);
+
+    /**
+     * Send a source event to a source reader. The source reader is identified by its subtask id and
+     * attempt number. It is similar to {@link #sendEventToSourceReader(int, SourceEvent)} but it is
+     * aware of the subtask execution attempt to send this event to.
+     *
+     * <p>The {@link SplitEnumerator} must invoke this method instead of {@link
+     * #sendEventToSourceReader(int, SourceEvent)} if it is used in cases that a subtask can have
+     * multiple concurrent execution attempts, e.g. if speculative execution is enabled. Otherwise
+     * an error will be thrown when the split enumerator tries to send a custom source event.
+     *
+     * @param subtaskId the subtask id of the source reader to send this event to.
+     * @param attemptNumber the attempt number of the source reader to send this event to.
+     * @param event the source event to send.
+     */
+    default void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Get the current parallelism of this Source. Note that due to auto-scaling, the parallelism
@@ -58,9 +80,23 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
     /**
      * Get the currently registered readers. The mapping is from subtask id to the reader info.
      *
+     * <p>Note that if a subtask has multiple concurrent attempts, the map will contain the earliest
+     * attempt of that subtask. This is for compatibility purpose. It's recommended to use {@link
+     * #registeredReadersOfAttempts()} instead.
+     *
      * @return the currently registered readers.
      */
     Map<Integer, ReaderInfo> registeredReaders();
+
+    /**
+     * Get the currently registered readers of all the subtask attempts. The mapping is from subtask
+     * id to a map which maps an attempt to its reader info.
+     *
+     * @return the currently registered readers.
+     */
+    default Map<Integer, Map<Integer, ReaderInfo>> registeredReadersOfAttempts() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Assign the splits.
@@ -96,8 +132,8 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
-     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState()}.
-     * Otherwise the there might be unexpected behavior.
+     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState(long)}.
+     * Otherwise, there might be unexpected behavior.
      *
      * <p>Note that an exception thrown from the handler would result in failing the job.
      *
@@ -113,19 +149,22 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      * <code>Callable</code>s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
-     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState()}.
-     * Otherwise the there might be unexpected behavior.
+     * especially the states that will be a part of the {@link SplitEnumerator#snapshotState(long)}.
+     * Otherwise, there might be unexpected behavior.
      *
      * <p>Note that an exception thrown from the handler would result in failing the job.
      *
      * @param callable the callable to call.
      * @param handler a handler that handles the return value of or the exception thrown from the
      *     callable.
-     * @param initialDelay the initial delay of calling the callable.
-     * @param period the period between two invocations of the callable.
+     * @param initialDelayMillis the initial delay of calling the callable, in milliseconds.
+     * @param periodMillis the period between two invocations of the callable, in milliseconds.
      */
     <T> void callAsync(
-            Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period);
+            Callable<T> callable,
+            BiConsumer<T, Throwable> handler,
+            long initialDelayMillis,
+            long periodMillis);
 
     /**
      * Invoke the given runnable in the source coordinator thread.

@@ -72,7 +72,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -87,7 +86,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             LoggerFactory.getLogger(RocksDBIncrementalRestoreOperation.class);
 
     private final String operatorIdentifier;
-    private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
+    private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> restoredSstFiles;
     private final RocksDBHandle rocksHandle;
     private final Collection<KeyedStateHandle> restoreStateHandles;
     private final CloseableRegistry cancelStreamRegistry;
@@ -100,6 +99,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private long lastCompletedCheckpointId;
     private UUID backendUID;
     private final long writeBatchSize;
+    private final double overlapFractionThreshold;
 
     private boolean isKeySerializerCompatibilityChecked;
 
@@ -121,7 +121,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            double overlapFractionThreshold) {
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -137,6 +138,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.lastCompletedCheckpointId = -1L;
         this.backendUID = UUID.randomUUID();
         this.writeBatchSize = writeBatchSize;
+        this.overlapFractionThreshold = overlapFractionThreshold;
         this.restoreStateHandles = restoreStateHandles;
         this.cancelStreamRegistry = cancelStreamRegistry;
         this.keyGroupRange = keyGroupRange;
@@ -207,7 +209,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         backendUID = localKeyedStateHandle.getBackendIdentifier();
         restoredSstFiles.put(
                 localKeyedStateHandle.getCheckpointId(),
-                localKeyedStateHandle.getSharedStateHandleIDs());
+                localKeyedStateHandle.getSharedStateHandles());
         lastCompletedCheckpointId = localKeyedStateHandle.getCheckpointId();
     }
 
@@ -239,7 +241,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 backendUID);
 
         this.rocksHandle.openDB(
-                createlumnFamilyDescriptors(stateMetaInfoSnapshots, true),
+                createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath);
     }
@@ -263,7 +265,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 new DirectoryStateHandle(temporaryRestoreInstancePath),
                 restoreStateHandle.getKeyGroupRange(),
                 restoreStateHandle.getMetaStateHandle(),
-                restoreStateHandle.getSharedState().keySet());
+                restoreStateHandle.getSharedState());
     }
 
     private void cleanUpPathQuietly(@Nonnull Path path) {
@@ -285,7 +287,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         // Prepare for restore with rescaling
         KeyedStateHandle initialHandle =
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        restoreStateHandles, keyGroupRange);
+                        restoreStateHandles, keyGroupRange, overlapFractionThreshold);
 
         // Init base DB instance
         if (initialHandle != null) {
@@ -388,8 +390,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                     this.rocksHandle.getColumnFamilyHandles(),
                     keyGroupRange,
                     initialHandle.getKeyGroupRange(),
-                    keyGroupPrefixBytes,
-                    writeBatchSize);
+                    keyGroupPrefixBytes);
         } catch (RocksDBException e) {
             String errMsg = "Failed to clip DB after initialization.";
             logger.error(errMsg, e);
@@ -422,7 +423,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             this.columnFamilyHandles = columnFamilyHandles;
             this.columnFamilyDescriptors = columnFamilyDescriptors;
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-            this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+            this.readOptions = new ReadOptions();
         }
 
         @Override
@@ -457,7 +458,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 serializationProxy.getStateMetaInfoSnapshots();
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-                createlumnFamilyDescriptors(stateMetaInfoSnapshots, false);
+                createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
 
         List<ColumnFamilyHandle> columnFamilyHandles =
                 new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
@@ -479,7 +480,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state
      * meta data snapshot.
      */
-    private List<ColumnFamilyDescriptor> createlumnFamilyDescriptors(
+    private List<ColumnFamilyDescriptor> createColumnFamilyDescriptors(
             List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter) {
 
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =

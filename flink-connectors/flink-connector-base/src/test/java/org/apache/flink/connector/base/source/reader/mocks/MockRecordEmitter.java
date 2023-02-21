@@ -20,20 +20,43 @@ package org.apache.flink.connector.base.source.reader.mocks;
 
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * A mock {@link RecordEmitter} that works with the {@link MockSplitReader} and {@link
  * MockSourceReader}.
  */
-public class MockRecordEmitter implements RecordEmitter<int[], Integer, AtomicInteger> {
+public class MockRecordEmitter implements RecordEmitter<int[], Integer, MockSplitState> {
+    public static final int RECORD_SIZE_IN_BYTES = 10;
+    private final SourceReaderMetricGroup metricGroup;
+    private final Set<MockSplitState> knownSplits =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    MockRecordEmitter(SourceReaderMetricGroup metricGroup) {
+        this.metricGroup = metricGroup;
+        this.metricGroup.setPendingBytesGauge(
+                () ->
+                        knownSplits.stream().mapToLong(MockSplitState::getPendingRecords).sum()
+                                * RECORD_SIZE_IN_BYTES);
+        this.metricGroup.setPendingRecordsGauge(
+                () -> knownSplits.stream().mapToLong(MockSplitState::getPendingRecords).sum());
+    }
+
     @Override
-    public void emitRecord(int[] record, SourceOutput<Integer> output, AtomicInteger splitState)
-            throws Exception {
+    public void emitRecord(int[] record, SourceOutput<Integer> output, MockSplitState splitState) {
+        knownSplits.add(splitState);
+        if (record[0] % 2 == 0) {
+            this.metricGroup.getNumRecordsInErrorsCounter().inc();
+        }
+        this.metricGroup.getIOMetricGroup().getNumBytesInCounter().inc(RECORD_SIZE_IN_BYTES);
+
         // The value is the first element.
         output.collect(record[0]);
         // The state will be next index.
-        splitState.set(record[1] + 1);
+        splitState.setRecordIndex(record[1] + 1);
     }
 }

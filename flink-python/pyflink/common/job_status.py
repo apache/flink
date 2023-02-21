@@ -81,9 +81,6 @@ class JobStatus(Enum):
     SUSPENDED = 8
     RECONCILING = 9
 
-    def __init__(self, j_job_status) -> None:
-        self._j_job_status = j_job_status
-
     def is_globally_terminal_state(self) -> bool:
         """
         Checks whether this state is <i>globally terminal</i>. A globally terminal job
@@ -97,7 +94,7 @@ class JobStatus(Enum):
 
         .. versionadded:: 1.11.0
         """
-        return self._j_job_status.isGloballyTerminalState()
+        return self._to_j_job_status().isGloballyTerminalState()
 
     def is_terminal_state(self) -> bool:
         """
@@ -106,13 +103,13 @@ class JobStatus(Enum):
         is locally terminal, the JobManager will not continue executing or recovering the job.
 
         The only state that is locally terminal, but not globally terminal is SUSPENDED,
-        which is typically entered when the executing JobManager looses its leader status.
+        which is typically entered when the executing JobManager loses its leader status.
 
         :return: ``True`` if this job status is terminal, ``False`` otherwise.
 
         .. versionadded:: 1.11.0
         """
-        return self._j_job_status.isTerminalState()
+        return self._to_j_job_status().isTerminalState()
 
     @staticmethod
     def _from_j_job_status(j_job_status) -> 'JobStatus':

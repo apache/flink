@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategyTest.DummyMetricGroup;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalculatorContext;
@@ -30,11 +28,16 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -47,14 +50,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.any;
@@ -65,7 +65,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the user-defined hooks that the checkpoint coordinator can call. */
-public class CheckpointCoordinatorMasterHooksTest {
+class CheckpointCoordinatorMasterHooksTest {
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     // ------------------------------------------------------------------------
     //  hook registration
@@ -73,11 +77,11 @@ public class CheckpointCoordinatorMasterHooksTest {
 
     /** This method tests that hooks with the same identifier are not registered multiple times. */
     @Test
-    public void testDeduplicateOnRegister() throws Exception {
+    void testDeduplicateOnRegister() throws Exception {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         MasterTriggerRestoreHook<?> hook1 = mock(MasterTriggerRestoreHook.class);
@@ -89,18 +93,18 @@ public class CheckpointCoordinatorMasterHooksTest {
         MasterTriggerRestoreHook<?> hook3 = mock(MasterTriggerRestoreHook.class);
         when(hook3.getIdentifier()).thenReturn("anotherId");
 
-        assertTrue(cc.addMasterHook(hook1));
-        assertFalse(cc.addMasterHook(hook2));
-        assertTrue(cc.addMasterHook(hook3));
+        assertThat(cc.addMasterHook(hook1)).isTrue();
+        assertThat(cc.addMasterHook(hook2)).isFalse();
+        assertThat(cc.addMasterHook(hook3)).isTrue();
     }
 
     /** Test that validates correct exceptions when supplying hooks with invalid IDs. */
     @Test
-    public void testNullOrInvalidId() throws Exception {
+    void testNullOrInvalidId() throws Exception {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         try {
@@ -126,7 +130,7 @@ public class CheckpointCoordinatorMasterHooksTest {
     }
 
     @Test
-    public void testHookReset() throws Exception {
+    void testHookReset() throws Exception {
         final String id1 = "id1";
         final String id2 = "id2";
 
@@ -139,7 +143,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         cc.addMasterHook(hook1);
@@ -161,7 +165,7 @@ public class CheckpointCoordinatorMasterHooksTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testHooksAreCalledOnTrigger() throws Exception {
+    void testHooksAreCalledOnTrigger() throws Exception {
         final String id1 = "id1";
         final String id2 = "id2";
 
@@ -194,7 +198,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         final ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexId)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final CheckpointCoordinator cc =
@@ -207,8 +211,8 @@ public class CheckpointCoordinatorMasterHooksTest {
         // trigger a checkpoint
         final CompletableFuture<CompletedCheckpoint> checkpointFuture = cc.triggerCheckpoint(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
-        assertFalse(checkpointFuture.isCompletedExceptionally());
-        assertEquals(1, cc.getNumberOfPendingCheckpoints());
+        assertThat(checkpointFuture).isNotCompletedExceptionally();
+        assertThat(cc.getNumberOfPendingCheckpoints()).isOne();
 
         verify(statefulHook1, times(1))
                 .triggerCheckpoint(anyLong(), anyLong(), any(Executor.class));
@@ -224,25 +228,25 @@ public class CheckpointCoordinatorMasterHooksTest {
                         .getAttemptId();
 
         final long checkpointId =
-                cc.getPendingCheckpoints().values().iterator().next().getCheckpointId();
+                cc.getPendingCheckpoints().values().iterator().next().getCheckpointID();
         cc.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID, checkpointId),
                 "Unknown location");
-        assertEquals(0, cc.getNumberOfPendingCheckpoints());
+        assertThat(cc.getNumberOfPendingCheckpoints()).isZero();
 
-        assertEquals(1, cc.getNumberOfRetainedSuccessfulCheckpoints());
-        final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint(false);
+        assertThat(cc.getNumberOfRetainedSuccessfulCheckpoints()).isOne();
+        final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint();
 
         final Collection<MasterState> masterStates = chk.getMasterHookStates();
-        assertEquals(2, masterStates.size());
+        assertThat(masterStates.size()).isEqualTo(2);
 
         for (MasterState ms : masterStates) {
             if (ms.name().equals(id1)) {
-                assertArrayEquals(state1serialized, ms.bytes());
-                assertEquals(StringSerializer.VERSION, ms.version());
+                assertThat(ms.bytes()).isEqualTo(state1serialized);
+                assertThat(ms.version()).isEqualTo(StringSerializer.VERSION);
             } else if (ms.name().equals(id2)) {
-                assertArrayEquals(state2serialized, ms.bytes());
-                assertEquals(LongSerializer.VERSION, ms.version());
+                assertThat(ms.bytes()).isEqualTo(state2serialized);
+                assertThat(ms.version()).isEqualTo(LongSerializer.VERSION);
             } else {
                 fail("unrecognized state name: " + ms.name());
             }
@@ -250,7 +254,7 @@ public class CheckpointCoordinatorMasterHooksTest {
     }
 
     @Test
-    public void testHooksAreCalledOnRestore() throws Exception {
+    void testHooksAreCalledOnRestore() throws Exception {
         final String id1 = "id1";
         final String id2 = "id2";
 
@@ -296,18 +300,20 @@ public class CheckpointCoordinatorMasterHooksTest {
                         masterHookStates,
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         cc.addMasterHook(statefulHook1);
         cc.addMasterHook(statelessHook);
         cc.addMasterHook(statefulHook2);
 
-        cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        cc.getCheckpointStore()
+                .addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
         cc.restoreLatestCheckpointedStateToAll(Collections.emptySet(), false);
 
         verify(statefulHook1, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
@@ -316,7 +322,7 @@ public class CheckpointCoordinatorMasterHooksTest {
     }
 
     @Test
-    public void checkUnMatchedStateOnRestore() throws Exception {
+    void checkUnMatchedStateOnRestore() throws Exception {
         final String id1 = "id1";
         final String id2 = "id2";
 
@@ -355,18 +361,20 @@ public class CheckpointCoordinatorMasterHooksTest {
                         masterHookStates,
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
 
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator cc = instantiateCheckpointCoordinator(graph);
 
         cc.addMasterHook(statefulHook);
         cc.addMasterHook(statelessHook);
 
-        cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        cc.getCheckpointStore()
+                .addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
 
         // since we have unmatched state, this should fail
         try {
@@ -391,14 +399,14 @@ public class CheckpointCoordinatorMasterHooksTest {
      * are called
      */
     @Test
-    public void ensureRegisteredAtHookTime() throws Exception {
+    void ensureRegisteredAtHookTime() throws Exception {
         final String id = "id";
 
         // create the checkpoint coordinator
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         CheckpointCoordinator cc =
@@ -413,10 +421,10 @@ public class CheckpointCoordinatorMasterHooksTest {
                             @Override
                             public CompletableFuture<Void> answer(InvocationOnMock invocation)
                                     throws Throwable {
-                                assertEquals(1, cc.getNumberOfPendingCheckpoints());
+                                assertThat(cc.getNumberOfPendingCheckpoints()).isOne();
 
                                 long checkpointId = (Long) invocation.getArguments()[0];
-                                assertNotNull(cc.getPendingCheckpoints().get(checkpointId));
+                                assertThat(cc.getPendingCheckpoints()).containsKey(checkpointId);
                                 return null;
                             }
                         });
@@ -426,7 +434,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         // trigger a checkpoint
         final CompletableFuture<CompletedCheckpoint> checkpointFuture = cc.triggerCheckpoint(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
-        assertFalse(checkpointFuture.isCompletedExceptionally());
+        assertThat(checkpointFuture).isNotCompletedExceptionally();
     }
 
     // ------------------------------------------------------------------------
@@ -434,22 +442,22 @@ public class CheckpointCoordinatorMasterHooksTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testSerializationFailsOnTrigger() {}
+    void testSerializationFailsOnTrigger() {}
 
     @Test
-    public void testHookCallFailsOnTrigger() {}
+    void testHookCallFailsOnTrigger() {}
 
     @Test
-    public void testDeserializationFailsOnRestore() {}
+    void testDeserializationFailsOnRestore() {}
 
     @Test
-    public void testHookCallFailsOnRestore() {}
+    void testHookCallFailsOnRestore() {}
 
     @Test
-    public void testTypeIncompatibleWithSerializerOnStore() {}
+    void testTypeIncompatibleWithSerializerOnStore() {}
 
     @Test
-    public void testTypeIncompatibleWithHookOnRestore() {}
+    void testTypeIncompatibleWithHookOnRestore() {}
 
     // ------------------------------------------------------------------------
     //  utilities
@@ -473,7 +481,7 @@ public class CheckpointCoordinatorMasterHooksTest {
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                         true,
                         false,
-                        false,
+                        0,
                         0);
         Executor executor = Executors.directExecutor();
         return new CheckpointCoordinator(
@@ -486,13 +494,14 @@ public class CheckpointCoordinatorMasterHooksTest {
                 executor,
                 new CheckpointsCleaner(),
                 testingScheduledExecutor,
-                SharedStateRegistry.DEFAULT_FACTORY,
                 new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE),
                 new DefaultCheckpointPlanCalculator(
                         graph.getJobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
-                        graph.getVerticesTopologically()),
-                new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()));
+                        graph.getVerticesTopologically(),
+                        false),
+                new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()),
+                new CheckpointStatsTracker(1, new DummyMetricGroup()));
     }
 
     private static <T> T mockGeneric(Class<?> clazz) {
@@ -521,8 +530,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 
         @Override
         public Long deserialize(int version, byte[] serialized) throws IOException {
-            assertEquals(VERSION, version);
-            assertEquals(8, serialized.length);
+            assertThat(version).isEqualTo(VERSION);
+            assertThat(serialized.length).isEqualTo(8);
 
             return ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN).getLong(0);
         }

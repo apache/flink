@@ -29,7 +29,7 @@ import java.sql.Timestamp;
  * TimestampColumnVector.
  */
 public class OrcNoHiveTimestampVector extends AbstractOrcNoHiveVector
-        implements org.apache.flink.table.data.vector.TimestampColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.TimestampColumnVector {
 
     private TimestampColumnVector vector;
 

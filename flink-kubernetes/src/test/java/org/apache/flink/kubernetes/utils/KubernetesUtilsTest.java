@@ -23,96 +23,103 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.kubernetes.KubernetesPodTemplateTestUtils;
 import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KubernetesUtils}. */
-public class KubernetesUtilsTest extends KubernetesTestBase {
+class KubernetesUtilsTest extends KubernetesTestBase {
 
     private static final FlinkPod EMPTY_POD = new FlinkPod.Builder().build();
 
     @Test
-    public void testParsePortRange() {
+    void testParsePortRange() {
         final Configuration cfg = new Configuration();
         cfg.set(BlobServerOptions.PORT, "50100-50200");
-        try {
-            KubernetesUtils.parsePort(cfg, BlobServerOptions.PORT);
-            fail("Should fail with an exception.");
-        } catch (FlinkRuntimeException e) {
-            assertThat(
-                    e.getMessage(),
-                    containsString(
-                            BlobServerOptions.PORT.key()
-                                    + " should be specified to a fixed port. Do not support a range of ports."));
-        }
+        assertThatThrownBy(
+                        () -> KubernetesUtils.parsePort(cfg, BlobServerOptions.PORT),
+                        "Should fail with an exception.")
+                .satisfies(
+                        cause ->
+                                assertThat(cause)
+                                        .isInstanceOf(FlinkRuntimeException.class)
+                                        .hasMessageContaining(BlobServerOptions.PORT.key()));
     }
 
     @Test
-    public void testParsePortNull() {
+    void testParsePortNull() {
         final Configuration cfg = new Configuration();
         ConfigOption<String> testingPort =
                 ConfigOptions.key("test.port").stringType().noDefaultValue();
-        try {
-            KubernetesUtils.parsePort(cfg, testingPort);
-            fail("Should fail with an exception.");
-        } catch (NullPointerException e) {
-            assertThat(e.getMessage(), containsString(testingPort.key() + " should not be null."));
-        }
+        assertThatThrownBy(
+                        () -> KubernetesUtils.parsePort(cfg, testingPort),
+                        "Should fail with an exception.")
+                .satisfies(
+                        cause ->
+                                assertThat(cause)
+                                        .isInstanceOf(NullPointerException.class)
+                                        .hasMessageContaining(
+                                                testingPort.key() + " should not be null."));
     }
 
     @Test
-    public void testCheckWithDynamicPort() {
+    void testCheckWithDynamicPort() {
         testCheckAndUpdatePortConfigOption("0", "6123", "6123");
     }
 
     @Test
-    public void testCheckWithFixedPort() {
+    void testCheckWithFixedPort() {
         testCheckAndUpdatePortConfigOption("6123", "16123", "6123");
     }
 
     @Test
-    public void testLoadPodFromTemplateWithNonExistPathShouldFail() {
-        final String nonExistFile = "/path/of/non-exist.yaml";
-        try {
-            KubernetesUtils.loadPodFromTemplateFile(
-                    flinkKubeClient,
-                    new File(nonExistFile),
-                    KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
-            fail("Kubernetes client should fail when the pod template file does not exist.");
-        } catch (Exception ex) {
-            final String msg = String.format("Pod template file %s does not exist.", nonExistFile);
-            assertThat(ex, FlinkMatchers.containsMessage(msg));
-        }
+    void testLoadPodFromNoSpecTemplate() {
+        final FlinkPod flinkPod =
+                KubernetesUtils.loadPodFromTemplateFile(
+                        flinkKubeClient,
+                        KubernetesPodTemplateTestUtils.getNoSpecPodTemplateFile(),
+                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        assertThat(flinkPod.getMainContainer()).isEqualTo(EMPTY_POD.getMainContainer());
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers()).hasSize(0);
     }
 
     @Test
-    public void testLoadPodFromTemplateWithNoMainContainerShouldReturnEmptyMainContainer() {
+    void testLoadPodFromTemplateWithNonExistPathShouldFail() {
+        final String nonExistFile = "/path/of/non-exist.yaml";
+        final String msg = String.format("Pod template file %s does not exist.", nonExistFile);
+        assertThatThrownBy(
+                        () ->
+                                KubernetesUtils.loadPodFromTemplateFile(
+                                        flinkKubeClient,
+                                        new File(nonExistFile),
+                                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME),
+                        "Kubernetes client should fail when the pod template file does not exist.")
+                .satisfies(FlinkAssertions.anyCauseMatches(msg));
+    }
+
+    @Test
+    void testLoadPodFromTemplateWithNoMainContainerShouldReturnEmptyMainContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         "nonExistMainContainer");
-        assertThat(flinkPod.getMainContainer(), is(EMPTY_POD.getMainContainer()));
-        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers().size(), is(2));
+        assertThat(flinkPod.getMainContainer()).isEqualTo(EMPTY_POD.getMainContainer());
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers()).hasSize(2);
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckMetaData() {
+    void testLoadPodFromTemplateAndCheckMetaData() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -120,66 +127,60 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
         // The pod name is defined in the test/resources/testing-pod-template.yaml.
         final String expectedPodName = "pod-template";
-        assertThat(
-                flinkPod.getPodWithoutMainContainer().getMetadata().getName(), is(expectedPodName));
+        assertThat(flinkPod.getPodWithoutMainContainer().getMetadata().getName())
+                .isEqualTo(expectedPodName);
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckInitContainer() {
+    void testLoadPodFromTemplateAndCheckInitContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
-        assertThat(
-                flinkPod.getPodWithoutMainContainer().getSpec().getInitContainers().size(), is(1));
-        assertThat(
-                flinkPod.getPodWithoutMainContainer().getSpec().getInitContainers().get(0),
-                is(KubernetesPodTemplateTestUtils.createInitContainer()));
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getInitContainers()).hasSize(1);
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getInitContainers().get(0))
+                .isEqualTo(KubernetesPodTemplateTestUtils.createInitContainer());
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckMainContainer() {
+    void testLoadPodFromTemplateAndCheckMainContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
-        assertThat(
-                flinkPod.getMainContainer().getName(),
-                is(KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME));
-        assertThat(
-                flinkPod.getMainContainer().getVolumeMounts(),
-                containsInAnyOrder(KubernetesPodTemplateTestUtils.createVolumeMount()));
+        assertThat(flinkPod.getMainContainer().getName())
+                .isEqualTo(KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        assertThat(flinkPod.getMainContainer().getVolumeMounts())
+                .contains(KubernetesPodTemplateTestUtils.createVolumeMount());
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckSideCarContainer() {
+    void testLoadPodFromTemplateAndCheckSideCarContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
-        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers().size(), is(1));
-        assertThat(
-                flinkPod.getPodWithoutMainContainer().getSpec().getContainers().get(0),
-                is(KubernetesPodTemplateTestUtils.createSideCarContainer()));
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers()).hasSize(1);
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers().get(0))
+                .isEqualTo(KubernetesPodTemplateTestUtils.createSideCarContainer());
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckVolumes() {
+    void testLoadPodFromTemplateAndCheckVolumes() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
-        assertThat(
-                flinkPod.getPodWithoutMainContainer().getSpec().getVolumes(),
-                containsInAnyOrder(KubernetesPodTemplateTestUtils.createVolumes()));
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getVolumes())
+                .contains(KubernetesPodTemplateTestUtils.createVolumes());
     }
 
     @Test
-    public void testResolveUserDefinedValueWithNotDefinedInPodTemplate() {
+    void testResolveUserDefinedValueWithNotDefinedInPodTemplate() {
         final String resolvedImage =
                 KubernetesUtils.resolveUserDefinedValue(
                         flinkConfig,
@@ -187,11 +188,11 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
                         CONTAINER_IMAGE,
                         null,
                         "container image");
-        assertThat(resolvedImage, is(CONTAINER_IMAGE));
+        assertThat(resolvedImage).isEqualTo(CONTAINER_IMAGE);
     }
 
     @Test
-    public void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionExplicitlySet() {
+    void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionExplicitlySet() {
         final String imageInPodTemplate = "image-in-pod-template:v1";
         final String resolvedImage =
                 KubernetesUtils.resolveUserDefinedValue(
@@ -200,11 +201,11 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
                         CONTAINER_IMAGE,
                         imageInPodTemplate,
                         "container image");
-        assertThat(resolvedImage, is(CONTAINER_IMAGE));
+        assertThat(resolvedImage).isEqualTo(CONTAINER_IMAGE);
     }
 
     @Test
-    public void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionNotSet() {
+    void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionNotSet() {
         final String imageInPodTemplate = "image-in-pod-template:v1";
         final String resolvedImage =
                 KubernetesUtils.resolveUserDefinedValue(
@@ -213,7 +214,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
                         CONTAINER_IMAGE,
                         imageInPodTemplate,
                         "container image");
-        assertThat(resolvedImage, is(imageInPodTemplate));
+        assertThat(resolvedImage).isEqualTo(imageInPodTemplate);
     }
 
     private void testCheckAndUpdatePortConfigOption(
@@ -224,6 +225,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
                 cfg,
                 HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,
                 Integer.valueOf(fallbackPort));
-        assertEquals(expectedPort, cfg.get(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE));
+        assertThat(cfg.get(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE))
+                .isEqualTo(expectedPort);
     }
 }

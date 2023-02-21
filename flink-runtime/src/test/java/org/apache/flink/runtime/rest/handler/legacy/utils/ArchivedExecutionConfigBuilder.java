@@ -31,6 +31,7 @@ public class ArchivedExecutionConfigBuilder {
     private int maxParallelism;
     private int parallelism;
     private boolean objectReuseEnabled;
+    private long periodicMaterializeIntervalMillis;
     private Map<String, String> globalJobParameters;
 
     public ArchivedExecutionConfigBuilder setExecutionMode(String executionMode) {
@@ -49,7 +50,7 @@ public class ArchivedExecutionConfigBuilder {
         return this;
     }
 
-    public ArchivedExecutionConfigBuilder setMaxParallelism(int parallelism) {
+    public ArchivedExecutionConfigBuilder setMaxParallelism(int maxParallelism) {
         this.maxParallelism = maxParallelism;
         return this;
     }
@@ -65,6 +66,12 @@ public class ArchivedExecutionConfigBuilder {
         return this;
     }
 
+    public ArchivedExecutionConfigBuilder setPeriodicMaterializeIntervalMillis(
+            long periodicMaterializeIntervalMillis) {
+        this.periodicMaterializeIntervalMillis = periodicMaterializeIntervalMillis;
+        return this;
+    }
+
     public ArchivedExecutionConfig build() {
         return new ArchivedExecutionConfig(
                 executionMode != null ? executionMode : ExecutionMode.PIPELINED.name(),
@@ -72,6 +79,7 @@ public class ArchivedExecutionConfigBuilder {
                 maxParallelism,
                 parallelism,
                 objectReuseEnabled,
+                periodicMaterializeIntervalMillis,
                 globalJobParameters != null
                         ? globalJobParameters
                         : Collections.<String, String>emptyMap());

@@ -79,6 +79,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
+            boolean isTaskFinished,
             Supplier<Boolean> isRunning) {}
 
     @Override
@@ -90,5 +91,15 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) {}
 
     @Override
+    public void notifyCheckpointSubsumed(
+            long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) {}
+
+    @Override
+    public void waitForPendingCheckpoints() throws Exception {}
+
+    @Override
     public void close() {}
+
+    @Override
+    public void cancel() {}
 }

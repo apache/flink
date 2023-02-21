@@ -19,33 +19,34 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.ConversionException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link JarIdPathParameter}. */
-public class JarIdPathParameterTest extends TestLogger {
+class JarIdPathParameterTest {
 
     private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-    @Test(expected = ConversionException.class)
-    public void testJarIdWithParentDir() throws Exception {
-        jarIdPathParameter.convertFromString("../../test.jar");
+    @Test
+    void testJarIdWithParentDir() throws Exception {
+        assertThatThrownBy(() -> jarIdPathParameter.convertFromString("../../test.jar"))
+                .isInstanceOf(ConversionException.class);
     }
 
     @Test
-    public void testConvertFromString() throws Exception {
+    void testConvertFromString() throws Exception {
         final String expectedJarId = "test.jar";
         final String jarId = jarIdPathParameter.convertFromString(expectedJarId);
-        assertEquals(expectedJarId, jarId);
+        assertThat(jarId).isEqualTo(expectedJarId);
     }
 
     @Test
-    public void testConvertToString() throws Exception {
+    void testConvertToString() throws Exception {
         final String expected = "test.jar";
         final String toString = jarIdPathParameter.convertToString(expected);
-        assertEquals(expected, toString);
+        assertThat(toString).isEqualTo(expected);
     }
 }

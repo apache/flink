@@ -21,7 +21,7 @@ under the License.
 	<parent>
 		<artifactId>flink-filesystems</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -29,7 +29,7 @@ under the License.
 	<name>Flink : FileSystems : OSS FS</name>
 
 	<properties>
-		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
+		<fs.oss.sdk.version>3.13.2</fs.oss.sdk.version>
 	</properties>
 
 	<dependencies>
@@ -66,6 +66,14 @@ under the License.
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -73,6 +81,21 @@ under the License.
 			<groupId>com.aliyun.oss</groupId>
 			<artifactId>aliyun-sdk-oss</artifactId>
 			<version>${fs.oss.sdk.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -116,7 +139,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
@@ -154,7 +176,6 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

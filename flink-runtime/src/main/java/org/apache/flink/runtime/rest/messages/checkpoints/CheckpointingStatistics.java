@@ -200,6 +200,8 @@ public class CheckpointingStatistics implements ResponseBody {
     /** Checkpoint summary. */
     public static final class Summary {
 
+        public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
+
         /**
          * The accurate name of this field should be 'checkpointed_data_size', keep it as before to
          * not break backwards compatibility for old web UI.
@@ -216,28 +218,33 @@ public class CheckpointingStatistics implements ResponseBody {
 
         public static final String FIELD_NAME_PERSISTED_DATA = "persisted_data";
 
+        @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE)
+        private final StatsSummaryDto checkpointedSize;
+
         @JsonProperty(FIELD_NAME_STATE_SIZE)
-        private final MinMaxAvgStatistics stateSize;
+        private final StatsSummaryDto stateSize;
 
         @JsonProperty(FIELD_NAME_DURATION)
-        private final MinMaxAvgStatistics duration;
+        private final StatsSummaryDto duration;
 
         @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-        private final MinMaxAvgStatistics alignmentBuffered;
+        private final StatsSummaryDto alignmentBuffered;
 
         @JsonProperty(FIELD_NAME_PROCESSED_DATA)
-        private final MinMaxAvgStatistics processedData;
+        private final StatsSummaryDto processedData;
 
         @JsonProperty(FIELD_NAME_PERSISTED_DATA)
-        private final MinMaxAvgStatistics persistedData;
+        private final StatsSummaryDto persistedData;
 
         @JsonCreator
         public Summary(
-                @JsonProperty(FIELD_NAME_STATE_SIZE) MinMaxAvgStatistics stateSize,
-                @JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration,
-                @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) MinMaxAvgStatistics alignmentBuffered,
-                @JsonProperty(FIELD_NAME_PROCESSED_DATA) MinMaxAvgStatistics processedData,
-                @JsonProperty(FIELD_NAME_PERSISTED_DATA) MinMaxAvgStatistics persistedData) {
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) StatsSummaryDto checkpointedSize,
+                @JsonProperty(FIELD_NAME_STATE_SIZE) StatsSummaryDto stateSize,
+                @JsonProperty(FIELD_NAME_DURATION) StatsSummaryDto duration,
+                @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) StatsSummaryDto alignmentBuffered,
+                @JsonProperty(FIELD_NAME_PROCESSED_DATA) StatsSummaryDto processedData,
+                @JsonProperty(FIELD_NAME_PERSISTED_DATA) StatsSummaryDto persistedData) {
+            this.checkpointedSize = checkpointedSize;
             this.stateSize = stateSize;
             this.duration = duration;
             this.alignmentBuffered = alignmentBuffered;
@@ -245,11 +252,11 @@ public class CheckpointingStatistics implements ResponseBody {
             this.persistedData = persistedData;
         }
 
-        public MinMaxAvgStatistics getStateSize() {
+        public StatsSummaryDto getStateSize() {
             return stateSize;
         }
 
-        public MinMaxAvgStatistics getDuration() {
+        public StatsSummaryDto getDuration() {
             return duration;
         }
 
@@ -262,7 +269,8 @@ public class CheckpointingStatistics implements ResponseBody {
                 return false;
             }
             Summary summary = (Summary) o;
-            return Objects.equals(stateSize, summary.stateSize)
+            return Objects.equals(checkpointedSize, summary.checkpointedSize)
+                    && Objects.equals(stateSize, summary.stateSize)
                     && Objects.equals(duration, summary.duration)
                     && Objects.equals(alignmentBuffered, summary.alignmentBuffered)
                     && Objects.equals(processedData, summary.processedData)
@@ -272,7 +280,12 @@ public class CheckpointingStatistics implements ResponseBody {
         @Override
         public int hashCode() {
             return Objects.hash(
-                    stateSize, duration, alignmentBuffered, processedData, persistedData);
+                    checkpointedSize,
+                    stateSize,
+                    duration,
+                    alignmentBuffered,
+                    processedData,
+                    persistedData);
         }
     }
 

@@ -34,7 +34,12 @@ public class KafkaMetricMutableWrapper implements Gauge<Double> {
 
     @Override
     public Double getValue() {
-        return kafkaMetric.value();
+        final Object metricValue = kafkaMetric.metricValue();
+        // Previously KafkaMetric supported KafkaMetric#value that always returned a Double value.
+        // Since this method has been deprecated and is removed in future releases we have to
+        // manually check if the returned value is Double. Internally, KafkaMetric#value also
+        // returned 0.0 for all not "measurable" values, so we restored the original behavior.
+        return metricValue instanceof Double ? (Double) metricValue : 0.0;
     }
 
     public void setKafkaMetric(Metric kafkaMetric) {

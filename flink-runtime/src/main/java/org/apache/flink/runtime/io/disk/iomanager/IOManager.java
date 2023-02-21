@@ -31,8 +31,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /** The facade for the provided I/O manager services. */
 public abstract class IOManager implements AutoCloseable {
@@ -54,6 +56,14 @@ public abstract class IOManager implements AutoCloseable {
     protected IOManager(String[] tempDirs) {
         this.fileChannelManager =
                 new FileChannelManagerImpl(Preconditions.checkNotNull(tempDirs), DIR_NAME_PREFIX);
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Created a new {} for spilling of task related data to disk (joins, sorting, ...). Used directories:\n\t{}",
+                    FileChannelManager.class.getSimpleName(),
+                    Arrays.stream(fileChannelManager.getPaths())
+                            .map(File::getAbsolutePath)
+                            .collect(Collectors.joining("\n\t")));
+        }
     }
 
     /** Removes all temporary files. */

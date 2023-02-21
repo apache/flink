@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
  * successfully or due to an error.
  */
 @Internal
+@Deprecated
 public class YarnJobClusterExecutor
         extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 

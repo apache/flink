@@ -42,9 +42,10 @@ public class StateBackendOptions {
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 1)
     public static final ConfigOption<String> STATE_BACKEND =
-            ConfigOptions.key("state.backend")
+            ConfigOptions.key("state.backend.type")
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys("state.backend")
                     .withDescription(
                             Description.builder()
                                     .text("The state backend to be used to store state.")
@@ -88,4 +89,12 @@ public class StateBackendOptions {
                     .defaultValue(128)
                     .withDescription(
                             "Defines the number of measured latencies to maintain at each state access operation.");
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_LATENCY_TRACKING)
+    public static final ConfigOption<Boolean> LATENCY_TRACK_STATE_NAME_AS_VARIABLE =
+            ConfigOptions.key("state.backend.latency-track.state-name-as-variable")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to expose state name as a variable if tracking latency.");
 }

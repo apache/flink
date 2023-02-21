@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTriggerRequest;
 import org.apache.flink.util.clock.ManualClock;
 
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toList;
@@ -283,7 +284,7 @@ public class CheckpointRequestDeciderTest {
                 maxQueued);
     }
 
-    private static final Consumer<Long> NO_OP = unused -> {};
+    private static final LongConsumer NO_OP = unused -> {};
 
     static CheckpointTriggerRequest regularCheckpoint() {
         return checkpointRequest(true);
@@ -311,7 +312,9 @@ public class CheckpointRequestDeciderTest {
 
     private static CheckpointTriggerRequest savepointRequest(boolean force, boolean periodic) {
         return new CheckpointTriggerRequest(
-                CheckpointProperties.forSavepoint(force), null, periodic);
+                CheckpointProperties.forSavepoint(force, SavepointFormatType.CANONICAL),
+                null,
+                periodic);
     }
 
     private static CheckpointTriggerRequest checkpointRequest(boolean periodic) {

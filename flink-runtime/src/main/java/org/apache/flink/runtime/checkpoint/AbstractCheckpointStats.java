@@ -86,6 +86,13 @@ public abstract class AbstractCheckpointStats implements Serializable {
      */
     public abstract long getStateSize();
 
+    /**
+     * Returns the checkpointed size during that checkpoint.
+     *
+     * @return The checkpointed size during that checkpoint.
+     */
+    public abstract long getCheckpointedSize();
+
     /** @return the total number of processed bytes during the checkpoint. */
     public abstract long getProcessedData();
 

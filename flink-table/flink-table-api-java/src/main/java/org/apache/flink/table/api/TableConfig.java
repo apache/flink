@@ -18,32 +18,64 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.WritableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.util.Preconditions;
 
-import java.math.MathContext;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+
+import static java.time.ZoneId.SHORT_IDS;
 
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API
  * programs.
  *
+ * <p>This class is a pure API class that abstracts configuration from various sources. Currently,
+ * configuration can be set in any of the following layers (in the given order):
+ *
+ * <ol>
+ *   <li>{@code flink-conf.yaml},
+ *   <li>CLI parameters,
+ *   <li>{@code StreamExecutionEnvironment} when bridging to DataStream API,
+ *   <li>{@link EnvironmentSettings.Builder#withConfiguration(Configuration)} / {@link
+ *       TableEnvironment#create(Configuration)},
+ *   <li>and {@link TableConfig#set(ConfigOption, Object)} / {@link TableConfig#set(String,
+ *       String)}.
+ * </ol>
+ *
+ * <p>The latter two represent the application-specific part of the configuration. They initialize
+ * and directly modify {@link TableConfig#getConfiguration()}. Other layers represent the
+ * configuration of the execution context and are immutable.
+ *
+ * <p>The getters {@link #get(ConfigOption)} and {@link #getOptional(ConfigOption)} give read-only
+ * access to the full configuration. However, application-specific configuration has precedence.
+ * Configuration of outer layers is used for defaults and fallbacks. The setters {@link
+ * #set(ConfigOption, Object)} and {@link #set(String, String)} will only affect
+ * application-specific configuration.
+ *
  * <p>For common or important configuration options, this class provides getters and setters methods
  * with detailed inline documentation.
  *
  * <p>For more advanced configuration, users can directly access the underlying key-value map via
- * {@link #getConfiguration()}. Currently, key-value options are only supported for the Blink
- * planner. Users can configure also underlying execution parameters via this object. E.g.
+ * {@link #getConfiguration()}. Users can configure also underlying execution parameters via this
+ * object.
+ *
+ * <p>For example:
  *
  * <pre>{@code
  * tEnv.getConfig().addConfiguration(
@@ -57,34 +89,134 @@ import java.util.Map;
  * <p>Note: Because options are read at different point in time when performing operations, it is
  * recommended to set configuration options early after instantiating a table environment.
  *
+ * @see TableConfigOptions
  * @see ExecutionConfigOptions
  * @see OptimizerConfigOptions
  */
 @PublicEvolving
-public class TableConfig {
-    /** Defines if all fields need to be checked for NULL first. */
-    private Boolean nullCheck = true;
+public final class TableConfig implements WritableConfig, ReadableConfig {
+
+    /** Please use {@link TableConfig#getDefault()} instead. */
+    @Deprecated
+    public TableConfig() {}
+
+    // Note to implementers:
+    // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
+    // contains both the configuration defined in the execution context (flink-conf.yaml + CLI
+    // params), stored in rootConfiguration, but also any extra configuration defined by the user in
+    // the application, which has precedence over the execution configuration.
+    //
+    // This way, any consumer of TableConfig can get the complete view of the configuration
+    // (environment + user-defined/application-specific) by calling the get() and getOptional()
+    // methods.
+    //
+    // The set() methods only impact the application-specific configuration.
 
     /** Defines the configuration of Planner for Table API and SQL queries. */
     private PlannerConfig plannerConfig = PlannerConfig.EMPTY_CONFIG;
 
     /**
-     * Defines the default context for decimal division calculation. We use Scala's default
-     * MathContext.DECIMAL128.
+     * A configuration object to hold all configuration that has been set specifically in the Table
+     * API. It does not contain configuration from outer layers.
      */
-    private MathContext decimalContext = MathContext.DECIMAL128;
-
-    /** A configuration object to hold all key/value configuration. */
     private final Configuration configuration = new Configuration();
 
-    /** Gives direct access to the underlying key-value map for advanced configuration. */
+    /** Configuration adopted from the outer layer (i.e. the {@link Executor}). */
+    private ReadableConfig rootConfiguration = new Configuration();
+
+    /**
+     * Sets an application-specific value for the given {@link ConfigOption}.
+     *
+     * <p>This method should be preferred over {@link #set(String, String)} as it is type-safe,
+     * avoids unnecessary parsing of the value, and provides inline documentation.
+     *
+     * <p>Note: Scala users might need to convert the value into a boxed type. E.g. by using {@code
+     * Int.box(1)} or {@code Boolean.box(false)}.
+     *
+     * @see TableConfigOptions
+     * @see ExecutionConfigOptions
+     * @see OptimizerConfigOptions
+     */
+    @Override
+    public <T> TableConfig set(ConfigOption<T> option, T value) {
+        configuration.set(option, value);
+        return this;
+    }
+
+    /**
+     * Sets an application-specific string-based value for the given string-based key.
+     *
+     * <p>The value will be parsed by the framework on access.
+     *
+     * <p>This method exists for convenience when configuring a session with string-based
+     * properties. Use {@link #set(ConfigOption, Object)} for more type-safety and inline
+     * documentation.
+     *
+     * @see TableConfigOptions
+     * @see ExecutionConfigOptions
+     * @see OptimizerConfigOptions
+     */
+    public TableConfig set(String key, String value) {
+        configuration.setString(key, value);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method gives read-only access to the full configuration. However,
+     * application-specific configuration has precedence. Configuration of outer layers is used for
+     * defaults and fallbacks. See the docs of {@link TableConfig} for more information.
+     *
+     * @param option metadata of the option to read
+     * @param <T> type of the value to read
+     * @return read value or {@link ConfigOption#defaultValue()} if not found
+     */
+    @Override
+    public <T> T get(ConfigOption<T> option) {
+        return configuration.getOptional(option).orElseGet(() -> rootConfiguration.get(option));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method gives read-only access to the full configuration. However,
+     * application-specific configuration has precedence. Configuration of outer layers is used for
+     * defaults and fallbacks. See the docs of {@link TableConfig} for more information.
+     *
+     * @param option metadata of the option to read
+     * @param <T> type of the value to read
+     * @return read value or {@link Optional#empty()} if not found
+     */
+    @Override
+    public <T> Optional<T> getOptional(ConfigOption<T> option) {
+        final Optional<T> tableValue = configuration.getOptional(option);
+        if (tableValue.isPresent()) {
+            return tableValue;
+        }
+        return rootConfiguration.getOptional(option);
+    }
+
+    /**
+     * Gives direct access to the underlying application-specific key-value map for advanced
+     * configuration.
+     */
     public Configuration getConfiguration() {
         return configuration;
     }
 
     /**
-     * Adds the given key-value configuration to the underlying configuration. It overwrites
-     * existing keys.
+     * Gives direct access to the underlying environment-specific key-value map for advanced
+     * configuration.
+     */
+    @Internal
+    public ReadableConfig getRootConfiguration() {
+        return rootConfiguration;
+    }
+
+    /**
+     * Adds the given key-value configuration to the underlying application-specific configuration.
+     * It overwrites existing keys.
      *
      * @param configuration key-value configuration to be added
      */
@@ -95,14 +227,12 @@ public class TableConfig {
 
     /** Returns the current SQL dialect. */
     public SqlDialect getSqlDialect() {
-        return SqlDialect.valueOf(
-                getConfiguration().getString(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
+        return SqlDialect.valueOf(get(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
     }
 
     /** Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default. */
     public void setSqlDialect(SqlDialect sqlDialect) {
-        getConfiguration()
-                .setString(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
+        set(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
     }
 
     /**
@@ -113,7 +243,10 @@ public class TableConfig {
      */
     public ZoneId getLocalTimeZone() {
         String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
-        return "default".equals(zone) ? ZoneId.systemDefault() : ZoneId.of(zone);
+        validateTimeZone(zone);
+        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                ? ZoneId.systemDefault()
+                : ZoneId.of(zone);
     }
 
     /**
@@ -126,12 +259,11 @@ public class TableConfig {
      * <p>Example:
      *
      * <pre>{@code
-     * TableEnvironment tEnv = ...
-     * TableConfig config = tEnv.getConfig
+     * TableConfig config = tEnv.getConfig();
      * config.setLocalTimeZone(ZoneOffset.ofHours(2));
-     * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
-     * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
-     * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
+     * tEnv.executeSql("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
+     * tEnv.executeSql("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
+     * tEnv.executeSql("SELECT * FROM testTable"); // query with local time zone set to UTC+2
      * }</pre>
      *
      * <p>should produce:
@@ -148,7 +280,7 @@ public class TableConfig {
      *
      * <pre>{@code
      * config.setLocalTimeZone(ZoneOffset.ofHours(0));
-     * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
+     * tEnv.executeSql("SELECT * FROM testTable"); // query with local time zone set to UTC+0
      * }</pre>
      *
      * <p>we should get:
@@ -164,17 +296,22 @@ public class TableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public void setLocalTimeZone(ZoneId zoneId) {
+        validateTimeZone(zoneId.toString());
         configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
     }
 
-    /** Returns the NULL check. If enabled, all fields need to be checked for NULL first. */
-    public Boolean getNullCheck() {
-        return nullCheck;
-    }
-
-    /** Sets the NULL check. If enabled, all fields need to be checked for NULL first. */
-    public void setNullCheck(Boolean nullCheck) {
-        this.nullCheck = Preconditions.checkNotNull(nullCheck);
+    /** Validates user configured time zone. */
+    private void validateTimeZone(String zone) {
+        final String zoneId = zone.toUpperCase();
+        if (zoneId.startsWith("UTC+")
+                || zoneId.startsWith("UTC-")
+                || SHORT_IDS.containsKey(zoneId)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
+                                    + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is '%s'.",
+                            zone));
+        }
     }
 
     /** Returns the current configuration of Planner for Table API and SQL queries. */
@@ -191,34 +328,23 @@ public class TableConfig {
     }
 
     /**
-     * Returns the default context for decimal division calculation. {@link
-     * java.math.MathContext#DECIMAL128} by default.
-     */
-    public MathContext getDecimalContext() {
-        return decimalContext;
-    }
-
-    /**
-     * Sets the default context for decimal division calculation. {@link
-     * java.math.MathContext#DECIMAL128} by default.
-     */
-    public void setDecimalContext(MathContext decimalContext) {
-        this.decimalContext = Preconditions.checkNotNull(decimalContext);
-    }
-
-    /**
      * Returns the current threshold where generated code will be split into sub-function calls.
      * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
-     * necessary. Default is 64000.
+     * necessary.
+     *
+     * <p>Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with
+     * more than 8K byte code.
      */
     public Integer getMaxGeneratedCodeLength() {
         return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
     }
 
     /**
-     * Returns the current threshold where generated code will be split into sub-function calls.
-     * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
-     * necessary. Default is 64000.
+     * Sets current threshold where generated code will be split into sub-function calls. Java has a
+     * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
+     *
+     * <p>Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with
+     * more than 8K byte code.
      */
     public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
         this.configuration.setInteger(
@@ -254,9 +380,9 @@ public class TableConfig {
                 && !(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
             throw new IllegalArgumentException(
                     "Difference between minTime: "
-                            + minTime.toString()
+                            + minTime
                             + " and maxTime: "
-                            + maxTime.toString()
+                            + maxTime
                             + " should be at least 5 minutes.");
         }
         setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds()));
@@ -315,7 +441,7 @@ public class TableConfig {
 
     /**
      * Sets a custom user parameter that can be accessed via {@link
-     * org.apache.flink.table.functions.FunctionContext#getJobParameter(String, String)}.
+     * FunctionContext#getJobParameter(String, String)}.
      *
      * <p>This will add an entry to the current value of {@link
      * PipelineOptions#GLOBAL_JOB_PARAMETERS}.
@@ -325,19 +451,28 @@ public class TableConfig {
      *
      * <pre>{@code
      * Map<String, String> params = ...
-     * TableConfig config = tEnv.getConfig;
-     * config.getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+     * TableConfig config = tEnv.getConfig();
+     * config.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
      * }</pre>
      */
-    @Experimental
     public void addJobParameter(String key, String value) {
-        Map<String, String> params =
-                getConfiguration()
-                        .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+        final Map<String, String> params =
+                getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
                         .map(HashMap::new)
                         .orElseGet(HashMap::new);
         params.put(key, value);
-        getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+        set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+    }
+
+    /**
+     * Sets the given configuration as {@link #rootConfiguration}, which contains any configuration
+     * set in the execution context. See the docs of {@link TableConfig} for more information.
+     *
+     * @param rootConfiguration root configuration to be set
+     */
+    @Internal
+    public void setRootConfiguration(ReadableConfig rootConfiguration) {
+        this.rootConfiguration = rootConfiguration;
     }
 
     public static TableConfig getDefault() {

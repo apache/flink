@@ -21,24 +21,28 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TaskIOMetricGroup}. */
-public class TaskIOMetricGroupTest {
+class TaskIOMetricGroupTest {
     @Test
-    public void testTaskIOMetricGroup() throws InterruptedException {
+    void testTaskIOMetricGroup() throws InterruptedException {
         TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+        taskIO.setEnableBusyTime(true);
+        final long startTime = System.currentTimeMillis();
 
         // test counter forwarding
-        assertNotNull(taskIO.getNumRecordsInCounter());
-        assertNotNull(taskIO.getNumRecordsOutCounter());
+        assertThat(taskIO.getNumRecordsInCounter()).isNotNull();
+        assertThat(taskIO.getNumRecordsOutCounter()).isNotNull();
 
         Counter c1 = new SimpleCounter();
         c1.inc(32L);
@@ -47,28 +51,77 @@ public class TaskIOMetricGroupTest {
 
         taskIO.reuseRecordsInputCounter(c1);
         taskIO.reuseRecordsOutputCounter(c2);
-        assertEquals(32L, taskIO.getNumRecordsInCounter().getCount());
-        assertEquals(64L, taskIO.getNumRecordsOutCounter().getCount());
+
+        assertThat(taskIO.getNumRecordsInCounter().getCount()).isEqualTo(32L);
+        assertThat(taskIO.getNumRecordsOutCounter().getCount()).isEqualTo(64L);
 
         // test IOMetrics instantiation
         taskIO.getNumBytesInCounter().inc(100L);
         taskIO.getNumBytesOutCounter().inc(250L);
         taskIO.getNumBuffersOutCounter().inc(3L);
         taskIO.getIdleTimeMsPerSecond().markStart();
-        taskIO.getBackPressuredTimePerSecond().markStart();
-        long sleepTime = 2L;
-        Thread.sleep(sleepTime);
+        taskIO.getSoftBackPressuredTimePerSecond().markStart();
+        long softSleepTime = 2L;
+        Thread.sleep(softSleepTime);
         taskIO.getIdleTimeMsPerSecond().markEnd();
-        taskIO.getBackPressuredTimePerSecond().markEnd();
+        taskIO.getSoftBackPressuredTimePerSecond().markEnd();
+
+        long hardSleepTime = 4L;
+        taskIO.getHardBackPressuredTimePerSecond().markStart();
+        Thread.sleep(hardSleepTime);
+        taskIO.getHardBackPressuredTimePerSecond().markEnd();
 
         IOMetrics io = taskIO.createSnapshot();
-        assertEquals(32L, io.getNumRecordsIn());
-        assertEquals(64L, io.getNumRecordsOut());
-        assertEquals(100L, io.getNumBytesIn());
-        assertEquals(250L, io.getNumBytesOut());
-        assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
-        assertThat(taskIO.getIdleTimeMsPerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
+        assertThat(io.getNumRecordsIn()).isEqualTo(32L);
+        assertThat(io.getNumRecordsOut()).isEqualTo(64L);
+        assertThat(io.getNumBytesIn()).isEqualTo(100L);
+        assertThat(io.getNumBytesOut()).isEqualTo(250L);
+        assertThat(taskIO.getNumBuffersOutCounter().getCount()).isEqualTo(3L);
+        assertThat(taskIO.getIdleTimeMsPerSecond().getAccumulatedCount())
+                .isEqualTo(io.getAccumulateIdleTime());
         assertThat(
-                taskIO.getBackPressuredTimePerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
+                        taskIO.getHardBackPressuredTimePerSecond().getAccumulatedCount()
+                                + taskIO.getSoftBackPressuredTimePerSecond().getAccumulatedCount())
+                .isEqualTo(io.getAccumulateBackPressuredTime());
+        assertThat(io.getAccumulateBusyTime())
+                .isGreaterThanOrEqualTo(
+                        (double) System.currentTimeMillis()
+                                - startTime
+                                - io.getAccumulateIdleTime()
+                                - io.getAccumulateBackPressuredTime());
+        assertThat(taskIO.getIdleTimeMsPerSecond().getCount())
+                .isGreaterThanOrEqualTo(softSleepTime);
+        assertThat(taskIO.getSoftBackPressuredTimePerSecond().getCount())
+                .isGreaterThanOrEqualTo(softSleepTime);
+        assertThat(taskIO.getHardBackPressuredTimePerSecond().getCount())
+                .isGreaterThanOrEqualTo(hardSleepTime);
+    }
+
+    @Test
+    void testResultPartitionBytesMetrics() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+
+        ResultPartitionBytesCounter c1 = new ResultPartitionBytesCounter(2);
+        ResultPartitionBytesCounter c2 = new ResultPartitionBytesCounter(2);
+
+        c1.inc(0, 32L);
+        c1.inc(1, 64L);
+        c2.incAll(128L);
+
+        IntermediateResultPartitionID resultPartitionID1 = new IntermediateResultPartitionID();
+        IntermediateResultPartitionID resultPartitionID2 = new IntermediateResultPartitionID();
+
+        taskIO.registerResultPartitionBytesCounter(resultPartitionID1, c1);
+        taskIO.registerResultPartitionBytesCounter(resultPartitionID2, c2);
+
+        Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes =
+                taskIO.createSnapshot().getResultPartitionBytes();
+
+        assertThat(resultPartitionBytes.size()).isEqualTo(2);
+        assertThat(resultPartitionBytes.get(resultPartitionID1).getSubpartitionBytes())
+                .containsExactly(32L, 64L);
+        assertThat(resultPartitionBytes.get(resultPartitionID2).getSubpartitionBytes())
+                .containsExactly(128L, 128L);
     }
 }

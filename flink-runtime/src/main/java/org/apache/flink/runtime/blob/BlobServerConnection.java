@@ -196,9 +196,6 @@ class BlobServerConnection extends Thread {
                         clientSocket.getInetAddress());
             }
 
-            // the file's (destined) location at the BlobServer
-            blobFile = blobServer.getStorageLocation(jobId, blobKey);
-
             // up to here, an error can give a good message
         } catch (Throwable t) {
             LOG.error("GET operation from {} failed.", clientSocket.getInetAddress(), t);
@@ -218,7 +215,7 @@ class BlobServerConnection extends Thread {
             try {
                 // copy the file to local store if it does not exist yet
                 try {
-                    blobServer.getFileInternal(jobId, blobKey, blobFile);
+                    blobFile = blobServer.getFileInternal(jobId, blobKey);
 
                     // enforce a 2GB max for now (otherwise the protocol's length field needs to be
                     // increased)

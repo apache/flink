@@ -23,7 +23,12 @@ import org.apache.flink.annotation.Public;
 import java.io.Serializable;
 import java.util.function.Function;
 
-/** A {@link Function} that is also {@link Serializable}. */
+/**
+ * A {@link Function} that is also {@link Serializable}.
+ *
+ * @deprecated Please use {@link org.apache.flink.util.function.SerializableFunction}
+ */
+@Deprecated
 @Public
 @FunctionalInterface
 public interface SerializableFunction<T, R> extends Function<T, R>, Serializable {}

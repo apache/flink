@@ -25,8 +25,12 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -35,14 +39,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for {@link BatchArrowPythonOverWindowAggregateFunctionOperator}. These test that:
@@ -52,11 +55,11 @@ import static org.junit.Assert.assertEquals;
  *   <li>FinishBundle is called when bundled time reach to max bundle time
  * </ul>
  */
-public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
+class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
         extends AbstractBatchArrowPythonAggregateFunctionOperatorTest {
 
     @Test
-    public void testOverWindowAggregateFunction() throws Exception {
+    void testOverWindowAggregateFunction() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
 
@@ -85,7 +88,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -120,7 +123,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
+    void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
@@ -157,27 +160,27 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testUserDefinedFunctionsProto() throws Exception {
+    void testUserDefinedFunctionsProto() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
         testHarness.open();
         BatchArrowPythonOverWindowAggregateFunctionOperator operator =
                 (BatchArrowPythonOverWindowAggregateFunctionOperator)
                         testHarness.getOneInputOperator();
-        FlinkFnApi.UserDefinedFunctions functionsProto = operator.getUserDefinedFunctionsProto();
+        FlinkFnApi.UserDefinedFunctions functionsProto = operator.createUserDefinedFunctionsProto();
         List<FlinkFnApi.OverWindow> windows = functionsProto.getWindowsList();
-        assertEquals(2, windows.size());
+        assertThat(windows).hasSize(2);
 
         // first window is a range sliding window.
         FlinkFnApi.OverWindow firstWindow = windows.get(0);
-        assertEquals(firstWindow.getWindowType(), FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
+        assertThat(firstWindow.getWindowType())
+                .isEqualTo(FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
 
         // second window is a row unbounded preceding window.
         FlinkFnApi.OverWindow secondWindow = windows.get(1);
-        assertEquals(
-                secondWindow.getWindowType(),
-                FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
-        assertEquals(secondWindow.getUpperBoundary(), 2L);
+        assertThat(secondWindow.getWindowType())
+                .isEqualTo(FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
+        assertThat(secondWindow.getUpperBoundary()).isEqualTo(2L);
     }
 
     @Override
@@ -216,24 +219,53 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     public AbstractArrowPythonAggregateFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] pandasAggregateFunctions,
-            RowType inputType,
-            RowType outputType,
+            RowType inputRowType,
+            RowType outputRowType,
             int[] groupingSet,
             int[] udafInputOffsets) {
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(
+                                        inputRowType.getFieldCount(), outputRowType.getFieldCount())
+                                .project(outputRowType);
+
         return new PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
                 config,
                 pandasAggregateFunctions,
-                inputType,
-                outputType,
+                inputRowType,
+                udfInputType,
+                udfOutputType,
                 new long[] {0L, Long.MIN_VALUE},
                 new long[] {0L, 2L},
                 new boolean[] {true, false},
                 new int[] {0},
-                groupingSet,
-                groupingSet,
-                udafInputOffsets,
                 3,
-                true);
+                true,
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "UdafInputProjection",
+                        inputRowType,
+                        udfInputType,
+                        udafInputOffsets),
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "GroupKey",
+                        inputRowType,
+                        (RowType) Projection.of(groupingSet).project(inputRowType),
+                        groupingSet),
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "GroupSet",
+                        inputRowType,
+                        (RowType) Projection.of(groupingSet).project(inputRowType),
+                        groupingSet));
     }
 
     private static class PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator
@@ -243,43 +275,43 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                 Configuration config,
                 PythonFunctionInfo[] pandasAggFunctions,
                 RowType inputType,
-                RowType outputType,
+                RowType udfInputType,
+                RowType udfOutputType,
                 long[] lowerBoundary,
                 long[] upperBoundary,
                 boolean[] isRangeWindow,
                 int[] aggWindowIndex,
-                int[] groupKey,
-                int[] groupingSet,
-                int[] udafInputOffsets,
                 int inputTimeFieldIndex,
-                boolean asc) {
+                boolean asc,
+                GeneratedProjection inputGeneratedProjection,
+                GeneratedProjection groupKeyGeneratedProjection,
+                GeneratedProjection groupSetGeneratedProjection) {
             super(
                     config,
                     pandasAggFunctions,
                     inputType,
-                    outputType,
+                    udfInputType,
+                    udfOutputType,
                     lowerBoundary,
                     upperBoundary,
                     isRangeWindow,
                     aggWindowIndex,
-                    groupKey,
-                    groupingSet,
-                    udafInputOffsets,
                     inputTimeFieldIndex,
-                    asc);
+                    asc,
+                    inputGeneratedProjection,
+                    groupKeyGeneratedProjection,
+                    groupSetGeneratedProjection);
         }
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
-                    userDefinedFunctionInputType,
-                    userDefinedFunctionOutputType,
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
+                    udfInputType,
+                    udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
-                    new HashMap<>(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     true);
         }

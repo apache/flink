@@ -29,6 +29,7 @@ import javax.annotation.Nonnull;
 
 /** An {@link PipelineExecutorFactory} for executing jobs on dedicated (per-job) clusters. */
 @Internal
+@Deprecated
 public class YarnJobClusterExecutorFactory implements PipelineExecutorFactory {
 
     @Override

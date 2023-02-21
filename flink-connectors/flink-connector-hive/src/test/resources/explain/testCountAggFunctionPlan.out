@@ -1,0 +1,27 @@
+== Abstract Syntax Tree ==
+LogicalProject(x=[$0], _o__c1=[$1], _o__c2=[$2], _o__c3=[$3])
++- LogicalAggregate(group=[{0}], agg#0=[count()], agg#1=[count($1)], agg#2=[count(DISTINCT $1)])
+   +- LogicalProject($f0=[$0], $f1=[$1])
+      +- LogicalTableScan(table=[[test-catalog, default, foo]])
+
+== Optimized Physical Plan ==
+HashAggregate(isMerge=[true], groupBy=[x], select=[x, Final_MIN(min$0) AS $f1, Final_MIN(min$1) AS $f2, Final_count(count$2) AS $f3])
++- Exchange(distribution=[hash[x]])
+   +- LocalHashAggregate(groupBy=[x], select=[x, Partial_MIN($f1) FILTER $g_1 AS min$0, Partial_MIN($f2) FILTER $g_1 AS min$1, Partial_count(y) FILTER $g_0 AS count$2])
+      +- Calc(select=[x, y, $f1, $f2, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
+         +- HashAggregate(isMerge=[true], groupBy=[x, y, $e], select=[x, y, $e, Final_count(count$0) AS $f1, Final_count(count$1) AS $f2])
+            +- Exchange(distribution=[hash[x, y, $e]])
+               +- LocalHashAggregate(groupBy=[x, y, $e], select=[x, y, $e, Partial_count(*) AS count$0, Partial_count(y_0) AS count$1])
+                  +- Expand(projects=[{x, y, 0 AS $e, y AS y_0}, {x, null AS y, 1 AS $e, y AS y_0}])
+                     +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])
+
+== Optimized Execution Plan ==
+HashAggregate(isMerge=[true], groupBy=[x], select=[x, Final_MIN(min$0) AS $f1, Final_MIN(min$1) AS $f2, Final_count(count$2) AS $f3])
++- Exchange(distribution=[hash[x]])
+   +- LocalHashAggregate(groupBy=[x], select=[x, Partial_MIN($f1) FILTER $g_1 AS min$0, Partial_MIN($f2) FILTER $g_1 AS min$1, Partial_count(y) FILTER $g_0 AS count$2])
+      +- Calc(select=[x, y, $f1, $f2, (CASE(($e = 0), 0, 1) = 0) AS $g_0, (CASE(($e = 0), 0, 1) = 1) AS $g_1])
+         +- HashAggregate(isMerge=[true], groupBy=[x, y, $e], select=[x, y, $e, Final_count(count$0) AS $f1, Final_count(count$1) AS $f2])
+            +- Exchange(distribution=[hash[x, y, $e]])
+               +- LocalHashAggregate(groupBy=[x, y, $e], select=[x, y, $e, Partial_count(*) AS count$0, Partial_count(y_0) AS count$1])
+                  +- Expand(projects=[{x, y, 0 AS $e, y AS y_0}, {x, null AS y, 1 AS $e, y AS y_0}])
+                     +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])

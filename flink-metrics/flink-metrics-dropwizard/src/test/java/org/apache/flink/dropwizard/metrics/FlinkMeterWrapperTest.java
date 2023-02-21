@@ -21,31 +21,31 @@ package org.apache.flink.dropwizard.metrics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.util.TestMeter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /** Tests for the FlinkMeterWrapper. */
-public class FlinkMeterWrapperTest {
+class FlinkMeterWrapperTest {
 
     private static final double DELTA = 0.0001;
 
     @Test
-    public void testWrapper() {
+    void testWrapper() {
         Meter meter = new TestMeter();
 
         FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
-        assertEquals(0, wrapper.getMeanRate(), DELTA);
-        assertEquals(5, wrapper.getOneMinuteRate(), DELTA);
-        assertEquals(0, wrapper.getFiveMinuteRate(), DELTA);
-        assertEquals(0, wrapper.getFifteenMinuteRate(), DELTA);
-        assertEquals(100L, wrapper.getCount());
+        assertThat(wrapper.getMeanRate()).isEqualTo(0);
+        assertThat(wrapper.getOneMinuteRate()).isEqualTo(5);
+        assertThat(wrapper.getFiveMinuteRate()).isEqualTo(0);
+        assertThat(wrapper.getFifteenMinuteRate()).isEqualTo(0);
+        assertThat(wrapper.getCount()).isEqualTo(100L);
     }
 
     @Test
-    public void testMarkOneEvent() {
+    void testMarkOneEvent() {
         Meter meter = mock(Meter.class);
 
         FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
@@ -55,7 +55,7 @@ public class FlinkMeterWrapperTest {
     }
 
     @Test
-    public void testMarkSeveralEvents() {
+    void testMarkSeveralEvents() {
         Meter meter = mock(Meter.class);
 
         FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);

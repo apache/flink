@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.13-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<name>Flink : Examples : Table</name>
@@ -34,16 +33,33 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
+		<!-- Flink core -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
 		<!-- Table ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<!-- The following two dependencies are not required to define a SQL job pipeline,
+		but only to execute it.
+
+		In particular, here we're forced to use flink-table-planner_${scala.binary.version} instead of
+		flink-table-planner-loader, because otherwise we hit this bug https://youtrack.jetbrains.com/issue/IDEA-93855
+		when trying to run the examples from within IntelliJ IDEA. This is only relevant to this specific
+		examples project, as it's in the same build tree of flink-parent.
+
+		In a real environment, you need flink-table-runtime and flink-table-planner-loader either
+		at test scope, for executing tests, or at provided scope, to run the main directly.
+		 -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -51,35 +67,23 @@ under the License.
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 
 		<!-- Table connectors and formats -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Flink core -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- Test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -87,6 +91,57 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- See comment above on table planner dependency -->
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>compile</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<compilerArgument>-Xlint:deprecation</compilerArgument>
+							<failOnWarning>true</failOnWarning>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
@@ -98,6 +153,12 @@ under the License.
 							<goal>add-source</goal>
 							<goal>compile</goal>
 						</goals>
+						<configuration>
+							<args>
+								<arg>-deprecation</arg>
+								<arg>-Xfatal-warnings</arg>
+							</args>
+						</configuration>
 					</execution>
 					<execution>
 						<id>scala-test-compile</id>
@@ -210,47 +271,23 @@ under the License.
 					</execution>
 
 					<execution>
-						<id>WordCountSQL</id>
+						<id>WordCountSQLExample</id>
 						<phase>package</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
 
 						<configuration>
-							<classifier>WordCountSQL</classifier>
+							<classifier>WordCountSQLExample</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.basics.WordCountSQL</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.WordCountSQLExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/basics/WordCountSQL*</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<execution>
-						<id>WordCountTable</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-
-						<configuration>
-							<classifier>WordCountTable</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.basics.WordCountTable</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/table/examples/java/basics/WordCountTable*</include>
+								<include>org/apache/flink/table/examples/java/basics/WordCountSQLExample*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -305,54 +342,6 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
-					<execution>
-						<id>StreamTableExample</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-
-						<configuration>
-							<classifier>StreamTableExample</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.scala.basics.StreamTableExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/table/examples/scala/basics/StreamTableExample*</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<execution>
-						<id>TPCHQuery3Table</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-
-						<configuration>
-							<classifier>TPCHQuery3Table</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.scala.basics.TPCHQuery3Table</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/table/examples/scala/basics/TPCHQuery3Table*</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
 				</executions>
 			</plugin>
 
@@ -366,13 +355,12 @@ under the License.
 						<configuration>
 							<target>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-GettingStartedExample.jar" tofile="${project.basedir}/target/GettingStartedExample.jar"/>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-UpdatingTopCityExample.jar" tofile="${project.basedir}/target/UpdatingTopCityExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamSQLExample.jar" tofile="${project.basedir}/target/StreamSQLExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamWindowSQLExample.jar" tofile="${project.basedir}/target/StreamWindowSQLExample.jar"/>
-								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountSQL.jar" tofile="${project.basedir}/target/WordCountSQL.jar"/>
-								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountTable.jar" tofile="${project.basedir}/target/WordCountTable.jar"/>
-								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamTableExample.jar" tofile="${project.basedir}/target/StreamTableExample.jar"/>
-								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-TPCHQuery3Table.jar" tofile="${project.basedir}/target/TPCHQuery3Table.jar"/>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountSQLExample.jar" tofile="${project.basedir}/target/WordCountSQLExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-ChangelogSocketExample.jar" tofile="${project.basedir}/target/ChangelogSocketExample.jar"/>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-AdvancedFunctionsExample.jar" tofile="${project.basedir}/target/AdvancedFunctionsExample.jar"/>
 							</target>
 						</configuration>
 					</execution>

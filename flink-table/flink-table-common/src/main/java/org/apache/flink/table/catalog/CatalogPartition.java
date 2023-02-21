@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Map;
 import java.util.Optional;
 
 /** Represents a partition object in catalog. */
+@PublicEvolving
 public interface CatalogPartition {
 
     /**

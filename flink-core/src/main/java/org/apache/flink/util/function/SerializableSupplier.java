@@ -18,7 +18,7 @@
 
 package org.apache.flink.util.function;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
 import java.util.function.Supplier;
@@ -28,6 +28,6 @@ import java.util.function.Supplier;
  *
  * @param <T> the type of results supplied by this supplier
  */
-@Internal
+@PublicEvolving
 @FunctionalInterface
 public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}

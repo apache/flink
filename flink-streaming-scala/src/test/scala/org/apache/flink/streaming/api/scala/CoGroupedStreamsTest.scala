@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
+
 import org.junit.{Assert, Test}
 
-/**
-  * Unit test for [[org.apache.flink.streaming.api.scala.CoGroupedStreams]]
-  */
+/** Unit test for [[org.apache.flink.streaming.api.scala.CoGroupedStreams]] */
 class CoGroupedStreamsTest {
   private val env = StreamExecutionEnvironment.getExecutionEnvironment
 
@@ -36,7 +34,8 @@ class CoGroupedStreamsTest {
   @Test
   def testSetAllowedLateness(): Unit = {
     val lateness = Time.milliseconds(42)
-    val withLateness = dataStream1.coGroup(dataStream2)
+    val withLateness = dataStream1
+      .coGroup(dataStream2)
       .where(keySelector)
       .equalTo(keySelector)
       .window(tsAssigner)

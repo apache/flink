@@ -67,10 +67,10 @@ public class HiveReflectionUtils {
         }
     }
 
-    public static ObjectInspector createConstantObjectInspector(String className, Object value) {
+    public static ObjectInspector createConstantObjectInspector(
+            String className, Class<?> valueClz, Object value) {
         try {
-            Constructor<?> method =
-                    Class.forName(className).getDeclaredConstructor(value.getClass());
+            Constructor<?> method = Class.forName(className).getDeclaredConstructor(valueClz);
             method.setAccessible(true);
             return (ObjectInspector) method.newInstance(value);
         } catch (ClassNotFoundException

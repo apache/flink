@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.13-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-metrics-datadog</artifactId>
@@ -56,7 +55,6 @@ under the License.
 		<dependency>
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>okhttp</artifactId>
-			<version>3.7.0</version>
 		</dependency>
 
 		<dependency>
@@ -93,6 +91,15 @@ under the License.
 									<include>com.squareup.okio:*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>okhttp3/internal/publicsuffix</pattern>
+									<shadedPattern>META-INF</shadedPattern>
+									<includes>
+										<include>**/NOTICE</include>
+									</includes>
+								</relocation>
+							</relocations>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 						</configuration>
 					</execution>

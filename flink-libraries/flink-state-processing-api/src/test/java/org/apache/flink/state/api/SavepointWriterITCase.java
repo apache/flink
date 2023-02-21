@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -26,17 +27,13 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
@@ -45,14 +42,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.util.StreamCollector;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -61,13 +57,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT test for writing savepoints. */
 public class SavepointWriterITCase extends AbstractTestBase {
-    private static final int FILE_STATE_SIZE = 1;
 
     private static final String ACCOUNT_UID = "accounts";
 
@@ -84,20 +79,19 @@ public class SavepointWriterITCase extends AbstractTestBase {
     private static final Collection<CurrencyRate> currencyRates =
             Arrays.asList(new CurrencyRate("USD", 1.0), new CurrencyRate("EUR", 1.3));
 
-    @Rule public StreamCollector collector = new StreamCollector();
-
     @Test
-    public void testFsStateBackend() throws Exception {
-        testStateBootstrapAndModification(
-                new FsStateBackend(TEMPORARY_FOLDER.newFolder().toURI(), FILE_STATE_SIZE));
+    public void testDefaultStateBackend() throws Exception {
+        testStateBootstrapAndModification(null);
     }
 
     @Test
-    public void testRocksDBStateBackend() throws Exception {
-        StateBackend backend =
-                new RocksDBStateBackend(
-                        new FsStateBackend(TEMPORARY_FOLDER.newFolder().toURI(), FILE_STATE_SIZE));
-        testStateBootstrapAndModification(backend);
+    public void testHashMapStateBackend() throws Exception {
+        testStateBootstrapAndModification(new HashMapStateBackend());
+    }
+
+    @Test
+    public void testEmbeddedRocksDBStateBackend() throws Exception {
+        testStateBootstrapAndModification(new EmbeddedRocksDBStateBackend());
     }
 
     public void testStateBootstrapAndModification(StateBackend backend) throws Exception {
@@ -115,85 +109,87 @@ public class SavepointWriterITCase extends AbstractTestBase {
     }
 
     private void bootstrapState(StateBackend backend, String savepointPath) throws Exception {
-        ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
-        DataSet<Account> accountDataSet = bEnv.fromCollection(accounts);
-
-        BootstrapTransformation<Account> transformation =
-                OperatorTransformation.bootstrapWith(accountDataSet)
+        StateBootstrapTransformation<Account> transformation =
+                OperatorTransformation.bootstrapWith(env.fromCollection(accounts))
                         .keyBy(acc -> acc.id)
                         .transform(new AccountBootstrapper());
 
-        DataSet<CurrencyRate> currencyDataSet = bEnv.fromCollection(currencyRates);
-
-        BootstrapTransformation<CurrencyRate> broadcastTransformation =
-                OperatorTransformation.bootstrapWith(currencyDataSet)
+        StateBootstrapTransformation<CurrencyRate> broadcastTransformation =
+                OperatorTransformation.bootstrapWith(env.fromCollection(currencyRates))
                         .transform(new CurrencyBootstrapFunction());
 
-        Savepoint.create(backend, 128)
-                .withOperator(ACCOUNT_UID, transformation)
-                .withOperator(CURRENCY_UID, broadcastTransformation)
+        SavepointWriter writer =
+                backend == null
+                        ? SavepointWriter.newSavepoint(env, 128)
+                        : SavepointWriter.newSavepoint(env, backend, 128);
+
+        writer.withOperator(OperatorIdentifier.forUid(ACCOUNT_UID), transformation)
+                .withOperator(getUidHashFromUid(CURRENCY_UID), broadcastTransformation)
                 .write(savepointPath);
 
-        bEnv.execute("Bootstrap");
+        env.execute("Bootstrap");
     }
 
     private void validateBootstrap(StateBackend backend, String savepointPath) throws Exception {
-        StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        sEnv.setStateBackend(backend);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        if (backend != null) {
+            env.setStateBackend(backend);
+        }
 
         DataStream<Account> stream =
-                sEnv.fromCollection(accounts)
+                env.fromCollection(accounts)
                         .keyBy(acc -> acc.id)
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);
 
-        CompletableFuture<Collection<Account>> results = collector.collect(stream);
+        final CloseableIterator<Account> results = stream.collectAsync();
 
-        sEnv.fromCollection(currencyRates)
-                .connect(sEnv.fromCollection(currencyRates).broadcast(descriptor))
+        env.fromCollection(currencyRates)
+                .connect(env.fromCollection(currencyRates).broadcast(descriptor))
                 .process(new CurrencyValidationFunction())
                 .uid(CURRENCY_UID)
                 .addSink(new DiscardingSink<>());
 
-        JobGraph jobGraph = sEnv.getStreamGraph().getJobGraph();
-        jobGraph.setSavepointRestoreSettings(
+        final StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
-        Optional<SerializedThrowable> serializedThrowable =
-                client.submitJob(jobGraph)
-                        .thenCompose(client::requestJobResult)
-                        .get()
-                        .getSerializedThrowable();
+        env.execute(streamGraph);
 
-        serializedThrowable.ifPresent(
-                t -> {
-                    throw new AssertionError("Unexpected exception during bootstrapping", t);
-                });
-        Assert.assertEquals("Unexpected output", 3, results.get().size());
+        assertThat(results).toIterable().hasSize(3);
+        results.close();
     }
 
     private void modifySavepoint(StateBackend backend, String savepointPath, String modifyPath)
             throws Exception {
-        ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
-        DataSet<Integer> data = bEnv.fromElements(1, 2, 3);
+        StateBootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(env.fromElements(1, 2, 3))
+                        .transform(new ModifyProcessFunction());
 
-        BootstrapTransformation<Integer> transformation =
-                OperatorTransformation.bootstrapWith(data).transform(new ModifyProcessFunction());
+        SavepointWriter writer =
+                backend == null
+                        ? SavepointWriter.fromExistingSavepoint(env, savepointPath)
+                        : SavepointWriter.fromExistingSavepoint(env, savepointPath, backend);
 
-        Savepoint.load(bEnv, savepointPath, backend)
-                .removeOperator(CURRENCY_UID)
-                .withOperator(MODIFY_UID, transformation)
+        writer.removeOperator(OperatorIdentifier.forUid(CURRENCY_UID))
+                .withOperator(getUidHashFromUid(MODIFY_UID), transformation)
                 .write(modifyPath);
 
-        bEnv.execute("Modifying");
+        env.execute("Modifying");
     }
 
     private void validateModification(StateBackend backend, String savepointPath) throws Exception {
         StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        sEnv.setStateBackend(backend);
+        if (backend != null) {
+            sEnv.setStateBackend(backend);
+        }
 
         DataStream<Account> stream =
                 sEnv.fromCollection(accounts)
@@ -201,26 +197,26 @@ public class SavepointWriterITCase extends AbstractTestBase {
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);
 
-        CompletableFuture<Collection<Account>> results = collector.collect(stream);
+        final CloseableIterator<Account> results = stream.collectAsync();
 
         stream.map(acc -> acc.id)
                 .map(new StatefulOperator())
                 .uid(MODIFY_UID)
                 .addSink(new DiscardingSink<>());
 
-        JobGraph jobGraph = sEnv.getStreamGraph().getJobGraph();
-        jobGraph.setSavepointRestoreSettings(
+        final StreamGraph streamGraph = sEnv.getStreamGraph();
+        streamGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
-        Optional<SerializedThrowable> serializedThrowable =
-                client.submitJob(jobGraph)
-                        .thenCompose(client::requestJobResult)
-                        .get()
-                        .getSerializedThrowable();
+        sEnv.execute(streamGraph);
 
-        Assert.assertFalse(serializedThrowable.isPresent());
-        Assert.assertEquals("Unexpected output", 3, results.get().size());
+        assertThat(results).toIterable().hasSize(3);
+        results.close();
+    }
+
+    private static OperatorIdentifier getUidHashFromUid(String uid) {
+        return OperatorIdentifier.forUidHash(
+                OperatorIdentifier.forUid(uid).getOperatorId().toHexString());
     }
 
     /** A simple pojo. */

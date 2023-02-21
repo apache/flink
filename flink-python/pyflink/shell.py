@@ -20,7 +20,6 @@ import platform
 import sys
 
 from pyflink.common import *
-from pyflink.dataset import *
 from pyflink.datastream import *
 from pyflink.table import *
 from pyflink.table.catalog import *
@@ -73,71 +72,45 @@ welcome_msg = u'''
 
 NOTE: Use the prebound Table Environment to implement batch or streaming Table programs.
 
-  Batch - Use 'b_env' and 'bt_env' variables
-
-    *
-    * import tempfile
-    * import os
-    * import shutil
-    * sink_path = tempfile.gettempdir() + '/batch.csv'
-    * if os.path.exists(sink_path):
-    *     if os.path.isfile(sink_path):
-    *         os.remove(sink_path)
-    *     else:
-    *         shutil.rmtree(sink_path)
-    * b_env.set_parallelism(1)
-    * t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * bt_env.connect(FileSystem().path(sink_path)) \\
-    *     .with_format(OldCsv()
-    *                  .field_delimiter(',')
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .with_schema(Schema()
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .create_temporary_table("batch_sink")
-    *
-    * t.select("a + 1, b, c").insert_into("batch_sink")
-    *
-    * bt_env.execute("batch_job")
-
   Streaming - Use 's_env' and 'st_env' variables
 
-    *
-    * import tempfile
-    * import os
-    * import shutil
-    * sink_path = tempfile.gettempdir() + '/streaming.csv'
-    * if os.path.exists(sink_path):
-    *     if os.path.isfile(sink_path):
-    *         os.remove(sink_path)
-    *     else:
-    *         shutil.rmtree(sink_path)
-    * s_env.set_parallelism(1)
-    * t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * st_env.connect(FileSystem().path(sink_path)) \\
-    *     .with_format(OldCsv()
-    *                  .field_delimiter(',')
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .with_schema(Schema()
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .create_temporary_table("stream_sink")
-    * 
-    * t.select("a + 1, b, c").insert_into("stream_sink")
-    *
-    * st_env.execute("stream_job")
+```
+import os
+import shutil
+import tempfile
+
+sink_path = tempfile.gettempdir() + '/streaming.csv'
+if os.path.exists(sink_path):
+    if os.path.isfile(sink_path):
+        os.remove(sink_path)
+    else:
+        shutil.rmtree(sink_path)
+
+s_env.set_parallelism(1)
+t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
+
+st_env.create_temporary_table("stream_sink", TableDescriptor.for_connector("filesystem")
+                              .schema(Schema.new_builder()
+                                      .column("a", DataTypes.BIGINT())
+                                      .column("b", DataTypes.STRING())
+                                      .column("c", DataTypes.STRING())
+                                      .build())
+                              .option("path", sink_path)
+                              .format(FormatDescriptor.for_format("csv")
+                                      .option("field-delimiter", ",")
+                                      .build())
+                              .build())
+
+t.select(col('a') + 1, col('b'), col('c')).insert_into("stream_sink")
+st_env.execute("stream_job")
+
+# show the results
+with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:
+    print(f.read())
+
+```
 '''
 utf8_out.write(welcome_msg)
-
-b_env = ExecutionEnvironment.get_execution_environment()
-
-bt_env = BatchTableEnvironment.create(b_env)
 
 s_env = StreamExecutionEnvironment.get_execution_environment()
 

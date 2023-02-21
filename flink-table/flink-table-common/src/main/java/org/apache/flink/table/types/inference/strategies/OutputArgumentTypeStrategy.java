@@ -22,12 +22,10 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.Optional;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Strategy for inferring an unknown argument type from the function's output {@link DataType} if
@@ -40,16 +38,15 @@ public final class OutputArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
-        if (hasRoot(actualDataType.getLogicalType(), LogicalTypeRoot.NULL)) {
+        if (actualDataType.getLogicalType().is(LogicalTypeRoot.NULL)) {
             return callContext.getOutputDataType();
         }
         return Optional.of(actualDataType);
     }
 
     @Override
-    public Signature.Argument getExpectedArgument(
-            FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<OUTPUT>");
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+        return Argument.ofGroup("OUTPUT");
     }
 
     @Override

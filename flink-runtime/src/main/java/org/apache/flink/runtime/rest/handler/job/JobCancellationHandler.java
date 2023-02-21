@@ -20,9 +20,9 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -69,8 +70,7 @@ public class JobCancellationHandler
 
     @Override
     public CompletableFuture<EmptyResponseBody> handleRequest(
-            HandlerRequest<EmptyRequestBody, JobCancellationMessageParameters> request,
-            RestfulGateway gateway)
+            HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway)
             throws RestHandlerException {
         final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
         final List<TerminationModeQueryParameter.TerminationMode> terminationModes =
@@ -109,7 +109,16 @@ public class JobCancellationHandler
                     if (throwable != null) {
                         Throwable error = ExceptionUtils.stripCompletionException(throwable);
 
-                        if (error instanceof TimeoutException) {
+                        if (error instanceof FlinkJobTerminatedWithoutCancellationException) {
+                            throw new CompletionException(
+                                    new RestHandlerException(
+                                            String.format(
+                                                    "Job cancellation failed because the job has already reached another terminal state (%s).",
+                                                    ((FlinkJobTerminatedWithoutCancellationException)
+                                                                    error)
+                                                            .getJobStatus()),
+                                            HttpResponseStatus.CONFLICT));
+                        } else if (error instanceof TimeoutException) {
                             throw new CompletionException(
                                     new RestHandlerException(
                                             "Job cancellation timed out.",

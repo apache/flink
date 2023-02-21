@@ -18,10 +18,12 @@
 
 package org.apache.flink.connector.base.source.reader.splitreader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * An interface used to read from splits. The implementation could either read from a single split
@@ -30,7 +32,8 @@ import java.io.IOException;
  * @param <E> the element type.
  * @param <SplitT> the split type.
  */
-public interface SplitReader<E, SplitT extends SourceSplit> {
+@PublicEvolving
+public interface SplitReader<E, SplitT extends SourceSplit> extends AutoCloseable {
 
     /**
      * Fetch elements into the blocking queue for the given splits. The fetch call could be blocking
@@ -48,6 +51,11 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
     /**
      * Handle the split changes. This call should be non-blocking.
      *
+     * <p>For the consistency of internal state in SourceReaderBase, if an invalid split is added to
+     * the reader (for example splits without any records), it should be put back into {@link
+     * RecordsWithSplitIds} as finished splits so that SourceReaderBase could be able to clean up
+     * resources created for it.
+     *
      * @param splitsChanges the split changes that the SplitReader needs to handle.
      */
     void handleSplitsChanges(SplitsChange<SplitT> splitsChanges);
@@ -56,9 +64,31 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
     void wakeUp();
 
     /**
-     * Close the split reader.
+     * Pauses or resumes reading of individual splits readers.
      *
-     * @throws Exception if closing the split reader failed.
+     * <p>Note that no other methods can be called in parallel, so it's fine to non-atomically
+     * update subscriptions. This method is simply providing connectors with more expressive APIs
+     * the opportunity to update all subscriptions at once.
+     *
+     * <p>This is currently used to align the watermarks of splits, if watermark alignment is used
+     * and the source reads from more than one split.
+     *
+     * <p>The default implementation throws an {@link UnsupportedOperationException} where the
+     * default implementation will be removed in future releases. To be compatible with future
+     * releases, it is recommended to implement this method and override the default implementation.
+     *
+     * @param splitsToPause the splits to pause
+     * @param splitsToResume the splits to resume
      */
-    void close() throws Exception;
+    default void pauseOrResumeSplits(
+            Collection<SplitT> splitsToPause, Collection<SplitT> splitsToResume) {
+        throw new UnsupportedOperationException(
+                "This split reader does not support pausing or resuming splits which can lead to unaligned splits.\n"
+                        + "Unaligned splits are splits where the output watermarks of the splits have diverged more than the allowed limit.\n"
+                        + "It is highly discouraged to use unaligned source splits, as this leads to unpredictable\n"
+                        + "watermark alignment if there is more than a single split per reader. It is recommended to implement pausing splits\n"
+                        + "for this source. At your own risk, you can allow unaligned source splits by setting the\n"
+                        + "configuration parameter `pipeline.watermark-alignment.allow-unaligned-source-splits' to true.\n"
+                        + "Beware that this configuration parameter will be dropped in a future Flink release.");
+    }
 }

@@ -17,7 +17,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.MappingType;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -44,5 +47,19 @@ public class InflightDataRescalingDescriptorUtil {
 
     public static <T> Set<T> set(T... elements) {
         return Sets.newHashSet(elements);
+    }
+
+    public static InflightDataRescalingDescriptor rescalingDescriptor(
+            int[] oldIndices, RescaleMappings[] mappings, Set<Integer> ambiguousSubtasks) {
+        return new InflightDataRescalingDescriptor(
+                Arrays.stream(mappings)
+                        .map(
+                                mapping ->
+                                        new InflightDataGateOrPartitionRescalingDescriptor(
+                                                oldIndices,
+                                                mapping,
+                                                ambiguousSubtasks,
+                                                MappingType.RESCALING))
+                        .toArray(InflightDataGateOrPartitionRescalingDescriptor[]::new));
     }
 }

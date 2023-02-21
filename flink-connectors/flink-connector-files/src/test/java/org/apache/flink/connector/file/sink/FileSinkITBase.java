@@ -18,28 +18,21 @@
 
 package org.apache.flink.connector.file.sink;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils;
+import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.stream.Stream;
 
 /** The base class for the File Sink IT Case in different execution mode. */
-public abstract class FileSinkITBase extends TestLogger {
+abstract class FileSinkITBase {
 
     protected static final int NUM_SOURCES = 4;
 
@@ -51,28 +44,23 @@ public abstract class FileSinkITBase extends TestLogger {
 
     protected static final double FAILOVER_RATIO = 0.4;
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
-    @Parameterized.Parameter public boolean triggerFailover;
-
-    @Parameterized.Parameters(name = "triggerFailover = {0}")
-    public static Collection<Object[]> params() {
-        return Arrays.asList(new Object[] {false}, new Object[] {true});
+    private static Stream<Boolean> params() {
+        return Stream.of(false, true);
     }
 
-    @Test
-    public void testFileSink() throws Exception {
-        String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
+    @ParameterizedTest(name = "triggerFailover = {0}")
+    @MethodSource("params")
+    void testFileSink(boolean triggerFailover, @TempDir java.nio.file.Path tmpDir)
+            throws Exception {
+        String path = tmpDir.toString();
 
-        JobGraph jobGraph = createJobGraph(path);
+        JobGraph jobGraph = createJobGraph(triggerFailover, path);
 
-        final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "18081-19000");
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(4)
-                        .setConfiguration(config)
                         .build();
 
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -84,35 +72,13 @@ public abstract class FileSinkITBase extends TestLogger {
                 path, NUM_RECORDS, NUM_BUCKETS, NUM_SOURCES);
     }
 
-    protected abstract JobGraph createJobGraph(String path);
+    protected abstract JobGraph createJobGraph(boolean triggerFailover, String path);
 
     protected FileSink<Integer> createFileSink(String path) {
         return FileSink.forRowFormat(new Path(path), new IntegerFileSinkTestDataUtils.IntEncoder())
                 .withBucketAssigner(
                         new IntegerFileSinkTestDataUtils.ModuloBucketAssigner(NUM_BUCKETS))
-                .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
+                .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, true))
                 .build();
-    }
-
-    private static class PartSizeAndCheckpointRollingPolicy
-            extends CheckpointRollingPolicy<Integer, String> {
-
-        private final long maxPartSize;
-
-        public PartSizeAndCheckpointRollingPolicy(long maxPartSize) {
-            this.maxPartSize = maxPartSize;
-        }
-
-        @Override
-        public boolean shouldRollOnEvent(PartFileInfo<String> partFileState, Integer element)
-                throws IOException {
-            return partFileState.getSize() >= maxPartSize;
-        }
-
-        @Override
-        public boolean shouldRollOnProcessingTime(
-                PartFileInfo<String> partFileState, long currentTime) {
-            return false;
-        }
     }
 }

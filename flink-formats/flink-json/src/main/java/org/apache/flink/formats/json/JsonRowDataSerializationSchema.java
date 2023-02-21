@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,7 +51,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     private final RowDataToJsonConverters.RowDataToJsonConverter runtimeConverter;
 
     /** Object mapper that is used to create output JSON objects. */
-    private final ObjectMapper mapper = new ObjectMapper();
+    private transient ObjectMapper mapper;
 
     /** Reusable object node. */
     private transient ObjectNode node;
@@ -59,7 +60,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     private final TimestampFormat timestampFormat;
 
     /** The handling mode when serializing null keys for map data. */
-    private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+    private final JsonFormatOptions.MapNullKeyMode mapNullKeyMode;
 
     /** The string literal when handling mode for map null key LITERAL. */
     private final String mapNullKeyLiteral;
@@ -70,7 +71,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     public JsonRowDataSerializationSchema(
             RowType rowType,
             TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
+            JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral,
             boolean encodeDecimalAsPlainNumber) {
         this.rowType = rowType;
@@ -81,9 +82,15 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
         this.runtimeConverter =
                 new RowDataToJsonConverters(timestampFormat, mapNullKeyMode, mapNullKeyLiteral)
                         .createConverter(rowType);
+    }
 
-        mapper.configure(
-                JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, encodeDecimalAsPlainNumber);
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        mapper =
+                JacksonMapperFactory.createObjectMapper()
+                        .configure(
+                                JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN,
+                                encodeDecimalAsPlainNumber);
     }
 
     @Override
@@ -96,7 +103,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
             runtimeConverter.convert(mapper, node, row);
             return mapper.writeValueAsBytes(node);
         } catch (Throwable t) {
-            throw new RuntimeException("Could not serialize row '" + row + "'. ", t);
+            throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);
         }
     }
 

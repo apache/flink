@@ -19,14 +19,13 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -52,10 +51,6 @@ import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.
 /** Utils for RocksDB Operations. */
 public class RocksDBOperationUtils {
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBOperationUtils.class);
-
-    private static final String MANAGED_MEMORY_RESOURCE_ID = "state-rocks-managed-memory";
-
-    private static final String FIXED_SLOT_MEMORY_RESOURCE_ID = "state-rocks-fixed-slot-memory";
 
     public static RocksDB openDB(
             String path,
@@ -102,16 +97,6 @@ public class RocksDBOperationUtils {
     public static RocksIteratorWrapper getRocksIterator(
             RocksDB db, ColumnFamilyHandle columnFamilyHandle, ReadOptions readOptions) {
         return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
-    }
-
-    /**
-     * Create a total order read option to avoid user misuse, see FLINK-17800 for more details.
-     *
-     * <p>Note, remember to close the generated {@link ReadOptions} when dispose.
-     */
-    // TODO We would remove this method once we bump RocksDB version larger than 6.2.2.
-    public static ReadOptions createTotalOrderSeekReadOptions() {
-        return new ReadOptions().setTotalOrderSeek(true);
     }
 
     public static void registerKvStateInformation(
@@ -248,8 +233,16 @@ public class RocksDBOperationUtils {
     public static void addColumnFamilyOptionsToCloseLater(
             List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
         try {
-            if (columnFamilyHandle != null && columnFamilyHandle.getDescriptor() != null) {
-                columnFamilyOptions.add(columnFamilyHandle.getDescriptor().getOptions());
+            // IMPORTANT NOTE: Do not call ColumnFamilyHandle#getDescriptor() just to judge if it
+            // return null and then call it again when it return is not null. That will cause
+            // task manager native memory used by RocksDB can't be released timely after job
+            // restart.
+            // The problem can find in : https://issues.apache.org/jira/browse/FLINK-21986
+            if (columnFamilyHandle != null) {
+                ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyHandle.getDescriptor();
+                if (columnFamilyDescriptor != null) {
+                    columnFamilyOptions.add(columnFamilyDescriptor.getOptions());
+                }
             }
         } catch (RocksDBException e) {
             // ignore
@@ -258,42 +251,23 @@ public class RocksDBOperationUtils {
 
     @Nullable
     public static OpaqueMemoryResource<RocksDBSharedResources> allocateSharedCachesIfConfigured(
-            RocksDBMemoryConfiguration memoryConfig,
-            MemoryManager memoryManager,
+            RocksDBMemoryConfiguration jobMemoryConfig,
+            Environment env,
             double memoryFraction,
-            Logger logger)
+            Logger logger,
+            RocksDBMemoryControllerUtils.RocksDBMemoryFactory rocksDBMemoryFactory)
             throws IOException {
 
-        if (!memoryConfig.isUsingFixedMemoryPerSlot() && !memoryConfig.isUsingManagedMemory()) {
-            return null;
-        }
-
-        final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
-        final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
-        final boolean usingPartitionedIndexFilters = memoryConfig.isUsingPartitionedIndexFilters();
-
-        final LongFunctionWithException<RocksDBSharedResources, Exception> allocator =
-                (size) ->
-                        RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(
-                                size,
-                                writeBufferRatio,
-                                highPriorityPoolRatio,
-                                usingPartitionedIndexFilters);
-
         try {
-            if (memoryConfig.isUsingFixedMemoryPerSlot()) {
-                assert memoryConfig.getFixedMemoryPerSlot() != null;
-
-                logger.info("Getting fixed-size shared cache for RocksDB.");
-                return memoryManager.getExternalSharedMemoryResource(
-                        FIXED_SLOT_MEMORY_RESOURCE_ID,
-                        allocator,
-                        memoryConfig.getFixedMemoryPerSlot().getBytes());
-            } else {
-                logger.info("Getting managed memory shared cache for RocksDB.");
-                return memoryManager.getSharedMemoryResourceForManagedMemory(
-                        MANAGED_MEMORY_RESOURCE_ID, allocator, memoryFraction);
+            RocksDBSharedResourcesFactory factory =
+                    RocksDBSharedResourcesFactory.from(jobMemoryConfig, env);
+            if (factory == null) {
+                return null;
             }
+
+            return factory.create(
+                    jobMemoryConfig, env, memoryFraction, logger, rocksDBMemoryFactory);
+
         } catch (Exception e) {
             throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
         }

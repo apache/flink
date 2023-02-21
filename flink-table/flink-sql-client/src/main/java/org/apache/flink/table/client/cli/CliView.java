@@ -31,6 +31,7 @@ import org.jline.terminal.Terminal.SignalHandler;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
+import org.jline.utils.InfoCmp;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.io.IOError;
@@ -51,7 +52,11 @@ import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
  */
 public abstract class CliView<OP extends Enum<OP>, OUT> {
 
-    protected final CliClient client;
+    private static final int PLAIN_TERMINAL_WIDTH = 80;
+
+    private static final int PLAIN_TERMINAL_HEIGHT = 30;
+
+    protected final Terminal terminal;
 
     protected int offsetX;
 
@@ -83,10 +88,10 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
 
     private OUT result;
 
-    public CliView(CliClient client) {
-        this.client = client;
+    public CliView(Terminal terminal) {
+        this.terminal = terminal;
 
-        keyReader = new BindingReader(client.getTerminal().reader());
+        this.keyReader = new BindingReader(terminal.reader());
     }
 
     public void open() {
@@ -188,15 +193,15 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
         final int totalMainWidth = getTotalMainWidth();
 
         // create output
-        client.clearTerminal();
+        clearTerminal();
 
         final List<String> lines = new ArrayList<>();
 
         // title part
-        client.getTerminal().writer().println(computeTitleLine().toAnsi());
+        terminal.writer().println(computeTitleLine().toAnsi());
 
         // header part
-        headerLines.forEach(l -> client.getTerminal().writer().println(l.toAnsi()));
+        headerLines.forEach(l -> terminal.writer().println(l.toAnsi()));
 
         // main part
         // update vertical offset
@@ -221,11 +226,9 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
                             if (offsetX < l.length()) {
                                 final AttributedString windowX =
                                         l.substring(offsetX, Math.min(l.length(), offsetX + width));
-                                client.getTerminal().writer().println(windowX.toAnsi());
+                                terminal.writer().println(windowX.toAnsi());
                             } else {
-                                client.getTerminal()
-                                        .writer()
-                                        .println(); // nothing to show for this line
+                                terminal.writer().println(); // nothing to show for this line
                             }
                         });
 
@@ -239,20 +242,20 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
                         - mainHeaderLines.size()
                         - footerLines.size();
         // padding
-        IntStream.range(0, emptyHeight).forEach(i -> client.getTerminal().writer().println());
+        IntStream.range(0, emptyHeight).forEach(i -> terminal.writer().println());
         // footer
         IntStream.range(0, footerLines.size())
                 .forEach(
                         (i) -> {
                             final AttributedString l = footerLines.get(i);
                             if (i == footerLines.size() - 1) {
-                                client.getTerminal().writer().print(l.toAnsi());
+                                terminal.writer().print(l.toAnsi());
                             } else {
-                                client.getTerminal().writer().println(l.toAnsi());
+                                terminal.writer().println(l.toAnsi());
                             }
                         });
 
-        client.getTerminal().flush();
+        terminal.flush();
     }
 
     protected void scrollLeft() {
@@ -361,25 +364,46 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
         return height;
     }
 
+    public void clearTerminal() {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
+            for (int i = 0; i < 200; i++) { // large number of empty lines
+                terminal.writer().println();
+            }
+        } else {
+            terminal.puts(InfoCmp.Capability.clear_screen);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
+    public int getTerminalWidth() {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
+            return PLAIN_TERMINAL_WIDTH;
+        }
+        return terminal.getWidth();
+    }
+
+    public int getTerminalHeight() {
+        if (TerminalUtils.isPlainTerminal(terminal)) {
+            return PLAIN_TERMINAL_HEIGHT;
+        }
+        return terminal.getHeight();
+    }
+
     private void updateSize() {
-        width = client.getWidth();
-        height = client.getHeight();
+        width = getTerminalWidth();
+        height = getTerminalHeight();
         totalMainWidth = width;
         resetAllParts();
     }
 
     private void ensureTerminalFullScreen() {
-        final Terminal terminal = client.getTerminal();
         terminal.puts(Capability.enter_ca_mode);
         terminal.puts(Capability.keypad_xmit);
         terminal.puts(Capability.cursor_invisible);
     }
 
     private Tuple2<Attributes, Map<Signal, SignalHandler>> prepareTerminal() {
-        final Terminal terminal = client.getTerminal();
-
         final Attributes prevAttributes = terminal.getAttributes();
         // adopted from org.jline.builtins.Nano
         // see also
@@ -412,15 +436,11 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
     }
 
     private void restoreTerminal(Tuple2<Attributes, Map<Signal, SignalHandler>> prev) {
-        final Terminal terminal = client.getTerminal();
-
         terminal.setAttributes(prev.f0);
         prev.f1.forEach(terminal::handle);
     }
 
     private void unsetTerminalFullScreen() {
-        final Terminal terminal = client.getTerminal();
-
         terminal.puts(Capability.exit_ca_mode);
         terminal.puts(Capability.keypad_local);
         terminal.puts(Capability.cursor_visible);

@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -34,6 +33,7 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /** Simple netty connection manager test. */
 public class NettyConnectionManagerTest {
@@ -46,24 +46,28 @@ public class NettyConnectionManagerTest {
     public void testMatchingNumberOfArenasAndThreadsAsDefault() throws Exception {
         // Expected number of arenas and threads
         int numberOfSlots = 2;
+        NettyConnectionManager connectionManager;
+        {
+            NettyConfig config =
+                    new NettyConfig(
+                            InetAddress.getLocalHost(),
+                            0,
+                            1024,
+                            numberOfSlots,
+                            new Configuration());
 
-        NettyConfig config =
-                new NettyConfig(
-                        InetAddress.getLocalHost(),
-                        NetUtils.getAvailablePort(),
-                        1024,
-                        numberOfSlots,
-                        new Configuration());
-
-        NettyConnectionManager connectionManager = createNettyConnectionManager(config);
-        connectionManager.start();
+            connectionManager = createNettyConnectionManager(config);
+            connectionManager.start();
+        }
+        assertNotNull(
+                "connectionManager is null due to fail to get a free port", connectionManager);
 
         assertEquals(numberOfSlots, connectionManager.getBufferPool().getNumberOfArenas());
 
         {
             // Client event loop group
             Bootstrap boostrap = connectionManager.getClient().getBootstrap();
-            EventLoopGroup group = boostrap.group();
+            EventLoopGroup group = boostrap.config().group();
 
             Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
             f.setAccessible(true);
@@ -75,7 +79,7 @@ public class NettyConnectionManagerTest {
         {
             // Server event loop group
             ServerBootstrap bootstrap = connectionManager.getServer().getBootstrap();
-            EventLoopGroup group = bootstrap.group();
+            EventLoopGroup group = bootstrap.config().group();
 
             Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
             f.setAccessible(true);
@@ -111,23 +115,23 @@ public class NettyConnectionManagerTest {
         flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
         flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
 
-        NettyConfig config =
-                new NettyConfig(
-                        InetAddress.getLocalHost(),
-                        NetUtils.getAvailablePort(),
-                        1024,
-                        1337,
-                        flinkConfig);
+        NettyConnectionManager connectionManager;
+        {
+            NettyConfig config =
+                    new NettyConfig(InetAddress.getLocalHost(), 0, 1024, 1337, flinkConfig);
 
-        NettyConnectionManager connectionManager = createNettyConnectionManager(config);
-        connectionManager.start();
+            connectionManager = createNettyConnectionManager(config);
+            connectionManager.start();
 
-        assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
+            assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
+        }
+        assertNotNull(
+                "connectionManager is null due to fail to get a free port", connectionManager);
 
         {
             // Client event loop group
             Bootstrap boostrap = connectionManager.getClient().getBootstrap();
-            EventLoopGroup group = boostrap.group();
+            EventLoopGroup group = boostrap.config().group();
 
             Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
             f.setAccessible(true);
@@ -139,7 +143,7 @@ public class NettyConnectionManagerTest {
         {
             // Server event loop group
             ServerBootstrap bootstrap = connectionManager.getServer().getBootstrap();
-            EventLoopGroup group = bootstrap.group();
+            EventLoopGroup group = bootstrap.config().group();
 
             Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
             f.setAccessible(true);
@@ -163,6 +167,6 @@ public class NettyConnectionManagerTest {
 
     private NettyConnectionManager createNettyConnectionManager(NettyConfig config) {
         return new NettyConnectionManager(
-                new ResultPartitionManager(), new TaskEventDispatcher(), config);
+                new ResultPartitionManager(), new TaskEventDispatcher(), config, 1, true);
     }
 }

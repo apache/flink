@@ -18,8 +18,12 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 
+import java.io.IOException;
+
+/** We are performing aligned checkpoints. We have not seen any barriers yet. */
 final class WaitingForFirstBarrier extends AbstractAlignedBarrierHandlerState {
 
     WaitingForFirstBarrier(CheckpointableInput[] inputs) {
@@ -29,5 +33,14 @@ final class WaitingForFirstBarrier extends AbstractAlignedBarrierHandlerState {
     @Override
     protected BarrierHandlerState convertAfterBarrierReceived(ChannelState state) {
         return new CollectingBarriers(state);
+    }
+
+    @Override
+    public BarrierHandlerState endOfPartitionReceived(
+            Controller controller, InputChannelInfo channelInfo) throws IOException {
+        state.channelFinished(channelInfo);
+
+        // Do nothing since we have no pending checkpoint.
+        return this;
     }
 }

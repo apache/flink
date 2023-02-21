@@ -20,7 +20,10 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.CompiledPlan;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -28,12 +31,33 @@ import org.apache.flink.table.data.RowData;
  * ScanTableSource}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a source should
- * consist of a single entity expressed via {@link InputFormatProvider}, {@link
- * SourceFunctionProvider}, or {@link SourceProvider}.
+ * consist of a single entity expressed via {@link SourceProvider}, {@link SourceFunctionProvider},
+ * or {@link InputFormatProvider}.
  */
 @PublicEvolving
 public interface DataStreamScanProvider extends ScanTableSource.ScanRuntimeProvider {
 
+    /**
+     * Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}.
+     *
+     * <p>Note: If the {@link CompiledPlan} feature should be supported, this method MUST set a
+     * unique identifier for each transformation/operator in the data stream. This enables stateful
+     * Flink version upgrades for streaming jobs. The identifier is used to map state back from a
+     * savepoint to an actual operator in the topology. The framework can generate topology-wide
+     * unique identifiers with {@link ProviderContext#generateUid(String)}.
+     *
+     * @see SingleOutputStreamOperator#uid(String)
+     */
+    default DataStream<RowData> produceDataStream(
+            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+        return produceDataStream(execEnv);
+    }
+
     /** Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}. */
-    DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv);
+    @Deprecated
+    default DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated. "
+                        + "Use produceDataStream(ProviderContext, StreamExecutionEnvironment) instead");
+    }
 }

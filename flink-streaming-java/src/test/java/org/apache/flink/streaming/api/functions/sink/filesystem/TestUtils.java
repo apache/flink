@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -42,6 +43,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -67,9 +69,9 @@ public class TestUtils {
 
         final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy =
                 DefaultRollingPolicy.builder()
-                        .withMaxPartSize(partMaxSize)
-                        .withRolloverInterval(inactivityInterval)
-                        .withInactivityInterval(inactivityInterval)
+                        .withMaxPartSize(new MemorySize(partMaxSize))
+                        .withRolloverInterval(Duration.ofMillis(inactivityInterval))
+                        .withInactivityInterval(Duration.ofMillis(inactivityInterval))
                         .build();
 
         return createRescalingTestSink(

@@ -30,7 +30,7 @@ Flink 的 Table & SQL API 可以处理 SQL 语言编写的查询语句，但是�
 
 *SQL 客户端* 的目的是提供一种简单的方式来编写、调试和提交表程序到 Flink 集群上，而无需写一行 Java 或 Scala 代码。*SQL 客户端命令行界面（CLI）* 能够在命令行中检索和可视化分布式应用中实时产生的结果。
 
-<a href="/fig/sql_client_demo.gif"><img class="offset" src="/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
+{{< img width="80%" src="/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" >}}
 
 
 
@@ -47,7 +47,7 @@ SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它
 
 ### 启动 SQL 客户端命令行界面
 
-SQL Client 脚本也位于 Flink 的 bin 目录中。[将来](sqlClient.html#limitations--future)，用户可以通过启动嵌入式 standalone 进程或通过连接到远程 SQL 客户端网关来启动 SQL 客户端命令行界面。目前仅支持 `embedded`，模式默认值`embedded`。可以通过以下方式启动 CLI：
+SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌入式 standalone 进程或通过连接到远程 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 来启动 SQL 客户端命令行界面。SQL 客户端默认使用 `embedded` 模式，你可以通过以下方式启动 CLI：
 
 ```bash
 ./bin/sql-client.sh
@@ -59,7 +59,15 @@ SQL Client 脚本也位于 Flink 的 bin 目录中。[将来](sqlClient.html#lim
 ./bin/sql-client.sh embedded
 ```
 
-默认情况下，SQL 客户端将从 `./conf/sql-client-defaults.yaml` 中读取配置。有关环境配置文件结构的更多信息，请参见[配置部分](sqlClient.html#environment-files)。
+若想使用 gateway 模式，你可以通过以下命令启动 SQL 客户端：
+
+```bash
+./bin/sql-client.sh gateway --endpoint <gateway address>
+```
+
+<span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。
+
+参阅 [SQL Client startup options](#sql-client-startup-options) 了解更多启动命令。
 
 ### 执行 SQL 查询
 
@@ -76,20 +84,20 @@ CLI 为维护和可视化结果提供**三种模式**。
 **表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
 
 ```text
-SET execution.result-mode=table;
+SET 'sql-client.execution.result-mode' = 'table';
 ```
 
 **变更日志模式**（changelog mode）不会实体化和可视化结果，而是由插入（`+`）和撤销（`-`）组成的持续查询产生结果流。
 
 ```text
-SET execution.result-mode=changelog;
+SET 'sql-client.execution.result-mode' = 'changelog';
 ```
 
 **Tableau模式**（tableau mode）更接近传统的数据库，会将执行的结果以制表的形式直接打在屏幕之上。具体显示的内容会取决于作业
 执行模式的不同(`execution.type`)：
 
 ```text
-SET execution.result-mode=tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 ```
 
 注意当你使用这个模式运行一个流式查询的时候，Flink 会将结果持续的打印在当前的屏幕之上。如果这个流式查询的输入是有限的数据集，
@@ -148,590 +156,760 @@ Received a total of 5 rows
 3 rows in set
 ```
 
-这几种结果模式在 SQL 查询的原型设计过程中都非常有用。这些模式的结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI 界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](sqlClient.html#configuration)（`max-table-result-rows`）的限制。
+这几种结果模式在 SQL 查询的原型设计过程中都非常有用。这些模式的结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI
+界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](#sql-client-execution-max-table-result-rows)（`sql-client.execution.max-table-result.rows`）的限制。
 
 <span class="label label-danger">注意</span> 在批处理环境下执行的查询只能用表格模式或者Tableau模式进行检索。
 
-定义查询语句后，可以将其作为长时间运行的独立 Flink 作业提交给集群。为此，其目标系统需要使用 [INSERT INTO 语句](sqlClient.html#detached-sql-queries)指定存储结果。[配置部分](sqlClient.html#configuration)解释如何声明读取数据的 table source，写入数据的 sink 以及配置其他表程序属性的方法。
+定义查询语句后，可以将其作为长时间运行的独立 Flink 作业提交给集群。[配置部分](#configuration)解释如何声明读取数据的 table source，写入数据的 sink 以及配置其他表程序属性的方法。
 
 {{< top >}}
 
-<a name="configuration"></a>
+### Key-strokes
 
-配置
+There is a list of available key-strokes in SQL Client
+
+| Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                                                            |
+|:---------------------------------|------------------|:---------------------------------------------------------------------------------------|
+| `alt-b`, `ctrl+⍇`                | `Esc-b`          | Backward word                                                                          |
+| `alt-f`, `Ctrl+⍈`                | `Esc-f`          | Forward word                                                                           |
+| `alt-c`                          | `Esc-c`          | Capitalize word                                                                        |
+| `alt-l`                          | `Esc-l`          | Lowercase word                                                                         |
+| `alt-u`                          | `Esc-u`          | Uppercase word                                                                         |
+| `alt-d`                          | `Esc-d`          | Kill word                                                                              |
+| `alt-n`                          | `Esc-n`          | History search forward (behaves same as down line from history in case of empty input) |
+| `alt-p`                          | `Esc-p`          | History search backward (behaves same as up line from history in case of empty input)  |
+| `alt-t`                          | `Esc-t`          | Transpose words                                                                        |
+| `ctrl-a`                         | `⌘-a`            | To the beginning of line                                                               |
+| `ctrl-e`                         | `⌘-e`            | To the end of line                                                                     |
+| `ctrl-b`                         | `⌘-b`            | Backward char                                                                          |
+| `ctrl-f`                         | `⌘-f`            | Forward char                                                                           |
+| `ctrl-d`                         | `⌘-d`            | Delete char                                                                            |
+| `ctrl-h`                         | `⌘-h`            | Backward delete char                                                                   |
+| `ctrl-t`                         | `⌘-t`            | Transpose chars                                                                        |
+| `ctrl-i`                         | `⌘-i`            | Invoke completion                                                                      |
+| `ctrl-j`                         | `⌘-j`            | Submit a query                                                                         |
+| `ctrl-m`                         | `⌘-m`            | Submit a query                                                                         |
+| `ctrl-k`                         | `⌘-k`            | Kill the line to the right from the cursor                                             |
+| `ctrl-w`                         | `⌘-w`            | Kill the line to the left from the cursor                                              |
+| `ctrl-u`                         | `⌘-u`            | Kill the whole line                                                                    |
+| `ctrl-l`                         | `⌘-l`            | Clear screen                                                                           |
+| `ctrl-n`                         | `⌘-n`            | Down line from history                                                                 |
+| `ctrl-p`                         | `⌘-p`            | Up line from history                                                                   |
+| `ctrl-r`                         | `⌘-r`            | History incremental search backward                                                    |
+| `ctrl-s`                         | `⌘-s`            | History incremental search forward                                                     |
+
+### Getting help
+
+The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
+
+See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
+
+{{< top >}}
+
+Configuration
 -------------
 
-SQL 客户端启动时可以添加 CLI 选项，具体如下。
+### SQL Client startup options
+
+The SQL Client can be started with the following optional CLI commands. They are discussed in detail in the subsequent paragraphs.
 
 ```text
-./bin/sql-client.sh --help
+./sql-client [MODE] [OPTIONS]
+
+The following options are available:
 
 Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-     -d,--defaults <environment file>      The environment properties with which
-                                           every new session is initialized.
-                                           Properties might be overwritten by
-                                           session properties.
-     -e,--environment <environment file>   The environment properties to be
-                                           imported into the session. It might
-                                           overwrite default environment
-                                           properties.
+     -D <session dynamic config key=val>        The dynamic config key=val for a
+                                                session.
+     -f,--file <script file>                    Script file that should be
+                                                executed. In this mode, the
+                                                client will not open an
+                                                interactive terminal.
+     -h,--help                                  Show the help message with
+                                                descriptions of all options.
+     -hist,--history <History file path>        The file which you want to save
+                                                the command history into. If not
+                                                specified, we will auto-generate
+                                                one under your user's home
+                                                directory.
+     -i,--init <initialization file>            Script file that used to init
+                                                the session context. If get
+                                                error in execution, the sql
+                                                client will exit. Notice it's
+                                                not allowed to add query or
+                                                insert into the init file.
+     -j,--jar <JAR file>                        A JAR file to be imported into
+                                                the session. The file might
+                                                contain user-defined classes
+                                                needed for the execution of
+                                                statements such as functions,
+                                                table sources, or sinks. Can be
+                                                used multiple times.
+     -l,--library <JAR directory>               A JAR file directory with which
+                                                every new session is
+                                                initialized. The files might
+                                                contain user-defined classes
+                                                needed for the execution of
+                                                statements such as functions,
+                                                table sources, or sinks. Can be
+                                                used multiple times.
+     -pyarch,--pyArchives <arg>                 Add python archive files for
+                                                job. The archive files will be
+                                                extracted to the working
+                                                directory of python UDF worker.
+                                                For each archive file, a target
+                                                directory be specified. If the
+                                                target directory name is
+                                                specified, the archive file will
+                                                be extracted to a directory with
+                                                the specified name. Otherwise,
+                                                the archive file will be
+                                                extracted to a directory with
+                                                the same name of the archive
+                                                file. The files uploaded via
+                                                this option are accessible via
+                                                relative path. '#' could be used
+                                                as the separator of the archive
+                                                file path and the target
+                                                directory name. Comma (',')
+                                                could be used as the separator
+                                                to specify multiple archive
+                                                files. This option can be used
+                                                to upload the virtual
+                                                environment, the data files used
+                                                in Python UDF (e.g.,
+                                                --pyArchives
+                                                file:///tmp/py37.zip,file:///tmp
+                                                /data.zip#data --pyExecutable
+                                                py37.zip/py37/bin/python). The
+                                                data files could be accessed in
+                                                Python UDF, e.g.: f =
+                                                open('data/data.txt', 'r').
+     -pyclientexec,--pyClientExecutable <arg>   The path of the Python
+                                                interpreter used to launch the
+                                                Python process when submitting
+                                                the Python jobs via "flink run"
+                                                or compiling the Java/Scala jobs
+                                                containing Python UDFs.
+     -pyexec,--pyExecutable <arg>               Specify the path of the python
+                                                interpreter used to execute the
+                                                python UDF worker (e.g.:
+                                                --pyExecutable
+                                                /usr/local/bin/python3). The
+                                                python UDF worker depends on
+                                                Python 3.7+, Apache Beam
+                                                (version == 2.43.0), Pip
+                                                (version >= 20.3) and SetupTools
+                                                (version >= 37.0.0). Please
+                                                ensure that the specified
+                                                environment meets the above
+                                                requirements.
+     -pyfs,--pyFiles <pythonFiles>              Attach custom files for job. The
+                                                standard resource file suffixes
+                                                such as .py/.egg/.zip/.whl or
+                                                directory are all supported.
+                                                These files will be added to the
+                                                PYTHONPATH of both the local
+                                                client and the remote python UDF
+                                                worker. Files suffixed with .zip
+                                                will be extracted and added to
+                                                PYTHONPATH. Comma (',') could be
+                                                used as the separator to specify
+                                                multiple files (e.g., --pyFiles
+                                                file:///tmp/myresource.zip,hdfs:
+                                                ///$namenode_address/myresource2
+                                                .zip).
+     -pyreq,--pyRequirements <arg>              Specify a requirements.txt file
+                                                which defines the third-party
+                                                dependencies. These dependencies
+                                                will be installed and added to
+                                                the PYTHONPATH of the python UDF
+                                                worker. A directory which
+                                                contains the installation
+                                                packages of these dependencies
+                                                could be specified optionally.
+                                                Use '#' as the separator if the
+                                                optional parameter exists (e.g.,
+                                                --pyRequirements
+                                                file:///tmp/requirements.txt#fil
+                                                e:///tmp/cached_dir).
+     -s,--session <session identifier>          The identifier for a session.
+                                                'default' is the default
+                                                identifier.
+     -u,--update <SQL update statement>         Deprecated Experimental (for
+                                                testing only!) feature:
+                                                Instructs the SQL Client to
+                                                immediately execute the given
+                                                update statement after starting
+                                                up. The process is shut down
+                                                after the statement has been
+                                                submitted to the cluster and
+                                                returns an appropriate return
+                                                code. Currently, this feature is
+                                                only supported for INSERT INTO
+                                                statements that declare the
+                                                target sink table.Please use
+                                                option -f to submit update
+                                                statement.
+
+
+Mode "gateway" mode connects to the SQL gateway for submission.
+
+  Syntax: gateway [OPTIONS]
+  "gateway" mode options:
+     -D <session dynamic config key=val>   The dynamic config key=val for a
+                                           session.
+     -e,--endpoint <SQL Gateway address>   The address of the remote SQL Gateway
+                                           to connect.
+     -f,--file <script file>               Script file that should be executed.
+                                           In this mode, the client will not
+                                           open an interactive terminal.
      -h,--help                             Show the help message with
                                            descriptions of all options.
      -hist,--history <History file path>   The file which you want to save the
                                            command history into. If not
                                            specified, we will auto-generate one
                                            under your user's home directory.
-     -j,--jar <JAR file>                   A JAR file to be imported into the
-                                           session. The file might contain
-                                           user-defined classes needed for the
-                                           execution of statements such as
-                                           functions, table sources, or sinks.
-                                           Can be used multiple times.
-     -l,--library <JAR directory>          A JAR file directory with which every
-                                           new session is initialized. The files
-                                           might contain user-defined classes
-                                           needed for the execution of
-                                           statements such as functions, table
-                                           sources, or sinks. Can be used
-                                           multiple times.
-     -pyarch,--pyArchives <arg>            Add python archive files for job. The
-                                           archive files will be extracted to
-                                           the working directory of python UDF
-                                           worker. Currently only zip-format is
-                                           supported. For each archive file, a
-                                           target directory be specified. If the
-                                           target directory name is specified,
-                                           the archive file will be extracted to
-                                           a name can directory with the
-                                           specified name. Otherwise, the
-                                           archive file will be extracted to a
-                                           directory with the same name of the
-                                           archive file. The files uploaded via
-                                           this option are accessible via
-                                           relative path. '#' could be used as
-                                           the separator of the archive file
-                                           path and the target directory name.
-                                           Comma (',') could be used as the
-                                           separator to specify multiple archive
-                                           files. This option can be used to
-                                           upload the virtual environment, the
-                                           data files used in Python UDF (e.g.:
-                                           --pyArchives
-                                           file:///tmp/py37.zip,file:///tmp/data
-                                           .zip#data --pyExecutable
-                                           py37.zip/py37/bin/python). The data
-                                           files could be accessed in Python
-                                           UDF, e.g.: f = open('data/data.txt',
-                                           'r').
-     -pyexec,--pyExecutable <arg>          Specify the path of the python
-                                           interpreter used to execute the
-                                           python UDF worker (e.g.:
-                                           --pyExecutable
-                                           /usr/local/bin/python3). The python
-                                           UDF worker depends on Python 3.6+,
-                                           Apache Beam (version == 2.27.0), Pip
-                                           (version >= 7.1.0) and SetupTools
-                                           (version >= 37.0.0). Please ensure
-                                           that the specified environment meets
-                                           the above requirements.
-     -pyfs,--pyFiles <pythonFiles>         Attach custom python files for job.
-                                           These files will be added to the
-                                           PYTHONPATH of both the local client
-                                           and the remote python UDF worker. The
-                                           standard python resource file
-                                           suffixes such as .py/.egg/.zip or
-                                           directory are all supported. Comma
-                                           (',') could be used as the separator
-                                           to specify multiple files (e.g.:
-                                           --pyFiles
-                                           file:///tmp/myresource.zip,hdfs:///$n
-                                           amenode_address/myresource2.zip).
-     -pyreq,--pyRequirements <arg>         Specify a requirements.txt file which
-                                           defines the third-party dependencies.
-                                           These dependencies will be installed
-                                           and added to the PYTHONPATH of the
-                                           python UDF worker. A directory which
-                                           contains the installation packages of
-                                           these dependencies could be specified
-                                           optionally. Use '#' as the separator
-                                           if the optional parameter exists
-                                           (e.g.: --pyRequirements
-                                           file:///tmp/requirements.txt#file:///
-                                           tmp/cached_dir).
+     -i,--init <initialization file>       Script file that used to init the
+                                           session context. If get error in
+                                           execution, the sql client will exit.
+                                           Notice it's not allowed to add query
+                                           or insert into the init file.
      -s,--session <session identifier>     The identifier for a session.
                                            'default' is the default identifier.
-     -u,--update <SQL update statement>    Experimental (for testing only!):
-                                           Instructs the SQL Client to
-                                           immediately execute the given update
-                                           statement after starting up. The
-                                           process is shut down after the
-                                           statement has been submitted to the
-                                           cluster and returns an appropriate
-                                           return code. Currently, this feature
-                                           is only supported for INSERT INTO
-                                           statements that declare the target
-                                           sink table.
+     -u,--update <SQL update statement>    Deprecated Experimental (for testing
+                                           only!) feature: Instructs the SQL
+                                           Client to immediately execute the
+                                           given update statement after starting
+                                           up. The process is shut down after
+                                           the statement has been submitted to
+                                           the cluster and returns an
+                                           appropriate return code. Currently,
+                                           this feature is only supported for
+                                           INSERT INTO statements that declare
+                                           the target sink table.Please use
+                                           option -f to submit update statement.
 ```
 
-{{< top >}}
+### SQL Client Configuration
 
-<a name="environment-files"></a>
-
-### 环境配置文件
-
-SQL 查询执行前需要配置相关环境变量。*环境配置文件* 定义了 catalog、table sources、table sinks、用户自定义函数和其他执行或部署所需属性。
-
-每个环境配置文件是常规的 [YAML 文件](http://yaml.org/)，例子如下。
-
-```yaml
-# 定义表，如 source、sink、视图或临时表。
-
-tables:
-  - name: MyTableSource
-    type: source-table
-    update-mode: append
-    connector:
-      type: filesystem
-      path: "/path/to/something.csv"
-    format:
-      type: csv
-      fields:
-        - name: MyField1
-          data-type: INT
-        - name: MyField2
-          data-type: VARCHAR
-      line-delimiter: "\n"
-      comment-prefix: "#"
-    schema:
-      - name: MyField1
-        data-type: INT
-      - name: MyField2
-        data-type: VARCHAR
-  - name: MyCustomView
-    type: view
-    query: "SELECT MyField2 FROM MyTableSource"
-
-# 定义用户自定义函数
-
-functions:
-  - name: myUDF
-    from: class
-    class: foo.bar.AggregateUDF
-    constructor:
-      - 7.6
-      - false
-
-# 定义 catalogs
-
-catalogs:
-   - name: catalog_1
-     type: hive
-     property-version: 1
-     hive-conf-dir: ...
-   - name: catalog_2
-     type: hive
-     property-version: 1
-     default-database: mydb2
-     hive-conf-dir: ...
-
-# 改变表程序基本的执行行为属性。
-
-execution:
-  planner: blink                    # 可选： 'blink' （默认）或 'old'
-  type: streaming                   # 必选：执行模式为 'batch' 或 'streaming'
-  result-mode: table                # 必选：'table' 或 'changelog'
-  max-table-result-rows: 1000000    # 可选：'table' 模式下可维护的最大行数（默认为 1000000，小于 1 则表示无限制）
-  time-characteristic: event-time   # 可选： 'processing-time' 或 'event-time' （默认）
-  parallelism: 1                    # 可选：Flink 的并行数量（默认为 1）
-  periodic-watermarks-interval: 200 # 可选：周期性 watermarks 的间隔时间（默认 200 ms）
-  max-parallelism: 16               # 可选：Flink 的最大并行数量（默认 128）
-  min-idle-state-retention: 0       # 可选：表程序的最小空闲状态时间
-  max-idle-state-retention: 0       # 可选：表程序的最大空闲状态时间
-  current-catalog: catalog_1        # 可选：当前会话 catalog 的名称（默认为 'default_catalog'）
-  current-database: mydb1           # 可选：当前 catalog 的当前数据库名称
-                                    #   （默认为当前 catalog 的默认数据库）
-  restart-strategy:                 # 可选：重启策略（restart-strategy）
-    type: fallback                  #   默认情况下“回退”到全局重启策略
-
-# 用于调整和调优表程序的配置选项。
-
-# 在专用的”配置”页面上可以找到完整的选项列表及其默认值。
-configuration:
-  table.optimizer.join-reorder-enabled: true
-  table.exec.spill-compression.enabled: true
-  table.exec.spill-compression.block-size: 128kb
-```
-
-上述配置：
-
-- 定义一个从 CSV 文件中读取的 table source `MyTableSource` 所需的环境，
-- 定义了一个视图 `MyCustomView` ，该视图是用 SQL 查询声明的虚拟表，
-- 定义了一个用户自定义函数 `myUDF`，该函数可以使用类名和两个构造函数参数进行实例化，
-- 连接到两个 Hive catalogs 并用 `catalog_1` 来作为当前目录，用 `mydb1` 来作为该目录的当前数据库，
-- streaming 模式下用 blink planner 来运行时间特征为 event-time 和并行度为 1 的语句，
-- 在 `table` 结果模式下运行试探性的（exploratory）的查询，
-- 并通过配置选项对联结（join）重排序和溢出进行一些计划调整。
-
-根据使用情况，配置可以被拆分为多个文件。因此，一般情况下（用 `--defaults` 指定*默认环境配置文件*）以及基于每个会话（用 `--environment` 指定*会话环境配置文件*）来创建环境配置文件。每个 CLI 会话均会被属于 session 属性的默认属性初始化。例如，默认环境配置文件可以指定在每个会话中都可用于查询的所有 table source，而会话环境配置文件仅声明特定的状态保留时间和并行性。启动 CLI 应用程序时，默认环境配置文件和会话环境配置文件都可以被指定。如果未指定默认环境配置文件，则 SQL 客户端将在 Flink 的配置目录中搜索 `./conf/sql-client-defaults.yaml`。
-
-<span class="label label-danger">注意</span> 在 CLI 会话中设置的属性（如 `SET` 命令）优先级最高：
-
-```text
-CLI commands > session environment file > defaults environment file
-```
-
-#### 重启策略（Restart Strategies）
-
-重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的 `全局重启策略` 相似，更细精度的重启配置可以在环境配置文件中声明。
-
-Flink 支持以下策略：
-
-```yaml
-execution:
-  # 退回到 flink-conf.yaml 中定义的全局策略
-  restart-strategy:
-    type: fallback
-
-  # 作业直接失败并且不尝试重启
-  restart-strategy:
-    type: none
-
-  # 最多重启作业的给定次数
-  restart-strategy:
-    type: fixed-delay
-    attempts: 3      # 作业被宣告失败前的重试次数（默认：Integer.MAX_VALUE）
-    delay: 10000     # 重试之间的间隔时间，以毫秒为单位（默认：10 秒）
-
-  # 只要不超过每个时间间隔的最大故障数就继续尝试
-  restart-strategy:
-    type: failure-rate
-    max-failures-per-interval: 1   # 每个间隔重试的最大次数（默认：1）
-    failure-rate-interval: 60000   # 监测失败率的间隔时间，以毫秒为单位
-    delay: 10000                   # 重试之间的间隔时间，以毫秒为单位（默认：10 秒）
-```
-
-{{< top >}}
-
-### 依赖
-
-SQL 客户端不要求用 Maven 或者 SBT 设置 Java 项目。相反，你可以以常规的 JAR 包给集群提交依赖项。你也可以分别（用 `--jar`）指定每一个 JAR 包或者（用 `--library`）定义整个 library 依赖库。为连接扩展系统（如 Apache Kafka）和相应的数据格式（如 JSON），Flink提供了**开箱即用型 JAR 捆绑包（ready-to-use JAR bundles）**。这些 JAR 包各个发行版都可以从 Maven 中央库中下载到。
-
-提供的 SQL JARs 和使用文档的完整清单可以在[连接扩展系统页面](connect.html)中找到。
-
-如下例子展示了从 Apache Kafka 中读取 JSON 文件并作为 table source 的环境配置文件。
-
-```yaml
-tables:
-  - name: TaxiRides
-    type: source-table
-    update-mode: append
-    connector:
-      property-version: 1
-      type: kafka
-      version: "0.11"
-      topic: TaxiRides
-      startup-mode: earliest-offset
-      properties:
-        bootstrap.servers: localhost:9092
-        group.id: testGroup
-    format:
-      property-version: 1
-      type: json
-      schema: "ROW<rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP>"
-    schema:
-      - name: rideId
-        data-type: BIGINT
-      - name: lon
-        data-type: FLOAT
-      - name: lat
-        data-type: FLOAT
-      - name: rowTime
-        data-type: TIMESTAMP(3)
-        rowtime:
-          timestamps:
-            type: "from-field"
-            from: "rideTime"
-          watermarks:
-            type: "periodic-bounded"
-            delay: "60000"
-      - name: procTime
-        data-type: TIMESTAMP(3)
-        proctime: true
-```
-
-`TaxiRide` 表的结果格式与绝大多数的 JSON 格式相似。此外，它还添加了 rowtime 属性 `rowTime` 和 processing-time 属性 `procTime`。
-
-`connector` 和 `format` 都允许定义属性版本（当前版本为 `1` ）以便将来向后兼容。
-
-{{< top >}}
-
-### 自定义函数（User-defined Functions）
-SQL 客户端允许用户创建用户自定义的函数来进行 SQL 查询。当前，这些自定义函数仅限于 Java/Scala 编写的类以及 Python 文件。
-
-为提供 Java/Scala 的自定义函数，你首先需要实现和编译函数类，该函数继承自 `ScalarFunction`、 `AggregateFunction` 或 `TableFunction`（见[自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})）。一个或多个函数可以打包到 SQL 客户端的 JAR 依赖中。
-
-为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{< ref "docs/deployment/cli" >}}#usage)）配置中特别指定（见 [Python 配置]({{< ref "docs/dev/python/python_config" >}})）。
-
-所有函数在被调用之前，必须在环境配置文件中提前声明。`functions` 列表中每个函数类都必须指定
-
-- 用来注册函数的 `name`，
-- 函数的来源 `from`（目前仅限于 `class`（Java/Scala UDF）或 `python`（Python UDF）），
-
-Java/Scala UDF 必须指定：
-- 声明了全限定名的函数类 `class` 以及用于实例化的 `constructor` 参数的可选列表。
-
-Python UDF 必须指定：
-
-- 声明全程名称的 `fully-qualified-name`，即函数的 “[module name].[object name]”
-
-```yaml
-functions:
-  - name: java_udf               # required: name of the function
-    from: class                  # required: source of the function
-    class: ...                   # required: fully qualified class name of the function
-    constructor:                 # optional: constructor parameters of the function class
-      - ...                      # optional: a literal parameter with implicit type
-      - class: ...               # optional: full class name of the parameter
-        constructor:             # optional: constructor parameters of the parameter's class
-          - type: ...            # optional: type of the literal parameter
-            value: ...           # optional: value of the literal parameter
-  - name: python_udf             # required: name of the function
-    from: python                 # required: source of the function
-    fully-qualified-name: ...    # required: fully qualified class name of the function
-```
-
-对于 Java/Scala UDF，要确保函数类指定的构造参数顺序和类型都要严格匹配。
-
-#### 构造函数参数
-
-根据用户自定义函数可知，在用到 SQL 语句中之前，有必要将构造参数匹配对应的类型。
-
-如上述示例所示，当声明一个用户自定义函数时，可以使用构造参数来配置相应的类，有以下三种方式：
-
-**隐式类型的文本值：**SQL 客户端将自动根据文本推导对应的类型。目前，只支持 `BOOLEAN`、`INT`、 `DOUBLE` 和 `VARCHAR` 。
-
-如果自动推导的类型与期望不符（例如，你需要 VARCHAR 类型的 `false`），可以改用显式类型。
-
-```yaml
-- true         # -> BOOLEAN (case sensitive)
-- 42           # -> INT
-- 1234.222     # -> DOUBLE
-- foo          # -> VARCHAR
-```
-
-**显式类型的文本值：**为保证类型安全，需明确声明 `type` 和 `value` 属性的参数。
-
-```yaml
-- type: DECIMAL
-  value: 11111111111111111
-```
-
-下表列出支持的 Java 参数类型和与之相对应的 SQL 类型。
-
-| Java 类型              | SQL 类型         |
-| :--------------------- | :--------------- |
-| `java.math.BigDecimal` | `DECIMAL`        |
-| `java.lang.Boolean`    | `BOOLEAN`        |
-| `java.lang.Byte`       | `TINYINT`        |
-| `java.lang.Double`     | `DOUBLE`         |
-| `java.lang.Float`      | `REAL`, `FLOAT`  |
-| `java.lang.Integer`    | `INTEGER`, `INT` |
-| `java.lang.Long`       | `BIGINT`         |
-| `java.lang.Short`      | `SMALLINT`       |
-| `java.lang.String`     | `VARCHAR`        |
-
-其他类型 （例如 `TIMESTAMP` 和 `ARRAY`）、原始类型和 `null` 目前还不支持。
-
-**（嵌套）类实例：**除了文本值外，还可以通过指定构造参数的 `class` 和 `constructor` 属性来创建（嵌套）类实例。这个过程可以递归执行，直到最后的构造参数是用文本值来描述的。
-
-```yaml
-- class: foo.bar.paramClass
-  constructor:
-    - StarryName
-    - class: java.lang.Integer
-      constructor:
-        - class: java.lang.String
-          constructor:
-            - type: VARCHAR
-              value: 3
-```
-
-{{< top >}}
-
-Catalogs
---------
-
-Catalogs 可以由 YAML 属性集合定义，并且在 SQL 客户端启动之前自动注册到运行环境中。
-
-用户可以指定在 SQL CLI 中哪些 catalog 要被作为当前的 catalog，以及哪个数据库的 catalog 可以用于当前数据库。
-
-```yaml
-catalogs:
-   - name: catalog_1
-     type: hive
-     property-version: 1
-     default-database: mydb2
-     hive-conf-dir: <path of Hive conf directory>
-   - name: catalog_2
-     type: hive
-     property-version: 1
-     hive-conf-dir: <path of Hive conf directory>
-
-execution:
-   ...
-   current-catalog: catalog_1
-   current-database: mydb1
-```
-
-更多关于 catalog 的内容，参考 [Catalogs]({{< ref "docs/dev/table/catalogs" >}})。
-
-<a name="detached-sql-queries"></a>
-
-分离的 SQL 查询
---------------------
-
-为定义端到端的 SQL 管道，SQL 的 `INSERT INTO` 语句可以向 Flink 集群提交长时间运行的分离查询。查询产生的结果输出到除 SQL 客户端外的扩展系统中。这样可以应对更高的并发和更多的数据。CLI 自身在提交后不对分离查询做任何控制。
+You can configure the SQL Client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
 
 ```sql
-INSERT INTO MyTableSink SELECT * FROM MyTableSource
+SET 'key' = 'value';
 ```
 
-sink `MyTableSink` 必须在环境配置文件中声明。查看更多关于 Flink 支持的外部系统及其配置信息，参见 [connection page](connect.html)。如下展示 Apache Kafka 的 sink 示例。
+{{< generated/sql_client_configuration >}}
 
-```yaml
-tables:
-  - name: MyTableSink
-    type: sink-table
-    update-mode: append
-    connector:
-      property-version: 1
-      type: kafka
-      version: "0.11"
-      topic: OutputTopic
-      properties:
-        bootstrap.servers: localhost:9092
-        group.id: testGroup
-    format:
-      property-version: 1
-      type: json
-      derive-schema: true
-    schema:
-      - name: rideId
-        data-type: BIGINT
-      - name: lon
-        data-type: FLOAT
-      - name: lat
-        data-type: FLOAT
-      - name: rideTime
-        data-type: TIMESTAMP(3)
-```
+### SQL Client result modes
 
-SQL 客户端要确保语句成功提交到集群上。一旦提交查询，CLI 将展示关于 Flink 作业的相关信息。
+The CLI supports **three modes** for maintaining and visualizing results.
+
+The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation.
+It can be enabled by executing the following command in the CLI:
 
 ```text
+SET 'sql-client.execution.result-mode' = 'table';
+```
+
+The result of a query would then look like this, you can use the keys indicated at the bottom of the screen as well
+as the arrows keys to navigate and open the various records:
+
+```text
+
+                           name         age isHappy        dob                         height
+                          user1          20    true 1995-12-03                            1.7
+                          user2          30    true 1972-08-02                           1.89
+                          user3          40   false 1983-12-23                           1.63
+                          user4          41    true 1977-11-13                           1.72
+                          user5          22   false 1998-02-20                           1.61
+                          user6          12    true 1969-04-08                           1.58
+                          user7          38   false 1987-12-15                            1.6
+                          user8          62    true 1996-08-05                           1.82
+
+
+
+
+Q Quit                     + Inc Refresh              G Goto Page                N Next Page                O Open Row
+R Refresh                  - Dec Refresh              L Last Page                P Prev Page
+```
+
+The **changelog mode** does not materialize results and visualizes the result stream that is produced
+by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+
+```text
+SET 'sql-client.execution.result-mode' = 'changelog';
+```
+
+The result of a query would then look like this:
+
+```text
+ op                           name         age isHappy        dob                         height
+ +I                          user1          20    true 1995-12-03                            1.7
+ +I                          user2          30    true 1972-08-02                           1.89
+ +I                          user3          40   false 1983-12-23                           1.63
+ +I                          user4          41    true 1977-11-13                           1.72
+ +I                          user5          22   false 1998-02-20                           1.61
+ +I                          user6          12    true 1969-04-08                           1.58
+ +I                          user7          38   false 1987-12-15                            1.6
+ +I                          user8          62    true 1996-08-05                           1.82
+
+
+
+
+Q Quit                                       + Inc Refresh                                O Open Row
+R Refresh                                    - Dec Refresh
+
+```
+
+The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
+The displaying content will be influenced by the query execution type (`execution.type`).
+
+```text
+SET 'sql-client.execution.result-mode' = 'tableau';
+```
+
+The result of a query would then look like this:
+
+```text
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+| op |                           name |         age | isHappy |        dob |                         height |
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+| +I |                          user1 |          20 |    true | 1995-12-03 |                            1.7 |
+| +I |                          user2 |          30 |    true | 1972-08-02 |                           1.89 |
+| +I |                          user3 |          40 |   false | 1983-12-23 |                           1.63 |
+| +I |                          user4 |          41 |    true | 1977-11-13 |                           1.72 |
+| +I |                          user5 |          22 |   false | 1998-02-20 |                           1.61 |
+| +I |                          user6 |          12 |    true | 1969-04-08 |                           1.58 |
+| +I |                          user7 |          38 |   false | 1987-12-15 |                            1.6 |
+| +I |                          user8 |          62 |    true | 1996-08-05 |                           1.82 |
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+Received a total of 8 rows
+```
+
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of
+this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
+Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+
+All these result modes can be useful during the prototyping of SQL queries. In all these modes,
+results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive,
+the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through
+bigger results that are only limited by the available main memory and the configured
+[maximum number of rows](#sql-client-execution-max-table-result-rows) (`sql-client.execution.max-table-result.rows`).
+
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
+
+### Initialize Session Using SQL Files
+
+A SQL query needs a configuration environment in which it is executed. SQL Client supports the `-i`
+startup option to execute an initialization SQL file to setup environment when starting up the SQL Client.
+The so-called *initialization SQL file* can use DDLs to define available catalogs, table sources and sinks,
+user-defined functions, and other properties required for execution and deployment.
+
+An example of such a file is presented below.
+
+```sql
+-- Define available catalogs
+
+CREATE CATALOG MyCatalog
+  WITH (
+    'type' = 'hive'
+  );
+
+USE CATALOG MyCatalog;
+
+-- Define available database
+
+CREATE DATABASE MyDatabase;
+
+USE MyDatabase;
+
+-- Define TABLE
+
+CREATE TABLE MyTable(
+  MyField1 INT,
+  MyField2 STRING
+) WITH (
+  'connector' = 'filesystem',
+  'path' = '/path/to/something',
+  'format' = 'csv'
+);
+
+-- Define VIEW
+
+CREATE VIEW MyCustomView AS SELECT MyField2 FROM MyTable;
+
+-- Define user-defined functions here.
+
+CREATE FUNCTION foo.bar.AggregateUDF AS myUDF;
+
+-- Properties that change the fundamental execution behavior of a table program.
+
+SET 'execution.runtime-mode' = 'streaming'; -- execution mode either 'batch' or 'streaming'
+SET 'sql-client.execution.result-mode' = 'table'; -- available values: 'table', 'changelog' and 'tableau'
+SET 'sql-client.execution.max-table-result.rows' = '10000'; -- optional: maximum number of maintained rows
+SET 'parallelism.default' = '1'; -- optional: Flink's parallelism (1 by default)
+SET 'pipeline.auto-watermark-interval' = '200'; --optional: interval for periodic watermarks
+SET 'pipeline.max-parallelism' = '10'; -- optional: Flink's maximum parallelism
+SET 'table.exec.state.ttl' = '1000'; -- optional: table program's idle state time
+SET 'restart-strategy.type' = 'fixed-delay';
+
+-- Configuration options for adjusting and tuning table programs.
+
+SET 'table.optimizer.join-reorder-enabled' = 'true';
+SET 'table.exec.spill-compression.enabled' = 'true';
+SET 'table.exec.spill-compression.block-size' = '128kb';
+```
+
+This configuration:
+
+- connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
+- defines a table `MyTable` that can read data from a CSV file,
+- defines a view `MyCustomView` that declares a virtual table using a SQL query,
+- defines a user-defined function `myUDF` that can be instantiated using the class name,
+- uses streaming mode for running statements and a parallelism of 1,
+- runs exploratory queries in the `table` result mode,
+- and makes some planner adjustments around join reordering and spilling via configuration options.
+
+When using `-i <init.sql>` option to initialize SQL Client session, the following statements are allowed in an initialization SQL file:
+- DDL(CREATE/DROP/ALTER),
+- USE CATALOG/DATABASE,
+- LOAD/UNLOAD MODULE,
+- SET command,
+- RESET command.
+
+When execute queries or insert statements, please enter the interactive mode or use the -f option to submit the SQL statements.
+
+<span class="label label-danger">Attention</span> If SQL Client receives errors during initialization, SQL Client will exit with error messages.
+
+### Dependencies
+
+The SQL Client does not require setting up a Java project using Maven, Gradle, or sbt. Instead, you
+can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify
+each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For
+connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON),
+Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from
+the Maven central repository.
+
+The full list of offered SQL JARs can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
+
+You can refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section for
+information on how to configure connector and format dependencies.
+
+{{< top >}}
+
+Usage
+----------------------------
+
+SQL Client allows users to submit jobs either within the interactive command line or using `-f` option to execute sql file.
+
+In both modes, SQL Client supports to parse and execute all types of the Flink supported SQL statements.
+
+### Interactive Command Line
+
+In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by a semicolon (`;`).
+
+SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
+By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
+`sql-client.verbose` to true through command `SET 'sql-client.verbose' = 'true';`.
+
+### Execute SQL Files
+
+SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
+statements one by one in the SQL script file and print execution messages for each executed statements.
+Once a statement fails, the SQL Client will exit and all the remaining statements will not be executed.
+
+An example of such a file is presented below.
+
+```sql
+CREATE TEMPORARY TABLE users (
+  user_id BIGINT,
+  user_name STRING,
+  user_level STRING,
+  region STRING,
+  PRIMARY KEY (user_id) NOT ENFORCED
+) WITH (
+  'connector' = 'upsert-kafka',
+  'topic' = 'users',
+  'properties.bootstrap.servers' = '...',
+  'key.format' = 'csv',
+  'value.format' = 'avro'
+);
+
+-- set sync mode
+SET 'table.dml-sync' = 'true';
+
+-- set the job name
+SET 'pipeline.name' = 'SqlJob';
+
+-- set the queue that the job submit to
+SET 'yarn.application.queue' = 'root';
+
+-- set the job parallelism
+SET 'parallelism.default' = '100';
+
+-- restore from the specific savepoint path
+SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+
+INSERT INTO pageviews_enriched
+SELECT *
+FROM pageviews AS p
+LEFT JOIN users FOR SYSTEM_TIME AS OF p.proctime AS u
+ON p.user_id = u.user_id;
+```
+This configuration:
+
+- defines a temporal table source `users` that reads from a CSV file,
+- set the properties, e.g job name,
+- set the savepoint path,
+- submit a sql job that load the savepoint from the specified savepoint path.
+
+<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
+
+### Execute a set of SQL statements
+
+SQL Client execute each INSERT INTO statement as a single Flink job. However, this is sometimes not
+optimal because some part of the pipeline can be reused. SQL Client supports STATEMENT SET syntax to
+execute a set of SQL statements. This is an equivalent feature with StatementSet in Table API. The
+`STATEMENT SET` syntax encloses one or more `INSERT INTO` statements. All statements in a `STATEMENT SET`
+block are holistically optimized and executed as a single Flink job. Joint optimization and execution
+allows for reusing common intermediate results and can therefore significantly improve the efficiency
+of executing multiple queries.
+
+#### Syntax
+```sql
+EXECUTE STATEMENT SET 
+BEGIN
+  -- one or more INSERT INTO statements
+  { INSERT INTO|OVERWRITE <select_statement>; }+
+END;
+```
+
+<span class="label label-danger">Attention</span> The statements of enclosed in the `STATEMENT SET` must be separated by a semicolon (;).
+The old syntax `BEGIN STATEMENT SET; ... END;` is deprecated, may be removed in the future version.
+
+{{< tabs "statement set" >}}
+
+{{< tab "SQL CLI" >}}
+```sql
+Flink SQL> CREATE TABLE pageviews (
+>   user_id BIGINT,
+>   page_id BIGINT,
+>   viewtime TIMESTAMP,
+>   proctime AS PROCTIME()
+> ) WITH (
+>   'connector' = 'kafka',
+>   'topic' = 'pageviews',
+>   'properties.bootstrap.servers' = '...',
+>   'format' = 'avro'
+> );
+[INFO] Execute statement succeed.
+
+Flink SQL> CREATE TABLE pageview (
+>   page_id BIGINT,
+>   cnt BIGINT
+> ) WITH (
+>   'connector' = 'jdbc',
+>   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
+>   'table-name' = 'pageview'
+> );
+[INFO] Execute statement succeed.
+
+Flink SQL> CREATE TABLE uniqueview (
+>   page_id BIGINT,
+>   cnt BIGINT
+> ) WITH (
+>   'connector' = 'jdbc',
+>   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
+>   'table-name' = 'uniqueview'
+> );
+[INFO] Execute statement succeed.
+
+Flink SQL> EXECUTE STATEMENT SET
+> BEGIN
+>
+> INSERT INTO pageview
+> SELECT page_id, count(1)
+> FROM pageviews
+> GROUP BY page_id;
+>
+> INSERT INTO uniqueview
+> SELECT page_id, count(distinct user_id)
+> FROM pageviews
+> GROUP BY page_id;
+>
+> END;
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] SQL update statement has been successfully submitted to the cluster:
+Job ID: 6b1af540c0c0bb3fcfcad50ac037c862
+```
+{{< /tab >}}
+
+{{< tab "SQL File" >}}
+```sql
+CREATE TABLE pageviews (
+  user_id BIGINT,
+  page_id BIGINT,
+  viewtime TIMESTAMP,
+  proctime AS PROCTIME()
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'pageviews',
+  'properties.bootstrap.servers' = '...',
+  'format' = 'avro'
+);
+
+CREATE TABLE pageview (
+  page_id BIGINT,
+  cnt BIGINT
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:mysql://localhost:3306/mydatabase',
+  'table-name' = 'pageview'
+);
+
+CREATE TABLE uniqueview (
+  page_id BIGINT,
+  cnt BIGINT
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:mysql://localhost:3306/mydatabase',
+  'table-name' = 'uniqueview'
+);
+
+EXECUTE STATEMENT SET
+BEGIN
+
+INSERT INTO pageview
+SELECT page_id, count(1)
+FROM pageviews
+GROUP BY page_id;
+
+INSERT INTO uniqueview
+SELECT page_id, count(distinct user_id)
+FROM pageviews
+GROUP BY page_id;
+
+END;
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Execute DML statements sync/async
+
+By default, SQL Client executes DML statements asynchronously. That means, SQL Client will submit a
+job for the DML statement to a Flink cluster, and not wait for the job to finish.
+So SQL Client can submit multiple jobs at the same time. This is useful for streaming jobs, which are long-running in general.
+
+SQL Client makes sure that a statement is successfully submitted to the cluster. Once the statement
+is submitted, the CLI will show information about the Flink job.
+
+```sql
+Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 [INFO] Table update statement has been successfully submitted to the cluster:
 Cluster ID: StandaloneClusterId
 Job ID: 6f922fe5cba87406ff23ae4a7bb79044
-Web interface: http://localhost:8081
 ```
 
-<span class="label label-danger">注意</span> 提交后，SQL 客户端不追踪正在运行的 Flink 作业状态。提交后可以关闭 CLI 进程，并且不会影响分离的查询。Flink 的 `重启策略` 负责容错。取消查询可以用 Flink 的 web 接口、命令行或 REST API 。
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the
+running Flink job after submission. The CLI process can be shutdown after the submission without
+affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
+use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
+or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
 
-{{< top >}}
+However, for batch users, it's more common that the next DML statement requires waiting until the
+previous DML statement finishes. In order to execute DML statements synchronously, you can set
+`table.dml-sync` option to `true` in SQL Client.
 
-SQL 视图
----------
+```sql
+Flink SQL> SET 'table.dml-sync' = 'true';
+[INFO] Session property has been set.
 
-视图是一张虚拟表，允许通过 SQL 查询来定义。视图的定义会被立即解析与验证。然而，提交常规 `INSERT INTO` 或 `SELECT` 语句后不会立即执行，在访问视图时才会真正执行。
-
-视图可以用[环境配置文件](sqlClient.html#environment-files)或者 CLI 会话来定义。
-
-下例展示如何在一个文件里定义多张视图。视图注册的顺序和定义它们的环境配置文件一致。支持诸如 _视图 A 依赖视图 B ，视图 B 依赖视图 C_ 的引用链。
-
-```yaml
-tables:
-  - name: MyTableSource
-    # ...
-  - name: MyRestrictedView
-    type: view
-    query: "SELECT MyField2 FROM MyTableSource"
-  - name: MyComplexView
-    type: view
-    query: >
-      SELECT MyField2 + 42, CAST(MyField1 AS VARCHAR)
-      FROM MyTableSource
-      WHERE MyField2 > 200
+Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] Execute statement in sync mode. Please wait for the execution finish...
+[INFO] Complete execution of the SQL update statement.
 ```
 
-相较于 table soruce 和 sink，会话环境配置文件中定义的视图具有最高优先级。
+<span class="label label-danger">Attention</span>  If you want to terminate the job, just type `CTRL-C` to cancel the execution.
 
-视图还可以在 CLI 会话中用 `CREATE VIEW` 语句来创建：
+### Start a SQL Job from a savepoint
 
-```text
-CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource;
+Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
+
+```sql
+Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+[INFO] Session property has been set.
+
+-- all the following DML statements will be restroed from the specified savepoint path
+Flink SQL> INSERT INTO ...
 ```
 
-视图能在 CLI 会话中创建，也能用 `DROP VIEW` 语句删除：
+When the path to savepoint is specified, Flink will try to restore the state from the savepoint when executing all the following DML statements.
 
-```text
-DROP VIEW MyNewView;
+Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
+
+```sql
+Flink SQL> RESET execution.savepoint.path;
+[INFO] Session property has been reset.
 ```
 
-<span class="label label-danger">注意</span> CLI 中视图的定义仅限于上述语法。将来版本会支持定义视图结构以及在表名中加入转义的空格。
+For more details about creating and managing savepoints, please refer to [Job Lifecycle Management]({{< ref "docs/deployment/cli" >}}#job-lifecycle-management).
 
-{{< top >}}
+### Define a Custom Job Name
 
-临时表（Temporal Table）
----------------
+SQL Client supports to define job name for queries and DML statements through `SET` command.
 
-[临时表](./streaming/temporal_tables.html)是在变化的历史记录表上的（参数化）视图，该视图在某个特定时间点返回表的内容。这对于在特定的时间戳将一张表的内容联结另一张表是非常有用的。更多信息见[联结临时表](./streaming/joins.html#join-with-a-temporal-table)页面。
+```sql
+Flink SQL> SET 'pipeline.name' = 'kafka-to-hive';
+[INFO] Session property has been set.
 
-下例展示如何定义一张临时表 `SourceTemporalTable`：
-
-```yaml
-tables:
-
-  # 定义包含对临时表的更新的 table source （或视图）
-
-  - name: HistorySource
-    type: source-table
-    update-mode: append
-    connector: # ...
-    format: # ...
-    schema:
-      - name: integerField
-        data-type: INT
-      - name: stringField
-        data-type: STRING
-      - name: rowtimeField
-        data-type: TIMESTAMP(3)
-        rowtime:
-          timestamps:
-            type: from-field
-            from: rowtimeField
-          watermarks:
-            type: from-source
-
-  # 在具有时间属性和主键的变化历史记录表上定义临时表
-  - name: SourceTemporalTable
-    type: temporal-table
-    history-table: HistorySource
-    primary-key: integerField
-    time-attribute: rowtimeField  # could also be a proctime field
+-- all the following DML statements will use the specified job name.
+Flink SQL> INSERT INTO ...
 ```
 
-如例子中所示，table source，视图和临时表的定义可以相互混合。它们按照在环境配置文件中定义的顺序进行注册。例如，临时表可以引用一个视图，该视图依赖于另一个视图或 table source。
+Because the specified job name will affect all the following queries and DML statements, you can also use `RESET` command to reset this configuration, i.e. use default job names.
 
-{{< top >}}
+```sql
+Flink SQL> RESET pipeline.name;
+[INFO] Session property has been reset.
+```
 
-<a name="limitations--future"></a>
+If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
 
-局限与未来
---------------------
+### Monitoring Job Status
 
-当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
+SQL Client supports to list jobs status in the cluster through `SHOW JOBS` statements.
+
+```sql
+Flink SQL> SHOW JOBS;
++----------------------------------+---------------+----------+-------------------------+
+|                           job id |      job name |   status |              start time |
++----------------------------------+---------------+----------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c | kafka-to-hive |  RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+---------------+----------+-------------------------+
+```
+
+### Terminating a Job
+
+SQL Client supports to stop jobs with or without savepoints through `STOP JOB` statements.
+
+```sql
+Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
++-----------------------------------------+
+|                          savepoint path |
++-----------------------------------------+
+| file:/tmp/savepoint-3addd4-0b224d9311e6 |
++-----------------------------------------+
+```
+
+The savepoint path could be specified with [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir)
+either in the cluster configuration or session configuration (the latter would take precedence).
+
+For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
 {{< top >}}

@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.rest.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -34,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
 /** Utility {@link RestServerEndpoint} for setting up a rest server with a given set of handlers. */
 public class TestRestServerEndpoint extends RestServerEndpoint {
 
-    public static Builder builder(RestServerEndpointConfiguration configuration) {
+    public static Builder builder(Configuration configuration) {
         return new Builder(configuration);
     }
 
@@ -43,11 +44,11 @@ public class TestRestServerEndpoint extends RestServerEndpoint {
      */
     public static class Builder {
 
-        private final RestServerEndpointConfiguration configuration;
+        private final Configuration configuration;
         private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers =
                 new ArrayList<>();
 
-        private Builder(RestServerEndpointConfiguration configuration) {
+        private Builder(Configuration configuration) {
             this.configuration = configuration;
         }
 
@@ -62,7 +63,7 @@ public class TestRestServerEndpoint extends RestServerEndpoint {
             return this;
         }
 
-        public TestRestServerEndpoint build() throws IOException {
+        public TestRestServerEndpoint build() throws IOException, ConfigurationException {
             return new TestRestServerEndpoint(configuration, handlers);
         }
 
@@ -77,9 +78,9 @@ public class TestRestServerEndpoint extends RestServerEndpoint {
     private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 
     private TestRestServerEndpoint(
-            final RestServerEndpointConfiguration configuration,
+            final Configuration configuration,
             final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers)
-            throws IOException {
+            throws IOException, ConfigurationException {
         super(configuration);
         this.handlers = handlers;
     }

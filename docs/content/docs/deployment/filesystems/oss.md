@@ -47,7 +47,7 @@ Below shows how to use OSS in a Flink job:
 env.readTextFile("oss://<your-bucket>/<object-name>");
 
 // Write to OSS bucket
-stream.writeAsText("oss://<your-bucket>/<object-name>")
+stream.writeAsText("oss://<your-bucket>/<object-name>");
 
 // Use OSS as checkpoint storage
 env.getCheckpointConfig().setCheckpointStorage("oss://<your-bucket>/<object-name>");

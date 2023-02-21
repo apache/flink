@@ -98,9 +98,9 @@ public class ClosingFSDataOutputStream extends FSDataOutputStreamWrapper
             FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo)
             throws IOException {
 
-        ClosingFSDataOutputStream inputStream =
+        ClosingFSDataOutputStream outputStream =
                 new ClosingFSDataOutputStream(delegate, registry, debugInfo);
-        registry.registerCloseable(inputStream);
-        return inputStream;
+        registry.registerCloseable(outputStream);
+        return outputStream;
     }
 }

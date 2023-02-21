@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.VoidNamespace;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -59,6 +59,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
+import org.hamcrest.core.CombinableMatcher;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -71,6 +72,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -82,25 +84,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-
+import static org.hamcrest.CoreMatchers.either;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link Client}. */
 public class ClientTest extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientTest.class);
-
-    private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(20L, TimeUnit.SECONDS);
 
     // Thread pool for client bootstrap (shared between tests)
     private NioEventLoopGroup nioGroup;
@@ -114,14 +110,13 @@ public class ClientTest extends TestLogger {
     public void tearDown() throws Exception {
         if (nioGroup != null) {
             // note: no "quiet period" to not trigger Netty#4357
-            nioGroup.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+            nioGroup.shutdownGracefully();
         }
     }
 
     /** Tests simple queries, of which half succeed and half fail. */
     @Test
     public void testSimpleRequests() throws Exception {
-        Deadline deadline = TEST_TIMEOUT.fromNow();
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -143,20 +138,7 @@ public class ClientTest extends TestLogger {
             final AtomicReference<Channel> channel = new AtomicReference<>();
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx)
-                                        throws Exception {
-                                    channel.set(ctx.channel());
-                                }
-
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    received.add((ByteBuf) msg);
-                                }
-                            });
+                    createServerChannel(new ChannelDataCollectingHandler(channel, received));
 
             InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -173,7 +155,7 @@ public class ClientTest extends TestLogger {
             Exception testException = new RuntimeException("Expected test Exception");
 
             for (long i = 0L; i < numQueries; i++) {
-                ByteBuf buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                ByteBuf buf = received.take();
                 assertNotNull("Receive timed out", buf);
 
                 Channel ch = channel.get();
@@ -205,14 +187,11 @@ public class ClientTest extends TestLogger {
             for (long i = 0L; i < numQueries; i++) {
 
                 if (i % 2L == 0L) {
-                    KvStateResponse serializedResult =
-                            futures.get((int) i)
-                                    .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                    KvStateResponse serializedResult = futures.get((int) i).get();
                     assertArrayEquals(expected, serializedResult.getContent());
                 } else {
                     try {
-                        futures.get((int) i)
-                                .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                        futures.get((int) i).get();
                         fail("Did not throw expected Exception");
                     } catch (ExecutionException e) {
 
@@ -228,9 +207,8 @@ public class ClientTest extends TestLogger {
             long expectedRequests = numQueries / 2L;
 
             // Counts can take some time to propagate
-            while (deadline.hasTimeLeft()
-                    && (stats.getNumSuccessful() != expectedRequests
-                            || stats.getNumFailed() != expectedRequests)) {
+            while (stats.getNumSuccessful() != expectedRequests
+                    || stats.getNumFailed() != expectedRequests) {
                 Thread.sleep(100L);
             }
 
@@ -246,7 +224,7 @@ public class ClientTest extends TestLogger {
                     // this is why we now simply wait a bit so that everything is
                     // shut down and then we check
 
-                    client.shutdown().get(10L, TimeUnit.SECONDS);
+                    client.shutdown().get();
                 } catch (Exception e) {
                     exc = e;
                     LOG.error("An exception occurred while shutting down netty.", e);
@@ -267,7 +245,6 @@ public class ClientTest extends TestLogger {
     /** Tests that a request to an unavailable host is failed with ConnectException. */
     @Test
     public void testRequestUnavailableHost() throws Exception {
-        Deadline deadline = TEST_TIMEOUT.fromNow();
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -280,28 +257,20 @@ public class ClientTest extends TestLogger {
         try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            int availablePort = NetUtils.getAvailablePort();
-
-            InetSocketAddress serverAddress =
-                    new InetSocketAddress(InetAddress.getLocalHost(), availablePort);
+            InetSocketAddress serverAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 
             KvStateInternalRequest request =
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);
             CompletableFuture<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
-            try {
-                future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-                fail("Did not throw expected ConnectException");
-            } catch (ExecutionException e) {
-                if (!(e.getCause() instanceof ConnectException)) {
-                    fail("Did not throw expected ConnectException");
-                }
-                // else expected
-            }
+            assertThat(
+                    future,
+                    FlinkMatchers.futureWillCompleteExceptionally(
+                            ConnectException.class, Duration.ofHours(1)));
         } finally {
             if (client != null) {
                 try {
-                    client.shutdown().get(10L, TimeUnit.SECONDS);
+                    client.shutdown().get();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -315,7 +284,6 @@ public class ClientTest extends TestLogger {
     /** Multiple threads concurrently fire queries. */
     @Test
     public void testConcurrentQueries() throws Exception {
-        Deadline deadline = TEST_TIMEOUT.fromNow();
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -339,30 +307,7 @@ public class ClientTest extends TestLogger {
             client = new Client<>("Test Client", 1, serializer, stats);
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    ByteBuf buf = (ByteBuf) msg;
-                                    assertEquals(
-                                            MessageType.REQUEST,
-                                            MessageSerializer.deserializeHeader(buf));
-                                    long requestId = MessageSerializer.getRequestId(buf);
-                                    KvStateInternalRequest request =
-                                            serializer.deserializeRequest(buf);
-
-                                    buf.release();
-
-                                    KvStateResponse response =
-                                            new KvStateResponse(serializedResult);
-                                    ByteBuf serResponse =
-                                            MessageSerializer.serializeResponse(
-                                                    ctx.alloc(), requestId, response);
-
-                                    ctx.channel().writeAndFlush(serResponse);
-                                }
-                            });
+                    createServerChannel(new RespondingChannelHandler(serializer, serializedResult));
 
             final InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -389,11 +334,9 @@ public class ClientTest extends TestLogger {
 
             // Verify results
             for (Future<List<CompletableFuture<KvStateResponse>>> future : futures) {
-                List<CompletableFuture<KvStateResponse>> results =
-                        future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                List<CompletableFuture<KvStateResponse>> results = future.get();
                 for (CompletableFuture<KvStateResponse> result : results) {
-                    KvStateResponse actual =
-                            result.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                    KvStateResponse actual = result.get();
                     assertArrayEquals(serializedResult, actual.getContent());
                 }
             }
@@ -401,7 +344,7 @@ public class ClientTest extends TestLogger {
             int totalQueries = numQueryTasks * numQueriesPerTask;
 
             // Counts can take some time to propagate
-            while (deadline.hasTimeLeft() && stats.getNumSuccessful() != totalQueries) {
+            while (stats.getNumSuccessful() != totalQueries) {
                 Thread.sleep(100L);
             }
 
@@ -418,7 +361,7 @@ public class ClientTest extends TestLogger {
 
             if (client != null) {
                 try {
-                    client.shutdown().get(10L, TimeUnit.SECONDS);
+                    client.shutdown().get();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -435,7 +378,6 @@ public class ClientTest extends TestLogger {
      */
     @Test
     public void testFailureClosesChannel() throws Exception {
-        Deadline deadline = TEST_TIMEOUT.fromNow();
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -453,20 +395,7 @@ public class ClientTest extends TestLogger {
             final AtomicReference<Channel> channel = new AtomicReference<>();
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx)
-                                        throws Exception {
-                                    channel.set(ctx.channel());
-                                }
-
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    received.add((ByteBuf) msg);
-                                }
-                            });
+                    createServerChannel(new ChannelDataCollectingHandler(channel, received));
 
             InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -478,11 +407,11 @@ public class ClientTest extends TestLogger {
             futures.add(client.sendRequest(serverAddress, request));
             futures.add(client.sendRequest(serverAddress, request));
 
-            ByteBuf buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            ByteBuf buf = received.take();
             assertNotNull("Receive timed out", buf);
             buf.release();
 
-            buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            buf = received.take();
             assertNotNull("Receive timed out", buf);
             buf.release();
 
@@ -498,7 +427,7 @@ public class ClientTest extends TestLogger {
                             new RuntimeException("Expected test server failure")));
 
             try {
-                futures.remove(0).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                futures.remove(0).get();
                 fail("Did not throw expected server failure");
             } catch (ExecutionException e) {
 
@@ -509,7 +438,7 @@ public class ClientTest extends TestLogger {
             }
 
             try {
-                futures.remove(0).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                futures.remove(0).get();
                 fail("Did not throw expected server failure");
             } catch (ExecutionException e) {
 
@@ -522,8 +451,7 @@ public class ClientTest extends TestLogger {
             assertEquals(0L, stats.getNumConnections());
 
             // Counts can take some time to propagate
-            while (deadline.hasTimeLeft()
-                    && (stats.getNumSuccessful() != 0L || stats.getNumFailed() != 2L)) {
+            while (stats.getNumSuccessful() != 0L || stats.getNumFailed() != 2L) {
                 Thread.sleep(100L);
             }
 
@@ -533,7 +461,7 @@ public class ClientTest extends TestLogger {
         } finally {
             if (client != null) {
                 try {
-                    client.shutdown().get(10L, TimeUnit.SECONDS);
+                    client.shutdown().get();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -554,7 +482,6 @@ public class ClientTest extends TestLogger {
      */
     @Test
     public void testServerClosesChannel() throws Exception {
-        Deadline deadline = TEST_TIMEOUT.fromNow();
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -568,24 +495,11 @@ public class ClientTest extends TestLogger {
         try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            final AtomicBoolean received = new AtomicBoolean();
+            final LinkedBlockingQueue<ByteBuf> received = new LinkedBlockingQueue<>();
             final AtomicReference<Channel> channel = new AtomicReference<>();
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx)
-                                        throws Exception {
-                                    channel.set(ctx.channel());
-                                }
-
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    received.set(true);
-                                }
-                            });
+                    createServerChannel(new ChannelDataCollectingHandler(channel, received));
 
             InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -594,17 +508,14 @@ public class ClientTest extends TestLogger {
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);
             Future<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
-            while (!received.get() && deadline.hasTimeLeft()) {
-                Thread.sleep(50L);
-            }
-            assertTrue("Receive timed out", received.get());
+            received.take();
 
             assertEquals(1, stats.getNumConnections());
 
-            channel.get().close().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            channel.get().close().await();
 
             try {
-                future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                future.get();
                 fail("Did not throw expected server failure");
             } catch (ExecutionException e) {
                 if (!(e.getCause() instanceof ClosedChannelException)) {
@@ -616,8 +527,7 @@ public class ClientTest extends TestLogger {
             assertEquals(0L, stats.getNumConnections());
 
             // Counts can take some time to propagate
-            while (deadline.hasTimeLeft()
-                    && (stats.getNumSuccessful() != 0L || stats.getNumFailed() != 1L)) {
+            while (stats.getNumSuccessful() != 0L || stats.getNumFailed() != 1L) {
                 Thread.sleep(100L);
             }
 
@@ -627,7 +537,7 @@ public class ClientTest extends TestLogger {
         } finally {
             if (client != null) {
                 try {
-                    client.shutdown().get(10L, TimeUnit.SECONDS);
+                    client.shutdown().get();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -678,8 +588,6 @@ public class ClientTest extends TestLogger {
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),
                         new CloseableRegistry());
-
-        final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
         AtomicKvStateRequestStats clientStats = new AtomicKvStateRequestStats();
 
@@ -787,9 +695,7 @@ public class ClientTest extends TestLogger {
                                 int targetServer = random.get(j) % numServers;
 
                                 Future<KvStateResponse> future = futures.get(j);
-                                byte[] buf =
-                                        future.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                                                .getContent();
+                                byte[] buf = future.get().getContent();
                                 int value =
                                         KvStateSerializer.deserializeValue(
                                                 buf, IntSerializer.INSTANCE);
@@ -811,24 +717,22 @@ public class ClientTest extends TestLogger {
             }
 
             try {
-                client.shutdown().get(10L, TimeUnit.SECONDS);
+                client.shutdown().get();
             } catch (Exception e) {
                 e.printStackTrace();
             }
             Assert.assertTrue(client.isEventGroupShutdown());
+
+            final CombinableMatcher<Throwable> exceptionMatcher =
+                    either(FlinkMatchers.containsCause(ClosedChannelException.class))
+                            .or(FlinkMatchers.containsCause(IllegalStateException.class));
 
             for (Future<Void> future : taskFutures) {
                 try {
                     future.get();
                     fail("Did not throw expected Exception after shut down");
                 } catch (ExecutionException t) {
-                    if (t.getCause().getCause() instanceof ClosedChannelException
-                            || t.getCause().getCause() instanceof IllegalStateException) {
-                        // Expected
-                    } else {
-                        t.printStackTrace();
-                        fail("Failed with unexpected Exception type: " + t.getClass().getName());
-                    }
+                    assertThat(t, exceptionMatcher);
                 }
             }
 
@@ -855,7 +759,7 @@ public class ClientTest extends TestLogger {
         } finally {
             if (client != null) {
                 try {
-                    client.shutdown().get(10L, TimeUnit.SECONDS);
+                    client.shutdown().get();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -903,5 +807,55 @@ public class ClientTest extends TestLogger {
 
     private InetSocketAddress getKvStateServerAddress(Channel serverChannel) {
         return (InetSocketAddress) serverChannel.localAddress();
+    }
+
+    private static class ChannelDataCollectingHandler extends ChannelInboundHandlerAdapter {
+        private final AtomicReference<Channel> channel;
+        private final LinkedBlockingQueue<ByteBuf> received;
+
+        private ChannelDataCollectingHandler(
+                AtomicReference<Channel> channel, LinkedBlockingQueue<ByteBuf> received) {
+            this.channel = channel;
+            this.received = received;
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            channel.set(ctx.channel());
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            received.add((ByteBuf) msg);
+        }
+    }
+
+    @ChannelHandler.Sharable
+    private static final class RespondingChannelHandler extends ChannelInboundHandlerAdapter {
+        private final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer;
+        private final byte[] serializedResult;
+
+        private RespondingChannelHandler(
+                MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer,
+                byte[] serializedResult) {
+            this.serializer = serializer;
+            this.serializedResult = serializedResult;
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            ByteBuf buf = (ByteBuf) msg;
+            assertEquals(MessageType.REQUEST, MessageSerializer.deserializeHeader(buf));
+            long requestId = MessageSerializer.getRequestId(buf);
+            KvStateInternalRequest request = serializer.deserializeRequest(buf);
+
+            buf.release();
+
+            KvStateResponse response = new KvStateResponse(serializedResult);
+            ByteBuf serResponse =
+                    MessageSerializer.serializeResponse(ctx.alloc(), requestId, response);
+
+            ctx.channel().writeAndFlush(serResponse);
+        }
     }
 }

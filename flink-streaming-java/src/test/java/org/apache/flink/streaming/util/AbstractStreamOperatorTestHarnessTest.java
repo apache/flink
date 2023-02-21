@@ -77,6 +77,7 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
                 new AbstractStreamOperatorTestHarness<>(operator, 1, 1, 0)) {
 
             result.config.setStateKeySerializer(IntSerializer.INSTANCE);
+            result.config.serializeAllConfigs();
 
             Time timeToLive = Time.hours(1);
             result.initializeState(OperatorSubtaskState.builder().build());

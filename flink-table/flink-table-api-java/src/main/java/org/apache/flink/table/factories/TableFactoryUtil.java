@@ -24,6 +24,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
@@ -53,7 +55,7 @@ public class TableFactoryUtil {
      */
     @SuppressWarnings("unchecked")
     public static <T> TableSource<T> findAndCreateTableSource(
-            Catalog catalog,
+            @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
             CatalogTable catalogTable,
             ReadableConfig configuration,
@@ -61,7 +63,8 @@ public class TableFactoryUtil {
         TableSourceFactory.Context context =
                 new TableSourceFactoryContextImpl(
                         objectIdentifier, catalogTable, configuration, isTemporary);
-        Optional<TableFactory> factoryOptional = catalog.getTableFactory();
+        Optional<TableFactory> factoryOptional =
+                catalog == null ? Optional.empty() : catalog.getTableFactory();
         if (factoryOptional.isPresent()) {
             TableFactory factory = factoryOptional.get();
             if (factory instanceof TableSourceFactory) {
@@ -127,5 +130,38 @@ public class TableFactoryUtil {
             return Optional.ofNullable(((TableSinkFactory) tableFactory).createTableSink(context));
         }
         return Optional.empty();
+    }
+
+    /** Checks whether the {@link CatalogTable} uses legacy connector sink options. */
+    public static boolean isLegacyConnectorOptions(
+            @Nullable Catalog catalog,
+            ReadableConfig configuration,
+            boolean isStreamingMode,
+            ObjectIdentifier objectIdentifier,
+            CatalogTable catalogTable,
+            boolean isTemporary) {
+        // normalize option keys
+        DescriptorProperties properties = new DescriptorProperties(true);
+        properties.putProperties(catalogTable.getOptions());
+        if (properties.containsKey(ConnectorDescriptorValidator.CONNECTOR_TYPE)) {
+            return true;
+        } else {
+            try {
+                // try to create legacy table source using the options,
+                // some legacy factories may use the 'type' key
+                TableFactoryUtil.findAndCreateTableSink(
+                        catalog,
+                        objectIdentifier,
+                        catalogTable,
+                        configuration,
+                        isStreamingMode,
+                        isTemporary);
+                // success, then we will use the legacy factories
+                return true;
+            } catch (Throwable ignore) {
+                // fail, then we will use new factories
+                return false;
+            }
+        }
     }
 }

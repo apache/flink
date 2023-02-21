@@ -20,7 +20,7 @@ package org.apache.flink.formats.json.maxwell;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
-import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.JsonRowDataSerializationSchema;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -54,7 +54,7 @@ public class MaxwellJsonSerializationSchema implements SerializationSchema<RowDa
     public MaxwellJsonSerializationSchema(
             RowType rowType,
             TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
+            JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral,
             boolean encodeDecimalAsPlainNumber) {
         this.jsonSerializer =
@@ -69,6 +69,7 @@ public class MaxwellJsonSerializationSchema implements SerializationSchema<RowDa
 
     @Override
     public void open(InitializationContext context) throws Exception {
+        jsonSerializer.open(context);
         this.reuse = new GenericRowData(2);
     }
 

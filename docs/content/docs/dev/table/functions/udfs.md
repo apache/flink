@@ -171,6 +171,62 @@ env.createTemporarySystemFunction("SubstringFunction", new SubstringFunction(tru
 {{< /tab >}}
 {{< /tabs >}}
 
+You can use star `*` expression as one argument of the function call to act as a wildcard in Table API,
+all columns in the table will be passed to the function at the corresponding position.
+
+{{< tabs "64dd4129-6313-4904-b7e7-a1a0535822e9" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.ScalarFunction;
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class MyConcatFunction extends ScalarFunction {
+  public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... fields) {
+    return Arrays.stream(fields)
+        .map(Object::toString)
+        .collect(Collectors.joining(","));
+  }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// call function with $("*"), if MyTable has 3 fields (a, b, c),
+// all of them will be passed to MyConcatFunction.
+env.from("MyTable").select(call(MyConcatFunction.class, $("*")));
+
+// it's equal to call function with explicitly selecting all columns.
+env.from("MyTable").select(call(MyConcatFunction.class, $("a"), $("b"), $("c")));
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.ScalarFunction
+
+import scala.annotation.varargs
+
+class MyConcatFunction extends ScalarFunction {
+  @varargs
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) row: AnyRef*): String = {
+    row.map(f => f.toString).mkString(",")
+  }
+}
+
+val env = TableEnvironment.create(...)
+
+// call function with $"*", if MyTable has 3 fields (a, b, c),
+// all of them will be passed to MyConcatFunction.
+env.from("MyTable").select(call(classOf[MyConcatFunction], $"*"));
+
+// it's equal to call function with explicitly selecting all columns.
+env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
+
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 {{< top >}}
 
 Implementation Guide
@@ -184,7 +240,9 @@ An implementation class must extend from one of the available base classes (e.g.
 
 The class must be declared `public`, not `abstract`, and should be globally accessible. Thus, non-static inner or anonymous classes are not allowed.
 
-For storing a user-defined function in a persistent catalog, the class must have a default constructor and must be instantiable during runtime.
+For storing a user-defined function in a persistent catalog, the class must have a default constructor
+and must be instantiable during runtime. Anonymous functions in Table API can only be persisted if the
+function is not stateful (i.e. containing only transient and static fields).
 
 ### Evaluation Methods
 
@@ -282,7 +340,7 @@ For a full list of classes that can be implicitly mapped to a data type, see the
 
 **`@DataTypeHint`**
 
-In many scenarios, it is required to support the automatic extraction _inline_ for paramaters and return types of a function
+In many scenarios, it is required to support the automatic extraction _inline_ for parameters and return types of a function
 
 The following example shows how to use data type hints. More information can be found in the documentation of the annotation class.
 
@@ -547,15 +605,59 @@ the method must return `false`. By default, `isDeterministic()` returns `true`.
 Furthermore, the `isDeterministic()` method might also influence the runtime behavior. A runtime
 implementation might be called at two different stages:
 
-**During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
+**1. During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
 or constant expressions can be derived from the given statement, a function is pre-evaluated
 for constant expression reduction and might not be executed on the cluster anymore. Unless
 `isDeterministic()` is used to disable constant expression reduction in this case. For example,
 the following calls to `ABS` are executed during planning: `SELECT ABS(-1) FROM t` and
 `SELECT ABS(field) FROM t WHERE field = -1`; whereas `SELECT ABS(field) FROM t` is not.
 
-**During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
+**2. During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
 or `isDeterministic()` returns `false`.
+
+#### System (Built-in) Function Determinism
+The determinism of system (built-in) functions are immutable. There exists two kinds of functions which are not deterministic:
+dynamic function and non-deterministic function, according to Apache Calcite's `SqlOperator` definition:
+```java
+  /**
+   * Returns whether a call to this operator is guaranteed to always return
+   * the same result given the same operands; true is assumed by default.
+   */
+  public boolean isDeterministic() {
+    return true;
+  }
+
+  /**
+   * Returns whether it is unsafe to cache query plans referencing this
+   * operator; false is assumed by default.
+   */
+  public boolean isDynamicFunction() {
+    return false;
+  }
+```
+`isDeterministic` indicates the determinism of a function, will be evaluated per record during runtime if returns `false`.
+`isDynamicFunction` implies the function can only be evaluated at query-start if returns `true`,
+it will be only pre-evaluated during planning for batch mode, while for streaming mode, it is equivalent to a non-deterministic
+function because of the query is continuously being executed logically(the abstraction of [continuous query over the dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)),
+so the dynamic functions are also re-evaluated for each query execution(equivalent to per record in current implementation).
+
+The following system functions are always non-deterministic(evaluated per record during runtime both in batch and streaming mode):
+- UUID
+- RAND
+- RAND_INTEGER
+- CURRENT_DATABASE
+- UNIX_TIMESTAMP
+- CURRENT_ROW_TIMESTAMP
+ 
+The following system temporal functions are dynamic, which will be pre-evaluated during planning(query-start) for batch mode and evaluated per record for streaming mode:
+- CURRENT_DATE
+- CURRENT_TIME
+- CURRENT_TIMESTAMP
+- NOW
+- LOCALTIME
+- LOCALTIMESTAMP
+
+Note: `isDynamicFunction` is only applicable for system functions.
 
 ### Runtime Integration
 
@@ -901,7 +1003,7 @@ function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the highest price of all beverages in the table, i.e., perform
@@ -1238,7 +1340,7 @@ method of the function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+{{<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,

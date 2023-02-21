@@ -18,10 +18,8 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-
-import java.io.Serializable;
 
 /**
  * The interface for Source. It acts like a factory class that helps construct the {@link
@@ -31,8 +29,9 @@ import java.io.Serializable;
  * @param <SplitT> The type of splits handled by the source.
  * @param <EnumChkT> The type of the enumerator checkpoints.
  */
-@PublicEvolving
-public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Serializable {
+@Public
+public interface Source<T, SplitT extends SourceSplit, EnumChkT>
+        extends SourceReaderFactory<T, SplitT> {
 
     /**
      * Get the boundedness of this source.
@@ -42,22 +41,11 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
     Boundedness getBoundedness();
 
     /**
-     * Creates a new reader to read data from the splits it gets assigned. The reader starts fresh
-     * and does not have any state to resume.
-     *
-     * @param readerContext The {@link SourceReaderContext context} for the source reader.
-     * @return A new SourceReader.
-     * @throws Exception The implementor is free to forward all exceptions directly. Exceptions
-     *     thrown from this method cause task failure/recovery.
-     */
-    SourceReader<T, SplitT> createReader(SourceReaderContext readerContext) throws Exception;
-
-    /**
      * Creates a new SplitEnumerator for this source, starting a new input.
      *
      * @param enumContext The {@link SplitEnumeratorContext context} for the split enumerator.
      * @return A new SplitEnumerator.
-     * @throws Exception The implementor is free to forward all exceptions directly. * Exceptions
+     * @throws Exception The implementor is free to forward all exceptions directly. Exceptions
      *     thrown from this method cause JobManager failure/recovery.
      */
     SplitEnumerator<SplitT, EnumChkT> createEnumerator(SplitEnumeratorContext<SplitT> enumContext)
@@ -70,7 +58,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
      *     enumerator.
      * @param checkpoint The checkpoint to restore the SplitEnumerator from.
      * @return A SplitEnumerator restored from the given checkpoint.
-     * @throws Exception The implementor is free to forward all exceptions directly. * Exceptions
+     * @throws Exception The implementor is free to forward all exceptions directly. Exceptions
      *     thrown from this method cause JobManager failure/recovery.
      */
     SplitEnumerator<SplitT, EnumChkT> restoreEnumerator(
@@ -90,7 +78,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
 
     /**
      * Creates the serializer for the {@link SplitEnumerator} checkpoint. The serializer is used for
-     * the result of the {@link SplitEnumerator#snapshotState()} method.
+     * the result of the {@link SplitEnumerator#snapshotState(long)} method.
      *
      * @return The serializer for the SplitEnumerator checkpoint.
      */

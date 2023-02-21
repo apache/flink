@@ -28,28 +28,21 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.DayOfWeek;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TypeInfoDataTypeConverter}. */
-@RunWith(Parameterized.class)
-public class TypeInfoDataTypeConverterTest {
+class TypeInfoDataTypeConverterTest {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forType(Types.INT).expectDataType(DataTypes.INT().notNull()),
                 TestSpec.forType(Types.BIG_DEC)
                         .expectDataType(DataTypes.DECIMAL(38, 18).nullable()),
@@ -119,13 +112,11 @@ public class TypeInfoDataTypeConverterTest {
                         .expectDataType(dummyRaw(DayOfWeek.class)));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testConversion() {
-        final DataType dataType =
-                TypeInfoDataTypeConverter.toDataType(testSpec.typeFactory, testSpec.typeInfo);
-        assertThat(dataType, equalTo(testSpec.expectedDataType));
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversion(TestSpec testSpec) {
+        assertThat(TypeInfoDataTypeConverter.toDataType(testSpec.typeFactory, testSpec.typeInfo))
+                .isEqualTo(testSpec.expectedDataType);
     }
 
     // --------------------------------------------------------------------------------------------

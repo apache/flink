@@ -16,41 +16,41 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
 == Physical Execution Plan ==
 {
   "nodes" : [ {
-    "id" : 1,
-    "type" : "Source: Values(tuples=[[{ 0 }]])",
+    "id" : ,
+    "type" : "Source: Values[]",
     "pact" : "Data Source",
-    "contents" : "Source: Values(tuples=[[{ 0 }]])",
+    "contents" : "[]:Values(tuples=[[{ 0 }]])",
     "parallelism" : 1
   }, {
-    "id" : 2,
-    "type" : "Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
+    "id" : ,
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
+    "contents" : "[]:Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
     "parallelism" : 1,
     "predecessors" : [ {
-      "id" : 1,
+      "id" : ,
       "ship_strategy" : "FORWARD",
       "side" : "second"
     } ]
   }, {
-    "id" : 3,
+    "id" : ,
     "type" : "StreamingFileWriter",
     "pact" : "Operator",
     "contents" : "StreamingFileWriter",
     "parallelism" : 8,
     "predecessors" : [ {
-      "id" : 2,
+      "id" : ,
       "ship_strategy" : "REBALANCE",
       "side" : "second"
     } ]
   }, {
-    "id" : 4,
+    "id" : ,
     "type" : "Sink: end",
     "pact" : "Data Sink",
     "contents" : "Sink: end",
     "parallelism" : 1,
     "predecessors" : [ {
-      "id" : 3,
+      "id" : ,
       "ship_strategy" : "REBALANCE",
       "side" : "second"
     } ]

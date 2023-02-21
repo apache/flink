@@ -29,16 +29,19 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link DataTypeFactory} mock for testing purposes. */
 public class DataTypeFactoryMock implements DataTypeFactory {
 
     public Optional<DataType> dataType = Optional.empty();
+
+    public Optional<LogicalType> logicalType = Optional.empty();
 
     public Optional<Class<?>> expectedClass = Optional.empty();
 
@@ -53,8 +56,8 @@ public class DataTypeFactoryMock implements DataTypeFactory {
     }
 
     @Override
-    public DataType createDataType(String name) {
-        return TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name));
+    public DataType createDataType(String typeString) {
+        return TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(typeString));
     }
 
     @Override
@@ -64,7 +67,7 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 
     @Override
     public <T> DataType createDataType(Class<T> clazz) {
-        expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
+        expectedClass.ifPresent(expected -> assertThat(expected).isEqualTo(clazz));
         return DataTypeExtractor.extractFromType(this, clazz);
     }
 
@@ -75,13 +78,23 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 
     @Override
     public <T> DataType createRawDataType(Class<T> clazz) {
-        expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
+        expectedClass.ifPresent(expected -> assertThat(expected).isEqualTo(clazz));
         return dataType.orElseThrow(IllegalStateException::new);
     }
 
     @Override
     public <T> DataType createRawDataType(TypeInformation<T> typeInfo) {
         return dataType.orElseThrow(IllegalStateException::new);
+    }
+
+    @Override
+    public LogicalType createLogicalType(String typeString) {
+        return logicalType.orElseThrow(() -> new ValidationException("No type found."));
+    }
+
+    @Override
+    public LogicalType createLogicalType(UnresolvedIdentifier identifier) {
+        return logicalType.orElseThrow(() -> new ValidationException("No type found."));
     }
 
     /** Simulates a RAW type. */

@@ -47,7 +47,7 @@ import static org.junit.Assert.assertThat;
 public class JobRecoveryITCase extends TestLogger {
 
     private static final int NUM_TMS = 1;
-    private static final int SLOTS_PER_TM = 11;
+    private static final int SLOTS_PER_TM = 10;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
     @ClassRule

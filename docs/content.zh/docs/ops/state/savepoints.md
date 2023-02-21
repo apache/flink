@@ -27,18 +27,15 @@ under the License.
 
 # Savepoints
 
-## 什么是 Savepoint ？ Savepoint 与 Checkpoint 有什么不同？
+## 什么是 Savepoint ？
 
 Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault_tolerance" >}})所创建的流作业执行状态的一致镜像。 你可以使用 Savepoint 进行 Flink 作业的停止与重启、fork 或者更新。 Savepoint 由两部分组成：稳定存储（列入 HDFS，S3，...) 上包含二进制文件的目录（通常很大），和元数据文件（相对较小）。 稳定存储上的文件表示作业执行状态的数据镜像。 Savepoint 的元数据文件以（相对路径）的形式包含（主要）指向作为 Savepoint 一部分的稳定存储上的所有文件的指针。
 
-<div class="alert alert-warning">
-<strong>注意:</strong> 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
-</div>
-从概念上讲， Flink 的 Savepoint 与 Checkpoint 的不同之处类似于传统数据库中的备份与恢复日志之间的差异。 Checkpoint 的主要目的是为意外失败的作业提供恢复机制。 Checkpoint 的生命周期由 Flink 管理，即 Flink 创建，管理和删除 Checkpoint - 无需用户交互。 作为一种恢复和定期触发的方法，Checkpoint 实现有两个设计目标：i）轻量级创建和 ii）尽可能快地恢复。 可能会利用某些特定的属性来达到这个，例如， 工作代码在执行尝试之间不会改变。 在用户终止作业后，通常会删除 Checkpoint（除非明确配置为保留的 Checkpoint）。
+{{< hint warning >}}
+**注意:** 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
+{{< /hint >}}
 
- 与此相反、Savepoint 由用户创建，拥有和删除。 他们的用例是计划的，手动备份和恢复。 例如，升级 Flink 版本，调整用户逻辑，改变并行度，以及进行红蓝部署等。 当然，Savepoint 必须在作业停止后继续存在。 从概念上讲，Savepoint 的生成，恢复成本可能更高一些，Savepoint 更多地关注可移植性和对前面提到的作业更改的支持。
-
-除去这些概念上的差异，Checkpoint 和 Savepoint 的当前实现基本上使用相同的代码并生成相同的格式。然而，目前有一个例外，我们可能会在未来引入更多的差异。例外情况是使用 RocksDB 状态后端的增量 Checkpoint。他们使用了一些 RocksDB 内部格式，而不是 Flink 的本机 Savepoint 格式。这使他们成为了与 Savepoint 相比，更轻量级的 Checkpoint 机制的第一个实例。
+为了正确使用 savepoints，了解 [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) 与 savepoints 之间的区别非常重要，[checkpoints 与 savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}) 中对此进行了描述。
 
 ## 分配算子 ID
 
@@ -82,9 +79,9 @@ mapper-id   | State of StatefulMapper
 
 当触发 Savepoint 时，将创建一个新的 Savepoint 目录，其中存储数据和元数据。可以通过[配置默认目标目录](#配置)或使用触发器命令指定自定义目标目录(参见[`:targetDirectory`参数](#触发-savepoint-1)来控制该目录的位置。
 
-<div class="alert alert-warning">
-<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统（或者对象存储系统）上的位置。
-</div>
+{{< hint warning >}}
+**注意:** 目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统（或者对象存储系统）上的位置。
+{{< /hint >}}
 
 以 `FsStateBackend`  或 `RocksDBStateBackend` 为例：
 
@@ -103,19 +100,35 @@ mapper-id   | State of StatefulMapper
 ```
 
 从 1.11.0 开始，你可以通过移动（拷贝）savepoint 目录到任意地方，然后再进行恢复。
-<div class="alert alert-warning">
-在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{{< ref "docs/deployment/filesystems/s3" >}}#entropy-injection-for-s3-file-systems">entropy injection</a>：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
+
+{{< hint warning >}}
+在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{{< ref "docs/deployment/filesystems/s3" >}}#entropy-injection-for-s3-file-systems">entropy injection</a>* ：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
 由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAhreadLog` sink）。
-</div>
+{{< /hint >}}
 
-<div class="alert alert-warning">
+{{< hint warning >}}
 和 savepoint 不同，checkpoint 不支持任意移动文件，因为 checkpoint 可能包含一些文件的绝对路径。
-</div>
-如果你使用 `MemoryStateBackend` 的话，metadata 和 savepoint 的数据都会保存在 `_metadata` 文件中，因此不要因为没看到目录下没有数据文件而困惑。
-<div class="alert alert-warning">
-  <strong>注意:</strong> 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
-</div>
+{{< /hint >}}
 
+如果你使用 `MemoryStateBackend` 的话，metadata 和 savepoint 的数据都会保存在 `_metadata` 文件中，因此不要因为没看到目录下没有数据文件而困惑。
+
+{{< hint warning >}}
+**注意:** 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
+{{< /hint >}}
+
+<a name="savepoint-format"></a>
+
+#### Savepoint 格式
+
+你可以在 savepoint 的两种二进制格式之间进行选择：
+
+* 标准格式 - 一种在所有 state backends 间统一的格式，允许你使用一种状态后端创建 savepoint 后，使用另一种状态后端恢复这个 savepoint。这是最稳定的格式，旨在与之前的版本、模式、修改等保持最大兼容性。
+
+* 原生格式 - 标准格式的缺点是它的创建和恢复速度通常很慢。原生格式以特定于使用的状态后端的格式创建快照（例如 RocksDB 的 SST 文件）。
+
+{{< hint info >}}
+以原生格式创建 savepoint 的能力在 Flink 1.15 中引入，在那之前 savepoint 都是以标准格式创建的。
+{{< /hint >}}
 
 #### 触发 Savepoint
 
@@ -123,7 +136,11 @@ mapper-id   | State of StatefulMapper
 $ bin/flink savepoint :jobId [:targetDirectory]
 ```
 
-这将触发 ID 为 `:jobId` 的作业的 Savepoint，并返回创建的 Savepoint 路径。 你需要此路径来还原和删除 Savepoint 。
+这将触发 ID 为 `:jobId` 的作业的 Savepoint，并返回创建的 Savepoint 路径。 你需要此路径来恢复和删除 Savepoint 。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
+
+```shell
+$ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
+```
 
 #### 使用 YARN 触发 Savepoint
 
@@ -133,13 +150,15 @@ $ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
 
 这将触发 ID 为 `:jobId` 和 YARN 应用程序 ID `:yarnAppId` 的作业的 Savepoint，并返回创建的 Savepoint 的路径。
 
-#### 使用 Savepoint 取消作业
+<a name="stopping-a-job-with-savepoint"></a>
+
+#### 使用 Savepoint 停止作业
 
 ```shell
-$ bin/flink cancel -s [:targetDirectory] :jobId
+$ bin/flink stop --type [native/canonical] --savepointPath [:targetDirectory] :jobId
 ```
 
-这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并取消该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。
+这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并停止该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
 
 ### 从 Savepoint 恢复
 
@@ -153,9 +172,54 @@ $ bin/flink run -s :savepointPath [:runArgs]
 
 默认情况下，resume 操作将尝试将 Savepoint 的所有状态映射回你要还原的程序。 如果删除了运算符，则可以通过 `--allowNonRestoredState`（short：`-n`）选项跳过无法映射到新程序的状态：
 
+#### Restore 模式
+
+`Restore 模式` 决定了在 restore 之后谁拥有Savepoint 或者 [externalized checkpoint]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint)的文件的所有权。在这种语境下 Savepoint 和 externalized checkpoint 的行为相似。
+这里我们将它们都称为“快照”，除非另有明确说明。
+
+如前所述，restore 模式决定了谁来接管我们从中恢复的快照文件的所有权。快照可被用户或者 Flink 自身拥有。如果快照归用户所有，Flink 不会删除其中的文件，而且 Flink 不能依赖该快照中文件的存在，因为它可能在 Flink 的控制之外被删除。
+
+每种 restore 模式都有特定的用途。尽管如此，我们仍然认为默认的 *NO_CLAIM* 模式在大多数情况下是一个很好的折中方案，因为它在提供明确的所有权归属的同时只给恢复后第一个 checkpoint 带来较小的代价。
+
+你可以通过如下方式指定 restore 模式：
 ```shell
-$ bin/flink run -s :savepointPath -n [:runArgs]
+$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 ```
+
+**NO_CLAIM （默认的）**
+
+在 *NO_CLAIM* 模式下，Flink 不会接管快照的所有权。它会将快照的文件置于用户的控制之中，并且永远不会删除其中的任何文件。该模式下可以从同一个快照上启动多个作业。
+
+为保证 Flink 不会依赖于该快照的任何文件，它会强制第一个（成功的） checkpoint 为全量 checkpoint 而不是增量的。这仅对`state.backend: rocksdb` 有影响，因为其他 backend 总是创建全量 checkpoint。
+
+一旦第一个全量的 checkpoint 完成后，所有后续的 checkpoint 会照常创建。所以，一旦一个 checkpoint 成功制作，就可以删除原快照。在此之前不能删除原快照，因为没有任何完成的 checkpoint，Flink 会在故障时尝试从初始的快照恢复。
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM restore mode" width="70%" >}}
+</div>
+
+**CLAIM**
+
+另一个可选的模式是 *CLAIM* 模式。该模式下 Flink 将声称拥有快照的所有权，并且本质上将其作为 checkpoint 对待：控制其生命周期并且可能会在其永远不会被用于恢复的时候删除它。因此，手动删除快照和从同一个快照上启动两个作业都是不安全的。Flink 会保持[配置数量]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}/#state-checkpoints-num-retained)的 checkpoint。
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
+</div>
+
+{{< hint info >}}
+**注意：**
+1. Retained checkpoints 被存储在 `<checkpoint_dir>/<job_id>/chk-<x>` 这样的目录中。Flink 不会接管 `<checkpoint_dir>/<job_id>` 目录的所有权，而只会接管 `chk-<x>` 的所有权。Flink 不会删除旧作业的目录。
+
+2. [Native](#savepoint-format) 格式支持增量的 RocksDB savepoints。对于这些 savepoints，Flink 将所有 SST 存储在 savepoints 目录中。这意味着这些 savepoints 是自包含和目录可移动的。然而，在 CLAIM 模式下恢复时，后续的 checkpoints 可能会复用一些 SST 文件，这反过来会阻止在 savepoints 被清理时删除 savepoints 目录。 Flink 之后运行期间可能会删除复用的SST 文件，但不会删除 savepoints 目录。因此，如果在 CLAIM 模式下恢复，Flink 可能会留下一个空的 savepoints 目录。
+{{< /hint >}}
+
+**LEGACY**
+
+Legacy 模式是 Flink 在 1.15 之前的工作方式。该模式下 Flink 永远不会删除初始恢复的 checkpoint。同时，用户也不清楚是否可以删除它。导致该的问题原因是， Flink 会在用来恢复的 checkpoint 之上创建增量的 checkpoint，因此后续的 checkpoint 都有可能会依赖于用于恢复的那个 checkpoint。总而言之，恢复的 checkpoint 的所有权没有明确的界定。
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
+</div>
 
 ### 删除 Savepoint
 
@@ -179,9 +243,9 @@ state.savepoints.dir: hdfs:///flink/savepoints
 
 如果既未配置缺省值也未指定自定义目标目录，则触发 Savepoint 将失败。
 
-<div class="alert alert-warning">
-<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 可访问的位置，例如，分布式文件系统上的位置。
-</div>
+{{< hint warning >}}
+**注意:** 目标目录必须是 JobManager(s) 和 TaskManager(s) 可访问的位置，例如，分布式文件系统上的位置。
+{{< /hint >}}
 
 
 ## F.A.Q

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -25,11 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory.TtlSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,24 +36,17 @@ import static org.apache.flink.runtime.state.ttl.TtlValueMatchers.ttlValue;
 import static org.hamcrest.Matchers.is;
 
 /** State migration test for {@link TtlSerializer}. */
-@RunWith(Parameterized.class)
-public class TtlSerializerUpgradeTest
+class TtlSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<TtlValue<String>, TtlValue<String>> {
 
-    public TtlSerializerUpgradeTest(
-            TestSpecification<TtlValue<String>, TtlValue<String>> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "ttl-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             TtlSerializerSetup.class,
                             TtlSerializerVerifier.class));
         }
@@ -96,7 +87,7 @@ public class TtlSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<TtlValue<String>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

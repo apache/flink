@@ -26,29 +26,28 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests the {@link PipelineExecutorFactory} discovery in the {@link ExecutionEnvironment} and the
  * calls of the {@link JobClient}.
  */
-public class ExecutorDiscoveryAndJobClientTest {
+class ExecutorDiscoveryAndJobClientTest {
 
     private static final String EXEC_NAME = "test-executor";
 
     @Test
-    public void jobClientGetJobExecutionResultShouldBeCalledOnAttachedExecution() throws Exception {
+    void jobClientGetJobExecutionResultShouldBeCalledOnAttachedExecution() throws Exception {
         testHelper(true);
     }
 
     @Test
-    public void jobClientGetJobExecutionResultShouldBeCalledOnDetachedExecution() throws Exception {
+    void jobClientGetJobExecutionResultShouldBeCalledOnDetachedExecution() throws Exception {
         testHelper(false);
     }
 
@@ -59,7 +58,7 @@ public class ExecutorDiscoveryAndJobClientTest {
 
         final JobExecutionResult result = executeTestJobBasedOnConfig(configuration);
 
-        assertThat(result.isJobExecutionResult(), is(attached));
+        assertThat(result.isJobExecutionResult()).isEqualTo(attached);
     }
 
     private JobExecutionResult executeTestJobBasedOnConfig(final Configuration configuration)

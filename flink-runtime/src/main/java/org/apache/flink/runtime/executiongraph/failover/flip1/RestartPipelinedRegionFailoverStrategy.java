@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
@@ -30,9 +31,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IterableUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -52,10 +50,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * defined by this strategy as tasks that communicate via pipelined data exchange.
  */
 public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy {
-
-    /** The log object used for debugging. */
-    private static final Logger LOG =
-            LoggerFactory.getLogger(RestartPipelinedRegionFailoverStrategy.class);
 
     /** The topology containing info about all the vertices and result partitions. */
     private final SchedulingTopology topology;
@@ -90,7 +84,10 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
         this.topology = checkNotNull(topology);
         this.resultPartitionAvailabilityChecker =
                 new RegionFailoverResultPartitionAvailabilityChecker(
-                        resultPartitionAvailabilityChecker);
+                        resultPartitionAvailabilityChecker,
+                        (intermediateResultPartitionID ->
+                                topology.getResultPartition(intermediateResultPartitionID)
+                                        .getResultType()));
     }
 
     // ------------------------------------------------------------------------
@@ -112,7 +109,6 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
     @Override
     public Set<ExecutionVertexID> getTasksNeedingRestart(
             ExecutionVertexID executionVertexId, Throwable cause) {
-        LOG.info("Calculating tasks to restart to recover the failed task {}.", executionVertexId);
 
         final SchedulingPipelinedRegion failedRegion =
                 topology.getPipelinedRegionOfVertex(executionVertexId);
@@ -149,10 +145,6 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
                     dataConsumptionException.get().getPartitionId().getPartitionId());
         }
 
-        LOG.info(
-                "{} tasks should be restarted to recover the failed task {}. ",
-                tasksToRestart.size(),
-                executionVertexId);
         return tasksToRestart;
     }
 
@@ -282,16 +274,27 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
         /** Records partitions which has caused {@link PartitionException}. */
         private final HashSet<IntermediateResultPartitionID> failedPartitions;
 
+        /** Retrieve {@link ResultPartitionType} by {@link IntermediateResultPartitionID}. */
+        private final Function<IntermediateResultPartitionID, ResultPartitionType>
+                resultPartitionTypeRetriever;
+
         RegionFailoverResultPartitionAvailabilityChecker(
-                ResultPartitionAvailabilityChecker checker) {
+                ResultPartitionAvailabilityChecker checker,
+                Function<IntermediateResultPartitionID, ResultPartitionType>
+                        resultPartitionTypeRetriever) {
             this.resultPartitionAvailabilityChecker = checkNotNull(checker);
             this.failedPartitions = new HashSet<>();
+            this.resultPartitionTypeRetriever = checkNotNull(resultPartitionTypeRetriever);
         }
 
         @Override
         public boolean isAvailable(IntermediateResultPartitionID resultPartitionID) {
             return !failedPartitions.contains(resultPartitionID)
-                    && resultPartitionAvailabilityChecker.isAvailable(resultPartitionID);
+                    && resultPartitionAvailabilityChecker.isAvailable(resultPartitionID)
+                    // If the result partition is available in the partition tracker and does not
+                    // fail, it will be available if it can be re-consumption, and it may also be
+                    // available for PIPELINED_APPROXIMATE type.
+                    && isResultPartitionIsReConsumableOrPipelinedApproximate(resultPartitionID);
         }
 
         public void markResultPartitionFailed(IntermediateResultPartitionID resultPartitionID) {
@@ -301,6 +304,14 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
         public void removeResultPartitionFromFailedState(
                 IntermediateResultPartitionID resultPartitionID) {
             failedPartitions.remove(resultPartitionID);
+        }
+
+        private boolean isResultPartitionIsReConsumableOrPipelinedApproximate(
+                IntermediateResultPartitionID resultPartitionID) {
+            ResultPartitionType resultPartitionType =
+                    resultPartitionTypeRetriever.apply(resultPartitionID);
+            return resultPartitionType.isReconsumable()
+                    || resultPartitionType == ResultPartitionType.PIPELINED_APPROXIMATE;
         }
     }
 

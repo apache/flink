@@ -31,6 +31,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -154,7 +155,9 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            bi =
+                    new BufferedReader(
+                            new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
 
             String line;
             while ((line = bi.readLine()) != null) {
@@ -191,7 +194,9 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("sysctl hw.physmem");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            bi =
+                    new BufferedReader(
+                            new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
 
             String line;
             while ((line = bi.readLine()) != null) {
@@ -234,7 +239,9 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("wmic memorychip get capacity");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            bi =
+                    new BufferedReader(
+                            new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
 
             String line = bi.readLine();
             if (line == null) {

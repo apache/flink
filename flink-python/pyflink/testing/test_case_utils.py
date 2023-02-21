@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
+import calendar
+import datetime
 import glob
 import logging
 import os
@@ -22,23 +24,19 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from abc import abstractmethod
+from decimal import Decimal
 
 from py4j.java_gateway import JavaObject
-from py4j.protocol import Py4JJavaError
 
-from pyflink.common import JobExecutionResult
+from pyflink.common import JobExecutionResult, Time, Instant, Row
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
-from pyflink.table import TableConfig
-from pyflink.table.sources import CsvTableSource
-from pyflink.dataset.execution_environment import ExecutionEnvironment
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
-from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment, \
-    TableEnvironment
-from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.java_gateway import get_gateway
+from pyflink.table.table_environment import StreamTableEnvironment
 from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
@@ -47,23 +45,6 @@ else:
     log_level = logging.INFO
 logging.basicConfig(stream=sys.stdout, level=log_level,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-
-def get_private_field(java_obj, field_name):
-    try:
-        field = java_obj.getClass().getDeclaredField(field_name)
-        field.setAccessible(True)
-        return field.get(java_obj)
-    except Py4JJavaError:
-        cls = java_obj.getClass()
-        while cls.getSuperclass() is not None:
-            cls = cls.getSuperclass()
-            try:
-                field = cls.getDeclaredField(field_name)
-                field.setAccessible(True)
-                return field.get(java_obj)
-            except Py4JJavaError:
-                pass
 
 
 def exec_insert_table(table, table_path) -> JobExecutionResult:
@@ -104,6 +85,7 @@ class PyFlinkTestCase(unittest.TestCase):
         cls.tempdir = tempfile.mkdtemp()
 
         os.environ["FLINK_TESTING"] = "1"
+        os.environ['_python_worker_execution_mode'] = "process"
         _find_flink_home()
 
         logging.info("Using %s as FLINK_HOME...", os.environ["FLINK_HOME"])
@@ -111,6 +93,7 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tempdir, ignore_errors=True)
+        del os.environ['_python_worker_execution_mode']
 
     @classmethod
     def assert_equals(cls, actual, expected):
@@ -126,161 +109,100 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def to_py_list(cls, actual):
         py_list = []
-        for i in range(0, actual.length()):
-            py_list.append(actual.apply(i))
+        for i in range(0, actual.size()):
+            py_list.append(actual.get(i))
         return py_list
 
+
+class PyFlinkITTestCase(PyFlinkTestCase):
+
     @classmethod
-    def prepare_csv_source(cls, path, data, data_types, fields):
-        if os.path.isfile(path):
-            os.remove(path)
-        csv_data = ""
-        for item in data:
-            if isinstance(item, list) or isinstance(item, tuple):
-                csv_data += ",".join([str(element) for element in item]) + "\n"
-            else:
-                csv_data += str(item) + "\n"
-        with open(path, 'w') as f:
-            f.write(csv_data)
-            f.close()
-        return CsvTableSource(path, fields, data_types)
-
-
-class PyFlinkLegacyBlinkBatchTableTestCase(PyFlinkTestCase):
-    """
-    Base class for pure Blink Batch TableEnvironment tests.
-    """
-
-    def setUp(self):
-        super(PyFlinkLegacyBlinkBatchTableTestCase, self).setUp()
-        self.t_env = BatchTableEnvironment.create(
-            environment_settings=EnvironmentSettings.new_instance()
-            .in_batch_mode().use_blink_planner().build())
-        self.t_env._j_tenv.getPlanner().getExecEnv().setParallelism(2)
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-
-class PyFlinkLegacyBlinkStreamTableTestCase(PyFlinkTestCase):
-    """
-    Base class for pure Blink Batch TableEnvironment tests.
-    """
-
-    def setUp(self):
-        super(PyFlinkLegacyBlinkStreamTableTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.t_env = StreamTableEnvironment.create(
-            self.env,
-            environment_settings=EnvironmentSettings.new_instance()
-                .in_streaming_mode().use_blink_planner().build())
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-
-class PyFlinkLegacyFlinkStreamTableTestCase(PyFlinkTestCase):
-    """
-    Base class for pure Flink Stream TableEnvironment tests.
-    """
-
-    def setUp(self):
-        super(PyFlinkLegacyFlinkStreamTableTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.t_env = StreamTableEnvironment.create(
-            self.env,
-            environment_settings=EnvironmentSettings.new_instance()
-                .in_streaming_mode().use_old_planner().build())
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-
-class PyFlinkOldStreamTableTestCase(PyFlinkTestCase):
-    """
-    Base class for old planner stream tests.
-    """
-
-    def setUp(self):
-        super(PyFlinkOldStreamTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(
-            EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build())
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-
-class PyFlinkOldBatchTableTestCase(PyFlinkTestCase):
-    """
-    Base class for batch tests.
-    """
-
-    def setUp(self):
-        super(PyFlinkOldBatchTableTestCase, self).setUp()
-        self.env = ExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.t_env = BatchTableEnvironment.create(self.env, TableConfig())
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-    def collect(self, table):
-        j_table = table._j_table
+    def setUpClass(cls):
+        super(PyFlinkITTestCase, cls).setUpClass()
         gateway = get_gateway()
-        row_result = self.t_env._j_tenv\
-            .toDataSet(j_table, gateway.jvm.Class.forName("org.apache.flink.types.Row")).collect()
-        string_result = [java_row.toString() for java_row in row_result]
-        return string_result
+        MiniClusterResourceConfiguration = (
+            gateway.jvm.org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
+            .Builder()
+            .setNumberTaskManagers(8)
+            .setNumberSlotsPerTaskManager(1)
+            .setRpcServiceSharing(
+                get_gateway().jvm.org.apache.flink.runtime.minicluster.RpcServiceSharing.DEDICATED)
+            .withHaLeadershipControl()
+            .build())
+        cls.resource = (
+            get_gateway().jvm.org.apache.flink.test.util.
+            MiniClusterWithClientResource(MiniClusterResourceConfiguration))
+        cls.resource.before()
+
+        cls.env = StreamExecutionEnvironment(
+            get_gateway().jvm.org.apache.flink.streaming.util.TestStreamEnvironment(
+                cls.resource.getMiniCluster(), 2))
+
+    @classmethod
+    def tearDownClass(cls):
+        super(PyFlinkITTestCase, cls).tearDownClass()
+        cls.resource.after()
 
 
-class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
+class PyFlinkUTTestCase(PyFlinkTestCase):
+    def setUp(self) -> None:
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        self.env.set_parallelism(2)
+        self.t_env = StreamTableEnvironment.create(self.env)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
+
+
+class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
     """
-    Base class for stream tests of blink planner.
+    Base class for table stream tests.
     """
 
-    def setUp(self):
-        super(PyFlinkBlinkStreamTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(
-            EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build())
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkStreamTableTestCase, cls).setUpClass()
+        cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        cls.env.set_parallelism(2)
+        cls.t_env = StreamTableEnvironment.create(cls.env)
+        cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
+class PyFlinkBatchTableTestCase(PyFlinkITTestCase):
     """
-    Base class for batch tests of blink planner.
+    Base class for table batch tests.
     """
 
-    def setUp(self):
-        super(PyFlinkBlinkBatchTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(
-            EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build())
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkBatchTableTestCase, cls).setUpClass()
+        cls.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+        cls.env.set_parallelism(2)
+        cls.t_env = StreamTableEnvironment.create(cls.env)
+        cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkStreamingTestCase(PyFlinkTestCase):
+class PyFlinkStreamingTestCase(PyFlinkITTestCase):
     """
     Base class for streaming tests.
     """
 
-    def setUp(self):
-        super(PyFlinkStreamingTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkStreamingTestCase, cls).setUpClass()
+        cls.env.set_parallelism(2)
+        cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
 
 
-class PyFlinkBatchTestCase(PyFlinkTestCase):
+class PyFlinkBatchTestCase(PyFlinkITTestCase):
     """
     Base class for batch tests.
     """
 
-    def setUp(self):
-        super(PyFlinkBatchTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkBatchTestCase, cls).setUpClass()
+        cls.env.set_parallelism(2)
+        cls.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
 
 class PythonAPICompletenessTestCase(object):
@@ -399,3 +321,76 @@ class TestEnv(object):
         for item in self.result:
             result[item.f0] = item.f1
         return result
+
+
+DATE_EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
+TIME_EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 3
+
+
+def _date_to_millis(d: datetime.date):
+    return (d.toordinal() - DATE_EPOCH_ORDINAL) * 86400 * 1000
+
+
+def _time_to_millis(t: datetime.time):
+    if t.tzinfo is not None:
+        offset = t.utcoffset()
+        offset = offset if offset else datetime.timedelta()
+        offset_millis = \
+            (offset.days * 86400 + offset.seconds) * 10 ** 3 + offset.microseconds // 1000
+    else:
+        offset_millis = TIME_EPOCH_ORDINAL
+    minutes = t.hour * 60 + t.minute
+    seconds = minutes * 60 + t.second
+    return seconds * 10 ** 3 + t.microsecond // 1000 - offset_millis
+
+
+def to_java_data_structure(value):
+    jvm = get_gateway().jvm
+    if isinstance(value, (int, float, str, bytes)):
+        return value
+    elif isinstance(value, Decimal):
+        return jvm.java.math.BigDecimal.valueOf(float(value))
+    elif isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            return jvm.java.sql.Timestamp(
+                _date_to_millis(value.date()) + _time_to_millis(value.time())
+            )
+        return jvm.java.time.Instant.ofEpochMilli(
+            (
+                calendar.timegm(value.utctimetuple()) +
+                calendar.timegm(time.localtime(0))
+            ) * 1000 +
+            value.microsecond // 1000
+        )
+    elif isinstance(value, datetime.date):
+        return jvm.java.sql.Date(_date_to_millis(value))
+    elif isinstance(value, datetime.time):
+        return jvm.java.sql.Time(_time_to_millis(value))
+    elif isinstance(value, Time):
+        return jvm.java.sql.Time(value.to_milliseconds())
+    elif isinstance(value, Instant):
+        return jvm.java.time.Instant.ofEpochMilli(value.to_epoch_milli())
+    elif isinstance(value, (list, tuple)):
+        j_list = jvm.java.util.ArrayList()
+        for i in value:
+            j_list.add(to_java_data_structure(i))
+        return j_list
+    elif isinstance(value, dict):
+        j_map = jvm.java.util.HashMap()
+        for k, v in value.items():
+            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
+        return j_map
+    elif isinstance(value, Row):
+        if hasattr(value, '_fields'):
+            j_row = jvm.org.apache.flink.types.Row.withNames(value.get_row_kind().to_j_row_kind())
+            for field_name, value in zip(value._fields, value._values):
+                j_row.setField(field_name, to_java_data_structure(value))
+        else:
+            j_row = jvm.org.apache.flink.types.Row.withPositions(
+                value.get_row_kind().to_j_row_kind(), len(value)
+            )
+            for idx, value in enumerate(value._values):
+                j_row.setField(idx, to_java_data_structure(value))
+        return j_row
+    else:
+        raise TypeError('unsupported value type {}'.format(str(type(value))))

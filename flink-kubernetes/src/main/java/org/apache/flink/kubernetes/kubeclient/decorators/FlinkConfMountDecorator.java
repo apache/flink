@@ -21,12 +21,15 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -156,6 +159,10 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
         // Remove some configuration options that should not be taken to cluster side.
         clusterSideConfig.removeConfig(KubernetesConfigOptions.KUBE_CONFIG_FILE);
         clusterSideConfig.removeConfig(DeploymentOptionsInternal.CONF_DIR);
+        clusterSideConfig.removeConfig(RestOptions.BIND_ADDRESS);
+        clusterSideConfig.removeConfig(JobManagerOptions.BIND_HOST);
+        clusterSideConfig.removeConfig(TaskManagerOptions.BIND_HOST);
+        clusterSideConfig.removeConfig(TaskManagerOptions.HOST);
         return clusterSideConfig.toMap();
     }
 

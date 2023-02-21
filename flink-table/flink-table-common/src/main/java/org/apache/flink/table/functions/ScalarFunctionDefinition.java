@@ -32,7 +32,10 @@ import java.util.Set;
  * stack.
  *
  * <p>This class can be dropped once we introduce a new type inference.
+ *
+ * @deprecated Non-legacy functions can simply omit this wrapper for declarations.
  */
+@Deprecated
 @Internal
 public final class ScalarFunctionDefinition implements FunctionDefinition {
 

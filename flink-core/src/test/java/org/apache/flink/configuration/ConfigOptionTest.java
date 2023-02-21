@@ -20,7 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import org.junit.Test;
 
@@ -43,6 +43,7 @@ public class ConfigOptionTest extends TestLogger {
     public void testDeprecationFlagForDeprecatedKeys() {
         final ConfigOption<Integer> optionWithDeprecatedKeys =
                 ConfigOptions.key("key")
+                        .intType()
                         .defaultValue(0)
                         .withDeprecatedKeys("deprecated1", "deprecated2");
 
@@ -55,7 +56,10 @@ public class ConfigOptionTest extends TestLogger {
     @Test
     public void testDeprecationFlagForFallbackKeys() {
         final ConfigOption<Integer> optionWithFallbackKeys =
-                ConfigOptions.key("key").defaultValue(0).withFallbackKeys("fallback1", "fallback2");
+                ConfigOptions.key("key")
+                        .intType()
+                        .defaultValue(0)
+                        .withFallbackKeys("fallback1", "fallback2");
 
         assertTrue(optionWithFallbackKeys.hasFallbackKeys());
         for (final FallbackKey fallbackKey : optionWithFallbackKeys.fallbackKeys()) {
@@ -67,6 +71,7 @@ public class ConfigOptionTest extends TestLogger {
     public void testDeprecationFlagForMixedAlternativeKeys() {
         final ConfigOption<Integer> optionWithMixedKeys =
                 ConfigOptions.key("key")
+                        .intType()
                         .defaultValue(0)
                         .withDeprecatedKeys("deprecated1", "deprecated2")
                         .withFallbackKeys("fallback1", "fallback2");
@@ -95,6 +100,7 @@ public class ConfigOptionTest extends TestLogger {
 
         final ConfigOption<Integer> optionWithDeprecatedKeys =
                 ConfigOptions.key("key")
+                        .intType()
                         .defaultValue(0)
                         .withDeprecatedKeys(deprecatedKeys)
                         .withFallbackKeys("fallback1");
@@ -107,7 +113,7 @@ public class ConfigOptionTest extends TestLogger {
     @Test
     public void testNoDeprecationForFallbackKeysWithoutDeprecated() {
         final ConfigOption<Integer> optionWithFallbackKeys =
-                ConfigOptions.key("key").defaultValue(0).withFallbackKeys("fallback1");
+                ConfigOptions.key("key").intType().defaultValue(0).withFallbackKeys("fallback1");
 
         assertFalse(optionWithFallbackKeys.hasDeprecatedKeys());
     }

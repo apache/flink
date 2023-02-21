@@ -25,7 +25,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
@@ -310,7 +310,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
             final CompletableFuture<Void> groupShutdownFuture = new CompletableFuture<>();
             if (bootstrap != null) {
-                EventLoopGroup group = bootstrap.group();
+                EventLoopGroup group = bootstrap.config().group();
                 if (group != null && !group.isShutdown()) {
                     group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
                             .addListener(
@@ -400,6 +400,6 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
     @VisibleForTesting
     public boolean isEventGroupShutdown() {
-        return bootstrap == null || bootstrap.group().isTerminated();
+        return bootstrap == null || bootstrap.config().group().isTerminated();
     }
 }

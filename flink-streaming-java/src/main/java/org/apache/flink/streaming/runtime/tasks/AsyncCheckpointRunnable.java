@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -26,6 +27,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
@@ -36,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -50,10 +54,12 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
     public static final Logger LOG = LoggerFactory.getLogger(AsyncCheckpointRunnable.class);
     private final String taskName;
-    private final Consumer<AsyncCheckpointRunnable> registerConsumer;
     private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
+    private final boolean isTaskDeployedAsFinished;
+    private final boolean isTaskFinished;
     private final Supplier<Boolean> isTaskRunning;
     private final Environment taskEnvironment;
+    private final CompletableFuture<Void> finishedFuture = new CompletableFuture<>();
 
     public boolean isRunning() {
         return asyncCheckpointState.get() == AsyncCheckpointState.RUNNING;
@@ -79,10 +85,11 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             CheckpointMetricsBuilder checkpointMetrics,
             long asyncConstructionNanos,
             String taskName,
-            Consumer<AsyncCheckpointRunnable> register,
             Consumer<AsyncCheckpointRunnable> unregister,
             Environment taskEnvironment,
             AsyncExceptionHandler asyncExceptionHandler,
+            boolean isTaskDeployedAsFinished,
+            boolean isTaskFinished,
             Supplier<Boolean> isTaskRunning) {
 
         this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
@@ -90,10 +97,11 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.checkpointMetrics = checkNotNull(checkpointMetrics);
         this.asyncConstructionNanos = asyncConstructionNanos;
         this.taskName = checkNotNull(taskName);
-        this.registerConsumer = register;
         this.unregisterConsumer = unregister;
         this.taskEnvironment = checkNotNull(taskEnvironment);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
+        this.isTaskDeployedAsFinished = isTaskDeployedAsFinished;
+        this.isTaskFinished = isTaskFinished;
         this.isTaskRunning = isTaskRunning;
     }
 
@@ -110,54 +118,24 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         FileSystemSafetyNet.initializeSafetyNetForThread();
         try {
 
-            registerConsumer.accept(this);
-
-            TaskStateSnapshot jobManagerTaskOperatorSubtaskStates =
-                    new TaskStateSnapshot(operatorSnapshotsInProgress.size());
-            TaskStateSnapshot localTaskOperatorSubtaskStates =
-                    new TaskStateSnapshot(operatorSnapshotsInProgress.size());
-
-            long bytesPersistedDuringAlignment = 0;
-            for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :
-                    operatorSnapshotsInProgress.entrySet()) {
-
-                OperatorID operatorID = entry.getKey();
-                OperatorSnapshotFutures snapshotInProgress = entry.getValue();
-
-                // finalize the async part of all by executing all snapshot runnables
-                OperatorSnapshotFinalizer finalizedSnapshots =
-                        new OperatorSnapshotFinalizer(snapshotInProgress);
-
-                jobManagerTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
-                        operatorID, finalizedSnapshots.getJobManagerOwnedState());
-
-                localTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
-                        operatorID, finalizedSnapshots.getTaskLocalState());
-
-                bytesPersistedDuringAlignment +=
-                        finalizedSnapshots
-                                .getJobManagerOwnedState()
-                                .getResultSubpartitionState()
-                                .getStateSize();
-                bytesPersistedDuringAlignment +=
-                        finalizedSnapshots
-                                .getJobManagerOwnedState()
-                                .getInputChannelState()
-                                .getStateSize();
-            }
+            SnapshotsFinalizeResult snapshotsFinalizeResult =
+                    isTaskDeployedAsFinished
+                            ? finalizedFinishedSnapshots()
+                            : finalizeNonFinishedSnapshots();
 
             final long asyncEndNanos = System.nanoTime();
             final long asyncDurationMillis = (asyncEndNanos - asyncConstructionNanos) / 1_000_000L;
 
-            checkpointMetrics.setBytesPersistedDuringAlignment(bytesPersistedDuringAlignment);
+            checkpointMetrics.setBytesPersistedDuringAlignment(
+                    snapshotsFinalizeResult.bytesPersistedDuringAlignment);
             checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
             if (asyncCheckpointState.compareAndSet(
                     AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
 
                 reportCompletedSnapshotStates(
-                        jobManagerTaskOperatorSubtaskStates,
-                        localTaskOperatorSubtaskStates,
+                        snapshotsFinalizeResult.jobManagerTaskOperatorSubtaskStates,
+                        snapshotsFinalizeResult.localTaskOperatorSubtaskStates,
                         asyncDurationMillis);
 
             } else {
@@ -166,6 +144,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                         taskName,
                         checkpointMetaData.getCheckpointId());
             }
+
+            finishedFuture.complete(null);
         } catch (Exception e) {
             LOG.info(
                     "{} - asynchronous part of checkpoint {} could not be completed.",
@@ -173,10 +153,66 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                     checkpointMetaData.getCheckpointId(),
                     e);
             handleExecutionException(e);
+            finishedFuture.completeExceptionally(e);
         } finally {
             unregisterConsumer.accept(this);
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
         }
+    }
+
+    private SnapshotsFinalizeResult finalizedFinishedSnapshots() throws Exception {
+        for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :
+                operatorSnapshotsInProgress.entrySet()) {
+            OperatorSnapshotFutures snapshotInProgress = entry.getValue();
+            // We should wait for the channels states get completed before continuing,
+            // otherwise the alignment of barriers might have not finished yet.
+            snapshotInProgress.getInputChannelStateFuture().get();
+            snapshotInProgress.getResultSubpartitionStateFuture().get();
+        }
+
+        return new SnapshotsFinalizeResult(
+                TaskStateSnapshot.FINISHED_ON_RESTORE, TaskStateSnapshot.FINISHED_ON_RESTORE, 0L);
+    }
+
+    private SnapshotsFinalizeResult finalizeNonFinishedSnapshots() throws Exception {
+        TaskStateSnapshot jobManagerTaskOperatorSubtaskStates =
+                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isTaskFinished);
+        TaskStateSnapshot localTaskOperatorSubtaskStates =
+                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isTaskFinished);
+
+        long bytesPersistedDuringAlignment = 0;
+        for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :
+                operatorSnapshotsInProgress.entrySet()) {
+
+            OperatorID operatorID = entry.getKey();
+            OperatorSnapshotFutures snapshotInProgress = entry.getValue();
+
+            // finalize the async part of all by executing all snapshot runnables
+            OperatorSnapshotFinalizer finalizedSnapshots =
+                    new OperatorSnapshotFinalizer(snapshotInProgress);
+
+            jobManagerTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
+                    operatorID, finalizedSnapshots.getJobManagerOwnedState());
+
+            localTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
+                    operatorID, finalizedSnapshots.getTaskLocalState());
+
+            bytesPersistedDuringAlignment +=
+                    finalizedSnapshots
+                            .getJobManagerOwnedState()
+                            .getResultSubpartitionState()
+                            .getStateSize();
+            bytesPersistedDuringAlignment +=
+                    finalizedSnapshots
+                            .getJobManagerOwnedState()
+                            .getInputChannelState()
+                            .getStateSize();
+        }
+
+        return new SnapshotsFinalizeResult(
+                jobManagerTaskOperatorSubtaskStates,
+                localTaskOperatorSubtaskStates,
+                bytesPersistedDuringAlignment);
     }
 
     private void reportCompletedSnapshotStates(
@@ -201,6 +237,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 .reportTaskStateSnapshots(
                         checkpointMetaData,
                         checkpointMetrics
+                                .setBytesPersistedOfThisCheckpoint(
+                                        acknowledgedTaskStateSnapshot.getCheckpointedSize())
                                 .setTotalBytesPersisted(
                                         acknowledgedTaskStateSnapshot.getStateSize())
                                 .build(),
@@ -220,9 +258,12 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 acknowledgedTaskStateSnapshot);
     }
 
-    private void reportAbortedSnapshotStats(long stateSize) {
+    private void reportAbortedSnapshotStats(long stateSize, long checkpointedSize) {
         CheckpointMetrics metrics =
-                checkpointMetrics.setTotalBytesPersisted(stateSize).buildIncomplete();
+                checkpointMetrics
+                        .setTotalBytesPersisted(stateSize)
+                        .setBytesPersistedOfThisCheckpoint(checkpointedSize)
+                        .buildIncomplete();
         LOG.trace(
                 "{} - report failed checkpoint stats: {} {}",
                 taskName,
@@ -312,8 +353,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 AsyncCheckpointState.RUNNING, AsyncCheckpointState.DISCARDED)) {
 
             try {
-                final long stateSize = cleanup();
-                reportAbortedSnapshotStats(stateSize);
+                final Tuple2<Long, Long> tuple = cleanup();
+                reportAbortedSnapshotStats(tuple.f0, tuple.f1);
             } catch (Exception cleanupException) {
                 LOG.warn(
                         "Could not properly clean up the async checkpoint runnable.",
@@ -328,8 +369,12 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         return checkpointMetaData.getCheckpointId();
     }
 
-    /** @return discarded state size (if available). */
-    private long cleanup() throws Exception {
+    public CompletableFuture<Void> getFinishedFuture() {
+        return finishedFuture;
+    }
+
+    /** @return discarded full/incremental size (if available). */
+    private Tuple2<Long, Long> cleanup() throws Exception {
         LOG.debug(
                 "Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",
                 checkpointMetaData.getCheckpointId(),
@@ -338,12 +383,14 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         Exception exception = null;
 
         // clean up ongoing operator snapshot results and non partitioned state handles
-        long stateSize = 0;
+        long stateSize = 0, checkpointedSize = 0;
         for (OperatorSnapshotFutures operatorSnapshotResult :
                 operatorSnapshotsInProgress.values()) {
             if (operatorSnapshotResult != null) {
                 try {
-                    stateSize += operatorSnapshotResult.cancel();
+                    Tuple2<Long, Long> tuple2 = operatorSnapshotResult.cancel();
+                    stateSize += tuple2.f0;
+                    checkpointedSize += tuple2.f1;
                 } catch (Exception cancelException) {
                     exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
                 }
@@ -353,7 +400,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         if (null != exception) {
             throw exception;
         }
-        return stateSize;
+        return Tuple2.of(stateSize, checkpointedSize);
     }
 
     private void logFailedCleanupAttempt() {
@@ -362,5 +409,20 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                         + "already been completed. Thus, the state handles are not cleaned up.",
                 taskName,
                 checkpointMetaData.getCheckpointId());
+    }
+
+    private static class SnapshotsFinalizeResult {
+        final TaskStateSnapshot jobManagerTaskOperatorSubtaskStates;
+        final TaskStateSnapshot localTaskOperatorSubtaskStates;
+        final long bytesPersistedDuringAlignment;
+
+        public SnapshotsFinalizeResult(
+                TaskStateSnapshot jobManagerTaskOperatorSubtaskStates,
+                TaskStateSnapshot localTaskOperatorSubtaskStates,
+                long bytesPersistedDuringAlignment) {
+            this.jobManagerTaskOperatorSubtaskStates = jobManagerTaskOperatorSubtaskStates;
+            this.localTaskOperatorSubtaskStates = localTaskOperatorSubtaskStates;
+            this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
+        }
     }
 }

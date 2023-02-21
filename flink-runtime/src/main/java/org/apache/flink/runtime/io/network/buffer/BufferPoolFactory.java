@@ -44,12 +44,14 @@ public interface BufferPoolFactory {
      * @param maxUsedBuffers maximum number of network buffers this pool offers
      * @param numSubpartitions number of subpartitions in this pool
      * @param maxBuffersPerChannel maximum number of buffers to use for each channel
+     * @param maxOverdraftBuffersPerGate maximum number of overdraft buffers to use for each gate
      */
     BufferPool createBufferPool(
             int numRequiredBuffers,
             int maxUsedBuffers,
             int numSubpartitions,
-            int maxBuffersPerChannel)
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffersPerGate)
             throws IOException;
 
     /** Destroy callback for updating factory book keeping. */

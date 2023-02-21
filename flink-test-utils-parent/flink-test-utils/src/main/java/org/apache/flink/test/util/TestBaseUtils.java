@@ -18,51 +18,27 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
@@ -70,41 +46,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Utility class containing various methods for testing purposes. */
-public class TestBaseUtils extends TestLogger {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
-
-    protected static final int MINIMUM_HEAP_SIZE_MB = 192;
-
-    protected static final String TASK_MANAGER_MEMORY_SIZE = "80m";
-
-    protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
-
-    protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
-
-    public static final FiniteDuration DEFAULT_TIMEOUT =
-            new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
-
-    public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
-
-    // ------------------------------------------------------------------------
-
-    protected static File logDir;
-
-    protected TestBaseUtils() {
-        verifyJvmOptions();
-    }
-
-    private static void verifyJvmOptions() {
-        long heap = Runtime.getRuntime().maxMemory() >> 20;
-        Assert.assertTrue(
-                "Insufficient java heap space "
-                        + heap
-                        + "mb - set JVM option: -Xmx"
-                        + MINIMUM_HEAP_SIZE_MB
-                        + "m",
-                heap > MINIMUM_HEAP_SIZE_MB - 50);
-    }
+public class TestBaseUtils {
 
     // --------------------------------------------------------------------------------------------
     //  Result Checking
@@ -114,7 +56,7 @@ public class TestBaseUtils extends TestLogger {
         return getResultReader(resultPath, new String[] {}, false);
     }
 
-    public static BufferedReader[] getResultReader(
+    private static BufferedReader[] getResultReader(
             String resultPath, String[] excludePrefixes, boolean inOrderOfFiles)
             throws IOException {
 
@@ -154,32 +96,12 @@ public class TestBaseUtils extends TestLogger {
         return readers;
     }
 
-    public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
-        return getResultInputStream(resultPath, new String[] {});
-    }
-
-    public static BufferedInputStream[] getResultInputStream(
-            String resultPath, String[] excludePrefixes) throws IOException {
-        File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
-        BufferedInputStream[] inStreams = new BufferedInputStream[files.length];
-        for (int i = 0; i < files.length; i++) {
-            inStreams[i] = new BufferedInputStream(new FileInputStream(files[i]));
-        }
-        return inStreams;
-    }
-
     public static void readAllResultLines(List<String> target, String resultPath)
             throws IOException {
-        readAllResultLines(target, resultPath, new String[] {});
+        readAllResultLines(target, resultPath, new String[] {}, false);
     }
 
-    public static void readAllResultLines(
-            List<String> target, String resultPath, String[] excludePrefixes) throws IOException {
-
-        readAllResultLines(target, resultPath, excludePrefixes, false);
-    }
-
-    public static void readAllResultLines(
+    private static void readAllResultLines(
             List<String> target,
             String resultPath,
             String[] excludePrefixes,
@@ -239,15 +161,8 @@ public class TestBaseUtils extends TestLogger {
 
     public static void compareResultsByLinesInMemoryWithStrictOrder(
             String expectedResultStr, String resultPath) throws Exception {
-        compareResultsByLinesInMemoryWithStrictOrder(
-                expectedResultStr, resultPath, new String[] {});
-    }
-
-    public static void compareResultsByLinesInMemoryWithStrictOrder(
-            String expectedResultStr, String resultPath, String[] excludePrefixes)
-            throws Exception {
         ArrayList<String> list = new ArrayList<>();
-        readAllResultLines(list, resultPath, excludePrefixes, true);
+        readAllResultLines(list, resultPath, new String[] {}, true);
 
         String[] result = list.toArray(new String[list.size()]);
 
@@ -283,19 +198,8 @@ public class TestBaseUtils extends TestLogger {
     public static void compareKeyValuePairsWithDelta(
             String expectedLines, String resultPath, String delimiter, double maxDelta)
             throws Exception {
-        compareKeyValuePairsWithDelta(
-                expectedLines, resultPath, new String[] {}, delimiter, maxDelta);
-    }
-
-    public static void compareKeyValuePairsWithDelta(
-            String expectedLines,
-            String resultPath,
-            String[] excludePrefixes,
-            String delimiter,
-            double maxDelta)
-            throws Exception {
         ArrayList<String> list = new ArrayList<>();
-        readAllResultLines(list, resultPath, excludePrefixes, false);
+        readAllResultLines(list, resultPath, new String[] {}, false);
 
         String[] result = list.toArray(new String[list.size()]);
         String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
@@ -335,25 +239,31 @@ public class TestBaseUtils extends TestLogger {
         assertTrue("Result file was not written", result.exists());
 
         if (result.isDirectory()) {
-            return result.listFiles(
-                    new FilenameFilter() {
+            try {
+                return Files.walk(result.toPath())
+                        .filter(Files::isRegularFile)
+                        .filter(
+                                path -> {
+                                    for (String prefix : excludePrefixes) {
+                                        if (path.getFileName().startsWith(prefix)) {
+                                            return false;
+                                        }
+                                    }
 
-                        @Override
-                        public boolean accept(File dir, String name) {
-                            for (String p : excludePrefixes) {
-                                if (name.startsWith(p)) {
-                                    return false;
-                                }
-                            }
-                            return true;
-                        }
-                    });
+                                    return true;
+                                })
+                        .map(Path::toFile)
+                        .filter(file -> !file.isHidden())
+                        .toArray(File[]::new);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to retrieve result files");
+            }
         } else {
             return new File[] {result};
         }
     }
 
-    protected static File asFile(String path) {
+    public static File asFile(String path) {
         try {
             URI uri = new URI(path);
             if (uri.getScheme().equals("file")) {
@@ -381,11 +291,6 @@ public class TestBaseUtils extends TestLogger {
 
     public static <T> void compareOrderedResultAsText(List<T> result, String expected) {
         compareResult(result, expected, false, false);
-    }
-
-    public static <T> void compareOrderedResultAsText(
-            List<T> result, String expected, boolean asTuples) {
-        compareResult(result, expected, asTuples, false);
     }
 
     private static <T> void compareResult(
@@ -462,109 +367,6 @@ public class TestBaseUtils extends TestLogger {
         for (String element : resultStrings) {
             assertTrue(expectedStringList.contains(element));
         }
-    }
-
-    // --------------------------------------------------------------------------------------------
-    //  Miscellaneous helper methods
-    // --------------------------------------------------------------------------------------------
-
-    protected static Collection<Object[]> toParameterList(Configuration... testConfigs) {
-        ArrayList<Object[]> configs = new ArrayList<>();
-        for (Configuration testConfig : testConfigs) {
-            Object[] c = {testConfig};
-            configs.add(c);
-        }
-        return configs;
-    }
-
-    protected static Collection<Object[]> toParameterList(List<Configuration> testConfigs) {
-        LinkedList<Object[]> configs = new LinkedList<>();
-        for (Configuration testConfig : testConfigs) {
-            Object[] c = {testConfig};
-            configs.add(c);
-        }
-        return configs;
-    }
-
-    public static void setEnv(Map<String, String> newenv) {
-        CommonTestUtils.setEnv(newenv);
-    }
-
-    private static ExecutionContext defaultExecutionContext() {
-        return ExecutionContext$.MODULE$.global();
-    }
-    // --------------------------------------------------------------------------------------------
-    //  File helper methods
-    // --------------------------------------------------------------------------------------------
-
-    protected static void deleteRecursively(File f) throws IOException {
-        if (f.isDirectory()) {
-            FileUtils.deleteDirectory(f);
-        } else if (!f.delete()) {
-            System.err.println("Failed to delete file " + f.getAbsolutePath());
-        }
-    }
-
-    public static String constructTestPath(Class<?> forClass, String folder) {
-        // we create test path that depends on class to prevent name clashes when two tests
-        // create temp files with the same name
-        String path = System.getProperty("java.io.tmpdir");
-        if (!(path.endsWith("/") || path.endsWith("\\"))) {
-            path += System.getProperty("file.separator");
-        }
-        path += (forClass.getName() + "-" + folder);
-        return path;
-    }
-
-    public static String constructTestURI(Class<?> forClass, String folder) {
-        return new File(constructTestPath(forClass, folder)).toURI().toString();
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Web utils
-    // ---------------------------------------------------------------------------------------------
-
-    public static String getFromHTTP(String url) throws Exception {
-        return getFromHTTP(url, DEFAULT_HTTP_TIMEOUT);
-    }
-
-    public static String getFromHTTP(String url, Time timeout) throws Exception {
-        final URL u = new URL(url);
-        LOG.info("Accessing URL " + url + " as URL: " + u);
-
-        final long deadline = timeout.toMilliseconds() + System.currentTimeMillis();
-
-        while (System.currentTimeMillis() <= deadline) {
-            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-            connection.setConnectTimeout(100000);
-            connection.connect();
-
-            if (Objects.equals(
-                    HttpResponseStatus.SERVICE_UNAVAILABLE,
-                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
-                // service not available --> Sleep and retry
-                LOG.debug("Web service currently not available. Retrying the request in a bit.");
-                Thread.sleep(100L);
-            } else {
-                InputStream is;
-
-                if (connection.getResponseCode() >= 400) {
-                    // error!
-                    LOG.warn(
-                            "HTTP Response code when connecting to {} was {}",
-                            url,
-                            connection.getResponseCode());
-                    is = connection.getErrorStream();
-                } else {
-                    is = connection.getInputStream();
-                }
-
-                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
-            }
-        }
-
-        throw new TimeoutException(
-                "Could not get HTTP response in time since the service is still unavailable.");
     }
 
     /**

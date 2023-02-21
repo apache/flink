@@ -30,6 +30,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * (De)serializer for checkpoint metadata format version 2. This format was introduced with Apache
  * Flink 1.3.0.
@@ -64,6 +66,13 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
         return deserializeMetadata(dis, externalPointer);
     }
 
+    @Override
+    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+            throws IOException {
+        throw new UnsupportedOperationException(
+                "Serialization in v" + getVersion() + " is no longer supported");
+    }
+
     // ------------------------------------------------------------------------
     //  version-specific serialization
     // ------------------------------------------------------------------------
@@ -71,6 +80,10 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
     @Override
     protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos)
             throws IOException {
+        checkState(
+                !operatorState.isFullyFinished(),
+                "Could not support finished Operator state in state serializers.");
+
         // Operator ID
         dos.writeLong(operatorState.getOperatorID().getLowerPart());
         dos.writeLong(operatorState.getOperatorID().getUpperPart());

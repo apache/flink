@@ -27,10 +27,10 @@ function check_logs {
     (( expected_count=parallelism * (attempts + 1) ))
 
     # Search for the log message that indicates restore problem from existing local state for the keyed backend.
-    local failed_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (2/2)\.$' $FLINK_DIR/log/* | wc -l | tr -d ' ')
+    local failed_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (2/2)\.$' $FLINK_LOG_DIR/* | wc -l | tr -d ' ')
 
     # Search for attempts to recover locally.
-    local attempt_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (1/2)\.$' $FLINK_DIR/log/* | wc -l | tr -d ' ')
+    local attempt_local_recovery=$(grep '^.*Creating keyed state backend.* from alternative (1/2)\.$' $FLINK_LOG_DIR/* | wc -l | tr -d ' ')
 
     if [ ${failed_local_recovery} -ne 0 ]
     then
@@ -60,13 +60,15 @@ function run_local_recovery_test {
     local backend=$3
     local incremental=$4
     local kill_jvm=$5
+    local delay=$6
 
     echo "Running local recovery test with configuration:
         parallelism: ${parallelism}
         max attempts: ${max_attempts}
         backend: ${backend}
         incremental checkpoints: ${incremental}
-        kill JVM: ${kill_jvm}"
+        kill JVM: ${kill_jvm}
+        delay: ${delay}ms"
 
     TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-local-recovery-and-allocation-test/target/StickyAllocationAndLocalRecoveryTestJob.jar
     # configure for HA
@@ -80,7 +82,7 @@ function run_local_recovery_test {
     # Ensure that each TM only has one operator(chain)
     set_config_key "taskmanager.numberOfTaskSlots" "1"
 
-    rm $FLINK_DIR/log/* 2> /dev/null
+    rm $FLINK_LOG_DIR/* 2> /dev/null
 
     # Start HA server
     start_local_zk
@@ -97,11 +99,11 @@ function run_local_recovery_test {
     --checkpointDir file://$TEST_DATA_DIR/local_recovery_test/checkpoints \
     --output $TEST_DATA_DIR/out/local_recovery_test/out --killJvmOnFail ${kill_jvm} --checkpointInterval 1000 \
     --maxAttempts ${max_attempts} --parallelism ${parallelism} --stateBackend ${backend} \
-    --incrementalCheckpoints ${incremental}
+    --incrementalCheckpoints ${incremental} --delay ${delay}
 
     check_logs ${parallelism} ${max_attempts}
     cleanup_after_test
 }
 
 ## MAIN
-run_test_with_timeout 600 run_local_recovery_test "$@"
+run_test_with_timeout 900 run_local_recovery_test "$@"

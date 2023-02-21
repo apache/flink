@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -46,10 +47,10 @@ public class PartitionedFile {
     public static final String INDEX_FILE_SUFFIX = ".shuffle.index";
 
     /**
-     * Size of each index entry in the index file: 8 bytes for file offset and 4 bytes for number of
-     * buffers.
+     * Size of each index entry in the index file: 8 bytes for file offset and 8 bytes for data size
+     * in bytes.
      */
-    public static final int INDEX_ENTRY_SIZE = 8 + 4;
+    public static final int INDEX_ENTRY_SIZE = 8 + 8;
 
     /** Number of data regions in this {@link PartitionedFile}. */
     private final int numRegions;
@@ -63,6 +64,15 @@ public class PartitionedFile {
     /** Path of the index file which stores all index entries in this {@link PartitionedFile}. */
     private final Path indexFilePath;
 
+    /** Size of the data file. */
+    private final long dataFileSize;
+
+    /** Size of the index file. */
+    private final long indexFileSize;
+
+    /** Total number of buffers in the data file. */
+    private final long numBuffers;
+
     /** Used to accelerate index data access. */
     @Nullable private final ByteBuffer indexEntryCache;
 
@@ -71,6 +81,9 @@ public class PartitionedFile {
             int numSubpartitions,
             Path dataFilePath,
             Path indexFilePath,
+            long dataFileSize,
+            long indexFileSize,
+            long numBuffers,
             @Nullable ByteBuffer indexEntryCache) {
         checkArgument(numRegions >= 0, "Illegal number of data regions.");
         checkArgument(numSubpartitions > 0, "Illegal number of subpartitions.");
@@ -79,6 +92,9 @@ public class PartitionedFile {
         this.numSubpartitions = numSubpartitions;
         this.dataFilePath = checkNotNull(dataFilePath);
         this.indexFilePath = checkNotNull(indexFilePath);
+        this.dataFileSize = dataFileSize;
+        this.indexFileSize = indexFileSize;
+        this.numBuffers = numBuffers;
         this.indexEntryCache = indexEntryCache;
     }
 
@@ -92,6 +108,10 @@ public class PartitionedFile {
 
     public int getNumRegions() {
         return numRegions;
+    }
+
+    public boolean isReadable() {
+        return Files.isReadable(dataFilePath) && Files.isReadable(indexFilePath);
     }
 
     /**
@@ -144,8 +164,14 @@ public class PartitionedFile {
                 + dataFilePath
                 + ", indexFilePath="
                 + indexFilePath
-                + ", indexDataCache="
-                + indexEntryCache
+                + ", dataFileSize="
+                + dataFileSize
+                + ", indexFileSize="
+                + indexFileSize
+                + ", numBuffers="
+                + numBuffers
+                + ", indexDataCached="
+                + (indexEntryCache != null)
                 + '}';
     }
 }

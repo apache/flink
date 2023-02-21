@@ -135,11 +135,16 @@ public class State<T> implements Serializable {
         return stateType == StateType.Stop;
     }
 
+    public boolean isPending() {
+        return stateType == StateType.Pending;
+    }
+
     /** Set of valid state types. */
     public enum StateType {
         Start, // the state is a starting state for the NFA
         Final, // the state is a final state for the NFA
         Normal, // the state is neither a start nor a final state
+        Pending, // the state is pending and waiting for timeout handling
         Stop
     }
 }

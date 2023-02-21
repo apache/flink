@@ -39,17 +39,22 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
-    public void handleEventFromOperator(int subtask, OperatorEvent event) {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public void subtaskReset(int subtask, long checkpointId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
         throw new UnsupportedOperationException();
     }
 

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.TestLogger;
 
@@ -56,26 +57,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
     public void testMultiThreadRestoreThreadPoolExceptionRethrow() {
         SpecifiedException expectedException =
                 new SpecifiedException("throw exception while multi thread restore.");
-        StreamStateHandle stateHandle =
-                new StreamStateHandle() {
-                    @Override
-                    public FSDataInputStream openInputStream() throws IOException {
-                        throw expectedException;
-                    }
-
-                    @Override
-                    public Optional<byte[]> asBytesIfInMemory() {
-                        return Optional.empty();
-                    }
-
-                    @Override
-                    public void discardState() {}
-
-                    @Override
-                    public long getStateSize() {
-                        return 0;
-                    }
-                };
+        StreamStateHandle stateHandle = new ThrowingStateHandle(expectedException);
 
         Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
         stateHandles.put(new StateHandleID("state1"), stateHandle);
@@ -153,6 +135,34 @@ public class RocksDBStateDownloaderTest extends TestLogger {
     private static class SpecifiedException extends IOException {
         SpecifiedException(String message) {
             super(message);
+        }
+    }
+
+    private static class ThrowingStateHandle implements TestStreamStateHandle {
+        private static final long serialVersionUID = -2102069659550694805L;
+
+        private final IOException expectedException;
+
+        private ThrowingStateHandle(IOException expectedException) {
+            this.expectedException = expectedException;
+        }
+
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
+            throw expectedException;
+        }
+
+        @Override
+        public Optional<byte[]> asBytesIfInMemory() {
+            return Optional.empty();
+        }
+
+        @Override
+        public void discardState() {}
+
+        @Override
+        public long getStateSize() {
+            return 0;
         }
     }
 }

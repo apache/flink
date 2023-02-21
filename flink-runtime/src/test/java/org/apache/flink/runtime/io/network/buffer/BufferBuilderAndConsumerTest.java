@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemorySegment;
 
 import org.junit.Test;
 
@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 
+import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooledSegment;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -45,6 +46,8 @@ public class BufferBuilderAndConsumerTest {
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
         assertEquals(3 * Integer.BYTES, bufferBuilder.appendAndCommit(toByteBuffer(1, 2, 3)));
+
+        bufferBuilder.close();
 
         Buffer buffer = bufferConsumer.build();
         assertFalse(buffer.isRecycled());
@@ -152,33 +155,37 @@ public class BufferBuilderAndConsumerTest {
 
     @Test
     public void buildEmptyBuffer() {
-        Buffer buffer = buildSingleBuffer(createBufferBuilder());
-        assertEquals(0, buffer.getSize());
-        assertContent(buffer, FreeingBufferRecycler.INSTANCE);
+        try (BufferBuilder bufferBuilder = createBufferBuilder()) {
+            Buffer buffer = buildSingleBuffer(bufferBuilder);
+            assertEquals(0, buffer.getSize());
+            assertContent(buffer, FreeingBufferRecycler.INSTANCE);
+        }
     }
 
     @Test
     public void buildingBufferMultipleTimes() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
-            bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
-            bufferBuilder.appendAndCommit(toByteBuffer(2));
+        try (BufferBuilder bufferBuilder = createBufferBuilder()) {
+            try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
+                bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
+                bufferBuilder.appendAndCommit(toByteBuffer(2));
 
-            assertContent(bufferConsumer, 0, 1, 2);
+                assertContent(bufferConsumer, 0, 1, 2);
 
-            bufferBuilder.appendAndCommit(toByteBuffer(3, 42));
-            bufferBuilder.appendAndCommit(toByteBuffer(44));
+                bufferBuilder.appendAndCommit(toByteBuffer(3, 42));
+                bufferBuilder.appendAndCommit(toByteBuffer(44));
 
-            assertContent(bufferConsumer, 3, 42, 44);
+                assertContent(bufferConsumer, 3, 42, 44);
 
-            ArrayList<Integer> originalValues = new ArrayList<>();
-            while (!bufferBuilder.isFull()) {
-                bufferBuilder.appendAndCommit(toByteBuffer(1337));
-                originalValues.add(1337);
+                ArrayList<Integer> originalValues = new ArrayList<>();
+                while (!bufferBuilder.isFull()) {
+                    bufferBuilder.appendAndCommit(toByteBuffer(1337));
+                    originalValues.add(1337);
+                }
+
+                assertContent(
+                        bufferConsumer,
+                        originalValues.stream().mapToInt(Integer::intValue).toArray());
             }
-
-            assertContent(
-                    bufferConsumer, originalValues.stream().mapToInt(Integer::intValue).toArray());
         }
     }
 
@@ -218,6 +225,85 @@ public class BufferBuilderAndConsumerTest {
         BufferBuilder bufferBuilder = createBufferBuilder();
         bufferBuilder.append(toByteBuffer(new int[bufferBuilder.getMaxCapacity()]));
         assertEquals(0, bufferBuilder.getWritableBytes());
+    }
+
+    @Test
+    public void recycleWithoutConsumer() {
+        // given: Recycler with the counter of recycle invocation.
+        CountedRecycler recycler = new CountedRecycler();
+        BufferBuilder bufferBuilder =
+                new BufferBuilder(allocateUnpooledSegment(BUFFER_SIZE), recycler);
+
+        // when: Invoke the recycle.
+        bufferBuilder.close();
+
+        // then: Recycling successfully finished.
+        assertEquals(1, recycler.recycleInvocationCounter);
+    }
+
+    @Test
+    public void recycleConsumerAndBufferBuilder() {
+        // given: Recycler with the counter of recycling invocation.
+        CountedRecycler recycler = new CountedRecycler();
+        BufferBuilder bufferBuilder =
+                new BufferBuilder(allocateUnpooledSegment(BUFFER_SIZE), recycler);
+
+        // and: One buffer consumer.
+        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+
+        // when: Invoke the recycle of BufferBuilder.
+        bufferBuilder.close();
+
+        // then: Nothing happened because BufferBuilder has already consumer.
+        assertEquals(0, recycler.recycleInvocationCounter);
+
+        // when: Close the consumer.
+        bufferConsumer.close();
+
+        // then: Recycling successfully finished.
+        assertEquals(1, recycler.recycleInvocationCounter);
+    }
+
+    @Test
+    public void trimToAvailableSize() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(BUFFER_SIZE / 2);
+        assertEquals(BUFFER_SIZE / 2, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(0);
+        assertEquals(0, bufferBuilder.getMaxCapacity());
+    }
+
+    @Test
+    public void trimToNegativeSize() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(-1);
+        assertEquals(0, bufferBuilder.getMaxCapacity());
+    }
+
+    @Test
+    public void trimToSizeLessThanWritten() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.append(toByteBuffer(1, 2, 3));
+
+        bufferBuilder.trim(4);
+        // Should be minimum possible size = 3 * int == 12.
+        assertEquals(12, bufferBuilder.getMaxCapacity());
+    }
+
+    @Test
+    public void trimToSizeGreaterThanMax() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(BUFFER_SIZE + 1);
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
     }
 
     private static void testIsFinished(int writes) {
@@ -283,7 +369,16 @@ public class BufferBuilderAndConsumerTest {
 
     private static BufferBuilder createBufferBuilder() {
         return new BufferBuilder(
-                MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE),
-                FreeingBufferRecycler.INSTANCE);
+                allocateUnpooledSegment(BUFFER_SIZE), FreeingBufferRecycler.INSTANCE);
+    }
+
+    private static class CountedRecycler implements BufferRecycler {
+        int recycleInvocationCounter;
+
+        @Override
+        public void recycle(MemorySegment memorySegment) {
+            recycleInvocationCounter++;
+            memorySegment.free();
+        }
     }
 }

@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class LegacySinkTransformationTranslator<IN>
-        extends SimpleTransformationTranslator<Object, LegacySinkTransformation<IN>> {
+        extends SimpleTransformationTranslator<IN, LegacySinkTransformation<IN>> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(
@@ -92,8 +92,12 @@ public class LegacySinkTransformationTranslator<IN>
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
                         ? transformation.getParallelism()
                         : executionConfig.getParallelism();
-        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setParallelism(
+                transformationId, parallelism, transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
+
+        streamGraph.setSupportsConcurrentExecutionAttempts(
+                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
 
         for (Integer inputId : context.getStreamNodeIds(input)) {
             streamGraph.addEdge(inputId, transformationId, 0);

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.Collection;
@@ -34,6 +35,7 @@ public class StandaloneDispatcher extends Dispatcher {
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
@@ -41,6 +43,7 @@ public class StandaloneDispatcher extends Dispatcher {
                 rpcService,
                 fencingToken,
                 recoveredJobs,
+                recoveredDirtyJobResults,
                 dispatcherBootstrapFactory,
                 dispatcherServices);
     }

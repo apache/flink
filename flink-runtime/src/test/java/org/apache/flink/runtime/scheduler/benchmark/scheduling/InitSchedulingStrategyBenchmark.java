@@ -28,8 +28,9 @@ public class InitSchedulingStrategyBenchmark extends SchedulingBenchmarkBase {
 
     public InitSchedulingStrategyBenchmark() {}
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        initSchedulingTopology(jobConfiguration);
+        super.setup(jobConfiguration);
     }
 
     public PipelinedRegionSchedulingStrategy initSchedulingStrategy() {

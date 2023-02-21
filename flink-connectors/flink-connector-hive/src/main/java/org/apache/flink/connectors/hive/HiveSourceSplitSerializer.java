@@ -79,6 +79,8 @@ public class HiveSourceSplitSerializer implements SimpleVersionedSerializer<Hive
                                 split.path(),
                                 split.offset(),
                                 split.length(),
+                                split.fileModificationTime(),
+                                split.fileSize(),
                                 split.hostnames(),
                                 split.getReaderPosition().orElse(null)));
         outputStream.writeInt(superBytes.length);
@@ -100,6 +102,8 @@ public class HiveSourceSplitSerializer implements SimpleVersionedSerializer<Hive
                     superSplit.path(),
                     superSplit.offset(),
                     superSplit.length(),
+                    superSplit.fileModificationTime(),
+                    superSplit.fileSize(),
                     superSplit.hostnames(),
                     superSplit.getReaderPosition().orElse(null),
                     hiveTablePartition);

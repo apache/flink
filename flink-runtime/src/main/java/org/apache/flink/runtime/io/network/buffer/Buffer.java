@@ -227,8 +227,18 @@ public interface Buffer {
     /** Sets the type of data this buffer represents. */
     void setDataType(DataType dataType);
 
+    /**
+     * The current reference counter. Increased by {@link #retainBuffer()} and decreased with {@link
+     * #recycleBuffer()}.
+     */
+    int refCnt();
+
     default String toDebugString(boolean includeHash) {
-        StringBuilder prettyString = new StringBuilder("Buffer{size=").append(getSize());
+        StringBuilder prettyString =
+                new StringBuilder("Buffer{cnt=")
+                        .append(refCnt())
+                        .append(", size=")
+                        .append(getSize());
         if (includeHash) {
             byte[] bytes = new byte[getSize()];
             readOnlySlice().asByteBuf().readBytes(bytes);

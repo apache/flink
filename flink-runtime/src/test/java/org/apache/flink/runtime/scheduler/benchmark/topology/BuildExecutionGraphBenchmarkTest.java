@@ -35,6 +35,7 @@ public class BuildExecutionGraphBenchmarkTest extends TestLogger {
         BuildExecutionGraphBenchmark benchmark = new BuildExecutionGraphBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.buildTopology();
+        benchmark.teardown();
     }
 
     @Test
@@ -42,5 +43,6 @@ public class BuildExecutionGraphBenchmarkTest extends TestLogger {
         BuildExecutionGraphBenchmark benchmark = new BuildExecutionGraphBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.buildTopology();
+        benchmark.teardown();
     }
 }

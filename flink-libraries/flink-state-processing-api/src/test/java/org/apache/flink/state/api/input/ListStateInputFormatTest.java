@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -64,7 +65,8 @@ public class ListStateInputFormatTest {
             OperatorStateInputSplit split =
                     new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
-            ListStateInputFormat<Integer> format = new ListStateInputFormat<>(state, descriptor);
+            ListStateInputFormat<Integer> format =
+                    new ListStateInputFormat<>(state, new Configuration(), null, descriptor);
 
             format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
             format.open(split);

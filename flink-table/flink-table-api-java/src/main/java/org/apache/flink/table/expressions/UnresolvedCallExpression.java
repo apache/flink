@@ -19,12 +19,11 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,7 +34,7 @@ import java.util.stream.Collectors;
 /**
  * Unresolved call expression for calling a function identified by a {@link FunctionDefinition}.
  *
- * <p>This is a purely API facing expression with unvalidated arguments and unknown output data
+ * <p>This is purely an API facing expression with unvalidated arguments and unknown output data
  * type.
  *
  * <p>A unresolved call contains:
@@ -43,72 +42,42 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>a {@link FunctionDefinition} that identifies the function to be called
  *   <li>an optional {@link FunctionIdentifier} that tracks the origin of a function
+ *   <li>whether the called function is temporary
  * </ul>
  */
 @PublicEvolving
 public final class UnresolvedCallExpression implements Expression {
 
-    private final @Nullable FunctionIdentifier functionIdentifier;
-
-    private final FunctionDefinition functionDefinition;
+    private final ContextResolvedFunction resolvedFunction;
 
     private final List<Expression> args;
 
-    UnresolvedCallExpression(
-            FunctionIdentifier functionIdentifier,
-            FunctionDefinition functionDefinition,
-            List<Expression> args) {
-        this.functionIdentifier =
-                Preconditions.checkNotNull(
-                        functionIdentifier, "Function identifier must not be null.");
-        this.functionDefinition =
-                Preconditions.checkNotNull(
-                        functionDefinition, "Function definition must not be null.");
-        this.args =
-                Collections.unmodifiableList(
-                        Preconditions.checkNotNull(args, "Arguments must not be null."));
-    }
-
-    UnresolvedCallExpression(FunctionDefinition functionDefinition, List<Expression> args) {
-        this.functionIdentifier = null;
-        this.functionDefinition =
-                Preconditions.checkNotNull(
-                        functionDefinition, "Function definition must not be null.");
+    UnresolvedCallExpression(ContextResolvedFunction resolvedFunction, List<Expression> args) {
+        this.resolvedFunction = resolvedFunction;
         this.args =
                 Collections.unmodifiableList(
                         Preconditions.checkNotNull(args, "Arguments must not be null."));
     }
 
     public Optional<FunctionIdentifier> getFunctionIdentifier() {
-        return Optional.ofNullable(functionIdentifier);
+        return resolvedFunction.getIdentifier();
     }
 
     public FunctionDefinition getFunctionDefinition() {
-        return functionDefinition;
+        return resolvedFunction.getDefinition();
     }
 
     public UnresolvedCallExpression replaceArgs(List<Expression> args) {
-        if (functionIdentifier == null) {
-            return new UnresolvedCallExpression(functionDefinition, args);
-        }
-        return new UnresolvedCallExpression(functionIdentifier, functionDefinition, args);
+        return new UnresolvedCallExpression(resolvedFunction, args);
     }
 
     public CallExpression resolve(List<ResolvedExpression> args, DataType dataType) {
-        if (functionIdentifier == null) {
-            return new CallExpression(functionDefinition, args, dataType);
-        }
-        return new CallExpression(functionIdentifier, functionDefinition, args, dataType);
+        return resolvedFunction.toCallExpression(args, dataType);
     }
 
     @Override
     public String asSummaryString() {
-        final String functionName;
-        if (functionIdentifier == null) {
-            functionName = functionDefinition.toString();
-        } else {
-            functionName = functionIdentifier.asSummaryString();
-        }
+        final String functionName = resolvedFunction.asSummaryString();
 
         final String argList =
                 args.stream()
@@ -137,14 +106,12 @@ public final class UnresolvedCallExpression implements Expression {
             return false;
         }
         UnresolvedCallExpression that = (UnresolvedCallExpression) o;
-        return Objects.equals(functionIdentifier, that.functionIdentifier)
-                && functionDefinition.equals(that.functionDefinition)
-                && args.equals(that.args);
+        return resolvedFunction.equals(that.resolvedFunction) && args.equals(that.args);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(functionIdentifier, functionDefinition, args);
+        return Objects.hash(resolvedFunction, args);
     }
 
     @Override

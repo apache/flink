@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
@@ -32,34 +32,33 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
 
 /** Tests for parsing and validating {@link SqlTableLike} clause. */
-public class CreateTableLikeTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class CreateTableLikeTest {
 
     @Test
-    public void testNoOptions() throws Exception {
+    void testNoOptions() throws Exception {
         SqlNode actualNode =
                 createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b")
                         .parseStmt();
 
-        assertThat(actualNode, hasLikeClause(allOf(pointsTo("b"), hasNoOptions())));
+        assertThat(actualNode)
+                .satisfies(matching(hasLikeClause(allOf(pointsTo("b"), hasNoOptions()))));
     }
 
     @Test
-    public void testCreateTableLike() throws Exception {
+    void testCreateTableLike() throws Exception {
         SqlNode actualNode =
                 createFlinkParser(
                                 "CREATE TABLE t (\n"
@@ -74,27 +73,32 @@ public class CreateTableLikeTest {
                                         + ")")
                         .parseStmt();
 
-        assertThat(
-                actualNode,
-                hasLikeClause(
-                        allOf(
-                                pointsTo("b"),
-                                hasOptions(
-                                        option(MergingStrategy.EXCLUDING, FeatureOption.PARTITIONS),
-                                        option(
-                                                MergingStrategy.EXCLUDING,
-                                                FeatureOption.CONSTRAINTS),
-                                        option(MergingStrategy.EXCLUDING, FeatureOption.WATERMARKS),
-                                        option(
-                                                MergingStrategy.OVERWRITING,
-                                                FeatureOption.GENERATED),
-                                        option(
-                                                MergingStrategy.OVERWRITING,
-                                                FeatureOption.OPTIONS)))));
+        assertThat(actualNode)
+                .satisfies(
+                        matching(
+                                hasLikeClause(
+                                        allOf(
+                                                pointsTo("b"),
+                                                hasOptions(
+                                                        option(
+                                                                MergingStrategy.EXCLUDING,
+                                                                FeatureOption.PARTITIONS),
+                                                        option(
+                                                                MergingStrategy.EXCLUDING,
+                                                                FeatureOption.CONSTRAINTS),
+                                                        option(
+                                                                MergingStrategy.EXCLUDING,
+                                                                FeatureOption.WATERMARKS),
+                                                        option(
+                                                                MergingStrategy.OVERWRITING,
+                                                                FeatureOption.GENERATED),
+                                                        option(
+                                                                MergingStrategy.OVERWRITING,
+                                                                FeatureOption.OPTIONS))))));
     }
 
     @Test
-    public void testCreateTableLikeCannotDuplicateOptions() throws Exception {
+    void testCreateTableLikeCannotDuplicateOptions() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -107,13 +111,13 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Each like option feature can be declared only once.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessage("Each like option feature can be declared only once.");
     }
 
     @Test
-    public void testInvalidOverwritingForPartition() throws Exception {
+    void testInvalidOverwritingForPartition() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -125,13 +129,13 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessage("Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.");
     }
 
     @Test
-    public void testInvalidOverwritingForAll() throws Exception {
+    void testInvalidOverwritingForAll() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -143,13 +147,13 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Illegal merging strategy 'OVERWRITING' for 'ALL' option.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessage("Illegal merging strategy 'OVERWRITING' for 'ALL' option.");
     }
 
     @Test
-    public void testInvalidOverwritingForConstraints() throws Exception {
+    void testInvalidOverwritingForConstraints() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -161,43 +165,49 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Illegal merging strategy 'OVERWRITING' for 'CONSTRAINTS' option.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining(
+                        "Illegal merging strategy 'OVERWRITING' for 'CONSTRAINTS' option.");
     }
 
     @Test
-    public void testInvalidNoOptions() throws SqlParseException {
-        thrown.expect(SqlParseException.class);
-        thrown.expectMessage(
-                "Encountered \")\" at line 4, column 9.\n"
-                        + "Was expecting one of:\n"
-                        + "    \"EXCLUDING\" ...\n"
-                        + "    \"INCLUDING\" ...\n"
-                        + "    \"OVERWRITING\" ...");
-        createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b ()").parseStmt();
+    void testInvalidNoOptions() {
+        SqlParser parser =
+                createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b ()");
+        assertThatThrownBy(parser::parseStmt)
+                .isInstanceOf(SqlParseException.class)
+                .hasMessageStartingWith(
+                        "Encountered \")\" at line 4, column 9.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"EXCLUDING\" ...\n"
+                                + "    \"INCLUDING\" ...\n"
+                                + "    \"OVERWRITING\" ...");
     }
 
     @Test
-    public void testInvalidNoSourceTable() throws SqlParseException {
-        thrown.expect(SqlParseException.class);
-        thrown.expectMessage(
-                "Encountered \"(\" at line 4, column 6.\n"
-                        + "Was expecting one of:\n"
-                        + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
-                        + "    <QUOTED_IDENTIFIER> ...\n"
-                        + "    <BACK_QUOTED_IDENTIFIER> ...\n"
-                        + "    <HYPHENATED_IDENTIFIER> ...\n"
-                        + "    <IDENTIFIER> ...\n"
-                        + "    <UNICODE_QUOTED_IDENTIFIER> ...\n");
-        createFlinkParser(
+    void testInvalidNoSourceTable() {
+        SqlParser parser =
+                createFlinkParser(
                         "CREATE TABLE t (\n"
                                 + "   a STRING\n"
                                 + ")\n"
                                 + "LIKE ("
                                 + "   INCLUDING ALL"
-                                + ")")
-                .parseStmt();
+                                + ")");
+
+        assertThatThrownBy(parser::parseStmt)
+                .isInstanceOf(SqlParseException.class)
+                .hasMessageStartingWith(
+                        "Encountered \"(\" at line 4, column 6.\n"
+                                + "Was expecting one of:\n"
+                                + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
+                                + "    <QUOTED_IDENTIFIER> ...\n"
+                                + "    <BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <HYPHENATED_IDENTIFIER> ...\n"
+                                + "    <IDENTIFIER> ...\n"
+                                + "    <UNICODE_QUOTED_IDENTIFIER> ...\n");
     }
 
     public static SqlTableLikeOption option(
@@ -242,21 +252,20 @@ public class CreateTableLikeTest {
 
             @Override
             protected SqlTableLike featureValueOf(SqlNode actual) {
-                if (!(actual instanceof SqlCreateTable)) {
+                if (!(actual instanceof SqlCreateTableLike)) {
                     throw new AssertionError("Node is not a CREATE TABLE stmt.");
                 }
-                return ((SqlCreateTable) actual).getTableLike().orElse(null);
+                return ((SqlCreateTableLike) actual).getTableLike();
             }
         };
     }
 
     private SqlParser createFlinkParser(String expr) {
         SqlParser.Config parserConfig =
-                SqlParser.configBuilder()
-                        .setParserFactory(FlinkSqlParserImpl.FACTORY)
-                        .setLex(Lex.JAVA)
-                        .setIdentifierMaxLength(256)
-                        .build();
+                SqlParser.config()
+                        .withParserFactory(FlinkSqlParserImpl.FACTORY)
+                        .withLex(Lex.JAVA)
+                        .withIdentifierMaxLength(256);
 
         return SqlParser.create(expr, parserConfig);
     }

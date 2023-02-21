@@ -26,12 +26,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
@@ -287,7 +287,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
         this.running = false;
 
         // compensate for races, where cancel is called before the driver is set
-        // not that this is an artifact of a bad design of this test base, where the setup
+        // note that this is an artifact of a bad design of this test base, where the setup
         // of the basic properties is not separated from the invocation of the execution logic
         while (this.driver == null) {
             Thread.sleep(200);

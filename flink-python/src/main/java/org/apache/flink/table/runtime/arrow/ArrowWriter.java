@@ -60,7 +60,7 @@ public final class ArrowWriter<IN> {
     /** Finishes the writing of the current row batch. */
     public void finish() {
         root.setRowCount(fieldWriters[0].getCount());
-        for (ArrowFieldWriter fieldWriter : fieldWriters) {
+        for (ArrowFieldWriter<IN> fieldWriter : fieldWriters) {
             fieldWriter.finish();
         }
     }

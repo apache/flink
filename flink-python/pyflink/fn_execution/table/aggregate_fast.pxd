@@ -31,8 +31,8 @@ cdef class RowKeySelector:
 
 cdef class AggsHandleFunctionBase:
     cdef void open(self, object state_data_view_store)
-    cdef void accumulate(self, list input_data)
-    cdef void retract(self, list input_data)
+    cdef void accumulate(self, InternalRow input_data)
+    cdef void retract(self, InternalRow input_data)
     cdef void merge(self, list accumulators)
     cdef void set_accumulators(self, list accumulators)
     cdef list get_accumulators(self)
@@ -59,7 +59,7 @@ cdef class SimpleAggsHandleFunction(SimpleAggsHandleFunctionBase):
     cdef size_t _get_value_indexes_length
 
 cdef class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase):
-    pass
+    cdef list _convert_to_row(self, data)
 
 cdef class RecordCounter:
     cdef bint record_count_is_zero(self, list acc)

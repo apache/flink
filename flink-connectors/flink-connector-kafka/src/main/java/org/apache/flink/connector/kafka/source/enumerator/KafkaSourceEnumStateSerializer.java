@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.enumerator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.source.utils.SerdeUtils;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
@@ -39,6 +40,7 @@ import java.util.Set;
  * The {@link org.apache.flink.core.io.SimpleVersionedSerializer Serializer} for the enumerator
  * state of Kafka source.
  */
+@Internal
 public class KafkaSourceEnumStateSerializer
         implements SimpleVersionedSerializer<KafkaSourceEnumState> {
 

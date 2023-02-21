@@ -1,6 +1,6 @@
 ---
 title: "CREATE Statements"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /dev/table/sql/create.html
@@ -31,6 +31,7 @@ CREATE statements are used to register a table/view/function into current or spe
 Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
+- CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
@@ -69,8 +70,7 @@ The following examples show how to run a CREATE statement in SQL CLI.
 {{< tabs "0b1b298a-b92f-4f95-8d06-49544b487b75" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -89,19 +89,18 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 // run a SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // Execute insert SQL with a registered table
 // register a TableSink
-tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)")
 // run an insert SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -109,8 +108,7 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # SQL query with a registered table
 # register a table named "Orders"
@@ -157,7 +155,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-  [ LIKE source_table [( <like_options> )] ]
+  [ LIKE source_table [( <like_options> )] | AS select_query ]
    
 <physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
@@ -515,6 +513,48 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 
 **NOTE** The `source_table` can be a compound identifier. Thus, it can be a table from a different catalog or database: e.g. `my_catalog.my_db.MyTable` specifies table `MyTable` from catalog `MyCatalog` and database `my_db`; `my_db.MyTable` specifies table `MyTable` from current catalog and database `my_db`.
 
+### `AS select_statement`
+
+Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. CTAS is the simplest and fastest way to create and insert data into a table with a single command.
+
+There are two parts in CTAS, the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. The CREATE part takes the resulting schema from the SELECT part and creates the target table. Similar to `CREATE TABLE`, CTAS requires the required options of the target table must be specified in WITH clause.
+
+The creating table operation of CTAS depends on the target Catalog. For example, Hive Catalog creates the physical table in Hive automatically. But the in-memory catalog registers the table metadata in the client's memory where the SQL is executed.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table
+WITH (
+    'connector' = 'kafka',
+    ...
+)
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the table and insert the data with the following statement:
+```sql
+CREATE TABLE my_ctas_table (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+ 
+INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+**Note** CTAS has these restrictions:
+* Does not support creating a temporary table yet.
+* Does not support specifying explicit columns yet.
+* Does not support specifying explicit watermark yet.
+* Does not support creating partitioned table yet.
+* Does not support specifying primary key constraints yet.
+
+**Note** The target table created by CTAS is non-atomic currently, the table won't be dropped automatically if occur errors while inserting data into the table.
+
 {{< top >}}
 
 ## CREATE CATALOG
@@ -579,7 +619,8 @@ If the view already exists, nothing happens.
 ```sql
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
-  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON] 
+  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
 ```
 
 Create a catalog function that has catalog and database namespaces with the identifier and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
@@ -588,7 +629,7 @@ If the language tag is JAVA/SCALA, the identifier is the full classpath of the U
 
 If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) for more details.
 
-If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({{< ref "docs/dev/python/table/dependency_management" >}}#python-dependency-in-javascala-program).
+If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-javascala-program).
 
 **TEMPORARY**
 
@@ -605,3 +646,9 @@ If the function already exists, nothing happens.
 **LANGUAGE JAVA\|SCALA\|PYTHON**
 
 Language tag to instruct Flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA. 
+
+**USING**
+
+Specifies the list of jar resources that contain the implementation of the function along with its dependencies. The jar should be located in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}) such as hdfs/s3/oss which Flink current supports. 
+
+<span class="label label-danger">Attention</span> Currently only JAVA, SCALA language support USING clause.

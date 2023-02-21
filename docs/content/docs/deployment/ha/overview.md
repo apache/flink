@@ -79,3 +79,19 @@ The HA data will be kept until the respective job either succeeds, is cancelled 
 Once this happens, all the HA data, including the metadata stored in the HA services, will be deleted.  
 
 {{< top >}}
+
+## JobResultStore
+
+The JobResultStore is used to archive the final result of a job that reached a globally-terminal 
+state (i.e. finished, cancelled or failed). The data is stored on a file system (see 
+[job-result-store.storage-path]({{< ref "docs/deployment/config#job-result-store-storage-path" >}})).
+Entries in this store are marked as dirty as long as the corresponding job wasn't cleaned up properly 
+(artifacts are found in the job's subfolder in [high-availability.storageDir]({{< ref "docs/deployment/config#high-availability-storagedir" >}})).
+
+Dirty entries are subject to cleanup, i.e. the corresponding job is either cleaned up by Flink at 
+the moment or will be picked up for cleanup as part of a recovery. The entries will be deleted as 
+soon as the cleanup succeeds. Check the JobResultStore configuration parameters under 
+[HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) for further 
+details on how to adapt the behavior.
+
+{{< top >}}

@@ -40,6 +40,15 @@ public abstract class RegisteredStateMetaInfoBase {
     @Nonnull
     public abstract StateMetaInfoSnapshot snapshot();
 
+    /**
+     * create a new metadata object with Lazy serializer provider using existing one as a snapshot.
+     * Sometimes metadata was just created or updated, but its StateSerializerProvider will not
+     * allow further updates. So this method could replace it with a new one that contains a fresh
+     * LazilyRegisteredStateSerializerProvider.
+     */
+    @Nonnull
+    public abstract RegisteredStateMetaInfoBase withSerializerUpgradesAllowed();
+
     public static RegisteredStateMetaInfoBase fromMetaInfoSnapshot(
             @Nonnull StateMetaInfoSnapshot snapshot) {
 

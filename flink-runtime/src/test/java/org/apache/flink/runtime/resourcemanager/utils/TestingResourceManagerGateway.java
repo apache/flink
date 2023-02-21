@@ -24,12 +24,12 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
@@ -41,29 +41,30 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
-import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -78,12 +79,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private final String address;
 
     private final String hostname;
-
-    private final AtomicReference<CompletableFuture<Acknowledge>> slotFutureReference;
-
-    private volatile Consumer<AllocationID> cancelSlotConsumer;
-
-    private volatile Consumer<SlotRequest> requestSlotConsumer;
 
     private volatile QuadFunction<
                     JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>>
@@ -106,8 +101,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>>
             sendSlotReportFunction;
 
-    private volatile BiConsumer<ResourceID, TaskExecutorHeartbeatPayload>
-            taskExecutorHeartbeatConsumer;
+    private volatile BiFunction<ResourceID, TaskExecutorHeartbeatPayload, CompletableFuture<Void>>
+            taskExecutorHeartbeatFunction;
 
     private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
 
@@ -127,6 +122,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             declareRequiredResourcesFunction =
                     (ignoredA, ignoredB) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    private volatile Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction;
+
+    private volatile Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     public TestingResourceManagerGateway() {
         this(
@@ -145,25 +145,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.ownResourceId = Preconditions.checkNotNull(resourceId);
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
-        this.slotFutureReference = new AtomicReference<>();
-        this.cancelSlotConsumer = null;
-        this.requestSlotConsumer = null;
     }
 
     public ResourceID getOwnResourceId() {
         return ownResourceId;
-    }
-
-    public void setRequestSlotFuture(CompletableFuture<Acknowledge> slotFuture) {
-        this.slotFutureReference.set(slotFuture);
-    }
-
-    public void setCancelSlotConsumer(Consumer<AllocationID> cancelSlotConsumer) {
-        this.cancelSlotConsumer = cancelSlotConsumer;
-    }
-
-    public void setRequestSlotConsumer(Consumer<SlotRequest> slotRequestConsumer) {
-        this.requestSlotConsumer = slotRequestConsumer;
     }
 
     public void setRegisterJobManagerFunction(
@@ -231,9 +216,15 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.sendSlotReportFunction = sendSlotReportFunction;
     }
 
-    public void setTaskExecutorHeartbeatConsumer(
-            BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer) {
-        this.taskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+    public void setTaskExecutorHeartbeatFunction(
+            BiFunction<ResourceID, TaskExecutorHeartbeatPayload, CompletableFuture<Void>>
+                    taskExecutorHeartbeatFunction) {
+        this.taskExecutorHeartbeatFunction = taskExecutorHeartbeatFunction;
+    }
+
+    public void setJobMasterHeartbeatFunction(
+            Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction) {
+        this.jobMasterHeartbeatFunction = jobMasterHeartbeatFunction;
     }
 
     public void setNotifySlotAvailableConsumer(
@@ -252,8 +243,14 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.declareRequiredResourcesFunction = declareRequiredResourcesFunction;
     }
 
+    public void setNotifyNewBlockedNodesFunction(
+            Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                    notifyNewBlockedNodesFunction) {
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+    }
+
     @Override
-    public CompletableFuture<RegistrationResponse> registerJobManager(
+    public CompletableFuture<RegistrationResponse> registerJobMaster(
             JobMasterId jobMasterId,
             ResourceID jobMasterResourceId,
             String jobMasterAddress,
@@ -279,36 +276,9 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> requestSlot(
-            JobMasterId jobMasterId, SlotRequest slotRequest, Time timeout) {
-        Consumer<SlotRequest> currentRequestSlotConsumer = requestSlotConsumer;
-
-        if (currentRequestSlotConsumer != null) {
-            currentRequestSlotConsumer.accept(slotRequest);
-        }
-
-        CompletableFuture<Acknowledge> slotFuture = slotFutureReference.getAndSet(null);
-
-        if (slotFuture != null) {
-            return slotFuture;
-        } else {
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        }
-    }
-
-    @Override
     public CompletableFuture<Acknowledge> declareRequiredResources(
             JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
         return declareRequiredResourcesFunction.apply(jobMasterId, resourceRequirements);
-    }
-
-    @Override
-    public void cancelSlotRequest(AllocationID allocationID) {
-        Consumer<AllocationID> currentCancelSlotConsumer = cancelSlotConsumer;
-
-        if (currentCancelSlotConsumer != null) {
-            currentCancelSlotConsumer.accept(allocationID);
-        }
     }
 
     @Override
@@ -341,7 +311,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     new TaskExecutorRegistrationSuccess(
                             new InstanceID(),
                             ownResourceId,
-                            new ClusterInformation("localhost", 1234)));
+                            new ClusterInformation("localhost", 1234),
+                            null));
         }
     }
 
@@ -369,18 +340,29 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public void heartbeatFromTaskManager(
+    public CompletableFuture<Void> heartbeatFromTaskManager(
             ResourceID heartbeatOrigin, TaskExecutorHeartbeatPayload heartbeatPayload) {
-        final BiConsumer<ResourceID, TaskExecutorHeartbeatPayload>
-                currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+        final BiFunction<ResourceID, TaskExecutorHeartbeatPayload, CompletableFuture<Void>>
+                currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatFunction;
 
         if (currentTaskExecutorHeartbeatConsumer != null) {
-            currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload);
+            return currentTaskExecutorHeartbeatConsumer.apply(heartbeatOrigin, heartbeatPayload);
+        } else {
+            return FutureUtils.completedVoidFuture();
         }
     }
 
     @Override
-    public void heartbeatFromJobManager(ResourceID heartbeatOrigin) {}
+    public CompletableFuture<Void> heartbeatFromJobManager(ResourceID heartbeatOrigin) {
+        final Function<ResourceID, CompletableFuture<Void>> currentJobMasterHeartbeatFunction =
+                jobMasterHeartbeatFunction;
+
+        if (currentJobMasterHeartbeatFunction != null) {
+            return currentJobMasterHeartbeatFunction.apply(heartbeatOrigin);
+        } else {
+            return FutureUtils.completedVoidFuture();
+        }
+    }
 
     @Override
     public void disconnectTaskManager(ResourceID resourceID, Exception cause) {
@@ -424,7 +406,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     @Override
     public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
         return CompletableFuture.completedFuture(
-                new ResourceOverview(1, 1, 1, ResourceProfile.ZERO, ResourceProfile.ZERO));
+                new ResourceOverview(1, 1, 1, 0, 0, ResourceProfile.ZERO, ResourceProfile.ZERO));
     }
 
     @Override
@@ -524,5 +506,22 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     public CompletableFuture<Void> releaseClusterPartitions(
             IntermediateDataSetID dataSetToRelease) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> reportClusterPartitions(
+            ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionsShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
+        return notifyNewBlockedNodesFunction.apply(newNodes);
     }
 }

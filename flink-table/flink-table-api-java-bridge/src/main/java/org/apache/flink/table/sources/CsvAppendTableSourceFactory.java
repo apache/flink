@@ -18,20 +18,25 @@
 
 package org.apache.flink.table.sources;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.types.Row;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
-
-/** Factory for creating configured instances of {@link CsvTableSource} in a stream environment. */
-@PublicEvolving
+/**
+ * Factory for creating configured instances of {@link CsvTableSource} in a stream environment.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSource}. It is kept only to
+ *     support tests for the legacy connector stack.
+ */
+@Internal
 public class CsvAppendTableSourceFactory extends CsvTableSourceFactoryBase
         implements StreamTableSourceFactory<Row> {
+
+    private static final String UPDATE_MODE = "update-mode";
+    private static final String UPDATE_MODE_VALUE_APPEND = "append";
 
     @Override
     public Map<String, String> requiredContext() {

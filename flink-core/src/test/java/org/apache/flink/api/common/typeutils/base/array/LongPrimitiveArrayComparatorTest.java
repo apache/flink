@@ -19,16 +19,16 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class LongPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<long[]> {
+class LongPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<long[]> {
     public LongPrimitiveArrayComparatorTest() {
         super(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO);
     }
 
     @Override
     protected void deepEquals(String message, long[] should, long[] is) {
-        Assert.assertArrayEquals(message, should, is);
+        assertThat(is).as(message).containsExactly(is);
     }
 
     @Override

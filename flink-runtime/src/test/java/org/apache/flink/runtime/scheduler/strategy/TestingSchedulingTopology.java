@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
+import org.apache.flink.runtime.executiongraph.failover.flip1.SchedulingPipelinedRegionComputeUtil;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A simple scheduling topology for testing purposes. */
@@ -79,6 +81,9 @@ public class TestingSchedulingTopology implements SchedulingTopology {
     }
 
     @Override
+    public void registerSchedulingTopologyListener(SchedulingTopologyListener listener) {}
+
+    @Override
     public Iterable<SchedulingPipelinedRegion> getAllPipelinedRegions() {
         return new HashSet<>(getVertexRegions().values());
     }
@@ -99,7 +104,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         vertexRegions = new HashMap<>();
 
         final Set<Set<SchedulingExecutionVertex>> rawRegions =
-                PipelinedRegionComputeUtil.computePipelinedRegions(getVertices());
+                SchedulingPipelinedRegionComputeUtil.computePipelinedRegions(
+                        getVertices(), this::getVertex, this::getResultPartition);
 
         for (Set<SchedulingExecutionVertex> rawRegion : rawRegions) {
             final Set<TestingSchedulingExecutionVertex> vertices =
@@ -184,16 +190,12 @@ public class TestingSchedulingTopology implements SchedulingTopology {
             TestingSchedulingExecutionVertex consumer,
             ResultPartitionType resultPartitionType) {
 
-        final TestingSchedulingResultPartition resultPartition =
-                new TestingSchedulingResultPartition.Builder()
-                        .withResultPartitionType(resultPartitionType)
-                        .build();
-
-        resultPartition.addConsumer(consumer);
-        resultPartition.setProducer(producer);
-
-        producer.addProducedPartition(resultPartition);
-        consumer.addConsumedPartition(resultPartition);
+        connectConsumersToProducers(
+                Collections.singletonList(consumer),
+                Collections.singletonList(producer),
+                new IntermediateDataSetID(),
+                resultPartitionType,
+                ResultPartitionState.ALL_DATA_PRODUCED);
 
         updateVertexResultPartitions(producer);
         updateVertexResultPartitions(consumer);
@@ -217,6 +219,142 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         return new ProducerConsumerAllToAllConnectionBuilder(producers, consumers);
     }
 
+    private static List<TestingSchedulingResultPartition> connectConsumersToProducers(
+            final List<TestingSchedulingExecutionVertex> consumers,
+            final List<TestingSchedulingExecutionVertex> producers,
+            final IntermediateDataSetID intermediateDataSetId,
+            final ResultPartitionType resultPartitionType,
+            final ResultPartitionState resultPartitionState) {
+
+        final List<TestingSchedulingResultPartition> resultPartitions = new ArrayList<>();
+
+        final ConnectionResult connectionResult =
+                connectConsumersToProducersById(
+                        consumers.stream()
+                                .map(SchedulingExecutionVertex::getId)
+                                .collect(Collectors.toList()),
+                        producers.stream()
+                                .map(SchedulingExecutionVertex::getId)
+                                .collect(Collectors.toList()),
+                        intermediateDataSetId,
+                        resultPartitionType);
+
+        final ConsumedPartitionGroup consumedPartitionGroup =
+                connectionResult.getConsumedPartitionGroup();
+        final ConsumerVertexGroup consumerVertexGroup = connectionResult.getConsumerVertexGroup();
+
+        final TestingSchedulingResultPartition.Builder resultPartitionBuilder =
+                new TestingSchedulingResultPartition.Builder()
+                        .withIntermediateDataSetID(intermediateDataSetId)
+                        .withResultPartitionType(resultPartitionType)
+                        .withResultPartitionState(resultPartitionState);
+
+        for (int i = 0; i < producers.size(); i++) {
+            final TestingSchedulingExecutionVertex producer = producers.get(i);
+            final IntermediateResultPartitionID partitionId =
+                    connectionResult.getResultPartitions().get(i);
+            final TestingSchedulingResultPartition resultPartition =
+                    resultPartitionBuilder
+                            .withPartitionNum(partitionId.getPartitionNumber())
+                            .build();
+
+            producer.addProducedPartition(resultPartition);
+
+            resultPartition.setProducer(producer);
+            resultPartitions.add(resultPartition);
+            resultPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
+            resultPartition.addConsumerGroup(consumerVertexGroup);
+
+            if (resultPartition.getState() == ResultPartitionState.ALL_DATA_PRODUCED) {
+                consumedPartitionGroup.partitionFinished();
+            }
+        }
+
+        final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                consumedPartitionById =
+                        resultPartitions.stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                TestingSchedulingResultPartition::getId,
+                                                Function.identity()));
+        for (TestingSchedulingExecutionVertex consumer : consumers) {
+            consumer.addConsumedPartitionGroup(consumedPartitionGroup, consumedPartitionById);
+        }
+
+        return resultPartitions;
+    }
+
+    public static ConnectionResult connectConsumersToProducersById(
+            final List<ExecutionVertexID> consumers,
+            final List<ExecutionVertexID> producers,
+            final IntermediateDataSetID intermediateDataSetId,
+            final ResultPartitionType resultPartitionType) {
+
+        final List<IntermediateResultPartitionID> resultPartitions = new ArrayList<>();
+        for (ExecutionVertexID producer : producers) {
+            final IntermediateResultPartitionID resultPartition =
+                    new IntermediateResultPartitionID(
+                            intermediateDataSetId, producer.getSubtaskIndex());
+            resultPartitions.add(resultPartition);
+        }
+
+        final ConsumedPartitionGroup consumedPartitionGroup =
+                createConsumedPartitionGroup(
+                        consumers.size(), resultPartitions, resultPartitionType);
+        final ConsumerVertexGroup consumerVertexGroup =
+                createConsumerVertexGroup(consumers, resultPartitionType);
+
+        consumedPartitionGroup.setConsumerVertexGroup(consumerVertexGroup);
+        consumerVertexGroup.setConsumedPartitionGroup(consumedPartitionGroup);
+
+        return new ConnectionResult(resultPartitions, consumedPartitionGroup, consumerVertexGroup);
+    }
+
+    private static ConsumedPartitionGroup createConsumedPartitionGroup(
+            final int numConsumers,
+            final List<IntermediateResultPartitionID> consumedPartitions,
+            final ResultPartitionType resultPartitionType) {
+        return ConsumedPartitionGroup.fromMultiplePartitions(
+                numConsumers, consumedPartitions, resultPartitionType);
+    }
+
+    private static ConsumerVertexGroup createConsumerVertexGroup(
+            final List<ExecutionVertexID> consumers,
+            final ResultPartitionType resultPartitionType) {
+        return ConsumerVertexGroup.fromMultipleVertices(consumers, resultPartitionType);
+    }
+
+    /**
+     * The result of connecting a set of consumers to their producers, including the created result
+     * partitions and the consumption groups.
+     */
+    public static class ConnectionResult {
+        private final List<IntermediateResultPartitionID> resultPartitions;
+        private final ConsumedPartitionGroup consumedPartitionGroup;
+        private final ConsumerVertexGroup consumerVertexGroup;
+
+        public ConnectionResult(
+                final List<IntermediateResultPartitionID> resultPartitions,
+                final ConsumedPartitionGroup consumedPartitionGroup,
+                final ConsumerVertexGroup consumerVertexGroup) {
+            this.resultPartitions = checkNotNull(resultPartitions);
+            this.consumedPartitionGroup = checkNotNull(consumedPartitionGroup);
+            this.consumerVertexGroup = checkNotNull(consumerVertexGroup);
+        }
+
+        public List<IntermediateResultPartitionID> getResultPartitions() {
+            return resultPartitions;
+        }
+
+        public ConsumedPartitionGroup getConsumedPartitionGroup() {
+            return consumedPartitionGroup;
+        }
+
+        public ConsumerVertexGroup getConsumerVertexGroup() {
+            return consumerVertexGroup;
+        }
+    }
+
     /** Builder for {@link TestingSchedulingResultPartition}. */
     public abstract class ProducerConsumerConnectionBuilder {
 
@@ -226,7 +364,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
         protected ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
 
-        protected ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
+        protected ResultPartitionState resultPartitionState =
+                ResultPartitionState.ALL_DATA_PRODUCED;
 
         protected ProducerConsumerConnectionBuilder(
                 final List<TestingSchedulingExecutionVertex> producers,
@@ -258,11 +397,6 @@ public class TestingSchedulingTopology implements SchedulingTopology {
             return resultPartitions;
         }
 
-        TestingSchedulingResultPartition.Builder initTestingSchedulingResultPartitionBuilder() {
-            return new TestingSchedulingResultPartition.Builder()
-                    .withResultPartitionType(resultPartitionType);
-        }
-
         protected abstract List<TestingSchedulingResultPartition> connect();
     }
 
@@ -285,24 +419,15 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         protected List<TestingSchedulingResultPartition> connect() {
             final List<TestingSchedulingResultPartition> resultPartitions = new ArrayList<>();
             final IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
-
             for (int idx = 0; idx < producers.size(); idx++) {
-                final TestingSchedulingExecutionVertex producer = producers.get(idx);
-                final TestingSchedulingExecutionVertex consumer = consumers.get(idx);
-
-                final TestingSchedulingResultPartition resultPartition =
-                        initTestingSchedulingResultPartitionBuilder()
-                                .withIntermediateDataSetID(intermediateDataSetId)
-                                .withResultPartitionState(resultPartitionState)
-                                .withPartitionNum(idx)
-                                .build();
-                resultPartition.setProducer(producer);
-                producer.addProducedPartition(resultPartition);
-                consumer.addConsumedPartition(resultPartition);
-                resultPartition.addConsumer(consumer);
-                resultPartitions.add(resultPartition);
+                resultPartitions.addAll(
+                        connectConsumersToProducers(
+                                Collections.singletonList(consumers.get(idx)),
+                                Collections.singletonList(producers.get(idx)),
+                                intermediateDataSetId,
+                                resultPartitionType,
+                                resultPartitionState));
             }
-
             return resultPartitions;
         }
     }
@@ -322,69 +447,29 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
         @Override
         protected List<TestingSchedulingResultPartition> connect() {
-            final List<TestingSchedulingResultPartition> resultPartitions = new ArrayList<>();
-            final IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
-
-            ConsumerVertexGroup consumerVertexGroup =
-                    ConsumerVertexGroup.fromMultipleVertices(
-                            consumers.stream()
-                                    .map(TestingSchedulingExecutionVertex::getId)
-                                    .collect(Collectors.toList()));
-
-            Map<ExecutionVertexID, TestingSchedulingExecutionVertex> consumerVertexById =
-                    consumers.stream()
-                            .collect(
-                                    Collectors.toMap(
-                                            TestingSchedulingExecutionVertex::getId,
-                                            Function.identity()));
-
-            TestingSchedulingResultPartition.Builder resultPartitionBuilder =
-                    initTestingSchedulingResultPartitionBuilder()
-                            .withIntermediateDataSetID(intermediateDataSetId)
-                            .withResultPartitionState(resultPartitionState);
-
-            int partitionNum = 0;
-
-            for (TestingSchedulingExecutionVertex producer : producers) {
-
-                final TestingSchedulingResultPartition resultPartition =
-                        resultPartitionBuilder.withPartitionNum(partitionNum++).build();
-                resultPartition.setProducer(producer);
-                producer.addProducedPartition(resultPartition);
-
-                resultPartition.addConsumerGroup(consumerVertexGroup, consumerVertexById);
-                resultPartitions.add(resultPartition);
-            }
-
-            ConsumedPartitionGroup consumedPartitionGroup =
-                    ConsumedPartitionGroup.fromMultiplePartitions(
-                            resultPartitions.stream()
-                                    .map(TestingSchedulingResultPartition::getId)
-                                    .collect(Collectors.toList()));
-            Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
-                    consumedPartitionById =
-                            resultPartitions.stream()
-                                    .collect(
-                                            Collectors.toMap(
-                                                    TestingSchedulingResultPartition::getId,
-                                                    Function.identity()));
-            for (TestingSchedulingExecutionVertex consumer : consumers) {
-                consumer.addConsumedPartitionGroup(consumedPartitionGroup, consumedPartitionById);
-            }
-
-            return resultPartitions;
+            return connectConsumersToProducers(
+                    consumers,
+                    producers,
+                    new IntermediateDataSetID(),
+                    resultPartitionType,
+                    resultPartitionState);
         }
     }
 
     /** Builder for {@link TestingSchedulingExecutionVertex}. */
     public class SchedulingExecutionVerticesBuilder {
 
-        private final JobVertexID jobVertexId = new JobVertexID();
+        private JobVertexID jobVertexId = new JobVertexID();
 
         private int parallelism = 1;
 
         public SchedulingExecutionVerticesBuilder withParallelism(final int parallelism) {
             this.parallelism = parallelism;
+            return this;
+        }
+
+        public SchedulingExecutionVerticesBuilder withJobVertexID(final JobVertexID jobVertexId) {
+            this.jobVertexId = jobVertexId;
             return this;
         }
 

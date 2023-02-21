@@ -27,7 +27,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -47,11 +47,11 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.EvictingBoundedList;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -69,6 +69,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
@@ -85,18 +86,18 @@ public class JobExceptionsHandlerTest extends TestLogger {
     private final JobExceptionsHandler testInstance =
             new JobExceptionsHandler(
                     CompletableFuture::new,
-                    TestingUtils.TIMEOUT(),
+                    TestingUtils.TIMEOUT,
                     Collections.emptyMap(),
                     JobExceptionsHeaders.getInstance(),
-                    new DefaultExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
-                    TestingUtils.defaultExecutor());
+                    new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
+                    Executors.directExecutor());
 
     @Test
     public void testNoExceptions() throws HandlerRequestException {
         final ExecutionGraphInfo executionGraphInfo =
                 new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
 
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -114,9 +115,8 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final long rootCauseTimestamp = System.currentTimeMillis();
 
         final ExecutionGraphInfo executionGraphInfo =
-                createExecutionGraphInfo(
-                        RootExceptionHistoryEntry.fromGlobalFailure(rootCause, rootCauseTimestamp));
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+                createExecutionGraphInfo(fromGlobalFailure(rootCause, rootCauseTimestamp));
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -132,20 +132,40 @@ public class JobExceptionsHandlerTest extends TestLogger {
     }
 
     @Test
+    public void testOnlyExceptionHistory() throws HandlerRequestException {
+        final RuntimeException rootThrowable = new RuntimeException("exception #0");
+        final long rootTimestamp = System.currentTimeMillis();
+        final RootExceptionHistoryEntry rootEntry = fromGlobalFailure(rootThrowable, rootTimestamp);
+        final ExecutionGraphInfo executionGraphInfo =
+                createExecutionGraphInfoWithoutFailureCause(rootEntry);
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(executionGraphInfo.getJobId(), 10);
+        final JobExceptionsInfoWithHistory response =
+                testInstance.handleRequest(request, executionGraphInfo);
+
+        assertThat(response.getRootException(), is(nullValue()));
+        assertThat(response.getRootTimestamp(), is(nullValue()));
+
+        assertThat(
+                response.getExceptionHistory().getEntries(),
+                contains(historyContainsGlobalFailure(rootThrowable, rootTimestamp)));
+    }
+
+    @Test
     public void testWithExceptionHistory() throws HandlerRequestException {
         final RootExceptionHistoryEntry rootCause =
-                RootExceptionHistoryEntry.fromGlobalFailure(
-                        new RuntimeException("exception #0"), System.currentTimeMillis());
+                fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
         final RootExceptionHistoryEntry otherFailure =
-                RootExceptionHistoryEntry.fromLocalFailure(
+                new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
                         "task name",
-                        new LocalTaskManagerLocation());
+                        new LocalTaskManagerLocation(),
+                        Collections.emptySet());
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(rootCause, otherFailure);
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -160,26 +180,57 @@ public class JobExceptionsHandlerTest extends TestLogger {
                                 otherFailure.getTimestamp(),
                                 otherFailure.getFailingTaskName(),
                                 JobExceptionsHandler.toString(
+                                        otherFailure.getTaskManagerLocation()),
+                                JobExceptionsHandler.toTaskManagerId(
                                         otherFailure.getTaskManagerLocation()))));
         assertFalse(response.getExceptionHistory().isTruncated());
+    }
+
+    @Test
+    public void testWithLocalExceptionHistoryEntryNotHavingATaskManagerInformationAvailable()
+            throws HandlerRequestException {
+        final RootExceptionHistoryEntry failure =
+                new RootExceptionHistoryEntry(
+                        new RuntimeException("exception #1"),
+                        System.currentTimeMillis(),
+                        "task name",
+                        null,
+                        Collections.emptySet());
+
+        final ExecutionGraphInfo executionGraphInfo = createExecutionGraphInfo(failure);
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(executionGraphInfo.getJobId(), 10);
+        final JobExceptionsInfoWithHistory response =
+                testInstance.handleRequest(request, executionGraphInfo);
+
+        assertThat(
+                response.getExceptionHistory().getEntries(),
+                contains(
+                        historyContainsJobExceptionInfo(
+                                failure.getException(),
+                                failure.getTimestamp(),
+                                failure.getFailingTaskName(),
+                                JobExceptionsHandler.toString(failure.getTaskManagerLocation()),
+                                JobExceptionsHandler.toTaskManagerId(
+                                        failure.getTaskManagerLocation()))));
     }
 
     @Test
     public void testWithExceptionHistoryWithTruncationThroughParameter()
             throws HandlerRequestException {
         final RootExceptionHistoryEntry rootCause =
-                RootExceptionHistoryEntry.fromGlobalFailure(
-                        new RuntimeException("exception #0"), System.currentTimeMillis());
+                fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
         final RootExceptionHistoryEntry otherFailure =
-                RootExceptionHistoryEntry.fromLocalFailure(
+                new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
                         "task name",
-                        new LocalTaskManagerLocation());
+                        new LocalTaskManagerLocation(),
+                        Collections.emptySet());
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(rootCause, otherFailure);
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+        final HandlerRequest<EmptyRequestBody> request =
                 createRequest(executionGraphInfo.getJobId(), 1);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
@@ -245,7 +296,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
             int maxNumExceptions,
             int numExpectedException)
             throws HandlerRequestException {
-        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest =
+        final HandlerRequest<EmptyRequestBody> handlerRequest =
                 createRequest(graph.getJobId(), numExpectedException);
         final JobExceptionsInfo jobExceptionsInfo =
                 jobExceptionsHandler.handleRequest(handlerRequest, graph);
@@ -264,11 +315,12 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final long failureTimestamp = System.currentTimeMillis();
         final List<RootExceptionHistoryEntry> exceptionHistory =
                 Collections.singletonList(
-                        RootExceptionHistoryEntry.fromLocalFailure(
+                        new RootExceptionHistoryEntry(
                                 failureCause,
                                 failureTimestamp,
                                 "test task #1",
-                                new LocalTaskManagerLocation()));
+                                new LocalTaskManagerLocation(),
+                                Collections.emptySet()));
         return new ExecutionGraphInfo(
                 new ArchivedExecutionGraphBuilder()
                         .setFailureCause(new ErrorInfo(failureCause, failureTimestamp))
@@ -282,6 +334,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final StringifiedAccumulatorResult[] emptyAccumulators =
                 new StringifiedAccumulatorResult[0];
         final long[] timestamps = new long[ExecutionState.values().length];
+        final long[] endTimestamps = new long[ExecutionState.values().length];
         final ExecutionState expectedState = ExecutionState.RUNNING;
 
         final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
@@ -297,17 +350,16 @@ public class JobExceptionsHandlerTest extends TestLogger {
                             new ArchivedExecution(
                                     new StringifiedAccumulatorResult[0],
                                     null,
-                                    new ExecutionAttemptID(),
-                                    attempt,
+                                    createExecutionAttemptId(jobVertexID, subtaskIndex, attempt),
                                     expectedState,
                                     new ErrorInfo(
                                             new RuntimeException("error"),
                                             System.currentTimeMillis()),
                                     assignedResourceLocation,
                                     allocationID,
-                                    subtaskIndex,
-                                    timestamps),
-                            new EvictingBoundedList<>(0))
+                                    timestamps,
+                                    endTimestamps),
+                            new ExecutionHistory(0))
                 },
                 jobVertexID,
                 jobVertexID.toString(),
@@ -321,12 +373,22 @@ public class JobExceptionsHandlerTest extends TestLogger {
 
     private static ExecutionGraphInfo createExecutionGraphInfo(
             RootExceptionHistoryEntry... historyEntries) {
+        return createExecutionGraphInfo(true, historyEntries);
+    }
+
+    private static ExecutionGraphInfo createExecutionGraphInfoWithoutFailureCause(
+            RootExceptionHistoryEntry... historyEntries) {
+        return createExecutionGraphInfo(false, historyEntries);
+    }
+
+    private static ExecutionGraphInfo createExecutionGraphInfo(
+            boolean setFailureCause, RootExceptionHistoryEntry... historyEntries) {
         final ArchivedExecutionGraphBuilder executionGraphBuilder =
                 new ArchivedExecutionGraphBuilder();
         final List<RootExceptionHistoryEntry> historyEntryCollection = new ArrayList<>();
 
         for (int i = 0; i < historyEntries.length; i++) {
-            if (i == 0) {
+            if (i == 0 && setFailureCause) {
                 // first entry is root cause
                 executionGraphBuilder.setFailureCause(
                         new ErrorInfo(
@@ -343,18 +405,23 @@ public class JobExceptionsHandlerTest extends TestLogger {
         return new ExecutionGraphInfo(executionGraphBuilder.build(), historyEntryCollection);
     }
 
-    private static HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> createRequest(
-            JobID jobId, int size) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createRequest(JobID jobId, int size)
+            throws HandlerRequestException {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
         final Map<String, List<String>> queryParameters = new HashMap<>();
         queryParameters.put(UpperLimitExceptionParameter.KEY, Collections.singletonList("" + size));
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
                 new JobExceptionsMessageParameters(),
                 pathParameters,
-                queryParameters);
+                queryParameters,
+                Collections.emptyList());
+    }
+
+    private static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {
+        return new RootExceptionHistoryEntry(cause, timestamp, null, null, Collections.emptySet());
     }
 
     // -------- factory methods for instantiating new Matchers --------
@@ -365,13 +432,15 @@ public class JobExceptionsHandlerTest extends TestLogger {
             long expectedFailureTimestamp,
             String expectedTaskNameWithSubtaskId,
             String expectedTaskManagerLocation,
+            String expectedTaskManagerId,
             Matcher<ExceptionInfo>... concurrentExceptionMatchers) {
         return new RootExceptionInfoMatcher(
                 matchesFailure(
                         expectedFailureCause,
                         expectedFailureTimestamp,
                         expectedTaskNameWithSubtaskId,
-                        expectedTaskManagerLocation),
+                        expectedTaskManagerLocation,
+                        expectedTaskManagerId),
                 concurrentExceptionMatchers);
     }
 
@@ -381,7 +450,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
             long expectedFailureTimestamp,
             Matcher<ExceptionInfo>... concurrentExceptionMatchers) {
         return new RootExceptionInfoMatcher(
-                matchesFailure(expectedFailureCause, expectedFailureTimestamp, null, null),
+                matchesFailure(expectedFailureCause, expectedFailureTimestamp, null, null, null),
                 concurrentExceptionMatchers);
     }
 
@@ -389,12 +458,14 @@ public class JobExceptionsHandlerTest extends TestLogger {
             Throwable expectedFailureCause,
             long expectedFailureTimestamp,
             String expectedTaskNameWithSubtaskId,
-            String expectedTaskManagerLocation) {
+            String expectedTaskManagerLocation,
+            String expectedTaskManagerId) {
         return new ExceptionInfoMatcher(
                 expectedFailureCause,
                 expectedFailureTimestamp,
                 expectedTaskNameWithSubtaskId,
-                expectedTaskManagerLocation);
+                expectedTaskManagerLocation,
+                expectedTaskManagerId);
     }
 
     // -------- Matcher implementations used in this test class --------
@@ -450,16 +521,19 @@ public class JobExceptionsHandlerTest extends TestLogger {
         private final long expectedTimestamp;
         private final String expectedTaskName;
         private final String expectedLocation;
+        private final String expectedTaskManagerId;
 
         private ExceptionInfoMatcher(
                 Throwable expectedException,
                 long expectedTimestamp,
                 String expectedTaskName,
-                String expectedLocation) {
+                String expectedLocation,
+                String expectedTaskManagerId) {
             this.expectedException = deserializeSerializedThrowable(expectedException);
             this.expectedTimestamp = expectedTimestamp;
             this.expectedTaskName = expectedTaskName;
             this.expectedLocation = expectedLocation;
+            this.expectedTaskManagerId = expectedTaskManagerId;
         }
 
         @Override
@@ -474,7 +548,9 @@ public class JobExceptionsHandlerTest extends TestLogger {
                     .appendText(", taskName=")
                     .appendText(expectedTaskName)
                     .appendText(", location=")
-                    .appendText(expectedLocation);
+                    .appendText(expectedLocation)
+                    .appendText(", taskManagerId=")
+                    .appendText(expectedTaskManagerId);
         }
 
         private String getExpectedExceptionName() {
@@ -516,7 +592,13 @@ public class JobExceptionsHandlerTest extends TestLogger {
                             description,
                             ExceptionInfo::getLocation,
                             expectedLocation,
-                            "location");
+                            "location")
+                    && matches(
+                            info,
+                            description,
+                            ExceptionInfo::getTaskManagerId,
+                            expectedTaskManagerId,
+                            "taskManagerId");
         }
 
         private <R> boolean matches(

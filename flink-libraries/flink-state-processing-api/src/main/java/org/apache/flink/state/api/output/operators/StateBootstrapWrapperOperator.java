@@ -20,7 +20,7 @@ package org.apache.flink.state.api.output.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 /** Wraps an existing operator so it can be bootstrapped. */
@@ -94,18 +95,23 @@ public final class StateBootstrapWrapperOperator<
     }
 
     @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        operator.processWatermarkStatus(watermarkStatus);
+    }
+
+    @Override
     public void open() throws Exception {
         operator.open();
     }
 
     @Override
-    public void close() throws Exception {
-        operator.close();
+    public void finish() throws Exception {
+        operator.finish();
     }
 
     @Override
-    public void dispose() throws Exception {
-        operator.dispose();
+    public void close() throws Exception {
+        operator.close();
     }
 
     @Override
@@ -150,7 +156,7 @@ public final class StateBootstrapWrapperOperator<
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return operator.getMetricGroup();
     }
 
@@ -190,7 +196,7 @@ public final class StateBootstrapWrapperOperator<
                         operator.getContainingTask()
                                 .getConfiguration()
                                 .isUnalignedCheckpointsEnabled(),
-                        operator.getContainingTask().getCheckpointStorage(),
+                        operator.getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 
         output.collect(new StreamRecord<>(state));
@@ -200,6 +206,9 @@ public final class StateBootstrapWrapperOperator<
 
         @Override
         public void emitWatermark(Watermark mark) {}
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {}

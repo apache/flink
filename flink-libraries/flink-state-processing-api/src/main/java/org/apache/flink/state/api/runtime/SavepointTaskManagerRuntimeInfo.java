@@ -19,19 +19,20 @@
 package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
+
+import java.io.File;
 
 /**
  * A minimally implemented {@link TaskManagerRuntimeInfo} that provides the functionality required
  * to run the {@code state-processor-api}.
  */
 class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
-    private final IOManager ioManager;
+    private final File tmpWorkingDirectory;
 
-    SavepointTaskManagerRuntimeInfo(IOManager ioManager) {
-        this.ioManager = Preconditions.checkNotNull(ioManager);
+    SavepointTaskManagerRuntimeInfo(File tmpWorkingDirectory) {
+        this.tmpWorkingDirectory = Preconditions.checkNotNull(tmpWorkingDirectory);
     }
 
     @Override
@@ -41,7 +42,8 @@ class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 
     @Override
     public String[] getTmpDirectories() {
-        return ioManager.getSpillingDirectoriesPaths();
+        throw new UnsupportedOperationException(
+                "Tmp directories are not available with the SavepointTaskManagerRuntimeInfo");
     }
 
     @Override
@@ -53,5 +55,10 @@ class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
     public String getTaskManagerExternalAddress() {
         throw new UnsupportedOperationException(
                 "Getting external address of task manager is not supported in SavepointTaskManagerRuntimeInfo");
+    }
+
+    @Override
+    public File getTmpWorkingDirectory() {
+        return tmpWorkingDirectory;
     }
 }

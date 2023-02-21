@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.common import Duration
 from pyflink.datastream import (CheckpointConfig, CheckpointingMode, ExternalizedCheckpointCleanup,
                                 StreamExecutionEnvironment)
 from pyflink.java_gateway import get_gateway
@@ -108,11 +109,20 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
         self.assertFalse(self.checkpoint_config.is_fail_on_checkpointing_errors())
 
+    def test_get_set_tolerable_checkpoint_failure_number(self):
+
+        self.assertEqual(self.checkpoint_config.get_tolerable_checkpoint_failure_number(), 0)
+
+        self.checkpoint_config.set_tolerable_checkpoint_failure_number(2)
+
+        self.assertEqual(self.checkpoint_config.get_tolerable_checkpoint_failure_number(), 2)
+
     def test_get_set_externalized_checkpoints_cleanup(self):
 
         self.assertFalse(self.checkpoint_config.is_externalized_checkpoints_enabled())
 
-        self.assertIsNone(self.checkpoint_config.get_externalized_checkpoint_cleanup())
+        self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
+                         ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS)
 
         self.checkpoint_config.enable_externalized_checkpoints(
             ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
@@ -128,26 +138,34 @@ class CheckpointConfigTests(PyFlinkTestCase):
         self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
                          ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION)
 
-    def test_get_set_prefer_checkpoint_for_recovery(self):
-
-        self.assertFalse(self.checkpoint_config.is_prefer_checkpoint_for_recovery())
-
-        self.checkpoint_config.set_prefer_checkpoint_for_recovery(True)
-
-        self.assertTrue(self.checkpoint_config.is_prefer_checkpoint_for_recovery())
-
     def test_is_unaligned_checkpointing_enabled(self):
 
         self.assertFalse(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+        self.assertFalse(self.checkpoint_config.is_force_unaligned_checkpoints())
+        self.assertEqual(self.checkpoint_config.get_alignment_timeout(), Duration.of_millis(0))
 
         self.checkpoint_config.enable_unaligned_checkpoints()
-
         self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())
 
         self.checkpoint_config.disable_unaligned_checkpoints()
-
         self.assertFalse(self.checkpoint_config.is_unaligned_checkpoints_enabled())
 
         self.checkpoint_config.enable_unaligned_checkpoints(True)
-
         self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.set_force_unaligned_checkpoints(True)
+        self.assertTrue(self.checkpoint_config.is_force_unaligned_checkpoints())
+
+        self.checkpoint_config.set_alignment_timeout(Duration.of_minutes(1))
+        self.assertEqual(self.checkpoint_config.get_alignment_timeout(), Duration.of_minutes(1))
+
+    def test_get_set_checkpoint_storage(self):
+
+        self.assertIsNone(self.checkpoint_config.get_checkpoint_storage(),
+                          "Default checkpoint storage should be None")
+
+        self.checkpoint_config.set_checkpoint_storage_dir("file://var/checkpoints/")
+
+        self.assertEqual(self.checkpoint_config.get_checkpoint_storage().get_checkpoint_path(),
+                         "file://var/checkpoints",
+                         "Wrong checkpoints directory")

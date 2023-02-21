@@ -28,11 +28,14 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunctionWithException;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -41,18 +44,21 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link TaskSlotTable}. */
 public class TaskSlotTableImplTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     private static final Time SLOT_TIMEOUT = Time.seconds(100L);
 
     /** Tests that one can can mark allocated slots as active. */
@@ -391,7 +397,7 @@ public class TaskSlotTableImplTest extends TestLogger {
     @Test
     public void testAddTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+        final ExecutionAttemptID executionAttemptId = createExecutionAttemptId();
         final AllocationID allocationId = new AllocationID();
         TaskSlotPayload task =
                 new TestingTaskSlotPayload(jobId, executionAttemptId, allocationId).terminate();
@@ -408,7 +414,7 @@ public class TaskSlotTableImplTest extends TestLogger {
     @Test(timeout = 10000)
     public void testRemoveTaskCallsFreeSlotAction() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+        final ExecutionAttemptID executionAttemptId = createExecutionAttemptId();
         final AllocationID allocationId = new AllocationID();
         CompletableFuture<AllocationID> freeSlotFuture = new CompletableFuture<>();
         SlotActions slotActions =
@@ -487,15 +493,15 @@ public class TaskSlotTableImplTest extends TestLogger {
                             SlotNotFoundException>
                     taskSlotTableAction)
             throws Exception {
-        final CompletableFuture<AllocationID> timeoutFuture = new CompletableFuture<>();
-        final TestingSlotActions testingSlotActions =
-                new TestingSlotActionsBuilder()
-                        .setTimeoutSlotConsumer(
-                                (allocationID, uuid) -> timeoutFuture.complete(allocationID))
-                        .build();
+        final CompletableFuture<AllocationID> timeoutCancellationFuture = new CompletableFuture<>();
+
+        final TimerService<AllocationID> testingTimerService =
+                new TestingTimerServiceBuilder<AllocationID>()
+                        .setUnregisterTimeoutConsumer(timeoutCancellationFuture::complete)
+                        .createTestingTimerService();
 
         try (final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
-                createTaskSlotTableAndStart(1, testingSlotActions)) {
+                createTaskSlotTableAndStart(1, testingTimerService)) {
             final AllocationID allocationId = new AllocationID();
             final long timeout = 50L;
             final JobID jobId = new JobID();
@@ -504,11 +510,7 @@ public class TaskSlotTableImplTest extends TestLogger {
                     is(true));
             assertThat(taskSlotTableAction.apply(taskSlotTable, jobId, allocationId), is(true));
 
-            try {
-                timeoutFuture.get(timeout, TimeUnit.MILLISECONDS);
-                fail("The slot timeout should have been deactivated.");
-            } catch (TimeoutException expected) {
-            }
+            timeoutCancellationFuture.get();
         }
     }
 
@@ -544,8 +546,19 @@ public class TaskSlotTableImplTest extends TestLogger {
     private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(
             final int numberOfSlots, final SlotActions slotActions) {
         final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
-                TaskSlotUtils.createTaskSlotTable(numberOfSlots);
+                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor());
         taskSlotTable.start(slotActions, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        return taskSlotTable;
+    }
+
+    private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(
+            final int numberOfSlots, TimerService<AllocationID> timerService) {
+        final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(
+                        numberOfSlots, timerService, EXECUTOR_RESOURCE.getExecutor());
+        taskSlotTable.start(
+                new TestingSlotActionsBuilder().build(),
+                ComponentMainThreadExecutorServiceAdapter.forMainThread());
         return taskSlotTable;
     }
 }

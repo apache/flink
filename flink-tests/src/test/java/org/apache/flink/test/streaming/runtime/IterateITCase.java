@@ -72,7 +72,7 @@ public class IterateITCase extends AbstractTestBase {
 
     private static boolean[] iterated;
 
-    private int parallelism = miniClusterResource.getNumberSlots();
+    private int parallelism = MINI_CLUSTER_RESOURCE.getNumberSlots();
 
     @Test(expected = UnsupportedOperationException.class)
     public void testIncorrectParallelism() throws Exception {
@@ -535,11 +535,7 @@ public class IterateITCase extends AbstractTestBase {
 
                 head.addSink(new TestSink()).setParallelism(1);
 
-                assertEquals(
-                        1,
-                        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
-                                .getIterationSourceSinkPairs()
-                                .size());
+                assertEquals(1, env.getStreamGraph(false).getIterationSourceSinkPairs().size());
 
                 env.execute();
 

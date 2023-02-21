@@ -1,6 +1,6 @@
 ---
 title: "DROP Statements"
-weight: 4
+weight: 5
 type: docs
 aliases:
   - /dev/table/sql/drop.html
@@ -26,10 +26,11 @@ under the License.
 
 # DROP Statements
 
-DROP statements are used to remove a registered table/view/function from current or specified [Catalog]({{< ref "docs/dev/table/catalogs" >}}).
+DROP statements are used to remove a catalog with the given catalog name or to remove a registered table/view/function from the current or specified [Catalog]({{< ref "docs/dev/table/catalogs" >}}).
 
 Flink SQL supports the following DROP statements for now:
 
+- DROP CATALOG
 - DROP TABLE
 - DROP DATABASE
 - DROP VIEW
@@ -69,8 +70,7 @@ The following examples show how to run a DROP statement in SQL CLI.
 {{< tabs "18a7ab59-662f-45e4-9c5e-a6d96f69388b" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // register a table named "Orders"
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -89,8 +89,7 @@ String[] tables = tableEnv.listTables();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // register a table named "Orders"
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -109,8 +108,7 @@ val tables = tableEnv.listTables()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # a string array: ["Orders"]
 tables = table_env.list_tables()
@@ -140,6 +138,18 @@ Flink SQL> SHOW TABLES;
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+## DROP CATALOG
+
+```sql
+DROP CATALOG [IF EXISTS] catalog_name
+```
+
+Drop a catalog with the given catalog name.
+
+**IF EXISTS**
+
+If the catalog does not exist, nothing happens.
 
 ## DROP TABLE
 

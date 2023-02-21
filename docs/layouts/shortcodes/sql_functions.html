@@ -41,7 +41,7 @@ under the License.
                     {{ .table | default "N/A" }}
                 </td>
                 <td>
-                    {{ .description }}
+                    {{ .description | $.Page.RenderString }}
                 </td>
             </tr>
         {{ end }}

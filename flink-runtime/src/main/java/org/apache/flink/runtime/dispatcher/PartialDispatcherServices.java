@@ -57,6 +57,8 @@ public class PartialDispatcherServices {
 
     @Nullable private final String metricQueryServiceAddress;
 
+    @Nonnull private final DispatcherOperationCaches operationCaches;
+
     @Nonnull private final Executor ioExecutor;
 
     public PartialDispatcherServices(
@@ -70,7 +72,8 @@ public class PartialDispatcherServices {
             @Nonnull FatalErrorHandler fatalErrorHandler,
             @Nonnull HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
-            @Nonnull Executor ioExecutor) {
+            @Nonnull Executor ioExecutor,
+            @Nonnull DispatcherOperationCaches operationCaches) {
         this.configuration = configuration;
         this.highAvailabilityServices = highAvailabilityServices;
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -82,6 +85,7 @@ public class PartialDispatcherServices {
         this.historyServerArchivist = historyServerArchivist;
         this.metricQueryServiceAddress = metricQueryServiceAddress;
         this.ioExecutor = ioExecutor;
+        this.operationCaches = operationCaches;
     }
 
     @Nonnull
@@ -132,6 +136,11 @@ public class PartialDispatcherServices {
     @Nullable
     public String getMetricQueryServiceAddress() {
         return metricQueryServiceAddress;
+    }
+
+    @Nonnull
+    public DispatcherOperationCaches getOperationCaches() {
+        return operationCaches;
     }
 
     @Nonnull

@@ -116,6 +116,12 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
     }
 
     @Nonnull
+    @Override
+    public RegisteredBroadcastStateBackendMetaInfo<K, V> withSerializerUpgradesAllowed() {
+        return new RegisteredBroadcastStateBackendMetaInfo<>(snapshot());
+    }
+
+    @Nonnull
     public TypeSerializer<K> getKeySerializer() {
         return keySerializerProvider.currentSchemaSerializer();
     }

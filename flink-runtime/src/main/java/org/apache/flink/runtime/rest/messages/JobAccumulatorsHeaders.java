@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobAccumulatorsHandler}. */
 public class JobAccumulatorsHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
 
     private static final JobAccumulatorsHeaders INSTANCE = new JobAccumulatorsHeaders();

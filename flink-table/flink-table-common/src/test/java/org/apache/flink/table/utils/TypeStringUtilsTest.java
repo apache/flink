@@ -24,15 +24,16 @@ import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TypeStringUtils}. */
-public class TypeStringUtilsTest {
+class TypeStringUtilsTest {
 
     @Test
-    public void testPrimitiveTypes() {
+    void testPrimitiveTypes() {
         testReadAndWrite("VARCHAR", Types.STRING);
         testReadAndWrite("BOOLEAN", Types.BOOLEAN);
         testReadAndWrite("TINYINT", Types.BYTE);
@@ -66,7 +67,7 @@ public class TypeStringUtilsTest {
     }
 
     @Test
-    public void testWriteComplexTypes() {
+    void testWriteComplexTypes() {
         testReadAndWrite("ROW<f0 DECIMAL, f1 TINYINT>", Types.ROW(Types.BIG_DEC, Types.BYTE));
 
         testReadAndWrite(
@@ -96,20 +97,25 @@ public class TypeStringUtilsTest {
                 Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(TestPojo.class)));
 
         // test escaping
-        assertEquals(
-                Types.ROW_NAMED(
-                        new String[] {"he         \nllo", "world"}, Types.BIG_DEC, Types.BYTE),
-                TypeStringUtils.readTypeInfo("ROW<`he         \nllo` DECIMAL, world TINYINT>"));
+        assertThat(TypeStringUtils.readTypeInfo("ROW<`he         \nllo` DECIMAL, world TINYINT>"))
+                .isEqualTo(
+                        Types.ROW_NAMED(
+                                new String[] {"he         \nllo", "world"},
+                                Types.BIG_DEC,
+                                Types.BYTE));
 
-        assertEquals(
-                Types.ROW_NAMED(new String[] {"he`llo", "world"}, Types.BIG_DEC, Types.BYTE),
-                TypeStringUtils.readTypeInfo("ROW<`he``llo` DECIMAL, world TINYINT>"));
+        assertThat(TypeStringUtils.readTypeInfo("ROW<`he``llo` DECIMAL, world TINYINT>"))
+                .isEqualTo(
+                        Types.ROW_NAMED(
+                                new String[] {"he`llo", "world"}, Types.BIG_DEC, Types.BYTE));
 
         // test backward compatibility with brackets ()
-        assertEquals(
-                Types.ROW_NAMED(
-                        new String[] {"he         \nllo", "world"}, Types.BIG_DEC, Types.BYTE),
-                TypeStringUtils.readTypeInfo("ROW(`he         \nllo` DECIMAL, world TINYINT)"));
+        assertThat(TypeStringUtils.readTypeInfo("ROW(`he         \nllo` DECIMAL, world TINYINT)"))
+                .isEqualTo(
+                        Types.ROW_NAMED(
+                                new String[] {"he         \nllo", "world"},
+                                Types.BIG_DEC,
+                                Types.BYTE));
 
         // test nesting
         testReadAndWrite(
@@ -132,32 +138,36 @@ public class TypeStringUtilsTest {
                         Types.LOCAL_DATE));
     }
 
-    @Test(expected = ValidationException.class)
-    public void testSyntaxError1() {
-        TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"); // additional <
+    @Test
+    void testSyntaxError1() {
+        assertThatThrownBy(() -> TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"))
+                .isInstanceOf(ValidationException.class); // additional <
     }
 
-    @Test(expected = ValidationException.class)
-    public void testSyntaxError2() {
-        TypeStringUtils.readTypeInfo("ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
+    @Test
+    void testSyntaxError2() {
+        assertThatThrownBy(
+                        () -> TypeStringUtils.readTypeInfo("ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"))
+                .isInstanceOf(ValidationException.class); // duplicate type
     }
 
-    @Test(expected = ValidationException.class)
-    public void testSyntaxError3() {
-        TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"); // invalid type
+    @Test
+    void testSyntaxError3() {
+        assertThatThrownBy(() -> TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"))
+                .isInstanceOf(ValidationException.class); // invalid type
     }
 
     private void testReadAndWrite(String expected, TypeInformation<?> type) {
         // test read from string
-        assertEquals(type, TypeStringUtils.readTypeInfo(expected));
+        assertThat(TypeStringUtils.readTypeInfo(expected)).isEqualTo(type);
 
         // test write to string
-        assertEquals(expected, TypeStringUtils.writeTypeInfo(type));
+        assertThat(TypeStringUtils.writeTypeInfo(type)).isEqualTo(expected);
     }
 
     private void testWrite(String expected, TypeInformation<?> type) {
         // test write to string
-        assertEquals(expected, TypeStringUtils.writeTypeInfo(type));
+        assertThat(TypeStringUtils.writeTypeInfo(type)).isEqualTo(expected);
     }
 
     // --------------------------------------------------------------------------------------------

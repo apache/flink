@@ -42,17 +42,17 @@ under the License.
 
 ## 步骤 1：下载
 
-为了运行Flink，只需提前安装好 __Java 8 或者 Java 11__。你可以通过以下命令来检查 Java 是否已经安装正确。
+为了运行Flink，只需提前安装好 __Java 11__。你可以通过以下命令来检查 Java 是否已经安装正确。
 
 ```bash
 java -version
 ```
 
-[下载](https://flink.apache.org/downloads.html) release {{ site.version }} 并解压。
+[下载]({{< downloads >}}) release {{< version >}} 并解压。
 
 ```bash
-$ tar -xzf flink-{{ site.version }}-bin-scala{{< scala_version >}}.tgz
-$ cd flink-{{ site.version }}-bin-scala{{< scala_version >}}
+$ tar -xzf flink-{{< version >}}-bin-scala{{< scala_version >}}.tgz
+$ cd flink-{{< version >}}-bin-scala{{< scala_version >}}
 ```
 
 <a name="step-2-start-a-cluster"></a>
@@ -77,12 +77,16 @@ Flink 的 Releases 附带了许多的示例作业。你可以任意选择一个�
 ```bash
 $ ./bin/flink run examples/streaming/WordCount.jar
 $ tail log/flink-*-taskexecutor-*.out
-  (to,1)
-  (be,1)
-  (or,1)
-  (not,1)
-  (to,2)
-  (be,2)
+  (nymph,1)
+  (in,3)
+  (thy,1)
+  (orisons,1)
+  (be,4)
+  (all,2)
+  (my,1)
+  (sins,1)
+  (remember,1)
+  (d,4)
 ```
 
 另外，你可以通过 Flink 的 [Web UI](http://localhost:8081) 来监视集群的状态和正在运行的作业。

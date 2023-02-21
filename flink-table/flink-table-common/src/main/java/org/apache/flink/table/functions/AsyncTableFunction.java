@@ -73,7 +73,8 @@ import java.util.concurrent.CompletableFuture;
  * CompletableFuture#completeExceptionally(Throwable)}.
  *
  * <p>For storing a user-defined function in a catalog, the class must have a default constructor
- * and must be instantiable during runtime.
+ * and must be instantiable during runtime. Anonymous functions in Table API can only be persisted
+ * if the function is not stateful (i.e. containing only transient and static fields).
  *
  * <p>The following example shows how to perform an asynchronous request to Apache HBase:
  *
@@ -86,8 +87,8 @@ import java.util.concurrent.CompletableFuture;
  *     Get get = new Get(Bytes.toBytes(rowkey));
  *     ListenableFuture<Result> future = hbase.asyncGet(get);
  *     Futures.addCallback(future, new FutureCallback<Result>() {
- *       public void onSuccess(Result result) {
- *         List<Row> ret = process(result);
+ *       public void onSuccess(Result hbaseResult) {
+ *         List<Row> ret = process(hbaseResult);
  *         result.complete(ret);
  *       }
  *       public void onFailure(Throwable thrown) {

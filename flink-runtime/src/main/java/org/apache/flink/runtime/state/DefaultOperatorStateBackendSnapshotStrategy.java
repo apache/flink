@@ -117,7 +117,7 @@ class DefaultOperatorStateBackendSnapshotStrategy
         }
 
         return (snapshotCloseableRegistry) -> {
-            CheckpointStreamFactory.CheckpointStateOutputStream localOut =
+            CheckpointStateOutputStream localOut =
                     streamFactory.createCheckpointStateOutputStream(
                             CheckpointedStateScope.EXCLUSIVE);
             snapshotCloseableRegistry.registerCloseable(localOut);

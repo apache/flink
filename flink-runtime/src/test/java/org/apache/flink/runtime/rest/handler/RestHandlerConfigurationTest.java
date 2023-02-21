@@ -39,6 +39,16 @@ public class RestHandlerConfigurationTest extends TestLogger {
         testWebSubmitFeatureFlag(false);
     }
 
+    @Test
+    public void testWebCancelFeatureFlagEnabled() {
+        testWebCancelFeatureFlag(true);
+    }
+
+    @Test
+    public void testWebCancelFeatureFlagDisabled() {
+        testWebCancelFeatureFlag(false);
+    }
+
     private static void testWebSubmitFeatureFlag(boolean webSubmitEnabled) {
         final Configuration config = new Configuration();
         config.setBoolean(WebOptions.SUBMIT_ENABLE, webSubmitEnabled);
@@ -46,5 +56,14 @@ public class RestHandlerConfigurationTest extends TestLogger {
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
         assertEquals(webSubmitEnabled, restHandlerConfiguration.isWebSubmitEnabled());
+    }
+
+    private static void testWebCancelFeatureFlag(boolean webCancelEnabled) {
+        final Configuration config = new Configuration();
+        config.setBoolean(WebOptions.CANCEL_ENABLE, webCancelEnabled);
+
+        RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(config);
+        assertEquals(webCancelEnabled, restHandlerConfiguration.isWebCancelEnabled());
     }
 }

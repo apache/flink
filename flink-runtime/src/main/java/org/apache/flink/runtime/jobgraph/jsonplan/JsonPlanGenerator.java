@@ -18,24 +18,58 @@
 
 package org.apache.flink.runtime.jobgraph.jsonplan;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.io.StringWriter;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+@Internal
 public class JsonPlanGenerator {
 
     private static final String NOT_SET = "";
     private static final String EMPTY = "{}";
+    private static final VertexParallelism EMPTY_VERTEX_PARALLELISM =
+            new VertexParallelism() {
+                @Override
+                public Map<JobVertexID, Integer> getMaxParallelismForVertices() {
+                    return Collections.emptyMap();
+                }
+
+                @Override
+                public int getParallelism(JobVertexID jobVertexId) {
+                    return -1;
+                }
+            };
 
     public static String generatePlan(JobGraph jg) {
+        return generatePlan(
+                jg.getJobID(),
+                jg.getName(),
+                jg.getJobType(),
+                jg.getVertices(),
+                EMPTY_VERTEX_PARALLELISM);
+    }
+
+    public static String generatePlan(
+            JobID jobID,
+            String jobName,
+            JobType jobType,
+            Iterable<JobVertex> vertices,
+            VertexParallelism vertexParallelism) {
         try {
             final StringWriter writer = new StringWriter(1024);
 
@@ -44,12 +78,13 @@ public class JsonPlanGenerator {
 
             // start of everything
             gen.writeStartObject();
-            gen.writeStringField("jid", jg.getJobID().toString());
-            gen.writeStringField("name", jg.getName());
+            gen.writeStringField("jid", jobID.toString());
+            gen.writeStringField("name", jobName);
+            gen.writeStringField("type", jobType.name());
             gen.writeArrayFieldStart("nodes");
 
             // info per vertex
-            for (JobVertex vertex : jg.getVertices()) {
+            for (JobVertex vertex : vertices) {
 
                 String operator =
                         vertex.getOperatorName() != null ? vertex.getOperatorName() : NOT_SET;
@@ -80,8 +115,12 @@ public class JsonPlanGenerator {
                 gen.writeStartObject();
 
                 // write the core properties
-                gen.writeStringField("id", vertex.getID().toString());
-                gen.writeNumberField("parallelism", vertex.getParallelism());
+                JobVertexID vertexID = vertex.getID();
+                int storeParallelism = vertexParallelism.getParallelism(vertexID);
+                gen.writeStringField("id", vertexID.toString());
+                gen.writeNumberField(
+                        "parallelism",
+                        storeParallelism != -1 ? storeParallelism : vertex.getParallelism());
                 gen.writeStringField("operator", operator);
                 gen.writeStringField("operator_strategy", operatorDescr);
                 gen.writeStringField("description", description);

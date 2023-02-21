@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobgraph.topology;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
@@ -29,9 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -39,7 +38,6 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTest.assertVertexInfoEquals;
-import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTest.assertVerticesEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -53,8 +51,6 @@ public class DefaultLogicalResultTest extends TestLogger {
     private Map<JobVertexID, JobVertex> vertexMap;
 
     private JobVertex producerVertex;
-
-    private Set<JobVertex> consumerVertices;
 
     @Before
     public void setUp() throws Exception {
@@ -75,27 +71,19 @@ public class DefaultLogicalResultTest extends TestLogger {
         assertVertexInfoEquals(producerVertex, logicalResult.getProducer());
     }
 
-    @Test
-    public void testGetConsumers() {
-        assertVerticesEquals(consumerVertices, logicalResult.getConsumers());
-    }
-
     private void buildVerticesAndResults() {
         vertexMap = new HashMap<>();
-        consumerVertices = new HashSet<>();
 
         final int parallelism = 3;
         producerVertex = createNoOpVertex(parallelism);
         vertexMap.put(producerVertex.getID(), producerVertex);
 
-        result = producerVertex.createAndAddResultDataSet(PIPELINED);
+        final JobVertex consumerVertex = createNoOpVertex(parallelism);
+        final JobEdge edge =
+                consumerVertex.connectNewDataSetAsInput(producerVertex, ALL_TO_ALL, PIPELINED);
+        vertexMap.put(consumerVertex.getID(), consumerVertex);
 
-        for (int i = 0; i < 5; i++) {
-            final JobVertex consumerVertex = createNoOpVertex(parallelism);
-            consumerVertex.connectDataSetAsInput(result, ALL_TO_ALL);
-            consumerVertices.add(consumerVertex);
-            vertexMap.put(consumerVertex.getID(), consumerVertex);
-        }
+        result = edge.getSource();
     }
 
     static void assertResultsEquals(
