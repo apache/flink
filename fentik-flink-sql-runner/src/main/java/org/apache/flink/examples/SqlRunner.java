@@ -15,14 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.examples;
+package com.fentik;
+
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.DataInputDeserializer;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.util.FileUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -30,9 +32,6 @@ import java.util.List;
 
 /** Main class for executing SQL scripts. */
 public class SqlRunner {
-
-    private static final Logger LOG = LoggerFactory.getLogger(SqlRunner.class);
-
     private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
     private static final String LINE_DELIMITER = "\n";
 
@@ -40,15 +39,20 @@ public class SqlRunner {
 
     public static void main(String[] args) throws Exception {
         if (args.length != 1) {
-            throw new Exception("Exactly one argument is expected.");
+            throw new Exception("Expected SQL query file or s3 path.");
         }
-        var script = args[0];
+        var path = new Path(args[0]);
+        var fs = path.getFileSystem();
+        var in = fs.open(path);
+        byte[] buffer = new byte[1024*1024];
+        in.read(buffer);
+
+        var script = new String(buffer);
         var statements = parseStatements(script);
 
         var tableEnv = TableEnvironment.create(new Configuration());
 
         for (String statement : statements) {
-            LOG.info("Executing:\n{}", statement);
             tableEnv.executeSql(statement);
         }
     }
