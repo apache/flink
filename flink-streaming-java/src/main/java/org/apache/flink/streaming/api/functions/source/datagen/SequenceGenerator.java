@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.util.Preconditions;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayDeque;
@@ -84,10 +85,22 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             final int taskIdx = runtimeContext.getIndexOfThisSubtask();
             final long congruence = start + taskIdx;
 
-            long totalNoOfElements = Math.abs(end - start + 1);
-            final int baseSize = safeDivide(totalNoOfElements, stepSize);
-            final int toCollect =
-                    (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
+
+            Preconditions.checkArgument(
+                    start < end, "The start value cannot be greater than the end value.");
+
+            // After preventing setting to Long.MAX_VALUE, the length of
+            // Long type will be exceeded after +1
+            final BigInteger totalNoOfElements =
+                    BigInteger.valueOf(end)
+                            .subtract(BigInteger.valueOf(start))
+                            .add(BigInteger.valueOf(1));
+
+            final BigInteger baseSize = totalNoOfElements.divide(BigInteger.valueOf(stepSize));
+            final long toCollect =
+                    totalNoOfElements.remainder(BigInteger.valueOf(stepSize)).longValue() > taskIdx
+                            ? baseSize.add(BigInteger.valueOf(1)).longValue()
+                            : baseSize.longValue();
 
             for (long collected = 0; collected < toCollect; collected++) {
                 this.valuesToEmit.add(collected * stepSize + congruence);
@@ -110,13 +123,6 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     @Override
     public boolean hasNext() {
         return !this.valuesToEmit.isEmpty();
-    }
-
-    private static int safeDivide(long left, long right) {
-        Preconditions.checkArgument(right > 0);
-        Preconditions.checkArgument(left >= 0);
-        Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-        return (int) (left / right);
     }
 
     @VisibleForTesting

@@ -299,11 +299,11 @@ class DataGenTableSourceFactoryTest {
         descriptor.putString(
                 DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
                 DataGenConnectorOptionsUtil.SEQUENCE);
-        int setupStart = 0;
+        final int setupStart = 10;
         descriptor.putLong(
                 DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START,
                 setupStart);
-        int setupEnd = 100;
+        final int setupEnd = 100;
         descriptor.putLong(
                 DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END,
                 setupEnd);
