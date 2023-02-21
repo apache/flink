@@ -749,4 +749,10 @@ The reason for this exception is most likely a transaction timeout on the broker
 after a transaction timeout and all of its pending transactions are aborted (each `transactional.id` is
 mapped to a single `producerId`; this is described in more detail in the following [blog post](https://www.confluent.io/blog/simplified-robust-exactly-one-semantics-in-kafka-2-5/)).
 
+### RecordTooLargeException
+
+The reason for this exception is when a message is larger than the max message size the server will accept, 
+and you can set or increase config `max.request.size` to fix it. If you cannot set the configuration value 
+and want to discard the large records directly, you can set config`flink.sink.discard-too-large-records` to `true`.
+
 {{< top >}}

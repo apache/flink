@@ -656,4 +656,10 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 这个错误是由于 `FlinkKafkaProducer` 所生成的 `transactional.id` 与其他应用所使用的的产生了冲突。多数情况下，由于 `FlinkKafkaProducer` 产生的 ID 都是以 `taskName + "-" + operatorUid` 为前缀的，这些产生冲突的应用也是使用了相同 Job Graph 的 Flink Job。
 我们可以使用 `setTransactionalIdPrefix()` 方法来覆盖默认的行为，为每个不同的 Job 分配不同的 `transactional.id` 前缀来解决这个问题。
 
+### RecordTooLargeException
+
+The reason for this exception is when a message is larger than the max message size the server will accept,
+and you can set or increase config `max.request.size` to fix it. If you cannot set the configuration value
+and want to discard the large records directly, you can set config`flink.sink.discard-too-large-records` to `true`.
+
 {{< top >}}

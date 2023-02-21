@@ -82,6 +82,7 @@ class KafkaWriter<IN>
     private static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
     private static final String KEY_REGISTER_METRICS = "register.producer.metrics";
     private static final String KAFKA_PRODUCER_METRICS = "producer-metrics";
+    static final String KEY_SINK_DISCARD_TOO_LARGE_RECORDS = "flink.sink.discard-too-large-records";
 
     private final DeliveryGuarantee deliveryGuarantee;
     private final Properties kafkaProducerConfig;
@@ -97,6 +98,7 @@ class KafkaWriter<IN>
     private final Counter numBytesOutCounter;
     private final Counter numRecordsOutErrorsCounter;
     private final ProcessingTimeService timeService;
+    private final WriterExceptionHandler exceptionHandler;
 
     // Number of outgoing bytes at the latest metric sync
     private long latestOutgoingByteTotal;
@@ -150,6 +152,14 @@ class KafkaWriter<IN>
                         || kafkaProducerConfig.containsKey(KEY_REGISTER_METRICS)
                                 && !Boolean.parseBoolean(
                                         kafkaProducerConfig.get(KEY_REGISTER_METRICS).toString());
+        this.exceptionHandler =
+                WriterExceptionHandler.createHandler(
+                        kafkaProducerConfig.containsKey(KEY_SINK_DISCARD_TOO_LARGE_RECORDS)
+                                && Boolean.parseBoolean(
+                                        kafkaProducerConfig
+                                                .get(KEY_SINK_DISCARD_TOO_LARGE_RECORDS)
+                                                .toString()),
+                        LOG);
         checkNotNull(sinkInitContext, "sinkInitContext");
         this.timeService = sinkInitContext.getProcessingTimeService();
         this.metricGroup = sinkInitContext.metricGroup();
@@ -416,7 +426,8 @@ class KafkaWriter<IN>
                 mailboxExecutor.execute(
                         () -> {
                             numRecordsOutErrorsCounter.inc();
-                            throwException(metadata, exception, producer);
+                            exceptionHandler.onException(
+                                    exception, createException(metadata, exception, producer));
                         },
                         "Failed to send data to Kafka");
             }
@@ -426,7 +437,7 @@ class KafkaWriter<IN>
             }
         }
 
-        private void throwException(
+        private Exception createException(
                 RecordMetadata metadata,
                 Exception exception,
                 FlinkKafkaInternalProducer<byte[], byte[]> producer) {
@@ -435,7 +446,7 @@ class KafkaWriter<IN>
             if (exception instanceof UnknownProducerIdException) {
                 message += KafkaCommitter.UNKNOWN_PRODUCER_ID_ERROR_MESSAGE;
             }
-            throw new FlinkRuntimeException(message, exception);
+            return new FlinkRuntimeException(message, exception);
         }
     }
 }

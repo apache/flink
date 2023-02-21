@@ -33,6 +33,7 @@ import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.UserCodeClassLoader;
 
@@ -41,6 +42,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -71,10 +73,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.connector.kafka.sink.KafkaWriter.KEY_SINK_DISCARD_TOO_LARGE_RECORDS;
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.drainAllRecordsFromTopic;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the standalone KafkaWriter. */
 @ExtendWith(TestLoggerExtension.class)
@@ -84,6 +88,7 @@ public class KafkaWriterITCase {
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     private static final Network NETWORK = Network.newNetwork();
     private static final String KAFKA_METRIC_WITH_GROUP_NAME = "KafkaProducer.incoming-byte-total";
+    private static final String KAFKA_MAX_REQUEST_SIZE = "max.request.size";
     private static final SinkWriter.Context SINK_WRITER_CONTEXT = new DummySinkWriterContext();
     private String topic;
 
@@ -163,6 +168,49 @@ public class KafkaWriterITCase {
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
             assertThat(numBytesOut.getCount()).isGreaterThan(0L);
+        }
+    }
+
+    @Test
+    public void testProduceTooLargeRecord() throws Exception {
+        final OperatorIOMetricGroup operatorIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
+        final InternalSinkWriterMetricGroup metricGroup =
+                InternalSinkWriterMetricGroup.mock(
+                        metricListener.getMetricGroup(), operatorIOMetricGroup);
+
+        final Counter numBytesOut = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+        final Counter numRecordsOut = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+        final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
+        final Counter numRecordsSendErrors = metricGroup.getNumRecordsSendErrorsCounter();
+        Properties kafkaConfig = getKafkaClientConfiguration();
+        kafkaConfig.put(KAFKA_MAX_REQUEST_SIZE, 1);
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(kafkaConfig, DeliveryGuarantee.NONE, metricGroup)) {
+            // throw exception when record is too large
+            assertThatThrownBy(
+                            () -> {
+                                writer.write(1, SINK_WRITER_CONTEXT);
+                            })
+                    .isInstanceOf(FlinkRuntimeException.class)
+                    .hasRootCauseInstanceOf(RecordTooLargeException.class);
+            timeService.trigger();
+            assertThat(numBytesOut.getCount()).isGreaterThan(0L);
+            assertThat(numRecordsOut.getCount()).isEqualTo(0);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(1);
+            assertThat(numRecordsSendErrors.getCount()).isEqualTo(1);
+        }
+
+        kafkaConfig.put(KEY_SINK_DISCARD_TOO_LARGE_RECORDS, "true");
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(kafkaConfig, DeliveryGuarantee.NONE, metricGroup)) {
+            // discard record which is too large
+            writer.write(1, SINK_WRITER_CONTEXT);
+            timeService.trigger();
+            assertThat(numBytesOut.getCount()).isGreaterThan(0L);
+            assertThat(numRecordsOut.getCount()).isEqualTo(1);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(2);
+            assertThat(numRecordsSendErrors.getCount()).isEqualTo(2);
         }
     }
 
