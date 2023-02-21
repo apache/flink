@@ -45,13 +45,13 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
-import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.ExecutionTimeBasedSlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetectorListener;

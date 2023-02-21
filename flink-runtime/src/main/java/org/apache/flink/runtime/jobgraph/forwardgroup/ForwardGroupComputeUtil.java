@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup;
+package org.apache.flink.runtime.jobgraph.forwardgroup;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil;
