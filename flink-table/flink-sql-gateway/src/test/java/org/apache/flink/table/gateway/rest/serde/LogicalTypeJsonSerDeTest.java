@@ -220,7 +220,27 @@ class LogicalTypeJsonSerDeTest {
                         new RawType<>(
                                 Row.class,
                                 ExternalSerializer.of(
-                                        DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()))));
+                                        DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()))),
+                        // interval types
+                        new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH),
+                        new YearMonthIntervalType(
+                                YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
+                        new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
+                        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY),
+                        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR),
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE),
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND),
+                        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR),
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE),
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND),
+                        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.MINUTE),
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND),
+                        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.SECOND));
 
         List<LogicalType> testTypes =
                 Stream.concat(
@@ -231,25 +251,6 @@ class LogicalTypeJsonSerDeTest {
         // ignore nullable for NullType
         testTypes.add(new NullType());
 
-        // interval types
-        testTypes.add(new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH));
-        testTypes.add(
-                new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH));
-        testTypes.add(new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR));
-
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY));
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR));
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE));
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND));
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR));
-        testTypes.add(
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE));
-        testTypes.add(
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND));
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.MINUTE));
-        testTypes.add(
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND));
-        testTypes.add(new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.SECOND));
         return testTypes;
     }
 
