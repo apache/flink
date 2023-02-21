@@ -65,6 +65,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       'proctime.proctime,
       'rowtime.rowtime)
     util.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
+    util.addDataStream[(Int, Array[Int])]("T2", 'a, 'b)
     util.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
 
     if (legacyTableSource) {
@@ -112,6 +113,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
                     |  'connector' = 'values',
                     |  'sink-insert-only' = 'false'
                     |)""".stripMargin)
+    util.addTemporarySystemFunction("MockUDTF", new TableFunctionWithInt())
     // for json plan test
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
@@ -949,6 +951,39 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |""".stripMargin)
 
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithLookupJoinHint(): Unit = {
+    val sql = "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', " +
+      "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
+      "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')  */ " +
+      "T.a FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinInvalidUDTFWithLookupJoinHint(): Unit = {
+    // not support to extract table name from udtf now
+    expectExceptionThrown(
+      "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', " +
+        "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
+        "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ " +
+        "T.a FROM MyTable AS T CROSS JOIN LATERAL TABLE(MockUDTF(a)) AS D(b)",
+      "The options of following hints cannot match the name of input tables or views: \n" +
+        "`D` in `LOOKUP`"
+    )
+  }
+
+  @Test
+  def testJoinUnnestWithLookupJoinHint(): Unit = {
+    val sql = "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', " +
+      "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
+      "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ " +
+      "T2.a FROM T2 CROSS JOIN UNNEST(T2.b) AS D(c)"
+
+    util.verifyExecPlan(sql)
   }
 
   // ==========================================================================================

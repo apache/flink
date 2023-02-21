@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.streaming.api.functions.async.ResultFuture
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.types.Row
@@ -85,4 +86,10 @@ class AsyncTableFunctionWithRowDataVarArg extends AsyncTableFunction[RowData] {
 class AsyncTableFunctionWithRow extends AsyncTableFunction[Row] {
   @varargs
   def eval(obj: AnyRef*): Unit = {}
+}
+
+@SerialVersionUID(1L)
+@FunctionHint(output = new DataTypeHint("ROW< b BIGINT >"))
+class TableFunctionWithInt extends TableFunction[Long] {
+  def eval(obj: Integer): Unit = {}
 }
