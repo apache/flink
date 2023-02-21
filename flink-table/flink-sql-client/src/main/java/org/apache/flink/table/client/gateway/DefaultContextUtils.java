@@ -52,10 +52,9 @@ public class DefaultContextUtils {
         } else {
             libDirs = Collections.emptyList();
         }
-        Configuration pythonConfiguration = options.getPythonConfiguration();
-        pythonConfiguration.addAll(
-                ConfigurationUtils.createConfiguration(options.getSessionConfig()));
-        return DefaultContext.load(pythonConfiguration, discoverDependencies(jars, libDirs), true);
+        Configuration sessionConfig = options.getPythonConfiguration();
+        sessionConfig.addAll(ConfigurationUtils.createConfiguration(options.getSessionConfig()));
+        return DefaultContext.load(sessionConfig, discoverDependencies(jars, libDirs), true);
     }
 
     public static DefaultContext buildDefaultContext(CliOptions.GatewayCliOptions options) {
