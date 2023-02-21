@@ -168,4 +168,8 @@ side_output_stream = main_data_stream.get_side_output(output_tag)  # type: DataS
 {{< /tab >}}
 {{< /tabs >}}
 
+<span class="label label-info">Note</span> If it produces side output, `get_side_output(OutputTag)`
+must be called in Python API. Otherwise, the result of side output stream will be output into the
+main stream which is unexpected and may fail the job when the data types are different.
+
 {{< top >}}

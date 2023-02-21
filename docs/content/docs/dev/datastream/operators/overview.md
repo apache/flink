@@ -212,7 +212,9 @@ dataStream
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -239,7 +241,9 @@ dataStream
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -292,7 +296,30 @@ allWindowedStream.apply { AllWindowFunction }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+class MyWindowFunction(WindowFunction[tuple, int, int, TimeWindow]):
+
+    def apply(self, key: int, window: TimeWindow, inputs: Iterable[tuple]) -> Iterable[int]:
+        sum = 0
+        for input in inputs:
+            sum += input[1]
+        yield sum
+
+
+class MyAllWindowFunction(AllWindowFunction[tuple, int, TimeWindow]):
+
+    def apply(self, window: TimeWindow, inputs: Iterable[tuple]) -> Iterable[int]:
+        sum = 0
+        for input in inputs:
+            sum += input[1]
+        yield sum
+
+
+windowed_stream.apply(MyWindowFunction())
+
+# applying an AllWindowFunction on non-keyed window stream
+all_windowed_stream.apply(MyAllWindowFunction())
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -317,7 +344,15 @@ windowedStream.reduce { _ + _ }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+class MyReduceFunction(ReduceFunction):
+
+    def reduce(self, value1, value2):
+        return value1[0], value1[1] + value2[1]
+
+
+windowed_stream.reduce(MyReduceFunction())
+```
 {{< /tab >}}
 {{< /tabs>}}
 
