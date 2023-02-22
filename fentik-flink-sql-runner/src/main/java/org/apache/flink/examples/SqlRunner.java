@@ -66,10 +66,21 @@ public class SqlRunner {
         var script = new String(buffer);
         var statements = parseStatements(script);
 
-        var tableEnv = TableEnvironment.create(new Configuration());
-
+        Configuration configuration = new Configuration();
         for (String statement : statements) {
-            tableEnv.executeSql(statement);
+            if (statement.indexOf("SET ") == 0) {
+                // Example: SET parallelism.default='64';
+                String[] set = statement.split(" ")[1].split("=");
+                String key = set[0].replace("'", "");
+                String value = set[1].replace("'", "").replace(";", "").replace("\n", "");
+                configuration.setString(key, value);
+            }
+        }
+        var tableEnv = TableEnvironment.create(configuration);
+        for (String statement : statements) {
+            if (statement.indexOf("SET ") != 0) {
+                tableEnv.executeSql(statement);
+            }
         }
     }
 
