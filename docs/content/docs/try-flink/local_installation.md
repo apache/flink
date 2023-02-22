@@ -154,4 +154,4 @@ folder or deploy your own job!
 
 In this guide, you downloaded Flink, explored the project directory, started and stopped a local cluster, and submitted a sample Flink job!
 
-To learn more about Flink fundamentals, check out the [concepts]({{< ref "docs/concepts" >}}) section. If you want to try something more hands-on, try one of the tutorials.
+To learn more about Flink fundamentals, check out the [Concepts]({{< ref "docs/concepts/overview" >}}) section. If you want to try something more hands-on, try one of the tutorials.
