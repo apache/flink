@@ -27,6 +27,8 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.util.FileUtils;
 
 import java.io.File;
+import java.io.InputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +39,20 @@ public class SqlRunner {
 
     private static final String COMMENT_PATTERN = "(--.*)|(((\\/\\*)+?[\\w\\W]+?(\\*\\/)+))";
 
+    private static void readFully(InputStream in, byte[] buffer) throws IOException {
+        int pos = 0;
+        int remaining = buffer.length;
+
+        while (remaining > 0) {
+            int read = in.read(buffer, pos, remaining);
+            if (read == -1) {
+                return;
+            }
+            pos += read;
+            remaining -= read;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length != 1) {
             throw new Exception("Expected SQL query file or s3 path.");
@@ -45,7 +61,7 @@ public class SqlRunner {
         var fs = path.getFileSystem();
         var in = fs.open(path);
         byte[] buffer = new byte[1024*1024];
-        in.read(buffer);
+        readFully(in, buffer);
 
         var script = new String(buffer);
         var statements = parseStatements(script);
