@@ -22,7 +22,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.service.utils.Constants;
-import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.gateway.utils.SqlScriptReader;
 import org.apache.flink.table.gateway.utils.TestSqlStatement;
 import org.apache.flink.table.utils.print.PrintStyle;
@@ -35,7 +34,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestTemplate;
@@ -48,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -73,37 +72,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base ITCase tests for statements. */
 @ExtendWith(ParameterizedTestExtension.class)
-public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase {
+public abstract class AbstractStatementTestBase extends AbstractTestBase {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(AbstractSqlGatewayStatementITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractStatementTestBase.class);
 
     @RegisterExtension
     @Order(1)
     public static final MiniClusterExtension MINI_CLUSTER = new MiniClusterExtension();
-
-    @RegisterExtension
-    @Order(2)
-    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
     private static final String RESOURCE_DIR = "sql/";
     private static final Pattern PATTERN = Pattern.compile(".*\\.q$");
 
     protected static SqlGatewayService service;
 
-    private final Map<String, String> replaceVars = new HashMap<>();
+    protected final Map<String, String> replaceVars = new HashMap<>();
 
     @Parameter public TestParameters parameters;
 
     @Parameters(name = "parameters={0}")
     public static List<TestParameters> parameters() throws Exception {
         return listFlinkSqlTests().stream().map(TestParameters::new).collect(Collectors.toList());
-    }
-
-    @BeforeAll
-    public static void setUp() {
-        service = SQL_GATEWAY_SERVICE_EXTENSION.getService();
     }
 
     @BeforeEach
@@ -151,7 +139,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
             } catch (Throwable t) {
                 LOG.error("Failed to execute statements.", t);
                 builder.append(
-                        AbstractSqlGatewayStatementITCase.Tag.ERROR.addTag(
+                        AbstractStatementTestBase.Tag.ERROR.addTag(
                                 stringifyException(t).trim() + "\n"));
             }
             output.add(builder.toString());
@@ -243,19 +231,19 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
         String[] values = Arrays.stream(keys).map(replaceVars::get).toArray(String[]::new);
 
         return StringUtils.replaceEach(
-                IOUtils.toString(
-                        checkNotNull(
-                                AbstractSqlGatewayStatementITCase.class.getResourceAsStream(
-                                        "/" + sqlPath)),
-                        StandardCharsets.UTF_8),
+                IOUtils.toString(checkNotNull(getSqlInputStream(sqlPath)), StandardCharsets.UTF_8),
                 keys,
                 values);
+    }
+
+    protected InputStream getSqlInputStream(String sqlPath) {
+        return AbstractStatementTestBase.class.getResourceAsStream("/" + sqlPath);
     }
 
     protected static List<String> listFlinkSqlTests() throws Exception {
         final File jarFile =
                 new File(
-                        AbstractSqlGatewayStatementITCase.class
+                        AbstractStatementTestBase.class
                                 .getProtectionDomain()
                                 .getCodeSource()
                                 .getLocation()
@@ -283,20 +271,25 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
     protected static List<String> listTestSpecInTheSameModule(String resourceDir) throws Exception {
         return IOUtils.readLines(
                         checkNotNull(
-                                AbstractSqlGatewayStatementITCase.class
+                                AbstractStatementTestBase.class
                                         .getClassLoader()
                                         .getResourceAsStream(resourceDir)),
                         StandardCharsets.UTF_8)
                 .stream()
+                .filter(f -> PATTERN.matcher(f).matches())
                 .map(name -> Paths.get(resourceDir, name).toString())
                 .collect(Collectors.toList());
     }
 
     protected void runTest(String sqlPath) throws Exception {
         String in = getInputFromPath(sqlPath);
-        List<TestSqlStatement> testSqlStatements = SqlScriptReader.parseSqlScript(in);
+        List<TestSqlStatement> testSqlStatements = parseSqlStatements(in);
 
         assertThat(String.join("", runStatements(testSqlStatements))).isEqualTo(in);
+    }
+
+    protected List<TestSqlStatement> parseSqlStatements(String in) {
+        return SqlScriptReader.parseSqlScript(in);
     }
 
     protected void prepareEnvironment() throws Exception {}

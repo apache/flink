@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.cli.utils;
 
+import org.apache.flink.table.gateway.utils.TestSqlStatement;
+
 import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
@@ -28,8 +30,8 @@ import java.util.List;
 
 /**
  * A utility to read and parse content of a SQL script. The SQL script is located in "resources/sql"
- * path and in the "xx.q" file name pattern. The SQL script is executed and tested by {@link
- * org.apache.flink.table.client.cli.CliClientITCase}.
+ * path and in the "xx.q" file name pattern. The SQL script is executed and tested by {@code
+ * CliClientITCase}.
  */
 public final class SqlScriptReader implements AutoCloseable {
     public static final String HINT_START_OF_OUTPUT = "!output";

@@ -19,59 +19,46 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
-import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
+import org.apache.flink.table.gateway.AbstractStatementTestBase;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.gateway.utils.TestSqlStatement;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
-import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
-
-import org.apache.calcite.util.Util;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.StringUtils.repeat;
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
@@ -80,10 +67,9 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CODE;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
-class CliClientITCase {
+class CliClientITCase extends AbstractStatementTestBase {
 
     private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
     private static final String HIVE_ADD_ONE_UDF_CODE =
@@ -96,47 +82,32 @@ class CliClientITCase {
                     + "}\n";
 
     private static Path historyPath;
-    private static Map<String, String> replaceVars;
-
-    @TempDir private static Path tempFolder;
-
-    @RegisterExtension
-    @Order(1)
-    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
-            new MiniClusterExtension(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(4)
-                            .build());
 
     @RegisterExtension
     @Order(2)
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(
-                    MINI_CLUSTER_RESOURCE::getClientConfiguration, SingleSessionManager::new);
+                    MINI_CLUSTER::getClientConfiguration, SingleSessionManager::new);
 
     @RegisterExtension
     @Order(3)
     private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
             new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
-    static Stream<String> sqlPaths() throws Exception {
-        String first = "sql/table.q";
-        URL url = CliClientITCase.class.getResource("/" + first);
-        File firstFile = Paths.get(url.toURI()).toFile();
-        final int commonPrefixLength = firstFile.getAbsolutePath().length() - first.length();
-        File dir = firstFile.getParentFile();
-        final List<String> paths = new ArrayList<>();
-        final FilenameFilter filter = new PatternFilenameFilter(".*\\.q$");
-        for (File f : Util.first(dir.listFiles(filter), new File[0])) {
-            paths.add(f.getAbsolutePath().substring(commonPrefixLength));
-        }
-        return paths.stream();
-    }
+    private static Executor executor;
 
     @BeforeAll
-    static void setup(@InjectClusterClientConfiguration Configuration configuration)
-            throws IOException {
+    static void setup(@TempDir Path tempFolder) throws IOException {
+        service = SQL_GATEWAY_SERVICE_EXTENSION.getService();
+
+        historyPath = Files.createTempFile(tempFolder, "history", "");
+    }
+
+    @BeforeEach
+    public void before(
+            @TempDir Path tempFolder, @InjectClusterClientConfiguration Configuration configuration)
+            throws Exception {
+        super.before(tempFolder);
         Map<String, String> classNameCodes = new HashMap<>();
         classNameCodes.put(
                 GENERATED_LOWER_UDF_CLASS,
@@ -153,87 +124,94 @@ class CliClientITCase {
                         classNameCodes);
         URL udfDependency = udfJar.toURI().toURL();
         String path = udfDependency.getPath();
+
         // we need to pad the displayed "jars" tableau to have the same width of path string
         // 4 for the "jars" characters, see `set.q` test file
         int paddingLen = path.length() - 4;
-        historyPath = Files.createTempFile(tempFolder, "history", "");
-
-        replaceVars = new HashMap<>();
         replaceVars.put("$VAR_UDF_JAR_PATH", path);
         replaceVars.put("$VAR_UDF_JAR_PATH_DASH", repeat('-', paddingLen));
         replaceVars.put("$VAR_UDF_JAR_PATH_SPACE", repeat(' ', paddingLen));
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put("$VAR_REST_PORT", configuration.get(PORT).toString());
         replaceVars.put("$VAR_JOBMANAGER_RPC_ADDRESS", configuration.get(ADDRESS));
-    }
 
-    @BeforeEach
-    void before() throws IOException {
-        // initialize new folders for every test, so the vars can be reused by every SQL script
-        replaceVars.put(
-                "$VAR_STREAMING_PATH",
-                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
-        replaceVars.put(
-                "$VAR_STREAMING_PATH2",
-                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
-        replaceVars.put(
-                "$VAR_BATCH_PATH",
-                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
-        replaceVars.put(
-                "$VAR_BATCH_PATH2",
-                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
-    }
-
-    @ParameterizedTest
-    @MethodSource("sqlPaths")
-    void testSqlStatements(
-            String sqlPath, @InjectClusterClientConfiguration Configuration configuration)
-            throws IOException {
-        String in = getInputFromPath(sqlPath);
-        List<TestSqlStatement> testSqlStatements = parseSqlScript(in);
-        List<String> sqlStatements =
-                testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
-        List<Result> actualResults = runSqlStatements(sqlStatements, configuration);
-        String out = transformOutput(testSqlStatements, actualResults);
-        assertThat(out).isEqualTo(in);
-    }
-
-    /**
-     * Returns printed results for each ran SQL statements.
-     *
-     * @param statements the SQL statements to run
-     * @return the printed results on SQL Client
-     */
-    private List<Result> runSqlStatements(List<String> statements, Configuration configuration)
-            throws IOException {
-        final String sqlContent = String.join("", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        new Configuration(configuration)
+                        new Configuration(MINI_CLUSTER.getClientConfiguration())
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
                                         ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
                         Collections.emptyList());
+        executor =
+                Executor.create(
+                        defaultContext,
+                        InetSocketAddress.createUnresolved(
+                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
+                        "test-session");
+    }
 
-        InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
+    @AfterEach
+    public void afterEach() {
+        executor.close();
+    }
+
+    @Override
+    protected String runSingleStatement(String statement) throws Exception {
+        String inputStatement = statement + ";\n";
+        InputStream inputStream = new ByteArrayInputStream(inputStatement.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
 
-        try (final Executor executor =
-                        Executor.create(
-                                defaultContext,
-                                InetSocketAddress.createUnresolved(
-                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
-                                "test-session");
-                Terminal terminal = new DumbTerminal(inputStream, outputStream);
+        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
                                 () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
             client.executeInInteractiveMode();
-            String output = new String(outputStream.toByteArray());
-            return normalizeOutput(output);
+            String output = outputStream.toString();
+            return transformOutput(normalizeOutput(output));
         }
+    }
+
+    @Override
+    protected List<TestSqlStatement> parseSqlStatements(String in) {
+        return SqlScriptReader.parseSqlScript(in);
+    }
+
+    @Override
+    protected InputStream getSqlInputStream(String sqlPath) {
+        return CliClientITCase.class.getResourceAsStream("/" + sqlPath);
+    }
+
+    protected String transformOutput(List<Result> results) {
+        StringBuilder out = new StringBuilder();
+        for (Result result : results) {
+            String content =
+                    TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
+
+            int removedChatNumber = result.content.length() - content.length();
+            String borderLineStart = "+-";
+            String columnStart = "|";
+            for (int j = 0; j < removedChatNumber; j++) {
+                borderLineStart += "-";
+                columnStart += " ";
+            }
+            content = content.replaceAll("\\" + borderLineStart, "+-");
+            content = content.replace(columnStart, "|");
+
+            out.append(content).append(result.highestTag.tag).append("\n");
+        }
+        return out.toString();
+    }
+
+    @Override
+    protected String stringifyException(Throwable t) {
+        return t.getMessage().trim();
+    }
+
+    @Override
+    protected boolean isStreaming() throws Exception {
+        return false;
     }
 
     // -------------------------------------------------------------------------------------------
@@ -288,21 +266,6 @@ class CliClientITCase {
             }
             return false;
         }
-    }
-
-    private static String getInputFromPath(String sqlPath) throws IOException {
-        URL url = CliClientITCase.class.getResource("/" + sqlPath);
-        String in = IOUtils.toString(url, StandardCharsets.UTF_8);
-
-        // replace the placeholder with specified value if exists
-        String[] keys = replaceVars.keySet().toArray(new String[0]);
-        String[] values = Arrays.stream(keys).map(replaceVars::get).toArray(String[]::new);
-
-        return StringUtils.replaceEach(in, keys, values);
-    }
-
-    protected List<TestSqlStatement> parseSqlScript(String input) {
-        return SqlScriptReader.parseSqlScript(input);
     }
 
     private static List<Result> normalizeOutput(String output) {
@@ -366,34 +329,6 @@ class CliClientITCase {
             newLines = tag.convert(newLines);
         }
         return String.join("\n", newLines);
-    }
-
-    protected String transformOutput(
-            List<TestSqlStatement> testSqlStatements, List<Result> results) {
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < testSqlStatements.size(); i++) {
-            TestSqlStatement sqlScript = testSqlStatements.get(i);
-            out.append(sqlScript.comment).append(sqlScript.sql);
-            if (i < results.size()) {
-                Result result = results.get(i);
-                String content =
-                        TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
-
-                int removedChatNumber = result.content.length() - content.length();
-                String borderLineStart = "+-";
-                String columnStart = "|";
-                for (int j = 0; j < removedChatNumber; j++) {
-                    borderLineStart += "-";
-                    columnStart += " ";
-                }
-                content = content.replaceAll("\\" + borderLineStart, "+-");
-                content = content.replace(columnStart, "|");
-
-                out.append(content).append(result.highestTag.tag).append("\n");
-            }
-        }
-
-        return out.toString();
     }
 
     protected static String removeExecNodeId(String s) {

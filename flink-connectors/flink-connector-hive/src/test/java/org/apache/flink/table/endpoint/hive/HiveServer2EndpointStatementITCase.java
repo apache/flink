@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.endpoint.hive.util.HiveServer2EndpointExtension;
 import org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions;
-import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
+import org.apache.flink.table.gateway.AbstractSqlGatewayStatementTestBase;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -58,7 +58,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 
 /** ITCase to verify the statements. */
-public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatementITCase {
+public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatementTestBase {
 
     @RegisterExtension
     @Order(3)

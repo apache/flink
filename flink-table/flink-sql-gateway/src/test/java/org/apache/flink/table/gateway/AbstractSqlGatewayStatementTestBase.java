@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.cli.utils;
+package org.apache.flink.table.gateway;
 
-/**
- * A structure describes a SQL statement for testing.
- *
- * @see SqlScriptReader
- */
-public class TestSqlStatement {
-    public final String comment;
-    public final String sql;
+import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 
-    public TestSqlStatement(String comment, String sql) {
-        this.comment = comment;
-        this.sql = sql;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+/** Statement test base for sql gateway. */
+public abstract class AbstractSqlGatewayStatementTestBase extends AbstractStatementTestBase {
+    @RegisterExtension
+    @Order(2)
+    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+            new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
+
+    @BeforeAll
+    public static void setUp() {
+        service = SQL_GATEWAY_SERVICE_EXTENSION.getService();
     }
 }

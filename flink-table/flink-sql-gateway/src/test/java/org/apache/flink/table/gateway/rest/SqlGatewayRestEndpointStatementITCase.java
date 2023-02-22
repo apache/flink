@@ -25,7 +25,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
+import org.apache.flink.table.gateway.AbstractSqlGatewayStatementTestBase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -80,7 +80,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in statement
  * related cases.
  */
-public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementITCase {
+public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementTestBase {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(SqlGatewayRestEndpointStatementITCase.class);

@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
+import org.apache.flink.table.gateway.AbstractSqlGatewayStatementTestBase;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -50,7 +50,7 @@ import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTest
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link SqlGatewayService}#executeStatement. */
-public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatementITCase {
+public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatementTestBase {
 
     private final SessionEnvironment defaultSessionEnvironment =
             SessionEnvironment.newBuilder()
