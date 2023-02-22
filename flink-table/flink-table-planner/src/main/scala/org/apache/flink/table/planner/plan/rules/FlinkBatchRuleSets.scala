@@ -36,6 +36,7 @@ object FlinkBatchRuleSets {
     FlinkRewriteSubQueryRule.FILTER,
     FlinkSubQueryRemoveRule.FILTER,
     JoinConditionTypeCoerceRule.INSTANCE,
+    JoinConditionCommuteRule.INSTANCE,
     FlinkJoinPushExpressionsRule.INSTANCE
   )
 
@@ -87,6 +88,7 @@ object FlinkBatchRuleSets {
     SimplifyFilterConditionRule.INSTANCE,
     SimplifyJoinConditionRule.INSTANCE,
     JoinConditionTypeCoerceRule.INSTANCE,
+    JoinConditionCommuteRule.INSTANCE,
     CoreRules.JOIN_PUSH_EXPRESSIONS
   )
 
