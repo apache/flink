@@ -29,7 +29,7 @@ import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.gateway.utils.TestSqlStatement;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +59,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.StringUtils.repeat;
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
@@ -68,8 +69,8 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CODE;
 
-/** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
-class CliClientITCase extends AbstractStatementTestBase {
+/** Test that runs every {@code xx.q} file in "resources/sql_single/" path as a test. */
+public class CliClientITCase extends AbstractStatementTestBase {
 
     private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
     private static final String HIVE_ADD_ONE_UDF_CODE =
@@ -96,6 +97,13 @@ class CliClientITCase extends AbstractStatementTestBase {
 
     private static Executor executor;
 
+    @Parameters(name = "parameters={0}")
+    public static List<TestParameters> parameters() throws Exception {
+        return listTestSpecInTheSameModule("sql_single").stream()
+                .map(TestParameters::new)
+                .collect(Collectors.toList());
+    }
+
     @BeforeAll
     static void setup(@TempDir Path tempFolder) throws IOException {
         service = SQL_GATEWAY_SERVICE_EXTENSION.getService();
@@ -104,9 +112,7 @@ class CliClientITCase extends AbstractStatementTestBase {
     }
 
     @BeforeEach
-    public void before(
-            @TempDir Path tempFolder, @InjectClusterClientConfiguration Configuration configuration)
-            throws Exception {
+    public void before(@TempDir Path tempFolder) throws Exception {
         super.before(tempFolder);
         Map<String, String> classNameCodes = new HashMap<>();
         classNameCodes.put(
@@ -132,8 +138,10 @@ class CliClientITCase extends AbstractStatementTestBase {
         replaceVars.put("$VAR_UDF_JAR_PATH_DASH", repeat('-', paddingLen));
         replaceVars.put("$VAR_UDF_JAR_PATH_SPACE", repeat(' ', paddingLen));
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
-        replaceVars.put("$VAR_REST_PORT", configuration.get(PORT).toString());
-        replaceVars.put("$VAR_JOBMANAGER_RPC_ADDRESS", configuration.get(ADDRESS));
+        replaceVars.put(
+                "$VAR_REST_PORT", MINI_CLUSTER.getClientConfiguration().get(PORT).toString());
+        replaceVars.put(
+                "$VAR_JOBMANAGER_RPC_ADDRESS", MINI_CLUSTER.getClientConfiguration().get(ADDRESS));
 
         DefaultContext defaultContext =
                 new DefaultContext(
