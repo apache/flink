@@ -70,6 +70,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     private transient Counter rightInputCount;
     private transient Counter leftInputNullKeyCount;
     private transient Counter rightInputNullKeyCount;
+    private transient Counter leftInputDroppedNullKeyCount;
+    private transient Counter rightInputDroppedNullKeyCount;
 
     public StreamingJoinOperator(
             InternalTypeInfo<RowData> leftType,
@@ -111,6 +113,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         this.rightInputCount = getRuntimeContext().getMetricGroup().counter("join.rightInputCount");
         this.leftInputNullKeyCount = getRuntimeContext().getMetricGroup().counter("join.leftInputNullKeyCount");
         this.rightInputNullKeyCount = getRuntimeContext().getMetricGroup().counter("join.rightInputNullKeyCount");
+        this.leftInputDroppedNullKeyCount = getRuntimeContext().getMetricGroup().counter("join.leftInputDroppedNullKeyCount");
+        this.rightInputDroppedNullKeyCount = getRuntimeContext().getMetricGroup().counter("join.rightInputDroppedNullKeyCount");
 
         // initialize states
         if (leftIsOuter) {
@@ -158,26 +162,30 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         }
     }
 
-    private void incrementCounters(Counter allInputs, Counter nullInputs) {
-        // We want to monitor a specific kind of data skew when a join key
-        // comes in as all NULLs.
+    private boolean isKeyAnyNulls() {
         RowData key = (RowData) getCurrentKey();
-        boolean isNullInput = true;
-        for (int i = 0; i < key.getArity() && isNullInput; i++) {
-            if (!key.isNullAt(i)) {
-                isNullInput = false;
+        for (int i = 0; i < key.getArity(); i++) {
+            if (key.isNullAt(i)) {
+                return true;
             }
         }
-
-        if (isNullInput) {
-            nullInputs.inc();
-        }
-        allInputs.inc();
+        return false;
     }
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        incrementCounters(leftInputCount, leftInputNullKeyCount);
+        leftInputCount.inc();
+        if (isKeyAnyNulls()) {
+            leftInputNullKeyCount.inc();
+            if (!leftIsOuter) {
+                // performance optimization: if the input key is null and it's
+                // not an outer side, we can simply ignore the input row
+                RowDataStringSerializer rowStringSerializer = new RowDataStringSerializer(leftType);
+                LOG.debug("dropping LEFT input {}", rowStringSerializer.asString(element.getValue()));
+                leftInputDroppedNullKeyCount.inc();
+                return;
+            }
+        }
         if (isMinibatchEnabled && !isBatchMode()) {
             RowData input = element.getValue();
             leftRecordStateBuffer.addRecordToBatch(input, this.shouldLogInput());
@@ -191,7 +199,18 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        incrementCounters(rightInputCount, rightInputNullKeyCount);
+        rightInputCount.inc();
+        if (isKeyAnyNulls()) {
+            rightInputNullKeyCount.inc();
+            if (!rightIsOuter) {
+                // performance optimization: if the input key is null and it's
+                // not an outer side, we can simply ignore the input row
+                RowDataStringSerializer rowStringSerializer = new RowDataStringSerializer(rightType);
+                LOG.debug("dropping RIGHT input {}", rowStringSerializer.asString(element.getValue()));
+                rightInputDroppedNullKeyCount.inc();
+                return;
+            }
+        }
         if (isMinibatchEnabled && !isBatchMode()) {
             RowData input = element.getValue();
             rightRecordStateBuffer.addRecordToBatch(input, this.shouldLogInput());
