@@ -35,6 +35,7 @@ import com.amazonaws.kinesis.agg.RecordAggregator;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import io.netty.handler.timeout.ReadTimeoutException;
+import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -213,7 +215,8 @@ public class FanOutRecordPublisherTest {
                         createDummyStreamShardHandle("stream-name", "shardId-00000", hashKeyRange),
                         kinesis,
                         createConfiguration(),
-                        new FullJitterBackoff());
+                        new FullJitterBackoff(),
+                        () -> true);
         publisher.run(
                 new TestConsumer(SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().getSequenceNumber()));
 
@@ -332,7 +335,8 @@ public class FanOutRecordPublisherTest {
                         createDummyStreamShardHandle(),
                         kinesis,
                         configuration,
-                        backoff)
+                        backoff,
+                        () -> true)
                 .run(new TestConsumer());
 
         verify(backoff)
@@ -368,7 +372,8 @@ public class FanOutRecordPublisherTest {
                         createDummyStreamShardHandle(),
                         kinesis,
                         configuration,
-                        backoff);
+                        backoff,
+                        () -> true);
 
         int count = 0;
         while (recordPublisher.run(new TestConsumer()) == INCOMPLETE) {
@@ -398,7 +403,8 @@ public class FanOutRecordPublisherTest {
                         createDummyStreamShardHandle(),
                         kinesis,
                         configuration,
-                        backoff);
+                        backoff,
+                        () -> true);
 
         int count = 0;
         while (recordPublisher.run(new TestConsumer()) == RecordPublisherRunResult.INCOMPLETE) {
@@ -428,7 +434,8 @@ public class FanOutRecordPublisherTest {
                         createDummyStreamShardHandle(),
                         kinesis,
                         configuration,
-                        backoff);
+                        backoff,
+                        () -> true);
 
         recordPublisher.run(new TestConsumer());
         recordPublisher.run(new TestConsumer());
@@ -459,7 +466,8 @@ public class FanOutRecordPublisherTest {
                         createDummyStreamShardHandle(),
                         kinesis,
                         configuration,
-                        backoff);
+                        backoff,
+                        () -> true);
 
         recordPublisher.run(new TestConsumer());
         recordPublisher.run(new TestConsumer());
@@ -560,6 +568,37 @@ public class FanOutRecordPublisherTest {
         assertEquals(CANCELLED, actual);
     }
 
+    @Test
+    public void testCancelExitsGracefully() throws Exception {
+        SingleShardFanOutKinesisV2 kinesis =
+                FakeKinesisFanOutBehavioursFactory.boundedShard()
+                        .withBatchCount(10)
+                        .withBatchesPerSubscription(3)
+                        .withRecordsPerBatch(12)
+                        .build();
+
+        AtomicBoolean run = new AtomicBoolean(true);
+        RecordPublisher recordPublisher =
+                new FanOutRecordPublisher(
+                        StartingPosition.fromTimestamp(new Date()),
+                        "arn",
+                        createDummyStreamShardHandle(),
+                        kinesis,
+                        createConfiguration(),
+                        new FullJitterBackoff(),
+                        run::get);
+
+        TestConsumer consumer = new TestConsumer();
+
+        int count = 0;
+        while (recordPublisher.run(consumer) == INCOMPLETE) {
+            run.set(false);
+            count++;
+        }
+
+        Assertions.assertThat(count).isEqualTo(1);
+    }
+
     private List<UserRecord> flattenToUserRecords(final List<RecordBatch> recordBatch) {
         return recordBatch.stream()
                 .flatMap(b -> b.getDeaggregatedRecords().stream())
@@ -584,7 +623,8 @@ public class FanOutRecordPublisherTest {
                 createDummyStreamShardHandle(),
                 kinesis,
                 createConfiguration(),
-                new FullJitterBackoff());
+                new FullJitterBackoff(),
+                () -> true);
     }
 
     private FanOutRecordPublisherConfiguration createConfiguration() {

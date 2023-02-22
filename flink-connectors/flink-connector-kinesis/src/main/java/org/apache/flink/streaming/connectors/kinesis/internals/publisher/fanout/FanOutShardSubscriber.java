@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.util.Preconditions;
@@ -46,8 +47,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.CANCELLED;
+import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
+import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
 
 /**
  * This class is responsible for acquiring an Enhanced Fan Out subscription and consuming records
@@ -114,6 +119,8 @@ public class FanOutShardSubscriber {
 
     private final Duration queueWaitTimeout;
 
+    private final Supplier<Boolean> runningSupplier;
+
     /**
      * Create a new Fan Out Shard subscriber.
      *
@@ -127,8 +134,15 @@ public class FanOutShardSubscriber {
             final String consumerArn,
             final String shardId,
             final KinesisProxyV2Interface kinesis,
-            final Duration subscribeToShardTimeout) {
-        this(consumerArn, shardId, kinesis, subscribeToShardTimeout, DEFAULT_QUEUE_TIMEOUT);
+            final Duration subscribeToShardTimeout,
+            final Supplier<Boolean> runningSupplier) {
+        this(
+                consumerArn,
+                shardId,
+                kinesis,
+                subscribeToShardTimeout,
+                DEFAULT_QUEUE_TIMEOUT,
+                runningSupplier);
     }
 
     /**
@@ -147,12 +161,14 @@ public class FanOutShardSubscriber {
             final String shardId,
             final KinesisProxyV2Interface kinesis,
             final Duration subscribeToShardTimeout,
-            final Duration queueWaitTimeout) {
+            final Duration queueWaitTimeout,
+            final Supplier<Boolean> runningSupplier) {
         this.kinesis = Preconditions.checkNotNull(kinesis);
         this.consumerArn = Preconditions.checkNotNull(consumerArn);
         this.shardId = Preconditions.checkNotNull(shardId);
         this.subscribeToShardTimeout = subscribeToShardTimeout;
         this.queueWaitTimeout = queueWaitTimeout;
+        this.runningSupplier = runningSupplier;
     }
 
     /**
@@ -162,12 +178,12 @@ public class FanOutShardSubscriber {
      *
      * @param startingPosition the position in the stream in which to start receiving records
      * @param eventConsumer the consumer to deliver received events to
-     * @return true if there are no more messages (complete), false if a subsequent subscription
-     *     should be obtained
+     * @return complete if there are no more messages (complete), incomplete if a subsequent
+     *     subscription should be obtained and cancelled if the consumer was cancelled
      * @throws FanOutSubscriberException when an exception is propagated from the networking stack
      * @throws InterruptedException when the thread is interrupted
      */
-    boolean subscribeToShardAndConsumeRecords(
+    RecordPublisherRunResult subscribeToShardAndConsumeRecords(
             final StartingPosition startingPosition,
             final Consumer<SubscribeToShardEvent> eventConsumer)
             throws InterruptedException, FanOutSubscriberException {
@@ -322,19 +338,24 @@ public class FanOutShardSubscriber {
      *
      * @param eventConsumer the event consumer to deliver records to
      * @param subscription the subscription we are subscribed to
-     * @return true if there are no more messages (complete), false if a subsequent subscription
-     *     should be obtained
+     * @return complete if there are no more messages (complete), incomplete if a subsequent
+     *     subscription should be obtained and cancelled if the consumer was cancelled
      * @throws FanOutSubscriberException when an exception is propagated from the networking stack
      * @throws InterruptedException when the thread is interrupted
      */
-    private boolean consumeAllRecordsFromKinesisShard(
+    private RecordPublisherRunResult consumeAllRecordsFromKinesisShard(
             final Consumer<SubscribeToShardEvent> eventConsumer,
             final FanOutShardSubscription subscription)
             throws InterruptedException, FanOutSubscriberException {
         String continuationSequenceNumber;
-        boolean result = true;
+        RecordPublisherRunResult result = COMPLETE;
 
         do {
+            if (!runningSupplier.get()) {
+                LOG.info("FanOutShardSubscriber cancelled - {} ({})", shardId, consumerArn);
+                return CANCELLED;
+            }
+
             FanOutSubscriptionEvent subscriptionEvent;
             if (subscriptionErrorEvent.get() != null) {
                 subscriptionEvent = subscriptionErrorEvent.get();
@@ -348,7 +369,7 @@ public class FanOutShardSubscriber {
                         "Timed out polling events from network, reacquiring subscription - {} ({})",
                         shardId,
                         consumerArn);
-                result = false;
+                result = INCOMPLETE;
                 break;
             } else if (subscriptionEvent.isSubscribeToShardEvent()) {
                 // Request for KDS to send the next record batch
@@ -361,10 +382,10 @@ public class FanOutShardSubscriber {
                 }
             } else if (subscriptionEvent.isSubscriptionComplete()) {
                 // The subscription is complete, but the shard might not be, so we return incomplete
-                return false;
+                return INCOMPLETE;
             } else {
                 handleError(subscriptionEvent.getThrowable());
-                result = false;
+                result = INCOMPLETE;
                 break;
             }
         } while (continuationSequenceNumber != null);
@@ -391,9 +412,13 @@ public class FanOutShardSubscriber {
             this.waitForSubscriptionLatch = waitForSubscriptionLatch;
         }
 
+        private boolean isCancelled() {
+            return cancelled || !runningSupplier.get();
+        }
+
         /** Flag to the producer that we are ready to receive more events. */
         void requestRecord() {
-            if (!cancelled) {
+            if (!isCancelled()) {
                 LOG.debug(
                         "Requesting more records from EFO subscription - {} ({})",
                         shardId,
@@ -452,7 +477,7 @@ public class FanOutShardSubscriber {
         }
 
         private void cancelSubscription() {
-            if (cancelled) {
+            if (isCancelled()) {
                 return;
             }
             cancelled = true;
@@ -468,7 +493,7 @@ public class FanOutShardSubscriber {
          * @param event the event to enqueue
          */
         private void enqueueEvent(final FanOutSubscriptionEvent event) {
-            if (cancelled) {
+            if (isCancelled()) {
                 return;
             }
 
