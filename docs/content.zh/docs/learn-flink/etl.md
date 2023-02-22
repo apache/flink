@@ -3,6 +3,7 @@ title: 数据管道 & ETL
 weight: 4
 type: docs
 ---
+
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -27,9 +28,6 @@ under the License.
 Apache Flink 的一种常见应用场景是 ETL（抽取、转换、加载）管道任务。从一个或多个数据源获取数据，进行一些转换操作和信息补充，将结果存储起来。在这个教程中，我们将介绍如何使用 Flink 的 DataStream API 实现这类应用。
 
 这里注意，Flink 的 [Table 和 SQL API]({{< ref "docs/dev/table/overview" >}}) 完全可以满足很多 ETL 使用场景。但无论你最终是否直接使用 DataStream API，对这里介绍的基本知识有扎实的理解都是有价值的。
-
-
-
 
 ## 无状态的转换
 
@@ -156,21 +154,18 @@ keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat))
 
 ### Keyed Stream 的聚合
 
-以下代码为每个行程结束事件创建了一个新的包含 `startCell` 和时长（分钟）的元组流：
+以下代码为每个行程结束事件创建了一个新的包含 `startCell` 和距离的元组流：
 
 ```java
-import org.joda.time.Interval;
-
-DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
-    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Minutes>>() {
+DataStream<Tuple2<Integer, Double>> distanceByStartCell = enrichedNYCRides
+    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Double>>() {
 
         @Override
         public void flatMap(EnrichedRide ride,
-                            Collector<Tuple2<Integer, Minutes>> out) throws Exception {
+                            Collector<Tuple2<Integer, Double>> out) throws Exception {
             if (!ride.isStart) {
-                Interval rideInterval = new Interval(ride.startTime, ride.endTime);
-                Minutes duration = rideInterval.toDuration().toStandardMinutes();
-                out.collect(new Tuple2<>(ride.startCell, duration));
+                double distance = ride.getEuclideanDistance(ride.startLon, ride.startLat);
+                out.collect(new Tuple2<>(ride.startCell, distance));
             }
         }
     });
@@ -178,34 +173,31 @@ DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
 
 现在就可以产生一个流，对每个 `startCell` 仅包含那些最长行程的数据。
 
-有很多种方法表示使用哪个字段作为键。前面使用 `EnrichedRide` POJO 的例子，用字段名来指定键。而这个使用 `Tuple2` 对象的例子中，用字段在元组中的序号（从0开始）来指定键。
+有很多种方法表示使用哪个字段作为键。前面使用 `EnrichedRide` POJO 的例子，用字段名来指定键。而这个使用 `Tuple2` 对象的例子中，用字段在元组中的序号（从 0 开始）来指定键。
 
 ```java
-minutesByStartCell
+distanceByStartCell
   .keyBy(value -> value.f0) // .keyBy(value -> value.startCell)
-  .maxBy(1) // duration
+  .maxBy(1) // distance
   .print();
 ```
 
-现在每次行程时长达到新的最大值，都会输出一条新记录，例如下面这个对应 50797 网格单元的数据：
+现在每次行程距离达到新的最大值，都会输出一条新记录，例如下面这个对应 24945 网格单元的数据：
 
     ...
-    4> (64549,5M)
-    4> (46298,18M)
-    1> (51549,14M)
-    1> (53043,13M)
-    1> (56031,22M)
-    1> (50797,6M)
+    4> (24446,1.5720709985537484)
+    3> (57852,20.306915063537083)
+    1> (24945,10.709252956381052)
     ...
-    1> (50797,8M)
+    1> (24945,11.03568798130402)
     ...
-    1> (50797,11M)
+    1> (24945,12.240783384549426)
     ...
-    1> (50797,12M)
+    1> (24945,14.852935179317036)
 
 ### （隐式的）状态
 
-这是培训中第一个涉及到有状态流的例子。尽管状态的处理是透明的，Flink 必须跟踪每个不同的键的最大时长。
+这是培训中第一个涉及到有状态流的例子。尽管状态的处理是透明的，Flink 必须跟踪每个不同的键的最大距离。
 
 只要应用中有状态，你就应该考虑状态的大小。如果键值的数量是无限的，那 Flink 的状态需要的空间也同样是无限的。
 
@@ -223,11 +215,11 @@ minutesByStartCell
 
 在 Flink 不参与管理状态的情况下，你的应用也可以使用状态，但 Flink 为其管理状态提供了一些引人注目的特性：
 
-* **本地性**: Flink 状态是存储在使用它的机器本地的，并且可以以内存访问速度来获取
-* **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint，并且在任务失败后进行恢复
-* **纵向可扩展性**: Flink 状态可以存储在集成的 RocksDB 实例中，这种方式下可以通过增加本地磁盘来扩展空间
-* **横向可扩展性**: Flink 状态可以随着集群的扩缩容重新分布
-* **可查询性**: Flink 状态可以通过使用 [状态查询 API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) 从外部进行查询。
+- **本地性**: Flink 状态是存储在使用它的机器本地的，并且可以以内存访问速度来获取
+- **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint，并且在任务失败后进行恢复
+- **纵向可扩展性**: Flink 状态可以存储在集成的 RocksDB 实例中，这种方式下可以通过增加本地磁盘来扩展空间
+- **横向可扩展性**: Flink 状态可以随着集群的扩缩容重新分布
+- **可查询性**: Flink 状态可以通过使用 [状态查询 API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) 从外部进行查询。
 
 在本节中你将学习如何使用 Flink 的 API 来管理 keyed state。
 
@@ -258,12 +250,12 @@ private static class Event {
 
 public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-  
+
     env.addSource(new EventSource())
         .keyBy(e -> e.key)
         .flatMap(new Deduplicator())
         .print();
-  
+
     env.execute();
 }
 ```
@@ -354,7 +346,7 @@ public static void main(String[] args) throws Exception {
     DataStream<String> streamOfWords = env
         .fromElements("Apache", "DROP", "Flink", "IGNORE")
         .keyBy(x -> x);
-  
+
     control
         .connect(streamOfWords)
         .flatMap(new ControlFunction())
@@ -372,18 +364,18 @@ public static void main(String[] args) throws Exception {
 ```java
 public static class ControlFunction extends RichCoFlatMapFunction<String, String, String> {
     private ValueState<Boolean> blocked;
-      
+
     @Override
     public void open(Configuration config) {
         blocked = getRuntimeContext()
             .getState(new ValueStateDescriptor<>("blocked", Boolean.class));
     }
-      
+
     @Override
     public void flatMap1(String control_value, Collector<String> out) throws Exception {
         blocked.update(Boolean.TRUE);
     }
-      
+
     @Override
     public void flatMap2(String data_value, Collector<String> out) throws Exception {
         if (blocked.value() == null) {
@@ -393,7 +385,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
 }
 ```
 
-`RichCoFlatMapFunction` 是一种可以被用于一对连接流的 `FlatMapFunction`，并且它可以调用 rich function 的接口。这意味着它可以是有状态的。 
+`RichCoFlatMapFunction` 是一种可以被用于一对连接流的 `FlatMapFunction`，并且它可以调用 rich function 的接口。这意味着它可以是有状态的。
 
 布尔变量 `blocked` 被用于记录在数据流 `control` 中出现过的键（在这个例子中是单词），并且这些单词从 `streamOfWords` 过滤掉。这是 _keyed_ state，并且它是被两个流共享的，这也是为什么两个流必须有相同的键值空间。
 

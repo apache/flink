@@ -3,6 +3,7 @@ title: Data Pipelines & ETL
 weight: 4
 type: docs
 ---
+
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -154,7 +155,7 @@ expensive, since it involves network communication along with serialization and 
 
 ### Keys are computed
 
-KeySelectors aren't limited to extracting a key from your events. They can, instead, 
+KeySelectors aren't limited to extracting a key from your events. They can, instead,
 compute the key in whatever way you want, so long as the resulting key is deterministic,
 and has valid implementations of `hashCode()` and `equals()`. This restriction rules out
 KeySelectors that generate random numbers, or that return Arrays or Enums, but you
@@ -165,7 +166,7 @@ The keys must be produced in a deterministic way, because they are recomputed wh
 are needed, rather than being attached to the stream records.
 
 For example, rather than creating a new `EnrichedRide` class with a `startCell` field that we then use
-as a key via 
+as a key via
 
 ```java
 keyBy(enrichedRide -> enrichedRide.startCell);
@@ -179,22 +180,19 @@ keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat));
 
 ### Aggregations on Keyed Streams
 
-This bit of code creates a new stream of tuples containing the `startCell` and duration (in minutes)
+This bit of code creates a new stream of tuples containing the `startCell` and distance
 for each end-of-ride event:
 
 ```java
-import org.joda.time.Interval;
-
-DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
-    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Minutes>>() {
+DataStream<Tuple2<Integer, Double>> distanceByStartCell = enrichedNYCRides
+    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Double>>() {
 
         @Override
         public void flatMap(EnrichedRide ride,
-                            Collector<Tuple2<Integer, Minutes>> out) throws Exception {
+                            Collector<Tuple2<Integer, Double>> out) throws Exception {
             if (!ride.isStart) {
-                Interval rideInterval = new Interval(ride.startTime, ride.endTime);
-                Minutes duration = rideInterval.toDuration().toStandardMinutes();
-                out.collect(new Tuple2<>(ride.startCell, duration));
+                double distance = ride.getEuclideanDistance(ride.startLon, ride.startLat);
+                out.collect(new Tuple2<>(ride.startCell, distance));
             }
         }
     });
@@ -209,32 +207,29 @@ This case involves `Tuple2` objects, and the index within the tuple (starting fr
 specify the key.
 
 ```java
-minutesByStartCell
+distanceByStartCell
   .keyBy(value -> value.f0) // .keyBy(value -> value.startCell)
-  .maxBy(1) // duration
+  .maxBy(1) // distance
   .print();
 ```
 
-The output stream now contains a record for each key every time the duration reaches a new maximum -- as shown here with cell 50797:
+The output stream now contains a record for each key every time the distance reaches a new maximum -- as shown here with cell 24945:
 
     ...
-    4> (64549,5M)
-    4> (46298,18M)
-    1> (51549,14M)
-    1> (53043,13M)
-    1> (56031,22M)
-    1> (50797,6M)
+    4> (24446,1.5720709985537484)
+    3> (57852,20.306915063537083)
+    1> (24945,10.709252956381052)
     ...
-    1> (50797,8M)
+    1> (24945,11.03568798130402)
     ...
-    1> (50797,11M)
+    1> (24945,12.240783384549426)
     ...
-    1> (50797,12M)
+    1> (24945,14.852935179317036)
 
 ### (Implicit) State
 
 This is the first example in this training that involves stateful streaming. Though the state is
-being handled transparently, Flink has to keep track of the maximum duration for each distinct
+being handled transparently, Flink has to keep track of the maximum distance for each distinct
 key.
 
 Whenever state gets involved in your application, you should think about how large the state might
@@ -258,11 +253,11 @@ implement your own custom aggregations.
 Your applications are certainly capable of using state without getting Flink involved in managing it
 -- but Flink offers some compelling features for the state it manages:
 
-* **local**: Flink state is kept local to the machine that processes it, and can be accessed at memory speed
-* **durable**: Flink state is fault-tolerant, i.e., it is automatically checkpointed at regular intervals, and is restored upon failure
-* **vertically scalable**: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
-* **horizontally scalable**: Flink state is redistributed as your cluster grows and shrinks
-* **queryable**: Flink state can be queried externally via the [Queryable State API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}).
+- **local**: Flink state is kept local to the machine that processes it, and can be accessed at memory speed
+- **durable**: Flink state is fault-tolerant, i.e., it is automatically checkpointed at regular intervals, and is restored upon failure
+- **vertically scalable**: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
+- **horizontally scalable**: Flink state is redistributed as your cluster grows and shrinks
+- **queryable**: Flink state can be queried externally via the [Queryable State API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}).
 
 In this section you will learn how to work with Flink's APIs that manage keyed state.
 
@@ -300,12 +295,12 @@ private static class Event {
 
 public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-  
+
     env.addSource(new EventSource())
         .keyBy(e -> e.key)
         .flatMap(new Deduplicator())
         .print();
-  
+
     env.execute();
 }
 ```
@@ -318,7 +313,7 @@ each item of state being managed.
 
 Flink supports several different types of keyed state, and this example uses the simplest one,
 namely `ValueState`. This means that _for each key_, Flink will store a single object -- in this
-case, an object of type `Boolean`. 
+case, an object of type `Boolean`.
 
 Our `Deduplicator` class has two methods: `open()` and `flatMap()`. The open method establishes the
 use of managed state by defining a `ValueStateDescriptor<Boolean>`. The arguments to the constructor
@@ -347,14 +342,14 @@ public static class Deduplicator extends RichFlatMapFunction<Event, Event> {
 
 When the flatMap method calls `keyHasBeenSeen.value()`, Flink's runtime looks up the value of this
 piece of state _for the key in context_, and only if it is `null` does it go ahead and collect the
-event to the output. It also updates `keyHasBeenSeen` to `true` in this case. 
+event to the output. It also updates `keyHasBeenSeen` to `true` in this case.
 
 This mechanism for accessing and updating key-partitioned state may seem rather magical, since the
 key is not explicitly visible in the implementation of our `Deduplicator`. When Flink's runtime
 calls the `open` method of our `RichFlatMapFunction`, there is no event, and thus no key in context
 at that moment. But when it calls the `flatMap` method, the key for the event being processed is
 available to the runtime, and is used behind the scenes to determine which entry in Flink's state
-backend is being operated on. 
+backend is being operated on.
 
 When deployed to a distributed cluster, there will be many instances of this `Deduplicator`, each of
 which will responsible for a disjoint subset of the entire keyspace. Thus, when you see a single
@@ -391,7 +386,7 @@ It is also possible to work with managed state in non-keyed contexts. This is so
 [operator state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#operator-state). The
 interfaces involved are somewhat different, and since it is unusual for user-defined functions to
 need non-keyed state, it is not covered here. This feature is most often used in the implementation
-of sources and sinks. 
+of sources and sinks.
 
 {{< top >}}
 
@@ -413,7 +408,7 @@ Connected streams can also be used to implement streaming joins.
 
 In this example, a control stream is used to specify words which must be filtered out of the
 `streamOfWords`.
-A `RichCoFlatMapFunction` called `ControlFunction` is applied to the connected streams to get this done. 
+A `RichCoFlatMapFunction` called `ControlFunction` is applied to the connected streams to get this done.
 
 ```java
 public static void main(String[] args) throws Exception {
@@ -426,7 +421,7 @@ public static void main(String[] args) throws Exception {
     DataStream<String> streamOfWords = env
         .fromElements("Apache", "DROP", "Flink", "IGNORE")
         .keyBy(x -> x);
-  
+
     control
         .connect(streamOfWords)
         .flatMap(new ControlFunction())
@@ -446,18 +441,18 @@ As you will see below, this `RichCoFlatMapFunction` is storing a Boolean value i
 ```java
 public static class ControlFunction extends RichCoFlatMapFunction<String, String, String> {
     private ValueState<Boolean> blocked;
-      
+
     @Override
     public void open(Configuration config) {
         blocked = getRuntimeContext()
             .getState(new ValueStateDescriptor<>("blocked", Boolean.class));
     }
-      
+
     @Override
     public void flatMap1(String control_value, Collector<String> out) throws Exception {
         blocked.update(Boolean.TRUE);
     }
-      
+
     @Override
     public void flatMap2(String data_value, Collector<String> out) throws Exception {
         if (blocked.value() == null) {
@@ -473,7 +468,7 @@ The `blocked` Boolean is being used to remember the keys (words, in this case) t
 mentioned on the `control` stream, and those words are being filtered out of the `streamOfWords` stream. This is _keyed_ state, and it is shared between the two streams, which is why the two streams have to share the same keyspace.
 
 `flatMap1` and `flatMap2` are called by the Flink runtime with elements from each of the two
-connected streams -- in our case, elements from the `control` stream are passed into `flatMap1`, and elements from `streamOfWords` are passed into `flatMap2`. This was determined by the order in which the two streams are connected with `control.connect(streamOfWords)`. 
+connected streams -- in our case, elements from the `control` stream are passed into `flatMap1`, and elements from `streamOfWords` are passed into `flatMap2`. This was determined by the order in which the two streams are connected with `control.connect(streamOfWords)`.
 
 It is important to recognize that you have no control over the order in which the `flatMap1` and `flatMap2` callbacks are called. These two input streams are racing against each other, and the Flink runtime will do what it wants to regarding consuming events from one stream or the other. In cases where timing and/or ordering matter, you may find it necessary to buffer events in managed Flink state until your application is ready to process them. (Note: if you are truly desperate, it is possible to exert some limited control over the order in which a two-input operator consumes its inputs by using a custom Operator that implements the {{< javadoc name="InputSelectable" file="org/apache/flink/streaming/api/operators/InputSelectable.html" >}}
 
