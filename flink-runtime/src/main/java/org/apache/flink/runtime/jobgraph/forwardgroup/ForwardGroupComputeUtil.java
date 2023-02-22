@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.jobgraph.forwardgroup;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -30,31 +30,34 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Common utils for computing forward groups. */
 public class ForwardGroupComputeUtil {
 
-    public static Map<JobVertexID, ForwardGroup>
-            computeForwardGroupsAndSetVertexParallelismsIfNecessary(
-                    final Iterable<JobVertex> topologicallySortedVertices) {
+    public static Map<JobVertexID, ForwardGroup> computeForwardGroupsAndCheckParallelism(
+            final Iterable<JobVertex> topologicallySortedVertices) {
         final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId =
-                computeForwardGroups(topologicallySortedVertices);
-        // set parallelism for vertices in parallelism-decided forward groups
+                computeForwardGroups(
+                        topologicallySortedVertices, ForwardGroupComputeUtil::getForwardProducers);
+        // the vertex's parallelism in parallelism-decided forward group should have been set at
+        // compilation phase
         topologicallySortedVertices.forEach(
                 jobVertex -> {
                     ForwardGroup forwardGroup = forwardGroupsByJobVertexId.get(jobVertex.getID());
-                    if (jobVertex.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT
-                            && forwardGroup != null
-                            && forwardGroup.isParallelismDecided()) {
-                        jobVertex.setParallelism(forwardGroup.getParallelism());
+                    if (forwardGroup != null && forwardGroup.isParallelismDecided()) {
+                        checkState(jobVertex.getParallelism() == forwardGroup.getParallelism());
                     }
                 });
         return forwardGroupsByJobVertexId;
     }
 
-    static Map<JobVertexID, ForwardGroup> computeForwardGroups(
-            final Iterable<JobVertex> topologicallySortedVertices) {
+    public static Map<JobVertexID, ForwardGroup> computeForwardGroups(
+            final Iterable<JobVertex> topologicallySortedVertices,
+            final Function<JobVertex, Set<JobVertex>> forwardProducersRetriever) {
 
         final Map<JobVertex, Set<JobVertex>> vertexToGroup = new IdentityHashMap<>();
 
@@ -64,8 +67,7 @@ public class ForwardGroupComputeUtil {
             currentGroup.add(vertex);
             vertexToGroup.put(vertex, currentGroup);
 
-            for (JobEdge input : getForwardInputs(vertex)) {
-                final JobVertex producerVertex = input.getSource().getProducer();
+            for (JobVertex producerVertex : forwardProducersRetriever.apply(vertex)) {
                 final Set<JobVertex> producerGroup = vertexToGroup.get(producerVertex);
 
                 if (producerGroup == null) {
@@ -99,9 +101,11 @@ public class ForwardGroupComputeUtil {
         return ret;
     }
 
-    static Iterable<JobEdge> getForwardInputs(JobVertex jobVertex) {
+    static Set<JobVertex> getForwardProducers(final JobVertex jobVertex) {
         return jobVertex.getInputs().stream()
                 .filter(JobEdge::isForward)
+                .map(JobEdge::getSource)
+                .map(IntermediateDataSet::getProducer)
                 .collect(Collectors.toSet());
     }
 }

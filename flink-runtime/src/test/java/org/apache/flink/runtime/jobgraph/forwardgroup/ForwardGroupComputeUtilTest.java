@@ -22,16 +22,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,9 +36,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for {@link org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil}.
  */
 class ForwardGroupComputeUtilTest {
-    @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
 
     /**
      * Tests that the computation of the job graph with isolated vertices works correctly.
@@ -178,56 +171,12 @@ class ForwardGroupComputeUtilTest {
         checkGroupSize(groups, 1, 3);
     }
 
-    /**
-     * Tests whether the parallelism of job vertices in forward group are correctly set.
-     *
-     * <pre>
-     *
-     *     (v1) -> (v2)
-     *
-     *     (v3) -> (v4)
-     *
-     * </pre>
-     */
-    @Test
-    void testComputeForwardGroupsAndSetVertexParallelismsIfNecessary() throws Exception {
-        JobVertex v1 = new JobVertex("v1");
-        JobVertex v2 = new JobVertex("v2");
-        JobVertex v3 = new JobVertex("v3");
-        JobVertex v4 = new JobVertex("v4");
-
-        v2.setParallelism(8);
-
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-
-        v1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        v3.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-
-        Set<ForwardGroup> groups =
-                computeForwardGroupsAndSetVertexParallelismsIfNecessary(v1, v2, v3, v4);
-        checkGroupSize(groups, 2, 2, 2);
-        assertThat(v1.getParallelism()).isEqualTo(8);
-        assertThat(v2.getParallelism()).isEqualTo(8);
-        assertThat(v3.getParallelism()).isEqualTo(-1);
-        assertThat(v4.getParallelism()).isEqualTo(-1);
-    }
-
-    private static Set<ForwardGroup> computeForwardGroupsAndSetVertexParallelismsIfNecessary(
-            JobVertex... vertices) throws Exception {
+    private static Set<ForwardGroup> computeForwardGroups(JobVertex... vertices) {
         Arrays.asList(vertices).forEach(vertex -> vertex.setInvokableClass(NoOpInvokable.class));
         return new HashSet<>(
-                ForwardGroupComputeUtil.computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                                 Arrays.asList(vertices))
                         .values());
-    }
-
-    private static Set<ForwardGroup> computeForwardGroups(JobVertex... vertices) throws Exception {
-        Arrays.asList(vertices).forEach(vertex -> vertex.setInvokableClass(NoOpInvokable.class));
-        return new HashSet<>(
-                ForwardGroupComputeUtil.computeForwardGroups(Arrays.asList(vertices)).values());
     }
 
     private static void checkGroupSize(
