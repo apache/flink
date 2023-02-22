@@ -335,7 +335,7 @@ public class DefaultSchedulerBuilder {
                 vertexParallelismAndInputInfosDecider,
                 defaultMaxParallelism,
                 hybridPartitionDataConsumeConstraint,
-                ForwardGroupComputeUtil.computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                         jobGraph.getVerticesSortedTopologicallyFromSources()));
     }
 
@@ -367,7 +367,7 @@ public class DefaultSchedulerBuilder {
                 defaultMaxParallelism,
                 blocklistOperations,
                 HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED,
-                ForwardGroupComputeUtil.computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                         jobGraph.getVerticesSortedTopologicallyFromSources()));
     }
 

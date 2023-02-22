@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,12 +39,13 @@ public class ForwardGroup {
 
     private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
+    private int maxParallelism = JobVertex.MAX_PARALLELISM_DEFAULT;
     private final Set<JobVertexID> jobVertexIds = new HashSet<>();
 
     public ForwardGroup(final Set<JobVertex> jobVertices) {
         checkNotNull(jobVertices);
 
-        Set<Integer> decidedParallelisms =
+        Set<Integer> configuredParallelisms =
                 jobVertices.stream()
                         .filter(
                                 jobVertex -> {
@@ -53,9 +55,23 @@ public class ForwardGroup {
                         .map(JobVertex::getParallelism)
                         .collect(Collectors.toSet());
 
-        checkState(decidedParallelisms.size() <= 1);
-        if (decidedParallelisms.size() == 1) {
-            this.parallelism = decidedParallelisms.iterator().next();
+        checkState(configuredParallelisms.size() <= 1);
+        if (configuredParallelisms.size() == 1) {
+            this.parallelism = configuredParallelisms.iterator().next();
+        }
+
+        Set<Integer> configuredMaxParallelisms =
+                jobVertices.stream()
+                        .map(JobVertex::getMaxParallelism)
+                        .filter(val -> val > 0)
+                        .collect(Collectors.toSet());
+
+        if (!configuredMaxParallelisms.isEmpty()) {
+            this.maxParallelism = Collections.min(configuredMaxParallelisms);
+            checkState(
+                    parallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                            || maxParallelism >= parallelism,
+                    "There is a job vertex in the forward group whose maximum parallelism is smaller than the group's parallelism");
         }
     }
 
@@ -71,6 +87,15 @@ public class ForwardGroup {
     public int getParallelism() {
         checkState(isParallelismDecided());
         return parallelism;
+    }
+
+    public boolean isMaxParallelismDecided() {
+        return maxParallelism > 0;
+    }
+
+    public int getMaxParallelism() {
+        checkState(isMaxParallelismDecided());
+        return maxParallelism;
     }
 
     public int size() {
