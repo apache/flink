@@ -113,6 +113,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism(),
                 retainHeader,
                 getClass().getSimpleName(),
-                createTransformationMeta(CORRELATE_TRANSFORMATION, config));
+                createTransformationMeta(CORRELATE_TRANSFORMATION, config),
+                false);
     }
 }

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -135,6 +136,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private CheckpointStorageAccess checkpointStorageAccess;
 
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
     }
@@ -157,7 +160,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
             TaskMetricGroup taskMetricGroup,
             TaskManagerRuntimeInfo taskManagerRuntimeInfo,
             MemoryManager memManager,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
         this.jobID = jobID;
         this.jobVertexID = jobVertexID;
@@ -195,6 +199,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
         this.mainMailboxExecutor = new SyncMailboxExecutor();
 
         this.asyncOperationsThreadPool = Executors.newDirectExecutorService();
+        this.channelStateExecutorFactory = channelStateExecutorFactory;
     }
 
     public IteratorWrappingTestSingleInputGate<Record> addInput(
@@ -439,6 +444,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public CheckpointStorageAccess getCheckpointStorageAccess() {
         return checkNotNull(checkpointStorageAccess);
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

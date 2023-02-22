@@ -31,6 +31,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -205,5 +206,15 @@ public interface ClusterClient<T> extends AutoCloseable {
      */
     default CompletableFuture<Void> invalidateClusterDataset(AbstractID clusterDatasetId) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * The client reports the heartbeat to the dispatcher for aliveness.
+     *
+     * @param jobId The jobId for the client and the job.
+     * @return
+     */
+    default CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        return FutureUtils.completedVoidFuture();
     }
 }

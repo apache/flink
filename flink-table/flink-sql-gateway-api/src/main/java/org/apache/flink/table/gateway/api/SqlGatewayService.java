@@ -39,6 +39,7 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -65,6 +66,20 @@ public interface SqlGatewayService {
      * @param sessionHandle handle to identify the Session needs to be closed.
      */
     void closeSession(SessionHandle sessionHandle) throws SqlGatewayException;
+
+    /**
+     * Using the statement to initialize the Session. It's only allowed to execute
+     * SET/RESET/CREATE/DROP/USE/ALTER/LOAD MODULE/UNLOAD MODULE/ADD JAR.
+     *
+     * <p>It returns until the execution finishes.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param statement the statement used to configure the session.
+     * @param executionTimeoutMs the execution timeout. Please use non-positive value to forbid the
+     *     timeout mechanism.
+     */
+    void configureSession(SessionHandle sessionHandle, String statement, long executionTimeoutMs)
+            throws SqlGatewayException;
 
     /**
      * Get the current configuration of the {@code Session}.
@@ -293,4 +308,15 @@ public interface SqlGatewayService {
      * @return Returns gateway info.
      */
     GatewayInfo getGatewayInfo();
+
+    /**
+     * Returns a list of completion hints for the given statement at the given position.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param statement sql statement to be completed.
+     * @param position position of where need completion hints.
+     * @return completion hints.
+     */
+    List<String> completeStatement(SessionHandle sessionHandle, String statement, int position)
+            throws SqlGatewayException;
 }

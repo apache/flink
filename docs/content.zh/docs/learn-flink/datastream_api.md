@@ -81,7 +81,7 @@ Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev
 如果你了解 Scala，那一定知道 tuple 和 case class。
 
 {{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
 
 See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
 {{< /hint >}}

@@ -75,7 +75,7 @@ findSqlGatewayJar() {
     # If flink-sql-gateway*.jar cannot be resolved write error messages to stderr since stdout is stored
     # as the classpath and exit function with empty classpath to force process failure
     if [[ "$SQL_GATEWAY" == "" ]]; then
-        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_OPT_DIR.")
+        (>&2 echo "[ERROR] Flink sql gateway jar not found in $FLINK_OPT_DIR.")
         exit 1
     elif [[ "$SQL_GATEWAY_COUNT" -gt 1 ]]; then
         (>&2 echo "[ERROR] Multiple flink-sql-gateway*.jar found in $FLINK_OPT_DIR. Please resolve.")
@@ -85,6 +85,24 @@ findSqlGatewayJar() {
     echo "$SQL_GATEWAY"
 }
 
+findFlinkPythonJar() {
+    local FLINK_PYTHON
+    FLINK_PYTHON="$(find "$FLINK_OPT_DIR" -name 'flink-python*.jar')"
+    local FLINK_PYTHON_COUNT
+    FLINK_PYTHON_COUNT="$(echo "FLINK_PYTHON" | wc -l)"
+
+    # If flink-python*.jar cannot be resolved write error messages to stderr since stdout is stored
+    # as the classpath and exit function with empty classpath to force process failure
+    if [[ "$FLINK_PYTHON" == "" ]]; then
+        echo "[WARN] Flink python jar not found in $FLINK_OPT_DIR."
+    elif [[ "$FLINK_PYTHON_COUNT" -gt 1 ]]; then
+        (>&2 echo "[ERROR] Multiple flink-python*.jar found in $FLINK_OPT_DIR. Please resolve.")
+        exit 1
+    fi
+
+    echo "$FLINK_PYTHON"
+
+}
 # These are used to mangle paths that are passed to java when using
 # cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
 # but the windows java version expects them in Windows Format, i.e. C:\bla\blub.

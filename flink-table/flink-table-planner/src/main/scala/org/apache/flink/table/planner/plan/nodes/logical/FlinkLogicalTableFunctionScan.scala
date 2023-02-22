@@ -22,10 +22,11 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
-import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelColumnMapping
@@ -78,12 +79,7 @@ class FlinkLogicalTableFunctionScan(
 
 }
 
-class FlinkLogicalTableFunctionScanConverter
-  extends ConverterRule(
-    classOf[LogicalTableFunctionScan],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalTableFunctionScanConverter") {
+class FlinkLogicalTableFunctionScanConverter(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val logicalTableFunction: LogicalTableFunctionScan = call.rel(0)
@@ -125,5 +121,10 @@ class FlinkLogicalTableFunctionScanConverter
 }
 
 object FlinkLogicalTableFunctionScan {
-  val CONVERTER = new FlinkLogicalTableFunctionScanConverter
+  val CONVERTER = new FlinkLogicalTableFunctionScanConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalTableFunctionScan],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalTableFunctionScanConverter"))
 }

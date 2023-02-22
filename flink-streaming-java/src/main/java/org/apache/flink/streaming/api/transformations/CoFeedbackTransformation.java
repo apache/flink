@@ -66,7 +66,7 @@ public class CoFeedbackTransformation<F> extends Transformation<F> {
      */
     public CoFeedbackTransformation(
             int parallelism, TypeInformation<F> feedbackType, Long waitTime) {
-        super("CoFeedback", feedbackType, parallelism);
+        super("CoFeedback", feedbackType, parallelism, false);
         this.waitTime = waitTime;
         this.feedbackEdges = Lists.newArrayList();
     }

@@ -18,7 +18,6 @@
 
 package org.apache.calcite.rel.logical;
 
-import org.apache.calcite.config.CalciteSystemProperty;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -30,7 +29,6 @@ import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.calcite.util.Litmus;
 
 import java.util.Collections;
 import java.util.List;
@@ -77,7 +75,6 @@ public final class LogicalCorrelate extends Correlate {
             ImmutableBitSet requiredColumns,
             JoinRelType joinType) {
         super(cluster, traitSet, hints, left, right, correlationId, requiredColumns, joinType);
-        assert !CalciteSystemProperty.DEBUG.value() || isValid(Litmus.THROW, null);
     }
 
     /**

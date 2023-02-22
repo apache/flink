@@ -146,14 +146,16 @@ LogicalProject(EXPR$0=[$3])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortAggregate(isMerge=[true], groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Final_MAX(max$0) AS EXPR$0])
-   +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
-      +- Exchange(distribution=[hash[window_start, window_end, a]])
-         +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
-            +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
-               +- Calc(select=[window_start, window_end, a, c])
-                  +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
-                     +- Calc(select=[a, c, ts])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+         +- Exchange(distribution=[hash[window_start, window_end, a]])
+            +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+                     +- Calc(select=[window_start, window_end, a, c])
+                        +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
+                           +- Calc(select=[a, c, ts])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -181,14 +183,16 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[MAX($3)])
     <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[true], groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Final_MAX(max$0) AS EXPR$3])
-+- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
-   +- Exchange(distribution=[hash[window_start, window_end, a]])
-      +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
-         +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
-            +- Calc(select=[window_start, window_end, a, c])
-               +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
-                  +- Calc(select=[a, c, ts])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+      +- Exchange(distribution=[hash[window_start, window_end, a]])
+         +- LocalSortAggregate(groupBy=[window_start, window_end, a], select=[window_start, window_end, a, Partial_MAX(c) AS max$0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[window_start ASC, window_end ASC, a ASC])
+                  +- Calc(select=[window_start, window_end, a, c])
+                     +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
+                        +- Calc(select=[a, c, ts])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -258,12 +262,14 @@ LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$
     <Resource name="optimized exec plan">
       <![CDATA[
 Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[true], select=[ts, a, b, c, window_start, window_end, window_time, w0$o0])
-+- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
-   +- Exchange(distribution=[hash[a, window_start, window_end]])
-      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[false], select=[ts, a, b, c, window_start, window_end, window_time])
-         +- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
-            +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
+      +- Exchange(distribution=[hash[a, window_start, window_end]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[false], select=[ts, a, b, c, window_start, window_end, window_time])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
+                  +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>

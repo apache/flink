@@ -21,7 +21,7 @@ import subprocess
 
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.table import ResultKind
+from pyflink.table import ResultKind, ExplainDetail
 from pyflink.table import expressions as expr
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
@@ -37,7 +37,12 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
             .alias("a", "b") \
             .select(expr.call("func1", expr.col("a"), expr.col("b")))
         plan = table.explain()
-        self.assertTrue(plan.find("PythonCalc(select=[func1(f0, f1) AS _c0])") >= 0)
+        self.assertGreaterEqual(plan.find("== Optimized Physical Plan =="), 0)
+        self.assertGreaterEqual(plan.find("PythonCalc(select=[func1(f0, f1) AS _c0])"), 0)
+
+        plan = table.explain(ExplainDetail.PLAN_ADVICE)
+        self.assertGreaterEqual(plan.find("== Optimized Physical Plan With Advice =="), 0)
+        self.assertGreaterEqual(plan.find("No available advice..."), 0)
 
     def test_sql_query(self):
         t_env = self.t_env

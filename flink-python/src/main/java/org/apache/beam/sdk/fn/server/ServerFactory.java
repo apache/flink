@@ -19,16 +19,16 @@ package org.apache.beam.sdk.fn.server;
 
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.netty.NettyServerBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollServerSocketChannel;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.unix.DomainSocketAddress;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.netty.NettyServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollServerDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollServerSocketChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.util.internal.ThreadLocalRandom;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 
 import java.io.File;

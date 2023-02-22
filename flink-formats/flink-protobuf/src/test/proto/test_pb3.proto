@@ -22,32 +22,30 @@ option java_package = "org.apache.flink.formats.protobuf.testproto";
 option java_multiple_files = true;
 
 message Pb3Test {
+  int32 a = 1;
+  int64 b = 2;
+  string c = 3;
+  float d = 4;
+  double e = 5;
+  Corpus f = 6;
+  InnerMessageTest g = 7;
+  repeated InnerMessageTest h = 8;
+  bytes i = 9;
+  map<string, string> map1 = 10;
+  map<string, InnerMessageTest> map2 = 11;
+
+  message InnerMessageTest{
     int32 a = 1;
     int64 b = 2;
-    string c = 3;
-    float d = 4;
-    double e = 5;
-    Corpus f = 6;
-    InnerMessageTest g = 7;
-    repeated InnerMessageTest h = 8;
-    bytes i = 9;
-    map<string, string> map1 = 10;
-    map<string, InnerMessageTest> map2 = 11;
+  }
 
-    message InnerMessageTest{
-          int32 a =1;
-          int64 b =2;
-    }
-
-    enum Corpus {
-            UNIVERSAL = 0;
-            WEB = 1;
-            IMAGES = 2;
-            LOCAL = 3;
-            NEWS = 4;
-            PRODUCTS = 5;
-            VIDEO = 7;
-    }
+  enum Corpus {
+    UNIVERSAL = 0;
+    WEB = 1;
+    IMAGES = 2;
+    LOCAL = 3;
+    NEWS = 4;
+    PRODUCTS = 5;
+    VIDEO = 7;
+  }
 }
-
-

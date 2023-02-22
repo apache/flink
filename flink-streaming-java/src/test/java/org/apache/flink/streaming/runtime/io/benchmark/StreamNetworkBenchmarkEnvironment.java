@@ -24,6 +24,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -240,14 +241,17 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
             TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation)
             throws IOException {
 
-        final ShuffleDescriptor[] channelDescriptors = new ShuffleDescriptor[channels];
+        final ShuffleDescriptorAndIndex[] channelDescriptors =
+                new ShuffleDescriptorAndIndex[channels];
         for (int channelIndex = 0; channelIndex < channels; ++channelIndex) {
             channelDescriptors[channelIndex] =
-                    createShuffleDescriptor(
-                            localMode,
-                            partitionIds[gateIndex],
-                            localLocation,
-                            senderLocation,
+                    new ShuffleDescriptorAndIndex(
+                            createShuffleDescriptor(
+                                    localMode,
+                                    partitionIds[gateIndex],
+                                    localLocation,
+                                    senderLocation,
+                                    channelIndex),
                             channelIndex);
         }
 

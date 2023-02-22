@@ -179,6 +179,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
                 createTransformationMeta(LOCAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

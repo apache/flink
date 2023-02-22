@@ -776,7 +776,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                         transformation,
                         clean(reducer),
                         keySelector,
-                        getKeyType());
+                        getKeyType(),
+                        false);
 
         getExecutionEnvironment().addOperator(reduce);
 

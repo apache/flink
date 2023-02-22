@@ -154,6 +154,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                 SimpleOperatorFactory.of(new SortMergeJoinOperator(sortMergeJoinFunction)),
                 InternalTypeInfo.of(getOutputType()),
                 rightInputTransform.getParallelism(),
-                managedMemory);
+                managedMemory,
+                false);
     }
 }

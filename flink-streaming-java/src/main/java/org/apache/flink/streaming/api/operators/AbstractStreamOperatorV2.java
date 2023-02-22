@@ -104,50 +104,26 @@ public abstract class AbstractStreamOperatorV2<OUT>
     public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         final Environment environment = parameters.getContainingTask().getEnvironment();
         config = parameters.getStreamConfig();
-        CountingOutput<OUT> countingOutput;
-        InternalOperatorMetricGroup operatorMetricGroup;
-        try {
-            operatorMetricGroup =
-                    environment
-                            .getMetricGroup()
-                            .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
-            countingOutput =
-                    new CountingOutput(
-                            parameters.getOutput(),
-                            operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
-            if (config.isChainEnd()) {
-                operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
-            }
-        } catch (Exception e) {
-            LOG.warn("An error occurred while instantiating task metrics.", e);
-            countingOutput = null;
-            operatorMetricGroup = null;
-        }
-
-        if (countingOutput == null || operatorMetricGroup == null) {
-            metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-            output = parameters.getOutput();
-        } else {
-            metrics = operatorMetricGroup;
-            output = countingOutput;
-        }
-
+        output = parameters.getOutput();
+        metrics =
+                environment
+                        .getMetricGroup()
+                        .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
         latencyStats =
                 createLatencyStats(
                         environment.getTaskManagerInfo().getConfiguration(),
                         parameters.getContainingTask().getIndexInSubtaskGroup());
-
         processingTimeService = Preconditions.checkNotNull(parameters.getProcessingTimeService());
         executionConfig = parameters.getContainingTask().getExecutionConfig();
         userCodeClassLoader = parameters.getContainingTask().getUserCodeClassLoader();
         cancelables = parameters.getContainingTask().getCancelables();
-        this.combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(numberOfInputs);
+        combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(numberOfInputs);
 
         runtimeContext =
                 new StreamingRuntimeContext(
                         environment,
                         environment.getAccumulatorRegistry().getUserMap(),
-                        operatorMetricGroup,
+                        metrics,
                         getOperatorID(),
                         processingTimeService,
                         null,

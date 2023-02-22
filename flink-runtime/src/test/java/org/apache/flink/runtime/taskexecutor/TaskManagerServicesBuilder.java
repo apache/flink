@@ -28,6 +28,7 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.NoOpSlotAllocationSnapshotPersistenceService;
@@ -58,6 +59,7 @@ public class TaskManagerServicesBuilder {
     private JobLeaderService jobLeaderService;
     private TaskExecutorLocalStateStoresManager taskStateManager;
     private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
+    private TaskExecutorChannelStateExecutorFactoryManager taskChannelStateExecutorFactoryManager;
     private TaskEventDispatcher taskEventDispatcher;
     private LibraryCacheManager libraryCacheManager;
     private SharedResources sharedResources;
@@ -82,6 +84,8 @@ public class TaskManagerServicesBuilder {
                         RetryingRegistrationConfiguration.defaultConfiguration());
         taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
         taskChangelogStoragesManager = mock(TaskExecutorStateChangelogStoragesManager.class);
+        taskChannelStateExecutorFactoryManager =
+                new TaskExecutorChannelStateExecutorFactoryManager();
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
         this.slotAllocationSnapshotPersistenceService =
@@ -144,6 +148,12 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setTaskChannelStateExecutorFactoryManager(
+            TaskExecutorChannelStateExecutorFactoryManager taskChannelStateExecutorFactoryManager) {
+        this.taskChannelStateExecutorFactoryManager = taskChannelStateExecutorFactoryManager;
+        return this;
+    }
+
     public TaskManagerServicesBuilder setLibraryCacheManager(
             LibraryCacheManager libraryCacheManager) {
         this.libraryCacheManager = libraryCacheManager;
@@ -174,6 +184,7 @@ public class TaskManagerServicesBuilder {
                 jobLeaderService,
                 taskStateManager,
                 taskChangelogStoragesManager,
+                taskChannelStateExecutorFactoryManager,
                 taskEventDispatcher,
                 Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,

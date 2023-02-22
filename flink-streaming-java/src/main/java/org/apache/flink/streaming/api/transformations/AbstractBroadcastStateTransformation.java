@@ -67,6 +67,20 @@ public class AbstractBroadcastStateTransformation<IN1, IN2, OUT>
         this.broadcastStateDescriptors = broadcastStateDescriptors;
     }
 
+    protected AbstractBroadcastStateTransformation(
+            final String name,
+            final Transformation<IN1> regularInput,
+            final Transformation<IN2> broadcastInput,
+            final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors,
+            final TypeInformation<OUT> outTypeInfo,
+            final int parallelism,
+            final boolean parallelismConfigured) {
+        super(name, outTypeInfo, parallelism, parallelismConfigured);
+        this.regularInput = checkNotNull(regularInput);
+        this.broadcastInput = checkNotNull(broadcastInput);
+        this.broadcastStateDescriptors = broadcastStateDescriptors;
+    }
+
     public Transformation<IN2> getBroadcastInput() {
         return broadcastInput;
     }

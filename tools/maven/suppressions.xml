@@ -52,22 +52,6 @@ under the License.
 	    <suppress
 			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java"
 			checks="IllegalImport"/>
-		<!-- Cassandra connectors have to use guava directly -->
-		<suppress
-			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormatBase.java|OutputFormatBase.java|OutputFormatBaseTest.java|CassandraColumnarOutputFormatBase.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java|CassandraPojoOutputFormat.java"
-			checks="IllegalImport"/>
-		<!-- Kinesis producer has to use guava directly -->
-		<suppress
-			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
-			checks="IllegalImport"/>
-		<!-- Kinesis EFO consumer required to handle Netty ReadTimeoutException -->
-		<suppress 
-			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
-			checks="IllegalImport"/>
-		<!-- Pulsar broker required to handle Netty EventLoopGroup -->
-		<suppress
-			files="MockBookKeeperClientFactory.java"
-			checks="IllegalImport"/>
 		<!-- Classes copied from AWS -->
 		<suppress
 			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
@@ -75,9 +59,6 @@ under the License.
 		<!-- target directory is not relevant for checkstyle -->
 		<suppress
 			files="[\\/]target[\\/]"
-			checks=".*"/>
-		<suppress
-			files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]glue[\\/]schema[\\/]registry[\\/]User.java"
 			checks=".*"/>
 		<!-- suppress check for copied hive code -->
 		<suppress files="org[\\/]apache[\\/]hadoop[\\/]hive[\\/].*.java" checks=".*"/>

@@ -23,7 +23,7 @@ import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPa
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
 
 /** Message headers for canceling operation. */
-public class CancelOperationHeaders extends AbstactOperationHeaders {
+public class CancelOperationHeaders extends AbstractOperationHeaders {
 
     private static final CancelOperationHeaders INSTANCE = new CancelOperationHeaders();
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -197,26 +198,6 @@ public final class CliStrings {
 
     public static final String MESSAGE_SQL_EXECUTION_ERROR = "Could not execute SQL statement.";
 
-    public static final String MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR =
-            "Only INSERT statement is allowed in Statement Set.";
-
-    public static final String MESSAGE_STATEMENT_SET_END_CALL_ERROR =
-            "No Statement Set to submit, \"END;\" command should be used after \"BEGIN STATEMENT SET;\".";
-
-    public static final String MESSAGE_RESET =
-            "All session properties have been set to their default values.";
-
-    public static final String MESSAGE_RESET_KEY = "Session property has been reset.";
-
-    public static final String MESSAGE_SET_KEY = "Session property has been set.";
-
-    public static final String MESSAGE_REMOVED_KEY = "The specified key is not supported anymore.";
-
-    public static final String MESSAGE_DEPRECATED_KEY =
-            "The specified key '%s' is deprecated. Please use '%s' instead.";
-
-    public static final String MESSAGE_EMPTY = "Result was empty.";
-
     public static final String MESSAGE_RESULT_QUIT = "Result retrieval cancelled.";
 
     public static final String MESSAGE_SUBMITTING_STATEMENT =
@@ -228,28 +209,9 @@ public final class CliStrings {
     public static final String MESSAGE_STATEMENT_SUBMITTED =
             "SQL update statement has been successfully submitted to the cluster:";
 
-    public static final String MESSAGE_BEGIN_STATEMENT_SET = "Begin a statement set.";
-
-    public static final String MESSAGE_NO_STATEMENT_IN_STATEMENT_SET =
-            "No statement in the statement set, skip submit.";
-
-    public static final String MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET =
-            "Add SQL update statement to the statement set.";
-
     public static final String MESSAGE_EXECUTE_FILE = "Executing SQL from file.";
 
-    public static final String MESSAGE_WAIT_EXECUTE =
-            "Execute statement in sync mode. Please wait for the execution finish...";
-
     public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
-
-    public static final String MESSAGE_REMOVE_JAR_STATEMENT =
-            "The specified jar is removed from session classloader.";
-
-    public static final String MESSAGE_STOP_JOB_WITH_SAVEPOINT_STATEMENT =
-            "The specified job is stopped with savepoint %s.";
-
-    public static final String MESSAGE_STOP_JOB_STATEMENT = "The specified job is stopped.";
 
     // --------------------------------------------------------------------------------------------
 
@@ -354,10 +316,19 @@ public final class CliStrings {
                 && !t.getCause().getMessage().isEmpty()) {
             t = t.getCause();
         }
+
         if (isVerbose) {
             return messageError(message, ExceptionUtils.stringifyException(t));
         } else {
-            return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+            if (t instanceof RestClientException) {
+                // TODO: Remove this after RestClientException supports to get RootCause.
+                String[] splitExceptions = t.getMessage().split("Caused by: ");
+                return messageError(
+                        message,
+                        splitExceptions[splitExceptions.length - 1].split("\tat ")[0].trim());
+            } else {
+                return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+            }
         }
     }
 

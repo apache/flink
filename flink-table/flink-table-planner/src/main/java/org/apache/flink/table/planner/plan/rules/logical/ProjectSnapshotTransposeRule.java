@@ -24,12 +24,13 @@ import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
+import org.immutables.value.Value;
 
 /** Transpose {@link LogicalProject} past into {@link LogicalSnapshot}. */
+@Value.Enclosing
 public class ProjectSnapshotTransposeRule extends RelRule<ProjectSnapshotTransposeRule.Config> {
 
-    public static final RelOptRule INSTANCE =
-            ProjectSnapshotTransposeRule.Config.EMPTY.as(Config.class).withOperator().toRule();
+    public static final RelOptRule INSTANCE = ProjectSnapshotTransposeRule.Config.DEFAULT.toRule();
 
     public ProjectSnapshotTransposeRule(Config config) {
         super(config);
@@ -54,14 +55,20 @@ public class ProjectSnapshotTransposeRule extends RelRule<ProjectSnapshotTranspo
     }
 
     /** Configuration for {@link ProjectSnapshotTransposeRule}. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
+        Config DEFAULT =
+                ImmutableProjectSnapshotTransposeRule.Config.builder()
+                        .build()
+                        .withOperator()
+                        .as(Config.class);
 
         @Override
         default RelOptRule toRule() {
             return new ProjectSnapshotTransposeRule(this);
         }
 
-        default ProjectSnapshotTransposeRule.Config withOperator() {
+        default Config withOperator() {
             final RelRule.OperandTransform snapshotTransform =
                     operandBuilder -> operandBuilder.operand(LogicalSnapshot.class).noInputs();
 

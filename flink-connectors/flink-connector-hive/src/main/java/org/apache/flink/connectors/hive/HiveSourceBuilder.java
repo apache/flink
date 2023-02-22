@@ -234,11 +234,18 @@ public class HiveSourceBuilder {
                 continuousSourceSettings == null || partitionKeys.isEmpty()
                         ? DEFAULT_SPLIT_ASSIGNER
                         : SimpleSplitAssigner::new;
+        List<byte[]> hiveTablePartitionBytes = Collections.emptyList();
+        if (partitions != null) {
+            // Serializing the HiveTablePartition list manually at compile time to avoid
+            // deserializing it in TaskManager during runtime. The HiveTablePartition list is no
+            // need for TM.
+            hiveTablePartitionBytes = HivePartitionUtils.serializeHiveTablePartition(partitions);
+        }
+
         return new HiveSource<>(
                 new Path[1],
                 new HiveSourceFileEnumerator.Provider(
-                        partitions != null ? partitions : Collections.emptyList(),
-                        new JobConfWrapper(jobConf)),
+                        hiveTablePartitionBytes, new JobConfWrapper(jobConf)),
                 splitAssigner,
                 bulkFormat,
                 continuousSourceSettings,
@@ -247,7 +254,7 @@ public class HiveSourceBuilder {
                 partitionKeys,
                 hiveVersion,
                 dynamicFilterPartitionKeys,
-                partitions,
+                hiveTablePartitionBytes,
                 fetcher,
                 fetcherContext);
     }

@@ -150,6 +150,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     @Override
     public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
         return ProtoUtils.createUserDefinedFunctionsProto(
+                getRuntimeContext(),
                 pandasAggFunctions,
                 config.get(PYTHON_METRIC_ENABLED),
                 config.get(PYTHON_PROFILE_ENABLED));

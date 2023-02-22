@@ -28,18 +28,21 @@ process mode. It downloads and installs users' python artifacts, then launches t
 harness of Apache Beam.
 """
 import argparse
-import os
-
-import grpc
 import logging
+import os
 import sys
 
-from apache_beam.portability.api.beam_fn_api_pb2_grpc import BeamFnExternalWorkerPoolStub
-from apache_beam.portability.api.beam_fn_api_pb2 import StartWorkerRequest
-from apache_beam.portability.api.beam_provision_api_pb2_grpc import ProvisionServiceStub
-from apache_beam.portability.api.beam_provision_api_pb2 import GetProvisionInfoRequest
-from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
-
+import grpc
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2 import \
+    StartWorkerRequest
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2_grpc import (
+    BeamFnExternalWorkerPoolStub)
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 \
+    import GetProvisionInfoRequest
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc \
+    import ProvisionServiceStub
+from apache_beam.portability.api.org.apache.beam.model.pipeline.v1.endpoints_pb2 import (
+    ApiServiceDescriptor)
 from google.protobuf import json_format, text_format
 
 

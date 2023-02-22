@@ -32,8 +32,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getFlinkConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple {@link Extension} that manages the lifecycle of the {@link SqlGatewayRestEndpoint}. */
@@ -42,6 +42,7 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
     private final Supplier<SqlGatewayService> serviceSupplier;
 
     private SqlGatewayRestEndpoint sqlGatewayRestEndpoint;
+    private SqlGatewayService sqlGatewayService;
     private String targetAddress;
     private int targetPort;
 
@@ -51,6 +52,10 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
 
     public int getTargetPort() {
         return targetPort;
+    }
+
+    public SqlGatewayService getSqlGatewayService() {
+        return sqlGatewayService;
     }
 
     public SqlGatewayRestEndpointExtension(Supplier<SqlGatewayService> serviceSupplier) {
@@ -63,7 +68,8 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
         Configuration config = getBaseConfig(getFlinkConfig(address, address, "0"));
 
         try {
-            sqlGatewayRestEndpoint = new SqlGatewayRestEndpoint(config, serviceSupplier.get());
+            sqlGatewayService = serviceSupplier.get();
+            sqlGatewayRestEndpoint = new SqlGatewayRestEndpoint(config, sqlGatewayService);
             sqlGatewayRestEndpoint.start();
         } catch (Exception e) {
             throw new SqlGatewayException(

@@ -21,8 +21,6 @@ import sys
 import unittest
 import uuid
 
-import pytest
-
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table import expressions as expr
 from pyflink.table.udf import udf
@@ -95,7 +93,6 @@ class DependencyTests(object):
         self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkTestCase):
     def setUp(self):
         super(EmbeddedThreadDependencyTests, self).setUp()
@@ -131,7 +128,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
-            f.write("cloudpickle==2.1.0")
+            f.write("cloudpickle==2.2.0")
         self.t_env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):

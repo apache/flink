@@ -23,7 +23,7 @@ import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPa
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
 
 /** Message headers for closing operation. */
-public class CloseOperationHeaders extends AbstactOperationHeaders {
+public class CloseOperationHeaders extends AbstractOperationHeaders {
 
     private static final CloseOperationHeaders INSTANCE = new CloseOperationHeaders();
 

@@ -160,7 +160,8 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                             createTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, config),
                             sortOperator,
                             InternalTypeInfo.of(inputType),
-                            inputTransform.getParallelism());
+                            inputTransform.getParallelism(),
+                            false);
 
             // as input node is singleton exchange, its parallelism is 1.
             if (inputsContainSingleton()) {
@@ -208,7 +209,8 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                         createTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, config),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         if (inputsContainSingleton()) {
             transform.setParallelism(1);

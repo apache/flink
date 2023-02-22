@@ -102,6 +102,16 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         setupNumRecordsInCounter(mainOperator),
                         getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
                         gatePartitioners,
-                        getEnvironment().getTaskInfo());
+                        getEnvironment().getTaskInfo(),
+                        getCanEmitBatchOfRecords());
+    }
+
+    // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing
+    // behavior of choosing an input every time a record is emitted. This behavior is good for
+    // fairness between input consumption. But it can reduce throughput due to added control
+    // flow cost on the per-record code path.
+    @Override
+    public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
+        return () -> false;
     }
 }

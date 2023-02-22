@@ -85,6 +85,7 @@ final class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall>
                 ignoreNulls,
                 argList,
                 filterArg,
+                null,
                 RelCollations.EMPTY,
                 relDataType,
                 name);

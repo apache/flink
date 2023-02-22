@@ -28,6 +28,7 @@ import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -174,7 +175,7 @@ class TestingDispatcher extends Dispatcher {
                 new TestingResourceManagerGateway();
         private GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever =
                 () -> CompletableFuture.completedFuture(resourceManagerGateway);
-        private HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+        private HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
 
         private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
         private JobResultStore jobResultStore = new EmbeddedJobResultStore();

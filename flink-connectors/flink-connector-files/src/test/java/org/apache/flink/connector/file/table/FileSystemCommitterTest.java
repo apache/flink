@@ -38,7 +38,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link FileSystemCommitter}. */
-class FileSystemCommitterTest {
+public class FileSystemCommitterTest {
 
     private static final String SUCCESS_FILE_NAME = "_SUCCESS";
 
@@ -83,9 +83,9 @@ class FileSystemCommitterTest {
                         new LinkedHashMap<>(),
                         policies);
 
-        createFile(path, "task-1/p1=0/p2=0/", "f1", "f2");
-        createFile(path, "task-2/p1=0/p2=0/", "f3");
-        createFile(path, "task-2/p1=0/p2=1/", "f4");
+        createFile(path, "task-1-attempt-0/p1=0/p2=0/", "f1", "f2");
+        createFile(path, "task-2-attempt-0/p1=0/p2=0/", "f3");
+        createFile(path, "task-2-attempt-0/p1=0/p2=1/", "f4");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f1")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f2")).exists();
@@ -94,7 +94,7 @@ class FileSystemCommitterTest {
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f4")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/" + SUCCESS_FILE_NAME)).exists();
 
-        createFile(path, "task-2/p1=0/p2=1/", "f5");
+        createFile(path, "task-2-attempt-0/p1=0/p2=1/", "f5");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f1")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f2")).exists();
@@ -114,7 +114,7 @@ class FileSystemCommitterTest {
                         identifier,
                         new LinkedHashMap<>(),
                         policies);
-        createFile(path, "task-2/p1=0/p2=1/", "f6");
+        createFile(path, "task-2-attempt-0/p1=0/p2=1/", "f6");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f5")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f6")).exists();
@@ -135,15 +135,15 @@ class FileSystemCommitterTest {
                         new LinkedHashMap<String, String>(),
                         policies);
 
-        createFile(path, "task-1/", "f1", "f2");
-        createFile(path, "task-2/", "f3");
+        createFile(path, "task-1-attempt-0/", "f1", "f2");
+        createFile(path, "task-2-attempt-0/", "f3");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f1")).exists();
         assertThat(new File(outputPath.toFile(), "f2")).exists();
         assertThat(new File(outputPath.toFile(), "f3")).exists();
         assertThat(new File(outputPath.toFile(), SUCCESS_FILE_NAME)).exists();
 
-        createFile(path, "task-2/", "f4");
+        createFile(path, "task-2-attempt-0/", "f4");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f4")).exists();
         assertThat(new File(outputPath.toFile(), SUCCESS_FILE_NAME)).exists();
@@ -159,7 +159,7 @@ class FileSystemCommitterTest {
                         identifier,
                         new LinkedHashMap<String, String>(),
                         policies);
-        createFile(path, "task-2/", "f5");
+        createFile(path, "task-2-attempt-0/", "f5");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f4")).exists();
         assertThat(new File(outputPath.toFile(), "f5")).exists();
@@ -183,8 +183,8 @@ class FileSystemCommitterTest {
                         staticPartitions,
                         policies);
 
-        createFile(path, "task-1/dt=2022-08-02/");
-        createFile(path, "task-2/dt=2022-08-02/");
+        createFile(path, "task-1-attempt-0/dt=2022-08-02/");
+        createFile(path, "task-2-attempt-0/dt=2022-08-02/");
 
         committer.commitPartitions();
 
@@ -201,8 +201,8 @@ class FileSystemCommitterTest {
         createFile(outputPath, "dt=2022-08-02/f1");
         assertThat(new File(emptyPartitionFile, "f1")).exists();
 
-        createFile(path, "task-1/dt=2022-08-02/");
-        createFile(path, "task-2/dt=2022-08-02/");
+        createFile(path, "task-1-attempt-0/dt=2022-08-02/");
+        createFile(path, "task-2-attempt-0/dt=2022-08-02/");
         committer.commitPartitions();
 
         // assert partition dir is still empty because the partition dir is overwritten
@@ -216,8 +216,8 @@ class FileSystemCommitterTest {
         createFile(outputPath, "dt=2022-08-02/f1");
         assertThat(new File(emptyPartitionFile, "f1")).exists();
 
-        createFile(path, "task-1/dt=2022-08-02/");
-        createFile(path, "task-2/dt=2022-08-02/");
+        createFile(path, "task-1-attempt-0/dt=2022-08-02/");
+        createFile(path, "task-2-attempt-0/dt=2022-08-02/");
         committer =
                 new FileSystemCommitter(
                         fileSystemFactory,
@@ -258,12 +258,13 @@ class FileSystemCommitterTest {
         assertThat(outputPath.toFile().list()).isEqualTo(new String[0]);
     }
 
-    static class TestMetaStoreFactory implements TableMetaStoreFactory {
+    /** A {@link TableMetaStoreFactory} for test purpose. */
+    public static class TestMetaStoreFactory implements TableMetaStoreFactory {
         private static final long serialVersionUID = 1L;
 
         private final Path outputPath;
 
-        TestMetaStoreFactory(Path outputPath) {
+        public TestMetaStoreFactory(Path outputPath) {
             this.outputPath = outputPath;
         }
 

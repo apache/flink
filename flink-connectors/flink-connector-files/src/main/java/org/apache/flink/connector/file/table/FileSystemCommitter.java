@@ -23,12 +23,15 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 
 import static org.apache.flink.connector.file.table.PartitionTempFileManager.collectPartSpecToPaths;
 import static org.apache.flink.connector.file.table.PartitionTempFileManager.listTaskTemporaryPaths;
+import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionSpecFromPath;
 
 /**
  * File system file committer implementation. It moves all files to output path from temporary path.
@@ -48,7 +51,7 @@ import static org.apache.flink.connector.file.table.PartitionTempFileManager.lis
  * <p>See: {@link PartitionTempFileManager}. {@link PartitionLoader}.
  */
 @Internal
-class FileSystemCommitter {
+public class FileSystemCommitter {
 
     private final FileSystemFactory factory;
     private final TableMetaStoreFactory metaStoreFactory;
@@ -60,7 +63,7 @@ class FileSystemCommitter {
     private final LinkedHashMap<String, String> staticPartitions;
     private final List<PartitionCommitPolicy> policies;
 
-    FileSystemCommitter(
+    public FileSystemCommitter(
             FileSystemFactory factory,
             TableMetaStoreFactory metaStoreFactory,
             boolean overwrite,
@@ -83,8 +86,19 @@ class FileSystemCommitter {
 
     /** For committing job's output after successful batch job completion. */
     public void commitPartitions() throws Exception {
+        commitPartitions((subtaskIndex, attemptNumber) -> true);
+    }
+
+    /**
+     * Commits the partitions with a filter to filter out invalid task attempt files. In speculative
+     * execution mode, there might be some files which do not belong to the finished attempt.
+     *
+     * @param taskAttemptFilter the filter that accepts subtaskIndex and attemptNumber
+     * @throws Exception if partition commitment fails
+     */
+    public void commitPartitions(BiPredicate<Integer, Integer> taskAttemptFilter) throws Exception {
         FileSystem fs = factory.create(tmpPath.toUri());
-        List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath);
+        List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath, taskAttemptFilter);
 
         try (PartitionLoader loader =
                 new PartitionLoader(
@@ -97,15 +111,46 @@ class FileSystemCommitter {
                 } else {
                     for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
                             collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {
-                        loader.loadPartition(entry.getKey(), entry.getValue());
+                        loader.loadPartition(entry.getKey(), entry.getValue(), true);
                     }
                 }
             } else {
-                loader.loadNonPartition(taskPaths);
+                loader.loadNonPartition(taskPaths, true);
             }
         } finally {
             for (Path taskPath : taskPaths) {
                 fs.delete(taskPath, true);
+            }
+        }
+    }
+
+    /**
+     * For committing job's output after successful batch job completion, it will commit with the
+     * given partitions and corresponding files written which means it'll move the temporary files
+     * to partition's location.
+     */
+    public void commitPartitionsWithFiles(Map<String, List<Path>> partitionsFiles)
+            throws Exception {
+        FileSystem fs = factory.create(tmpPath.toUri());
+        try (PartitionLoader loader =
+                new PartitionLoader(
+                        overwrite, fs, metaStoreFactory, isToLocal, identifier, policies)) {
+            if (partitionColumnSize > 0) {
+                if (partitionsFiles.isEmpty() && !staticPartitions.isEmpty()) {
+                    if (partitionColumnSize == staticPartitions.size()) {
+                        loader.loadEmptyPartition(this.staticPartitions);
+                    }
+                } else {
+                    for (Map.Entry<String, List<Path>> partitionFile : partitionsFiles.entrySet()) {
+                        LinkedHashMap<String, String> partSpec =
+                                extractPartitionSpecFromPath(new Path(partitionFile.getKey()));
+                        loader.loadPartition(partSpec, partitionFile.getValue(), false);
+                    }
+                }
+            } else {
+                List<Path> files = new ArrayList<>();
+                partitionsFiles.values().forEach(files::addAll);
+                loader.loadNonPartition(files, false);
             }
         }
     }

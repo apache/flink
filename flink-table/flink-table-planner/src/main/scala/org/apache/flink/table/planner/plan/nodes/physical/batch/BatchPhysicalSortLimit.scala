@@ -99,13 +99,23 @@ class BatchPhysicalSortLimit(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (isGlobal) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.UNKNOWN_DISTRIBUTION
+    }
+
     new BatchExecSortLimit(
       unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       limitStart,
       limitEnd,
       isGlobal,
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty
+        .builder()
+        .requiredDistribution(requiredDistribution)
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

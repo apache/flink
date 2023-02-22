@@ -87,7 +87,7 @@ LogicalProject(a1=[AS($0, _UTF-16LE'a1')])
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(c = a1)], select=[a, b, c], build=[right], tryDistinctBuildRow=[true])
-:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
+:- Exchange(distribution=[hash[c]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 +- Exchange(distribution=[hash[a1]])
    +- LocalHashAggregate(groupBy=[a1], select=[a1])

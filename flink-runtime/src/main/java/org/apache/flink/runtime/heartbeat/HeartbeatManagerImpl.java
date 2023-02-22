@@ -46,7 +46,7 @@ import java.util.function.Consumer;
  * @param <O> Type of the outgoing heartbeat payload
  */
 @ThreadSafe
-public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
+class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
     /** Heartbeat timeout interval in milli seconds. */
     private final long heartbeatTimeoutIntervalMs;
@@ -86,7 +86,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                 heartbeatListener,
                 mainThreadExecutor,
                 log,
-                new HeartbeatMonitorImpl.Factory<>());
+                new DefaultHeartbeatMonitor.Factory<>());
     }
 
     public HeartbeatManagerImpl(

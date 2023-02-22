@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.functions.table.fullcache;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.table.connector.source.lookup.cache.InterceptingCacheMetricGroup;
@@ -163,8 +162,9 @@ public class LookupFullCacheTest {
                         runAsync(
                                 ThrowingRunnable.unchecked(
                                         () -> {
+                                            cache.setUserCodeClassLoader(
+                                                    Thread.currentThread().getContextClassLoader());
                                             cache.open(metricGroup);
-                                            cache.open(new Configuration());
                                         }),
                                 executor);
                 futures.add(future);
@@ -178,7 +178,6 @@ public class LookupFullCacheTest {
                         runAsync(
                                 () -> {
                                     RowData key = row(1);
-                                    cache.open(metricGroup);
                                     assertThat(cache.getIfPresent(key))
                                             .isEqualTo(TestCacheLoader.DATA.get(key));
                                 },
@@ -204,10 +203,10 @@ public class LookupFullCacheTest {
     private LookupFullCache createAndLoadCache(
             TestCacheLoader cacheLoader, CacheMetricGroup metricGroup) throws Exception {
         LookupFullCache fullCache = new LookupFullCache(cacheLoader, reloadTrigger);
-        fullCache.open(metricGroup);
         assertThat(cacheLoader.isAwaitTriggered()).isFalse();
         assertThat(cacheLoader.getNumLoads()).isZero();
-        fullCache.open(new Configuration());
+        fullCache.setUserCodeClassLoader(Thread.currentThread().getContextClassLoader());
+        fullCache.open(metricGroup);
         assertThat(cacheLoader.isAwaitTriggered()).isTrue();
         assertThat(cacheLoader.getNumLoads()).isEqualTo(1);
         assertThat(cacheLoader.getCache()).isEqualTo(TestCacheLoader.DATA);

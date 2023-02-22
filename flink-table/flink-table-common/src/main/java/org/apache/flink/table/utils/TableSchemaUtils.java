@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -31,6 +32,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Utilities to {@link TableSchema}. */
 @Internal
@@ -96,6 +98,21 @@ public class TableSchemaUtils {
         } else {
             return new int[0];
         }
+    }
+
+    /** Removes time attributes from the {@link ResolvedSchema} and build a {@link TableSchema}. */
+    public static TableSchema removeTimeAttributeFromResolvedSchema(ResolvedSchema resolvedSchema) {
+        return TableSchema.fromResolvedSchema(
+                new ResolvedSchema(
+                        resolvedSchema.getColumns().stream()
+                                .map(
+                                        col ->
+                                                col.copy(
+                                                        DataTypeUtils.removeTimeAttribute(
+                                                                col.getDataType())))
+                                .collect(Collectors.toList()),
+                        resolvedSchema.getWatermarkSpecs(),
+                        resolvedSchema.getPrimaryKey().orElse(null)));
     }
 
     /**

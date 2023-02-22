@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAllFullOuterJoin">
+  <TestCase name="testAllFullOuterJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -40,44 +40,192 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[(a4 = a5)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:- Exchange(distribution=[hash[a4]])
-:  +- Join(joinType=[FullOuterJoin], where=[(a1 = a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:     :- Exchange(distribution=[hash[a1]])
-:     :  +- Join(joinType=[FullOuterJoin], where=[(a1 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:     :     :- Exchange(distribution=[hash[a1]])
-:     :     :  +- Join(joinType=[FullOuterJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:     :     :     :- Exchange(distribution=[hash[a1]])
-:     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-:     :     :     +- Exchange(distribution=[hash[a2]])
-:     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-:     :     +- Exchange(distribution=[hash[a3]])
-:     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-:     +- Exchange(distribution=[hash[a4]])
-:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-+- Exchange(distribution=[hash[a5]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[FullOuterJoin], where=[=(a4, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a5]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a4]])
+      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+         +- Join(joinType=[FullOuterJoin], where=[=(a1, a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a4]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+            +- Exchange(distribution=[hash[a1]])
+               +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+                  +- Join(joinType=[FullOuterJoin], where=[=(a1, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                     :- Exchange(distribution=[hash[a3]])
+                     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+                     +- Exchange(distribution=[hash[a1]])
+                        +- Calc(select=[a1, b1, c1, a2, b2, c2])
+                           +- Join(joinType=[FullOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                              :- Exchange(distribution=[hash[a2]])
+                              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+                              +- Exchange(distribution=[hash[a1]])
+                                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAllLeftOuterJoin">
+  <TestCase name="testAllFullOuterJoin[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
-   LEFT OUTER JOIN T2 ON a1 = a2
-   LEFT OUTER JOIN T3 ON a2 = a3
-   LEFT OUTER JOIN T4 ON a1 = a4
-   LEFT OUTER JOIN T5 ON a4 = a5
+   FULL OUTER JOIN T2 ON a1 = a2
+   FULL OUTER JOIN T3 ON a1 = a3
+   FULL OUTER JOIN T4 ON a1 = a4
+   FULL OUTER JOIN T5 ON a4 = a5
          ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
-+- LogicalJoin(condition=[=($9, $12)], joinType=[left])
++- LogicalJoin(condition=[=($9, $12)], joinType=[full])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[full])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[full])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[full])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[FullOuterJoin], where=[=(a4, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a5]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a4]])
+      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+         +- Join(joinType=[FullOuterJoin], where=[=(a1, a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a4]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+            +- Exchange(distribution=[hash[a1]])
+               +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+                  +- Join(joinType=[FullOuterJoin], where=[=(a1, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                     :- Exchange(distribution=[hash[a3]])
+                     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+                     +- Exchange(distribution=[hash[a1]])
+                        +- Calc(select=[a1, b1, c1, a2, b2, c2])
+                           +- Join(joinType=[FullOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                              :- Exchange(distribution=[hash[a2]])
+                              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+                              +- Exchange(distribution=[hash[a1]])
+                                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllInnerJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   JOIN T4 ON a2 = a4
+   JOIN T5 ON a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($0, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($3, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[AND(=(a2, a3), =(a4, a3), =(a3, a1), =(a3, a5))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2, a4, a1, a5]])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(a2, a4), =(a1, a2), =(a5, a2))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a2, a2, a2]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     +- Exchange(distribution=[hash[a4, a1, a5]])
+   :        +- Join(joinType=[InnerJoin], where=[AND(=(a1, a5), =(a4, a1))], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[a1, a1]])
+   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :           +- Exchange(distribution=[hash[a5, a4]])
+   :              +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :                 :- Exchange(distribution=[hash[a5]])
+   :                 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :                 +- Exchange(distribution=[hash[a4]])
+   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[a3, a3, a3, a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllInnerJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   JOIN T4 ON a2 = a4
+   JOIN T5 ON a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($0, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($3, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a4, b4, c4, a1, b1, c1, a5, b5, c5, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a1, a5)], select=[a2, b2, c2, a4, b4, c4, a1, b1, c1, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a2, b2, c2, a4, b4, c4, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a2]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a2]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     :     :     +- Exchange(distribution=[hash[a4]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[hash[a1]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     +- Exchange(distribution=[hash[a5]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllLeftOuterJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   LEFT OUTER JOIN T2 ON a1 = a2
+   LEFT OUTER JOIN T3 ON a1 = a3
+   LEFT OUTER JOIN T4 ON a1 = a4
+   LEFT OUTER JOIN T5 ON a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($0, $12)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $9)], joinType=[left])
-   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[left])
    :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
    :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
@@ -86,15 +234,62 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[LeftOuterJoin], where=[(a4 = a5)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:- Exchange(distribution=[hash[a4]])
-:  +- Join(joinType=[LeftOuterJoin], where=[(a1 = a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[RightOuterJoin], where=[=(a1, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a5]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a1]])
+      +- Join(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a1, b1, c1, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a1, b1, c1, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :     :- Exchange(distribution=[hash[a1]])
+         :     :  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :     :     :- Exchange(distribution=[hash[a1]])
+         :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         :     :     +- Exchange(distribution=[hash[a2]])
+         :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         :     +- Exchange(distribution=[hash[a4]])
+         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+         +- Exchange(distribution=[hash[a3]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllLeftOuterJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   LEFT OUTER JOIN T2 ON a1 = a2
+   LEFT OUTER JOIN T3 ON a1 = a3
+   LEFT OUTER JOIN T4 ON a1 = a4
+   LEFT OUTER JOIN T5 ON a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($0, $12)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[left])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[LeftOuterJoin], where=[=(a1, a5)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a1]])
+:  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a1]])
-:     :  +- Join(joinType=[LeftOuterJoin], where=[(a2 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:     :     :- Exchange(distribution=[hash[a2]])
-:     :     :  +- Join(joinType=[LeftOuterJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :     :- Exchange(distribution=[hash[a1]])
+:     :     :  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :     :     :- Exchange(distribution=[hash[a1]])
 :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 :     :     :     +- Exchange(distribution=[hash[a2]])
@@ -108,7 +303,7 @@ Join(joinType=[LeftOuterJoin], where=[(a4 = a5)], select=[a1, b1, c1, a2, b2, c2
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAllRightOuterJoin">
+  <TestCase name="testAllRightOuterJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -132,30 +327,83 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[LeftOuterJoin], where=[(a4 = a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[=(a4, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a5]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
    +- Exchange(distribution=[hash[a4]])
-      +- Join(joinType=[RightOuterJoin], where=[(a1 = a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :- Exchange(distribution=[hash[a1]])
-         :  +- Join(joinType=[RightOuterJoin], where=[(a2 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :     :- Exchange(distribution=[hash[a2]])
-         :     :  +- Join(joinType=[RightOuterJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :     :     :- Exchange(distribution=[hash[a1]])
-         :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-         :     :     +- Exchange(distribution=[hash[a2]])
-         :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-         :     +- Exchange(distribution=[hash[a3]])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-         +- Exchange(distribution=[hash[a4]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+         +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a4]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+            +- Exchange(distribution=[hash[a1]])
+               +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+                  +- Join(joinType=[LeftOuterJoin], where=[=(a2, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                     :- Exchange(distribution=[hash[a3]])
+                     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+                     +- Exchange(distribution=[hash[a2]])
+                        +- Calc(select=[a1, b1, c1, a2, b2, c2])
+                           +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                              :- Exchange(distribution=[hash[a2]])
+                              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+                              +- Exchange(distribution=[hash[a1]])
+                                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBushyJoinCondition1">
+  <TestCase name="testAllRightOuterJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   RIGHT OUTER JOIN T2 ON a1 = a2
+   RIGHT OUTER JOIN T3 ON a2 = a3
+   RIGHT OUTER JOIN T4 ON a1 = a4
+   RIGHT OUTER JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[right])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[right])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[right])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[LeftOuterJoin], where=[=(a4, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a5]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a4]])
+      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+         +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a4]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+            +- Exchange(distribution=[hash[a1]])
+               +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+                  +- Join(joinType=[LeftOuterJoin], where=[=(a2, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                     :- Exchange(distribution=[hash[a3]])
+                     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+                     +- Exchange(distribution=[hash[a2]])
+                        +- Calc(select=[a1, b1, c1, a2, b2, c2])
+                           +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                              :- Exchange(distribution=[hash[a2]])
+                              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+                              +- Exchange(distribution=[hash[a1]])
+                                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBushyJoinCondition1[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
@@ -177,30 +425,75 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((a1 = a4) AND (a4 = a2) AND (a3 = a4) AND (a5 = a4))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1, a2, a3, a5]])
-   :  +- Join(joinType=[InnerJoin], where=[((a2 = a3) AND (a1 = a2) AND (a5 = a2))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a3, a5), =(a2, a3), =(a3, a1), =(a3, a4))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a5, a2, a1, a4]])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(a1, a2), =(a5, a2), =(a4, a2))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a2, a2, a2]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :     +- Exchange(distribution=[hash[a3, a1, a5]])
-   :        +- Join(joinType=[InnerJoin], where=[((a3 = a5) AND (a1 = a5))], select=[a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :           :- Exchange(distribution=[hash[a5, a5]])
-   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :           +- Exchange(distribution=[hash[a3, a1]])
-   :              +- Join(joinType=[InnerJoin], where=[(a3 = a1)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :                 :- Exchange(distribution=[hash[a1]])
-   :                 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :                 +- Exchange(distribution=[hash[a3]])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   +- Exchange(distribution=[hash[a4, a4, a4, a4]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a1, a5, a4]])
+   :        +- Join(joinType=[InnerJoin], where=[AND(=(a1, a4), =(a1, a5))], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[a1, a1]])
+   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :           +- Exchange(distribution=[hash[a4, a5]])
+   :              +- Join(joinType=[InnerJoin], where=[=(a5, a4)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :                 :- Exchange(distribution=[hash[a5]])
+   :                 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :                 +- Exchange(distribution=[hash[a4]])
+   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[a3, a3, a3, a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBushyJoinCondition2">
+  <TestCase name="testBushyJoinCondition1[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE a1 = a2 AND a2 = a3 AND a1 = a4 AND a3 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($0, $3), =($3, $6), =($0, $9), =($6, $12))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     +- Exchange(distribution=[hash[a4]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a2]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   +- Exchange(distribution=[hash[a3]])
+      +- Join(joinType=[InnerJoin], where=[=(a3, a5)], select=[a3, b3, c3, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a3]])
+         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+         +- Exchange(distribution=[hash[a5]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBushyJoinCondition2[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
@@ -222,18 +515,18 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((b3 = b5) AND (b2 = b3) AND (b3 = b1) AND (b3 = b4))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(b3, b5), =(b2, b3), =(b3, b1), =(b3, b4))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[b5, b2, b1, b4]])
-   :  +- Join(joinType=[InnerJoin], where=[((b1 = b4) AND (b1 = b2) AND (b1 = b5))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(b1, b4), =(b1, b2), =(b1, b5))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[b1, b1, b1]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :     +- Exchange(distribution=[hash[b4, b2, b5]])
-   :        +- Join(joinType=[InnerJoin], where=[((b4 = b2) AND (b5 = b4))], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :        +- Join(joinType=[InnerJoin], where=[AND(=(b4, b2), =(b5, b4))], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :- Exchange(distribution=[hash[b2, b5]])
-   :           :  +- Join(joinType=[InnerJoin], where=[(b5 = b2)], select=[a5, b5, c5, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :  +- Join(joinType=[InnerJoin], where=[=(b5, b2)], select=[a5, b5, c5, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :     :- Exchange(distribution=[hash[b5]])
    :           :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
    :           :     +- Exchange(distribution=[hash[b2]])
@@ -245,7 +538,134 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDeriveNullFilterAfterJoinReorder">
+  <TestCase name="testBushyJoinCondition2[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE b1 = b2 AND b2 = b3 AND b1 = b4 AND b3 = b5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($1, $4), =($4, $7), =($1, $10), =($7, $13))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(b1, b2)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[b1]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(b1, b4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[b1]])
+   :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     +- Exchange(distribution=[hash[b4]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[b2]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   +- Exchange(distribution=[hash[b3]])
+      +- Join(joinType=[InnerJoin], where=[=(b3, b5)], select=[a3, b3, c3, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[b3]])
+         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+         +- Exchange(distribution=[hash[b5]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2, T3, T4, T5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[true], select=[a5, b5, c5, a4, b4, c4, a3, b3, c3, a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a5, b5, c5, a4, b4, c4, a3, b3, c3, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- Join(joinType=[InnerJoin], where=[true], select=[a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[single])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[true], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[single])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     :     :     +- Exchange(distribution=[single])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[single])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2, T3, T4, T5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[true], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- Join(joinType=[InnerJoin], where=[true], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[single])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[true], select=[a4, b4, c4, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[single])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     :     +- Exchange(distribution=[single])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     +- Exchange(distribution=[single])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeriveNullFilterAfterJoinReorder[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T6
@@ -263,12 +683,12 @@ LogicalProject(a6=[$0], b6=[$1], a7=[$2], b7=[$3], a8=[$4], b8=[$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, T8, source: [TestTableSource(a8, b8)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a6, b6, a7, b7, a8, b8])
-+- Join(joinType=[InnerJoin], where=[(b6 = b7)], select=[a6, b6, a8, b8, a7, b7], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(b6, b7)], select=[a6, b6, a8, b8, a7, b7], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[b6]])
-   :  +- Join(joinType=[InnerJoin], where=[(a6 = a8)], select=[a6, b6, a8, b8], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, a8, b8], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a6]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6)]]], fields=[a6, b6])
    :     +- Exchange(distribution=[hash[a8]])
@@ -278,7 +698,40 @@ Calc(select=[a6, b6, a7, b7, a8, b8])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerAndFullOuterJoin">
+  <TestCase name="testDeriveNullFilterAfterJoinReorder[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T6
+   INNER JOIN T7 ON b6 = b7
+   INNER JOIN T8 ON a6 = a8
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a6=[$0], b6=[$1], a7=[$2], b7=[$3], a8=[$4], b8=[$5])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :- LogicalJoin(condition=[=($1, $3)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T7, source: [TestTableSource(a7, b7)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T8, source: [TestTableSource(a8, b8)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a6, b6, a7, b7, a8, b8])
++- Join(joinType=[InnerJoin], where=[=(b6, b7)], select=[a6, b6, a8, b8, a7, b7], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b6]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, a8, b8], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a6]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6)]]], fields=[a6, b6])
+   :     +- Exchange(distribution=[hash[a8]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T8, source: [TestTableSource(a8, b8)]]], fields=[a8, b8])
+   +- Exchange(distribution=[hash[b7]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T7, source: [TestTableSource(a7, b7)]]], fields=[a7, b7])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerAndFullOuterJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -302,36 +755,37 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((a1 = a4) AND (a5 = a1))], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1, a1]])
-   :  +- Join(joinType=[FullOuterJoin], where=[(a2 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :     :- Exchange(distribution=[hash[a2]])
-   :     :  +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :     :     :- Exchange(distribution=[hash[a1]])
-   :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :     :     +- Exchange(distribution=[hash[a2]])
-   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :     +- Exchange(distribution=[hash[a3]])
-   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   +- Exchange(distribution=[hash[a4, a5]])
-      +- Join(joinType=[InnerJoin], where=[(a4 = a5)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :- Exchange(distribution=[hash[a5]])
-         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-         +- Exchange(distribution=[hash[a4]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
++- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a4, b4, c4, a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a4]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a4]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a5]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+         +- Join(joinType=[FullOuterJoin], where=[=(a2, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a3]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+            +- Exchange(distribution=[hash[a2]])
+               +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                  :- Exchange(distribution=[hash[a1]])
+                  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+                  +- Exchange(distribution=[hash[a2]])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerAndLeftOuterJoin">
+  <TestCase name="testInnerAndFullOuterJoin[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
    JOIN T2 ON a1 = a2
-   JOIN T3 ON a2 = a3
-   LEFT OUTER JOIN T4 ON a1 = a4
+   FULL OUTER JOIN T3 ON a2 = a3
+   JOIN T4 ON a1 = a4
    JOIN T5 ON a4 = a5
          ]]>
     </Resource>
@@ -339,6 +793,54 @@ SELECT * FROM T1
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
 +- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[full])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a4, b4, c4, a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a4]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a4]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a5]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+         +- Join(joinType=[FullOuterJoin], where=[=(a2, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a3]])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+            +- Exchange(distribution=[hash[a2]])
+               +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                  :- Exchange(distribution=[hash[a1]])
+                  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+                  +- Exchange(distribution=[hash[a2]])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerAndLeftOuterJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   LEFT OUTER JOIN T4 ON a1 = a4
+   JOIN T5 ON a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($0, $12)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $9)], joinType=[left])
    :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
    :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -349,36 +851,83 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[(a4 = a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a5]])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   +- Exchange(distribution=[hash[a4]])
-      +- Join(joinType=[LeftOuterJoin], where=[(a1 = a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :- Exchange(distribution=[hash[a1]])
-         :  +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :     :- Exchange(distribution=[hash[a1]])
-         :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-         :     +- Exchange(distribution=[hash[a2]])
-         :        +- Join(joinType=[InnerJoin], where=[(a2 = a3)], select=[a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :           :- Exchange(distribution=[hash[a2]])
-         :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-         :           +- Exchange(distribution=[hash[a3]])
-         :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-         +- Exchange(distribution=[hash[a4]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
++- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a1, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a5]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     +- Exchange(distribution=[hash[a1]])
+   :        +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a1, b1, c1, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[a1]])
+   :           :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :     :- Exchange(distribution=[hash[a1]])
+   :           :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :           :     +- Exchange(distribution=[hash[a2]])
+   :           :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :           +- Exchange(distribution=[hash[a4]])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerAndRightOuterJoin">
+  <TestCase name="testInnerAndLeftOuterJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   LEFT OUTER JOIN T4 ON a1 = a4
+   JOIN T5 ON a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($0, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a2]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a5)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     :     +- Exchange(distribution=[hash[a2]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     :     +- Exchange(distribution=[hash[a5]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     +- Exchange(distribution=[hash[a3]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   +- Exchange(distribution=[hash[a4]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerAndRightOuterJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
    RIGHT OUTER JOIN T2 ON a1 = a2
    JOIN T3 ON a2 = a3
-   JOIN T4 ON a1 = a4
+   JOIN T4 ON a2 = a4
    JOIN T5 ON a4 = a5
          ]]>
     </Resource>
@@ -386,7 +935,7 @@ SELECT * FROM T1
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
 +- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
-   :- LogicalJoin(condition=[=($0, $9)], joinType=[inner])
+   :- LogicalJoin(condition=[=($3, $9)], joinType=[inner])
    :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
    :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
    :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
@@ -396,20 +945,20 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[(a2 = a3)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a2]])
-   :  +- Join(joinType=[InnerJoin], where=[((a1 = a4) AND (a5 = a1))], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :     :- Exchange(distribution=[hash[a1, a1]])
-   :     :  +- Join(joinType=[RightOuterJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[=(a2, a4)], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a2]])
+   :     :  +- Join(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :     :- Exchange(distribution=[hash[a1]])
    :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :     :     +- Exchange(distribution=[hash[a2]])
    :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :     +- Exchange(distribution=[hash[a4, a5]])
-   :        +- Join(joinType=[InnerJoin], where=[(a4 = a5)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     +- Exchange(distribution=[hash[a4]])
+   :        +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :- Exchange(distribution=[hash[a5]])
    :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
    :           +- Exchange(distribution=[hash[a4]])
@@ -419,7 +968,54 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerJoinAntiJoin">
+  <TestCase name="testInnerAndRightOuterJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   RIGHT OUTER JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   JOIN T4 ON a2 = a4
+   JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($3, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a4, b4, c4, a5, b5, c5, a2, b2, c2, a3, b3, c3, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a4, b4, c4, a5, b5, c5, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a2]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a2, a4)], select=[a4, b4, c4, a5, b5, c5, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a4]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a4]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     :     +- Exchange(distribution=[hash[a5]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     :     +- Exchange(distribution=[hash[a2]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     +- Exchange(distribution=[hash[a3]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   +- Exchange(distribution=[hash[a1]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinAntiJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -445,18 +1041,18 @@ LogicalFilter(condition=[=($cor0.a1, $0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
-+- Join(joinType=[InnerJoin], where=[((a1 = a4) AND (a4 = a2) AND (a3 = a4))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, a4), =(a4, a2), =(a3, a4))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2, a3]])
-   :  +- Join(joinType=[InnerJoin], where=[((a2 = a3) AND (a1 = a2))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(a2, a3), =(a1, a2))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a2, a2]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
    :     +- Exchange(distribution=[hash[a3, a1]])
-   :        +- Join(joinType=[LeftAntiJoin], where=[(a1 = a5)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :        +- Join(joinType=[LeftAntiJoin], where=[=(a1, a5)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :- Exchange(distribution=[hash[a1]])
-   :           :  +- Join(joinType=[InnerJoin], where=[(a3 = a1)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :  +- Join(joinType=[InnerJoin], where=[=(a3, a1)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :     :- Exchange(distribution=[hash[a1]])
    :           :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :           :     +- Exchange(distribution=[hash[a3]])
@@ -469,7 +1065,225 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin">
+  <TestCase name="testInnerJoinAntiJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   JOIN T4 ON a1 = a4
+   WHERE NOT EXISTS (SELECT a5 FROM T5 WHERE a1 = a5)
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a1, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[=($0, $9)], joinType=[inner])
+      :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+      :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
++- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Join(joinType=[LeftAntiJoin], where=[=(a1, a5)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     :     +- Exchange(distribution=[hash[a4]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[hash[a5]])
+   :     :        +- Calc(select=[a5])
+   :     :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     +- Exchange(distribution=[hash[a2]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   +- Exchange(distribution=[hash[a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinCrossJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1,
+   (SELECT * FROM T2 JOIN T3 ON a2 = a3) tab1, T4
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], a3=[$3], b3=[$4], c3=[$5])
+   :     +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :        :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
++- Join(joinType=[InnerJoin], where=[true], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[single])
+      +- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a2]])
+         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         +- Exchange(distribution=[hash[a3]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinCrossJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1,
+   (SELECT * FROM T2 JOIN T3 ON a2 = a3) tab1, T4
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], a3=[$3], b3=[$4], c3=[$5])
+   :     +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :        :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
++- Join(joinType=[InnerJoin], where=[true], select=[a2, b2, c2, a3, b3, c3, a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a2, b2, c2, a3, b3, c3, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a2]])
+   :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     :     +- Exchange(distribution=[hash[a3]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinLeftOuterJoinCrossJoin[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1,
+   (SELECT * FROM T2 LEFT JOIN T3 ON a2 = a3 JOIN T4 ON a2 = a4) tab1, T5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], a3=[$3], b3=[$4], c3=[$5], a4=[$6], b4=[$7], c4=[$8])
+   :     +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :        :  :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :        :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[true], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     +- Exchange(distribution=[single])
+   :        +- Join(joinType=[LeftOuterJoin], where=[=(a2, a3)], select=[a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[a2]])
+   :           :  +- Join(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :     :- Exchange(distribution=[hash[a2]])
+   :           :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :           :     +- Exchange(distribution=[hash[a4]])
+   :           :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :           +- Exchange(distribution=[hash[a3]])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinLeftOuterJoinCrossJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1,
+   (SELECT * FROM T2 LEFT JOIN T3 ON a2 = a3 JOIN T4 ON a2 = a4) tab1, T5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], a3=[$3], b3=[$4], c3=[$5], a4=[$6], b4=[$7], c4=[$8])
+   :     +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :        :  :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :        :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[true], select=[a2, b2, c2, a4, b4, c4, a3, b3, c3, a1, b1, c1, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[InnerJoin], where=[true], select=[a2, b2, c2, a4, b4, c4, a3, b3, c3, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[single])
+   :     :  +- Join(joinType=[LeftOuterJoin], where=[=(a2, a3)], select=[a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a2]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a2, a4)], select=[a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a2]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     :     :     +- Exchange(distribution=[hash[a4]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[hash[a3]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     +- Exchange(distribution=[single])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -493,30 +1307,77 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[RightOuterJoin], where=[(a4 = a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a5]])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   +- Exchange(distribution=[hash[a4]])
-      +- Join(joinType=[InnerJoin], where=[(a1 = a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :- Exchange(distribution=[hash[a1]])
-         :  +- Join(joinType=[LeftOuterJoin], where=[(a1 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :     :- Exchange(distribution=[hash[a1]])
-         :     :  +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :     :     :- Exchange(distribution=[hash[a1]])
-         :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-         :     :     +- Exchange(distribution=[hash[a2]])
-         :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-         :     +- Exchange(distribution=[hash[a3]])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-         +- Exchange(distribution=[hash[a4]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+Join(joinType=[LeftOuterJoin], where=[=(a4, a5)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a4]])
+:  +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+:     +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a2, b2, c2, a3, b3, c3, a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :- Exchange(distribution=[hash[a2]])
+:        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+:        +- Exchange(distribution=[hash[a1]])
+:           +- Join(joinType=[RightOuterJoin], where=[=(a1, a3)], select=[a3, b3, c3, a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:              :- Exchange(distribution=[hash[a3]])
+:              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+:              +- Exchange(distribution=[hash[a1]])
+:                 +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:                    :- Exchange(distribution=[hash[a1]])
+:                    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:                    +- Exchange(distribution=[hash[a4]])
+:                       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
++- Exchange(distribution=[hash[a5]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerJoinRightOuterJoinInnerJoinRightOuterJoin">
+  <TestCase name="testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   LEFT OUTER JOIN T3 ON a1 = a3
+   JOIN T4 ON a1 = a4
+   LEFT OUTER JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[left])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[LeftOuterJoin], where=[=(a4, a5)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a4]])
+:  +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+:     +- Join(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :- Exchange(distribution=[hash[a1]])
+:        :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :     :- Exchange(distribution=[hash[a1]])
+:        :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :     :     :- Exchange(distribution=[hash[a1]])
+:        :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:        :     :     +- Exchange(distribution=[hash[a4]])
+:        :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+:        :     +- Exchange(distribution=[hash[a2]])
+:        :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+:        +- Exchange(distribution=[hash[a3]])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
++- Exchange(distribution=[hash[a5]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinRightOuterJoinInnerJoinRightOuterJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -540,31 +1401,79 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[LeftOuterJoin], where=[(a4 = a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[=(a4, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a5]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
    +- Exchange(distribution=[hash[a4]])
-      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
-         +- Join(joinType=[InnerJoin], where=[(a1 = a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-            :- Exchange(distribution=[hash[a4]])
-            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-            +- Exchange(distribution=[hash[a1]])
-               +- Join(joinType=[RightOuterJoin], where=[(a1 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-                  :- Exchange(distribution=[hash[a1]])
-                  :  +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-                  :     :- Exchange(distribution=[hash[a1]])
-                  :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-                  :     +- Exchange(distribution=[hash[a2]])
-                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-                  +- Exchange(distribution=[hash[a3]])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+      +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+         :     +- Join(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :        :- Exchange(distribution=[hash[a3]])
+         :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+         :        +- Exchange(distribution=[hash[a1]])
+         :           +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :              :- Exchange(distribution=[hash[a1]])
+         :              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         :              +- Exchange(distribution=[hash[a2]])
+         :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         +- Exchange(distribution=[hash[a4]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerJoinSemiJoin">
+  <TestCase name="testInnerJoinRightOuterJoinInnerJoinRightOuterJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   RIGHT OUTER JOIN T3 ON a1 = a3
+   JOIN T4 ON a1 = a4
+   RIGHT OUTER JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[right])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[right])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[LeftOuterJoin], where=[=(a4, a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a5]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a4]])
+      +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3])
+         :     +- Join(joinType=[LeftOuterJoin], where=[=(a1, a3)], select=[a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :        :- Exchange(distribution=[hash[a3]])
+         :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+         :        +- Exchange(distribution=[hash[a1]])
+         :           +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :              :- Exchange(distribution=[hash[a1]])
+         :              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         :              +- Exchange(distribution=[hash[a2]])
+         :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         +- Exchange(distribution=[hash[a4]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinSemiJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -590,31 +1499,163 @@ LogicalProject(a5=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
-+- Join(joinType=[InnerJoin], where=[((a1 = a4) AND (a4 = a2) AND (a3 = a4))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1, a2, a3]])
-   :  +- Join(joinType=[InnerJoin], where=[((a2 = a3) AND (a1 = a2))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :     :- Exchange(distribution=[hash[a2, a2]])
-   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :     +- Exchange(distribution=[hash[a3, a1]])
-   :        +- Join(joinType=[LeftSemiJoin], where=[(a1 = a5)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :           :- Exchange(distribution=[hash[a1]])
-   :           :  +- Join(joinType=[InnerJoin], where=[(a3 = a1)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :           :     :- Exchange(distribution=[hash[a1]])
-   :           :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :           :     +- Exchange(distribution=[hash[a3]])
-   :           :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   :           +- Exchange(distribution=[hash[a5]])
-   :              +- Calc(select=[a5])
-   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   +- Exchange(distribution=[hash[a4, a4, a4]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+Join(joinType=[LeftSemiJoin], where=[=(a1, a5)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a1]])
+:  +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
+:     +- Join(joinType=[InnerJoin], where=[AND(=(a1, a4), =(a4, a2), =(a3, a4))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :- Exchange(distribution=[hash[a1, a2, a3]])
+:        :  +- Join(joinType=[InnerJoin], where=[AND(=(a2, a3), =(a1, a2))], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :     :- Exchange(distribution=[hash[a2, a2]])
+:        :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+:        :     +- Exchange(distribution=[hash[a3, a1]])
+:        :        +- Join(joinType=[InnerJoin], where=[=(a3, a1)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :           :- Exchange(distribution=[hash[a1]])
+:        :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:        :           +- Exchange(distribution=[hash[a3]])
+:        :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+:        +- Exchange(distribution=[hash[a4, a4, a4]])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
++- Exchange(distribution=[hash[a5]])
+   +- Calc(select=[a5])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithFilter">
+  <TestCase name="testInnerJoinSemiJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   JOIN T2 ON a1 = a2
+   JOIN T3 ON a2 = a3
+   JOIN T4 ON a1 = a4
+   WHERE a1 IN (SELECT a5 FROM T5)
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a5=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+})])
+   +- LogicalJoin(condition=[=($0, $9)], joinType=[inner])
+      :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+      :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
++- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a2]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Join(joinType=[LeftSemiJoin], where=[=(a1, a5)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     :     +- Exchange(distribution=[hash[a4]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[hash[a5]])
+   :     :        +- Calc(select=[a5])
+   :     :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     +- Exchange(distribution=[hash[a2]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   +- Exchange(distribution=[hash[a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithBushyTypeJoinCondition[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM
+(SELECT * FROM T1 JOIN T2 ON T1.b1 = T2.b2) tab1 JOIN
+(SELECT * FROM T3 JOIN T4 ON T3.b3 = T4.b4) tab2
+ON tab1.b2 = tab2.b4
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11])
++- LogicalJoin(condition=[=($4, $10)], joinType=[inner])
+   :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5])
+   :  +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalProject(a3=[$0], b3=[$1], c3=[$2], a4=[$3], b4=[$4], c4=[$5])
+      +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[AND(=(b1, b2), =(b4, b1), =(b1, b3))], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[b1, b1, b1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- Exchange(distribution=[hash[b2, b4, b3]])
+   +- Join(joinType=[InnerJoin], where=[AND(=(b2, b4), =(b3, b4))], select=[a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[b2, b3]])
+      :  +- Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :     :- Exchange(distribution=[hash[b2]])
+      :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+      :     +- Exchange(distribution=[hash[b3]])
+      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+      +- Exchange(distribution=[hash[b4, b4]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithBushyTypeJoinCondition[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM
+(SELECT * FROM T1 JOIN T2 ON T1.b1 = T2.b2) tab1 JOIN
+(SELECT * FROM T3 JOIN T4 ON T3.b3 = T4.b4) tab2
+ON tab1.b2 = tab2.b4
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11])
++- LogicalJoin(condition=[=($4, $10)], joinType=[inner])
+   :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5])
+   :  +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   +- LogicalProject(a3=[$0], b3=[$1], c3=[$2], a4=[$3], b4=[$4], c4=[$5])
+      +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b2, b4)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[b2]])
+:  +- Join(joinType=[InnerJoin], where=[=(b1, b2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :- Exchange(distribution=[hash[b1]])
+:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:     +- Exchange(distribution=[hash[b2]])
+:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
++- Exchange(distribution=[hash[b4]])
+   +- Join(joinType=[InnerJoin], where=[=(b3, b4)], select=[a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[b3]])
+      :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+      +- Exchange(distribution=[hash[b4]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithFilter[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 WITH V1 AS (SELECT * FROM T1 JOIN T2 ON a1 = a2 WHERE b1 * b2 > 10),
@@ -645,31 +1686,86 @@ LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((a4 = a5) AND (a3 = a4) AND (a4 = a2) AND (a4 = a1) AND ((b2 + b4) > 100))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a5, a3, a2, a1]])
-   :  +- Join(joinType=[InnerJoin], where=[((a2 = a3) AND (a1 = a2) AND (a2 = a5) AND ((b1 * b2) > 10))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a3, a4), =(a2, a3), =(a3, a1), =(a5, a3), <(*(b1, b3), 2000))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a4, a2, a1, a5]])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(a1, a2), =(a4, a2), =(a2, a5), >(+(b2, b4), 100), >(*(b1, b2), 10))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a2, a2, a2]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :     +- Exchange(distribution=[hash[a3, a1, a5]])
-   :        +- Join(joinType=[InnerJoin], where=[((a5 = a3) AND (a1 = a5))], select=[a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :           :- Exchange(distribution=[hash[a5, a5]])
-   :           :  +- Calc(select=[a5, b5, c5], where=[(b5 < 15)])
-   :           :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :           +- Exchange(distribution=[hash[a3, a1]])
-   :              +- Join(joinType=[InnerJoin], where=[((a3 = a1) AND ((b1 * b3) < 2000))], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :                 :- Exchange(distribution=[hash[a1]])
-   :                 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :                 +- Exchange(distribution=[hash[a3]])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   +- Exchange(distribution=[hash[a4, a4, a4, a4]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a1, a4, a5]])
+   :        +- Join(joinType=[InnerJoin], where=[AND(=(a4, a1), =(a1, a5))], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[a1, a1]])
+   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :           +- Exchange(distribution=[hash[a4, a5]])
+   :              +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :                 :- Exchange(distribution=[hash[a5]])
+   :                 :  +- Calc(select=[a5, b5, c5], where=[<(b5, 15)])
+   :                 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :                 +- Exchange(distribution=[hash[a4]])
+   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[a3, a3, a3, a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithProject">
+  <TestCase name="testJoinWithFilter[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+WITH V1 AS (SELECT * FROM T1 JOIN T2 ON a1 = a2 WHERE b1 * b2 > 10),
+     V2 AS (SELECT * FROM V1 JOIN T3 ON a2 = a3 WHERE b1 * b3 < 2000),
+     V3 AS (SELECT * FROM T4 JOIN V2 ON a3 = a4 WHERE b2 + b4 > 100)
+
+SELECT * FROM V3, T5 WHERE a4 = a5 AND b5 < 15
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2=[$7], c2=[$8], a3=[$9], b3=[$10], c3=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($0, $12), <($13, 15))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2=[$7], c2=[$8], a3=[$9], b3=[$10], c3=[$11])
+      :  +- LogicalFilter(condition=[>(+($7, $1), 100)])
+      :     +- LogicalJoin(condition=[=($9, $0)], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      :        +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8])
+      :           +- LogicalFilter(condition=[<(*($1, $7), 2000)])
+      :              +- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+      :                 :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5])
+      :                 :  +- LogicalFilter(condition=[>(*($1, $4), 10)])
+      :                 :     +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :                 :        :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :                 :        +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :                 +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[AND(>(+(b2, b4), 100), =(a2, a3), <(*(b1, b3), 2000))], select=[a4, b4, c4, a5, b5, c5, a3, b3, c3, a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a3]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a3, a4)], select=[a4, b4, c4, a5, b5, c5, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a4]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a4]])
+   :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[hash[a5]])
+   :     :        +- Calc(select=[a5, b5, c5], where=[<(b5, 15)])
+   :     :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :     +- Exchange(distribution=[hash[a3]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   +- Exchange(distribution=[hash[a2]])
+      +- Join(joinType=[InnerJoin], where=[AND(=(a1, a2), >(*(b1, b2), 10))], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         +- Exchange(distribution=[hash[a2]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithProject[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 WITH V1 AS (SELECT b1, a1, a2, c2 FROM T1 JOIN T2 ON a1 = a2),
@@ -697,36 +1793,93 @@ LogicalProject(a3=[$0], b1=[$1], a1=[$2], c2=[$3], c3=[$4], a4=[$5], b4=[$6], a5
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a3, b1, a1, c2, c3, a4, b4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[(a4 = a5)], select=[a5, b5, c5, a3, b1, a1, c2, c3, a4, b4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a5]])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   +- Exchange(distribution=[hash[a4]])
-      +- Join(joinType=[InnerJoin], where=[(a1 = a4)], select=[a3, b1, a1, c2, c3, a4, b4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :- Exchange(distribution=[hash[a1]])
-         :  +- Calc(select=[a3, b1, a1, c2, c3])
-         :     +- Join(joinType=[InnerJoin], where=[(a2 = a3)], select=[b1, a1, a2, c2, a3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :        :- Exchange(distribution=[hash[a2]])
-         :        :  +- Calc(select=[b1, a1, a2, c2])
-         :        :     +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :        :        :- Exchange(distribution=[hash[a1]])
-         :        :        :  +- Calc(select=[a1, b1])
-         :        :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-         :        :        +- Exchange(distribution=[hash[a2]])
-         :        :           +- Calc(select=[a2, c2])
-         :        :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-         :        +- Exchange(distribution=[hash[a3]])
-         :           +- Calc(select=[a3, c3])
-         :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-         +- Exchange(distribution=[hash[a4]])
-            +- Calc(select=[a4, b4])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a3, b1, a1, c2, c3, a4, b4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a4]])
+:  +- Calc(select=[a3, b1, a1, c2, c3, a4, b4])
+:     +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a4, b4, a3, b1, a1, c2, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :- Exchange(distribution=[hash[a4]])
+:        :  +- Calc(select=[a4, b4])
+:        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+:        +- Exchange(distribution=[hash[a1]])
+:           +- Calc(select=[a3, b1, a1, c2, c3])
+:              +- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[b1, a1, a2, c2, a3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:                 :- Exchange(distribution=[hash[a2]])
+:                 :  +- Calc(select=[b1, a1, a2, c2])
+:                 :     +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:                 :        :- Exchange(distribution=[hash[a1]])
+:                 :        :  +- Calc(select=[a1, b1])
+:                 :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:                 :        +- Exchange(distribution=[hash[a2]])
+:                 :           +- Calc(select=[a2, c2])
+:                 :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+:                 +- Exchange(distribution=[hash[a3]])
+:                    +- Calc(select=[a3, c3])
+:                       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
++- Exchange(distribution=[hash[a5]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin">
+  <TestCase name="testJoinWithProject[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+WITH V1 AS (SELECT b1, a1, a2, c2 FROM T1 JOIN T2 ON a1 = a2),
+     V2 AS (SELECT a3, b1, a1, c2, c3 FROM V1 JOIN T3 ON a2 = a3),
+     V3 AS (SELECT a3, b1, a1, c2, c3, a4, b4 FROM T4 JOIN V2 ON a1 = a4)
+
+SELECT * FROM V3, T5 where a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a3=[$0], b1=[$1], a1=[$2], c2=[$3], c3=[$4], a4=[$5], b4=[$6], a5=[$7], b5=[$8], c5=[$9])
++- LogicalFilter(condition=[=($5, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a3=[$3], b1=[$4], a1=[$5], c2=[$6], c3=[$7], a4=[$0], b4=[$1])
+      :  +- LogicalJoin(condition=[=($5, $0)], joinType=[inner])
+      :     :- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      :     +- LogicalProject(a3=[$4], b1=[$0], a1=[$1], c2=[$3], c3=[$6])
+      :        +- LogicalJoin(condition=[=($2, $4)], joinType=[inner])
+      :           :- LogicalProject(b1=[$1], a1=[$0], a2=[$3], c2=[$5])
+      :           :  +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :           :     :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a3, b1, a1, c2, c3, a4, b4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a4]])
+:  +- Calc(select=[a3, b1, a1, c2, c3, a4, b4])
+:     +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a4, b4, a3, b1, a1, c2, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:        :- Exchange(distribution=[hash[a4]])
+:        :  +- Calc(select=[a4, b4])
+:        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+:        +- Exchange(distribution=[hash[a1]])
+:           +- Calc(select=[a3, b1, a1, c2, c3])
+:              +- Join(joinType=[InnerJoin], where=[=(a2, a3)], select=[b1, a1, a2, c2, a3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:                 :- Exchange(distribution=[hash[a2]])
+:                 :  +- Calc(select=[b1, a1, a2, c2])
+:                 :     +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:                 :        :- Exchange(distribution=[hash[a1]])
+:                 :        :  +- Calc(select=[a1, b1])
+:                 :        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:                 :        +- Exchange(distribution=[hash[a2]])
+:                 :           +- Calc(select=[a2, c2])
+:                 :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+:                 +- Exchange(distribution=[hash[a3]])
+:                    +- Calc(select=[a3, c3])
+:                       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
++- Exchange(distribution=[hash[a5]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -750,31 +1903,77 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[(a4 = a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a5, b5, c5, a2, b2, c2, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a5]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
    +- Exchange(distribution=[hash[a4]])
-      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
-         +- Join(joinType=[RightOuterJoin], where=[(a1 = a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-            :- Exchange(distribution=[hash[a4]])
-            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-            +- Exchange(distribution=[hash[a1]])
-               +- Join(joinType=[InnerJoin], where=[(a1 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-                  :- Exchange(distribution=[hash[a1]])
-                  :  +- Join(joinType=[LeftOuterJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-                  :     :- Exchange(distribution=[hash[a1]])
-                  :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-                  :     +- Exchange(distribution=[hash[a2]])
-                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-                  +- Exchange(distribution=[hash[a3]])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+      +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Join(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :     :- Exchange(distribution=[hash[a2]])
+         :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         :     +- Exchange(distribution=[hash[a1]])
+         :        +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :           :- Exchange(distribution=[hash[a1]])
+         :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         :           +- Exchange(distribution=[hash[a3]])
+         :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+         +- Exchange(distribution=[hash[a4]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightOuterJoinInnerJoinRightOuterJoinInnerJoin">
+  <TestCase name="testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   LEFT OUTER JOIN T2 ON a1 = a2
+   JOIN T3 ON a1 = a3
+   LEFT OUTER JOIN T4 ON a1 = a4
+   JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[true], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     :     +- Exchange(distribution=[hash[a3]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     :     +- Exchange(distribution=[hash[a2]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     +- Exchange(distribution=[hash[a4]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoinInnerJoinRightOuterJoinInnerJoin[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1
@@ -798,31 +1997,79 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
    +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[(a4 = a5)], select=[a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a5]])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   +- Exchange(distribution=[hash[a4]])
-      +- Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4])
-         +- Join(joinType=[LeftOuterJoin], where=[(a1 = a4)], select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-            :- Exchange(distribution=[hash[a4]])
-            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
-            +- Exchange(distribution=[hash[a1]])
-               +- Join(joinType=[InnerJoin], where=[(a1 = a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-                  :- Exchange(distribution=[hash[a1]])
-                  :  +- Join(joinType=[RightOuterJoin], where=[(a1 = a2)], select=[a1, b1, c1, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-                  :     :- Exchange(distribution=[hash[a1]])
-                  :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-                  :     +- Exchange(distribution=[hash[a2]])
-                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-                  +- Exchange(distribution=[hash[a3]])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
++- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a4, b4, c4, a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a4]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a4]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a5]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a1]])
+      +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Calc(select=[a1, b1, c1, a2, b2, c2])
+         :     +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :        :- Exchange(distribution=[hash[a2]])
+         :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         :        +- Exchange(distribution=[hash[a1]])
+         :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         +- Exchange(distribution=[hash[a3]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testStarJoinCondition1">
+  <TestCase name="testRightOuterJoinInnerJoinRightOuterJoinInnerJoin[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1
+   RIGHT OUTER JOIN T2 ON a1 = a2
+   JOIN T3 ON a1 = a3
+   RIGHT OUTER JOIN T4 ON a1 = a4
+   JOIN T5 ON a4 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalJoin(condition=[=($9, $12)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $9)], joinType=[right])
+   :  :- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+   :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[LeftOuterJoin], where=[=(a1, a4)], select=[a4, b4, c4, a5, b5, c5, a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a4]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a4, a5)], select=[a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a4]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a5]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   +- Exchange(distribution=[hash[a1]])
+      +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, c1, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a1]])
+         :  +- Calc(select=[a1, b1, c1, a2, b2, c2])
+         :     +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a2, b2, c2, a1, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :        :- Exchange(distribution=[hash[a2]])
+         :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+         :        +- Exchange(distribution=[hash[a1]])
+         :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+         +- Exchange(distribution=[hash[a3]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStarJoinCondition1[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
@@ -844,30 +2091,75 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((a1 = a4) AND (a5 = a4) AND (a4 = a3) AND (a4 = a2))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1, a5, a3, a2]])
-   :  +- Join(joinType=[InnerJoin], where=[((a1 = a2) AND (a5 = a2) AND (a3 = a2))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, a3), =(a5, a3), =(a4, a3), =(a3, a2))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1, a5, a4, a2]])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(a1, a2), =(a5, a2), =(a4, a2))], select=[a2, b2, c2, a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a2, a2, a2]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
-   :     +- Exchange(distribution=[hash[a1, a5, a3]])
-   :        +- Join(joinType=[InnerJoin], where=[((a1 = a5) AND (a5 = a3))], select=[a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :           :- Exchange(distribution=[hash[a5, a5]])
-   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-   :           +- Exchange(distribution=[hash[a1, a3]])
-   :              +- Join(joinType=[InnerJoin], where=[(a1 = a3)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :                 :- Exchange(distribution=[hash[a1]])
-   :                 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-   :                 +- Exchange(distribution=[hash[a3]])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-   +- Exchange(distribution=[hash[a4, a4, a4, a4]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     +- Exchange(distribution=[hash[a1, a5, a4]])
+   :        +- Join(joinType=[InnerJoin], where=[AND(=(a1, a5), =(a1, a4))], select=[a1, b1, c1, a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[a1, a1]])
+   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :           +- Exchange(distribution=[hash[a5, a4]])
+   :              +- Join(joinType=[InnerJoin], where=[=(a5, a4)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :                 :- Exchange(distribution=[hash[a5]])
+   :                 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+   :                 +- Exchange(distribution=[hash[a4]])
+   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[a3, a3, a3, a3]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testStarJoinCondition2">
+  <TestCase name="testStarJoinCondition1[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE a1 = a2 AND a1 = a3 AND a1 = a4 AND a1 = a5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($0, $3), =($0, $6), =($0, $9), =($0, $12))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[=(a1, a5)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a1, a4)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a1]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[a1]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     :     +- Exchange(distribution=[hash[a3]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     :     +- Exchange(distribution=[hash[a2]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     +- Exchange(distribution=[hash[a4]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[a5]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStarJoinCondition2[isBushyJoinReorder=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
@@ -889,18 +2181,18 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((b1 = b3) AND (b5 = b3) AND (b4 = b3) AND (b3 = b2))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(b1, b3), =(b5, b3), =(b4, b3), =(b3, b2))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[b1, b5, b4, b2]])
-   :  +- Join(joinType=[InnerJoin], where=[((b1 = b5) AND (b1 = b4) AND (b1 = b2))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(b1, b5), =(b1, b4), =(b1, b2))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[b1, b1, b1]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :     +- Exchange(distribution=[hash[b5, b4, b2]])
-   :        +- Join(joinType=[InnerJoin], where=[((b5 = b4) AND (b4 = b2))], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :        +- Join(joinType=[InnerJoin], where=[AND(=(b5, b4), =(b4, b2))], select=[a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :- Exchange(distribution=[hash[b5, b2]])
-   :           :  +- Join(joinType=[InnerJoin], where=[(b5 = b2)], select=[a5, b5, c5, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :  +- Join(joinType=[InnerJoin], where=[=(b5, b2)], select=[a5, b5, c5, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :           :     :- Exchange(distribution=[hash[b5]])
    :           :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
    :           :     +- Exchange(distribution=[hash[b2]])
@@ -912,7 +2204,52 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithoutColumnStats">
+  <TestCase name="testStarJoinCondition2[isBushyJoinReorder=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE b1 = b2 AND b1 = b3 AND b1 = b4 AND b1 = b5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($1, $4), =($1, $7), =($1, $10), =($1, $13))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[=(b1, b5)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b1]])
+   :  +- Join(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[b1]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(b1, b2)], select=[a1, b1, c1, a4, b4, c4, a2, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[b1]])
+   :     :     :  +- Join(joinType=[InnerJoin], where=[=(b1, b4)], select=[a1, b1, c1, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :     :- Exchange(distribution=[hash[b1]])
+   :     :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     :     +- Exchange(distribution=[hash[b4]])
+   :     :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   :     :     +- Exchange(distribution=[hash[b2]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :     +- Exchange(distribution=[hash[b3]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   +- Exchange(distribution=[hash[b5]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutColumnStats[isBushyJoinReorder=true]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM T1, T2, T3, T4, T5
@@ -934,26 +2271,71 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
       +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((c1 = c5) AND (c1 = c3) AND (c1 = c2) AND (c4 = c1))], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(c1, c5)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2, a4, b4, c4, a5, b5, c5], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[c1]])
+   :  +- Join(joinType=[InnerJoin], where=[=(c1, c2)], select=[a1, b1, c1, a3, b3, c3, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[c1]])
+   :     :  +- Join(joinType=[InnerJoin], where=[=(c1, c3)], select=[a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :     :- Exchange(distribution=[hash[c1]])
+   :     :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+   :     :     +- Exchange(distribution=[hash[c3]])
+   :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
+   :     +- Exchange(distribution=[hash[c2]])
+   :        +- Join(joinType=[InnerJoin], where=[=(c2, c4)], select=[a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :           :- Exchange(distribution=[hash[c2]])
+   :           :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+   :           +- Exchange(distribution=[hash[c4]])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+   +- Exchange(distribution=[hash[c5]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutColumnStats[isBushyJoinReorder=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T1, T2, T3, T4, T5
+WHERE c1 = c2 AND c1 = c3 AND c2 = c4 AND c1 = c5
+         ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3=[$7], c3=[$8], a4=[$9], b4=[$10], c4=[$11], a5=[$12], b5=[$13], c5=[$14])
++- LogicalFilter(condition=[AND(=($2, $5), =($2, $8), =($5, $11), =($2, $14))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]])
+      :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
++- Join(joinType=[InnerJoin], where=[AND(=(c1, c5), =(c1, c3), =(c1, c2), =(c4, c1))], select=[a1, b1, c1, a2, b2, c2, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[c1, c1, c1, c1]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    +- Exchange(distribution=[hash[c5, c3, c2, c4]])
-      +- Join(joinType=[InnerJoin], where=[((c2 = c4) AND (c5 = c2) AND (c3 = c2))], select=[a2, b2, c2, a5, b5, c5, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      +- Join(joinType=[InnerJoin], where=[AND(=(c2, c4), =(c5, c2), =(c3, c2))], select=[a2, b2, c2, a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
          :- Exchange(distribution=[hash[c2, c2, c2]])
          :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
          +- Exchange(distribution=[hash[c4, c5, c3]])
-            +- Join(joinType=[InnerJoin], where=[((c5 = c4) AND (c3 = c4))], select=[a5, b5, c5, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-               :- Exchange(distribution=[hash[c5, c3]])
-               :  +- Join(joinType=[InnerJoin], where=[(c5 = c3)], select=[a5, b5, c5, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            +- Join(joinType=[InnerJoin], where=[AND(=(c5, c3), =(c3, c4))], select=[a5, b5, c5, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+               :- Exchange(distribution=[hash[c5, c4]])
+               :  +- Join(joinType=[InnerJoin], where=[=(c5, c4)], select=[a5, b5, c5, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :     :- Exchange(distribution=[hash[c5]])
                :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T5, source: [TestTableSource(a5, b5, c5)]]], fields=[a5, b5, c5])
-               :     +- Exchange(distribution=[hash[c3]])
-               :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
-               +- Exchange(distribution=[hash[c4, c4]])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+               :     +- Exchange(distribution=[hash[c4]])
+               :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4)]]], fields=[a4, b4, c4])
+               +- Exchange(distribution=[hash[c3, c3]])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3)]]], fields=[a3, b3, c3])
 ]]>
     </Resource>
   </TestCase>

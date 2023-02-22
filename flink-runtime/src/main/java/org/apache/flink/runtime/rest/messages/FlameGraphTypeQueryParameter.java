@@ -24,10 +24,10 @@ import java.util.Arrays;
 public class FlameGraphTypeQueryParameter
         extends MessageQueryParameter<FlameGraphTypeQueryParameter.Type> {
 
-    private static final String key = "type";
+    public static final String KEY = "type";
 
     public FlameGraphTypeQueryParameter() {
-        super(key, MessageParameterRequisiteness.OPTIONAL);
+        super(KEY, MessageParameterRequisiteness.OPTIONAL);
     }
 
     @Override

@@ -21,17 +21,26 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.deployment.executors.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for {@link CliFrontend}. */
@@ -97,6 +106,27 @@ class CliFrontendITCase {
                 });
 
         assertThat(getStdoutString()).contains("Watermark interval is 142");
+    }
+
+    @Test
+    void mainShouldPrintHelpWithoutArgs(@TempDir Path tempFolder) throws Exception {
+        Map<String, String> originalEnv = System.getenv();
+        try {
+            File confFolder = Files.createTempDirectory(tempFolder, "conf").toFile();
+            File confYaml = new File(confFolder, "flink-conf.yaml");
+            if (!confYaml.createNewFile()) {
+                throw new IOException("Can't create testing flink-conf.yaml file.");
+            }
+
+            Map<String, String> map = new HashMap<>(System.getenv());
+            map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
+            CommonTestUtils.setEnv(map);
+
+            assertThat(CliFrontend.mainInternal(new String[0])).isEqualTo(1);
+            assertThat(getStdoutString()).contains("The following actions are available");
+        } finally {
+            CommonTestUtils.setEnv(originalEnv);
+        }
     }
 
     /**

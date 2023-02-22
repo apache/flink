@@ -24,12 +24,20 @@ import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.stream.Collectors;
 
-/** Operation to describe a ALTER TABLE .. SET .. statement. */
+/**
+ * Operation to describe a ALTER TABLE .. SET .. statement.
+ *
+ * @deprecated Please use {@link AlterTableChangeOperation} instead.
+ */
+@Deprecated
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
 
-    public AlterTableOptionsOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        super(tableIdentifier);
+    public AlterTableOptionsOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogTable catalogTable,
+            boolean ignoreIfNotExists) {
+        super(tableIdentifier, ignoreIfNotExists);
         this.catalogTable = catalogTable;
     }
 
@@ -47,6 +55,9 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
                                                 entry.getKey(), entry.getValue()))
                         .collect(Collectors.joining(", "));
         return String.format(
-                "ALTER TABLE %s SET (%s)", tableIdentifier.asSummaryString(), description);
+                "ALTER %sTABLE %s SET (%s)",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                description);
     }
 }

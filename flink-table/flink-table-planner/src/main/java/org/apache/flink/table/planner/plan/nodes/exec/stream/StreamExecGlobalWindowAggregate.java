@@ -251,7 +251,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         SimpleOperatorFactory.of(windowOperator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),
-                        WINDOW_AGG_MEMORY_RATIO);
+                        WINDOW_AGG_MEMORY_RATIO,
+                        false);
 
         // set KeyType and Selector for state
         transform.setStateKeySelector(selector);

@@ -36,10 +36,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
+import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 
 /** Serialization format for state changes. */
 @Internal
@@ -68,16 +68,27 @@ public class StateChangeFormat {
         // write in groups to output kg id only once
         Map<Integer, List<StateChange>> byKeyGroup =
                 changes.stream().collect(Collectors.groupingBy(StateChange::getKeyGroup));
-        // sort groups to output metadata first (see StateChangeLoggerImpl.COMMON_KEY_GROUP)
-        Map<Integer, List<StateChange>> sorted = new TreeMap<>(byKeyGroup);
-        output.writeInt(sorted.size());
-        for (Map.Entry<Integer, List<StateChange>> entry : sorted.entrySet()) {
-            output.writeInt(entry.getValue().size());
-            output.writeInt(entry.getKey());
-            for (StateChange stateChange : entry.getValue()) {
-                output.writeInt(stateChange.getChange().length);
-                output.write(stateChange.getChange());
-            }
+        // write the number of key groups
+        output.writeInt(byKeyGroup.size());
+        // output metadata first (see StateChange.META_KEY_GROUP)
+        List<StateChange> meta = byKeyGroup.remove(META_KEY_GROUP);
+        if (meta != null) {
+            writeChangeSetOfKG(output, META_KEY_GROUP, meta);
+        }
+        // output changeSets
+        for (Map.Entry<Integer, List<StateChange>> entry : byKeyGroup.entrySet()) {
+            writeChangeSetOfKG(output, entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void writeChangeSetOfKG(
+            DataOutputViewStreamWrapper output, int keyGroup, List<StateChange> stateChanges)
+            throws IOException {
+        output.writeInt(stateChanges.size());
+        output.writeInt(keyGroup);
+        for (StateChange stateChange : stateChanges) {
+            output.writeInt(stateChange.getChange().length);
+            output.write(stateChange.getChange());
         }
     }
 
@@ -124,7 +135,9 @@ public class StateChangeFormat {
                 int size = input.readInt();
                 byte[] bytes = new byte[size];
                 IOUtils.readFully(input, bytes, 0, size);
-                return new StateChange(keyGroup, bytes);
+                return keyGroup == META_KEY_GROUP
+                        ? StateChange.ofMetadataChange(bytes)
+                        : StateChange.ofDataChange(keyGroup, bytes);
             }
 
             @Override

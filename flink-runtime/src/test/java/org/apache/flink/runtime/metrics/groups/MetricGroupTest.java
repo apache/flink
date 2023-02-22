@@ -311,6 +311,29 @@ public class MetricGroupTest extends TestLogger {
     }
 
     @Test
+    public void addClosedGroupReturnsNewGroupInstance() {
+        GenericMetricGroup mainGroup =
+                new GenericMetricGroup(
+                        exceptionOnRegister,
+                        new DummyAbstractMetricGroup(exceptionOnRegister),
+                        "mainGroup");
+
+        AbstractMetricGroup<?> subGroup = (AbstractMetricGroup<?>) mainGroup.addGroup("subGroup");
+
+        assertFalse(subGroup.isClosed());
+
+        subGroup.close();
+        assertTrue(subGroup.isClosed());
+
+        AbstractMetricGroup<?> newSubGroupWithSameNameAsClosedGroup =
+                (AbstractMetricGroup<?>) mainGroup.addGroup("subGroup");
+        assertFalse(
+                "The new subgroup should not be closed",
+                newSubGroupWithSameNameAsClosedGroup.isClosed());
+        assertTrue("The old sub group is not modified", subGroup.isClosed());
+    }
+
+    @Test
     public void tolerateMetricNameCollisions() {
         final String name = "abctestname";
         GenericMetricGroup group =

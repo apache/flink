@@ -18,14 +18,17 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.result.MaterializedResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.keymap.KeyMap;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -54,14 +57,23 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     private int page;
     private LocalTime lastRetrieval;
     private int previousResultsPage;
+    private final MaterializedResult materializedResult;
 
     private static final int DEFAULT_REFRESH_INTERVAL = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 1; // every 100ms
     private static final int LAST_PAGE = 0;
 
-    public CliTableResultView(CliClient client, ResultDescriptor resultDescriptor) {
+    public CliTableResultView(Terminal terminal, ResultDescriptor resultDescriptor) {
+        this(terminal, resultDescriptor, resultDescriptor.createResult());
+    }
+
+    @VisibleForTesting
+    public CliTableResultView(
+            Terminal terminal,
+            ResultDescriptor resultDescriptor,
+            MaterializedResult materializedResult) {
         super(
-                client,
+                terminal,
                 resultDescriptor,
                 PrintStyle.tableauWithTypeInferredColumnWidths(
                         resultDescriptor.getResultSchema(),
@@ -70,13 +82,14 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
                         false,
                         false));
 
-        refreshInterval = DEFAULT_REFRESH_INTERVAL;
-        pageCount = 1;
-        page = LAST_PAGE;
+        this.refreshInterval = DEFAULT_REFRESH_INTERVAL;
+        this.pageCount = 1;
+        this.page = LAST_PAGE;
+        this.materializedResult = materializedResult;
 
-        previousResults = Collections.emptyList();
-        previousResultsPage = 1;
-        results = Collections.emptyList();
+        this.previousResults = Collections.emptyList();
+        this.previousResultsPage = 1;
+        this.results = Collections.emptyList();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -87,16 +100,16 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     }
 
     @Override
+    void cleanUpQuery() {
+        materializedResult.close();
+    }
+
+    @Override
     protected void refresh() {
         // take snapshot
         TypedResult<Integer> result;
         try {
-            result =
-                    client.getExecutor()
-                            .snapshotResult(
-                                    client.getSessionId(),
-                                    resultDescriptor.getResultId(),
-                                    getVisibleMainHeight());
+            result = materializedResult.snapshot(getVisibleMainHeight());
         } catch (SqlExecutionException e) {
             close(e);
             return;
@@ -127,33 +140,16 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         final KeyMap<ResultTableOperation> keys = new KeyMap<>();
         keys.setAmbiguousTimeout(200); // make ESC quicker
         keys.bind(ResultTableOperation.QUIT, "q", "Q", esc(), ctrl('c'));
-        keys.bind(
-                ResultTableOperation.REFRESH,
-                "r",
-                "R",
-                key(client.getTerminal(), Capability.key_f5));
-        keys.bind(ResultTableOperation.UP, "w", "W", key(client.getTerminal(), Capability.key_up));
-        keys.bind(
-                ResultTableOperation.DOWN,
-                "s",
-                "S",
-                key(client.getTerminal(), Capability.key_down));
-        keys.bind(
-                ResultTableOperation.LEFT,
-                "a",
-                "A",
-                key(client.getTerminal(), Capability.key_left));
-        keys.bind(
-                ResultTableOperation.RIGHT,
-                "d",
-                "D",
-                key(client.getTerminal(), Capability.key_right));
+        keys.bind(ResultTableOperation.REFRESH, "r", "R", key(terminal, Capability.key_f5));
+        keys.bind(ResultTableOperation.UP, "w", "W", key(terminal, Capability.key_up));
+        keys.bind(ResultTableOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
+        keys.bind(ResultTableOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
+        keys.bind(ResultTableOperation.RIGHT, "d", "D", key(terminal, Capability.key_right));
         keys.bind(ResultTableOperation.OPEN, "o", "O", "\r");
         keys.bind(ResultTableOperation.GOTO, "g", "G");
         keys.bind(ResultTableOperation.NEXT, "n", "N");
         keys.bind(ResultTableOperation.PREV, "p", "P");
-        keys.bind(
-                ResultTableOperation.LAST, "l", "L", key(client.getTerminal(), Capability.key_end));
+        keys.bind(ResultTableOperation.LAST, "l", "L", key(terminal, Capability.key_end));
         keys.bind(ResultTableOperation.INC_REFRESH, "+");
         keys.bind(ResultTableOperation.DEC_REFRESH, "-");
         return keys;
@@ -294,9 +290,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         final int retrievalPage = page == LAST_PAGE ? pageCount : page;
         final List<RowData> rows;
         try {
-            rows =
-                    client.getExecutor()
-                            .retrieveResultPage(resultDescriptor.getResultId(), retrievalPage);
+            rows = materializedResult.retrievePage(retrievalPage);
         } catch (SqlExecutionException e) {
             close(e);
             return;
@@ -354,7 +348,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     private void gotoPage() {
         final CliInputView view =
                 new CliInputView(
-                        client,
+                        terminal,
                         CliStrings.INPUT_ENTER_PAGE + " [1 to " + pageCount + "]",
                         (s) -> {
                             // validate input

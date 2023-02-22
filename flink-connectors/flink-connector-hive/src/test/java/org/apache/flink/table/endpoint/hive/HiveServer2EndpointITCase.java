@@ -34,12 +34,12 @@ import org.apache.flink.table.endpoint.hive.util.HiveServer2EndpointExtension;
 import org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
-import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.gateway.service.result.NotReadyResult;
+import org.apache.flink.table.gateway.service.session.SessionManagerImpl;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.test.junit5.InjectClusterClient;
@@ -108,6 +108,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID;
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.TableConfigOptions.MAX_LENGTH_GENERATED_CODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
@@ -142,7 +143,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
     @Test
     public void testOpenCloseJdbcConnection() throws Exception {
-        SessionManager sessionManager = SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
+        SessionManagerImpl sessionManager =
+                (SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         int originSessionCount = sessionManager.currentSessionCount();
         try (Connection ignore = ENDPOINT_EXTENSION.getConnection()) {
             assertThat(1 + originSessionCount).isEqualTo(sessionManager.currentSessionCount());
@@ -162,6 +164,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
         configs.put("set:system:ks", "vs");
         configs.put("set:key1", "value1");
         configs.put("set:hivevar:key2", "${hiveconf:common-key}");
+        // enable native hive agg function
+        configs.put(TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key(), "true");
         openSessionReq.setConfiguration(configs);
         TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
         SessionHandle sessionHandle =
@@ -177,7 +181,9 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         new AbstractMap.SimpleEntry<>(RUNTIME_MODE.key(), BATCH.name()),
                         new AbstractMap.SimpleEntry<>(MAX_LENGTH_GENERATED_CODE.key(), "-1"),
                         new AbstractMap.SimpleEntry<>("key1", "value1"),
-                        new AbstractMap.SimpleEntry<>("key2", "common-val"));
+                        new AbstractMap.SimpleEntry<>("key2", "common-val"),
+                        new AbstractMap.SimpleEntry<>(
+                                TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED.key(), "true"));
     }
 
     @Test
@@ -744,7 +750,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
             statement.execute(
                     "CREATE TABLE db_test1.tbl_1(\n"
-                            + "`user` BIGINT CONSTRAINT `pk` PRIMARY KEY COMMENT 'user id.',\n"
+                            + "`user` BIGINT CONSTRAINT `pk` PRIMARY KEY NOT ENFORCED COMMENT 'user id.',\n"
                             + "`product` STRING NOT NULL,\n"
                             + "`amount`  INT) COMMENT 'temporary table tbl_1'");
             statement.execute(
@@ -811,7 +817,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 sessionHandle,
                                 () -> {
                                     latch.await();
-                                    return ResultSet.NOT_READY_RESULTS;
+                                    return NotReadyResult.INSTANCE;
                                 });
         manipulateOp.accept(
                 toTOperationHandle(sessionHandle, operationHandle, TOperationType.UNKNOWN));

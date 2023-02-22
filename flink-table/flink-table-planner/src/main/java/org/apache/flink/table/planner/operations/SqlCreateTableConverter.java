@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -30,7 +31,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -43,6 +43,8 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.util.NlsString;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,7 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -59,21 +60,17 @@ class SqlCreateTableConverter {
 
     private final MergeTableLikeUtil mergeTableLikeUtil;
     private final CatalogManager catalogManager;
-    private final Consumer<SqlTableConstraint> validateTableConstraint;
 
     SqlCreateTableConverter(
             FlinkCalciteSqlValidator sqlValidator,
             CatalogManager catalogManager,
-            Function<SqlNode, String> escapeExpression,
-            Consumer<SqlTableConstraint> validateTableConstraint) {
+            Function<SqlNode, String> escapeExpression) {
         this.mergeTableLikeUtil = new MergeTableLikeUtil(sqlValidator, escapeExpression);
         this.catalogManager = catalogManager;
-        this.validateTableConstraint = validateTableConstraint;
     }
 
     /** Convert the {@link SqlCreateTable} node. */
     Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-        sqlCreateTable.getTableConstraints().forEach(validateTableConstraint);
         CatalogTable catalogTable = createCatalogTable(sqlCreateTable);
 
         UnresolvedIdentifier unresolvedIdentifier =
@@ -158,6 +155,18 @@ class SqlCreateTableConverter {
                 sqlCreateTable.getFullConstraints().stream()
                         .filter(SqlTableConstraint::isPrimaryKey)
                         .findAny();
+        List<SqlNode> columns = sqlCreateTable.getColumnList().getList();
+        Map<String, String> comments =
+                columns.stream()
+                        .map(col -> (SqlTableColumn) col)
+                        .filter(col -> col.getComment().isPresent())
+                        .collect(
+                                Collectors.toMap(
+                                        col -> col.getName().getSimple(),
+                                        col ->
+                                                StringUtils.strip(
+                                                        col.getComment().get().toString(), "'")));
+
         TableSchema mergedSchema =
                 mergeTableLikeUtil.mergeTables(
                         mergingStrategies,
@@ -179,10 +188,15 @@ class SqlCreateTableConverter {
         String tableComment =
                 sqlCreateTable
                         .getComment()
-                        .map(comment -> comment.getNlsString().getValue())
+                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
                         .orElse(null);
 
-        return new CatalogTableImpl(mergedSchema, partitionKeys, mergedOptions, tableComment);
+        return catalogManager.resolveCatalogTable(
+                CatalogTable.of(
+                        mergedSchema.toSchema(comments),
+                        tableComment,
+                        partitionKeys,
+                        new HashMap<>(mergedOptions)));
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
@@ -201,13 +215,13 @@ class SqlCreateTableConverter {
                                                         sqlTableLike
                                                                 .getSourceTable()
                                                                 .getParserPosition())));
-        if (!(lookupResult.getTable() instanceof CatalogTable)) {
+        if (!(lookupResult.getResolvedTable() instanceof CatalogTable)) {
             throw new ValidationException(
                     String.format(
                             "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
                             identifier, sqlTableLike.getSourceTable().getParserPosition()));
         }
-        return lookupResult.getTable();
+        return lookupResult.getResolvedTable();
     }
 
     private void verifyPartitioningColumnsExist(

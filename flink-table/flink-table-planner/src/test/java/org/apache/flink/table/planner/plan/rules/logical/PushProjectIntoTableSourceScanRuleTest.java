@@ -312,7 +312,7 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().tableEnv().createTable("T3", sourceDescriptor);
 
         util().verifyRelPlan("SELECT 1 FROM T3");
-        assertThat(appliedKeys.get()).hasSize(0);
+        assertThat(appliedKeys.get()).hasSize(1);
     }
 
     @Test

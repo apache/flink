@@ -38,6 +38,7 @@ import java.util.concurrent.TimeoutException;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link DefaultDispatcherRunner}. */
@@ -66,6 +67,15 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             testingFatalErrorHandler.rethrowError();
             testingFatalErrorHandler = null;
         }
+    }
+
+    @Test
+    public void testLeaderElectionLifecycle() throws Exception {
+        assertTrue(testingLeaderElectionService.isStopped());
+        try (final DispatcherRunner unusedDisptacherRunner = createDispatcherRunner()) {
+            assertFalse(testingLeaderElectionService.isStopped());
+        }
+        assertTrue(testingLeaderElectionService.isStopped());
     }
 
     @Test

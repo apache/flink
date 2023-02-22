@@ -30,9 +30,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -106,12 +105,11 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
     }
 
     @Override
-    protected LeaderElectionService createLeaderElectionService(String leaderName) {
+    protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
         final MultipleComponentLeaderElectionService multipleComponentLeaderElectionService =
                 getOrInitializeSingleLeaderElectionService();
 
-        return new DefaultLeaderElectionService(
-                multipleComponentLeaderElectionService.createDriverFactory(leaderName));
+        return multipleComponentLeaderElectionService.createDriverFactory(leaderName);
     }
 
     private DefaultMultipleComponentLeaderElectionService

@@ -56,7 +56,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
@@ -151,8 +150,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 3) join left input record and lookup-ed records <br>
  * 4) only outputs the rows which match to the condition <br>
  */
-public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
-        implements SingleTransformationTranslator<RowData> {
+public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
     public static final String LOOKUP_JOIN_TRANSFORMATION = "lookup-join";
 
@@ -329,7 +327,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                     createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, config),
                     operatorFactory,
                     InternalTypeInfo.of(resultRowType),
-                    inputTransformation.getParallelism());
+                    inputTransformation.getParallelism(),
+                    false);
         }
     }
 
@@ -409,7 +408,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         if (singleParallelism) {
             setSingletonParallelism(partitionedTransform);
         } else {
-            partitionedTransform.setParallelism(inputTransformation.getParallelism());
+            partitionedTransform.setParallelism(inputTransformation.getParallelism(), false);
         }
 
         OneInputTransformation<RowData, RowData> transform =
@@ -418,7 +417,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         createTransformationMeta(LOOKUP_JOIN_MATERIALIZE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(resultRowType),
-                        partitionedTransform.getParallelism());
+                        partitionedTransform.getParallelism(),
+                        false);
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keySelector.getProducedType());
         if (singleParallelism) {

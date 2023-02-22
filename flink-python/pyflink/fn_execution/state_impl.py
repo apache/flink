@@ -302,8 +302,9 @@ class CachedMapState(LRUCache):
         self._cached_keys = set()
 
         def on_evict(key, value):
-            self._cached_keys.remove(key)
-            self._all_data_cached = False
+            if value[0]:
+                self._cached_keys.remove(key)
+                self._all_data_cached = False
 
         self.set_on_evict(on_evict)
 
@@ -398,13 +399,13 @@ class CachingMapStateHandler(object):
 
         # lookup cache first
         cache_state_key = self._convert_to_cache_key(state_key)
-        cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+        cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
         if cached_map_state is None:
             # request from remote
             exists, value = self._get_raw(state_key, map_key, map_key_encoder, map_value_decoder)
             cached_map_state = CachedMapState(self._max_cached_map_key_entries)
             cached_map_state.put(map_key, (exists, value))
-            self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+            self._state_cache.put((cache_state_key, cache_token), cached_map_state)
             return exists, value
         else:
             cached_value = cached_map_state.get(map_key)
@@ -426,7 +427,7 @@ class CachingMapStateHandler(object):
         if cache_token:
             # check if the data in the read cache can be used
             cache_state_key = self._convert_to_cache_key(state_key)
-            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
             if cached_map_state and cached_map_state.is_all_data_cached():
                 return create_cache_iterator(
                     cached_map_state._cache, iterate_type, iterated_keys)
@@ -450,7 +451,7 @@ class CachingMapStateHandler(object):
             for key, value in current_batch.items():
                 cached_map_state.put(key, (True, value))
             cached_map_state.set_all_data_cached()
-            self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+            self._state_cache.put((cache_state_key, cache_token), cached_map_state)
 
         return self._lazy_remote_iterator(
             state_key,
@@ -521,10 +522,10 @@ class CachingMapStateHandler(object):
         if cache_token:
             # Cache lookup
             cache_state_key = self._convert_to_cache_key(state_key)
-            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
             if cached_map_state is None:
                 cached_map_state = CachedMapState(self._max_cached_map_key_entries)
-                self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+                self._state_cache.put((cache_state_key, cache_token), cached_map_state)
             for request_flag, map_key, map_value in items:
                 if request_flag == self.DELETE:
                     cached_map_state.put(map_key, (False, None))
@@ -545,7 +546,7 @@ class CachingMapStateHandler(object):
         if cache_token:
             # Cache lookup
             cache_state_key = self._convert_to_cache_key(state_key)
-            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
             if cached_map_state is not None:
                 if cached_map_state.is_all_data_cached() and \
                         len(cached_map_state.get_cached_keys()) == 0:
@@ -562,7 +563,7 @@ class CachingMapStateHandler(object):
         cache_token = self._get_cache_token()
         if cache_token:
             cache_key = self._convert_to_cache_key(state_key)
-            self._state_cache.evict(cache_key, cache_token)
+            self._state_cache.invalidate((cache_key, cache_token))
 
     def get_cached_iterators_num(self):
         return self._cached_iterator_num

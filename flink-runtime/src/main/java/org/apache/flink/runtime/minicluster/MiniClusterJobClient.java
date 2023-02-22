@@ -158,6 +158,11 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
         }
     }
 
+    @Override
+    public void reportHeartbeat(long expiredTimestamp) {
+        miniCluster.reportHeartbeat(jobID, expiredTimestamp);
+    }
+
     private static void shutDownCluster(MiniCluster miniCluster) {
         miniCluster
                 .closeAsync()

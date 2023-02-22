@@ -25,6 +25,8 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /** Utils to unparse DDLs. */
@@ -38,7 +40,7 @@ public class SqlUnparseUtils {
             int rightPrec,
             SqlNodeList columnList,
             List<SqlTableConstraint> constraints,
-            SqlWatermark watermark) {
+            @Nullable SqlWatermark watermark) {
         SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
         for (SqlNode column : columnList) {
             printIndent(writer);

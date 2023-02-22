@@ -23,7 +23,7 @@ import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPa
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
 
 /** Message headers for getting the status of operation. */
-public class GetOperationStatusHeaders extends AbstactOperationHeaders {
+public class GetOperationStatusHeaders extends AbstractOperationHeaders {
 
     private static final GetOperationStatusHeaders INSTANCE = new GetOperationStatusHeaders();
 

@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
@@ -199,11 +200,40 @@ public class KubernetesResourceManagerDriver
                                     future.completeExceptionally(exception);
                                 }
                             } else {
-                                log.info("Pod {} is created.", podName);
+                                if (requestResourceFuture.isCancelled()) {
+                                    stopPod(podName);
+                                    log.info(
+                                            "pod {} is cancelled before create pod finish, stop it.",
+                                            podName);
+                                } else {
+                                    log.info("Pod {} is created.", podName);
+                                }
                             }
                             return null;
                         },
                         getMainThreadExecutor()));
+
+        FutureUtils.assertNoException(
+                requestResourceFuture.handle(
+                        (ignore, t) -> {
+                            if (t == null) {
+                                return null;
+                            }
+                            if (t instanceof CancellationException) {
+
+                                requestResourceFutures.remove(taskManagerPod.getName());
+                                if (createPodFuture.isDone()) {
+                                    log.info(
+                                            "pod {} is cancelled before scheduled, stop it.",
+                                            podName);
+                                    stopPod(taskManagerPod.getName());
+                                }
+                            } else {
+                                log.error("Error completing resource request.", t);
+                                ExceptionUtils.rethrow(t);
+                            }
+                            return null;
+                        }));
 
         return requestResourceFuture;
     }

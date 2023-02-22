@@ -62,7 +62,7 @@ Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序
 5. 触发程序执行。
 
 {{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
+All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
 
 See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
 {{< /hint >}}
@@ -436,7 +436,7 @@ Iterations
 {{< tabs "c4cc97af-7ce1-4333-a010-3072b34d5540" >}}
 {{< tab "Java" >}}
 
-Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
+Iterative streaming 程序实现了 step function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
 
 ```java
 IterativeStream<Integer> iteration = input.iterate();
@@ -488,7 +488,7 @@ DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
+Iterative streaming 程序实现了 step function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
 
 ```scala
 val iteratedStream = someDataStream.iterate(

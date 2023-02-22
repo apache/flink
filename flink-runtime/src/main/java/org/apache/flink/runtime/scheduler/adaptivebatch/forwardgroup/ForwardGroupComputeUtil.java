@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup;
 
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -30,15 +30,31 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Common utils for computing forward groups. */
 public class ForwardGroupComputeUtil {
 
-    public static Map<JobVertexID, ForwardGroup> computeForwardGroups(
-            final Iterable<JobVertex> topologicallySortedVertices,
-            Function<JobVertexID, ExecutionJobVertex> executionJobVertexRetriever) {
+    public static Map<JobVertexID, ForwardGroup>
+            computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                    final Iterable<JobVertex> topologicallySortedVertices) {
+        final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId =
+                computeForwardGroups(topologicallySortedVertices);
+        // set parallelism for vertices in parallelism-decided forward groups
+        topologicallySortedVertices.forEach(
+                jobVertex -> {
+                    ForwardGroup forwardGroup = forwardGroupsByJobVertexId.get(jobVertex.getID());
+                    if (jobVertex.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT
+                            && forwardGroup != null
+                            && forwardGroup.isParallelismDecided()) {
+                        jobVertex.setParallelism(forwardGroup.getParallelism());
+                    }
+                });
+        return forwardGroupsByJobVertexId;
+    }
+
+    static Map<JobVertexID, ForwardGroup> computeForwardGroups(
+            final Iterable<JobVertex> topologicallySortedVertices) {
 
         final Map<JobVertex, Set<JobVertex>> vertexToGroup = new IdentityHashMap<>();
 
@@ -74,14 +90,7 @@ public class ForwardGroupComputeUtil {
         for (Set<JobVertex> vertexGroup :
                 VertexGroupComputeUtil.uniqueVertexGroups(vertexToGroup)) {
             if (vertexGroup.size() > 1) {
-                ForwardGroup forwardGroup =
-                        new ForwardGroup(
-                                vertexGroup.stream()
-                                        .map(
-                                                vertex ->
-                                                        executionJobVertexRetriever.apply(
-                                                                vertex.getID()))
-                                        .collect(Collectors.toSet()));
+                ForwardGroup forwardGroup = new ForwardGroup(vertexGroup);
                 for (JobVertexID jobVertexId : forwardGroup.getJobVertexIds()) {
                     ret.put(jobVertexId, forwardGroup);
                 }

@@ -57,10 +57,8 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
                 fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME);
 
         PbCodegenAppender appender = new PbCodegenAppender(indent);
-        String keyProtoTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(keyFd, false, formatContext.getOuterPrefix());
-        String valueProtoTypeStr =
-                PbCodegenUtils.getTypeStrFromProto(valueFd, false, formatContext.getOuterPrefix());
+        String keyProtoTypeStr = PbCodegenUtils.getTypeStrFromProto(keyFd, false);
+        String valueProtoTypeStr = PbCodegenUtils.getTypeStrFromProto(valueFd, false);
 
         String flinkKeyArrDataVar = "keyArrData" + uid;
         String flinkValueArrDataVar = "valueArrData" + uid;

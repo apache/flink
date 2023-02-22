@@ -192,7 +192,10 @@ public class DefaultMultipleComponentLeaderElectionService
                 return;
             }
 
-            currentLeaderSessionId = UUID.randomUUID();
+            Preconditions.checkState(
+                    currentLeaderSessionId == null,
+                    "notLeader() wasn't called by the LeaderElection backend before assigning leadership to this LeaderElectionService.");
+            currentLeaderSessionId = newLeaderSessionId;
 
             forEachLeaderElectionEventHandler(
                     leaderElectionEventHandler ->

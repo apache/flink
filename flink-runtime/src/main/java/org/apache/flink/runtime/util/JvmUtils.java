@@ -29,6 +29,7 @@ import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -70,9 +71,10 @@ public final class JvmUtils {
      *
      * @param threadIds The IDs of the threads to create the thread dump for.
      * @param maxStackTraceDepth The maximum number of entries in the stack trace to be collected.
-     * @return The thread information for the requested thread IDs.
+     * @return The map key is the thread id, the map value is the thread information for the
+     *     requested thread IDs.
      */
-    public static Collection<ThreadInfoSample> createThreadInfoSample(
+    public static Map<Long, ThreadInfoSample> createThreadInfoSample(
             Collection<Long> threadIds, int maxStackTraceDepth) {
         ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
         long[] threadIdsArray = threadIds.stream().mapToLong(l -> l).toArray();

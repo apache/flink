@@ -193,7 +193,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                         createTransformationMeta(TEMPORAL_JOIN_TRANSFORMATION, config),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
-                        leftTransform.getParallelism());
+                        leftTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         RowDataKeySelector leftKeySelector =

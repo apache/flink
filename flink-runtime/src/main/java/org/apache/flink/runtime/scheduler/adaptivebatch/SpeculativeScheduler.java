@@ -21,8 +21,9 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -42,12 +44,14 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingRes
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
+import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.ExecutionTimeBasedSlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetectorListener;
@@ -119,9 +123,11 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
-            final VertexParallelismDecider vertexParallelismDecider,
+            final VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
             final int defaultMaxParallelism,
-            final BlocklistOperations blocklistOperations)
+            final BlocklistOperations blocklistOperations,
+            final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint,
+            final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId)
             throws Exception {
 
         super(
@@ -147,15 +153,17 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,
-                vertexParallelismDecider,
-                defaultMaxParallelism);
+                vertexParallelismAndInputInfosDecider,
+                defaultMaxParallelism,
+                hybridPartitionDataConsumeConstraint,
+                forwardGroupsByJobVertexId);
 
         this.maxConcurrentExecutions =
                 jobMasterConfiguration.getInteger(
-                        JobManagerOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
+                        BatchExecutionOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
 
         this.blockSlowNodeDuration =
-                jobMasterConfiguration.get(JobManagerOptions.BLOCK_SLOW_NODE_DURATION);
+                jobMasterConfiguration.get(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION);
         checkArgument(
                 !blockSlowNodeDuration.isNegative(),
                 "The blocking duration should not be negative.");
@@ -194,7 +202,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
     }
 
     @Override
-    protected void onTaskFinished(final Execution execution) {
+    protected void onTaskFinished(final Execution execution, final IOMetrics ioMetrics) {
         if (!isOriginalAttempt(execution)) {
             numEffectiveSpeculativeExecutionsCounter.inc();
         }
@@ -202,7 +210,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
         // cancel all un-terminated executions because the execution vertex has finished
         FutureUtils.assertNoException(cancelPendingExecutions(execution.getVertex().getID()));
 
-        super.onTaskFinished(execution);
+        super.onTaskFinished(execution, ioMetrics);
     }
 
     private static boolean isOriginalAttempt(final Execution execution) {
@@ -325,7 +333,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final SpeculativeExecutionVertex executionVertex =
                     getExecutionVertex(executionVertexId);
 
-            if (executionVertex.containsSinks()) {
+            if (!executionVertex.isSupportsConcurrentExecutionAttempts()) {
                 continue;
             }
 

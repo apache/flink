@@ -94,21 +94,23 @@ The actual value of parallelism from which the problem occurs is various from jo
 ## 网络缓冲生命周期
  
 Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
-每个缓冲区池的大小被限制为
+每个缓冲区池的目标缓冲区数由下面的公式计算得到。
 
 `#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
 
-缓冲区的大小可以通过 `taskmanager.memory.segment-size` 来设置。
+每个缓冲区（Buffer）的大小可以通过 `taskmanager.memory.segment-size` 来设置。
 
 ### 输入网络缓冲
 
-输入通道中的缓冲区被分为独占缓冲区（exclusive buffer）和流动缓冲区（floating buffer）。每个独占缓冲区只能被一个特定的通道使用。
-一个通道可以从输入流的共享缓冲区池中申请额外的流动缓冲区。剩余的流动缓冲区是可选的并且只有资源足够的时候才能获取。
+缓冲区池不一定总能达到目标缓冲区数。有一个阈值控制 Flink 在无法获取到缓冲区时是否会失败。
+目标缓冲区数中，小于阈值的的部分被称为必须（Required）缓冲区，剩余的部分（如果有的话）是可选（Optional）缓冲区。
+如果无法获得必须缓冲区，会导致任务失败。
+如果无法获得可选缓冲区，任务不会失败，但可能会降低性能。
 
-在初始阶段：
-- Flink 会为每一个输入通道获取配置数量的独占缓冲区。
-- 所有的独占缓冲区都必须被满足，否则作业会抛异常失败。
-- Flink 至少要有一个流动缓冲区才能运行。
+对于流作业，这个阈值的默认值是Integer.MAX_VALUE，对于批作业，默认值是1000。
+我们不建议用户更改这个阈值，除非用户有充分的理由修改它，并非常明确修改这个阈值带来的影响。
+这个阈值的配置选项是`taskmanager.network.memory.read-buffer.required-per-gate.max`。
+通常，阈值越小，出现“网络缓冲区数量不足”异常的可能性越小，但可能导致作业静默地性能下降，反之亦然。
 
 ### 输出网络缓冲
 

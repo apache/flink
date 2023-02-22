@@ -254,7 +254,8 @@ public class RocksDBOperationUtils {
             RocksDBMemoryConfiguration jobMemoryConfig,
             Environment env,
             double memoryFraction,
-            Logger logger)
+            Logger logger,
+            RocksDBMemoryControllerUtils.RocksDBMemoryFactory rocksDBMemoryFactory)
             throws IOException {
 
         try {
@@ -264,7 +265,8 @@ public class RocksDBOperationUtils {
                 return null;
             }
 
-            return factory.create(jobMemoryConfig, env, memoryFraction, logger);
+            return factory.create(
+                    jobMemoryConfig, env, memoryFraction, logger, rocksDBMemoryFactory);
 
         } catch (Exception e) {
             throw new IOException("Failed to acquire shared cache resource for RocksDB", e);

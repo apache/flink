@@ -338,7 +338,7 @@ The LOOKUP hint allows users to suggest the Flink optimizer to:
 
 {{< hint info >}}
 Note: 
-- 'table' option is required, only table name is supported(keep consistent with which in the FROM clause), alias name is not supported currently(will be supported in later versions).
+- 'table' option is required, only table name is supported(keep consistent with which in the FROM clause), note that only alias name can be used if table has an alias name.
 - async options are all optional, will use default value if not configured.
 - there is no default value for retry options, all retry options should be set to valid values when need to enable retry.
 {{< /hint >}}

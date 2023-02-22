@@ -58,7 +58,7 @@ ALTER (DATABASE|SCHEMA) database_name SET LOCATION hdfs_path;
 -- alter database's properties
 ALTER DATABASE d1 SET DBPROPERTIES ('p1' = 'v1', 'p2' = 'v2');
 
--- alter database's localtion
+-- alter database's location
 ALTER DATABASE d1 SET LOCATION '/new/path';
 ```
 
@@ -104,7 +104,7 @@ table_properties:
 #### Examples
 
 ```sql
-ALTER TABLE table_name SET TBLPROPERTIES ('p1' = 'v1', 'p2' = 'v2');
+ALTER TABLE t1 SET TBLPROPERTIES ('p1' = 'v1', 'p2' = 'v2');
 ```
 
 ### Add / Remove SerDe Properties

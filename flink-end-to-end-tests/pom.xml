@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<packaging>pom</packaging>
@@ -65,23 +65,16 @@ under the License.
 		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
-		<module>flink-connector-gcp-pubsub-emulator-tests</module>
 		<module>flink-streaming-kafka-test-base</module>
 		<module>flink-streaming-kafka-test</module>
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
-		<module>flink-streaming-kinesis-test</module>
 		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
-		<module>flink-end-to-end-tests-pulsar</module>
-		<module>flink-glue-schema-registry-avro-test</module>
-		<module>flink-glue-schema-registry-json-test</module>
 		<module>flink-end-to-end-tests-scala</module>
-		<module>flink-end-to-end-tests-aws-kinesis-streams</module>
-		<module>flink-end-to-end-tests-aws-kinesis-firehose</module>
 		<module>flink-end-to-end-tests-sql</module>
     </modules>
 

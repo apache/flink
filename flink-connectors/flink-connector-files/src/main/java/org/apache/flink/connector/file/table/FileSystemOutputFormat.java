@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -37,12 +38,17 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * File system {@link OutputFormat} for batch job. It commit in {@link #finalizeGlobal(int)}.
+ * File system {@link OutputFormat} for batch job. It commits in {@link
+ * #finalizeGlobal(FinalizationContext)}.
  *
  * @param <T> The type of the consumed records.
  */
 @Internal
-public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMaster, Serializable {
+public class FileSystemOutputFormat<T>
+        implements OutputFormat<T>,
+                FinalizeOnMaster,
+                Serializable,
+                SupportsConcurrentExecutionAttempts {
 
     private static final long serialVersionUID = 1L;
 
@@ -93,7 +99,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     }
 
     @Override
-    public void finalizeGlobal(int parallelism) {
+    public void finalizeGlobal(FinalizationContext context) {
         try {
             List<PartitionCommitPolicy> policies = Collections.emptyList();
             if (partitionCommitPolicyFactory != null) {
@@ -120,7 +126,17 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                             identifier,
                             staticPartitions,
                             policies);
-            committer.commitPartitions();
+            committer.commitPartitions(
+                    (subtaskIndex, attemptNumber) -> {
+                        try {
+                            if (context.getFinishedAttempt(subtaskIndex) == attemptNumber) {
+                                return true;
+                            }
+                        } catch (IllegalArgumentException ignored) {
+                            // maybe met a dir or file which does not belong to this job
+                        }
+                        return false;
+                    });
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
         } finally {
@@ -137,18 +153,27 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         try {
             PartitionTempFileManager fileManager =
-                    new PartitionTempFileManager(fsFactory, tmpPath, taskNumber, outputFileConfig);
-            PartitionWriter.Context<T> context =
+                    new PartitionTempFileManager(
+                            fsFactory,
+                            tmpPath,
+                            context.getTaskNumber(),
+                            context.getAttemptNumber(),
+                            outputFileConfig);
+            PartitionWriter.Context<T> writerContext =
                     new PartitionWriter.Context<>(parameters, formatFactory);
             writer =
                     PartitionWriterFactory.<T>get(
                                     partitionColumns.length - staticPartitions.size() > 0,
                                     dynamicGrouped,
                                     staticPartitions)
-                            .create(context, fileManager, computer);
+                            .create(
+                                    writerContext,
+                                    fileManager,
+                                    computer,
+                                    new PartitionWriter.DefaultPartitionWriterListener());
         } catch (Exception e) {
             throw new TableException("Exception in open", e);
         }

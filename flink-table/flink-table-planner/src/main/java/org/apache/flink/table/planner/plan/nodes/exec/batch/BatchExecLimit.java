@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sort.LimitOperator;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -35,7 +36,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import java.util.Collections;
 
 /** Batch {@link ExecNode} for Limit. */
-public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
+public class BatchExecLimit extends ExecNodeBase<RowData>
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final long limitStart;
     private final long limitEnd;
@@ -74,6 +76,7 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
                 createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 inputTransform.getOutputType(),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

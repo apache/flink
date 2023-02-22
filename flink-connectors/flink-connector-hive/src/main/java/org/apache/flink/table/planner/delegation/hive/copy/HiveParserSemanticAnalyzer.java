@@ -2103,7 +2103,7 @@ public class HiveParserSemanticAnalyzer {
                 return null;
             }
         } else {
-            return optionalTab.get().getTable();
+            return optionalTab.get().getResolvedTable();
         }
     }
 

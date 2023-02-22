@@ -17,6 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.utils.ShortcutUtils
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.core.JoinRelType
@@ -45,7 +48,19 @@ class RewriteMultiJoinConditionRule
     // currently only supports all join types are INNER join
     val isAllInnerJoin = multiJoin.getJoinTypes.forall(_ eq JoinRelType.INNER)
     val (equiJoinFilters, _) = partitionJoinFilters(multiJoin)
-    !multiJoin.isFullOuterJoin && isAllInnerJoin && equiJoinFilters.size > 1
+    val numJoinInputs = multiJoin.getInputs.size()
+    // If the number of join inputs small than/equals bushy tree threshold, the
+    // FlinkBushyJoinReorderRule will be used in FlinkJoinReorderRule. For bushy
+    // join reorder rule, this is no need to rewrite multi join condition to
+    // avoid increasing the search space.
+    val bushyTreeThreshold = ShortcutUtils
+      .unwrapContext(multiJoin)
+      .getTableConfig
+      .get(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD)
+    (numJoinInputs > bushyTreeThreshold) &&
+    !multiJoin.isFullOuterJoin &&
+    isAllInnerJoin &&
+    equiJoinFilters.size > 1
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

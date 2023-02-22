@@ -30,6 +30,7 @@ import org.apache.flink.metrics.util.TestMetricGroup;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.event.Level;
@@ -43,7 +44,7 @@ class Slf4jReporterTest {
     private static char delimiter;
 
     private static MetricGroup metricGroup;
-    private static Slf4jReporter reporter;
+    private Slf4jReporter reporter;
 
     @RegisterExtension
     private final LoggerAuditingExtension testLoggerResource =
@@ -57,8 +58,73 @@ class Slf4jReporterTest {
                 TestMetricGroup.newBuilder()
                         .setMetricIdentifierFunction((s, characterFilter) -> SCOPE + delimiter + s)
                         .build();
+    }
+
+    @BeforeEach
+    void setUpReporter() {
         reporter = new Slf4jReporter();
         reporter.open(new MetricConfig());
+    }
+
+    @Test
+    void testSkipOnNoMetrics() {
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("Starting metrics report"))
+                .anyMatch(logOutput -> logOutput.contains("Skipping metrics report"));
+    }
+
+    @Test
+    void testOnlyCounterRegistered() {
+        reporter.notifyOfAddedMetric(new SimpleCounter(), "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Meter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Gauge"))
+                .noneMatch(logOutput -> logOutput.contains("-- Histogram"))
+                .anyMatch(logOutput -> logOutput.contains("-- Counter"));
+    }
+
+    @Test
+    void testOnlyMeterRegistered() {
+        reporter.notifyOfAddedMetric(new MeterView(new SimpleCounter()), "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Counter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Gauge"))
+                .noneMatch(logOutput -> logOutput.contains("-- Histogram"))
+                .anyMatch(logOutput -> logOutput.contains("-- Meter"));
+    }
+
+    @Test
+    void testOnlyGaugeRegistered() {
+        reporter.notifyOfAddedMetric((Gauge<Number>) () -> 4, "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Meter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Counter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Histogram"))
+                .anyMatch(logOutput -> logOutput.contains("-- Gauge"));
+    }
+
+    @Test
+    void testOnlyHistogramRegistered() {
+        reporter.notifyOfAddedMetric(new TestHistogram(), "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Meter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Gauge"))
+                .noneMatch(logOutput -> logOutput.contains("-- Counter"))
+                .anyMatch(logOutput -> logOutput.contains("-- Histogram"));
     }
 
     @Test

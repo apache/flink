@@ -344,7 +344,7 @@ class PipelinedRegionSchedulingStrategyTest {
 
         // Test whether the region 2 is scheduled correctly when region 1 is finished
         final ExecutionVertex v22 = executionGraph.getJobVertex(v2.getID()).getTaskVertices()[1];
-        v22.finishAllBlockingPartitions();
+        v22.finishPartitionsIfNeeded();
 
         schedulingStrategy.onExecutionStateChange(v22.getID(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
@@ -450,7 +450,7 @@ class PipelinedRegionSchedulingStrategyTest {
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
 
         final ExecutionVertex v11 = executionGraph.getJobVertex(v1.getID()).getTaskVertices()[0];
-        v11.finishAllBlockingPartitions();
+        v11.finishPartitionsIfNeeded();
 
         schedulingStrategy.onExecutionStateChange(v11.getID(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
@@ -533,7 +533,7 @@ class PipelinedRegionSchedulingStrategyTest {
         assertThat(testingSchedulerOperation.getScheduledVertices().get(1))
                 .containsExactly(v21.getID());
         // finish v2 to trigger new round of scheduling.
-        v21.finishAllBlockingPartitions();
+        v21.finishPartitionsIfNeeded();
         schedulingStrategy.onExecutionStateChange(v21.getID(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
         final ExecutionVertex v31 = executionGraph.getJobVertex(v3.getID()).getTaskVertices()[0];
@@ -620,7 +620,7 @@ class PipelinedRegionSchedulingStrategyTest {
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
 
         final ExecutionVertex v11 = executionGraph.getJobVertex(v1.getID()).getTaskVertices()[0];
-        v11.finishAllBlockingPartitions();
+        v11.finishPartitionsIfNeeded();
         schedulingStrategy.onExecutionStateChange(v11.getID(), ExecutionState.FINISHED);
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
     }

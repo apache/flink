@@ -19,66 +19,33 @@
 package org.apache.flink.table.gateway.api.results;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
-/** The collection of the results. */
+/**
+ * A {@code ResultSet} represents the collection of the results. This interface defines the methods
+ * that can be used on the ResultSet.
+ */
 @PublicEvolving
-public class ResultSet implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-
-    public static final String FIELD_NAME_COLUMN_INFOS = "columns";
-
-    public static final String FIELD_NAME_DATA = "data";
-
-    private final ResultType resultType;
-
-    @Nullable private final Long nextToken;
-
-    private final ResolvedSchema resultSchema;
-    private final List<RowData> data;
-
-    public static final ResultSet NOT_READY_RESULTS =
-            new ResultSet(
-                    ResultType.NOT_READY,
-                    0L,
-                    ResolvedSchema.of(Collections.emptyList()),
-                    Collections.emptyList());
-
-    public ResultSet(
-            ResultType resultType,
-            @Nullable Long nextToken,
-            ResolvedSchema resultSchema,
-            List<RowData> data) {
-        this.nextToken = nextToken;
-        this.resultType = resultType;
-        this.resultSchema = resultSchema;
-        this.data = data;
-    }
+public interface ResultSet {
 
     /** Get the type of the results, which may indicate the result is EOS or has data. */
-    public ResultType getResultType() {
-        return resultType;
-    }
+    ResultType getResultType();
 
     /**
      * The token indicates the next batch of the data.
      *
      * <p>When the token is null, it means all the data has been fetched.
      */
-    public @Nullable Long getNextToken() {
-        return nextToken;
-    }
+    @Nullable
+    Long getNextToken();
 
     /**
      * The schema of the data.
@@ -97,53 +64,27 @@ public class ResultSet implements Serializable {
      * +- -----------+-------------+----------+
      * </pre>
      */
-    public ResolvedSchema getResultSchema() {
-        return resultSchema;
-    }
+    ResolvedSchema getResultSchema();
 
     /** All the data in the current results. */
-    public List<RowData> getData() {
-        return data;
-    }
+    List<RowData> getData();
 
-    @Override
-    public String toString() {
-        return String.format(
-                "ResultSet{\n"
-                        + "  resultType=%s,\n"
-                        + "  nextToken=%s,\n"
-                        + "  resultSchema=%s,\n"
-                        + "  data=[%s]\n"
-                        + "}",
-                resultType,
-                nextToken,
-                resultSchema.toString(),
-                data.stream().map(Object::toString).collect(Collectors.joining(",")));
-    }
+    /** Indicates that whether the result is for a query. */
+    boolean isQueryResult();
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof ResultSet)) {
-            return false;
-        }
-        ResultSet resultSet = (ResultSet) o;
-        return resultType == resultSet.resultType
-                && Objects.equals(nextToken, resultSet.nextToken)
-                && Objects.equals(resultSchema, resultSet.resultSchema)
-                && Objects.equals(data, resultSet.data);
-    }
+    /**
+     * If the statement was submitted to a client, returns the JobID which uniquely identifies the
+     * job. Otherwise, returns null.
+     */
+    @Nullable
+    JobID getJobID();
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(resultType, nextToken, resultSchema, data);
-    }
+    /** Gets the result kind of the result. */
+    ResultKind getResultKind();
 
     /** Describe the kind of the result. */
     @PublicEvolving
-    public enum ResultType {
+    enum ResultType {
         /** Indicate the result is not ready. */
         NOT_READY,
 

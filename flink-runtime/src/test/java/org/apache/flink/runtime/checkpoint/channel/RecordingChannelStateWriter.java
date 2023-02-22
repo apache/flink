@@ -31,9 +31,9 @@ import static org.apache.flink.util.ExceptionUtils.rethrow;
 /** A simple {@link ChannelStateWriter} used to write unit tests. */
 public class RecordingChannelStateWriter extends MockChannelStateWriter {
     private long lastStartedCheckpointId = -1;
-    private long lastFinishedCheckpointId = -1;
-    private ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
-    private ListMultimap<ResultSubpartitionInfo, Buffer> addedOutput = LinkedListMultimap.create();
+    private final ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
+    private final ListMultimap<ResultSubpartitionInfo, Buffer> addedOutput =
+            LinkedListMultimap.create();
 
     public RecordingChannelStateWriter() {
         super(false);
@@ -41,7 +41,6 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
 
     public void reset() {
         lastStartedCheckpointId = -1;
-        lastFinishedCheckpointId = -1;
         addedInput.values().forEach(Buffer::recycleBuffer);
         addedInput.clear();
         addedOutput.values().forEach(Buffer::recycleBuffer);
@@ -78,10 +77,6 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
 
     public long getLastStartedCheckpointId() {
         return lastStartedCheckpointId;
-    }
-
-    public long getLastFinishedCheckpointId() {
-        return lastFinishedCheckpointId;
     }
 
     public ListMultimap<InputChannelInfo, Buffer> getAddedInput() {

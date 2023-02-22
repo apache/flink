@@ -47,10 +47,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Serializers that do have some outer snapshot needs to make sure to implement the methods
  * {@link #writeOuterSnapshot(DataOutputView)}, {@link #readOuterSnapshot(int, DataInputView,
- * ClassLoader)}, and {@link #resolveOuterSchemaCompatibility(TypeSerializer)} (TypeSerializer)}
- * when using this class as the base for its serializer snapshot class. By default, the base
- * implementations of these methods are empty, i.e. this class assumes that subclasses do not have
- * any outer snapshot that needs to be persisted.
+ * ClassLoader)}, and {@link #resolveOuterSchemaCompatibility(TypeSerializer)} when using this class
+ * as the base for its serializer snapshot class. By default, the base implementations of these
+ * methods are empty, i.e. this class assumes that subclasses do not have any outer snapshot that
+ * needs to be persisted.
  *
  * <h2>Snapshot Versioning</h2>
  *

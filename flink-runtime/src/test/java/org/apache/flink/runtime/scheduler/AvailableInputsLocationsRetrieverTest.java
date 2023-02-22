@@ -18,76 +18,73 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AvailableInputsLocationsRetriever}. */
-public class AvailableInputsLocationsRetrieverTest extends TestLogger {
+class AvailableInputsLocationsRetrieverTest {
     private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
 
     @Test
-    public void testNoInputLocation() {
+    void testNoInputLocation() {
         TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
         InputsLocationsRetriever availableInputsLocationsRetriever =
                 new AvailableInputsLocationsRetriever(originalLocationRetriever);
-        assertThat(
-                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
-                is(false));
+        assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1)).isNotPresent();
     }
 
     @Test
-    public void testNoInputLocationIfNotDone() {
+    void testNoInputLocationIfNotDone() {
         TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
         originalLocationRetriever.markScheduled(EV1);
         InputsLocationsRetriever availableInputsLocationsRetriever =
                 new AvailableInputsLocationsRetriever(originalLocationRetriever);
-        assertThat(
-                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
-                is(false));
+        assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1)).isNotPresent();
     }
 
     @Test
-    public void testNoInputLocationIfFailed() {
+    void testNoInputLocationIfFailed() {
         TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
         originalLocationRetriever.failTaskManagerLocation(EV1, new Throwable());
         InputsLocationsRetriever availableInputsLocationsRetriever =
                 new AvailableInputsLocationsRetriever(originalLocationRetriever);
-        assertThat(
-                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
-                is(false));
+        assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1)).isNotPresent();
     }
 
     @Test
-    public void testInputLocationIfDone() {
+    void testInputLocationIfDone() {
         TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
         originalLocationRetriever.assignTaskManagerLocation(EV1);
         InputsLocationsRetriever availableInputsLocationsRetriever =
                 new AvailableInputsLocationsRetriever(originalLocationRetriever);
-        assertThat(
-                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
-                is(true));
+        assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1)).isPresent();
     }
 
     @Test
-    public void testConsumedResultPartitionsProducers() {
+    void testGetConsumedPartitionGroupAndProducers() {
         TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
         InputsLocationsRetriever availableInputsLocationsRetriever =
                 new AvailableInputsLocationsRetriever(originalLocationRetriever);
-        Collection<Collection<ExecutionVertexID>> producers =
-                availableInputsLocationsRetriever.getConsumedResultPartitionsProducers(EV2);
-        assertThat(producers.size(), is(1));
-        Collection<ExecutionVertexID> resultProducers = producers.iterator().next();
-        assertThat(resultProducers, contains(EV1));
+
+        ConsumedPartitionGroup consumedPartitionGroup =
+                Iterables.getOnlyElement(
+                        (availableInputsLocationsRetriever.getConsumedPartitionGroups(EV2)));
+        assertThat(consumedPartitionGroup).hasSize(1);
+
+        Collection<ExecutionVertexID> producers =
+                availableInputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                        consumedPartitionGroup);
+        assertThat(producers).containsExactly(EV1);
     }
 
     private static TestingInputsLocationsRetriever getOriginalLocationRetriever() {

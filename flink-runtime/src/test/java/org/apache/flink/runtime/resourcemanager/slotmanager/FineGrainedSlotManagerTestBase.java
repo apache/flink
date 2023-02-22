@@ -157,8 +157,11 @@ abstract class FineGrainedSlotManagerTestBase {
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
 
-        final TestingResourceActionsBuilder resourceActionsBuilder =
-                new TestingResourceActionsBuilder();
+        final TestingResourceAllocatorBuilder resourceAllocatorBuilder =
+                new TestingResourceAllocatorBuilder();
+
+        final TestingResourceEventListenerBuilder resourceEventListenerBuilder =
+                new TestingResourceEventListenerBuilder();
         final SlotManagerConfigurationBuilder slotManagerConfigurationBuilder =
                 SlotManagerConfigurationBuilder.newBuilder();
 
@@ -221,7 +224,8 @@ abstract class FineGrainedSlotManagerTestBase {
                             slotManager.start(
                                     resourceManagerId,
                                     mainThreadExecutor,
-                                    resourceActionsBuilder.build(),
+                                    resourceAllocatorBuilder.build(),
+                                    resourceEventListenerBuilder.build(),
                                     blockedTaskManagerChecker));
 
             testMethod.run();

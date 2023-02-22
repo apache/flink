@@ -20,23 +20,35 @@ package org.apache.flink.table.gateway.rest.header.statement;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.gateway.rest.header.SqlGatewayMessageHeaders;
 import org.apache.flink.table.gateway.rest.message.operation.OperationHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
-import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenPathParameter;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.V1;
+
 /** Message headers for fetching results. */
 public class FetchResultsHeaders
         implements SqlGatewayMessageHeaders<
-                EmptyRequestBody, FetchResultsResponseBody, FetchResultsTokenParameters> {
+                EmptyRequestBody, FetchResultsResponseBody, FetchResultsMessageParameters> {
 
-    private static final FetchResultsHeaders INSTANCE = new FetchResultsHeaders();
+    private static final FetchResultsHeaders INSTANCE_V1 = new FetchResultsHeaders(V1);
+    private static final FetchResultsHeaders DEFAULT_INSTANCE =
+            new FetchResultsHeaders(SqlGatewayRestAPIVersion.getDefaultVersion());
 
     public static final String URL =
             "/sessions/:"
@@ -45,6 +57,41 @@ public class FetchResultsHeaders
                     + OperationHandleIdPathParameter.KEY
                     + "/result/:"
                     + FetchResultsTokenPathParameter.KEY;
+
+    private final SqlGatewayRestAPIVersion version;
+
+    private FetchResultsHeaders(SqlGatewayRestAPIVersion version) {
+        this.version = version;
+    }
+
+    public static FetchResultsHeaders getInstanceV1() {
+        return INSTANCE_V1;
+    }
+
+    public static FetchResultsHeaders getDefaultInstance() {
+        return DEFAULT_INSTANCE;
+    }
+
+    public static @Nullable String buildNextUri(
+            SqlGatewayRestAPIVersion version,
+            String sessionId,
+            String operationId,
+            Long nextToken,
+            RowFormat rowFormat) {
+        if (nextToken == null) {
+            return null;
+        }
+
+        if (version == V1) {
+            return String.format(
+                    "/%s/sessions/%s/operations/%s/result/%s",
+                    version.getURLVersionPrefix(), sessionId, operationId, nextToken);
+        } else {
+            return String.format(
+                    "/%s/sessions/%s/operations/%s/result/%s?rowFormat=%s",
+                    version.getURLVersionPrefix(), sessionId, operationId, nextToken, rowFormat);
+        }
+    }
 
     @Override
     public Class<FetchResultsResponseBody> getResponseClass() {
@@ -71,20 +118,15 @@ public class FetchResultsHeaders
         return URL;
     }
 
-    public static FetchResultsHeaders getInstance() {
-        return INSTANCE;
-    }
-
-    @Nullable
-    public static String buildNextUri(
-            String version, String sessionId, String operationId, Long nextToken) {
-        if (nextToken != null) {
-            return String.format(
-                    "/%s/sessions/%s/operations/%s/result/%s",
-                    version, sessionId, operationId, nextToken);
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        if (version == V1) {
+            return Collections.singleton(V1);
         } else {
-            // Empty uri indicates there is no more data
-            return null;
+            return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                    .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                    .filter(version -> version != V1)
+                    .collect(Collectors.toList());
         }
     }
 
@@ -94,8 +136,8 @@ public class FetchResultsHeaders
     }
 
     @Override
-    public FetchResultsTokenParameters getUnresolvedMessageParameters() {
-        return new FetchResultsTokenParameters();
+    public FetchResultsMessageParameters getUnresolvedMessageParameters() {
+        return new FetchResultsMessageParameters(version);
     }
 
     @Override

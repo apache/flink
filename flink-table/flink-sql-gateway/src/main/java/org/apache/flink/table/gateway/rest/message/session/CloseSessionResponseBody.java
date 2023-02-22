@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.session;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -32,6 +33,7 @@ public class CloseSessionResponseBody implements ResponseBody {
     @JsonProperty(FIELD_NAME_STATUS)
     private final String status;
 
+    @JsonCreator
     public CloseSessionResponseBody(@JsonProperty(FIELD_NAME_STATUS) String status) {
         this.status = status;
     }

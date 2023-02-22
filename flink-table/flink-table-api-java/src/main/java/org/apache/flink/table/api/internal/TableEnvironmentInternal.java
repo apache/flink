@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -91,7 +92,21 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      *     estimated cost, changelog mode for streaming
      * @return AST and the execution plan.
      */
-    String explainInternal(List<Operation> operations, ExplainDetail... extraDetails);
+    default String explainInternal(List<Operation> operations, ExplainDetail... extraDetails) {
+        return explainInternal(operations, ExplainFormat.TEXT, extraDetails);
+    }
+
+    /**
+     * Returns the AST of this table and the execution plan to compute the result of this table.
+     *
+     * @param operations The operations to be explained.
+     * @param format The output format.
+     * @param extraDetails The extra explain details which the explain result should include, e.g.
+     *     estimated cost, changelog mode for streaming
+     * @return AST and the execution plan.
+     */
+    String explainInternal(
+            List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails);
 
     /**
      * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.

@@ -327,7 +327,7 @@ cdef class FlattenRowCoderImpl(FieldCoderImpl):
         cdef size_t i
         cdef FieldCoderImpl field_coder
 
-        list_value = <list> value
+        list_value = <list?> value
 
         # encode mask value
         self._mask_utils.write_mask(list_value, 0, out_stream)

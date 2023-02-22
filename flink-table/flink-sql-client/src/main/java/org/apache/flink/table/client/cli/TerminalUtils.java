@@ -35,6 +35,12 @@ public class TerminalUtils {
         // do not instantiate
     }
 
+    public static boolean isPlainTerminal(Terminal terminal) {
+        // check if terminal width can be determined
+        // e.g. IntelliJ IDEA terminal supports only a plain terminal
+        return terminal.getWidth() == 0 && terminal.getHeight() == 0;
+    }
+
     public static Terminal createDumbTerminal() {
         return createDumbTerminal(new MockOutputStream());
     }

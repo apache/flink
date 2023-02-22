@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.service.rpc.thrift.TSessionHandle;
@@ -39,8 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -53,6 +52,7 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
@@ -68,6 +68,16 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
     private Connection connection;
     private Statement statement;
 
+    @Parameters(name = "parameters={0}")
+    public static List<TestParameters> parameters() throws Exception {
+        return Stream.concat(
+                        listFlinkSqlTests().stream()
+                                .map(path -> new HiveTestParameters(path, true)),
+                        listTestSpecInTheSameModule("endpoint").stream()
+                                .map(path -> new HiveTestParameters(path, false)))
+                .collect(Collectors.toList());
+    }
+
     @BeforeEach
     @Override
     public void before(@TempDir Path temporaryFolder) throws Exception {
@@ -80,16 +90,6 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
     public void after() throws Exception {
         statement.close();
         connection.close();
-    }
-
-    public static Stream<String> listHiveSqlTests() throws Exception {
-        return listTestSpecInTheSameModule("endpoint");
-    }
-
-    @ParameterizedTest
-    @MethodSource("listHiveSqlTests")
-    public void testHiveSqlStatements(String sqlPath) throws Exception {
-        runTest(sqlPath);
     }
 
     @Override
@@ -151,18 +151,20 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
     }
 
     @Override
-    protected void resetSessionForFlinkSqlStatements() throws Exception {
-        for (String sql :
-                Arrays.asList(
-                        "RESET",
-                        "CREATE CATALOG `default_catalog` \n"
-                                + "WITH (\n"
-                                + "'type' = 'generic_in_memory',\n"
-                                + "'default-database' = 'default_database')",
-                        "USE CATALOG `default_catalog`",
-                        "DROP CATALOG hive",
-                        "UNLOAD MODULE hive")) {
-            runSingleStatement(sql);
+    protected void prepareEnvironment() throws Exception {
+        if (((HiveTestParameters) parameters).getResetEnvironment()) {
+            for (String sql :
+                    Arrays.asList(
+                            "RESET",
+                            "CREATE CATALOG `default_catalog` \n"
+                                    + "WITH (\n"
+                                    + "'type' = 'generic_in_memory',\n"
+                                    + "'default-database' = 'default_database')",
+                            "USE CATALOG `default_catalog`",
+                            "DROP CATALOG hive",
+                            "UNLOAD MODULE hive")) {
+                runSingleStatement(sql);
+            }
         }
     }
 
@@ -182,5 +184,30 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
         }
 
         return DataTypes.ROW(fields);
+    }
+
+    private static class HiveTestParameters extends TestParameters {
+
+        private final boolean resetEnvironment;
+
+        public HiveTestParameters(String sqlPath, boolean resetEnvironment) {
+            super(sqlPath);
+            this.resetEnvironment = resetEnvironment;
+        }
+
+        public boolean getResetEnvironment() {
+            return resetEnvironment;
+        }
+
+        @Override
+        public String toString() {
+            return "HiveTestParameters{"
+                    + "resetEnvironment="
+                    + resetEnvironment
+                    + ", sqlPath='"
+                    + sqlPath
+                    + '\''
+                    + '}';
+        }
     }
 }

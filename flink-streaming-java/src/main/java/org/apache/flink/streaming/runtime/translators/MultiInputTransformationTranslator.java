@@ -113,7 +113,8 @@ public class MultiInputTransformationTranslator<OUT>
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
                         ? transformation.getParallelism()
                         : executionConfig.getParallelism();
-        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setParallelism(
+                transformationId, parallelism, transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
         if (transformation instanceof KeyedMultipleInputTransformation) {
@@ -132,6 +133,9 @@ public class MultiInputTransformationTranslator<OUT>
                 streamGraph.addEdge(inputId, transformationId, i + 1);
             }
         }
+
+        streamGraph.setSupportsConcurrentExecutionAttempts(
+                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
 
         return Collections.singleton(transformationId);
     }

@@ -18,6 +18,7 @@
 
 package org.apache.calcite.rel.logical;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -25,6 +26,7 @@ import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Snapshot;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMdCollation;
 import org.apache.calcite.rel.metadata.RelMdDistribution;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -32,16 +34,37 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Litmus;
 
+import java.util.List;
+
 /**
  * Sub-class of {@link org.apache.calcite.rel.core.Snapshot} not targeted at any particular engine
  * or calling convention. The class was copied over because of * CALCITE-4554. *
  *
- * <p>Line 80 ~ 91: Calcite only supports timestamp type as period type, but Flink supports both
+ * <p>Line 106 ~ 117: Calcite only supports timestamp type as period type, but Flink supports both
  * Timestamp and TimestampLtz. Should be removed once calcite support TimestampLtz as period type.
  */
 public class LogicalSnapshot extends Snapshot {
 
     // ~ Constructors -----------------------------------------------------------
+    /**
+     * Creates a LogicalSnapshot.
+     *
+     * <p>Use {@link #create} unless you know what you're doing.
+     *
+     * @param cluster Cluster that this relational expression belongs to
+     * @param traitSet The traits of this relational expression
+     * @param hints Hints for this node
+     * @param input Input relational expression
+     * @param period Timestamp expression which as the table was at the given time in the past
+     */
+    public LogicalSnapshot(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            RelNode input,
+            RexNode period) {
+        super(cluster, traitSet, hints, input, period);
+    }
 
     /**
      * Creates a LogicalSnapshot.
@@ -55,12 +78,12 @@ public class LogicalSnapshot extends Snapshot {
      */
     public LogicalSnapshot(
             RelOptCluster cluster, RelTraitSet traitSet, RelNode input, RexNode period) {
-        super(cluster, traitSet, input, period);
+        super(cluster, traitSet, ImmutableList.of(), input, period);
     }
 
     @Override
     public Snapshot copy(RelTraitSet traitSet, RelNode input, RexNode period) {
-        return new LogicalSnapshot(getCluster(), traitSet, input, period);
+        return new LogicalSnapshot(getCluster(), traitSet, hints, input, period);
     }
 
     /** Creates a LogicalSnapshot. */
@@ -92,5 +115,10 @@ public class LogicalSnapshot extends Snapshot {
                             + "'");
         }
         return litmus.succeed();
+    }
+
+    @Override
+    public RelNode withHints(final List<RelHint> hintList) {
+        return new LogicalSnapshot(getCluster(), traitSet, hintList, input, getPeriod());
     }
 }

@@ -44,6 +44,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -270,5 +271,11 @@ public interface RestfulGateway extends RpcGateway {
             SerializedValue<CoordinationRequest> serializedRequest,
             @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
+    }
+
+    /** The client reports the heartbeat to the dispatcher for aliveness. */
+    default CompletableFuture<Void> reportJobClientHeartbeat(
+            JobID jobId, long expiredTimestamp, Time timeout) {
+        return FutureUtils.completedVoidFuture();
     }
 }

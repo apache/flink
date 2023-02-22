@@ -18,9 +18,15 @@
 
 package org.apache.flink.table.client.cli.parser;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.SqlParserEOFException;
+import org.apache.flink.table.client.cli.CliClient;
+import org.apache.flink.table.client.cli.Printer;
+import org.apache.flink.table.client.config.ResultMode;
+import org.apache.flink.table.client.config.SqlClientOptions;
+import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.client.gateway.StatementResult;
 
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
@@ -28,7 +34,9 @@ import org.jline.reader.SyntaxError;
 import org.jline.reader.impl.DefaultParser;
 
 import java.util.List;
-import java.util.Optional;
+
+import static org.apache.flink.table.client.config.ResultMode.TABLEAU;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 
 /**
  * Multi-line parser for parsing an arbitrary number of SQL lines until a line ends with ';'.
@@ -43,15 +51,20 @@ public class SqlMultiLineParser extends DefaultParser {
 
     /** Sql command parser. */
     private final SqlCommandParser parser;
+    /** Mode of the CliClient. */
+    private final CliClient.ExecutionMode mode;
+    /** Sql command executor. */
+    private final Executor executor;
     /** Exception caught in parsing. */
-    private Throwable parseException = null;
-    /** Operation parsed. */
-    private Operation parsedOperation = null;
-    /** Command read from terminal. */
-    private String command;
+    private SqlExecutionException parseException = null;
+    /** Result printer. */
+    private Printer printer;
 
-    public SqlMultiLineParser(SqlCommandParser parser) {
+    public SqlMultiLineParser(
+            SqlCommandParser parser, Executor executor, CliClient.ExecutionMode mode) {
         this.parser = parser;
+        this.mode = mode;
+        this.executor = executor;
         setEscapeChars(null);
         setQuoteChars(null);
     }
@@ -65,10 +78,47 @@ public class SqlMultiLineParser extends DefaultParser {
             throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
         }
         try {
-            command = line;
             parseException = null;
-            // try to parse the line read
-            parsedOperation = parser.parseCommand(line).orElse(null);
+            Command command = parser.parseStatement(line).orElse(null);
+            if (command == null) {
+                throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
+            }
+            switch (command) {
+                case QUIT:
+                    printer = Printer.createQuitCommandPrinter();
+                    break;
+                case CLEAR:
+                    printer = Printer.createClearCommandPrinter();
+                    break;
+                case HELP:
+                    printer = Printer.createHelpCommandPrinter();
+                    break;
+                default:
+                    {
+                        if (mode == CliClient.ExecutionMode.INITIALIZATION) {
+                            executor.configureSession(line);
+                            printer = Printer.createInitializationCommandPrinter();
+                        } else {
+                            StatementResult result = executor.executeStatement(line);
+                            ReadableConfig sessionConfig = executor.getSessionConfig();
+                            if (mode == CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION
+                                    && result.isQueryResult()
+                                    && sessionConfig.get(SqlClientOptions.EXECUTION_RESULT_MODE)
+                                            != ResultMode.TABLEAU) {
+                                throw new SqlExecutionException(
+                                        String.format(
+                                                "In non-interactive mode, it only supports to use %s as value of %s when execute query. "
+                                                        + "Please add 'SET %s=%s;' in the sql file.",
+                                                TABLEAU,
+                                                EXECUTION_RESULT_MODE.key(),
+                                                EXECUTION_RESULT_MODE.key(),
+                                                TABLEAU));
+                            }
+                            printer = Printer.createStatementCommandPrinter(result, sessionConfig);
+                        }
+                        break;
+                    }
+            }
         } catch (SqlExecutionException e) {
             if (e.getCause() instanceof SqlParserEOFException) {
                 throw new EOFError(-1, -1, "The statement is incomplete.", NEW_LINE_PROMPT);
@@ -104,20 +154,11 @@ public class SqlMultiLineParser extends DefaultParser {
                 parsedLine.rawWordLength());
     }
 
-    /**
-     * Gets operation parsed from current command read by LineReader. If the command read is
-     * invalid, throw the exception from parser so that we can print details of the exception in
-     * client.
-     */
-    public Optional<Operation> getParsedOperation() throws Throwable {
+    public Printer getPrinter() {
         if (parseException != null) {
             throw parseException;
         }
-        return Optional.ofNullable(parsedOperation);
-    }
-
-    public String getCommand() {
-        return command;
+        return printer;
     }
 
     private class SqlArgumentList extends DefaultParser.ArgumentList {

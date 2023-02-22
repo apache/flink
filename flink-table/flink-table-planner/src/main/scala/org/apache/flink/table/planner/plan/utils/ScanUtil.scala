@@ -129,7 +129,8 @@ object ScanUtil {
       substituteStreamOperator,
       InternalTypeInfo.of(outputRowType),
       input.getParallelism,
-      0)
+      0,
+      false)
   }
 
   /** @param qualifiedName qualified name for table */

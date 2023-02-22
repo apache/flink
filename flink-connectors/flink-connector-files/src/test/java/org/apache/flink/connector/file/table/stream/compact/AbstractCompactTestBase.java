@@ -34,14 +34,14 @@ public abstract class AbstractCompactTestBase {
 
     @TempDir private java.nio.file.Path path;
 
-    Path folder;
+    protected Path folder;
 
     @BeforeEach
     void before() {
         folder = new Path(path.toString());
     }
 
-    Path newFile(String name, int len) throws IOException {
+    protected Path newFile(String name, int len) throws IOException {
         Path path = new Path(folder, name);
         File file = new File(path.getPath());
         file.delete();

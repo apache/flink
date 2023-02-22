@@ -78,7 +78,7 @@
             <td><h5>taskmanager.memory.framework.off-heap.batch-shuffle.size</h5></td>
             <td style="word-wrap: break-word;">64 mb</td>
             <td>MemorySize</td>
-            <td>Size of memory used by blocking shuffle for shuffle data read (currently only used by sort-shuffle and hybrid shuffle). Notes: 1) The memory is cut from 'taskmanager.memory.framework.off-heap.size' so must be smaller than that, which means you may also need to increase 'taskmanager.memory.framework.off-heap.size' after you increase this config value; 2) This memory size can influence the shuffle performance and you can increase this config value for large-scale batch jobs (for example, to 128M or 256M).</td>
+            <td>Size of memory used by batch shuffle for shuffle data read (currently only used by sort-shuffle and hybrid shuffle). Notes: 1) The memory is cut from 'taskmanager.memory.framework.off-heap.size' so must be smaller than that, which means you may also need to increase 'taskmanager.memory.framework.off-heap.size' after you increase this config value; 2) This memory size can influence the shuffle performance and you can increase this config value for large-scale batch jobs (for example, to 128M or 256M).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.framework.off-heap.size</h5></td>
@@ -136,9 +136,9 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.network.max</h5></td>
-            <td style="word-wrap: break-word;">1 gb</td>
+            <td style="word-wrap: break-word;">infinite</td>
             <td>MemorySize</td>
-            <td>Max Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max size, the min/max size will be used. The exact size of Network Memory can be explicitly specified by setting the min/max to the same value.</td>
+            <td>Max Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max size, the min/max size will be used. By default, the max limit of Network Memory is Long.MAX_VALUE. The exact size of Network Memory can be explicitly specified by setting the min/max to the same value.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.network.min</h5></td>

@@ -343,7 +343,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         super(StreamPandasUDAFITTests, cls).setUpClass()
         cls.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
         max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
-                                result_type=DataTypes.SMALLINT(),
+                                result_type='SMALLINT',
                                 func_type='pandas')
         cls.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
 

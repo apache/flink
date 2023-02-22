@@ -184,8 +184,10 @@ def to_j_explain_detail_arr(p_extra_details):
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.JSON_EXECUTION_PLAN
         elif p_extra_detail == ExplainDetail.CHANGELOG_MODE:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.CHANGELOG_MODE
-        else:
+        elif p_extra_detail == ExplainDetail.ESTIMATED_COST:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.ESTIMATED_COST
+        else:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.PLAN_ADVICE
 
     _len = len(p_extra_details) if p_extra_details else 0
     j_arr = gateway.new_array(gateway.jvm.org.apache.flink.table.api.ExplainDetail, _len)

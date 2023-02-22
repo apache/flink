@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -307,7 +307,7 @@ public class InputGateFairnessTest {
         return new FairnessVerifyingInputGate(
                 "Test Task Name",
                 new IntermediateDataSetID(),
-                new SubpartitionIndexRange(0, 0),
+                new IndexRange(0, 0),
                 numberOfChannels);
     }
 
@@ -366,7 +366,7 @@ public class InputGateFairnessTest {
         public FairnessVerifyingInputGate(
                 String owningTaskName,
                 IntermediateDataSetID consumedResultId,
-                SubpartitionIndexRange subpartitionIndexRange,
+                IndexRange subpartitionIndexRange,
                 int numberOfInputChannels) {
 
             super(

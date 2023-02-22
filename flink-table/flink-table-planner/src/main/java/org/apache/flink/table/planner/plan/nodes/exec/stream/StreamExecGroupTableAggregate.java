@@ -167,7 +167,8 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         createTransformationMeta(GROUP_TABLE_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =

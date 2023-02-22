@@ -213,19 +213,16 @@ LogicalProject(a=[$1], b=[$2], f=[$6])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, f], changelogMode=[I])
+Calc(select=[a, b, f], where=[f], changelogMode=[I])
 +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(a, a0), __TEMPORAL_JOIN_CONDITION(ingestion_time, ingestion_time0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(a0), __TEMPORAL_JOIN_LEFT_KEY(a), __TEMPORAL_JOIN_RIGHT_KEY(a0)))], select=[ingestion_time, a, b, ingestion_time0, a0, f], changelogMode=[I])
    :- Exchange(distribution=[hash[a]], changelogMode=[I])
    :  +- WatermarkAssigner(rowtime=[ingestion_time], watermark=[ingestion_time], changelogMode=[I])
    :     +- Calc(select=[CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a, b], changelogMode=[I])
    :        +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b, ingestion_time], changelogMode=[I])
-   +- Exchange(distribution=[hash[a]], changelogMode=[I,UB,UA,D])
-      +- Calc(select=[ingestion_time, a, f], where=[f], changelogMode=[I,UB,UA,D])
-         +- ChangelogNormalize(key=[a], changelogMode=[I,UB,UA,D])
-            +- Exchange(distribution=[hash[a]], changelogMode=[I,UA,D])
-               +- WatermarkAssigner(rowtime=[ingestion_time], watermark=[ingestion_time], changelogMode=[I,UA,D])
-                  +- Calc(select=[CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a, f], changelogMode=[I,UA,D])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[a, f], metadata=[ts]]], fields=[a, f, ingestion_time], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[ingestion_time], watermark=[ingestion_time], changelogMode=[I,UA,D])
+         +- Calc(select=[CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a, f], changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[a, f], metadata=[ts]]], fields=[a, f, ingestion_time], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>

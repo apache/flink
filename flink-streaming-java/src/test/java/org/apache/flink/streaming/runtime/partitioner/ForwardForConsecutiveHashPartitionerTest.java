@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
-import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 /** Test for {@link ForwardForConsecutiveHashPartitioner}. */
-class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
+class ForwardForConsecutiveHashPartitionerTest {
 
     @Test
     void testConvertToForwardPartitioner() {
@@ -46,7 +45,8 @@ class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
                         "group1",
                         "group1",
                         new ForwardForConsecutiveHashPartitioner<>(
-                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
+                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)),
+                        streamExchangeMode);
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         Assertions.assertThat(jobVertices.size()).isEqualTo(1);
         JobVertex vertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
@@ -69,7 +69,8 @@ class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
                         "group1",
                         "group2",
                         new ForwardForConsecutiveHashPartitioner<>(
-                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
+                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)),
+                        streamExchangeMode);
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         Assertions.assertThat(jobVertices.size()).isEqualTo(2);
         JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);

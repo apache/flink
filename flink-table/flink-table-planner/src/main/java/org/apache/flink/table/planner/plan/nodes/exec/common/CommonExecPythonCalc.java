@@ -187,7 +187,8 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(

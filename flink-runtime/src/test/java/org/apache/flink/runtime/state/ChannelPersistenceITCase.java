@@ -17,11 +17,13 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -44,8 +46,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilde
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
@@ -75,6 +78,9 @@ import static org.junit.Assert.assertNull;
 /** ChannelPersistenceITCase. */
 public class ChannelPersistenceITCase {
     private static final Random RANDOM = new Random(System.currentTimeMillis());
+    private static final JobID JOB_ID = new JobID();
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    private static final int SUBTASK_INDEX = 0;
 
     @Test
     public void testUpstreamBlocksAfterRecoveringState() throws Exception {
@@ -250,8 +256,13 @@ public class ChannelPersistenceITCase {
         Map<ResultSubpartitionInfo, Buffer> rsBuffers = wrapWithBuffers(rsMap);
         Map<ResultSubpartitionInfo, Buffer> rsFutureBuffers = wrapWithBuffers(rsFutureMap);
         try (ChannelStateWriterImpl writer =
-                new ChannelStateWriterImpl("test", 0, getStreamFactoryFactory(maxStateSize))) {
-            writer.open();
+                new ChannelStateWriterImpl(
+                        JOB_VERTEX_ID,
+                        "test",
+                        SUBTASK_INDEX,
+                        new JobManagerCheckpointStorage(maxStateSize),
+                        new ChannelStateWriteRequestExecutorFactory(JOB_ID),
+                        5)) {
             writer.start(
                     checkpointId,
                     new CheckpointOptions(
@@ -281,30 +292,6 @@ public class ChannelPersistenceITCase {
             result.getResultSubpartitionStateHandles().join(); // prevent abnormal complete in close
             return result;
         }
-    }
-
-    public static CheckpointStorageWorkerView getStreamFactoryFactory() {
-        return getStreamFactoryFactory(42);
-    }
-
-    public static CheckpointStorageWorkerView getStreamFactoryFactory(int maxStateSize) {
-        return new CheckpointStorageWorkerView() {
-            @Override
-            public CheckpointStreamFactory resolveCheckpointStorageLocation(
-                    long checkpointId, CheckpointStorageLocationReference reference) {
-                return new NonPersistentMetadataCheckpointStorageLocation(maxStateSize);
-            }
-
-            @Override
-            public CheckpointStateOutputStream createTaskOwnedStateStream() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
-                throw new UnsupportedOperationException();
-            }
-        };
     }
 
     private TaskStateSnapshot toTaskStateSnapshot(ChannelStateWriteResult t) throws Exception {

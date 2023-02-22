@@ -205,8 +205,14 @@ Flink's network connections can be secured via SSL. Please refer to the [SSL Set
 
 {{< generated/security_ssl_section >}}
 
-
 ### Auth with External Systems
+
+**Delegation token**
+
+Flink has a pluggable authentication protocol agnostic delegation token framework.
+Please refer to the [Flink and Delegation Token Docs]({{< ref "docs/deployment/security/security-delegation-token" >}}) for further details.
+
+{{< generated/security_delegation_token_section >}}
 
 **ZooKeeper Authentication / Authorization**
 
