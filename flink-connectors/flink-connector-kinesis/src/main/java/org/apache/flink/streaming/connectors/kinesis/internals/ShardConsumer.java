@@ -149,7 +149,7 @@ public class ShardConsumer<T> implements Runnable {
                     // we can close this consumer thread once we've reached the end of the
                     // subscribed shard
                     break;
-                } else if (result == CANCELLED) {
+                } else if (isRunning() && result == CANCELLED) {
                     final String errorMessage =
                             "Shard consumer cancelled: " + subscribedShard.getShard().getShardId();
                     LOG.info(errorMessage);
