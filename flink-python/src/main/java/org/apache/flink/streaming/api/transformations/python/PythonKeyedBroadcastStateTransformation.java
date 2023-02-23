@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
 import org.apache.flink.types.Row;
 
@@ -36,12 +37,14 @@ import java.util.List;
  */
 @Internal
 public class PythonKeyedBroadcastStateTransformation<OUT>
-        extends AbstractBroadcastStateTransformation<Row, Row, OUT> {
+        extends AbstractBroadcastStateTransformation<Row, Row, OUT>
+        implements DelegateOperatorTransformation<OUT> {
 
     private final Configuration configuration;
     private final DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo;
     private final TypeInformation<Row> stateKeyType;
     private final KeySelector<Row, Row> keySelector;
+    private final SimpleOperatorFactory<OUT> delegateOperatorFactory;
 
     public PythonKeyedBroadcastStateTransformation(
             String name,
@@ -65,6 +68,7 @@ public class PythonKeyedBroadcastStateTransformation<OUT>
         this.dataStreamPythonFunctionInfo = dataStreamPythonFunctionInfo;
         this.stateKeyType = keyType;
         this.keySelector = keySelector;
+        this.delegateOperatorFactory = SimpleOperatorFactory.of(new DelegateOperator<>());
         updateManagedMemoryStateBackendUseCase(true);
     }
 
@@ -82,5 +86,10 @@ public class PythonKeyedBroadcastStateTransformation<OUT>
 
     public KeySelector<Row, Row> getKeySelector() {
         return keySelector;
+    }
+
+    @Override
+    public SimpleOperatorFactory<OUT> getOperatorFactory() {
+        return delegateOperatorFactory;
     }
 }

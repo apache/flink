@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonBatchKeyedCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchKeyedCoBroadcastProcessOperator;
@@ -53,7 +53,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
 
         Configuration config = transformation.getConfiguration();
 
-        StreamOperator<OUT> operator;
+        DataStreamPythonFunctionOperator<OUT> operator;
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
@@ -72,6 +72,9 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getBroadcastInput().getOutputType(),
                             transformation.getOutputType());
         }
+
+        PythonBroadcastStateTransformationTranslator.setOperatorSideOutputTags(
+                transformation, operator);
 
         return translateInternal(
                 transformation,
@@ -92,7 +95,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
 
         Configuration config = transformation.getConfiguration();
 
-        StreamOperator<OUT> operator;
+        DataStreamPythonFunctionOperator<OUT> operator;
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
@@ -112,6 +115,9 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getBroadcastInput().getOutputType(),
                             transformation.getOutputType());
         }
+
+        PythonBroadcastStateTransformationTranslator.setOperatorSideOutputTags(
+                transformation, operator);
 
         return translateInternal(
                 transformation,

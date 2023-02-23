@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.api.transformations.python.DelegateOperatorTransformation;
 import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
@@ -152,6 +153,8 @@ public class PythonConfigUtil {
             return ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory();
         } else if (transform instanceof AbstractMultipleInputTransformation) {
             return ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory();
+        } else if (transform instanceof DelegateOperatorTransformation<?>) {
+            return ((DelegateOperatorTransformation<?>) transform).getOperatorFactory();
         } else {
             return null;
         }
@@ -260,6 +263,9 @@ public class PythonConfigUtil {
         } else if (transform instanceof TwoInputTransformation) {
             return isPythonDataStreamOperator(
                     ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory());
+        } else if (transform instanceof PythonBroadcastStateTransformation
+                || transform instanceof PythonKeyedBroadcastStateTransformation) {
+            return true;
         } else {
             return false;
         }
