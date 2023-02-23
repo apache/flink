@@ -21,12 +21,17 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
 class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
@@ -160,6 +165,46 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_KEYS)
+                        .onFieldsWithData(
+                                null,
+                                CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                Collections.singletonMap(
+                                        Collections.singletonMap(1, 2),
+                                        Collections.singletonMap(3, 4)))
+                        .andDataTypes(
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
+                                DataTypes.MAP(
+                                                MAP(
+                                                                DataTypes.INT().notNull(),
+                                                                DataTypes.INT().notNull())
+                                                        .notNull(),
+                                                MAP(
+                                                                DataTypes.INT().notNull(),
+                                                                DataTypes.INT().notNull())
+                                                        .notNull())
+                                        .notNull())
+                        .testResult(
+                                $("f0").mapKeys(),
+                                "MAP_KEYS(f0)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f1").mapKeys(),
+                                "MAP_KEYS(f1)",
+                                new Integer[] {1, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f2").mapKeys(),
+                                "MAP_KEYS(f2)",
+                                new Map[] {Collections.singletonMap(1, 2)},
+                                DataTypes.ARRAY(
+                                                MAP(
+                                                                DataTypes.INT().notNull(),
+                                                                DataTypes.INT().notNull())
+                                                        .notNull())
+                                        .notNull()));
     }
 }

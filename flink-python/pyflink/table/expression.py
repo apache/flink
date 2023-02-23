@@ -1487,6 +1487,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayDistinct")(self)
 
+    def map_keys(self) -> 'Expression':
+        """
+        Returns an unordered array containing the keys of the map.
+        If the map itself is null, the function will return null.
+        """
+        return _binary_op("mapKeys")(self)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property
