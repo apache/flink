@@ -953,22 +953,54 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
   @Test
   def testJoinWithLookupJoinHint(): Unit = {
-    val sql = "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', " +
-      "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
-      "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')  */ " +
-      "T.a FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
-
-    util.verifyExecPlan(sql)
+    util.verifyExecPlan(
+      """
+        |SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss',
+        |'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+        |'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+        |*/
+        |T.a
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |""".stripMargin
+    )
   }
 
   @Test
   def testJoinWithCapitalizeLookupJoinHint(): Unit = {
-    val sql = "SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss', " +
-      "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
-      "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')  */ " +
-      "T.a FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(
+      """
+        |SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss',
+        |'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+        |'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+        |*/
+        |T.a
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |""".stripMargin
+    )
+  }
 
-    util.verifyExecPlan(sql)
+  @Test
+  def testJoinWithInvalidPropagationToSubQuery(): Unit = {
+    util.verifyExecPlan(
+      """
+        |SELECT /*+ LOOKUP('table'='D1', 'retry-predicate'='lookup_miss',
+        |'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+        |'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+        |*/ T1.a
+        |FROM (
+        |    SELECT T.a, T.proctime
+        |    FROM MyTable T
+        |    JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |    ON T.a=D.id
+        |) T1
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T1.proctime AS D1
+        |ON T1.a=D1.id
+        |""".stripMargin
+    )
   }
 
   // ==========================================================================================
