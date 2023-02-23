@@ -99,6 +99,12 @@
             <td>Specifies whether to enable Python worker profiling. The profile result will be displayed in the log file of the TaskManager periodically. The interval between each profiling is determined by the config options python.fn-execution.bundle.size and python.fn-execution.bundle.time.</td>
         </tr>
         <tr>
+            <td><h5>python.pythonpath</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify the path on the Worker Node where the Flink Python Dependencies are installed, which gets added into the PYTHONPATH of the Python Worker. </td>
+        </tr>
+        <tr>
             <td><h5>python.requirements</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

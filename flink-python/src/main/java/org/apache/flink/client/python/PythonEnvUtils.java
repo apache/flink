@@ -70,6 +70,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
+import static org.apache.flink.python.PythonOptions.PYTHON_PATH;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 
 /** The util class help to prepare Python env and run the python process. */
@@ -210,6 +211,15 @@ final class PythonEnvUtils {
                                     }
                                 }
                             });
+        }
+
+        // 4. append configured python.pythonpath to the PYTHONPATH.
+        if (config.getOptional(PYTHON_PATH).isPresent()) {
+            env.pythonPath =
+                    String.join(
+                            File.pathSeparator,
+                            config.getOptional(PYTHON_PATH).get(),
+                            env.pythonPath);
         }
 
         if (entryPointScript != null) {
