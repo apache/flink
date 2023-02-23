@@ -36,14 +36,14 @@ public class SqlGatewayServiceConfigOptions {
                     .defaultValue(Duration.ofMinutes(10))
                     .withDescription(
                             "Timeout interval for closing the session when the session hasn't been accessed during the interval. "
-                                    + "If setting to zero or negative value, the session will not be closed.");
+                                    + "If setting to zero, the session will not be closed.");
 
     public static final ConfigOption<Duration> SQL_GATEWAY_SESSION_CHECK_INTERVAL =
             key("sql-gateway.session.check-interval")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
-                            "The check interval for idle session timeout, which can be disabled by setting to zero or negative value.");
+                            "The check interval for idle session timeout, which can be disabled by setting to zero.");
 
     public static final ConfigOption<Integer> SQL_GATEWAY_SESSION_MAX_NUM =
             key("sql-gateway.session.max-num")

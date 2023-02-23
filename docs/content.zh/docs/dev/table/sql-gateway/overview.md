@@ -176,13 +176,13 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.check-interval</h5></td>
             <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
-            <td>The check interval for idle session timeout, which can be disabled by setting to zero or negative value.</td>
+            <td>The check interval for idle session timeout, which can be disabled by setting to zero.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.idle-timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
-            <td>Timeout interval for closing the session when the session hasn't been accessed during the interval. If setting to zero or negative value, the session will not be closed.</td>
+            <td>Timeout interval for closing the session when the session hasn't been accessed during the interval. If setting to zero, the session will not be closed.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.max-num</h5></td>
