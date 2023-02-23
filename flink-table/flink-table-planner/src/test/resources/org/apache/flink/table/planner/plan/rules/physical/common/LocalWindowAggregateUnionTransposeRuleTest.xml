@@ -65,4 +65,52 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLocalWindowAggregate[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[SELECT
+   a,
+   window_start,
+   window_end,
+   count(*),
+   sum(d)
+FROM TABLE(TUMBLE(TABLE UNION_SOURCE, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+GROUP BY a, window_start, window_end]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)])
++- LogicalProject(a=[$0], window_start=[$6], window_end=[$7], d=[$3])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE($5, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+         +- LogicalUnion(all=[true])
+            :- LogicalUnion(all=[true])
+            :  :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+            :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+            :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a, window_start, window_end], select=[a, window_start, window_end, Final_COUNT(count1$0) AS EXPR$3, Final_SUM(sum$1) AS EXPR$4])
++- Exchange(distribution=[hash[a, window_start, window_end]])
+   +- Union(all=[true], union=[a, window_start, window_end, count1$0, sum$1])
+      :- Union(all=[true], union=[a, window_start, window_end, count1$0, sum$1])
+      :  :- LocalHashAggregate(groupBy=[a, window_start, window_end], select=[a, window_start, window_end, Partial_COUNT(*) AS count1$0, Partial_SUM(d) AS sum$1])
+      :  :  +- Calc(select=[a, window_start, window_end, d])
+      :  :     +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+      :  :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a, d, rowtime], metadata=[]]], fields=[a, d, rowtime])
+      :  +- LocalHashAggregate(groupBy=[a, window_start, window_end], select=[a, window_start, window_end, Partial_COUNT(*) AS count1$0, Partial_SUM(d) AS sum$1])
+      :     +- Calc(select=[a, window_start, window_end, d])
+      :        +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, d, rowtime], metadata=[]]], fields=[a, d, rowtime])
+      +- LocalHashAggregate(groupBy=[a, window_start, window_end], select=[a, window_start, window_end, Partial_COUNT(*) AS count1$0, Partial_SUM(d) AS sum$1])
+         +- Calc(select=[a, window_start, window_end, d])
+            +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable3, project=[a, d, rowtime], metadata=[]]], fields=[a, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

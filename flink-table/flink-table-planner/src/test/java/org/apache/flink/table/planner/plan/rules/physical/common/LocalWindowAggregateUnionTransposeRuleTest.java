@@ -99,10 +99,6 @@ public class LocalWindowAggregateUnionTransposeRuleTest extends TableTestBase {
 
     @Test
     public void testLocalWindowAggregate() {
-        // TODO support local window aggregate transpose in batch
-        if (isBatch) {
-            return;
-        }
         util.tableEnv().executeSql(unionSource);
         util.verifyRelPlan(aggWithGroup);
     }

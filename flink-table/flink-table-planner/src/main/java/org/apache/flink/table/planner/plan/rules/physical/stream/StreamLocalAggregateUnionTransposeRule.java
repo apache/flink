@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLocalGroupAggregate;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLocalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
@@ -43,9 +42,6 @@ import java.util.List;
 @Value.Enclosing
 public class StreamLocalAggregateUnionTransposeRule
         extends RelRule<StreamLocalAggregateUnionTransposeRule.Config> {
-
-    public static final StreamLocalAggregateUnionTransposeRule EXPAND_INSTANCE =
-            new StreamLocalAggregateUnionTransposeRule(Config.EXPAND);
 
     public static final StreamLocalAggregateUnionTransposeRule LOCAL_GROUP_AGG_INSTANCE =
             new StreamLocalAggregateUnionTransposeRule(Config.LOCAL_GROUP_AGG);
@@ -93,9 +89,6 @@ public class StreamLocalAggregateUnionTransposeRule
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
 
-        Config EXPAND =
-                ImmutableStreamLocalAggregateUnionTransposeRule.Config.builder().build().ofExpand();
-
         Config LOCAL_GROUP_AGG =
                 ImmutableStreamLocalAggregateUnionTransposeRule.Config.builder()
                         .build()
@@ -109,21 +102,6 @@ public class StreamLocalAggregateUnionTransposeRule
         @Override
         default RelOptRule toRule() {
             return new StreamLocalAggregateUnionTransposeRule(this);
-        }
-
-        default StreamLocalAggregateUnionTransposeRule.Config ofExpand() {
-
-            final RelRule.OperandTransform unionTransform =
-                    operandBuilder -> operandBuilder.operand(StreamPhysicalUnion.class).anyInputs();
-
-            final RelRule.OperandTransform expandTransform =
-                    operandBuilder ->
-                            operandBuilder
-                                    .operand(StreamPhysicalExpand.class)
-                                    .oneInput(unionTransform);
-            return withOperandSupplier(expandTransform)
-                    .withDescription("StreamExpandUnionTransposeRule")
-                    .as(StreamLocalAggregateUnionTransposeRule.Config.class);
         }
 
         default StreamLocalAggregateUnionTransposeRule.Config ofLocalGroupAgg() {

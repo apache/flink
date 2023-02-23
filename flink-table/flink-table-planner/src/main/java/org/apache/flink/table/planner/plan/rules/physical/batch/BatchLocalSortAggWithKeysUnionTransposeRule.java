@@ -104,7 +104,7 @@ public class BatchLocalSortAggWithKeysUnionTransposeRule
             final RelRule.OperandTransform unionTransform =
                     operandBuilder -> operandBuilder.operand(BatchPhysicalUnion.class).anyInputs();
 
-            final RelRule.OperandTransform sortAggTransform =
+            final RelRule.OperandTransform sortTransform =
                     operandBuilder ->
                             operandBuilder
                                     .operand(BatchPhysicalSort.class)
@@ -114,7 +114,7 @@ public class BatchLocalSortAggWithKeysUnionTransposeRule
                     operandBuilder ->
                             operandBuilder
                                     .operand(BatchPhysicalLocalSortAggregate.class)
-                                    .oneInput(sortAggTransform);
+                                    .oneInput(sortTransform);
 
             return withOperandSupplier(localSortAggTransform)
                     .withDescription("BatchPhysicalLocalSortAggregateWithKeysUnionTransposeRule")

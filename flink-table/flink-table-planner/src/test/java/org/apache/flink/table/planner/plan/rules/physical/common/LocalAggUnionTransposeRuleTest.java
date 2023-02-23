@@ -42,21 +42,50 @@ public class LocalAggUnionTransposeRuleTest extends TableTestBase {
     private TableTestUtil util;
     private TableConfig tableConfig;
     private final String aggWithGroup =
-            "select sum(price) from ("
-                    + "select price, type from table1 union all "
-                    + "select price, type from table2 union all "
-                    + "select price, type from table3) "
-                    + "group by type";
+            "SELECT sum(price)\n"
+                    + "FROM (\n"
+                    + " SELECT price, type\n"
+                    + " FROM table1\n"
+                    + "\n"
+                    + " UNION ALL\n"
+                    + "\n"
+                    + " SELECT price, type\n"
+                    + " FROM table2\n"
+                    + "\n"
+                    + " UNION ALL\n"
+                    + "\n"
+                    + " SELECT price, type\n"
+                    + " FROM table3\n"
+                    + " )\n"
+                    + "GROUP BY type";
     private final String aggWithoutGroup =
-            "select sum(price) from ("
-                    + "select price, type from table1 union all "
-                    + "select price, type from table2 union all "
-                    + "select price, type from table3)";
+            "SELECT sum(price)\n"
+                    + "FROM (\n"
+                    + " SELECT price, type\n"
+                    + " FROM table1\n"
+                    + "\n"
+                    + " UNION ALL\n"
+                    + "\n"
+                    + " SELECT price, type\n"
+                    + " FROM table2\n"
+                    + "\n"
+                    + " UNION ALL\n"
+                    + "\n"
+                    + " SELECT price, type\n"
+                    + " FROM table3\n"
+                    + " )";
 
     private final String expand =
-            "select count(distinct price), count(distinct type) from ("
-                    + "select price, type from table1 union all "
-                    + "select price, type from table2) ";
+            "SELECT count(DISTINCT price), count(DISTINCT type)\n"
+                    + "FROM (\n"
+                    + " SELECT price, type\n"
+                    + " FROM table1\n"
+                    + "\n"
+                    + " UNION ALL\n"
+                    + "\n"
+                    + " SELECT price, type\n"
+                    + " FROM table2\n"
+                    + " )";
 
     @Parameterized.Parameter public boolean isBatch;
 
@@ -173,10 +202,18 @@ public class LocalAggUnionTransposeRuleTest extends TableTestBase {
 
     @Test
     public void testEnableExpandUnionTranspose() {
-        if (!isBatch) {
-            // TODO fix the optimizer for stream
+        util.verifyRelPlan(expand);
+    }
+
+    @Test
+    public void testStreamEnableExpandUnionTransposeDisableMiniBatch() {
+        if (isBatch) {
             return;
         }
+        // disable minibatch
+        tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
+        tableConfig.set(
+                ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(0));
         util.verifyRelPlan(expand);
     }
 

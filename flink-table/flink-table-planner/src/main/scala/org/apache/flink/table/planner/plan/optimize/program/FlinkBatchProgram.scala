@@ -291,7 +291,7 @@ object FlinkBatchProgram {
     )
 
     // convert dynamic partition pruning scan source
-  chainedProgram.addLast(DYNAMIC_PARTITION_PRUNING, new FlinkDynamicPartitionPruningProgram)
+    chainedProgram.addLast(DYNAMIC_PARTITION_PRUNING, new FlinkDynamicPartitionPruningProgram)
 
     // physical rewrite
     chainedProgram.addLast(
