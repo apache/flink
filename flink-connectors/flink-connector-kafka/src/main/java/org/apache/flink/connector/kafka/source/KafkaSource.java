@@ -98,6 +98,8 @@ public class KafkaSource<OUT>
     private final KafkaRecordDeserializationSchema<OUT> deserializationSchema;
     // The configurations.
     private final Properties props;
+    // Client rackId callback
+    private final Supplier<String> rackIdSupplier;
 
     KafkaSource(
             KafkaSubscriber subscriber,
@@ -105,13 +107,15 @@ public class KafkaSource<OUT>
             @Nullable OffsetsInitializer stoppingOffsetsInitializer,
             Boundedness boundedness,
             KafkaRecordDeserializationSchema<OUT> deserializationSchema,
-            Properties props) {
+            Properties props,
+            Supplier<String> rackIdSupplier) {
         this.subscriber = subscriber;
         this.startingOffsetsInitializer = startingOffsetsInitializer;
         this.stoppingOffsetsInitializer = stoppingOffsetsInitializer;
         this.boundedness = boundedness;
         this.deserializationSchema = deserializationSchema;
         this.props = props;
+        this.rackIdSupplier = rackIdSupplier;
     }
 
     /**
@@ -157,7 +161,9 @@ public class KafkaSource<OUT>
                 new KafkaSourceReaderMetrics(readerContext.metricGroup());
 
         Supplier<KafkaPartitionSplitReader> splitReaderSupplier =
-                () -> new KafkaPartitionSplitReader(props, readerContext, kafkaSourceReaderMetrics);
+                () ->
+                        new KafkaPartitionSplitReader(
+                                props, readerContext, kafkaSourceReaderMetrics, rackIdSupplier);
         KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>(deserializationSchema);
 
         return new KafkaSourceReader<>(

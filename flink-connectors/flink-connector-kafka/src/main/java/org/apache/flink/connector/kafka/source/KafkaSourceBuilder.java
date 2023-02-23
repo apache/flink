@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -80,6 +81,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .setUnbounded(OffsetsInitializer.latest())
+ *     .setRackId(() -> MY_RACK_ID)
  *     .build();
  * }</pre>
  *
@@ -100,6 +102,8 @@ public class KafkaSourceBuilder<OUT> {
     private KafkaRecordDeserializationSchema<OUT> deserializationSchema;
     // The configurations.
     protected Properties props;
+    // Client rackId supplier
+    private Supplier<String> rackIdSupplier;
 
     KafkaSourceBuilder() {
         this.subscriber = null;
@@ -108,6 +112,7 @@ public class KafkaSourceBuilder<OUT> {
         this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
         this.deserializationSchema = null;
         this.props = new Properties();
+        this.rackIdSupplier = null;
     }
 
     /**
@@ -356,6 +361,17 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
+     * Set the clientRackId supplier to be passed down to the KafkaPartitionSplitReader.
+     *
+     * @param rackIdCallback callback to provide Kafka consumer client.rack
+     * @return this KafkaSourceBuilder
+     */
+    public KafkaSourceBuilder<OUT> setRackId(Supplier<String> rackIdCallback) {
+        this.rackIdSupplier = rackIdCallback;
+        return this;
+    }
+
+    /**
      * Set an arbitrary property for the KafkaSource and KafkaConsumer. The valid keys can be found
      * in {@link ConsumerConfig} and {@link KafkaSourceOptions}.
      *
@@ -422,7 +438,8 @@ public class KafkaSourceBuilder<OUT> {
                 stoppingOffsetsInitializer,
                 boundedness,
                 deserializationSchema,
-                props);
+                props,
+                rackIdSupplier);
     }
 
     // ------------- private helpers  --------------
