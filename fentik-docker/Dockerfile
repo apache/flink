@@ -58,6 +58,7 @@ RUN set -ex; \
   rm flink.tgz; \
   \
   chown -R flink:flink .; \
+  mkdir -p log/rocksdb; \
   \
   # Replace default REST/RPC endpoint bind address to use the container's network interface \
   sed -i 's/rest.address: localhost/rest.address: 0.0.0.0/g' $FLINK_HOME/conf/flink-conf.yaml; \
