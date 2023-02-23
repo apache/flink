@@ -87,9 +87,3 @@ class AsyncTableFunctionWithRow extends AsyncTableFunction[Row] {
   @varargs
   def eval(obj: AnyRef*): Unit = {}
 }
-
-@SerialVersionUID(1L)
-@FunctionHint(output = new DataTypeHint("ROW< b BIGINT >"))
-class TableFunctionWithInt extends TableFunction[Long] {
-  def eval(obj: Integer): Unit = {}
-}

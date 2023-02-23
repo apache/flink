@@ -2356,50 +2356,50 @@ Calc(select=[a])
 ]]>
 	</Resource>
   </TestCase>
-  <TestCase name="testJoinUnnestWithLookupJoinHint[LegacyTableSource=true]">
-	<Resource name="sql">
-		<![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ T2.a FROM T2 CROSS JOIN UNNEST(T2.b) AS D(c)]]>
-	</Resource>
-	<Resource name="ast">
-		<![CDATA[
+	<TestCase name="testJoinWithCapitalizeLookupJoinHint[LegacyTableSource=true]">
+		<Resource name="sql">
+			<![CDATA[SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')  */ T.a FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-   +- LogicalProject(c=[$0])
-      +- Uncollect
-         +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(tuples=[[{ 0 }]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
 ]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-		<![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER f0)], joinType=[INNER])
-   +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[a, b])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], retry=[lookup_miss, FIXED_DELAY, 155ms, 10])
+   +- Calc(select=[a])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-	</Resource>
-  </TestCase>
-  <TestCase name="testJoinUnnestWithLookupJoinHint[LegacyTableSource=false]">
-	<Resource name="sql">
-		<![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ T2.a FROM T2 CROSS JOIN UNNEST(T2.b) AS D(c)]]>
-	</Resource>
-	<Resource name="ast">
-		<![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinWithCapitalizeLookupJoinHint[LegacyTableSource=false]">
+		<Resource name="sql">
+			<![CDATA[SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')  */ T.a FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-   +- LogicalProject(c=[$0])
-      +- Uncollect
-         +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(tuples=[[{ 0 }]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
 ]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-		<![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER f0)], joinType=[INNER])
-   +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[a, b])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], retry=[lookup_miss, FIXED_DELAY, 155ms, 10])
+   +- Calc(select=[a])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-	</Resource>
-  </TestCase>
+		</Resource>
+	</TestCase>
 </Root>

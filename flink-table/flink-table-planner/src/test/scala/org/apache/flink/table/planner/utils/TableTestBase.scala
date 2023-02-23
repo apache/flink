@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -76,7 +77,7 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.junit.Assert.{assertEquals, assertTrue, fail}
+import org.junit.Assert.{assertEquals, assertThat, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
@@ -742,6 +743,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    */
   def verifyExplain(table: Table, extraDetails: ExplainDetail*): Unit = {
     doVerifyExplain(table.explain(extraDetails: _*), extraDetails: _*)
+  }
+
+  /** Verify the expected exception for the given sql with the given message and exception class. */
+  def verifyExpectdException(
+      sql: String,
+      message: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    try {
+      verifyExplain(sql)
+      fail(s"Expected a $clazz, but no exception is thrown.")
+    } catch {
+      case e: Throwable =>
+        assertTrue(clazz.isAssignableFrom(e.getClass))
+        assertThat(e, containsMessage(message))
+    }
   }
 
   /**

@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api._
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.plan.batch.table.JoinTest.Merger
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -204,6 +205,29 @@ class JoinTest extends TableTestBase {
     val joinT = ds1.join(ds2, 'b === 'e && Merger('a, 'd) === 10)
     util.verifyExecPlan(joinT)
   }
+
+  @Test
+  def testJoinInvalidUDTFWithLookupJoinHint(): Unit = {
+    // not support to extract table name from udtf now
+
+    val util = streamTestUtil()
+    util.addTableSource[(Int, String, Long)](
+      "MyTable",
+      'a,
+      'b,
+      'c,
+      'proctime.proctime,
+      'rowtime.rowtime)
+    util.addTemporarySystemFunction("MockUDTF", new TableFunctionWithInt())
+    util.verifyExpectdException(
+      "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', " +
+        "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
+        "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ " +
+        "T.a FROM MyTable AS T CROSS JOIN LATERAL TABLE(MockUDTF(a)) AS D(b)",
+      "The options of following hints cannot match the name of input tables or views: \n" +
+        "`D` in `LOOKUP`"
+    )
+  }
 }
 
 object JoinTest {
@@ -214,4 +238,10 @@ object JoinTest {
       f0 + f1
     }
   }
+}
+
+@SerialVersionUID(1L)
+@FunctionHint(output = new DataTypeHint("ROW< b BIGINT >"))
+class TableFunctionWithInt extends TableFunction[Long] {
+  def eval(obj: Integer): Unit = {}
 }

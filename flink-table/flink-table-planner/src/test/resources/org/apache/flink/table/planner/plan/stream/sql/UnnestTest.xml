@@ -321,4 +321,27 @@ Calc(select=[a, _1 AS b1, _2 AS b2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestWithLookupJoinHint">
+	<Resource name="sql">
+		<![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ T2.a FROM T2 CROSS JOIN UNNEST(T2.b) AS D(c)]]>
+	</Resource>
+	<Resource name="ast">
+		<![CDATA[
+LogicalProject(a=[$0])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b)]]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+   +- LogicalProject(c=[$0])
+      +- Uncollect
+         +- LogicalProject(b=[$cor0.b])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+		<![CDATA[
+Calc(select=[a])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER f0)], joinType=[INNER])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b)]]], fields=[a, b])
+]]>
+	</Resource>
+  </TestCase>
 </Root>
