@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.CANCELLED;
@@ -70,6 +71,8 @@ public class FanOutRecordPublisher implements RecordPublisher {
 
     private final FanOutRecordPublisherConfiguration configuration;
 
+    private final Supplier<Boolean> runningSupplier;
+
     /** The current attempt in the case of subsequent recoverable errors. */
     private int attempt = 0;
 
@@ -91,13 +94,15 @@ public class FanOutRecordPublisher implements RecordPublisher {
             final StreamShardHandle subscribedShard,
             final KinesisProxyV2Interface kinesisProxy,
             final FanOutRecordPublisherConfiguration configuration,
-            final FullJitterBackoff backoff) {
+            final FullJitterBackoff backoff,
+            final Supplier<Boolean> runningSupplier) {
         this.nextStartingPosition = Preconditions.checkNotNull(startingPosition);
         this.consumerArn = Preconditions.checkNotNull(consumerArn);
         this.subscribedShard = Preconditions.checkNotNull(subscribedShard);
         this.kinesisProxy = Preconditions.checkNotNull(kinesisProxy);
         this.configuration = Preconditions.checkNotNull(configuration);
         this.backoff = Preconditions.checkNotNull(backoff);
+        this.runningSupplier = runningSupplier;
     }
 
     @Override
@@ -161,11 +166,12 @@ public class FanOutRecordPublisher implements RecordPublisher {
                         consumerArn,
                         subscribedShard.getShard().getShardId(),
                         kinesisProxy,
-                        configuration.getSubscribeToShardTimeout());
-        boolean complete;
+                        configuration.getSubscribeToShardTimeout(),
+                        runningSupplier);
+        RecordPublisherRunResult result;
 
         try {
-            complete =
+            result =
                     fanOutShardSubscriber.subscribeToShardAndConsumeRecords(
                             toSdkV2StartingPosition(nextStartingPosition), eventConsumer);
             attempt = 0;
@@ -209,7 +215,7 @@ public class FanOutRecordPublisher implements RecordPublisher {
             return INCOMPLETE;
         }
 
-        return complete ? COMPLETE : INCOMPLETE;
+        return result;
     }
 
     private void backoff(final Throwable ex) throws InterruptedException {
