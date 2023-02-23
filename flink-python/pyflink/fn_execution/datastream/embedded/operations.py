@@ -100,6 +100,8 @@ def extract_process_function(
         side_output_context = SideOutputContext(j_side_output_context)
 
         def process_func(values):
+            if values is None:
+                return
             for value in values:
                 if isinstance(value, tuple) and isinstance(value[0], OutputTag):
                     output_tag = value[0]  # type: OutputTag
@@ -108,6 +110,8 @@ def extract_process_function(
                     yield value
     else:
         def process_func(values):
+            if values is None:
+                return
             yield from values
 
     def open_func():
@@ -174,14 +178,10 @@ def extract_process_function(
         process_broadcast_element = user_defined_func.process_broadcast_element
 
         def process_element_func1(value):
-            elements = process_element(value, read_only_broadcast_ctx)
-            if elements:
-                yield from elements
+            yield from process_func(process_element(value, read_only_broadcast_ctx))
 
         def process_element_func2(value):
-            elements = process_broadcast_element(value, broadcast_ctx)
-            if elements:
-                yield from elements
+            yield from process_func(process_broadcast_element(value, broadcast_ctx))
 
         return TwoInputOperation(
             open_func, close_func, process_element_func1, process_element_func2)
@@ -221,19 +221,20 @@ def extract_process_function(
         timer_context = InternalKeyedBroadcastProcessFunctionOnTimerContext(
             j_timer_context, user_defined_function_proto.key_type_info, j_operator_state_backend)
 
+        keyed_state_backend = KeyedStateBackend(
+            read_only_broadcast_ctx,
+            j_keyed_state_backend)
+        runtime_context.set_keyed_state_backend(keyed_state_backend)
+
         process_element = user_defined_func.process_element
         process_broadcast_element = user_defined_func.process_broadcast_element
         on_timer = user_defined_func.on_timer
 
         def process_element_func1(value):
-            elements = process_element(value[1], read_only_broadcast_ctx)
-            if elements:
-                yield from elements
+            yield from process_func(process_element(value[1], read_only_broadcast_ctx))
 
         def process_element_func2(value):
-            elements = process_broadcast_element(value, broadcast_ctx)
-            if elements:
-                yield from elements
+            yield from process_func(process_broadcast_element(value, broadcast_ctx))
 
         def on_timer_func(timestamp):
             yield from on_timer(timestamp, timer_context)

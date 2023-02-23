@@ -21,11 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonBatchCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonCoProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
+import org.apache.flink.streaming.api.transformations.python.DelegateOperatorTransformation;
 import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;
 import org.apache.flink.util.Preconditions;
@@ -52,7 +53,7 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
 
         Configuration config = transformation.getConfiguration();
 
-        StreamOperator<OUT> operator;
+        AbstractPythonFunctionOperator<OUT> operator;
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
@@ -71,6 +72,8 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
                             transformation.getBroadcastInput().getOutputType(),
                             transformation.getOutputType());
         }
+
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,
@@ -91,7 +94,7 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
 
         Configuration config = transformation.getConfiguration();
 
-        StreamOperator<OUT> operator;
+        AbstractPythonFunctionOperator<OUT> operator;
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
@@ -111,6 +114,8 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
                             transformation.getBroadcastInput().getOutputType(),
                             transformation.getOutputType());
         }
+
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,
