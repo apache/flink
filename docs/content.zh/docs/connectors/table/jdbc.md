@@ -209,7 +209,7 @@ ON myTopic.key = MyUserTable.id;
       <td>维表的缓存策略。 目前支持 NONE（不缓存）和 PARTIAL（只在外部数据库中查找数据时缓存）。</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.max-rows</h5></td>
+      <td><h5>lookup.partial-cache.max-rows</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
