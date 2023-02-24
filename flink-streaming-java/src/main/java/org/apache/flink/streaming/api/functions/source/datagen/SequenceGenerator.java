@@ -22,17 +22,18 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
+import java.util.Iterator;
 
 /**
  * A stateful, re-scalable {@link DataGenerator} that emits each number from a given interval
@@ -43,9 +44,14 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
 
     private final long start;
     private final long end;
+    private long totalNoOfElements;
+    /**
+     * Save the intermediate state of the data to be sent by the current subtask,When the state
+     * returns, the sequence values continue to be sent based on the intermediate state
+     */
+    private ArrayList<InternalState> internalStates;
 
-    private transient ListState<Long> checkpointedState;
-    protected transient Deque<Long> valuesToEmit;
+    private transient ListState<InternalState> checkpointedState;
 
     /**
      * Creates a DataGenerator that emits all numbers from the given interval exactly once.
@@ -66,33 +72,46 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 this.checkpointedState == null,
                 "The " + getClass().getSimpleName() + " has already been initialized.");
 
-        this.checkpointedState =
-                context.getOperatorStateStore()
-                        .getListState(
-                                new ListStateDescriptor<>(
-                                        name + "-sequence-state", LongSerializer.INSTANCE));
-        this.valuesToEmit = new ArrayDeque<>();
-        if (context.isRestored()) {
-            // upon restoring
+        ListStateDescriptor<InternalState> stateDescriptor =
+                new ListStateDescriptor<>(
+                        name + "-sequence-state", TypeInformation.of(InternalState.class));
+        this.checkpointedState = context.getOperatorStateStore().getListState(stateDescriptor);
+        this.internalStates = Lists.newArrayList();
 
-            for (Long v : this.checkpointedState.get()) {
-                this.valuesToEmit.add(v);
-            }
+        totalNoOfElements = Math.abs(end - start + 1);
+        if (context.isRestored()) {
+            checkpointedState.get().forEach(state -> internalStates.add(state));
         } else {
             // the first time the job is executed
-            final int stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
             final int taskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
-            final long congruence = start + taskIdx;
-
-            long totalNoOfElements = Math.abs(end - start + 1);
-            final int baseSize = safeDivide(totalNoOfElements, stepSize);
-            final int toCollect =
-                    (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
-
-            for (long collected = 0; collected < toCollect; collected++) {
-                this.valuesToEmit.add(collected * stepSize + congruence);
-            }
+            final long stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
+            internalStates.add(new InternalState(0, taskIdx, stepSize));
         }
+    }
+
+    private long toCollect(long baseSize, long stepSize, int taskIdx) {
+        return (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
+    }
+
+    public Long nextValue() {
+        Iterator<InternalState> iterator = internalStates.iterator();
+        if (iterator.hasNext()) {
+            InternalState state = iterator.next();
+            long nextSequence = state.collected * state.stepSize + (start + state.taskId);
+            state.collected++;
+            // All sequence values are cleared from the stateList after they have been sent
+            if (state.collected
+                    >= toCollect(
+                            safeDivide(totalNoOfElements, state.stepSize),
+                            state.stepSize,
+                            state.taskId)) {
+                iterator.remove();
+            }
+            return nextSequence;
+        }
+
+        // Before calling this method, you should call hasNext to check
+        throw new IllegalStateException();
     }
 
     @Override
@@ -101,26 +120,27 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.update(new ArrayList<>(this.valuesToEmit));
+        this.checkpointedState.clear();
+        this.checkpointedState.addAll(internalStates);
     }
 
     @Override
     public boolean hasNext() {
-        return !this.valuesToEmit.isEmpty();
+        return !internalStates.isEmpty();
     }
 
-    private static int safeDivide(long left, long right) {
+    private static long safeDivide(long left, long right) {
         Preconditions.checkArgument(right > 0);
         Preconditions.checkArgument(left >= 0);
         Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-        return (int) (left / right);
+        return left / right;
     }
 
     public static SequenceGenerator<Long> longGenerator(long start, long end) {
         return new SequenceGenerator<Long>(start, end) {
             @Override
             public Long next() {
-                return valuesToEmit.poll();
+                return nextValue();
             }
         };
     }
@@ -129,7 +149,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Integer>(start, end) {
             @Override
             public Integer next() {
-                return valuesToEmit.poll().intValue();
+                return nextValue().intValue();
             }
         };
     }
@@ -138,7 +158,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Short>(start, end) {
             @Override
             public Short next() {
-                return valuesToEmit.poll().shortValue();
+                return nextValue().shortValue();
             }
         };
     }
@@ -147,7 +167,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Byte>(start, end) {
             @Override
             public Byte next() {
-                return valuesToEmit.poll().byteValue();
+                return nextValue().byteValue();
             }
         };
     }
@@ -156,7 +176,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Float>(start, end) {
             @Override
             public Float next() {
-                return valuesToEmit.poll().floatValue();
+                return nextValue().floatValue();
             }
         };
     }
@@ -165,7 +185,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Double>(start, end) {
             @Override
             public Double next() {
-                return valuesToEmit.poll().doubleValue();
+                return nextValue().doubleValue();
             }
         };
     }
@@ -176,8 +196,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             @Override
             public BigDecimal next() {
                 BigDecimal decimal =
-                        new BigDecimal(
-                                valuesToEmit.poll().doubleValue(), new MathContext(precision));
+                        new BigDecimal(nextValue().doubleValue(), new MathContext(precision));
                 return decimal.setScale(scale, RoundingMode.DOWN);
             }
         };
@@ -187,8 +206,20 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<String>(start, end) {
             @Override
             public String next() {
-                return valuesToEmit.poll().toString();
+                return nextValue().toString();
             }
         };
+    }
+
+    private static class InternalState {
+        long collected;
+        int taskId;
+        long stepSize;
+
+        public InternalState(long collected, int taskId, long stepSize) {
+            this.collected = collected;
+            this.taskId = taskId;
+            this.stepSize = stepSize;
+        }
     }
 }
