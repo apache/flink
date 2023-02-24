@@ -70,22 +70,22 @@ public class HadoopModule implements SecurityModule {
         UserGroupInformation loginUser;
 
         try {
-            if (HadoopUserUtils.isProxyUser((UserGroupInformation.getCurrentUser()))
-                    && securityConfig
-                            .getFlinkConfig()
-                            .getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
-                throw new UnsupportedOperationException(
-                        "Hadoop Proxy user is supported only when"
-                                + " delegation tokens fetch is managed outside of Flink!"
-                                + " Please try again with "
-                                + SecurityOptions.DELEGATION_TOKENS_ENABLED.key()
-                                + " config set to false!");
-            }
-
             KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(securityConfig);
             if (kerberosLoginProvider.isLoginPossible(true)) {
                 kerberosLoginProvider.doLogin(true);
                 loginUser = UserGroupInformation.getLoginUser();
+
+                if (HadoopUserUtils.isProxyUser((loginUser))
+                        && securityConfig
+                                .getFlinkConfig()
+                                .getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
+                    throw new UnsupportedOperationException(
+                            "Hadoop Proxy user is supported only when"
+                                    + " delegation tokens fetch is managed outside of Flink!"
+                                    + " Please try again with "
+                                    + SecurityOptions.DELEGATION_TOKENS_ENABLED.key()
+                                    + " config set to false!");
+                }
 
                 if (loginUser.isFromKeytab()) {
                     String fileLocation =
