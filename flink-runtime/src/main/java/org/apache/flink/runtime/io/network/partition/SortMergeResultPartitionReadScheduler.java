@@ -217,10 +217,14 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             if (!buffers.isEmpty()) {
                 return new ArrayDeque<>(buffers);
             }
+            // only visibility requirements here.
+            // noinspection FieldAccessNotGuarded
             checkState(!isReleased, "Result partition has been already released.");
         } while (System.nanoTime() < timeoutTime
                 || System.nanoTime() < (timeoutTime = getBufferRequestTimeoutTime()));
 
+        // only visibility requirements here.
+        // noinspection FieldAccessNotGuarded
         if (numRequestedBuffers <= 0) {
             throw new TimeoutException(
                     String.format(
@@ -291,6 +295,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private void mayNotifyReleased() {
         assert Thread.holdsLock(lock);
 
@@ -361,6 +366,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private PartitionedFileReader createFileReader(
             PartitionedFile resultFile, int targetSubpartition) throws IOException {
         assert Thread.holdsLock(lock);
@@ -387,6 +393,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private void openFileChannels(PartitionedFile resultFile) throws IOException {
         assert Thread.holdsLock(lock);
 
@@ -395,6 +402,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         indexFileChannel = openFileChannel(resultFile.getIndexFilePath());
     }
 
+    @GuardedBy("lock")
     private void closeFileChannels() {
         assert Thread.holdsLock(lock);
 
@@ -413,6 +421,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private void mayTriggerReading() {
         assert Thread.holdsLock(lock);
 
