@@ -46,8 +46,8 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     private final long end;
     private long totalNoOfElements;
     /**
-     * Save the intermediate state of the data to be sent by the current subtask,When the state
-     * returns, the sequence values continue to be sent based on the intermediate state.
+     * Save the intermediate state of the data to be sent by the current subtask,when the state
+     * restore, the sequence values continue to be sent based on the intermediate state.
      */
     private ArrayList<InternalState> internalStates;
 
