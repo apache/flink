@@ -124,6 +124,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('bin(a)', str(expr1.bin))
         self.assertEqual('hex(a)', str(expr1.hex))
         self.assertEqual('truncate(a, 3)', str(expr1.truncate(3)))
+        self.assertEqual('bit_and(a, 3)', str(expr1.bit_and(3)))
+        self.assertEqual('bit_or(a, 3)', str(expr1.bit_or(3)))
 
         # string functions
         self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))

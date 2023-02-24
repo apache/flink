@@ -1664,6 +1664,64 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
   }
 
+  @Test
+  def testBitAnd(): Unit = {
+    // byte
+    testAllApis('f2.bitAnd('f9), "BIT_AND(f2, f9)", "2")
+    // short
+    testAllApis('f3.bitAnd('f10), "BIT_AND(f3, f10)", "1")
+    // int
+    testAllApis(29.bitAnd(15), "BIT_AND(29, 15)", "13")
+    // long
+    testAllApis('f4.bitAnd('f11), "BIT_AND(f4, f11)", "4")
+    // null
+    testAllApis('f2.bitAnd(nullOf(DataTypes.TINYINT())), "BIT_AND(f2, cast (null AS TINYINT))", "0")
+    testAllApis(
+      'f3.bitAnd(nullOf(DataTypes.SMALLINT())),
+      "BIT_AND(f3, cast (null AS SMALLINT))",
+      "0")
+    testAllApis(29.bitAnd(nullOf(DataTypes.INT())), "BIT_AND(29, cast (null AS INTEGER))", "0")
+    testAllApis('f4.bitAnd(nullOf(DataTypes.BIGINT())), "BIT_AND(f4, cast (null AS BIGINT))", "0")
+  }
+
+  @Test
+  def testBitOr(): Unit = {
+    // byte
+    testAllApis('f2.bitOr('f9), "BIT_OR(f2, f9)", "-2")
+    // short
+    testAllApis('f3.bitOr('f10), "BIT_OR(f3, f10)", "-1")
+    // int
+    testAllApis(29.bitOr(15), "BIT_OR(29, 15)", "31")
+    // long
+    testAllApis('f4.bitOr('f11), "BIT_OR(f4, f11)", "-4")
+    // null
+    testAllApis('f2.bitOr(nullOf(DataTypes.TINYINT())), "BIT_OR(f2, cast (null AS TINYINT))", "42")
+    testAllApis(
+      'f3.bitOr(nullOf(DataTypes.SMALLINT())),
+      "BIT_OR(f3, cast (null AS SMALLINT))",
+      "43")
+    testAllApis(29.bitOr(nullOf(DataTypes.INT())), "BIT_OR(29, cast (null AS INTEGER))", "29")
+    testAllApis('f4.bitOr(nullOf(DataTypes.BIGINT())), "BIT_OR(f4, cast (null AS BIGINT))", "44")
+    // both null
+    testAllApis(
+      'f21.cast(DataTypes.TINYINT()).bitOr(nullOf(DataTypes.TINYINT)),
+      "BIT_OR(cast " +
+        "(null AS TINYINT), cast (null AS TINYINT))",
+      "0")
+    testAllApis(
+      'f21.cast(DataTypes.SMALLINT()).bitOr(nullOf(DataTypes.SMALLINT)),
+      "BIT_OR(cast (null AS SMALLINT), cast (null AS SMALLINT))",
+      "0")
+    testAllApis(
+      'f21.cast(DataTypes.INT()).bitOr(nullOf(DataTypes.INT)),
+      "BIT_OR(cast (null AS INTEGER), cast (null AS INTEGER))",
+      "0")
+    testAllApis(
+      'f21.cast(DataTypes.BIGINT()).bitOr(nullOf(DataTypes.BIGINT)),
+      "BIT_OR(cast (null AS BIGINT), cast (null AS BIGINT))",
+      "0")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

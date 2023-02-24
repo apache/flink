@@ -477,7 +477,6 @@ class Expression(Generic[T]):
     __and__ = _binary_op("and")
     __or__ = _binary_op("or")
     __invert__ = _unary_op('isNotTrue')
-
     __rand__ = _binary_op("and")
     __ror__ = _binary_op("or")
 
@@ -489,7 +488,6 @@ class Expression(Generic[T]):
     __mod__ = _binary_op("mod")
     __pow__ = _binary_op("power")
     __neg__ = _expressions_op("negative")
-
     __radd__ = _binary_op("plus", True)
     __rsub__ = _binary_op("minus", True)
     __rmul__ = _binary_op("times")
@@ -1008,6 +1006,22 @@ class Expression(Generic[T]):
         E.g. truncate(42.345, 2) to 42.34, 42.truncate(-1) to 40
         """
         return _binary_op("truncate")(self, n)
+
+    def bit_and(self, numeric) -> 'Expression':
+        """
+        Returns a result of numeric1 bitwise AND numeric2.
+        If any arg is NULL then return 0.
+        e.g. bit_and(29,15), return 13.
+        """
+        return _binary_op("bitAnd")(self, numeric)
+
+    def bit_or(self, numeric) -> 'Expression':
+        """
+        Returns a result of numeric1 bitwise OR numeric2.
+        If any arg is NULL then return another numeric, if both are NULL then return 0.
+        e.g. bit_or(29,15), returns 31.
+        """
+        return _binary_op("bitOr")(self, numeric)
 
     # ---------------------------- string functions ----------------------------------
 

@@ -241,7 +241,12 @@ arithmetic:
   - sql: TRUNCATE(numeric1, integer2)
     table: numeric1.truncate(INTEGER2)
     description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set Integer2 to use. If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
-
+  - sql: BIT_AND(numeric1, numeric2)
+    table: numeric1.bitAnd(numeric2)
+    description: Returns a result of numeric1 bitwise AND numeric2. If any arg is NULL then return 0. e.g. BIT_AND(29,15), return 13.
+  - sql: BIT_OR(numeric1, numeric2)
+    table: numeric1.bitOr(numeric2)
+    description: Returns a result of numeric1 bitwise OR numeric2. If any arg is NULL then return another numeric, if both are NULL then return 0. e.g. BIT_OR(29,15), returns 31.
 string:
   - sql: string1 || string2
     table: STRING1 + STRING2

@@ -63,6 +63,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ATAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AVG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIT_AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIT_OR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
@@ -773,6 +775,22 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns a number of truncated to 0 decimal places. E.g. truncate(42.345) to 42.0. */
     public OutType truncate() {
         return toApiSpecificExpression(unresolvedCall(TRUNCATE, toExpr()));
+    }
+
+    /**
+     * Returns a result of numeric1 bitwise AND numeric2. If any arg is NULL then return 0. e.g.
+     * BIT_AND(29,15), return 13.
+     */
+    public OutType bitAnd(InType n) {
+        return toApiSpecificExpression(unresolvedCall(BIT_AND, toExpr(), objectToExpression(n)));
+    }
+
+    /**
+     * Returns a result of numeric1 bitwise OR numeric2. If any arg is NULL then return another
+     * numeric, if both are NULL then return 0. e.g. BIT_OR(29,15), returns 31.
+     */
+    public OutType bitOr(InType n) {
+        return toApiSpecificExpression(unresolvedCall(BIT_OR, toExpr(), objectToExpression(n)));
     }
 
     // String operations

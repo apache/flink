@@ -189,15 +189,6 @@ object BuiltInMethods {
 
   // BIT FUNCTIONS
 
-  val BITAND_BYTE =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitAnd", classOf[JByte], classOf[JByte])
-  val BITAND_SHORT =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitAnd", classOf[JShort], classOf[JShort])
-  val BITAND_INTEGER =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitAnd", classOf[JInteger], classOf[JInteger])
-  val BITAND_LONG =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitAnd", classOf[JLong], classOf[JLong])
-
   val BITNOT_BYTE =
     Types.lookupMethod(classOf[SqlFunctionUtils], "bitNot", classOf[JByte])
   val BITNOT_SHORT =
@@ -206,15 +197,6 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[SqlFunctionUtils], "bitNot", classOf[JInteger])
   val BITNOT_LONG =
     Types.lookupMethod(classOf[SqlFunctionUtils], "bitNot", classOf[JLong])
-
-  val BITOR_BYTE =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitOr", classOf[JByte], classOf[JByte])
-  val BITOR_SHORT =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitOr", classOf[JShort], classOf[JShort])
-  val BITOR_INTEGER =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitOr", classOf[JInteger], classOf[JInteger])
-  val BITOR_LONG =
-    Types.lookupMethod(classOf[SqlFunctionUtils], "bitOr", classOf[JLong], classOf[JLong])
 
   val BITXOR_BYTE =
     Types.lookupMethod(classOf[SqlFunctionUtils], "bitXor", classOf[JByte], classOf[JByte])

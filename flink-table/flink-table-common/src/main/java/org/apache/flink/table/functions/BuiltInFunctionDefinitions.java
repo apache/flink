@@ -1459,6 +1459,30 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ROUND))
                     .build();
 
+    public static final BuiltInFunctionDefinition BIT_AND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("bit_and")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(argument(0))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.BitAndFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition BIT_OR =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("bit_or")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(argument(0))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.BitOrFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Catalog functions
     // --------------------------------------------------------------------------------------------
