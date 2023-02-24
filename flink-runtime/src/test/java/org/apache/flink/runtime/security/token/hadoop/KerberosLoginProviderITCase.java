@@ -58,7 +58,7 @@ public class KerberosLoginProviderITCase {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertFalse(kerberosLoginProvider.isLoginPossible(true));
+            assertFalse(kerberosLoginProvider.isLoginPossible(false));
         }
     }
 
@@ -72,7 +72,7 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(false);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertFalse(kerberosLoginProvider.isLoginPossible(true));
+            assertFalse(kerberosLoginProvider.isLoginPossible(false));
         }
     }
 
@@ -89,7 +89,7 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertTrue(kerberosLoginProvider.isLoginPossible(true));
+            assertTrue(kerberosLoginProvider.isLoginPossible(false));
         }
     }
 
@@ -105,7 +105,7 @@ public class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            assertTrue(kerberosLoginProvider.isLoginPossible(true));
+            assertTrue(kerberosLoginProvider.isLoginPossible(false));
         }
     }
 
@@ -155,7 +155,7 @@ public class KerberosLoginProviderITCase {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            kerberosLoginProvider.doLogin(true);
+            kerberosLoginProvider.doLogin(false);
             ugi.verify(() -> UserGroupInformation.loginUserFromKeytab(anyString(), anyString()));
         }
     }
@@ -171,7 +171,7 @@ public class KerberosLoginProviderITCase {
             when(userGroupInformation.hasKerberosCredentials()).thenReturn(true);
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
-            kerberosLoginProvider.doLogin(true);
+            kerberosLoginProvider.doLogin(false);
             ugi.verify(() -> UserGroupInformation.loginUserFromSubject(null));
         }
     }

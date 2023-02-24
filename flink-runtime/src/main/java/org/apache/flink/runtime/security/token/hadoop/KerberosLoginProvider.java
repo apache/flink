@@ -102,7 +102,7 @@ public class KerberosLoginProvider {
             UserGroupInformation.loginUserFromSubject(null);
             LOG.info("Loaded user's ticket cache successfully");
         } else if (supportProxyUser) {
-            LOG.info("Delegation token fetch is managed and therefore login is managed");
+            LOG.info("Proxy user doesn't need login since it must have credentials already");
         } else {
             throwProxyUserNotSupported();
         }
