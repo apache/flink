@@ -70,7 +70,7 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
                 priorPriority.addFirst(deque.poll());
             }
             deque.addFirst(element);
-            // readd them before the newly added element
+            // read them before the newly added element
             for (final T priorityEvent : priorPriority) {
                 deque.addFirst(priorityEvent);
             }

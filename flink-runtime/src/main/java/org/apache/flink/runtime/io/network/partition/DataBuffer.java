@@ -58,7 +58,7 @@ public interface DataBuffer {
     /** Returns true if not all data appended to this {@link DataBuffer} is consumed. */
     boolean hasRemaining();
 
-    /** Finishes this {@link DataBuffer} which means no record can be appended any more. */
+    /** Finishes this {@link DataBuffer} which means no record can be appended anymore. */
     void finish();
 
     /** Whether this {@link DataBuffer} is finished or not. */

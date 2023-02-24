@@ -262,7 +262,7 @@ public class PipelinedSubpartition extends ResultSubpartition
         return needNotifyPriorityEvent();
     }
 
-    // It just be called after add priorityEvent.
+    // It is just called after add priorityEvent.
     @GuardedBy("buffers")
     private boolean needNotifyPriorityEvent() {
         assert Thread.holdsLock(buffers);
@@ -382,7 +382,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             if (Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER
                     == bufferConsumer.getDataType()) {
                 barrier = parseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
-                // It may be a aborted barrier
+                // It may be an aborted barrier
                 if (barrier.getId() != checkpointId) {
                     continue;
                 }
@@ -496,7 +496,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                         "When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
 
                 if (buffers.size() == 1) {
-                    // turn off flushRequested flag if we drained all of the available data
+                    // turn off flushRequested flag if we drained all the available data
                     flushRequested = false;
                 }
 
@@ -690,7 +690,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             if (buffers.isEmpty() || flushRequested) {
                 return;
             }
-            // if there is more then 1 buffer, we already notified the reader
+            // if there is more than 1 buffer, we already notified the reader
             // (at the latest when adding the second buffer)
             boolean isDataAvailableInUnfinishedBuffer =
                     buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();

@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * A result output of a task, pipelined (streamed) to the receivers.
  *
- * <p>This result partition implementation is used both in batch and streaming. For streaming it
+ * <p>This result partition implementation is used both in batch and streaming. For streaming, it
  * supports low latency transfers (ensure data is sent within x milliseconds) or unconstrained while
  * for batch it transfers only once a buffer is full. Additionally, for streaming use this typically
  * limits the length of the buffer backlog to not have too much data in flight, while for batch we
@@ -91,7 +91,7 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 
     /**
      * The total number of references to subpartitions of this result. The result partition can be
-     * safely released, iff the reference count is zero. Every subpartition is an user of the result
+     * safely released, iff the reference count is zero. Every subpartition is a user of the result
      * as well the {@link PipelinedResultPartition} is a user itself, as it's writing to those
      * results. Even if all consumers are released, partition can not be released until writer
      * releases the partition as well.
