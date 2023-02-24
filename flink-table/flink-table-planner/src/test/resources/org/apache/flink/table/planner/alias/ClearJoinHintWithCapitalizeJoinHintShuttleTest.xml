@@ -16,9 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-	<TestCase name="testClearCaseInsensitiveLookupHint">
-		<Resource name="beforePropagatingHints">
-			<![CDATA[
+  <TestCase name="testClearCaseInsensitiveLookupHint">
+    <Resource name="beforePropagatingHints">
+      <![CDATA[
 LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :- LogicalProject(a=[$0], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
@@ -27,9 +27,9 @@ LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGI
       +- LogicalSnapshot(period=[PROCTIME()]), rowType=[RecordType(BIGINT a)]
          +- LogicalTableScan(table=[[builtin, default, lookup]]), rowType=[RecordType(BIGINT a)]
 ]]>
-		</Resource>
-		<Resource name="afterPropagatingHints">
-			<![CDATA[
+    </Resource>
+    <Resource name="afterPropagatingHints">
+      <![CDATA[
 LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[lookUp inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :- LogicalProject(a=[$0], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
@@ -38,9 +38,9 @@ LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGI
       +- LogicalSnapshot(period=[PROCTIME()]), rowType=[RecordType(BIGINT a)]
          +- LogicalTableScan(table=[[builtin, default, lookup]]), rowType=[RecordType(BIGINT a)]
 ]]>
-		</Resource>
-		<Resource name="afterCapitalizeJoinHints">
-			<![CDATA[
+    </Resource>
+    <Resource name="afterCapitalizeJoinHints">
+      <![CDATA[
 LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :- LogicalProject(a=[$0], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
@@ -49,9 +49,9 @@ LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGI
       +- LogicalSnapshot(period=[PROCTIME()]), rowType=[RecordType(BIGINT a)]
          +- LogicalTableScan(table=[[builtin, default, lookup]]), rowType=[RecordType(BIGINT a)]
 ]]>
-		</Resource>
-		<Resource name="afterClearingJoinHints">
-			<![CDATA[
+    </Resource>
+    <Resource name="afterClearingJoinHints">
+      <![CDATA[
 LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :- LogicalProject(a=[$0], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
@@ -60,6 +60,6 @@ LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGI
       +- LogicalSnapshot(period=[PROCTIME()]), rowType=[RecordType(BIGINT a)]
          +- LogicalTableScan(table=[[builtin, default, lookup]]), rowType=[RecordType(BIGINT a)]
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
 </Root>

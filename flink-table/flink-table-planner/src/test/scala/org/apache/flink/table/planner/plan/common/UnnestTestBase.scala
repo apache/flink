@@ -138,18 +138,7 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
     verifyPlan(sqlQuery)
   }
 
-  @Test
-  def testUnnestWithLookupJoinHint(): Unit = {
-    util.addTableSource[(Int, Array[Int])]("T2", 'a, 'b)
-    val sql = "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', " +
-      "'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10', " +
-      "'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s') */ " +
-      "T2.a FROM T2 CROSS JOIN UNNEST(T2.b) AS D(c)"
-
-    verifyPlan(sql)
-  }
-
-  private def verifyPlan(sql: String): Unit = {
+  def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)
     } else {
