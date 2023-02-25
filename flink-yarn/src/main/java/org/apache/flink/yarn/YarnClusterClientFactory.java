@@ -66,7 +66,7 @@ public class YarnClusterClientFactory
     public ApplicationId getClusterId(Configuration configuration) {
         checkNotNull(configuration);
         final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
-        return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
+        return clusterId != null ? ApplicationId.fromString(clusterId) : null;
     }
 
     @Override
