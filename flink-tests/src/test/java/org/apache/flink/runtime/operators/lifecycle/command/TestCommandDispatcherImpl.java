@@ -52,6 +52,11 @@ class TestCommandDispatcherImpl implements TestCommandDispatcher {
                         .collect(Collectors.toList()));
     }
 
+    @Override
+    public void unsubscribe(String operatorID, CommandExecutor commandExecutor) {
+        subscribers.getOrDefault(operatorID, emptyList()).remove(commandExecutor);
+    }
+
     private void executeInternal(
             TestCommand command, TestCommandScope scope, List<CommandExecutor> executors) {
         checkState(!executors.isEmpty(), "no executors for command: " + command);
