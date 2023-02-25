@@ -156,10 +156,6 @@ class TestingDispatcher extends Dispatcher {
         return callAsync(() -> listJobs(timeout).get().size(), TimeUtils.toDuration(timeout));
     }
 
-    void waitUntilStarted() {
-        startFuture.join();
-    }
-
     public static TestingDispatcher.Builder builder() {
         return new Builder();
     }
