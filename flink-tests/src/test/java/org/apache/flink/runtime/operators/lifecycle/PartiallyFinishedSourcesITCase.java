@@ -40,6 +40,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -48,6 +49,8 @@ import static java.util.Arrays.asList;
 import static java.util.stream.StreamSupport.stream;
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.RETRY_MAX_ATTEMPTS;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.UPLOAD_TIMEOUT;
 import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
@@ -92,6 +95,8 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         // can only be set on the cluster level; so we do it unconditionally here.
         configuration.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
         configuration.setString(BASE_PATH, TEMPORARY_FOLDER.newFolder().getAbsolutePath());
+        configuration.set(RETRY_MAX_ATTEMPTS, 10);
+        configuration.set(UPLOAD_TIMEOUT, Duration.ofMinutes(1));
 
         miniClusterResource =
                 new MiniClusterWithClientResource(
