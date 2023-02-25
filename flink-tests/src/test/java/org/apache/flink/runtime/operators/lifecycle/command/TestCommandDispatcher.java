@@ -33,6 +33,8 @@ public interface TestCommandDispatcher extends Serializable {
 
     void broadcast(TestCommand command, TestCommandScope scope);
 
+    void unsubscribe(String operatorID, CommandExecutor commandExecutor);
+
     /** An executor of {@link TestCommand}s. */
     interface CommandExecutor {
         void execute(TestCommand testCommand);
