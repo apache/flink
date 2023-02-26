@@ -99,7 +99,7 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
             return false;
         }
         return HadoopUtils.isKerberosSecurityEnabled(UserGroupInformation.getCurrentUser())
-                && kerberosLoginProvider.isLoginPossible();
+                && kerberosLoginProvider.isLoginPossible(false);
     }
 
     @Override
