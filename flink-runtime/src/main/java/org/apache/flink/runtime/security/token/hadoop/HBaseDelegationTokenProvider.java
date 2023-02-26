@@ -116,7 +116,7 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
             return false;
         }
         return hbaseConf.get("hbase.security.authentication").equals("kerberos")
-                && kerberosLoginProvider.isLoginPossible();
+                && kerberosLoginProvider.isLoginPossible(false);
     }
 
     @Override
