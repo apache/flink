@@ -19,49 +19,30 @@
 package org.apache.flink.table.client;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.table.client.cli.TerminalUtils;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.jline.terminal.Size;
-import org.jline.terminal.Terminal;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SqlClient}. */
-class SqlClientTest {
-
-    @TempDir private Path tempFolder;
+class SqlClientTest extends SqlClientTestBase {
 
     @RegisterExtension
     @Order(1)
@@ -77,34 +58,6 @@ class SqlClientTest {
     @Order(2)
     private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
             new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
-
-    private Map<String, String> originalEnv;
-
-    private String historyPath;
-
-    @BeforeEach
-    void before() throws IOException {
-        originalEnv = System.getenv();
-
-        // prepare conf dir
-        File confFolder = Files.createTempDirectory(tempFolder, "conf").toFile();
-        File confYaml = new File(confFolder, "config.yaml");
-        if (!confYaml.createNewFile()) {
-            throw new IOException("Can't create testing config.yaml file.");
-        }
-
-        // adjust the test environment for the purposes of this test
-        Map<String, String> map = new HashMap<>(System.getenv());
-        map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
-        CommonTestUtils.setEnv(map);
-
-        historyPath = Files.createTempFile(tempFolder, "history", "").toFile().getPath();
-    }
-
-    @AfterEach
-    void after() {
-        CommonTestUtils.setEnv(originalEnv);
-    }
 
     @Test
     void testEmbeddedWithOptions() throws Exception {
@@ -331,43 +284,5 @@ class SqlClientTest {
                                                                 .getResource(expected))
                                                 .toURI())));
         assertThat(runSqlClient(args)).isEqualTo(actual);
-    }
-
-    private String runSqlClient(String[] args) throws Exception {
-        return runSqlClient(args, "QUIT;\n", false);
-    }
-
-    private String runSqlClient(String[] args, String statements, boolean printInput)
-            throws Exception {
-        try (OutputStream out = new ByteArrayOutputStream();
-                Terminal terminal =
-                        TerminalUtils.createDumbTerminal(
-                                new ByteArrayInputStream(
-                                        statements.getBytes(StandardCharsets.UTF_8)),
-                                out)) {
-            if (printInput) {
-                // The default terminal has an empty size. Here increase the terminal to allow
-                // the line reader print the input string.
-                terminal.setSize(new Size(160, 80));
-            }
-            SqlClient.startClient(args, () -> terminal);
-            return out.toString().replace("\r\n", System.lineSeparator());
-        }
-    }
-
-    private String createSqlFile(List<String> statements, String name) throws IOException {
-        // create sql file
-        File sqlFileFolder = Files.createTempDirectory(tempFolder, "sql-file").toFile();
-        File sqlFile = new File(sqlFileFolder, name);
-        if (!sqlFile.createNewFile()) {
-            throw new IOException(String.format("Can't create testing %s.", name));
-        }
-        String sqlFilePath = sqlFile.getPath();
-        Files.write(
-                Paths.get(sqlFilePath),
-                statements,
-                StandardCharsets.UTF_8,
-                StandardOpenOption.APPEND);
-        return sqlFilePath;
     }
 }
