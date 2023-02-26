@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
@@ -40,6 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, AfterAllCallback {
 
     private final Supplier<SqlGatewayService> serviceSupplier;
+
+    private final Consumer<Configuration> flinkConfConsumer;
 
     private SqlGatewayRestEndpoint sqlGatewayRestEndpoint;
     private SqlGatewayService sqlGatewayService;
@@ -59,13 +62,22 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
     }
 
     public SqlGatewayRestEndpointExtension(Supplier<SqlGatewayService> serviceSupplier) {
+        this(serviceSupplier, (conf) -> {});
+    }
+
+    public SqlGatewayRestEndpointExtension(
+            Supplier<SqlGatewayService> serviceSupplier,
+            Consumer<Configuration> flinkConfConsumer) {
         this.serviceSupplier = serviceSupplier;
+        this.flinkConfConsumer = flinkConfConsumer;
     }
 
     @Override
     public void beforeAll(ExtensionContext context) {
         String address = InetAddress.getLoopbackAddress().getHostAddress();
-        Configuration config = getBaseConfig(getFlinkConfig(address, address, "0"));
+        Configuration flinkConfig = getFlinkConfig(address, address, "0");
+        flinkConfConsumer.accept(flinkConfig);
+        Configuration config = getBaseConfig(flinkConfig);
 
         try {
             sqlGatewayService = serviceSupplier.get();
