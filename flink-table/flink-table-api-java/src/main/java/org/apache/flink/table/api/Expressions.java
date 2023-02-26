@@ -534,7 +534,7 @@ public final class Expressions {
     }
 
     /**
-     * Creates a map from array of keys and array of values.
+     * Creates a map from an array of keys and an array of values.
      *
      * <pre>{@code
      * table.select(
