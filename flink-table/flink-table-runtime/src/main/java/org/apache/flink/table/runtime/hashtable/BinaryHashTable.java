@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
@@ -143,8 +142,9 @@ public class BinaryHashTable extends BaseHybridHashTable {
     BinaryRowData reuseBuildRow;
 
     public BinaryHashTable(
-            Configuration conf,
             Object owner,
+            boolean compressionEnable,
+            int compressionBlockSize,
             AbstractRowDataSerializer buildSideSerializer,
             AbstractRowDataSerializer probeSideSerializer,
             Projection<RowData, BinaryRowData> buildSideProjection,
@@ -161,8 +161,9 @@ public class BinaryHashTable extends BaseHybridHashTable {
             boolean[] filterNulls,
             boolean tryDistinctBuildRow) {
         super(
-                conf,
                 owner,
+                compressionEnable,
+                compressionBlockSize,
                 memManager,
                 reservedMemorySize,
                 ioManager,

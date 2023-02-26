@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -78,11 +77,6 @@ public class HashAggTest {
                             @Override
                             public void close() {}
                         };
-                    }
-
-                    @Override
-                    Configuration getConf() {
-                        return new Configuration();
                     }
 
                     @Override

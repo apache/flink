@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
@@ -53,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -66,7 +65,6 @@ public class BinaryHashTableTest {
     private BinaryRowDataSerializer probeSideSerializer;
 
     private boolean useCompress;
-    private Configuration conf;
 
     public BinaryHashTableTest(boolean useCompress) {
         this.useCompress = useCompress;
@@ -84,9 +82,6 @@ public class BinaryHashTableTest {
         this.probeSideSerializer = new BinaryRowDataSerializer(types.length);
 
         this.ioManager = new IOManagerAsync();
-
-        conf = new Configuration();
-        conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
     }
 
     @After
@@ -736,8 +731,9 @@ public class BinaryHashTableTest {
                 MemoryManagerBuilder.newBuilder().setMemorySize(96 * PAGE_SIZE).build();
         final BinaryHashTable table =
                 new BinaryHashTable(
-                        conf,
                         new Object(),
+                        useCompress,
+                        (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                         this.buildSideSerializer,
                         this.probeSideSerializer,
                         new MyProjection(),
@@ -836,8 +832,9 @@ public class BinaryHashTableTest {
 
         final BinaryHashTable table =
                 new BinaryHashTable(
-                        conf,
                         new Object(),
+                        useCompress,
+                        (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                         this.buildSideSerializer,
                         this.probeSideSerializer,
                         new MyProjection(),
@@ -901,8 +898,9 @@ public class BinaryHashTableTest {
         // allocate the memory for the HashTable
         final BinaryHashTable table =
                 new BinaryHashTable(
-                        conf,
                         new Object(),
+                        useCompress,
+                        (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                         this.buildSideSerializer,
                         this.probeSideSerializer,
                         new MyProjection(),
@@ -1006,8 +1004,9 @@ public class BinaryHashTableTest {
 
         final BinaryHashTable table =
                 new BinaryHashTable(
-                        conf,
                         new Object(),
+                        useCompress,
+                        (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                         buildSideSerializer,
                         probeSideSerializer,
                         new MyProjection(),
@@ -1071,8 +1070,9 @@ public class BinaryHashTableTest {
 
         final BinaryHashTable table =
                 new BinaryHashTable(
-                        conf,
                         new Object(),
+                        useCompress,
+                        (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                         buildSideSerializer,
                         probeSideSerializer,
                         new MyProjection(),
@@ -1169,8 +1169,9 @@ public class BinaryHashTableTest {
             long memory,
             IOManager ioManager) {
         return new BinaryHashTable(
-                conf,
                 new Object(),
+                useCompress,
+                (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                 buildSideSerializer,
                 probeSideSerializer,
                 buildSideProjection,

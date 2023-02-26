@@ -47,14 +47,28 @@ public class SortOperator extends TableStreamOperator<RowData>
     private GeneratedNormalizedKeyComputer gComputer;
     private GeneratedRecordComparator gComparator;
 
+    private final int maxNumFileHandles;
+    private final boolean compressionEnable;
+    private final int compressionBlockSize;
+    private final boolean asyncMergeEnable;
+
     private transient BinaryExternalSorter sorter;
     private transient StreamRecordCollector<RowData> collector;
     private transient BinaryRowDataSerializer binarySerializer;
 
     public SortOperator(
-            GeneratedNormalizedKeyComputer gComputer, GeneratedRecordComparator gComparator) {
+            GeneratedNormalizedKeyComputer gComputer,
+            GeneratedRecordComparator gComparator,
+            int maxNumFileHandles,
+            boolean compressionEnable,
+            int compressionBlockSize,
+            boolean asyncMergeEnable) {
         this.gComputer = gComputer;
         this.gComparator = gComparator;
+        this.maxNumFileHandles = maxNumFileHandles;
+        this.compressionEnable = compressionEnable;
+        this.compressionBlockSize = compressionBlockSize;
+        this.asyncMergeEnable = asyncMergeEnable;
     }
 
     @Override
@@ -85,7 +99,10 @@ public class SortOperator extends TableStreamOperator<RowData>
                         binarySerializer,
                         computer,
                         comparator,
-                        getContainingTask().getJobConfiguration());
+                        maxNumFileHandles,
+                        compressionEnable,
+                        compressionBlockSize,
+                        asyncMergeEnable);
         this.sorter.startThreads();
 
         collector = new StreamRecordCollector<>(output);

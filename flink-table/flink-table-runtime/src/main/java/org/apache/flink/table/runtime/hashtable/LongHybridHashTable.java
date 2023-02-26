@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
@@ -70,8 +69,9 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
     private LongHashPartition densePartition;
 
     public LongHybridHashTable(
-            Configuration conf,
             Object owner,
+            boolean compressionEnable,
+            int compressionBlockSize,
             BinaryRowDataSerializer buildSideSerializer,
             BinaryRowDataSerializer probeSideSerializer,
             MemoryManager memManager,
@@ -80,8 +80,9 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             int avgRecordLen,
             long buildRowCount) {
         super(
-                conf,
                 owner,
+                compressionEnable,
+                compressionBlockSize,
                 memManager,
                 reservedMemorySize,
                 ioManager,

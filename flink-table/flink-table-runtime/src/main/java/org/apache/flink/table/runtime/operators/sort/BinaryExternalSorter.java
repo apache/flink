@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AlgorithmOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.operators.sort.IndexedSorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
@@ -178,7 +176,10 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             BinaryRowDataSerializer serializer,
             NormalizedKeyComputer normalizedKeyComputer,
             RecordComparator comparator,
-            Configuration conf) {
+            int maxNumFileHandles,
+            boolean compressionEnable,
+            int compressionBlockSize,
+            boolean asyncMergeEnable) {
         this(
                 owner,
                 memoryManager,
@@ -188,7 +189,10 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                 serializer,
                 normalizedKeyComputer,
                 comparator,
-                conf,
+                maxNumFileHandles,
+                compressionEnable,
+                compressionBlockSize,
+                asyncMergeEnable,
                 AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue());
     }
 
@@ -201,23 +205,19 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             BinaryRowDataSerializer serializer,
             NormalizedKeyComputer normalizedKeyComputer,
             RecordComparator comparator,
-            Configuration conf,
+            int maxNumFileHandles,
+            boolean compressionEnable,
+            int compressionBlockSize,
+            boolean asyncMergeEnable,
             float startSpillingFraction) {
-        int maxNumFileHandles =
-                conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
-        this.compressionEnable =
-                conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        this.compressionEnable = compressionEnable;
         this.compressionCodecFactory =
                 this.compressionEnable
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
-        this.compressionBlockSize =
-                (int)
-                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
-                                .getBytes();
-        asyncMergeEnable =
-                conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
+        this.compressionBlockSize = compressionBlockSize;
+        this.asyncMergeEnable = asyncMergeEnable;
 
         checkArgument(maxNumFileHandles >= 2);
         checkNotNull(ioManager);

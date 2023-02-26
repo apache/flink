@@ -105,8 +105,10 @@ object HashAggCodeGenerator {
       auxGrouping: Array[Int],
       isMerge: Boolean,
       isFinal: Boolean,
-      supportAdaptiveLocalHashAgg: Boolean)
-      : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+      supportAdaptiveLocalHashAgg: Boolean,
+      maxNumFileHandles: Int,
+      compressionEnable: Boolean,
+      compressionBlockSize: Int): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
 
     val aggInfos = aggInfoList.aggInfos
     val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
@@ -238,7 +240,10 @@ object HashAggCodeGenerator {
       outputType,
       outputResultFromMap,
       sorterTerm,
-      retryAppend
+      retryAppend,
+      maxNumFileHandles,
+      compressionEnable,
+      compressionBlockSize
     )
 
     HashAggCodeGenHelper.prepareMetrics(ctx, aggregateMapTerm, if (isFinal) sorterTerm else null)

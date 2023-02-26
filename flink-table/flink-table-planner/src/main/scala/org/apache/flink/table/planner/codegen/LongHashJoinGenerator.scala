@@ -111,6 +111,8 @@ object LongHashJoinGenerator {
       reverseJoinFunction: Boolean,
       condFunc: GeneratedJoinCondition,
       leftIsBuild: Boolean,
+      compressionEnable: Boolean,
+      compressionBlockSize: Int,
       sortMergeJoinFunction: SortMergeJoinFunction): CodeGenOperatorFactory[RowData] = {
 
     val buildSer = new BinaryRowDataSerializer(buildType.getFieldCount)
@@ -185,7 +187,8 @@ object LongHashJoinGenerator {
          |public class $tableTerm extends ${classOf[LongHybridHashTable].getCanonicalName} {
          |
          |  public $tableTerm() {
-         |    super(getContainingTask().getJobConfiguration(), getContainingTask(),
+         |    super(getContainingTask(),
+         |      $compressionEnable, $compressionBlockSize,
          |      $buildSerTerm, $probeSerTerm,
          |      getContainingTask().getEnvironment().getMemoryManager(),
          |      computeMemorySize(),

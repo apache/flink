@@ -81,7 +81,15 @@ public class BatchExecSort extends ExecNodeBase<RowData>
         SortOperator operator =
                 new SortOperator(
                         codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
-                        codeGen.generateRecordComparator("BatchExecSortComparator"));
+                        codeGen.generateRecordComparator("BatchExecSortComparator"),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                config.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
         long sortMemory =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         return ExecNodeUtil.createOneInputTransformation(

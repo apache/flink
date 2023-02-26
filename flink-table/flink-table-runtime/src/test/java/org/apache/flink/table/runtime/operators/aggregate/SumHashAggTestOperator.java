@@ -19,12 +19,12 @@
 package org.apache.flink.table.runtime.operators.aggregate;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -119,7 +119,15 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
                                     new IntNormalizedKeyComputer(),
                                     new IntRecordComparator(),
                                     getMemoryManager().getPageSize(),
-                                    getConf());
+                                    ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES
+                                            .defaultValue(),
+                                    ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED
+                                            .defaultValue(),
+                                    (int)
+                                            ExecutionConfigOptions
+                                                    .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                                    .defaultValue()
+                                                    .getBytes());
                 }
                 // sort and spill
                 sorter.sortAndSpill(
@@ -253,10 +261,6 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 
     MemoryManager getMemoryManager() {
         return getContainingTask().getEnvironment().getMemoryManager();
-    }
-
-    Configuration getConf() {
-        return getContainingTask().getJobConfiguration();
     }
 
     public IOManager getIOManager() {

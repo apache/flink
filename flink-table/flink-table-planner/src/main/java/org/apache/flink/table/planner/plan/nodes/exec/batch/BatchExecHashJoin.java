@@ -213,6 +213,12 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                         condFunc,
                         1.0 * externalBufferMemory / managedMemory);
 
+        boolean compressionEnable =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        int compressionBlockSize =
+                (int)
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                .getBytes();
         if (LongHashJoinGenerator.support(hashJoinType, keyType, joinSpec.getFilterNulls())) {
             operator =
                     LongHashJoinGenerator.gen(
@@ -229,6 +235,8 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                             reverseJoin,
                             condFunc,
                             leftIsBuild,
+                            compressionEnable,
+                            compressionBlockSize,
                             sortMergeJoinFunction);
         } else {
             operator =
@@ -236,6 +244,8 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                             HashJoinOperator.newHashJoinOperator(
                                     hashJoinType,
                                     leftIsBuild,
+                                    compressionEnable,
+                                    compressionBlockSize,
                                     condFunc,
                                     reverseJoin,
                                     joinSpec.getFilterNulls(),
