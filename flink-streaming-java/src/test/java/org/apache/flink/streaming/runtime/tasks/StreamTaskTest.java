@@ -402,6 +402,43 @@ public class StreamTaskTest {
         }
     }
 
+    @Test
+    void testHandleAsyncExceptionDuringRestoring() throws Exception {
+        MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+        Throwable expectedException = new RuntimeException("RUNTIME EXCEPTION");
+
+        mockEnvironment.setExpectedExternalFailureCause(AsynchronousException.class);
+        final String expectedErrorMessage = "EXPECTED_ERROR MESSAGE";
+
+        StreamTaskITCase.NoOpStreamTask initThrowExceptionTask =
+                new StreamTaskITCase.NoOpStreamTask(mockEnvironment) {
+
+                    @Override
+                    protected void init() throws Exception {
+                        super.init();
+
+                        // Throw exception during restoring.
+                        CompletableFuture.runAsync(
+                                        () ->
+                                                this.handleAsyncException(
+                                                        expectedErrorMessage, expectedException))
+                                .get();
+                    }
+                };
+        initThrowExceptionTask.restore();
+
+        Optional<? extends Throwable> actualExternalFailureCause =
+                mockEnvironment.getActualExternalFailureCause();
+        final Throwable actualException =
+                actualExternalFailureCause.orElseThrow(
+                        () -> new AssertionError("Expected exceptional completion"));
+
+        assertThat(actualException)
+                .isInstanceOf(AsynchronousException.class)
+                .hasMessage(expectedErrorMessage)
+                .hasCause(expectedException);
+    }
+
     /**
      * This test checks the async exceptions handling wraps the message and cause as an
      * AsynchronousException and propagates this to the environment.
