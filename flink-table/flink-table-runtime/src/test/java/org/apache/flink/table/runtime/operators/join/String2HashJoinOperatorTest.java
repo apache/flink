@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -398,11 +399,27 @@ public class String2HashJoinOperatorTest implements Serializable {
                 };
         boolean[] filterNulls = new boolean[] {true};
 
+        int maxNumFileHandles =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue();
+        boolean compressionEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue();
+        int compressionBlockSize =
+                (int)
+                        ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                .defaultValue()
+                                .getBytes();
+        boolean asyncMergeEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue();
+
         SortMergeJoinFunction sortMergeJoinFunction =
                 new SortMergeJoinFunction(
                         0,
                         flinkJoinType,
                         buildLeft,
+                        maxNumFileHandles,
+                        compressionEnable,
+                        compressionBlockSize,
+                        asyncMergeEnable,
                         condFuncCode,
                         probeProjectionCode,
                         buildProjectionCode,
@@ -416,6 +433,8 @@ public class String2HashJoinOperatorTest implements Serializable {
         return HashJoinOperator.newHashJoinOperator(
                 hashJoinType,
                 buildLeft,
+                compressionEnable,
+                compressionBlockSize,
                 condFuncCode,
                 reverseJoinFunction,
                 filterNulls,

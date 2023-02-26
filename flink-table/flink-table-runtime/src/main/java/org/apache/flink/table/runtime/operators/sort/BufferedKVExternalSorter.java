@@ -18,7 +18,6 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.operators.sort.IndexedSorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
@@ -73,14 +71,14 @@ public class BufferedKVExternalSorter {
     private final List<ChannelWithMeta> channelIDs = new ArrayList<>();
     private final SpillChannelManager channelManager;
 
-    private int pageSize;
+    private final int pageSize;
 
     // metric
     private long numSpillFiles;
     private long spillInBytes;
     private long spillInCompressedBytes;
 
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final BlockCompressionFactory compressionCodecFactory;
     private final int compressionBlockSize;
 
@@ -91,27 +89,23 @@ public class BufferedKVExternalSorter {
             NormalizedKeyComputer nKeyComputer,
             RecordComparator comparator,
             int pageSize,
-            Configuration conf)
-            throws IOException {
+            int maxNumFileHandles,
+            boolean compressionEnabled,
+            int compressionBlockSize) {
         this.keySerializer = keySerializer;
         this.valueSerializer = valueSerializer;
         this.nKeyComputer = nKeyComputer;
         this.comparator = comparator;
         this.pageSize = pageSize;
         this.sorter = new QuickSort();
-        this.maxNumFileHandles =
-                conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
-        this.compressionEnable =
-                conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        this.maxNumFileHandles = maxNumFileHandles;
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
-                this.compressionEnable
+                this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
-        this.compressionBlockSize =
-                (int)
-                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
-                                .getBytes();
+        this.compressionBlockSize = compressionBlockSize;
         this.ioManager = ioManager;
         this.enumerator = this.ioManager.createChannelEnumerator();
         this.channelManager = new SpillChannelManager();
@@ -124,7 +118,7 @@ public class BufferedKVExternalSorter {
                         keySerializer,
                         valueSerializer,
                         comparator,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize);
     }
@@ -176,7 +170,7 @@ public class BufferedKVExternalSorter {
                     FileChannelUtil.createOutputView(
                             ioManager,
                             channel,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionCodecFactory,
                             compressionBlockSize,
                             pageSize);
