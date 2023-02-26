@@ -923,7 +923,8 @@ object CodeGenUtils {
       externalResultTerm
     } else {
       // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
-      s"${internalExpr.nullTerm} ? (${typeTerm(targetDataType.getConversionClass)}) null : ($externalResultTerm)"
+      val externalResultTypeTerm = typeTerm(targetDataType.getConversionClass)
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 
@@ -1021,7 +1022,7 @@ object CodeGenUtils {
     }
 
     // convert internal format to target type
-    val (externalResultTerm, resultType) = if (isInternalClass(targetDataType)) {
+    val (externalResultTerm, externalResultTypeTerm) = if (isInternalClass(targetDataType)) {
       (s"($targetTypeTerm) ${internalExpr.resultTerm}", s"($targetTypeTerm)")
     } else {
       (
@@ -1033,7 +1034,7 @@ object CodeGenUtils {
       externalResultTerm
     } else {
       // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
-      s"${internalExpr.nullTerm} ? ($resultType) null : ($externalResultTerm)"
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 }
