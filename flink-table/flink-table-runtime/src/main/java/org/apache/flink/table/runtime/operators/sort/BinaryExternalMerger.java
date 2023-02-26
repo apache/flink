@@ -46,7 +46,7 @@ public class BinaryExternalMerger extends AbstractBinaryExternalMerger<BinaryRow
             SpillChannelManager channelManager,
             BinaryRowDataSerializer serializer,
             RecordComparator comparator,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             BlockCompressionFactory compressionCodecFactory,
             int compressionBlockSize) {
         super(
@@ -54,7 +54,7 @@ public class BinaryExternalMerger extends AbstractBinaryExternalMerger<BinaryRow
                 pageSize,
                 maxFanIn,
                 channelManager,
-                compressionEnable,
+                compressionEnabled,
                 compressionCodecFactory,
                 compressionBlockSize);
         this.serializer = serializer;

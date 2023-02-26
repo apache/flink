@@ -20,14 +20,12 @@ package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
@@ -48,6 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
@@ -63,7 +62,6 @@ public class LongHashTableTest {
             MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
 
     private boolean useCompress;
-    private Configuration conf;
 
     public LongHashTableTest(boolean useCompress) {
         this.useCompress = useCompress;
@@ -80,17 +78,15 @@ public class LongHashTableTest {
         this.buildSideSerializer = new BinaryRowDataSerializer(types.length);
         this.probeSideSerializer = new BinaryRowDataSerializer(types.length);
         this.ioManager = new IOManagerAsync();
-
-        conf = new Configuration();
-        conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
     }
 
     private class MyHashTable extends LongHybridHashTable {
 
         public MyHashTable(long memorySize) {
             super(
-                    conf,
                     LongHashTableTest.this,
+                    useCompress,
+                    (int) TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue().getBytes(),
                     buildSideSerializer,
                     probeSideSerializer,
                     memManager,

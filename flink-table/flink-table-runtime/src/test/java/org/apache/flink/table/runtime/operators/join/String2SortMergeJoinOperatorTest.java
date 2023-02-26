@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -185,11 +186,26 @@ public class String2SortMergeJoinOperatorTest {
     }
 
     static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
+        int maxNumFileHandles =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue();
+        boolean compressionEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue();
+        int compressionBlockSize =
+                (int)
+                        ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                .defaultValue()
+                                .getBytes();
+        boolean asyncMergeEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue();
         SortMergeJoinFunction sortMergeJoinFunction =
                 new SortMergeJoinFunction(
                         0,
                         type,
                         leftIsSmaller,
+                        maxNumFileHandles,
+                        compressionEnable,
+                        compressionBlockSize,
+                        asyncMergeEnable,
                         new GeneratedJoinCondition("", "", new Object[0]) {
                             @Override
                             public JoinCondition newInstance(ClassLoader classLoader) {

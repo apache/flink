@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
@@ -48,6 +49,17 @@ public class SorMergeJoinOperatorUtil {
             double externalBufferMemRatio) {
         int[] keyPositions = IntStream.range(0, leftKeys.length).toArray();
 
+        int maxNumFileHandles =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
+        boolean compressionEnabled =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        int compressionBlockSize =
+                (int)
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                .getBytes();
+        boolean asyncMergeEnabled =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
+
         SortCodeGenerator leftSortGen =
                 SortUtil.newSortGen(config, classLoader, leftKeys, leftType);
         SortCodeGenerator rightSortGen =
@@ -57,6 +69,10 @@ public class SorMergeJoinOperatorUtil {
                 externalBufferMemRatio,
                 joinType,
                 leftIsSmaller,
+                maxNumFileHandles,
+                compressionEnabled,
+                compressionBlockSize,
+                asyncMergeEnabled,
                 condFunc,
                 ProjectionCodeGenerator.generateProjection(
                         new CodeGeneratorContext(config, classLoader),

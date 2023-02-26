@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AlgorithmOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.operators.sort.IndexedSorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
@@ -152,11 +150,11 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
 
     private final int memorySegmentSize;
 
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final BlockCompressionFactory compressionCodecFactory;
     private final int compressionBlockSize;
 
-    private final boolean asyncMergeEnable;
+    private final boolean asyncMergeEnabled;
 
     // ------------------------------------------------------------------------
     //                         Constructor & Shutdown
@@ -178,7 +176,10 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             BinaryRowDataSerializer serializer,
             NormalizedKeyComputer normalizedKeyComputer,
             RecordComparator comparator,
-            Configuration conf) {
+            int maxNumFileHandles,
+            boolean compressionEnabled,
+            int compressionBlockSize,
+            boolean asyncMergeEnabled) {
         this(
                 owner,
                 memoryManager,
@@ -188,7 +189,10 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                 serializer,
                 normalizedKeyComputer,
                 comparator,
-                conf,
+                maxNumFileHandles,
+                compressionEnabled,
+                compressionBlockSize,
+                asyncMergeEnabled,
                 AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue());
     }
 
@@ -201,23 +205,19 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             BinaryRowDataSerializer serializer,
             NormalizedKeyComputer normalizedKeyComputer,
             RecordComparator comparator,
-            Configuration conf,
+            int maxNumFileHandles,
+            boolean compressionEnabled,
+            int compressionBlockSize,
+            boolean asyncMergeEnabled,
             float startSpillingFraction) {
-        int maxNumFileHandles =
-                conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
-        this.compressionEnable =
-                conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
-                this.compressionEnable
+                this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
-        this.compressionBlockSize =
-                (int)
-                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
-                                .getBytes();
-        asyncMergeEnable =
-                conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
+        this.compressionBlockSize = compressionBlockSize;
+        this.asyncMergeEnabled = asyncMergeEnabled;
 
         checkArgument(maxNumFileHandles >= 2);
         checkNotNull(ioManager);
@@ -256,8 +256,8 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         + "maxNumFileHandles({}), compressionEnable({}), compressionCodecFactory({}), compressionBlockSize({}).",
                 sortMemPages,
                 maxNumFileHandles,
-                compressionEnable,
-                compressionEnable ? compressionCodecFactory.getClass() : null,
+                compressionEnabled,
+                compressionEnabled ? compressionCodecFactory.getClass() : null,
                 compressionBlockSize);
 
         this.sortBuffers = new ArrayList<>();
@@ -314,7 +314,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         channelManager,
                         (BinaryRowDataSerializer) serializer.duplicate(),
                         comparator,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize);
 
@@ -1010,7 +1010,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                                 FileChannelUtil.createOutputView(
                                         ioManager,
                                         channel,
-                                        compressionEnable,
+                                        compressionEnabled,
                                         compressionCodecFactory,
                                         compressionBlockSize,
                                         memorySegmentSize);
@@ -1126,7 +1126,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                 spillChannelIDs.add(channelID);
                 // if async merge is disabled, we will only do the final merge
                 // otherwise we wait for `maxFanIn` number of channels to begin a merge
-                if (!asyncMergeEnable || spillChannelIDs.size() < maxFanIn) {
+                if (!asyncMergeEnabled || spillChannelIDs.size() < maxFanIn) {
                     continue;
                 }
 
