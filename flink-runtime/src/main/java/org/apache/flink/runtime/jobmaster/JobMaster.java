@@ -81,7 +81,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -108,8 +107,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -120,7 +117,6 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -945,6 +941,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
+    public CompletableFuture<Map<JobVertexID, Integer>> getMaxParallelismPerVertex() {
+        final Map<JobVertexID, Integer> maxParallelismPerVertex = new HashMap<>();
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            maxParallelismPerVertex.put(
+                    vertex.getID(), SchedulerBase.getDefaultMaxParallelism(vertex));
+        }
+        return CompletableFuture.completedFuture(maxParallelismPerVertex);
+    }
+
+    @Override
     public CompletableFuture<JobResourceRequirements> requestJobResourceRequirements() {
         return CompletableFuture.completedFuture(schedulerNG.requestJobResourceRequirements());
     }
@@ -952,24 +958,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> updateJobResourceRequirements(
             JobResourceRequirements jobResourceRequirements) {
-        final Map<JobVertexID, Integer> maxParallelismPerJobVertex = new HashMap<>();
-        for (JobVertex vertex : jobGraph.getVertices()) {
-            maxParallelismPerJobVertex.put(
-                    vertex.getID(), SchedulerBase.getDefaultMaxParallelism(vertex));
-        }
-        final List<String> validationErrors =
-                JobResourceRequirements.validate(
-                        jobResourceRequirements, maxParallelismPerJobVertex);
-        if (validationErrors.isEmpty()) {
-            schedulerNG.updateJobResourceRequirements(jobResourceRequirements);
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        } else {
-            return FutureUtils.completedExceptionally(
-                    new RestHandlerException(
-                            validationErrors.stream()
-                                    .collect(Collectors.joining(System.lineSeparator())),
-                            HttpResponseStatus.BAD_REQUEST));
-        }
+        schedulerNG.updateJobResourceRequirements(jobResourceRequirements);
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     // ----------------------------------------------------------------------------------------------

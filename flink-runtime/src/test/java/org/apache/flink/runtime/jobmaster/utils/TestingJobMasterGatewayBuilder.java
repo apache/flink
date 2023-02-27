@@ -66,6 +66,7 @@ import org.apache.flink.util.function.TriFunction;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -176,6 +177,9 @@ public class TestingJobMasterGatewayBuilder {
     private Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
             notifyNewBlockedNodesFunction =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+
+    private Supplier<CompletableFuture<Map<JobVertexID, Integer>>> maxParallelismPerVertexSupplier =
+            () -> CompletableFuture.completedFuture(Collections.emptyMap());
 
     private Supplier<CompletableFuture<JobResourceRequirements>>
             requestJobResourceRequirementsSupplier =
@@ -397,6 +401,13 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setMaxParallelismPerVertexSupplier(
+            Supplier<CompletableFuture<Map<JobVertexID, Integer>>>
+                    maxParallelismPerVertexSupplier) {
+        this.maxParallelismPerVertexSupplier = maxParallelismPerVertexSupplier;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setRequestJobResourceRequirementsSupplier(
             Supplier<CompletableFuture<JobResourceRequirements>>
                     requestJobResourceRequirementsSupplier) {
@@ -442,6 +453,7 @@ public class TestingJobMasterGatewayBuilder {
                 deliverCoordinationRequestFunction,
                 notifyNotEnoughResourcesConsumer,
                 notifyNewBlockedNodesFunction,
+                maxParallelismPerVertexSupplier,
                 requestJobResourceRequirementsSupplier,
                 updateJobResourceRequirementsFunction);
     }

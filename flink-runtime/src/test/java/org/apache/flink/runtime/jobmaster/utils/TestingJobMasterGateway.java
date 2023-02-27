@@ -68,6 +68,7 @@ import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -190,6 +191,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     private final Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
             notifyNewBlockedNodesFunction;
 
+    private final Supplier<CompletableFuture<Map<JobVertexID, Integer>>>
+            maxParallelismPerVertexSupplier;
     private final Supplier<CompletableFuture<JobResourceRequirements>>
             requestJobResourceRequirementsSupplier;
     private final Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
@@ -300,6 +303,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                     Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
                             notifyNewBlockedNodesFunction,
             @Nonnull
+                    Supplier<CompletableFuture<Map<JobVertexID, Integer>>>
+                            maxParallelismPerVertexSupplier,
+            @Nonnull
                     Supplier<CompletableFuture<JobResourceRequirements>>
                             requestJobResourceRequirementsSupplier,
             @Nonnull
@@ -334,6 +340,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.deliverCoordinationRequestFunction = deliverCoordinationRequestFunction;
         this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
         this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+        this.maxParallelismPerVertexSupplier = maxParallelismPerVertexSupplier;
         this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
         this.updateJobResourceRequirementsFunction = updateJobResourceRequirementsFunction;
     }
@@ -559,6 +566,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Override
     public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
         return notifyNewBlockedNodesFunction.apply(newNodes);
+    }
+
+    @Override
+    public CompletableFuture<Map<JobVertexID, Integer>> getMaxParallelismPerVertex() {
+        return maxParallelismPerVertexSupplier.get();
     }
 
     @Override
