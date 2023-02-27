@@ -619,10 +619,10 @@ collection:
     description: Returns an array with unique elements. If the array itself is null, the function will return null. Keeps ordering of elements.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
-    description: Returns the keys of the map as array.
+    description: Returns the keys of the map as array. No order guaranteed.
   - sql: MAP_VALUES(map)
     table: MAP.mapValues()
-    description: Returns the values of the map as array.
+    description: Returns the values of the map as array. No order guaranteed.
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.

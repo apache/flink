@@ -1490,7 +1490,7 @@ class Expression(Generic[T]):
     @property
     def map_keys(self) -> 'Expression':
         """
-        Returns the keys of the map as array.
+        Returns the keys of the map as an array. No order guaranteed.
 
         .. seealso:: :py:attr:`~Expression.map_values`
         """
@@ -1499,7 +1499,7 @@ class Expression(Generic[T]):
     @property
     def map_values(self) -> 'Expression':
         """
-        Returns the values of the map as array.
+        Returns the values of the map as an array. No order guaranteed.
 
         .. seealso:: :py:attr:`~Expression.map_keys`
         """
