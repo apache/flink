@@ -64,7 +64,7 @@ public class ClusterClientJobClientAdapter<ClusterID>
         this.clusterClientProvider = checkNotNull(clusterClientProvider);
         this.classLoader = classLoader;
     }
-    
+
     public ClusterClientProvider<ClusterID> getClusterClientProvider() {
         return this.clusterClientProvider;
     }
