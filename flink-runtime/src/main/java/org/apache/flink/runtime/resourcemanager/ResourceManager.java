@@ -1028,7 +1028,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             taskExecutorRegistration.getMemoryConfiguration(),
                             taskExecutorRegistration.getTotalResourceProfile(),
                             taskExecutorRegistration.getDefaultSlotResourceProfile(),
-                            taskExecutorRegistration.getNodeId());
+                            taskExecutorRegistration.getNodeId(),
+                            taskExecutorRegistration.getTaskExecutorAddress());
 
             log.info(
                     "Registering TaskManager with ResourceID {} ({}) at ResourceManager",
