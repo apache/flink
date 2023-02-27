@@ -121,6 +121,12 @@ function check_logs_for_exceptions_for_adaptive_batch_scheduler {
     internal_check_logs_for_exceptions "${additional_allowed_exceptions[@]}"
 }
 
+function check_logs_for_errors_for_adaptive_batch_scheduler {
+    local additional_allowed_errors=("The handler of the request-complete-callback threw an exception: java.nio.channels.ClosedChannelException")
+
+    internal_check_logs_for_errors "${additional_allowed_errors[@]}"
+}
+
 SCHEDULER="${1:-Default}"
 ACTION="${2:-run_test}"
 
@@ -132,7 +138,7 @@ elif [ "${ACTION}" == "check_exceptions" ]; then
         exit 1
     fi
 
-    check_logs_for_errors
+    check_logs_for_errors_for_adaptive_batch_scheduler
     check_logs_for_exceptions_for_adaptive_batch_scheduler
     check_logs_for_non_empty_out_files
 else
