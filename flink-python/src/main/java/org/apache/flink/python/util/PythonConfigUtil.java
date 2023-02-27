@@ -217,6 +217,9 @@ public class PythonConfigUtil {
         } else if (transformation instanceof AbstractMultipleInputTransformation) {
             operatorFactory =
                     ((AbstractMultipleInputTransformation<?>) transformation).getOperatorFactory();
+        } else if (transformation instanceof DelegateOperatorTransformation) {
+            operatorFactory =
+                    ((DelegateOperatorTransformation<?>) transformation).getOperatorFactory();
         }
 
         if (operatorFactory instanceof SimpleOperatorFactory

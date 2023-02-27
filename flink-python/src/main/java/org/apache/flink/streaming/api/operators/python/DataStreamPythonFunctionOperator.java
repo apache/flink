@@ -22,15 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.OutputTag;
 
 import java.util.Collection;
 
 /** Interface for Python DataStream operators. */
 @Internal
-public interface DataStreamPythonFunctionOperator<OUT>
-        extends ResultTypeQueryable<OUT>, StreamOperator<OUT> {
+public interface DataStreamPythonFunctionOperator<OUT> extends ResultTypeQueryable<OUT> {
 
     /**
      * Sets the number of partitions. This is used for partitionCustom which takes the number of
