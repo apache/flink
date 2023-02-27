@@ -93,7 +93,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
@@ -2072,36 +2071,6 @@ class JobMasterTest {
 
             assertThatFuture(jobMasterUpdateFuture).eventuallySucceeds();
             assertThatFuture(schedulerUpdateFuture).eventuallySucceeds().isEqualTo(newRequirements);
-        }
-    }
-
-    @Test
-    public void testInvalidResourceRequirementsUpdate() throws Exception {
-        final TestingSchedulerNG scheduler =
-                TestingSchedulerNG.newBuilder()
-                        .setUpdateJobResourceRequirementsConsumer(
-                                jobResourceRequirements -> {
-                                    // No-op.
-                                })
-                        .build();
-        try (final JobMaster jobMaster =
-                new JobMasterBuilder(jobGraph, rpcService)
-                        .withConfiguration(configuration)
-                        .withHighAvailabilityServices(haServices)
-                        .withSlotPoolServiceSchedulerFactory(
-                                DefaultSlotPoolServiceSchedulerFactory.create(
-                                        TestingSlotPoolServiceBuilder.newBuilder(),
-                                        new TestingSchedulerNGFactory(scheduler)))
-                        .createJobMaster()) {
-            jobMaster.start();
-            final JobMasterGateway jobMasterGateway =
-                    jobMaster.getSelfGateway(JobMasterGateway.class);
-
-            assertThatFuture(
-                            jobMasterGateway.updateJobResourceRequirements(
-                                    JobResourceRequirements.empty()))
-                    .eventuallyFailsWith(ExecutionException.class)
-                    .withCauseInstanceOf(RestHandlerException.class);
         }
     }
 

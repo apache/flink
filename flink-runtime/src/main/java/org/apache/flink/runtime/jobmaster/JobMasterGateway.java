@@ -55,6 +55,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link JobMaster} rpc gateway interface. */
@@ -300,6 +301,13 @@ public interface JobMasterGateway
      */
     CompletableFuture<?> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> partitionIds);
+
+    /**
+     * Returns the max parallelism for each vertex.
+     *
+     * @return Future which that contains the max parallelism for each vertex.
+     */
+    CompletableFuture<Map<JobVertexID, Integer>> getMaxParallelismPerVertex();
 
     /**
      * Read current {@link JobResourceRequirements job resource requirements}.
