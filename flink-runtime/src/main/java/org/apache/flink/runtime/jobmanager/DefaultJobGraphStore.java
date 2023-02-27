@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResourceRequirements;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -239,6 +241,22 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         }
 
         LOG.info("Added {} to {}.", jobGraph, jobGraphStateHandleStore);
+    }
+
+    @Override
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
+        synchronized (lock) {
+            @Nullable final JobGraph jobGraph = recoverJobGraph(jobId);
+            if (jobGraph == null) {
+                throw new FileNotFoundException(
+                        String.format(
+                                "JobGraph for job [%s] was not found in JobGraphStore and is needed for attaching JobResourceRequirements.",
+                                jobId));
+            }
+            JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
+            putJobGraph(jobGraph);
+        }
     }
 
     @Override
