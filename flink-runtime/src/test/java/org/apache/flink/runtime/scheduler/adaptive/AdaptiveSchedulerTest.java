@@ -102,6 +102,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.junit.jupiter.api.Test;
@@ -1615,6 +1616,76 @@ public class AdaptiveSchedulerTest {
                     LOG);
         } finally {
             executorService.shutdownNow();
+        }
+    }
+
+    @Test
+    void testIdleSlotsAreReleasedAfterDownScalingTriggeredByLoweredResourceRequirements()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final Duration slotIdleTimeout = Duration.ofMillis(10);
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout.toMillis());
+
+        final DeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID(), slotIdleTimeout);
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setJobMasterConfiguration(configuration)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        try {
+            final int numInitialSlots = 4;
+            final int numSlotsAfterDownscaling = 2;
+
+            final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                    new SubmissionBufferingTaskManagerGateway(numInitialSlots);
+
+            taskManagerGateway.setCancelConsumer(createCancelConsumer(scheduler));
+
+            singleThreadMainThreadExecutor.execute(
+                    () -> {
+                        scheduler.startScheduling();
+                        offerSlots(
+                                declarativeSlotPool,
+                                createSlotOffersForResourceRequirements(
+                                        ResourceCounter.withResource(
+                                                ResourceProfile.UNKNOWN, numInitialSlots)),
+                                taskManagerGateway);
+                    });
+
+            // wait for all tasks to be submitted
+            taskManagerGateway.waitForSubmissions(numInitialSlots);
+
+            // lower the resource requirements
+            singleThreadMainThreadExecutor.execute(
+                    () ->
+                            scheduler.updateJobResourceRequirements(
+                                    JobResourceRequirements.newBuilder()
+                                            .setParallelismForJobVertex(
+                                                    JOB_VERTEX.getID(), 1, numSlotsAfterDownscaling)
+                                            .build()));
+
+            // job should be resubmitted with lower parallelism
+            taskManagerGateway.waitForSubmissions(numSlotsAfterDownscaling);
+
+            // and excessive slots should be freed
+            taskManagerGateway.waitForFreedSlots(numInitialSlots - numSlotsAfterDownscaling);
+
+            final CompletableFuture<JobStatus> jobStatusFuture = new CompletableFuture<>();
+            singleThreadMainThreadExecutor.execute(
+                    () -> jobStatusFuture.complete(scheduler.getState().getJobStatus()));
+            assertThatFuture(jobStatusFuture).eventuallySucceeds().isEqualTo(JobStatus.RUNNING);
+
+            // make sure we haven't freed up any more slots
+            assertThat(taskManagerGateway.freedSlots).isEmpty();
+        } finally {
+            final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+            singleThreadMainThreadExecutor.execute(
+                    () -> FutureUtils.forward(scheduler.closeAsync(), closeFuture));
+            assertThatFuture(closeFuture).eventuallySucceeds();
         }
     }
 
