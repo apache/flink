@@ -28,16 +28,14 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
 
-import org.hamcrest.Matchers;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -48,45 +46,43 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.generateJobDetails;
 import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.generateTerminalExecutionGraphInfos;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MemoryExecutionGraphInfoStore}. */
-public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
+class MemoryExecutionGraphInfoStoreTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     /**
      * Tests that we can put {@link ExecutionGraphInfo} into the {@link
      * MemoryExecutionGraphInfoStore} and that the graph is persisted.
      */
     @Test
-    public void testPut() throws IOException {
+    void testPut() throws IOException {
         assertPutJobGraphWithStatus(JobStatus.FINISHED);
     }
 
     /** Tests that a SUSPENDED job can be persisted. */
     @Test
-    public void testPutSuspendedJob() throws IOException {
+    void testPutSuspendedJob() throws IOException {
         assertPutJobGraphWithStatus(JobStatus.SUSPENDED);
     }
 
     /** Tests that null is returned if we request an unknown JobID. */
     @Test
-    public void testUnknownGet() throws IOException {
+    void testUnknownGet() throws IOException {
 
         try (final MemoryExecutionGraphInfoStore executionGraphStore =
                 createMemoryExecutionGraphInfoStore()) {
-            assertThat(executionGraphStore.get(new JobID()), Matchers.nullValue());
+            assertThat(executionGraphStore.get(new JobID())).isNull();
         }
     }
 
     /** Tests that we obtain the correct jobs overview. */
     @Test
-    public void testStoredJobsOverview() throws IOException {
+    void testStoredJobsOverview() throws IOException {
         final int numberExecutionGraphs = 10;
         final Collection<ExecutionGraphInfo> executionGraphInfos =
                 generateTerminalExecutionGraphInfos(numberExecutionGraphs);
@@ -105,15 +101,14 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
                 executionGraphInfoStore.put(executionGraphInfo);
             }
 
-            assertThat(
-                    executionGraphInfoStore.getStoredJobsOverview(),
-                    Matchers.equalTo(expectedJobsOverview));
+            assertThat(executionGraphInfoStore.getStoredJobsOverview())
+                    .isEqualTo(expectedJobsOverview);
         }
     }
 
     /** Tests that we obtain the correct collection of available job details. */
     @Test
-    public void testAvailableJobDetails() throws IOException {
+    void testAvailableJobDetails() throws IOException {
         final int numberExecutionGraphs = 10;
         final Collection<ExecutionGraphInfo> executionGraphInfos =
                 generateTerminalExecutionGraphInfos(numberExecutionGraphs);
@@ -126,15 +121,14 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
                 executionGraphInfoStore.put(executionGraphInfo);
             }
 
-            assertThat(
-                    executionGraphInfoStore.getAvailableJobDetails(),
-                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+            assertThat(executionGraphInfoStore.getAvailableJobDetails())
+                    .containsExactlyInAnyOrderElementsOf(jobDetails);
         }
     }
 
     /** Tests that an expired execution graph is removed from the execution graph store. */
     @Test
-    public void testExecutionGraphExpiration() throws Exception {
+    void testExecutionGraphExpiration() throws Exception {
         final Time expirationTime = Time.milliseconds(1L);
 
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
@@ -155,31 +149,29 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
             executionGraphInfoStore.put(executionGraphInfo);
 
             // there should one execution graph
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(1));
+            assertThat(executionGraphInfoStore.size()).isOne();
 
             manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
 
             // this should trigger the cleanup after expiration
             scheduledExecutor.triggerScheduledTasks();
 
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(0));
+            assertThat(executionGraphInfoStore.size()).isZero();
 
-            assertThat(
-                    executionGraphInfoStore.get(executionGraphInfo.getJobId()),
-                    Matchers.nullValue());
+            assertThat(executionGraphInfoStore.get(executionGraphInfo.getJobId())).isNull();
 
             // check that the store is empty
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(0));
+            assertThat(executionGraphInfoStore.size()).isZero();
         }
     }
 
     /** Tests that all job graphs are cleaned up after closing the store. */
     @Test
-    public void testCloseCleansUp() throws IOException {
+    void testCloseCleansUp() throws IOException {
         try (final MemoryExecutionGraphInfoStore executionGraphInfoStore =
                 createMemoryExecutionGraphInfoStore()) {
 
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(0));
+            assertThat(executionGraphInfoStore.size()).isZero();
 
             executionGraphInfoStore.put(
                     new ExecutionGraphInfo(
@@ -187,10 +179,10 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
                                     .setState(JobStatus.FINISHED)
                                     .build()));
 
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(1));
+            assertThat(executionGraphInfoStore.size()).isOne();
 
             executionGraphInfoStore.close();
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(0));
+            assertThat(executionGraphInfoStore.size()).isZero();
         }
     }
 
@@ -200,7 +192,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
      * the max capacity.
      */
     @Test
-    public void testMaximumCapacity() throws IOException {
+    void testMaximumCapacity() throws IOException {
         final int maxCapacity = 10;
         final int numberExecutionGraphs = 10;
 
@@ -217,19 +209,18 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
             for (ExecutionGraphInfo executionGraphInfo : oldExecutionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
                 // no more than the configured maximum capacity
-                assertTrue(executionGraphInfoStore.size() <= maxCapacity);
+                assertThat(executionGraphInfoStore.size()).isLessThanOrEqualTo(maxCapacity);
             }
 
             for (ExecutionGraphInfo executionGraphInfo : newExecutionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
                 // equals to the configured maximum capacity
-                assertEquals(maxCapacity, executionGraphInfoStore.size());
+                assertThat(executionGraphInfoStore.size()).isEqualTo(maxCapacity);
             }
 
             // the older execution graphs are purged
-            assertThat(
-                    executionGraphInfoStore.getAvailableJobDetails(),
-                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+            assertThat(executionGraphInfoStore.getAvailableJobDetails())
+                    .containsExactlyInAnyOrderElementsOf(jobDetails);
         }
     }
 
@@ -241,17 +232,18 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
                 createMemoryExecutionGraphInfoStore()) {
 
             // check that the graph store is empty
-            assertThat(executionGraphStore.size(), Matchers.equalTo(0));
+            assertThat(executionGraphStore.size()).isZero();
 
             executionGraphStore.put(dummyExecutionGraphInfo);
 
             // check that we have persisted the given execution graph
-            assertThat(executionGraphStore.size(), Matchers.equalTo(1));
+            assertThat(executionGraphStore.size()).isOne();
 
             assertThat(
-                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
-                    new ExecutionGraphInfoStoreTestUtils.PartialExecutionGraphInfoMatcher(
-                            dummyExecutionGraphInfo));
+                            ExecutionGraphInfoStoreTestUtils.areExecutionGraphInfoMathPartially(
+                                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
+                                    dummyExecutionGraphInfo))
+                    .isTrue();
         }
     }
 

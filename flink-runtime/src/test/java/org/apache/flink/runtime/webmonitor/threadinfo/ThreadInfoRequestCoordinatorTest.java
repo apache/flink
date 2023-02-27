@@ -24,8 +24,6 @@ import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.taskexecutor.IdleTestTask;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.util.JvmUtils;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
 
@@ -45,20 +43,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.taskexecutor.IdleTestTask.executeWithTerminationGuarantee;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.assertj.core.api.Fail.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ThreadInfoRequestCoordinator}. */
-public class ThreadInfoRequestCoordinatorTest extends TestLogger {
+class ThreadInfoRequestCoordinatorTest {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofMillis(100);
     private static final String REQUEST_TIMEOUT_MESSAGE = "Request timeout.";
@@ -71,34 +69,34 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
     private ThreadInfoRequestCoordinator coordinator;
 
     @BeforeAll
-    public static void setUp() throws Exception {
+    static void setUp() {
         executorService = new ScheduledThreadPoolExecutor(1);
     }
 
     @AfterAll
-    public static void tearDown() throws Exception {
+    static void tearDown() {
         if (executorService != null) {
             executorService.shutdown();
         }
     }
 
     @BeforeEach
-    public void initCoordinator() throws Exception {
+    void initCoordinator() {
         coordinator = new ThreadInfoRequestCoordinator(executorService, REQUEST_TIMEOUT);
     }
 
     @AfterEach
-    public void shutdownCoordinator() throws Exception {
+    void shutdownCoordinator() {
         if (coordinator != null) {
             // verify no more pending request
-            assertThat(coordinator.getNumberOfPendingRequests()).isEqualTo(0);
+            assertThat(coordinator.getNumberOfPendingRequests()).isZero();
             coordinator.shutDown();
         }
     }
 
     /** Tests successful thread info stats request. */
     @Test
-    public void testSuccessfulThreadInfoRequest() throws Exception {
+    void testSuccessfulThreadInfoRequest() throws Exception {
         Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
@@ -114,7 +112,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         VertexThreadInfoStats threadInfoStats = requestFuture.get();
 
         // verify the request result
-        assertThat(threadInfoStats.getRequestId()).isEqualTo(0);
+        assertThat(threadInfoStats.getRequestId()).isZero();
 
         Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samplesBySubtask =
                 threadInfoStats.getSamplesBySubtask();
@@ -127,7 +125,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
 
     /** Tests that failed thread info request to one of the tasks fails the future. */
     @Test
-    public void testThreadInfoRequestWithException() throws Exception {
+    void testThreadInfoRequestWithException() throws Exception {
         Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
@@ -140,17 +138,12 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        try {
-            requestFuture.get();
-            fail("Exception expected.");
-        } catch (ExecutionException e) {
-            assertThat(e.getCause()).isInstanceOf(RuntimeException.class);
-        }
+        assertThatThrownBy(requestFuture::get).hasCauseInstanceOf(RuntimeException.class);
     }
 
     /** Tests that thread info stats request times out if not finished in time. */
     @Test
-    public void testThreadInfoRequestTimeout() throws Exception {
+    void testThreadInfoRequestTimeout() throws Exception {
         Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
@@ -164,13 +157,8 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
         try {
-            requestFuture.get();
-            fail("Exception expected.");
-        } catch (ExecutionException e) {
-            assertThat(
-                            ExceptionUtils.findThrowableWithMessage(e, REQUEST_TIMEOUT_MESSAGE)
-                                    .isPresent())
-                    .isTrue();
+            assertThatThrownBy(requestFuture::get)
+                    .satisfies(anyCauseMatches(REQUEST_TIMEOUT_MESSAGE));
         } finally {
             coordinator.shutDown();
         }
@@ -178,7 +166,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
 
     /** Tests that shutdown fails all pending requests and future request triggers. */
     @Test
-    public void testShutDown() throws Exception {
+    void testShutDown() throws Exception {
         Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(

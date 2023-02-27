@@ -33,22 +33,21 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
 import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
 
-import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -56,53 +55,52 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.areExecutionGraphInfoMathPartially;
 import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.createDefaultExecutionGraphInfoStore;
 import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.generateJobDetails;
 import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.generateTerminalExecutionGraphInfos;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FileExecutionGraphInfoStore}. */
-public class FileExecutionGraphInfoStoreTest extends TestLogger {
+class FileExecutionGraphInfoStoreTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path tempDir;
 
     /**
      * Tests that we can put {@link ExecutionGraphInfo} into the {@link FileExecutionGraphInfoStore}
      * and that the graph is persisted.
      */
     @Test
-    public void testPut() throws IOException {
+    void testPut() throws IOException {
         assertPutJobGraphWithStatus(JobStatus.FINISHED);
     }
 
     /** Tests that a SUSPENDED job can be persisted. */
     @Test
-    public void testPutSuspendedJob() throws IOException {
+    void testPutSuspendedJob() throws IOException {
         assertPutJobGraphWithStatus(JobStatus.SUSPENDED);
     }
 
     /** Tests that null is returned if we request an unknown JobID. */
     @Test
-    public void testUnknownGet() throws IOException {
-        final File rootDir = temporaryFolder.newFolder();
+    void testUnknownGet() throws IOException {
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         try (final FileExecutionGraphInfoStore executionGraphStore =
                 createDefaultExecutionGraphInfoStore(
                         rootDir,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
-            assertThat(executionGraphStore.get(new JobID()), Matchers.nullValue());
+            assertThat(executionGraphStore.get(new JobID())).isNull();
         }
     }
 
     /** Tests that we obtain the correct jobs overview. */
     @Test
-    public void testStoredJobsOverview() throws IOException {
+    void testStoredJobsOverview() throws IOException {
         final int numberExecutionGraphs = 10;
         final Collection<ExecutionGraphInfo> executionGraphInfos =
                 generateTerminalExecutionGraphInfos(numberExecutionGraphs);
@@ -115,7 +113,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
 
         final JobsOverview expectedJobsOverview = JobsOverview.create(jobStatuses);
 
-        final File rootDir = temporaryFolder.newFolder();
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
                 createDefaultExecutionGraphInfoStore(
@@ -125,22 +123,21 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
                 executionGraphInfoStore.put(executionGraphInfo);
             }
 
-            assertThat(
-                    executionGraphInfoStore.getStoredJobsOverview(),
-                    Matchers.equalTo(expectedJobsOverview));
+            assertThat(executionGraphInfoStore.getStoredJobsOverview())
+                    .isEqualTo(expectedJobsOverview);
         }
     }
 
     /** Tests that we obtain the correct collection of available job details. */
     @Test
-    public void testAvailableJobDetails() throws IOException {
+    void testAvailableJobDetails() throws IOException {
         final int numberExecutionGraphs = 10;
         final Collection<ExecutionGraphInfo> executionGraphInfos =
                 generateTerminalExecutionGraphInfos(numberExecutionGraphs);
 
         final Collection<JobDetails> jobDetails = generateJobDetails(executionGraphInfos);
 
-        final File rootDir = temporaryFolder.newFolder();
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
                 createDefaultExecutionGraphInfoStore(
@@ -150,16 +147,15 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
                 executionGraphInfoStore.put(executionGraphInfo);
             }
 
-            assertThat(
-                    executionGraphInfoStore.getAvailableJobDetails(),
-                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+            assertThat(executionGraphInfoStore.getAvailableJobDetails())
+                    .containsExactlyInAnyOrderElementsOf(jobDetails);
         }
     }
 
     /** Tests that an expired execution graph is removed from the execution graph store. */
     @Test
-    public void testExecutionGraphExpiration() throws Exception {
-        final File rootDir = temporaryFolder.newFolder();
+    void testExecutionGraphExpiration() throws Exception {
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         final Time expirationTime = Time.milliseconds(1L);
 
@@ -186,43 +182,41 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
             executionGraphInfoStore.put(executionGraphInfo);
 
             // there should one execution graph
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(1));
+            assertThat(executionGraphInfoStore.size()).isOne();
 
             manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
 
             // this should trigger the cleanup after expiration
             scheduledExecutor.triggerScheduledTasks();
 
-            assertThat(executionGraphInfoStore.size(), Matchers.equalTo(0));
+            assertThat(executionGraphInfoStore.size()).isZero();
 
-            assertThat(
-                    executionGraphInfoStore.get(executionGraphInfo.getJobId()),
-                    Matchers.nullValue());
+            assertThat(executionGraphInfoStore.get(executionGraphInfo.getJobId())).isNull();
 
             final File storageDirectory = executionGraphInfoStore.getStorageDir();
 
             // check that the persisted file has been deleted
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+            assertThat(storageDirectory.listFiles()).isEmpty();
         }
     }
 
     /** Tests that all persisted files are cleaned up after closing the store. */
     @Test
-    public void testCloseCleansUp() throws IOException {
-        final File rootDir = temporaryFolder.newFolder();
+    void testCloseCleansUp() throws IOException {
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
-        assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
+        assertThat(rootDir.listFiles()).isEmpty();
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
                 createDefaultExecutionGraphInfoStore(
                         rootDir,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
 
-            assertThat(rootDir.listFiles().length, Matchers.equalTo(1));
+            assertThat(rootDir.listFiles()).hasSize(1);
 
             final File storageDirectory = executionGraphInfoStore.getStorageDir();
 
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+            assertThat(storageDirectory.listFiles()).isEmpty();
 
             executionGraphInfoStore.put(
                     new ExecutionGraphInfo(
@@ -230,16 +224,16 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
                                     .setState(JobStatus.FINISHED)
                                     .build()));
 
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+            assertThat(storageDirectory.listFiles()).hasSize(1);
         }
 
-        assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
+        assertThat(rootDir.listFiles()).isEmpty();
     }
 
     /** Tests that evicted {@link ExecutionGraphInfo} are loaded from disk again. */
     @Test
-    public void testCacheLoading() throws IOException {
-        final File rootDir = temporaryFolder.newFolder();
+    void testCacheLoading() throws IOException {
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
                 new FileExecutionGraphInfoStore(
@@ -275,14 +269,14 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
 
             final File storageDirectory = executionGraphInfoStore.getStorageDir();
 
-            assertThat(
-                    storageDirectory.listFiles().length,
-                    Matchers.equalTo(executionGraphInfos.size()));
+            assertThat(storageDirectory.listFiles()).hasSameSizeAs(executionGraphInfos);
 
             for (ExecutionGraphInfo executionGraphInfo : executionGraphInfos) {
                 assertThat(
-                        executionGraphInfoStore.get(executionGraphInfo.getJobId()),
-                        matchesPartiallyWith(executionGraphInfo));
+                                areExecutionGraphInfoMathPartially(
+                                        executionGraphInfoStore.get(executionGraphInfo.getJobId()),
+                                        executionGraphInfo))
+                        .isTrue();
             }
         }
     }
@@ -293,8 +287,8 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
      * max capacity.
      */
     @Test
-    public void testMaximumCapacity() throws IOException {
-        final File rootDir = temporaryFolder.newFolder();
+    void testMaximumCapacity() throws IOException {
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         final int maxCapacity = 10;
         final int numberExecutionGraphs = 10;
@@ -318,26 +312,25 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
             for (ExecutionGraphInfo executionGraphInfo : oldExecutionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
                 // no more than the configured maximum capacity
-                assertTrue(executionGraphInfoStore.size() <= maxCapacity);
+                assertThat(executionGraphInfoStore.size()).isLessThanOrEqualTo(maxCapacity);
             }
 
             for (ExecutionGraphInfo executionGraphInfo : newExecutionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
                 // equals to the configured maximum capacity
-                assertEquals(maxCapacity, executionGraphInfoStore.size());
+                assertThat(executionGraphInfoStore.size()).isEqualTo(maxCapacity);
             }
 
             // the older execution graphs are purged
-            assertThat(
-                    executionGraphInfoStore.getAvailableJobDetails(),
-                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+            assertThat(executionGraphInfoStore.getAvailableJobDetails())
+                    .containsExactlyInAnyOrderElementsOf(jobDetails);
         }
     }
 
     /** Tests that a session cluster can terminate gracefully when jobs are still running. */
     @Test
-    public void testPutSuspendedJobOnClusterShutdown() throws Exception {
-        File rootDir = temporaryFolder.newFolder();
+    void testPutSuspendedJobOnClusterShutdown() throws Exception {
+        File rootDir = TempDirUtils.newFolder(tempDir);
         try (final MiniCluster miniCluster =
                 new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
                         new MiniClusterConfiguration.Builder().withRandomPorts().build(),
@@ -359,7 +352,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         final ExecutionGraphInfo dummyExecutionGraphInfo =
                 new ExecutionGraphInfo(
                         new ArchivedExecutionGraphBuilder().setState(jobStatus).build());
-        final File rootDir = temporaryFolder.newFolder();
+        final File rootDir = TempDirUtils.newFolder(tempDir);
 
         try (final FileExecutionGraphInfoStore executionGraphStore =
                 createDefaultExecutionGraphInfoStore(
@@ -369,23 +362,18 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
             final File storageDirectory = executionGraphStore.getStorageDir();
 
             // check that the storage directory is empty
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+            assertThat(storageDirectory.listFiles()).isEmpty();
 
             executionGraphStore.put(dummyExecutionGraphInfo);
 
             // check that we have persisted the given execution graph
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+            assertThat(storageDirectory.listFiles()).hasSize(1);
 
             assertThat(
-                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
-                    new ExecutionGraphInfoStoreTestUtils.PartialExecutionGraphInfoMatcher(
-                            dummyExecutionGraphInfo));
+                            ExecutionGraphInfoStoreTestUtils.areExecutionGraphInfoMathPartially(
+                                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
+                                    dummyExecutionGraphInfo))
+                    .isTrue();
         }
-    }
-
-    private static Matcher<ExecutionGraphInfo> matchesPartiallyWith(
-            ExecutionGraphInfo executionGraphInfo) {
-        return new ExecutionGraphInfoStoreTestUtils.PartialExecutionGraphInfoMatcher(
-                executionGraphInfo);
     }
 }

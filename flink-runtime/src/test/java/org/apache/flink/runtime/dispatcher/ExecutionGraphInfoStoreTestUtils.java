@@ -42,13 +42,9 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
-
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 
 import javax.annotation.Nullable;
 
@@ -94,53 +90,33 @@ public class ExecutionGraphInfoStoreTestUtils {
     }
 
     /** Compare whether two ExecutionGraphInfo instances are equivalent. */
-    static final class PartialExecutionGraphInfoMatcher extends BaseMatcher<ExecutionGraphInfo> {
-
-        private final ExecutionGraphInfo expectedExecutionGraphInfo;
-
-        PartialExecutionGraphInfoMatcher(ExecutionGraphInfo expectedExecutionGraphInfo) {
-            this.expectedExecutionGraphInfo =
-                    Preconditions.checkNotNull(expectedExecutionGraphInfo);
+    public static boolean areExecutionGraphInfoMathPartially(
+            ExecutionGraphInfo left, ExecutionGraphInfo right) {
+        if (left == right) {
+            return true;
         }
 
-        @Override
-        public boolean matches(Object o) {
-            if (expectedExecutionGraphInfo == o) {
-                return true;
-            }
-            if (o == null || expectedExecutionGraphInfo.getClass() != o.getClass()) {
-                return false;
-            }
-            ExecutionGraphInfo that = (ExecutionGraphInfo) o;
-
-            ArchivedExecutionGraph thisExecutionGraph =
-                    expectedExecutionGraphInfo.getArchivedExecutionGraph();
-            ArchivedExecutionGraph thatExecutionGraph = that.getArchivedExecutionGraph();
-            return thisExecutionGraph.isStoppable() == thatExecutionGraph.isStoppable()
-                    && Objects.equals(thisExecutionGraph.getJobID(), thatExecutionGraph.getJobID())
-                    && Objects.equals(
-                            thisExecutionGraph.getJobName(), thatExecutionGraph.getJobName())
-                    && thisExecutionGraph.getState() == thatExecutionGraph.getState()
-                    && Objects.equals(
-                            thisExecutionGraph.getJsonPlan(), thatExecutionGraph.getJsonPlan())
-                    && Objects.equals(
-                            thisExecutionGraph.getAccumulatorsSerialized(),
-                            thatExecutionGraph.getAccumulatorsSerialized())
-                    && Objects.equals(
-                            thisExecutionGraph.getCheckpointCoordinatorConfiguration(),
-                            thatExecutionGraph.getCheckpointCoordinatorConfiguration())
-                    && thisExecutionGraph.getAllVertices().size()
-                            == thatExecutionGraph.getAllVertices().size()
-                    && Objects.equals(
-                            expectedExecutionGraphInfo.getExceptionHistory(),
-                            that.getExceptionHistory());
+        if (right == null || left == null) {
+            return false;
         }
 
-        @Override
-        public void describeTo(Description description) {
-            description.appendText(
-                    "Matches against " + ExecutionGraphInfo.class.getSimpleName() + '.');
-        }
+        ArchivedExecutionGraph leftExecutionGraph = left.getArchivedExecutionGraph();
+        ArchivedExecutionGraph rightExecutionGraph = right.getArchivedExecutionGraph();
+        return leftExecutionGraph.isStoppable() == rightExecutionGraph.isStoppable()
+                && Objects.equals(leftExecutionGraph.getJobID(), rightExecutionGraph.getJobID())
+                && Objects.equals(leftExecutionGraph.getJobName(), rightExecutionGraph.getJobName())
+                && leftExecutionGraph.getState() == rightExecutionGraph.getState()
+                && Objects.equals(
+                        leftExecutionGraph.getJsonPlan(), rightExecutionGraph.getJsonPlan())
+                && Objects.equals(
+                        leftExecutionGraph.getAccumulatorsSerialized(),
+                        rightExecutionGraph.getAccumulatorsSerialized())
+                && Objects.equals(
+                        leftExecutionGraph.getCheckpointCoordinatorConfiguration(),
+                        rightExecutionGraph.getCheckpointCoordinatorConfiguration())
+                && leftExecutionGraph.getAllVertices().size()
+                        == rightExecutionGraph.getAllVertices().size()
+                && Objects.equals(left.getExceptionHistory(), right.getExceptionHistory());
     }
 
     static Collection<JobDetails> generateJobDetails(
