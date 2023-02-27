@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -44,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link BatchExecNode} for Nested-loop Join. */
 public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final FlinkJoinType joinType;
     private final RexNode condition;
@@ -122,6 +123,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 parallelism,
-                manageMem);
+                manageMem,
+                false);
     }
 }

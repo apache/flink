@@ -93,6 +93,7 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                 createTransformationMeta(WINDOW_TRANSFORMATION, config),
                 windowTableFunctionOperator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

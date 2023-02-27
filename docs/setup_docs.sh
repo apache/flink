@@ -23,26 +23,18 @@ if [[ "$HERE" != "docs" ]]; then
     exit 1;
 fi
 
-# Create a default go.mod file
-cat <<EOF >go.mod
-module github.com/apache/flink
-
-go 1.18
-EOF
-
-echo "Created temporary file" $goModFileLocation/go.mod
-
-# Make Hugo retrieve modules which are used for externally hosted documentation
-currentBranch=$(git rev-parse --abbrev-ref HEAD)
-
 function integrate_connector_docs {
+  local connector ref additional_folders
   connector=$1
   ref=$2
+
   git clone --single-branch --branch ${ref} https://github.com/apache/flink-connector-${connector}
   theme_dir="../themes/connectors"
   mkdir -p "${theme_dir}"
-  rsync -a flink-connector-${connector}/docs/content* "${theme_dir}/"
+
+  rsync -a flink-connector-${connector}/docs/* "${theme_dir}/"
 }
+
 
 # Integrate the connector documentation
 
@@ -51,9 +43,13 @@ rm -rf tmp
 mkdir tmp
 cd tmp
 
-# Since there's no documentation yet available for a release branch,
-# we only get the documentation from the main branch
 integrate_connector_docs elasticsearch v3.0.0
+integrate_connector_docs aws v4.0
+integrate_connector_docs cassandra v3.0.0
+integrate_connector_docs pulsar main
+integrate_connector_docs jdbc v3.0.0
+integrate_connector_docs rabbitmq v3.0.0
+integrate_connector_docs gcp-pubsub v3.0.0
 
 cd ..
 rm -rf tmp

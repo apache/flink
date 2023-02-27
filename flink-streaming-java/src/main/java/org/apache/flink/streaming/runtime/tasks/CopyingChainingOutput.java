@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
@@ -31,19 +31,12 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
     private final TypeSerializer<T> serializer;
 
     public CopyingChainingOutput(
-            OneInputStreamOperator<T, ?> operator,
-            TypeSerializer<T> serializer,
-            @Nullable OutputTag<T> outputTag) {
-        super(operator, outputTag);
-        this.serializer = serializer;
-    }
-
-    public CopyingChainingOutput(
             Input<T> input,
             TypeSerializer<T> serializer,
-            OperatorMetricGroup operatorMetricGroup,
+            @Nullable Counter prevRecordsOutCounter,
+            OperatorMetricGroup curOperatorMetricGroup,
             @Nullable OutputTag<T> outputTag) {
-        super(input, operatorMetricGroup, outputTag);
+        super(input, prevRecordsOutCounter, curOperatorMetricGroup, outputTag);
         this.serializer = serializer;
     }
 
@@ -76,10 +69,10 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
             @SuppressWarnings("unchecked")
             StreamRecord<T> castRecord = (StreamRecord<T>) record;
 
+            numRecordsOut.inc();
             numRecordsIn.inc();
             StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
-            input.setKeyContextElement(copy);
-            input.processElement(copy);
+            recordProcessor.accept(copy);
         } catch (ClassCastException e) {
             if (outputTag != null) {
                 // Enrich error message

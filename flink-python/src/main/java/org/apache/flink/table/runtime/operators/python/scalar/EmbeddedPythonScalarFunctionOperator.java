@@ -119,6 +119,7 @@ public class EmbeddedPythonScalarFunctionOperator
         interpreter.set(
                 "proto",
                 ProtoUtils.createUserDefinedFunctionsProto(
+                                getRuntimeContext(),
                                 scalarFunctions,
                                 config.get(PYTHON_METRIC_ENABLED),
                                 config.get(PYTHON_PROFILE_ENABLED))

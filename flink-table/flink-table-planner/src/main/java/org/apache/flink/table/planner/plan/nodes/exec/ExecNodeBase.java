@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -162,7 +165,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                                     persistedConfig,
                                     isCompiled));
             if (this instanceof SingleTransformationTranslator) {
-                if (inputsContainSingleton()) {
+                if (inputsContainSingleton(transformation)) {
                     transformation.setParallelism(1);
                     transformation.setMaxParallelism(1);
                 }
@@ -192,6 +195,17 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
      */
     protected abstract Transformation<T> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config);
+
+    private boolean inputsContainSingleton(Transformation<T> transformation) {
+        return inputsContainSingleton()
+                || transformation.getInputs().stream()
+                        .anyMatch(
+                                input ->
+                                        input instanceof PartitionTransformation
+                                                && ((PartitionTransformation<?>) input)
+                                                                .getPartitioner()
+                                                        instanceof GlobalPartitioner);
+    }
 
     /** Whether singleton distribution is required. */
     protected boolean inputsContainSingleton() {
@@ -262,5 +276,11 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     public void resetTransformation() {
         this.transformation = null;
+    }
+
+    @VisibleForTesting
+    @JsonIgnore
+    public Transformation<T> getTransformation() {
+        return this.transformation;
     }
 }

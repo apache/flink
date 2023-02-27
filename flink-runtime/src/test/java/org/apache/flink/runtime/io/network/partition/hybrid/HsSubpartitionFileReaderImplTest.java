@@ -79,14 +79,17 @@ class HsSubpartitionFileReaderImplTest {
 
     private FileChannel dataFileChannel;
 
+    private Path indexFilePath;
+
     private long currentFileOffset;
 
     @BeforeEach
     void before(@TempDir Path tempPath) throws Exception {
         random = new Random();
         Path dataFilePath = Files.createFile(tempPath.resolve(UUID.randomUUID().toString()));
+        indexFilePath = tempPath.resolve(UUID.randomUUID().toString());
         dataFileChannel = openFileChannel(dataFilePath);
-        diskIndex = new HsFileDataIndexImpl(1);
+        diskIndex = createDataIndex(1, indexFilePath);
         subpartitionOperation = new TestingSubpartitionConsumerInternalOperation();
         currentFileOffset = 0L;
     }
@@ -97,8 +100,8 @@ class HsSubpartitionFileReaderImplTest {
     }
 
     @Test
-    void testReadBuffer() throws Exception {
-        diskIndex = new HsFileDataIndexImpl(2);
+    void testReadBuffer(@TempDir Path tmpPath) throws Exception {
+        diskIndex = createDataIndex(2, tmpPath.resolve(".index"));
         TestingSubpartitionConsumerInternalOperation viewNotifier1 =
                 new TestingSubpartitionConsumerInternalOperation();
         TestingSubpartitionConsumerInternalOperation viewNotifier2 =
@@ -135,13 +138,14 @@ class HsSubpartitionFileReaderImplTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
-    void testReadBufferCompressed(String compressionFactoryName) throws Exception {
+    void testReadBufferCompressed(String compressionFactoryName, @TempDir Path tmpPath)
+            throws Exception {
         BufferCompressor bufferCompressor =
                 new BufferCompressor(bufferSize, compressionFactoryName);
         BufferDecompressor bufferDecompressor =
                 new BufferDecompressor(bufferSize, compressionFactoryName);
 
-        diskIndex = new HsFileDataIndexImpl(1);
+        diskIndex = createDataIndex(1, tmpPath.resolve(".index"));
         TestingSubpartitionConsumerInternalOperation viewNotifier =
                 new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl fileReader1 = createSubpartitionFileReader(0, viewNotifier);
@@ -360,8 +364,8 @@ class HsSubpartitionFileReaderImplTest {
     }
 
     @Test
-    void testCompareTo() throws Exception {
-        diskIndex = new HsFileDataIndexImpl(2);
+    void testCompareTo(@TempDir Path tempPath) throws Exception {
+        diskIndex = createDataIndex(2, tempPath.resolve(".index"));
         TestingSubpartitionConsumerInternalOperation viewNotifier1 =
                 new TestingSubpartitionConsumerInternalOperation();
         TestingSubpartitionConsumerInternalOperation viewNotifier2 =
@@ -398,22 +402,20 @@ class HsSubpartitionFileReaderImplTest {
         // if no preload data in file reader, return Optional.empty.
         assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
 
-        // buffers in file: (0-0, 0-1)
-        writeDataToFile(0, 0, 0, 2);
+        // buffers in file: (0-0, 0-1, 0-2)
+        writeDataToFile(0, 0, 0, 3);
 
-        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
         subpartitionFileReader.prepareForScheduling();
         // trigger reading, add buffer to queue.
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
-        // if nextBufferToConsume is not equal to peek elements index, return Optional.empty.
-        assertThat(subpartitionFileReader.consumeBuffer(10)).isNotPresent();
-
+        // if nextBufferToConsume is equal to peek elements index.
         assertThat(subpartitionFileReader.consumeBuffer(0))
                 .hasValueSatisfying(
                         (bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getNextDataType())
-                                    .isEqualTo(DataType.EVENT_BUFFER);
+                                    .isEqualTo(DataType.DATA_BUFFER);
                             assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(0);
                             // first buffer's data is 0.
                             assertThat(
@@ -424,6 +426,26 @@ class HsSubpartitionFileReaderImplTest {
                                                     .getInt())
                                     .isEqualTo(0);
                         }));
+
+        // if nextBufferToConsume is less than peek elements index, return Optional.empty.
+        assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
+
+        // if nextBufferToConsume is greater than peek elements index, skip this buffer and keep
+        // looking.
+        assertThat(subpartitionFileReader.consumeBuffer(2))
+                .hasValueSatisfying(
+                        (bufferAndBacklog -> {
+                            assertThat(bufferAndBacklog.getNextDataType()).isEqualTo(DataType.NONE);
+                            assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(2);
+                            assertThat(
+                                            bufferAndBacklog
+                                                    .buffer()
+                                                    .getNioBufferReadable()
+                                                    .order(ByteOrder.nativeOrder())
+                                                    .getInt())
+                                    .isEqualTo(2);
+                        }));
+        assertThat(subpartitionFileReader.getLoadedBuffers()).isEmpty();
     }
 
     @Test
@@ -454,20 +476,24 @@ class HsSubpartitionFileReaderImplTest {
         // if no preload data in file reader, return DataType.NONE.
         assertThat(subpartitionFileReader.peekNextToConsumeDataType(0)).isEqualTo(DataType.NONE);
 
-        // buffers in file: (0-0, 0-1)
-        writeDataToFile(0, 0, 2);
+        // buffers in file: (0-0, 0-1, 0-2)
+        writeDataToFile(0, 0, 3);
 
-        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
         subpartitionFileReader.prepareForScheduling();
         // trigger reading, add buffer to queue.
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
-        // if nextBufferToConsume is not equal to peek elements index, return DataType.NONE.
-        assertThat(subpartitionFileReader.peekNextToConsumeDataType(10)).isEqualTo(DataType.NONE);
-
         // if nextBufferToConsume is equal to peek elements index, return the real DataType.
         assertThat(subpartitionFileReader.peekNextToConsumeDataType(0))
                 .isEqualTo(DataType.DATA_BUFFER);
+
+        // if nextBufferToConsume is greater than peek elements index, skip this buffer and keep
+        // looking.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(2))
+                .isEqualTo(DataType.EVENT_BUFFER);
+        // if nextBufferToConsume is less than peek elements index, return DataType.NONE.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(1)).isEqualTo(DataType.NONE);
     }
 
     /**
@@ -578,6 +604,10 @@ class HsSubpartitionFileReaderImplTest {
                 MAX_BUFFERS_READ_AHEAD,
                 (ignore) -> {},
                 BufferReaderWriterUtil.allocatedHeaderBuffer());
+    }
+
+    private HsFileDataIndexImpl createDataIndex(int numSubpartitions, Path indexFilePath) {
+        return new HsFileDataIndexImpl(numSubpartitions, indexFilePath, 256, Long.MAX_VALUE);
     }
 
     private static FileChannel openFileChannel(Path path) throws IOException {

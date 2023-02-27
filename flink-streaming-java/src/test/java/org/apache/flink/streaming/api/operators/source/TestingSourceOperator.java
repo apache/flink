@@ -89,7 +89,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 timeService,
                 new Configuration(),
                 "localhost",
-                emitProgressiveWatermarks);
+                emitProgressiveWatermarks,
+                () -> false);
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;

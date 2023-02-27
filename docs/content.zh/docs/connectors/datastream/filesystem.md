@@ -1194,7 +1194,7 @@ PyFlink 只支持 `ConcatFileCompactor` 和 `IdenticalFileCompactor` 。
 <span class="label label-danger">注意事项 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
 鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
 
-<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
+<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下 5 种文件系统：HDFS、 S3、OSS、ABFS 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 
 <a name="batch-specific"></a>
 

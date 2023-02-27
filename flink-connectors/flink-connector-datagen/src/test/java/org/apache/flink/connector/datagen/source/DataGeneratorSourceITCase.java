@@ -19,18 +19,19 @@
 package org.apache.flink.connector.datagen.source;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Disabled;
@@ -39,11 +40,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static java.util.stream.Collectors.summingInt;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -178,57 +177,48 @@ class DataGeneratorSourceITCase extends TestLogger {
 
         env.setParallelism(PARALLELISM);
 
-        int capacityPerSubtaskPerCycle = 2;
-        int capacityPerCycle = // avoid rounding errors when spreading records among subtasks
-                PARALLELISM * capacityPerSubtaskPerCycle;
+        int capacityPerSubtaskPerCheckpoint = 2;
+        int capacityPerCheckpoint = // avoid rounding errors when spreading records among subtasks
+                PARALLELISM * capacityPerSubtaskPerCheckpoint;
 
         final GeneratorFunction<Long, Long> generatorFunction = index -> 1L;
 
-        // Allow each subtask to produce at least 3 cycles, gated by checkpoints
-        int count = capacityPerCycle * 3;
+        // produce slightly more elements than the checkpoint-rate-limit would allow
+        int count = capacityPerCheckpoint + 1;
         final DataGeneratorSource<Long> generatorSource =
                 new DataGeneratorSource<>(
                         generatorFunction,
                         count,
-                        RateLimiterStrategy.perCheckpoint(capacityPerCycle),
+                        RateLimiterStrategy.perCheckpoint(capacityPerCheckpoint),
                         Types.LONG);
 
         final DataStreamSource<Long> streamSource =
                 env.fromSource(generatorSource, WatermarkStrategy.noWatermarks(), "Data Generator");
-        final DataStream<Tuple2<Integer, Long>> map =
-                streamSource.map(new SubtaskAndCheckpointMapper());
-        final List<Tuple2<Integer, Long>> results = map.executeAndCollect(1000);
+        final DataStream<Long> map = streamSource.flatMap(new FirstCheckpointFilter());
+        final List<Long> results = map.executeAndCollect(1000);
 
-        final Map<Tuple2<Integer, Long>, Integer> collect =
-                results.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        x -> (new Tuple2<>(x.f0, x.f1)), summingInt(x -> 1)));
-        for (Map.Entry<Tuple2<Integer, Long>, Integer> entry : collect.entrySet()) {
-            assertThat(entry.getValue()).isEqualTo(capacityPerSubtaskPerCycle);
-        }
+        assertThat(results).hasSize(capacityPerCheckpoint);
     }
 
-    private static class SubtaskAndCheckpointMapper
-            extends RichMapFunction<Long, Tuple2<Integer, Long>> implements CheckpointListener {
+    private static class FirstCheckpointFilter
+            implements FlatMapFunction<Long, Long>, CheckpointedFunction {
 
-        private long checkpointId = 0;
-        private int subtaskIndex;
+        private volatile boolean firstCheckpoint = true;
 
         @Override
-        public void open(Configuration parameters) {
-            subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+        public void flatMap(Long value, Collector<Long> out) throws Exception {
+            if (firstCheckpoint) {
+                out.collect(value);
+            }
         }
 
         @Override
-        public Tuple2<Integer, Long> map(Long value) {
-            return new Tuple2<>(subtaskIndex, checkpointId);
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            firstCheckpoint = false;
         }
 
         @Override
-        public void notifyCheckpointComplete(long checkpointId) {
-            this.checkpointId = checkpointId;
-        }
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
     private DataStream<Long> getGeneratorSourceStream(

@@ -194,6 +194,8 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
                     | 'changelog-mode' = 'I,UA,D'
                     |)
       """.stripMargin)
+    // After FLINK-28988 applied, the filter will not be pushed down into left input of join and get
+    // a more optimal plan (upsert mode without ChangelogNormalize).
     val sql =
       """
         |SELECT t1.a, t1.b, t2.f

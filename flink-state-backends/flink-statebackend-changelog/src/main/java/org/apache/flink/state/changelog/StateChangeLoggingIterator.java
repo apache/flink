@@ -17,7 +17,7 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -32,16 +32,14 @@ class StateChangeLoggingIterator<State, StateElement, Namespace>
 
     private final CloseableIterator<StateElement> iterator;
     private final StateChangeLogger<State, Namespace> changeLogger;
-    private final BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
-            removalWriter;
+    private final BiConsumerWithException<StateElement, DataOutputView, IOException> removalWriter;
     private final Namespace ns;
     @Nullable private StateElement lastReturned;
 
     private StateChangeLoggingIterator(
             CloseableIterator<StateElement> iterator,
             StateChangeLogger<State, Namespace> changeLogger,
-            BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
-                    removalWriter,
+            BiConsumerWithException<StateElement, DataOutputView, IOException> removalWriter,
             Namespace ns) {
         this.iterator = iterator;
         this.changeLogger = changeLogger;
@@ -73,8 +71,7 @@ class StateChangeLoggingIterator<State, StateElement, Namespace>
     public static <Namespace, State, StateElement> CloseableIterator<StateElement> create(
             CloseableIterator<StateElement> iterator,
             StateChangeLogger<State, Namespace> changeLogger,
-            BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
-                    removalWriter,
+            BiConsumerWithException<StateElement, DataOutputView, IOException> removalWriter,
             Namespace ns) {
         return new StateChangeLoggingIterator<>(iterator, changeLogger, removalWriter, ns);
     }

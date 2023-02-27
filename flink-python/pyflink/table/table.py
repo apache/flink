@@ -1073,8 +1073,9 @@ class Table(object):
 
         .. versionadded:: 1.11.0
         """
+        TEXT = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat.TEXT
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_table.explain(j_extra_details)
+        return self._j_table.explain(TEXT, j_extra_details)
 
 
 class GroupedTable(object):

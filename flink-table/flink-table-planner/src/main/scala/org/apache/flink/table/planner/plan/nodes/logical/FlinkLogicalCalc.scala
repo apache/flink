@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.metadata.RelMdCollation
@@ -49,12 +50,7 @@ class FlinkLogicalCalc(
 
 }
 
-private class FlinkLogicalCalcConverter
-  extends ConverterRule(
-    classOf[LogicalCalc],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalCalcConverter") {
+private class FlinkLogicalCalcConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val calc = rel.asInstanceOf[LogicalCalc]
@@ -64,7 +60,12 @@ private class FlinkLogicalCalcConverter
 }
 
 object FlinkLogicalCalc {
-  val CONVERTER: ConverterRule = new FlinkLogicalCalcConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalCalcConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalCalc],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalCalcConverter"))
 
   def create(input: RelNode, calcProgram: RexProgram): FlinkLogicalCalc = {
     val cluster = input.getCluster

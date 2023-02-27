@@ -63,6 +63,7 @@ public class ResourceManagerOptions {
                                     + " Its not possible to use this configuration key to define port ranges.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MAX_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.max")
                     .intType()
@@ -149,6 +150,14 @@ public class ResourceManagerOptions {
                     .durationType()
                     .defaultValue(Duration.ofMillis(50))
                     .withDescription("The delay of the resource requirements check.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Duration> DECLARE_NEEDED_RESOURCE_DELAY =
+            ConfigOptions.key("slotmanager.declare-needed-resource.delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription("The delay of the declare needed resources.");
 
     /**
      * The timeout for a slot request to be discarded, in milliseconds.

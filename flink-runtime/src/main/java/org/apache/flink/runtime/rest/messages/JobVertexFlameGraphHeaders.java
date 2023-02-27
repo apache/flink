@@ -20,14 +20,14 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.JobVertexFlameGraphHandler;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexFlameGraph;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraph;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Message headers for the {@link JobVertexFlameGraphHandler}. */
 public class JobVertexFlameGraphHeaders
         implements RuntimeMessageHeaders<
-                EmptyRequestBody, JobVertexFlameGraph, JobVertexFlameGraphParameters> {
+                EmptyRequestBody, VertexFlameGraph, JobVertexFlameGraphParameters> {
 
     private static final JobVertexFlameGraphHeaders INSTANCE = new JobVertexFlameGraphHeaders();
 
@@ -44,8 +44,8 @@ public class JobVertexFlameGraphHeaders
     }
 
     @Override
-    public Class<JobVertexFlameGraph> getResponseClass() {
-        return JobVertexFlameGraph.class;
+    public Class<VertexFlameGraph> getResponseClass() {
+        return VertexFlameGraph.class;
     }
 
     @Override

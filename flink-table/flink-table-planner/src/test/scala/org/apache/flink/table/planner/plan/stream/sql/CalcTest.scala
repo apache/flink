@@ -22,15 +22,21 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.{Before, Test}
 
 import java.sql.{Date, Time, Timestamp}
 
 class CalcTest extends TableTestBase {
   private val util = streamTestUtil()
-  util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
+
+  @Before
+  def setup(): Unit = {
+    util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("random_udf", new NonDeterministicUdf)
+  }
 
   @Test
   def testOnlyProject(): Unit = {
@@ -180,5 +186,17 @@ class CalcTest extends TableTestBase {
   @Test
   def testDecimalMapWithDifferentPrecision(): Unit = {
     util.verifyExecPlan("SELECT MAP['a', 0.12, 'b', 0.5]")
+  }
+
+  @Test
+  def testCalcMergeWithNonDeterministicExpr(): Unit = {
+    val sqlQuery = "SELECT a, a1 FROM (SELECT a, random_udf(b) AS a1 FROM MyTable) t WHERE a1 > 10"
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcMergeWithNonDeterministicExpr2(): Unit = {
+    val sqlQuery = "SELECT a FROM (SELECT a, b FROM MyTable) t WHERE random_udf(b) > 10"
+    util.verifyRelPlan(sqlQuery)
   }
 }

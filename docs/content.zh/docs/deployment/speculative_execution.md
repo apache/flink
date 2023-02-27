@@ -41,29 +41,33 @@ under the License.
 本章节描述了如何使用预测执行，包含如何启用，调优，以及开发/改进自定义 source 来支持预测执行。
 
 {{< hint warning >}}
-注意: Flink 尚不支持 sink 的预测执行。这个能力会在后续版本中得到完善。
-{{< /hint >}}
-
-{{< hint warning >}}
 注意：Flink 不支持 DataSet 作业的预测执行，因为 DataSet API 在不久的将来会被废弃。现在推荐使用 DataStream API 来开发 Flink 批处理作业。
 {{< /hint >}}
 
 ### 启用预测执行
-要启用预测执行，你需要设置以下配置项：
-- `jobmanager.scheduler: AdaptiveBatch`
-    - 因为当前只有 [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) 支持预测执行.
-- `jobmanager.adaptive-batch-scheduler.speculative.enabled: true`
+你可以通过以下配置项启用预测执行：
+- `execution.batch.speculative.enabled: true`
+
+需要注意的是，当前只有 [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) 支持预测执行。不过 Flink 批作业会默认使用该调度器，除非显式配置了其他调度器。
 
 ### 配置调优
 考虑到不同作业的差异，为了让预测执行获得更好的效果，你可以调优下列调度器配置项：
-- [`jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-max-concurrent-e)
-- [`jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-block-slow-node)
+- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-max-concurrent-e)
+- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-block-slow-node)
 
-你还可以调优下列慢任务检测器的配置项：
+你也可以通过下列配置项来对慢任务检测器进行调优：
 - [`slow-task-detector.check-interval`]({{< ref "docs/deployment/config" >}}#slow-task-detector-check-interval)
 - [`slow-task-detector.execution-time.baseline-lower-bound`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-lower-bound)
 - [`slow-task-detector.execution-time.baseline-multiplier`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-multiplier)
 - [`slow-task-detector.execution-time.baseline-ratio`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-ratio)
+
+目前，预测执行通过基于执行时间的慢任务检测器来检测慢任务，检测器将定期统计所有已执行完成的节点，当完成率达到基线比率(`slow-task-detector.execution-time.baseline-ratio`)时，
+基线将被定义为执行时间中位数乘以系数(`slow-task-detector.execution-time.baseline-multiplier`)，若运行中节点的执行时间超过基线则会被判定为慢节点。值得一提的是，
+处理执行时间时会将其与节点实际输入数据量进行加权，若发生数据倾斜，数据量差异较大但算力接近的节点并不会被检测为慢任务，从而避免拉起无效预测执行实例浪费资源。
+
+{{< hint warning >}}
+注意：若节点为 Source 或使用了 Hybrid Shuffle 模式，执行时间与数据量加权优化将不生效，因为无法判断输入数据量。
+{{< /hint >}}
 
 ### 让 Source 支持预测执行
 如果你的作业有用到自定义 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}}, 
@@ -82,6 +86,28 @@ public interface SupportsHandleExecutionAttemptSourceEvent {
 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java" name="InputFormat Source" >}}, 
 和 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="新版 Source" >}}.
 Apache Flink 官方提供的 Source 都支持预测执行。
+
+### 让 Sink 支持预测执行
+Sink 的预测执行默认是关闭的，除非 Sink 实现了 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}}
+接口。这里主要是兼容性方面的考虑。
+```java
+public interface SupportsConcurrentExecutionAttempts {}
+```
+接口 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}}
+适用于 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}}
+，{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/sink/SinkFunction.java" name="SinkFunction" >}}
+以及 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java" name="OutputFormat" >}}。
+
+{{< hint info >}}
+如果作业节点中有任何算子不支持预测执行，那么该节点都将被认为不支持预测执行。这意味着如果 Sink 不支持预测执行，那么包含其的整个节点都无法进行预测执行。
+{{< /hint >}}
+
+{{< hint info >}}
+对于 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} 实现, 
+Flink 会关闭 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Committer.java" name="Committer" >}} 的预测执行，
+（包括被 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPreCommitTopology.java" name="WithPreCommitTopology" >}} 和 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPostCommitTopology.java" name="WithPostCommitTopology" >}} 扩展的算子）。
+因为如果用户对并行提交理解不深的话，这里可能会引起意料之外的问题。另外一个原因是提交的部分往往不是批作业的瓶颈所在。
+{{< /hint >}}
 
 ## 检查预测执行的效果
 在启用预测执行后，当出现慢任务触发预测执行时，Web UI 会在作业页面的节点信息的 `SubTasks` 分页展示预测执行实例。Web UI 

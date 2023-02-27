@@ -200,7 +200,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                 createTransformationDescription(pythonConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 
     @SuppressWarnings("unchecked")

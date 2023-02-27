@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -44,6 +45,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
@@ -63,8 +65,12 @@ public class NettyShuffleUtilsTest extends TestLogger {
     public void testComputeRequiredNetworkBuffers() throws Exception {
         int numBuffersPerChannel = 5;
         int numBuffersPerGate = 8;
+        Optional<Integer> maxRequiredBuffersPerGate = Optional.of(Integer.MAX_VALUE);
         int sortShuffleMinParallelism = 8;
         int numSortShuffleMinBuffers = 12;
+
+        IntermediateDataSetID ids1 = new IntermediateDataSetID();
+        IntermediateDataSetID ids2 = new IntermediateDataSetID();
 
         int numChannels1 = 3;
         int numChannels2 = 4;
@@ -80,16 +86,23 @@ public class NettyShuffleUtilsTest extends TestLogger {
                 ImmutableMap.of(ds1, numSubs1, ds2, numSubs2, ds3, numSubs3);
         Map<IntermediateDataSetID, ResultPartitionType> partitionTypes =
                 ImmutableMap.of(ds1, PIPELINED_BOUNDED, ds2, BLOCKING, ds3, BLOCKING);
+        Map<IntermediateDataSetID, Integer> numInputChannels =
+                ImmutableMap.of(ids1, numChannels1, ids2, numChannels2);
+        Map<IntermediateDataSetID, Integer> partitionReuseCount = ImmutableMap.of(ids1, 1, ids2, 1);
+        Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes =
+                ImmutableMap.of(ids1, PIPELINED_BOUNDED, ids2, BLOCKING);
 
         int numTotalBuffers =
                 NettyShuffleUtils.computeNetworkBuffersForAnnouncing(
                         numBuffersPerChannel,
                         numBuffersPerGate,
+                        maxRequiredBuffersPerGate,
                         sortShuffleMinParallelism,
                         numSortShuffleMinBuffers,
-                        numChannels1 + numChannels2,
-                        2,
+                        numInputChannels,
+                        partitionReuseCount,
                         subpartitionNums,
+                        inputPartitionTypes,
                         partitionTypes);
 
         NettyShuffleEnvironment sEnv =
@@ -136,11 +149,14 @@ public class NettyShuffleUtilsTest extends TestLogger {
             int numInputChannels)
             throws IOException {
 
-        ShuffleDescriptor[] shuffleDescriptors = new NettyShuffleDescriptor[numInputChannels];
+        ShuffleDescriptorAndIndex[] shuffleDescriptors =
+                new ShuffleDescriptorAndIndex[numInputChannels];
         for (int i = 0; i < numInputChannels; i++) {
             shuffleDescriptors[i] =
-                    createRemoteWithIdAndLocation(
-                            new IntermediateResultPartitionID(), ResourceID.generate());
+                    new ShuffleDescriptorAndIndex(
+                            createRemoteWithIdAndLocation(
+                                    new IntermediateResultPartitionID(), ResourceID.generate()),
+                            i);
         }
 
         InputGateDeploymentDescriptor inputGateDeploymentDescriptor =

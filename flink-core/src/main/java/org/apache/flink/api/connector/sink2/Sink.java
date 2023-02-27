@@ -95,6 +95,13 @@ public interface Sink<InputT> extends Serializable {
         /** @return The number of parallel Sink tasks. */
         int getNumberOfParallelSubtasks();
 
+        /**
+         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+         *
+         * @return Attempt number of the subtask.
+         */
+        int getAttemptNumber();
+
         /** @return The metric group this writer belongs to. */
         SinkWriterMetricGroup metricGroup();
 

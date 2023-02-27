@@ -120,4 +120,18 @@ public interface InternalExecutionGraphAccessor {
     /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
     List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateResultPartition);
+
+    MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy();
+
+    /**
+     * Get the input info of a certain input of a certain job vertex.
+     *
+     * @param jobVertexId the job vertex id
+     * @param resultId the input(intermediate result) id
+     * @return the input info
+     */
+    JobVertexInputInfo getJobVertexInputInfo(
+            JobVertexID jobVertexId, IntermediateDataSetID resultId);
+
+    boolean isNonFinishedHybridPartitionShouldBeUnknown();
 }

@@ -28,8 +28,8 @@ import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.base.Charsets;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.common.base.Charsets;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 
 import javax.annotation.Nullable;
 

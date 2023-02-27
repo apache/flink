@@ -75,6 +75,10 @@ public class ResultPartitionFactory {
 
     private final int sortShuffleMinParallelism;
 
+    private final int hybridShuffleSpilledIndexSegmentSize;
+
+    private final long hybridShuffleNumRetainedInMemoryRegionsMax;
+
     private final boolean sslEnabled;
 
     private final int maxOverdraftBuffersPerGate;
@@ -95,7 +99,9 @@ public class ResultPartitionFactory {
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism,
             boolean sslEnabled,
-            int maxOverdraftBuffersPerGate) {
+            int maxOverdraftBuffersPerGate,
+            int hybridShuffleSpilledIndexSegmentSize,
+            long hybridShuffleNumRetainedInMemoryRegionsMax) {
 
         this.partitionManager = partitionManager;
         this.channelManager = channelManager;
@@ -113,6 +119,9 @@ public class ResultPartitionFactory {
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.sslEnabled = sslEnabled;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+        this.hybridShuffleNumRetainedInMemoryRegionsMax =
+                hybridShuffleNumRetainedInMemoryRegionsMax;
     }
 
     public ResultPartition create(
@@ -218,15 +227,6 @@ public class ResultPartitionFactory {
             }
         } else if (type == ResultPartitionType.HYBRID_FULL
                 || type == ResultPartitionType.HYBRID_SELECTIVE) {
-            if (type == ResultPartitionType.HYBRID_SELECTIVE && isBroadcast) {
-                // for broadcast result partition, it can be optimized to always use full spilling
-                // strategy to significantly reduce shuffle data writing cost.
-                LOG.info(
-                        "{} result partition has been replaced by {} result partition to reduce shuffle data writing cost.",
-                        type,
-                        ResultPartitionType.HYBRID_FULL);
-                type = ResultPartitionType.HYBRID_FULL;
-            }
             partition =
                     new HsResultPartition(
                             taskNameWithSubtaskAndId,
@@ -240,16 +240,7 @@ public class ResultPartitionFactory {
                             partitionManager,
                             channelManager.createChannel().getPath(),
                             networkBufferSize,
-                            HybridShuffleConfiguration.builder(
-                                            numberOfSubpartitions,
-                                            batchShuffleReadBufferPool.getNumBuffersPerRequest())
-                                    .setSpillingStrategyType(
-                                            type == ResultPartitionType.HYBRID_FULL
-                                                    ? HybridShuffleConfiguration
-                                                            .SpillingStrategyType.FULL
-                                                    : HybridShuffleConfiguration
-                                                            .SpillingStrategyType.SELECTIVE)
-                                    .build(),
+                            getHybridShuffleConfiguration(numberOfSubpartitions, type),
                             bufferCompressor,
                             isBroadcast,
                             bufferPoolFactory);
@@ -260,6 +251,19 @@ public class ResultPartitionFactory {
         LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
         return partition;
+    }
+
+    private HybridShuffleConfiguration getHybridShuffleConfiguration(
+            int numberOfSubpartitions, ResultPartitionType resultPartitionType) {
+        return HybridShuffleConfiguration.builder(
+                        numberOfSubpartitions, batchShuffleReadBufferPool.getNumBuffersPerRequest())
+                .setSpillingStrategyType(
+                        resultPartitionType == ResultPartitionType.HYBRID_FULL
+                                ? HybridShuffleConfiguration.SpillingStrategyType.FULL
+                                : HybridShuffleConfiguration.SpillingStrategyType.SELECTIVE)
+                .setSpilledIndexSegmentSize(hybridShuffleSpilledIndexSegmentSize)
+                .setNumRetainedInMemoryRegionsMax(hybridShuffleNumRetainedInMemoryRegionsMax)
+                .build();
     }
 
     private static void initializeBoundedBlockingPartitions(

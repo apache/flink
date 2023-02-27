@@ -237,6 +237,20 @@ abstract class PlannerBase(
           case (table, sink: TableSink[_]) =>
             // Legacy tables can't be anonymous
             val identifier = catalogSink.getContextResolvedTable.getIdentifier
+
+            // check it's not for UPDATE/DELETE because they're not supported for Legacy table
+            if (catalogSink.isDelete || catalogSink.isUpdate) {
+              throw new TableException(
+                String.format(
+                  "Can't perform %s operation of the table %s " +
+                    " because the corresponding table sink is the legacy TableSink," +
+                    " Please implement %s for it.",
+                  if (catalogSink.isDelete) "delete" else "update",
+                  identifier,
+                  classOf[DynamicTableSink].getName
+                ))
+            }
+
             // check the logical field type and physical field type are compatible
             val queryLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
             // validate logical schema and physical schema are compatible
@@ -409,14 +423,14 @@ abstract class PlannerBase(
             tableConfig,
             isStreamingMode,
             objectIdentifier,
-            resolvedTable.getOrigin,
+            resolvedTable,
             isTemporary
           )
         ) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orNull,
             objectIdentifier,
-            tableToFind.getOrigin,
+            tableToFind,
             getTableConfig,
             isStreamingMode,
             isTemporary)

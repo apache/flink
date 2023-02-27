@@ -284,7 +284,7 @@ public class ExecutionJobVertex
             CoordinatorStore coordinatorStore)
             throws Exception {
         return OperatorCoordinatorHolder.create(
-                provider, this, classLoader, coordinatorStore, false);
+                provider, this, classLoader, coordinatorStore, false, getTaskInformation());
     }
 
     public boolean isInitialized() {
@@ -407,22 +407,23 @@ public class ExecutionJobVertex
         synchronized (stateMonitor) {
             if (taskInformationOrBlobKey == null) {
                 final BlobWriter blobWriter = graph.getBlobWriter();
-
-                final TaskInformation taskInformation =
-                        new TaskInformation(
-                                jobVertex.getID(),
-                                jobVertex.getName(),
-                                parallelismInfo.getParallelism(),
-                                parallelismInfo.getMaxParallelism(),
-                                jobVertex.getInvokableClassName(),
-                                jobVertex.getConfiguration());
-
+                final TaskInformation taskInformation = getTaskInformation();
                 taskInformationOrBlobKey =
                         BlobWriter.serializeAndTryOffload(taskInformation, getJobId(), blobWriter);
             }
 
             return taskInformationOrBlobKey;
         }
+    }
+
+    public TaskInformation getTaskInformation() {
+        return new TaskInformation(
+                jobVertex.getID(),
+                jobVertex.getName(),
+                parallelismInfo.getParallelism(),
+                parallelismInfo.getMaxParallelism(),
+                jobVertex.getInvokableClassName(),
+                jobVertex.getConfiguration());
     }
 
     @Override
@@ -487,7 +488,7 @@ public class ExecutionJobVertex
 
             this.inputs.add(ires);
 
-            EdgeManagerBuildUtil.connectVertexToResult(this, ires, edge.getDistributionPattern());
+            EdgeManagerBuildUtil.connectVertexToResult(this, ires);
         }
     }
 

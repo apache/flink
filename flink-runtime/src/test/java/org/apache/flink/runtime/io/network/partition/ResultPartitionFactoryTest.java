@@ -132,18 +132,6 @@ class ResultPartitionFactoryTest {
         assertThat(resultPartition.isReleased()).isFalse();
     }
 
-    @Test
-    public void testHybridBroadcastEdgeAlwaysUseFullResultPartition() {
-        ResultPartition resultPartition =
-                createResultPartition(
-                        ResultPartitionType.HYBRID_SELECTIVE, Integer.MAX_VALUE, true);
-        assertThat(resultPartition.partitionType).isEqualTo(ResultPartitionType.HYBRID_FULL);
-
-        resultPartition =
-                createResultPartition(ResultPartitionType.HYBRID_FULL, Integer.MAX_VALUE, true);
-        assertThat(resultPartition.partitionType).isEqualTo(ResultPartitionType.HYBRID_FULL);
-    }
-
     private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
         return createResultPartition(partitionType, Integer.MAX_VALUE);
     }
@@ -174,7 +162,9 @@ class ResultPartitionFactoryTest {
                         10,
                         sortShuffleMinParallelism,
                         false,
-                        0);
+                        0,
+                        256,
+                        Long.MAX_VALUE);
 
         final ResultPartitionDeploymentDescriptor descriptor =
                 new ResultPartitionDeploymentDescriptor(

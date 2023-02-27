@@ -399,6 +399,10 @@ class ResultPartitionTest {
         while (!isInBlockingBufferRequest(requestThread.getStackTrace())) {
             Thread.sleep(50);
         }
+        // there is an extreme case where the request thread recovers from blocking very
+        // quickly, resulting in a calculated back-pressure time is equal to 0. This is used to
+        // avoid this case.
+        Thread.sleep(5);
         // recycle the buffer
         buffer.recycleBuffer();
         requestThread.join();
@@ -697,30 +701,44 @@ class ResultPartitionTest {
     }
 
     @Test
-    void testNumBytesProducedCounterForUnicast() throws IOException {
-        testNumBytesProducedCounter(false);
+    void testResultPartitionBytesCounterForUnicast() throws IOException {
+        testResultPartitionBytesCounter(false);
     }
 
     @Test
-    void testNumBytesProducedCounterForBroadcast() throws IOException {
-        testNumBytesProducedCounter(true);
+    void testResultPartitionBytesCounterForBroadcast() throws IOException {
+        testResultPartitionBytesCounter(true);
     }
 
-    private void testNumBytesProducedCounter(boolean isBroadcast) throws IOException {
+    private void testResultPartitionBytesCounter(boolean isBroadcast) throws IOException {
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(ResultPartitionType.BLOCKING);
 
         if (isBroadcast) {
             bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(bufferSize));
-            assertThat(bufferWritingResultPartition.numBytesProduced.getCount())
-                    .isEqualTo(bufferSize);
+
+            long[] subpartitionBytes =
+                    bufferWritingResultPartition
+                            .resultPartitionBytes
+                            .createSnapshot()
+                            .getSubpartitionBytes();
+            assertThat(subpartitionBytes).containsExactly(bufferSize, bufferSize);
+
             assertThat(bufferWritingResultPartition.numBytesOut.getCount())
                     .isEqualTo(2 * bufferSize);
         } else {
             bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
-            assertThat(bufferWritingResultPartition.numBytesProduced.getCount())
-                    .isEqualTo(bufferSize);
-            assertThat(bufferWritingResultPartition.numBytesOut.getCount()).isEqualTo(bufferSize);
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(2 * bufferSize), 1);
+
+            long[] subpartitionBytes =
+                    bufferWritingResultPartition
+                            .resultPartitionBytes
+                            .createSnapshot()
+                            .getSubpartitionBytes();
+            assertThat(subpartitionBytes).containsExactly(bufferSize, (long) 2 * bufferSize);
+
+            assertThat(bufferWritingResultPartition.numBytesOut.getCount())
+                    .isEqualTo(3 * bufferSize);
         }
     }
 

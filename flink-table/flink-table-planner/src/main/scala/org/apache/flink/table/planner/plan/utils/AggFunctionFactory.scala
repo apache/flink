@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.{DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
@@ -161,7 +161,8 @@ class AggFunctionFactory(
         argTypes.foreach(_ => constants.add(null))
         udagg.makeFunction(constants.toArray, argTypes)
 
-      case _: BridgingSqlAggFunction => null // not covered by this factory
+      case bridge: BridgingSqlAggFunction =>
+        bridge.getDefinition.asInstanceOf[UserDefinedFunction]
 
       case unSupported: SqlAggFunction =>
         throw new TableException(s"Unsupported Function: '${unSupported.getName}'")

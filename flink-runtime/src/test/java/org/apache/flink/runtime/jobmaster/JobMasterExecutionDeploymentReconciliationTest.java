@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -71,7 +72,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
     private static final Time testingTimeout = Time.seconds(10L);
 
     private final HeartbeatServices heartbeatServices =
-            new HeartbeatServices(Integer.MAX_VALUE, Integer.MAX_VALUE);
+            new HeartbeatServicesImpl(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
     private final TestingHighAvailabilityServices haServices =
             new TestingHighAvailabilityServices();

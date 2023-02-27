@@ -59,7 +59,7 @@ whether the REST Endpoint is available.
 
 ```bash
 $ curl http://localhost:8083/v1/info
-{"productName":"Apache Flink","version":"1.16-SNAPSHOT"}
+{"productName":"Apache Flink","version":"{{< version >}}"}
 ```
 
 ### Running SQL Queries
@@ -176,13 +176,13 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.check-interval</h5></td>
             <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
-            <td>The check interval for idle session timeout, which can be disabled by setting to zero or negative value.</td>
+            <td>The check interval for idle session timeout, which can be disabled by setting to zero.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.idle-timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
-            <td>Timeout interval for closing the session when the session hasn't been accessed during the interval. If setting to zero or negative value, the session will not be closed.</td>
+            <td>Timeout interval for closing the session when the session hasn't been accessed during the interval. If setting to zero, the session will not be closed.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.max-num</h5></td>
@@ -214,7 +214,7 @@ $ ./sql-gateway -Dkey=value
 Supported Endpoints
 ----------------
 
-Flink natively support [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}).
+Flink natively supports [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}).
 The SQL Gateway is bundled with the REST Endpoint by default. With the flexible architecture, users are able to start the SQL Gateway with the specified endpoints by calling 
 
 ```bash

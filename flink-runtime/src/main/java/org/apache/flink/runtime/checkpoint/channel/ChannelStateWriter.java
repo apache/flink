@@ -109,8 +109,8 @@ public interface ChannelStateWriter extends Closeable {
     /**
      * Add in-flight buffers from the {@link
      * org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel}. Must be
-     * called after {@link #start} (long)} and before {@link #finishInput(long)}. Buffers are
-     * recycled after they are written or exception occurs.
+     * called after {@link #start(long,CheckpointOptions)} and before {@link #finishInput(long)}.
+     * Buffers are recycled after they are written or exception occurs.
      *
      * @param startSeqNum sequence number of the 1st passed buffer. It is intended to use for
      *     incremental snapshots. If no data is passed it is ignored.

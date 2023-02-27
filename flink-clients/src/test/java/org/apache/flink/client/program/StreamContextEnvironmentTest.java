@@ -20,6 +20,8 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -163,6 +165,22 @@ class StreamContextEnvironmentTest {
 
     @ParameterizedTest
     @MethodSource("provideExecutors")
+    void testForSinkTransformation(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
+
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSinkV2());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
     void testAllowProgramConfigurationWildcards(
             ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
         final Configuration clusterConfig = new Configuration();
@@ -230,4 +248,20 @@ class StreamContextEnvironmentTest {
     }
 
     private static class ExecutorReachedException extends RuntimeException {}
+
+    private static class DiscardingSinkV2<T> implements Sink<T> {
+        @Override
+        public SinkWriter<T> createWriter(InitContext context) {
+            return new SinkWriter<T>() {
+                @Override
+                public void write(T element, Context context) {}
+
+                @Override
+                public void flush(boolean endOfInput) {}
+
+                @Override
+                public void close() {}
+            };
+        }
+    }
 }

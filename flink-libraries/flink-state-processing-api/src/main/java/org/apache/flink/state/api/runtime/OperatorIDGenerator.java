@@ -35,7 +35,7 @@ public final class OperatorIDGenerator {
      * Generate {@link OperatorID}'s from {@code uid}'s.
      *
      * <p>{@link
-     * org.apache.flink.streaming.api.graph.StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)})}
+     * org.apache.flink.streaming.api.graph.StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)}
      *
      * @param uid {@code DataStream} operator uid.
      * @return corresponding {@link OperatorID}

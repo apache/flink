@@ -167,6 +167,11 @@ public class DecimalDataTest {
         assertThat(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0)).isNull();
         assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
         assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
+
+        DecimalData decimal3 = DecimalData.fromBigDecimal(new BigDecimal(10), 18, 0);
+        DecimalData decimal4 = DecimalData.fromBigDecimal(new BigDecimal(15), 18, 0);
+        assertThat(DecimalDataUtils.compare(subtract(decimal3, decimal4, 19, 0), -5)).isEqualTo(0);
+        assertThat(DecimalDataUtils.compare(add(decimal3, decimal4, 19, 0), 25)).isEqualTo(0);
     }
 
     @Test

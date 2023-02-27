@@ -64,7 +64,7 @@ case $SERVICE in
 
     (sql-gateway)
         CLASS_TO_RUN=org.apache.flink.table.gateway.SqlGateway
-        SQL_GATEWAY_CLASSPATH=`findSqlGatewayJar`
+        SQL_GATEWAY_CLASSPATH="`findSqlGatewayJar`":"`findFlinkPythonJar`"
     ;;
 
     (*)

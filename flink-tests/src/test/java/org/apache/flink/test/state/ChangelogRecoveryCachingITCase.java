@@ -78,6 +78,7 @@ import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingO
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_MODE;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ENABLE_UNALIGNED;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT;
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Tests caching of changelog segments downloaded during recovery. */
@@ -181,6 +182,9 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
 
         conf.set(ENABLE_UNALIGNED, true); // speedup
         conf.set(ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO); // prevent randomization
+        conf.set(
+                UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
+                1); // prevent file is opened multiple times
         conf.set(BUFFER_DEBLOAT_ENABLED, false); // prevent randomization
         conf.set(RESTART_STRATEGY, "none"); // not expecting any failures
 

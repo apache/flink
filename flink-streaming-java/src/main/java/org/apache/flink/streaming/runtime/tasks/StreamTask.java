@@ -91,6 +91,8 @@ import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
@@ -133,8 +135,11 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
@@ -255,6 +260,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      * that early cancel() before invoke() behaves correctly.
      */
     private volatile boolean isRunning;
+
+    /** Flag to mark the task at restoring duration in {@link #restore()}. */
+    private volatile boolean isRestoring;
 
     /** Flag to mark this task as canceled. */
     private volatile boolean canceled;
@@ -416,8 +424,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
             this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 
+            // With maxConcurrentCheckpoints + 1 we more or less adhere to the
+            // maxConcurrentCheckpoints configuration, but allow for a small leeway with allowing
+            // for simultaneous N ongoing concurrent checkpoints and for example clean up of one
+            // aborted one.
             this.asyncOperationsThreadPool =
-                    Executors.newCachedThreadPool(
+                    new ThreadPoolExecutor(
+                            0,
+                            configuration.getMaxConcurrentCheckpoints() + 1,
+                            60L,
+                            TimeUnit.SECONDS,
+                            new LinkedBlockingQueue<>(),
                             new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
             // Register all asynchronous checkpoint threads.
@@ -453,6 +470,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
+                            checkpointStorage,
                             checkpointStorageAccess,
                             getName(),
                             actionExecutor,
@@ -468,7 +486,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             this::prepareInputSnapshot,
                             configuration.getMaxConcurrentCheckpoints(),
                             BarrierAlignmentUtil.createRegisterTimerCallback(
-                                    mainMailboxExecutor, systemTimerService));
+                                    mainMailboxExecutor, systemTimerService),
+                            configuration.getMaxSubtasksPerChannelStateFile());
             resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
             // Register to stop all timers and threads. Should be closed first.
@@ -543,9 +562,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         DataInputStatus status = inputProcessor.processInput();
         switch (status) {
             case MORE_AVAILABLE:
-                if (recordWriter.isAvailable()
-                        && (changelogWriterAvailabilityProvider == null
-                                || changelogWriterAvailabilityProvider.isAvailable())) {
+                if (taskIsAvailable()) {
                     return;
                 }
                 break;
@@ -675,6 +692,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             LOG.debug("Re-restore attempt rejected.");
             return;
         }
+        isRestoring = true;
         closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
@@ -716,6 +734,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         channelIOExecutor.shutdown();
 
         isRunning = true;
+        isRestoring = false;
     }
 
     private CompletableFuture<Void> restoreGates() throws Exception {
@@ -988,6 +1007,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     public MailboxExecutorFactory getMailboxExecutorFactory() {
         return this.mailboxProcessor::getMailboxExecutor;
+    }
+
+    private boolean taskIsAvailable() {
+        return recordWriter.isAvailable()
+                && (changelogWriterAvailabilityProvider == null
+                        || changelogWriterAvailabilityProvider.isAvailable());
+    }
+
+    public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
+        return () -> !this.mailboxProcessor.hasMail() && taskIsAvailable();
     }
 
     public final boolean isRunning() {
@@ -1539,8 +1568,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     @Override
     public void handleAsyncException(String message, Throwable exception) {
-        if (isRunning) {
-            // only fail if the task is still running
+        if (isRestoring || isRunning) {
+            // only fail if the task is still in restoring or running
             asyncExceptionHandler.handleAsyncException(message, exception);
         }
     }
@@ -1603,6 +1632,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         int index = 0;
         for (NonChainedOutput streamOutput : outputsInOrder) {
+            replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(
+                    environment, streamOutput, index);
             recordWriters.add(
                     createRecordWriter(
                             streamOutput,
@@ -1612,6 +1643,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             streamOutput.getBufferTimeout()));
         }
         return recordWriters;
+    }
+
+    private static void replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(
+            Environment environment, NonChainedOutput streamOutput, int outputIndex) {
+        if (streamOutput.getPartitioner() instanceof ForwardPartitioner
+                && environment.getWriter(outputIndex).getNumberOfSubpartitions()
+                        != environment.getTaskInfo().getNumberOfParallelSubtasks()) {
+            LOG.debug(
+                    "Replacing forward partitioner with rebalance for {}",
+                    environment.getTaskInfo().getTaskNameWithSubtasks());
+            streamOutput.setPartitioner(new RebalancePartitioner<>());
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1745,5 +1788,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public final Environment getEnvironment() {
         return environment;
+    }
+
+    /** Check whether records can be emitted in batch. */
+    @FunctionalInterface
+    public interface CanEmitBatchOfRecordsChecker {
+
+        boolean check();
     }
 }

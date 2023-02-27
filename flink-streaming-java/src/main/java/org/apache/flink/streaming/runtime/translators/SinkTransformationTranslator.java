@@ -20,11 +20,13 @@ package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
 import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
@@ -47,10 +49,8 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -104,7 +104,7 @@ public class SinkTransformationTranslator<Input, Output>
         private final Context context;
         private final DataStream<T> inputStream;
         private final StreamExecutionEnvironment executionEnvironment;
-        private final int environmentParallelism;
+        private final Optional<Integer> environmentParallelism;
         private final boolean isBatchMode;
         private final boolean isCheckpointingEnabled;
 
@@ -116,7 +116,11 @@ public class SinkTransformationTranslator<Input, Output>
                 boolean isBatchMode) {
             this.inputStream = inputStream;
             this.executionEnvironment = inputStream.getExecutionEnvironment();
-            this.environmentParallelism = executionEnvironment.getParallelism();
+            this.environmentParallelism =
+                    executionEnvironment
+                            .getConfig()
+                            .toConfiguration()
+                            .getOptional(CoreOptions.DEFAULT_PARALLELISM);
             this.isCheckpointingEnabled =
                     executionEnvironment.getCheckpointConfig().isCheckpointingEnabled();
             this.transformation = transformation;
@@ -136,7 +140,8 @@ public class SinkTransformationTranslator<Input, Output>
                         adjustTransformations(
                                 prewritten,
                                 ((WithPreWriteTopology<T>) sink)::addPreWriteTopology,
-                                true);
+                                true,
+                                sink instanceof SupportsConcurrentExecutionAttempts);
             }
 
             if (sink instanceof TwoPhaseCommittingSink) {
@@ -149,16 +154,15 @@ public class SinkTransformationTranslator<Input, Output>
                                         WRITER_NAME,
                                         CommittableMessageTypeInfo.noOutput(),
                                         new SinkWriterOperatorFactory<>(sink)),
-                        false);
+                        false,
+                        sink instanceof SupportsConcurrentExecutionAttempts);
             }
 
-            final Set<Integer> expandedSinks = new HashSet<>();
             final List<Transformation<?>> sinkTransformations =
                     executionEnvironment
                             .getTransformations()
                             .subList(sizeBefore, executionEnvironment.getTransformations().size());
-            sinkTransformations.forEach(t -> expandedSinks.addAll(context.transform(t)));
-            context.getStreamGraph().registerExpandedSinks(expandedSinks);
+            sinkTransformations.forEach(context::transform);
 
             // Remove all added sink subtransformations to avoid duplications and allow additional
             // expansions
@@ -183,7 +187,8 @@ public class SinkTransformationTranslator<Input, Output>
                                             WRITER_NAME,
                                             typeInformation,
                                             new SinkWriterOperatorFactory<>(sink)),
-                            false);
+                            false,
+                            sink instanceof SupportsConcurrentExecutionAttempts);
 
             DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
 
@@ -192,7 +197,8 @@ public class SinkTransformationTranslator<Input, Output>
                         adjustTransformations(
                                 precommitted,
                                 ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology,
-                                true);
+                                true,
+                                false);
             }
 
             DataStream<CommittableMessage<CommT>> committed =
@@ -206,6 +212,7 @@ public class SinkTransformationTranslator<Input, Output>
                                                     committingSink,
                                                     isBatchMode,
                                                     isCheckpointingEnabled)),
+                            false,
                             false);
 
             if (sink instanceof WithPostCommitTopology) {
@@ -216,7 +223,8 @@ public class SinkTransformationTranslator<Input, Output>
                             ((WithPostCommitTopology<T, CommT>) sink).addPostCommitTopology(pc);
                             return null;
                         },
-                        true);
+                        true,
+                        false);
             }
         }
 
@@ -249,7 +257,8 @@ public class SinkTransformationTranslator<Input, Output>
         private <I, R> R adjustTransformations(
                 DataStream<I> inputStream,
                 Function<DataStream<I>, R> action,
-                boolean isExpandedTopology) {
+                boolean isExpandedTopology,
+                boolean supportsConcurrentExecutionAttempts) {
 
             // Reset the environment parallelism temporarily before adjusting transformations,
             // we can therefore be aware of any customized parallelism of the sub topology
@@ -328,17 +337,28 @@ public class SinkTransformationTranslator<Input, Output>
                     subTransformation.setMaxParallelism(transformation.getMaxParallelism());
                 }
 
-                if (transformation.getChainingStrategy() == null
-                        || !(subTransformation instanceof PhysicalTransformation)) {
-                    continue;
-                }
+                if (subTransformation instanceof PhysicalTransformation) {
+                    PhysicalTransformation<?> physicalSubTransformation =
+                            (PhysicalTransformation<?>) subTransformation;
 
-                ((PhysicalTransformation<?>) subTransformation)
-                        .setChainingStrategy(transformation.getChainingStrategy());
+                    if (transformation.getChainingStrategy() != null) {
+                        physicalSubTransformation.setChainingStrategy(
+                                transformation.getChainingStrategy());
+                    }
+
+                    // overrides the supportsConcurrentExecutionAttempts of transformation because
+                    // it's not allowed to specify fine-grained concurrent execution attempts yet
+                    physicalSubTransformation.setSupportsConcurrentExecutionAttempts(
+                            supportsConcurrentExecutionAttempts);
+                }
             }
 
             // Restore the previous parallelism of the environment before adjusting transformations
-            executionEnvironment.setParallelism(environmentParallelism);
+            if (environmentParallelism.isPresent()) {
+                executionEnvironment.getConfig().setParallelism(environmentParallelism.get());
+            } else {
+                executionEnvironment.getConfig().resetParallelism();
+            }
 
             return result;
         }

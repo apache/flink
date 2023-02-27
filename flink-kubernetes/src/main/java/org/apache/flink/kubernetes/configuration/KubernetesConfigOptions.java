@@ -485,6 +485,26 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The user agent to be used for contacting with Kubernetes APIServer.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED =
+            key("kubernetes.decorator.hadoop-conf-mount.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable Hadoop configuration mount decorator. This "
+                                    + "must be set to false when Hadoop config is mounted outside of "
+                                    + "Flink. A typical use-case is when one uses Flink Kubernetes "
+                                    + "Operator.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED =
+            key("kubernetes.decorator.kerberos-mount.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable Kerberos mount decorator. This must be set "
+                                    + "to false when Kerberos config and keytab is mounted outside of "
+                                    + "Flink. A typical use-case is when one uses Flink Kubernetes "
+                                    + "Operator.");
+
     /**
      * This will only be used to support blocklist mechanism, which is experimental currently, so we
      * do not want to expose this option in the documentation.

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.AbstractPartitionTrackerTest;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -245,7 +246,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     BlobServerOptions.STORAGE_DIRECTORY,
                     temporaryFolder.newFolder().getAbsolutePath());
 
-            HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 5_000_000L);
+            HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 5_000_000L);
 
             final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
             jobMaster =

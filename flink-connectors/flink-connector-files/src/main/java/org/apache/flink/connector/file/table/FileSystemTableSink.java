@@ -149,15 +149,17 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             ProviderContext providerContext, DataStream<RowData> dataStream, Context sinkContext) {
         final int inputParallelism = dataStream.getParallelism();
         final int parallelism = Optional.ofNullable(configuredParallelism).orElse(inputParallelism);
+        boolean parallelismConfigued = configuredParallelism != null;
 
         if (sinkContext.isBounded()) {
-            return createBatchSink(dataStream, sinkContext, parallelism);
+            return createBatchSink(dataStream, sinkContext, parallelism, parallelismConfigued);
         } else {
             if (overwrite) {
                 throw new IllegalStateException("Streaming mode not support overwrite.");
             }
 
-            return createStreamingSink(providerContext, dataStream, sinkContext, parallelism);
+            return createStreamingSink(
+                    providerContext, dataStream, sinkContext, parallelism, parallelismConfigued);
         }
     }
 
@@ -170,7 +172,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private DataStreamSink<RowData> createBatchSink(
-            DataStream<RowData> inputStream, Context sinkContext, final int parallelism) {
+            DataStream<RowData> inputStream,
+            Context sinkContext,
+            final int parallelism,
+            boolean parallelismConfigured) {
         FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
         builder.setPartitionComputer(partitionComputer());
         builder.setDynamicGrouped(dynamicGrouping);
@@ -182,17 +187,17 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         builder.setTempPath(toStagingPath());
         builder.setOutputFileConfig(
                 OutputFileConfig.builder().withPartPrefix("part-" + UUID.randomUUID()).build());
-        return inputStream
-                .writeUsingOutputFormat(builder.build())
-                .setParallelism(parallelism)
-                .name("Filesystem");
+        DataStreamSink<RowData> sink = inputStream.writeUsingOutputFormat(builder.build());
+        sink.getTransformation().setParallelism(parallelism, parallelismConfigured);
+        return sink.name("Filesystem");
     }
 
     private DataStreamSink<?> createStreamingSink(
             ProviderContext providerContext,
             DataStream<RowData> dataStream,
             Context sinkContext,
-            final int parallelism) {
+            final int parallelism,
+            boolean parallelismConfigured) {
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
@@ -265,7 +270,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                             path,
                             reader,
                             compactionSize,
-                            parallelism);
+                            parallelism,
+                            parallelismConfigured);
         } else {
             writerStream =
                     StreamingSink.writer(
@@ -275,7 +281,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                             bucketsBuilder,
                             parallelism,
                             partitionKeys,
-                            tableOptions);
+                            tableOptions,
+                            parallelismConfigured);
         }
 
         return StreamingSink.sink(

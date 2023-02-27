@@ -21,21 +21,19 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorSer
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterators.getOnlyElement;
 import static org.apache.flink.util.concurrent.Executors.newDirectExecutorService;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link PeriodicMaterializationManager} test. */
-public class PeriodicMaterializationManagerTest extends TestLogger {
+class PeriodicMaterializationManagerTest {
 
     @Test
-    public void testInitialDelay() {
+    void testInitialDelay() {
         ManuallyTriggeredScheduledExecutorService scheduledExecutorService =
                 new ManuallyTriggeredScheduledExecutorService();
         long periodicMaterializeDelay = 10_000L;
@@ -56,12 +54,16 @@ public class PeriodicMaterializationManagerTest extends TestLogger {
             test.start();
 
             assertThat(
-                    String.format(
-                            "task for initial materialization should be scheduled with a 0..%d delay",
-                            periodicMaterializeDelay),
-                    getOnlyElement(scheduledExecutorService.getAllScheduledTasks().iterator())
-                            .getDelay(MILLISECONDS),
-                    lessThanOrEqualTo(periodicMaterializeDelay));
+                            getOnlyElement(
+                                            scheduledExecutorService
+                                                    .getAllScheduledTasks()
+                                                    .iterator())
+                                    .getDelay(MILLISECONDS))
+                    .as(
+                            String.format(
+                                    "task for initial materialization should be scheduled with a 0..%d delay",
+                                    periodicMaterializeDelay))
+                    .isLessThanOrEqualTo(periodicMaterializeDelay);
         }
     }
 }

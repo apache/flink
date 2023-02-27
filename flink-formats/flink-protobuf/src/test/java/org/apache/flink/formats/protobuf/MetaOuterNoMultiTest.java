@@ -45,10 +45,10 @@ public class MetaOuterNoMultiTest {
     public void testSimple() throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        SimpleTestOuterNomultiProto.SimpleTestOuterNomulti.getDescriptor());
+                        SimpleTestOuterNomultiProto.SimpleTestOuterNoMulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
-                        SimpleTestOuterNomultiProto.SimpleTestOuterNomulti.class.getName(),
+                        SimpleTestOuterNomultiProto.SimpleTestOuterNoMulti.class.getName(),
                         false,
                         false,
                         "");

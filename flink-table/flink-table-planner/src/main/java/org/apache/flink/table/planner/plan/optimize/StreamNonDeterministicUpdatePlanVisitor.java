@@ -259,8 +259,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 // check if it is a non-deterministic function
                 int leftFieldCnt = correlate.inputRel().getRowType().getFieldCount();
                 Optional<String> ndCall =
-                        FlinkRexUtil.getNonDeterministicCallNameInStreaming(
-                                correlate.scan().getCall());
+                        FlinkRexUtil.getNonDeterministicCallName(correlate.scan().getCall());
                 if (ndCall.isPresent()) {
                     // all columns from table function scan cannot satisfy the required determinism
                     List<Integer> unsatisfiedColumns =
@@ -478,8 +477,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
              * PROCTIME_MATERIALIZE(PROCTIME())) is equal to a normal dynamic temporal function and
              * will be validated in calc node.
              */
-            Optional<String> ndCall =
-                    FlinkRexUtil.getNonDeterministicCallNameInStreaming(join.getCondition());
+            Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(join.getCondition());
             if ((leftInputHasUpdate || rightInputHasUpdate || !innerOrSemi) && ndCall.isPresent()) {
                 // when output has update, the join condition cannot be non-deterministic:
                 // 1. input has update -> output has update
@@ -783,8 +781,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                         .collect(Collectors.toList());
         Map<Integer, String> nonDeterministicCols = new HashMap<>();
         for (int index = 0; index < projects.size(); index++) {
-            Optional<String> ndCall =
-                    FlinkRexUtil.getNonDeterministicCallNameInStreaming(projects.get(index));
+            Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(projects.get(index));
             if (ndCall.isPresent()) {
                 nonDeterministicCols.put(index, ndCall.get());
             } // else ignore
@@ -805,7 +802,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
 
     private void checkNonDeterministicCondition(
             final RexNode condition, final StreamPhysicalRel relatedRel) {
-        Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallNameInStreaming(condition);
+        Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(condition);
         if (ndCall.isPresent()) {
             throwNonDeterministicConditionError(ndCall.get(), condition, relatedRel);
         }
@@ -923,7 +920,6 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             Arrays.stream(overSpec.getPartition().getFieldIndices())
                     .forEach(allRequiredInputSet::add);
             // add aggCall's input
-            overSpec.getGroups().forEach(OverSpec.GroupSpec::getAggCalls);
             int aggOutputIndex = inputFieldCnt;
             for (OverSpec.GroupSpec groupSpec : overSpec.getGroups()) {
                 for (AggregateCall aggCall : groupSpec.getAggCalls()) {

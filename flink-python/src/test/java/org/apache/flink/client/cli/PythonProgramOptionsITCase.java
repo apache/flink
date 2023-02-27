@@ -59,7 +59,8 @@ class PythonProgramOptionsITCase {
 
         final File[] dummyJobJar = {null};
         Files.walkFileTree(
-                FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/artifacts"),
+                FileSystems.getDefault()
+                        .getPath(System.getProperty("user.dir") + "/target/artifacts"),
                 new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)

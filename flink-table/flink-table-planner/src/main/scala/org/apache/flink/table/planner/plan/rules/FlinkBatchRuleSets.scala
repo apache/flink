@@ -133,7 +133,7 @@ object FlinkBatchRuleSets {
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
-    CoreRules.FILTER_PROJECT_TRANSPOSE,
+    FlinkFilterProjectTransposeRule.INSTANCE,
     CoreRules.FILTER_SET_OP_TRANSPOSE,
     CoreRules.FILTER_MERGE
   )
@@ -227,7 +227,7 @@ object FlinkBatchRuleSets {
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
     // join reorder
-    CoreRules.MULTI_JOIN_OPTIMIZE
+    FlinkJoinReorderRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
@@ -287,7 +287,7 @@ object FlinkBatchRuleSets {
     ConstantRankNumberColumnRemoveRule.INSTANCE,
 
     // calc rules
-    CoreRules.FILTER_CALC_MERGE,
+    FlinkFilterCalcMergeRule.INSTANCE,
     CoreRules.PROJECT_CALC_MERGE,
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,
@@ -433,18 +433,13 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to optimize plans after batch exec execution. */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
-    (RuleSets
-      .ofList(
-        EnforceLocalHashAggRule.INSTANCE,
-        EnforceLocalSortAggRule.INSTANCE,
-        PushLocalHashAggIntoScanRule.INSTANCE,
-        PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
-        PushLocalSortAggIntoScanRule.INSTANCE,
-        PushLocalSortAggWithSortIntoScanRule.INSTANCE,
-        PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
-        PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
-      )
-      .asScala ++
-      DynamicPartitionPruningRule.DYNAMIC_PARTITION_PRUNING_RULES.asScala).asJava
+    EnforceLocalHashAggRule.INSTANCE,
+    EnforceLocalSortAggRule.INSTANCE,
+    PushLocalHashAggIntoScanRule.INSTANCE,
+    PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortIntoScanRule.INSTANCE,
+    PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
+    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
   )
 }

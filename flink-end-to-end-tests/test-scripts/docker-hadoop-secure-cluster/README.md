@@ -4,7 +4,7 @@ Required versions
 -----------------
 
 * JDK8
-* Hadoop 2.8.5
+* Hadoop 2.10.2
 
 Default Environment Variables
 -----------------------------
@@ -24,7 +24,7 @@ Run image
 
 ```
 cd flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster
-wget -O hadoop/hadoop.tar.gz https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz
+wget -O hadoop/hadoop.tar.gz https://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz
 docker-compose build
 docker-compose up
 ```

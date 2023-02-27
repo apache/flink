@@ -18,55 +18,35 @@
 
 package org.apache.flink.table.gateway.rest.message.statement;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.rest.serde.JsonResultSetDeserializer;
-import org.apache.flink.table.gateway.rest.serde.JsonResultSetSerializer;
+import org.apache.flink.table.gateway.rest.serde.FetchResultResponseBodyDeserializer;
+import org.apache.flink.table.gateway.rest.serde.FetchResultsResponseBodySerializer;
+import org.apache.flink.table.gateway.rest.serde.ResultInfo;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import javax.annotation.Nullable;
 
-/** {@link ResponseBody} for execute a statement. */
-public class FetchResultsResponseBody implements ResponseBody {
+/** {@link ResponseBody} for executing a statement. */
+@JsonSerialize(using = FetchResultsResponseBodySerializer.class)
+@JsonDeserialize(using = FetchResultResponseBodyDeserializer.class)
+public interface FetchResultsResponseBody extends ResponseBody {
 
-    private static final String FIELD_RESULT_TYPE = "resultType";
-    private static final String FIELD_RESULTS = "results";
-    private static final String FIELD_NEXT_RESULT_URI = "nextResultUri";
+    ResultInfo getResults();
 
-    @JsonProperty(FIELD_RESULTS)
-    @JsonSerialize(using = JsonResultSetSerializer.class)
-    @JsonDeserialize(using = JsonResultSetDeserializer.class)
-    private final ResultSet results;
-
-    @JsonProperty(FIELD_RESULT_TYPE)
-    private final String resultType;
-
-    @JsonProperty(FIELD_NEXT_RESULT_URI)
-    @Nullable
-    private final String nextResultUri;
-
-    public FetchResultsResponseBody(
-            @JsonProperty(FIELD_RESULTS) ResultSet results,
-            @JsonProperty(FIELD_RESULT_TYPE) String resultType,
-            @Nullable @JsonProperty(FIELD_NEXT_RESULT_URI) String nextResultUri) {
-        this.results = results;
-        this.resultType = resultType;
-        this.nextResultUri = nextResultUri;
-    }
-
-    public ResultSet getResults() {
-        return results;
-    }
-
-    public String getResultType() {
-        return resultType;
-    }
+    ResultSet.ResultType getResultType();
 
     @Nullable
-    public String getNextResultUri() {
-        return nextResultUri;
-    }
+    String getNextResultUri();
+
+    boolean isQueryResult();
+
+    @Nullable
+    JobID getJobID();
+
+    ResultKind getResultKind();
 }

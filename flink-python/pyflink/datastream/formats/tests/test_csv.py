@@ -17,11 +17,8 @@
 ################################################################################
 import glob
 import os
-import sys
 import tempfile
 from typing import Tuple, List
-
-import pytest
 
 from pyflink.common import WatermarkStrategy, Types
 from pyflink.datastream import MapFunction
@@ -114,7 +111,6 @@ class ProcessFileSourceCsvReaderFormatTests(FileSourceCsvReaderFormatTests,
     pass
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedFileSourceCsvReaderFormatTests(FileSourceCsvReaderFormatTests,
                                              PyFlinkStreamingTestCase):
     def setUp(self):

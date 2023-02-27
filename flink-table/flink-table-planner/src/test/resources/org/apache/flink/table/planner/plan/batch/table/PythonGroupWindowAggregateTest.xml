@@ -28,9 +28,10 @@ LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
       <![CDATA[
 Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1], select=[b, PandasAggregateFunction(a, c) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+   +- Exchange(distribution=[keep_input_as_is[hash[b]]])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -46,9 +47,10 @@ LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
       <![CDATA[
 Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[b, PandasAggregateFunction(a, c) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+   +- Exchange(distribution=[keep_input_as_is[hash[b]]])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

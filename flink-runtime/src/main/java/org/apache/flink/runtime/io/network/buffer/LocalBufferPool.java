@@ -130,8 +130,12 @@ class LocalBufferPool implements BufferPool {
     @GuardedBy("availableMemorySegments")
     private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
+    /**
+     * Indicates whether this {@link LocalBufferPool} has requested to be notified on the next time
+     * that global pool becoming available, so it can then request buffer from the global pool.
+     */
     @GuardedBy("availableMemorySegments")
-    private boolean requestingWhenAvailable;
+    private boolean requestingNotificationOfGlobalPoolAvailable;
 
     /**
      * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal number of
@@ -232,14 +236,10 @@ class LocalBufferPool implements BufferPool {
         this.maxBuffersPerChannel = maxBuffersPerChannel;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
 
-        // Lock is only taken, because #checkAvailability asserts it. It's a small penalty for
-        // thread safety.
+        // Lock is only taken, because #checkAndUpdateAvailability asserts it. It's a small penalty
+        // for thread safety.
         synchronized (this.availableMemorySegments) {
-            if (checkAvailability()) {
-                availabilityHelper.resetAvailable();
-            }
-
-            checkConsistentAvailability();
+            checkAndUpdateAvailability();
         }
     }
 
@@ -412,11 +412,7 @@ class LocalBufferPool implements BufferPool {
                 }
             }
 
-            if (!checkAvailability()) {
-                availabilityHelper.resetUnavailable();
-            }
-
-            checkConsistentAvailability();
+            checkAndUpdateAvailability();
         }
         return segment;
     }
@@ -475,22 +471,22 @@ class LocalBufferPool implements BufferPool {
      * multiple {@link LocalBufferPool}s might wait on the future of the global pool, hence this
      * method double-check if a new buffer is really needed at the time it becomes available.
      */
+    @GuardedBy("availableMemorySegments")
     private void requestMemorySegmentFromGlobalWhenAvailable() {
         assert Thread.holdsLock(availableMemorySegments);
 
-        if (requestingWhenAvailable) {
-            return;
-        }
-        requestingWhenAvailable = true;
-
+        checkState(
+                !requestingNotificationOfGlobalPoolAvailable,
+                "local buffer pool is already in the state of requesting memory segment from global when it is available.");
+        requestingNotificationOfGlobalPoolAvailable = true;
         assertNoException(
                 networkBufferPool.getAvailableFuture().thenRun(this::onGlobalPoolAvailable));
     }
 
     private void onGlobalPoolAvailable() {
-        CompletableFuture<?> toNotify = null;
+        CompletableFuture<?> toNotify;
         synchronized (availableMemorySegments) {
-            requestingWhenAvailable = false;
+            requestingNotificationOfGlobalPoolAvailable = false;
             if (isDestroyed || availabilityHelper.isApproximatelyAvailable()) {
                 // there is currently no benefit to obtain buffer from global; give other pools
                 // precedent
@@ -502,9 +498,7 @@ class LocalBufferPool implements BufferPool {
             // #requestMemorySegmentFromGlobalWhenAvailable again if no segment could be fetched
             // because of
             // concurrent requests from different LocalBufferPools.
-            if (checkAvailability()) {
-                toNotify = availabilityHelper.getUnavailableToResetAvailable();
-            }
+            toNotify = checkAndUpdateAvailability();
         }
         mayNotifyAvailable(toNotify);
     }
@@ -517,21 +511,48 @@ class LocalBufferPool implements BufferPool {
                 && numberOfRequestedOverdraftMemorySegments == 0;
     }
 
-    private boolean checkAvailability() {
+    @GuardedBy("availableMemorySegments")
+    private CompletableFuture<?> checkAndUpdateAvailability() {
+        assert Thread.holdsLock(availableMemorySegments);
+
+        CompletableFuture<?> toNotify = null;
+
+        AvailabilityStatus availabilityStatus = checkAvailability();
+        if (availabilityStatus.isAvailable()) {
+            toNotify = availabilityHelper.getUnavailableToResetAvailable();
+        } else {
+            availabilityHelper.resetUnavailable();
+        }
+        if (availabilityStatus.isNeedRequestingNotificationOfGlobalPoolAvailable()) {
+            requestMemorySegmentFromGlobalWhenAvailable();
+        }
+
+        checkConsistentAvailability();
+        return toNotify;
+    }
+
+    @GuardedBy("availableMemorySegments")
+    private AvailabilityStatus checkAvailability() {
         assert Thread.holdsLock(availableMemorySegments);
 
         if (!availableMemorySegments.isEmpty()) {
-            return shouldBeAvailable();
+            return AvailabilityStatus.from(shouldBeAvailable(), false);
         }
         if (isRequestedSizeReached()) {
-            return false;
+            return AvailabilityStatus.UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION;
         }
-
-        // There aren't availableMemorySegments and we continue to request new memory segment.
+        boolean needRequestingNotificationOfGlobalPoolAvailable = false;
+        // There aren't availableMemorySegments and we continue to request new memory segment from
+        // global pool.
         if (!requestMemorySegmentFromGlobal()) {
-            requestMemorySegmentFromGlobalWhenAvailable();
+            // If we can not get a buffer from global pool, we should request from it when it
+            // becomes available. It should be noted that if we are already in this status, do not
+            // need to repeat the request.
+            needRequestingNotificationOfGlobalPoolAvailable =
+                    !requestingNotificationOfGlobalPoolAvailable;
         }
-        return shouldBeAvailable();
+        return AvailabilityStatus.from(
+                shouldBeAvailable(), needRequestingNotificationOfGlobalPoolAvailable);
     }
 
     private void checkConsistentAvailability() {
@@ -633,7 +654,7 @@ class LocalBufferPool implements BufferPool {
 
     @Override
     public void setNumBuffers(int numBuffers) {
-        CompletableFuture<?> toNotify = null;
+        CompletableFuture<?> toNotify;
         synchronized (availableMemorySegments) {
             checkArgument(
                     numBuffers >= numberOfRequiredMemorySegments,
@@ -648,18 +669,12 @@ class LocalBufferPool implements BufferPool {
             if (isDestroyed) {
                 // FLINK-19964: when two local buffer pools are released concurrently, one of them
                 // gets buffers assigned
-                // make sure that checkAvailability is not called as it would pro-actively acquire
-                // one buffer from NetworkBufferPool
+                // make sure that checkAndUpdateAvailability is not called as it would pro-actively
+                // acquire one buffer from NetworkBufferPool.
                 return;
             }
 
-            if (checkAvailability()) {
-                toNotify = availabilityHelper.getUnavailableToResetAvailable();
-            } else {
-                availabilityHelper.resetUnavailable();
-            }
-
-            checkConsistentAvailability();
+            toNotify = checkAndUpdateAvailability();
         }
 
         mayNotifyAvailable(toNotify);
@@ -755,6 +770,53 @@ class LocalBufferPool implements BufferPool {
         @Override
         public void recycle(MemorySegment memorySegment) {
             bufferPool.recycle(memorySegment, channel);
+        }
+    }
+
+    /**
+     * This class represents the buffer pool's current ground-truth availability and whether to
+     * request buffer from global pool when it is available.
+     */
+    private enum AvailabilityStatus {
+        AVAILABLE(true, false),
+        UNAVAILABLE_NEED_REQUESTING_NOTIFICATION(false, true),
+        UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION(false, false);
+
+        /** Indicates whether the {@link LocalBufferPool} is currently available. */
+        private final boolean available;
+
+        /**
+         * Indicates whether to requesting notification of global pool when it becomes available.
+         */
+        private final boolean needRequestingNotificationOfGlobalPoolAvailable;
+
+        AvailabilityStatus(
+                boolean available, boolean needRequestingNotificationOfGlobalPoolAvailable) {
+            this.available = available;
+            this.needRequestingNotificationOfGlobalPoolAvailable =
+                    needRequestingNotificationOfGlobalPoolAvailable;
+        }
+
+        public boolean isAvailable() {
+            return available;
+        }
+
+        public boolean isNeedRequestingNotificationOfGlobalPoolAvailable() {
+            return needRequestingNotificationOfGlobalPoolAvailable;
+        }
+
+        public static AvailabilityStatus from(
+                boolean available, boolean needRequestingNotificationOfGlobalPoolAvailable) {
+            if (available) {
+                checkState(
+                        !needRequestingNotificationOfGlobalPoolAvailable,
+                        "available local buffer pool should not request from global.");
+                return AVAILABLE;
+            } else if (needRequestingNotificationOfGlobalPoolAvailable) {
+                return UNAVAILABLE_NEED_REQUESTING_NOTIFICATION;
+            } else {
+                return UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION;
+            }
         }
     }
 }

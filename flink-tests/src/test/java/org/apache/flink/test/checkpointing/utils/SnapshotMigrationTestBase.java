@@ -162,7 +162,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
          * @param snapshotType Specifies the snapshot type.
          * @param flinkVersions A collection of {@link FlinkVersion}.
          * @return A collection of {@link SnapshotSpec} that differ only by means of {@link
-         *     FlinkVersion} FlinkVersion}.
+         *     FlinkVersion}.
          */
         public static Collection<SnapshotSpec> withVersions(
                 String stateBackendType,

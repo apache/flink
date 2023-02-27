@@ -119,6 +119,7 @@ public abstract class AbstractPythonScalarFunctionOperator
     @Override
     public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
         return ProtoUtils.createUserDefinedFunctionsProto(
+                getRuntimeContext(),
                 scalarFunctions,
                 config.get(PYTHON_METRIC_ENABLED),
                 config.get(PYTHON_PROFILE_ENABLED));

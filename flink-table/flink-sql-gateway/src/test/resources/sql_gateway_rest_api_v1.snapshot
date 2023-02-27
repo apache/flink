@@ -242,19 +242,7 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
     },
     "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:statement:FetchResultsResponseBody",
-      "properties" : {
-        "results" : {
-          "type" : "any"
-        },
-        "resultType" : {
-          "type" : "string"
-        },
-        "nextResultUri" : {
-          "type" : "string"
-        }
-      }
+      "type" : "any"
     }
   }, {
     "url" : "/sessions/:session_handle/operations/:operation_handle/status",

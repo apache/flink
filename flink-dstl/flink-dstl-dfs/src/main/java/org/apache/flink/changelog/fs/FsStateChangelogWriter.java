@@ -168,17 +168,19 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     }
 
     @Override
+    public void appendMeta(byte[] value) throws IOException {
+        LOG.trace("append metadata to {}: {} bytes", logId, value.length);
+        checkState(!closed, "%s is closed", logId);
+        activeChangeSet.add(StateChange.ofMetadataChange(value));
+        preEmptiveFlushIfNeeded(value);
+    }
+
+    @Override
     public void append(int keyGroup, byte[] value) throws IOException {
         LOG.trace("append to {}: keyGroup={} {} bytes", logId, keyGroup, value.length);
         checkState(!closed, "%s is closed", logId);
-        activeChangeSet.add(new StateChange(keyGroup, value));
-        activeChangeSetSize += value.length;
-        if (activeChangeSetSize >= preEmptivePersistThresholdInBytes) {
-            LOG.debug(
-                    "pre-emptively flush {}MB of appended changes to the common store",
-                    activeChangeSetSize / 1024 / 1024);
-            persistInternal(notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey());
-        }
+        activeChangeSet.add(StateChange.ofDataChange(keyGroup, value));
+        preEmptiveFlushIfNeeded(value);
     }
 
     @Override
@@ -206,6 +208,16 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 from,
                 activeSequenceNumber);
         return persistInternal(from);
+    }
+
+    private void preEmptiveFlushIfNeeded(byte[] value) throws IOException {
+        activeChangeSetSize += value.length;
+        if (activeChangeSetSize >= preEmptivePersistThresholdInBytes) {
+            LOG.debug(
+                    "pre-emptively flush {}MB of appended changes to the common store",
+                    activeChangeSetSize / 1024 / 1024);
+            persistInternal(notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey());
+        }
     }
 
     private CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> persistInternal(
@@ -276,9 +288,9 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                             } else {
                                 // uploaded already truncated, i.e. materialized state changes,
                                 // or closed
-                                changelogRegistry.notUsed(result.streamStateHandle, logId);
+                                changelogRegistry.release(result.streamStateHandle);
                                 if (result.localStreamHandle != null) {
-                                    changelogRegistry.notUsed(result.localStreamHandle, logId);
+                                    changelogRegistry.release(result.localStreamHandle);
                                 }
                             }
                         }
@@ -505,9 +517,9 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     private void notifyStateNotUsed(Map<SequenceNumber, UploadResult> notUsedState) {
         LOG.trace("Uploaded state to discard: {}", notUsedState);
         for (UploadResult result : notUsedState.values()) {
-            changelogRegistry.notUsed(result.streamStateHandle, logId);
+            changelogRegistry.release(result.streamStateHandle);
             if (result.localStreamHandle != null) {
-                changelogRegistry.notUsed(result.localStreamHandle, logId);
+                changelogRegistry.release(result.localStreamHandle);
             }
         }
     }

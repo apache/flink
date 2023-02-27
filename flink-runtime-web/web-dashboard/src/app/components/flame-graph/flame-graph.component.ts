@@ -18,7 +18,7 @@
 
 import { Component, ChangeDetectionStrategy, ElementRef, Input, ViewChild } from '@angular/core';
 
-import { JobFlameGraphNode } from '@flink-runtime-web/interfaces';
+import { FlameGraphType, JobFlameGraphNode } from '@flink-runtime-web/interfaces';
 import * as _d3 from 'd3';
 import { flamegraph, offCpuColorMapper } from 'd3-flame-graph';
 import { format } from 'd3-format';
@@ -35,7 +35,7 @@ import _d3Tip from 'd3-tip';
 export class FlameGraphComponent {
   @ViewChild('flameGraphContainer', { static: true }) flameGraphContainer: ElementRef<Element>;
   @Input() data: JobFlameGraphNode;
-  @Input() graphType: string;
+  @Input() graphType: FlameGraphType;
 
   draw(): void {
     if (this.data) {
@@ -55,7 +55,7 @@ export class FlameGraphComponent {
 
       chart.tooltip(tip);
 
-      if (this.graphType == 'off_cpu') {
+      if (this.graphType == FlameGraphType.OFF_CPU) {
         chart.setColorMapper(offCpuColorMapper);
       }
 

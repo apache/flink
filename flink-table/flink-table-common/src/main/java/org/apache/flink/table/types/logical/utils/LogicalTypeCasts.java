@@ -473,21 +473,6 @@ public final class LogicalTypeCasts {
             return this;
         }
 
-        /**
-         * Should be called after {@link #explicitFromFamily(LogicalTypeFamily...)} to remove
-         * previously added types.
-         */
-        CastingRuleBuilder explicitNotFromFamily(LogicalTypeFamily... sourceFamilies) {
-            for (LogicalTypeFamily family : sourceFamilies) {
-                for (LogicalTypeRoot root : LogicalTypeRoot.values()) {
-                    if (root.getFamilies().contains(family)) {
-                        this.explicitSourceTypes.remove(root);
-                    }
-                }
-            }
-            return this;
-        }
-
         void build() {
             implicitCastingRules.put(targetType, implicitSourceTypes);
             explicitCastingRules.put(targetType, explicitSourceTypes);

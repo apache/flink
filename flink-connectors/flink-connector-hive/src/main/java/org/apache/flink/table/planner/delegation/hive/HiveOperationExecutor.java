@@ -147,7 +147,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
     private TableResultInternal buildResultForShowVariable(List<String> results) {
         List<Row> rows = results.stream().map(Row::of).collect(Collectors.toList());
         return TableResultImpl.builder()
-                .resultKind(ResultKind.SUCCESS)
+                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                 .schema(ResolvedSchema.of(Column.physical("variables", DataTypes.STRING())))
                 .data(rows)
                 .build();
@@ -267,7 +267,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
         String showCreateTableString = HiveShowTableUtils.showCreateTable(tablePath, tbl);
         TableResultInternal resultInternal =
                 TableResultImpl.builder()
-                        .resultKind(ResultKind.SUCCESS)
+                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                         .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                         .data(Collections.singletonList(Row.of(showCreateTableString)))
                         .build();
@@ -325,7 +325,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             }
             TableResultInternal tableResultInternal =
                     TableResultImpl.builder()
-                            .resultKind(ResultKind.SUCCESS)
+                            .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                             .schema(
                                     ResolvedSchema.physical(
                                             new String[] {"col_name", "data_type", "comment"},

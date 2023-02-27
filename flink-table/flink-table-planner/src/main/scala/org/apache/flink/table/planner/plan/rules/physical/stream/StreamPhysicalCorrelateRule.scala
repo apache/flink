@@ -29,15 +29,11 @@ import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
 
 /** Rule that converts [[FlinkLogicalCorrelate]] to [[StreamPhysicalCorrelate]]. */
-class StreamPhysicalCorrelateRule
-  extends ConverterRule(
-    classOf[FlinkLogicalCorrelate],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalCorrelateRule") {
+class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val correlate: FlinkLogicalCorrelate = call.rel(0)
@@ -102,7 +98,12 @@ class StreamPhysicalCorrelateRule
 }
 
 object StreamPhysicalCorrelateRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalCorrelateRule
+  val INSTANCE: RelOptRule = new StreamPhysicalCorrelateRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalCorrelate],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalCorrelateRule"))
 
   def getMergedCalc(calc: FlinkLogicalCalc): FlinkLogicalCalc = {
     val child = calc.getInput match {

@@ -50,6 +50,16 @@ public abstract class AbstractMultipleInputTransformation<OUT> extends PhysicalT
         this.operatorFactory = operatorFactory;
     }
 
+    public AbstractMultipleInputTransformation(
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
+        this.operatorFactory = operatorFactory;
+    }
+
     @Override
     public List<Transformation<?>> getInputs() {
         return inputs;

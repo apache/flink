@@ -144,7 +144,8 @@ public class JobExceptionsHandler
                                     failure.get().getExceptionAsString(),
                                     task.getTaskNameWithSubtaskIndex(),
                                     locationString,
-                                    timestamp == 0 ? -1 : timestamp));
+                                    timestamp == 0 ? -1 : timestamp,
+                                    toTaskManagerId(location)));
                 }
             }
         }
@@ -200,6 +201,7 @@ public class JobExceptionsHandler
                 historyEntry.getTimestamp(),
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
+                toTaskManagerId(historyEntry.getTaskManagerLocation()),
                 concurrentExceptions);
     }
 
@@ -212,7 +214,8 @@ public class JobExceptionsHandler
                 exceptionHistoryEntry.getExceptionAsString(),
                 exceptionHistoryEntry.getTimestamp(),
                 exceptionHistoryEntry.getFailingTaskName(),
-                toString(exceptionHistoryEntry.getTaskManagerLocation()));
+                toString(exceptionHistoryEntry.getTaskManagerLocation()),
+                toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()));
     }
 
     private static void assertLocalExceptionInfo(ExceptionHistoryEntry exceptionHistoryEntry) {
@@ -231,11 +234,24 @@ public class JobExceptionsHandler
     }
 
     @VisibleForTesting
+    static String toTaskManagerId(@Nullable TaskManagerLocation location) {
+        // '(unassigned)' being the default value is added to support backward-compatibility for the
+        // deprecated fields
+        return location != null ? String.format("%s", location.getResourceID()) : "(unassigned)";
+    }
+
+    @VisibleForTesting
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null
                 ? taskManagerLocationToString(location.getFQDNHostname(), location.getPort())
                 : null;
+    }
+
+    @VisibleForTesting
+    static String toTaskManagerId(
+            @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
+        return location != null ? String.format("%s", location.getResourceID()) : null;
     }
 
     private static String taskManagerLocationToString(String fqdnHostname, int port) {

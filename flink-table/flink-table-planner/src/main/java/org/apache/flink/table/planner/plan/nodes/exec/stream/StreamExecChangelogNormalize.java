@@ -170,7 +170,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         createTransformationMeta(CHANGELOG_NORMALIZE_TRANSFORMATION, config),
                         operator,
                         rowTypeInfo,
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(

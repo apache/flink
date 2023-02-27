@@ -88,7 +88,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
             return sink;
         }
 
-        final Integer configuredParallelism =
+        final Integer configuredSinkParallelism =
                 Configuration.fromMap(context.getCatalogTable().getOptions())
                         .get(FileSystemConnectorOptions.SINK_PARALLELISM);
         final JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
@@ -97,7 +97,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 jobConf,
                 context.getObjectIdentifier(),
                 context.getCatalogTable(),
-                configuredParallelism);
+                configuredSinkParallelism);
     }
 
     @Override

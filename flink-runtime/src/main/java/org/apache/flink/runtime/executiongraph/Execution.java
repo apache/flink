@@ -730,39 +730,42 @@ public class Execution
                 final ExecutionVertex consumerVertex =
                         vertex.getExecutionGraphAccessor()
                                 .getExecutionVertexOrThrow(consumerVertexId);
-                final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
-                final ExecutionState consumerState = consumer.getState();
+                final Collection<Execution> consumers = consumerVertex.getCurrentExecutions();
+                for (Execution consumer : consumers) {
+                    final ExecutionState consumerState = consumer.getState();
+                    // ----------------------------------------------------------------
+                    // Consumer is recovering or running => send update message now
+                    // Consumer is deploying => cache the partition info which would be
+                    // sent after switching to running
+                    // ----------------------------------------------------------------
+                    if (consumerState == DEPLOYING
+                            || consumerState == RUNNING
+                            || consumerState == INITIALIZING) {
+                        final PartitionInfo partitionInfo = createFinishedPartitionInfo(partition);
+                        updatedVertices.add(consumerVertexId);
 
-                // ----------------------------------------------------------------
-                // Consumer is recovering or running => send update message now
-                // Consumer is deploying => cache the partition info which would be
-                // sent after switching to running
-                // ----------------------------------------------------------------
-                if (consumerState == DEPLOYING
-                        || consumerState == RUNNING
-                        || consumerState == INITIALIZING) {
-                    final PartitionInfo partitionInfo = createPartitionInfo(partition);
-                    updatedVertices.add(consumerVertexId);
-
-                    if (consumerState == DEPLOYING) {
-                        consumerVertex.cachePartitionInfo(partitionInfo);
-                    } else {
-                        consumer.sendUpdatePartitionInfoRpcCall(
-                                Collections.singleton(partitionInfo));
+                        if (consumerState == DEPLOYING) {
+                            consumerVertex.cachePartitionInfo(partitionInfo);
+                        } else {
+                            consumer.sendUpdatePartitionInfoRpcCall(
+                                    Collections.singleton(partitionInfo));
+                        }
                     }
                 }
             }
         }
     }
 
-    private static PartitionInfo createPartitionInfo(
+    private static PartitionInfo createFinishedPartitionInfo(
             IntermediateResultPartition consumedPartition) {
         IntermediateDataSetID intermediateDataSetID =
                 consumedPartition.getIntermediateResult().getId();
         ShuffleDescriptor shuffleDescriptor =
                 getConsumedPartitionShuffleDescriptor(
                         consumedPartition,
-                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN);
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
+                        // because partition is already finished, false is fair enough.
+                        false);
         return new PartitionInfo(intermediateDataSetID, shuffleDescriptor);
     }
 
@@ -975,7 +978,7 @@ public class Execution
 
     private void finishPartitionsAndUpdateConsumers() {
         final List<IntermediateResultPartition> finishedPartitions =
-                getVertex().finishAllBlockingPartitions();
+                getVertex().finishPartitionsIfNeeded();
 
         for (IntermediateResultPartition partition : finishedPartitions) {
             updatePartitionConsumers(partition);
@@ -1548,7 +1551,17 @@ public class Execution
             }
         }
         if (metrics != null) {
-            this.ioMetrics = metrics;
+            // Drop IOMetrics#resultPartitionBytes because it will not be used anymore. It can
+            // result in very high memory usage when there are many executions and sub-partitions.
+            this.ioMetrics =
+                    new IOMetrics(
+                            metrics.getNumBytesIn(),
+                            metrics.getNumBytesOut(),
+                            metrics.getNumRecordsIn(),
+                            metrics.getNumRecordsOut(),
+                            metrics.getAccumulateIdleTime(),
+                            metrics.getAccumulateBusyTime(),
+                            metrics.getAccumulateBackPressuredTime());
         }
     }
 

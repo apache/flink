@@ -356,17 +356,9 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
-                        this.kubernetesJobManagerSpecification.getAccompanyingResources().stream()
-                                .filter(
-                                        x ->
-                                                x instanceof ConfigMap
-                                                        && x.getMetadata()
-                                                                .getName()
-                                                                .equals(
-                                                                        FlinkConfMountDecorator
-                                                                                .getFlinkConfConfigMapName(
-                                                                                        CLUSTER_ID)))
-                                .collect(Collectors.toList())
+                        getConfigMapList(
+                                        FlinkConfMountDecorator.getFlinkConfConfigMapName(
+                                                CLUSTER_ID))
                                 .get(0);
 
         assertThat(resultConfigMap.getMetadata().getLabels()).hasSize(2);
@@ -419,17 +411,9 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
-                        kubernetesJobManagerSpecification.getAccompanyingResources().stream()
-                                .filter(
-                                        x ->
-                                                x instanceof ConfigMap
-                                                        && x.getMetadata()
-                                                                .getName()
-                                                                .equals(
-                                                                        HadoopConfMountDecorator
-                                                                                .getHadoopConfConfigMapName(
-                                                                                        CLUSTER_ID)))
-                                .collect(Collectors.toList())
+                        getConfigMapList(
+                                        HadoopConfMountDecorator.getHadoopConfConfigMapName(
+                                                CLUSTER_ID))
                                 .get(0);
 
         assertThat(resultConfigMap.getMetadata().getLabels()).hasSize(2);
@@ -467,5 +451,38 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
                         flinkPod, kubernetesJobManagerParameters);
         assertThat(kubernetesJobManagerSpecification.getDeployment().getSpec().getReplicas())
                 .isEqualTo(JOBMANAGER_REPLICAS);
+    }
+
+    @Test
+    void testHadoopDecoratorsCanBeTurnedOff() throws Exception {
+        setHadoopConfDirEnv();
+        generateHadoopConfFileItems();
+        flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED, false);
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED, false);
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+
+        assertThat(
+                        getConfigMapList(
+                                HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID)))
+                .isEmpty();
+        assertThat(
+                        getConfigMapList(
+                                KerberosMountDecorator.getKerberosKrb5confConfigMapName(
+                                        CLUSTER_ID)))
+                .isEmpty();
+        assertThat(getConfigMapList(KerberosMountDecorator.getKerberosKeytabSecretName(CLUSTER_ID)))
+                .isEmpty();
+    }
+
+    private List<HasMetadata> getConfigMapList(String configMapName) {
+        return kubernetesJobManagerSpecification.getAccompanyingResources().stream()
+                .filter(
+                        x ->
+                                x instanceof ConfigMap
+                                        && x.getMetadata().getName().equals(configMapName))
+                .collect(Collectors.toList());
     }
 }

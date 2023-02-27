@@ -26,8 +26,10 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -87,7 +89,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class SourceCoordinatorContext<SplitT extends SourceSplit>
-        implements SplitEnumeratorContext<SplitT>, AutoCloseable {
+        implements SplitEnumeratorContext<SplitT>, SupportsIntermediateNoMoreSplits, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorContext.class);
 
@@ -165,7 +167,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public SplitEnumeratorMetricGroup metricGroup() {
-        return null;
+        return new InternalSplitEnumeratorMetricGroup(operatorCoordinatorContext.metricGroup());
     }
 
     @Override
@@ -287,6 +289,19 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                     return null; // void return value
                 },
                 "Failed to send 'NoMoreSplits' to reader " + subtask);
+    }
+
+    @Override
+    public void signalIntermediateNoMoreSplits(int subtask) {
+        checkSubtaskIndex(subtask);
+
+        // It's an intermediate noMoreSplit event, notify subtask to deal with this event.
+        callInCoordinatorThread(
+                () -> {
+                    signalNoMoreSplitsToAttempts(subtask);
+                    return null;
+                },
+                "Failed to send 'IntermediateNoMoreSplits' to reader " + subtask);
     }
 
     @Override

@@ -21,52 +21,58 @@
             <td>Defines whether the cluster uses fine-grained resource management.</td>
         </tr>
         <tr>
-            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task</h5></td>
-            <td style="word-wrap: break-word;">1 gb</td>
+            <td><h5>execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task</h5></td>
+            <td style="word-wrap: break-word;">16 mb</td>
             <td>MemorySize</td>
-            <td>The average size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Note that since the parallelism of the vertices is adjusted to a power of 2, the actual average size will be 0.75~1.5 times this value. It is also important to note that when data skew occurs or the decided parallelism reaches the <code class="highlighter-rouge">jobmanager.adaptive-batch-scheduler.max-parallelism</code> (due to too much data), the data actually processed by some tasks may far exceed this value.</td>
+            <td>The average size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Note that when data skew occurs or the decided parallelism reaches the <code class="highlighter-rouge">execution.batch.adaptive.auto-parallelism.max-parallelism</code> (due to too much data), the data actually processed by some tasks may far exceed this value.</td>
         </tr>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.default-source-parallelism</h5></td>
+            <td><h5>execution.batch.adaptive.auto-parallelism.default-source-parallelism</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
             <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
         </tr>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.max-parallelism</h5></td>
+            <td><h5>execution.batch.adaptive.auto-parallelism.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>If true, Flink will automatically decide the parallelism of operators in batch jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.batch.adaptive.auto-parallelism.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">128</td>
             <td>Integer</td>
-            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded down to a power of 2 automatically.</td>
+            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
         </tr>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.min-parallelism</h5></td>
+            <td><h5>execution.batch.adaptive.auto-parallelism.min-parallelism</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded up to a power of 2 automatically.</td>
+            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
         </tr>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration</h5></td>
+            <td><h5>execution.batch.speculative.block-slow-node-duration</h5></td>
             <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
             <td>Controls how long an detected slow node should be blocked for.</td>
         </tr>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.enabled</h5></td>
+            <td><h5>execution.batch.speculative.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Controls whether to enable speculative execution.</td>
         </tr>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions</h5></td>
+            <td><h5>execution.batch.speculative.max-concurrent-executions</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
             <td>Controls the maximum number of execution attempts of each operator that can execute concurrently, including the original one and speculative ones.</td>
+        </tr>
+        <tr>
+            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
@@ -85,6 +91,12 @@
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
             <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to a negative value to disable the resource timeout.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.partition.hybrid.partition-data-consume-constraint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p></td>
+            <td>Controls the constraint that hybrid partition data can be consumed. Note that this option is allowed only when <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Accepted values are:<ul><li>'<code class="highlighter-rouge">ALL_PRODUCERS_FINISHED</code>': hybrid partition data can be consumed only when all producers are finished.</li><li>'<code class="highlighter-rouge">ONLY_FINISHED_PRODUCERS</code>': hybrid partition data can be consumed when its producer is finished.</li><li>'<code class="highlighter-rouge">UNFINISHED_PRODUCERS</code>': hybrid partition data can be consumed even if its producer is un-finished.</li></ul><br /><br />Possible values:<ul><li>"ALL_PRODUCERS_FINISHED"</li><li>"ONLY_FINISHED_PRODUCERS"</li><li>"UNFINISHED_PRODUCERS"</li></ul></td>
         </tr>
         <tr>
             <td><h5>jobmanager.scheduler</h5></td>
@@ -124,7 +136,7 @@
         </tr>
         <tr>
             <td><h5>slotmanager.number-of-slots.max</h5></td>
-            <td style="word-wrap: break-word;">2147483647</td>
+            <td style="word-wrap: break-word;">infinite</td>
             <td>Integer</td>
             <td>Defines the maximum number of slots that the Flink cluster allocates. This configuration option is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take effect for standalone clusters, where how many slots are allocated is not controlled by Flink.</td>
         </tr>
@@ -144,13 +156,13 @@
             <td><h5>slow-task-detector.execution-time.baseline-multiplier</h5></td>
             <td style="word-wrap: break-word;">1.5</td>
             <td>Double</td>
-            <td>The multiplier to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline.</td>
+            <td>The multiplier to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
         </tr>
         <tr>
             <td><h5>slow-task-detector.execution-time.baseline-ratio</h5></td>
             <td style="word-wrap: break-word;">0.75</td>
             <td>Double</td>
-            <td>The finished execution ratio threshold to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline.</td>
+            <td>The finished execution ratio threshold to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
         </tr>
     </tbody>
 </table>

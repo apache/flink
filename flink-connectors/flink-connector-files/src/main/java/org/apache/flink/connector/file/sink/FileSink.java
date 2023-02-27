@@ -21,6 +21,7 @@ package org.apache.flink.connector.file.sink;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -130,7 +131,8 @@ public class FileSink<IN>
         implements StatefulSink<IN, FileWriterBucketState>,
                 TwoPhaseCommittingSink<IN, FileSinkCommittable>,
                 WithCompatibleState,
-                WithPreCommitTopology<IN, FileSinkCommittable> {
+                WithPreCommitTopology<IN, FileSinkCommittable>,
+                SupportsConcurrentExecutionAttempts {
 
     private final BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder;
 
@@ -223,20 +225,23 @@ public class FileSink<IN>
                                                             bucketsBuilder
                                                                     ::getCommittableSerializer)),
                                             new CompactCoordinatorStateHandlerFactory(
-                                                    bucketsBuilder::getCommittableSerializer))
-                                    .setParallelism(committableStream.getParallelism())
-                                    .uid("FileSinkCompactorCoordinator");
+                                                    bucketsBuilder::getCommittableSerializer));
+            coordinatorOp
+                    .getTransformation()
+                    .setParallelism(committableStream.getParallelism(), false);
+            coordinatorOp.uid("FileSinkCompactorCoordinator");
 
-            return coordinatorOp
-                    .forward()
-                    .transform(
-                            "CompactorOperatorPlaceHolder",
-                            committableStream.getType(),
-                            new CompactorOperatorStateHandlerFactory(
-                                    bucketsBuilder::getCommittableSerializer,
-                                    bucketsBuilder::createBucketWriter))
-                    .setParallelism(committableStream.getParallelism())
-                    .uid("FileSinkCompactorOperator");
+            SingleOutputStreamOperator<CommittableMessage<FileSinkCommittable>> operator =
+                    coordinatorOp
+                            .forward()
+                            .transform(
+                                    "CompactorOperatorPlaceHolder",
+                                    committableStream.getType(),
+                                    new CompactorOperatorStateHandlerFactory(
+                                            bucketsBuilder::getCommittableSerializer,
+                                            bucketsBuilder::createBucketWriter));
+            operator.getTransformation().setParallelism(committableStream.getParallelism(), false);
+            return operator.uid("FileSinkCompactorOperator");
         }
 
         // explicitly rebalance here is required, or the partitioner will be forward, which is in
@@ -258,17 +263,17 @@ public class FileSink<IN>
         // distributed to different committers, which will cause a failure
         TypeInformation<CommittableMessage<FileSinkCommittable>> committableType =
                 committableStream.getType();
-        return coordinatorOp
-                .transform(
+        SingleOutputStreamOperator<CommittableMessage<FileSinkCommittable>> operator =
+                coordinatorOp.transform(
                         "CompactorOperator",
                         committableType,
                         new CompactorOperatorFactory(
                                 strategy,
                                 bucketsBuilder.getFileCompactor(),
                                 bucketsBuilder::getCommittableSerializer,
-                                bucketsBuilder::createBucketWriter))
-                .setParallelism(committableStream.getParallelism())
-                .uid("FileSinkCompactorOperator");
+                                bucketsBuilder::createBucketWriter));
+        operator.getTransformation().setParallelism(committableStream.getParallelism(), false);
+        return operator.uid("FileSinkCompactorOperator");
     }
 
     /** The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}. */

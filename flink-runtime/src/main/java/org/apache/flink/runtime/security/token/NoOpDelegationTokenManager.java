@@ -20,7 +20,6 @@ package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Internal;
 
-import org.apache.hadoop.security.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,12 +34,12 @@ public class NoOpDelegationTokenManager implements DelegationTokenManager {
     }
 
     @Override
-    public void obtainDelegationTokens(Credentials credentials) {
+    public void obtainDelegationTokens(DelegationTokenContainer container) {
         LOG.debug("obtainDelegationTokens");
     }
 
     @Override
-    public void start(DelegationTokenListener delegationTokenListener) {
+    public void start(Listener listener) {
         LOG.debug("start");
     }
 

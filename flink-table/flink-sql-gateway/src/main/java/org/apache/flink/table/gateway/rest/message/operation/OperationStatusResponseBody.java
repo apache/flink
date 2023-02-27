@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.rest.message.operation;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -32,6 +33,7 @@ public class OperationStatusResponseBody implements ResponseBody {
     @JsonProperty(FIELD_NAME_STATUS)
     private final String status;
 
+    @JsonCreator
     public OperationStatusResponseBody(@JsonProperty(FIELD_NAME_STATUS) String status) {
         this.status = status;
     }

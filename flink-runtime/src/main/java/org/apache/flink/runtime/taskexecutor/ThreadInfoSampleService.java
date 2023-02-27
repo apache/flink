@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
@@ -28,6 +29,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -49,52 +52,55 @@ class ThreadInfoSampleService implements Closeable {
      * Returns a future that completes with a given number of thread info samples for a set of task
      * threads.
      *
-     * @param tasks The tasks to be sampled.
+     * @param threads the map key is thread id, the map value is the ExecutionAttemptID.
      * @param requestParams Parameters of the sampling request.
      * @return A future containing the stack trace samples.
      */
-    public CompletableFuture<Collection<ThreadInfoSample>> requestThreadInfoSamples(
-            final Collection<? extends SampleableTask> tasks,
-            final ThreadInfoSamplesRequest requestParams) {
-        checkNotNull(tasks, "task must not be null");
+    public CompletableFuture<Map<ExecutionAttemptID, Collection<ThreadInfoSample>>>
+            requestThreadInfoSamples(
+                    Map<Long, ExecutionAttemptID> threads,
+                    final ThreadInfoSamplesRequest requestParams) {
+        checkNotNull(threads, "threads must not be null");
         checkNotNull(requestParams, "requestParams must not be null");
 
-        CompletableFuture<Collection<ThreadInfoSample>> resultFuture = new CompletableFuture<>();
+        CompletableFuture<Map<ExecutionAttemptID, Collection<ThreadInfoSample>>> resultFuture =
+                new CompletableFuture<>();
         scheduledExecutor.execute(
                 () ->
                         requestThreadInfoSamples(
-                                tasks,
+                                threads,
                                 requestParams.getNumSamples(),
                                 requestParams.getDelayBetweenSamples(),
                                 requestParams.getMaxStackTraceDepth(),
-                                new ArrayList<>(requestParams.getNumSamples()),
+                                new HashMap<>(threads.size()),
                                 resultFuture));
         return resultFuture;
     }
 
     private void requestThreadInfoSamples(
-            final Collection<? extends SampleableTask> tasks,
+            Map<Long, ExecutionAttemptID> threads,
             final int numSamples,
             final Duration delayBetweenSamples,
             final int maxStackTraceDepth,
-            final Collection<ThreadInfoSample> currentTraces,
-            final CompletableFuture<Collection<ThreadInfoSample>> resultFuture) {
+            final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> currentTraces,
+            final CompletableFuture<Map<ExecutionAttemptID, Collection<ThreadInfoSample>>>
+                    resultFuture) {
 
-        final Collection<Long> threadIds =
-                tasks.stream()
-                        .map(t -> t.getExecutingThread().getId())
-                        .collect(Collectors.toList());
-
-        final Collection<ThreadInfoSample> threadInfoSample =
-                JvmUtils.createThreadInfoSample(threadIds, maxStackTraceDepth);
+        final Map<Long, ThreadInfoSample> threadInfoSample =
+                JvmUtils.createThreadInfoSample(threads.keySet(), maxStackTraceDepth);
 
         if (!threadInfoSample.isEmpty()) {
-            currentTraces.addAll(threadInfoSample);
+            for (Map.Entry<Long, ThreadInfoSample> entry : threadInfoSample.entrySet()) {
+                ExecutionAttemptID executionAttemptID = threads.get(entry.getKey());
+                Collection<ThreadInfoSample> threadInfoSamples =
+                        currentTraces.computeIfAbsent(executionAttemptID, key -> new ArrayList<>());
+                threadInfoSamples.add(entry.getValue());
+            }
             if (numSamples > 1) {
                 scheduledExecutor.schedule(
                         () ->
                                 requestThreadInfoSamples(
-                                        tasks,
+                                        threads,
                                         numSamples - 1,
                                         delayBetweenSamples,
                                         maxStackTraceDepth,
@@ -111,8 +117,7 @@ class ThreadInfoSampleService implements Closeable {
             resultFuture.complete(currentTraces);
         } else {
             final String ids =
-                    tasks.stream()
-                            .map(SampleableTask::getExecutionId)
+                    threads.values().stream()
                             .map(e -> e == null ? "unknown" : e.toString())
                             .collect(Collectors.joining(", ", "[", "]"));
             resultFuture.completeExceptionally(

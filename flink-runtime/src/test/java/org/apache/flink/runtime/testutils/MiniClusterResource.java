@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
@@ -199,6 +200,14 @@ public class MiniClusterResource extends ExternalResource {
                 new Configuration(miniClusterResourceConfiguration.getConfiguration());
         configuration.setString(
                 CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
+        if (!configuration.contains(CheckpointingOptions.CHECKPOINTS_DIRECTORY)) {
+            // The channel state or checkpoint file may exceed the upper limit of
+            // JobManagerCheckpointStorage, so use FileSystemCheckpointStorage as
+            // the default checkpoint storage for all tests.
+            configuration.set(
+                    CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                    temporaryFolder.newFolder().toURI().toString());
+        }
 
         // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
         // enabled this by default

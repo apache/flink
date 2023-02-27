@@ -43,7 +43,7 @@ import static org.junit.Assert.fail;
 
 /**
  * Tests for building {@link DistributionPattern#POINTWISE} connections in {@link
- * EdgeManagerBuildUtil#connectVertexToResult}.
+ * VertexInputInfoComputationUtils#computeVertexInputInfoForPointwise}.
  */
 public class PointwisePatternTest {
     @ClassRule

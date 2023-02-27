@@ -18,12 +18,9 @@
 import datetime
 import decimal
 import os
-import sys
 import uuid
 from collections import defaultdict
 from typing import Tuple
-
-import pytest
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
@@ -485,6 +482,30 @@ class DataStreamTests(object):
         ]
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
+    def test_process_side_output(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                yield value[0]
+                yield tag, value[1]
+
+        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_process_side_output")
+        main_expected = ['a', 'b', 'c']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['0', '1', '2']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
     def test_side_output_chained_with_upstream_operator(self):
         tag = OutputTag("side", Types.INT())
 
@@ -658,6 +679,28 @@ class DataStreamTests(object):
         result = [i for i in ds_side.execute_and_collect()]
         expected = [2, 4, 6]
         self.assert_equals_sorted(expected, result)
+
+    def test_side_output_tag_reusing(self):
+        tag = OutputTag("side", Types.INT())
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx):
+                yield value
+                yield tag, value * 2
+
+        side1_sink = DataStreamTestSinkFunction()
+        ds = self.env.from_collection([1, 2, 3], Types.INT()).process(MyProcessFunction())
+        ds.get_side_output(tag).add_sink(side1_sink)
+
+        side2_sink = DataStreamTestSinkFunction()
+        ds.map(lambda i: i*2).process(MyProcessFunction()).get_side_output(tag).add_sink(side2_sink)
+
+        self.env.execute("test_side_output_tag_reusing")
+        result1 = [i for i in side1_sink.get_results(stringify=False)]
+        result2 = [i for i in side2_sink.get_results(stringify=False)]
+        self.assert_equals_sorted(['2', '4', '6'], result1)
+        self.assert_equals_sorted(['4', '8', '12'], result2)
 
 
 class DataStreamStreamingTests(DataStreamTests):
@@ -980,9 +1023,8 @@ class ProcessDataStreamTests(DataStreamTests):
 
             def process_element(self, value, ctx):
                 current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                yield "current timestamp: {}, current watermark: {}, current_value: {}"\
-                    .format(str(current_timestamp), str(current_watermark), str(value))
+                yield "current timestamp: {}, current_value: {}"\
+                    .format(str(current_timestamp), str(value))
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
@@ -990,39 +1032,15 @@ class ProcessDataStreamTests(DataStreamTests):
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test process function')
         results = self.test_sink.get_results()
-        expected = ["current timestamp: 1603708211000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                    "current timestamp: 1603708224000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                    "current timestamp: 1603708226000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                    "current timestamp: 1603708289000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
+        expected = ["current timestamp: 1603708211000, "
+                    "current_value: Row(f0=1, f1='1603708211000')",
+                    "current timestamp: 1603708224000, "
+                    "current_value: Row(f0=2, f1='1603708224000')",
+                    "current timestamp: 1603708226000, "
+                    "current_value: Row(f0=3, f1='1603708226000')",
+                    "current timestamp: 1603708289000, "
+                    "current_value: Row(f0=4, f1='1603708289000')"]
         self.assert_equals_sorted(expected, results)
-
-    def test_process_side_output(self):
-        tag = OutputTag("side", Types.INT())
-
-        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        class MyProcessFunction(ProcessFunction):
-
-            def process_element(self, value, ctx: 'ProcessFunction.Context'):
-                yield value[0]
-                yield tag, value[1]
-
-        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
-        main_sink = DataStreamTestSinkFunction()
-        ds2.add_sink(main_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute("test_process_side_output")
-        main_expected = ['a', 'b', 'c']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side_expected = ['0', '1', '2']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
 
 class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStreamTests,
@@ -1153,7 +1171,6 @@ class ProcessDataStreamBatchTests(DataStreamBatchTests, ProcessDataStreamTests,
         self.assert_equals_sorted(expected, results)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTestCase):
     def setUp(self):
         super(EmbeddedDataStreamStreamTests, self).setUp()
@@ -1210,7 +1227,6 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         self.assert_equals_sorted(expected, results)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
     def setUp(self):
         super(EmbeddedDataStreamBatchTests, self).setUp()
@@ -1232,8 +1248,10 @@ class CommonDataStreamTests(PyFlinkTestCase):
         self.test_sink.clear()
 
     def assert_equals_sorted(self, expected, actual):
-        expected.sort()
-        actual.sort()
+        # otherwise, it may thrown exceptions such as the following:
+        # TypeError: '<' not supported between instances of 'NoneType' and 'str'
+        expected.sort(key=lambda x: str(x))
+        actual.sort(key=lambda x: str(x))
         self.assertEqual(expected, actual)
 
     def test_data_stream_name(self):
@@ -1495,6 +1513,22 @@ class CommonDataStreamTests(PyFlinkTestCase):
         ds = self.env.from_collection(test_data, type_info=Types.PRIMITIVE_ARRAY(Types.INT()))
         with ds.execute_and_collect() as results:
             actual = [r for r in results]
+            self.assert_equals_sorted(expected, actual)
+
+        test_data = [
+            (["test", "test"], [0.0, 0.0]),
+            ([None, ], [0.0, 0.0])
+        ]
+
+        ds = self.env.from_collection(
+            test_data,
+            type_info=Types.TUPLE(
+                [Types.OBJECT_ARRAY(Types.STRING()), Types.OBJECT_ARRAY(Types.DOUBLE())]
+            )
+        )
+        expected = test_data
+        with ds.execute_and_collect() as results:
+            actual = [result for result in results]
             self.assert_equals_sorted(expected, actual)
 
     def test_function_with_error(self):

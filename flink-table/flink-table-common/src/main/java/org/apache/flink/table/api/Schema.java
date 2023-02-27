@@ -697,15 +697,17 @@ public final class Schema {
 
         private final AbstractDataType<?> dataType;
 
-        UnresolvedPhysicalColumn(String columnName, AbstractDataType<?> dataType) {
+        public UnresolvedPhysicalColumn(String columnName, AbstractDataType<?> dataType) {
             this(columnName, dataType, null);
         }
 
-        UnresolvedPhysicalColumn(String columnName, AbstractDataType<?> dataType, String comment) {
+        public UnresolvedPhysicalColumn(
+                String columnName, AbstractDataType<?> dataType, @Nullable String comment) {
             super(columnName, comment);
             this.dataType = dataType;
         }
 
+        @Override
         UnresolvedPhysicalColumn withComment(String comment) {
             return new UnresolvedPhysicalColumn(columnName, dataType, comment);
         }
@@ -758,15 +760,16 @@ public final class Schema {
 
         private final Expression expression;
 
-        UnresolvedComputedColumn(String columnName, Expression expression) {
+        public UnresolvedComputedColumn(String columnName, Expression expression) {
             this(columnName, expression, null);
         }
 
-        UnresolvedComputedColumn(String columnName, Expression expression, String comment) {
+        public UnresolvedComputedColumn(String columnName, Expression expression, String comment) {
             super(columnName, comment);
             this.expression = expression;
         }
 
+        @Override
         public UnresolvedComputedColumn withComment(String comment) {
             return new UnresolvedComputedColumn(columnName, expression, comment);
         }
@@ -821,7 +824,7 @@ public final class Schema {
         private final @Nullable String metadataKey;
         private final boolean isVirtual;
 
-        UnresolvedMetadataColumn(
+        public UnresolvedMetadataColumn(
                 String columnName,
                 AbstractDataType<?> dataType,
                 @Nullable String metadataKey,
@@ -829,18 +832,19 @@ public final class Schema {
             this(columnName, dataType, metadataKey, isVirtual, null);
         }
 
-        UnresolvedMetadataColumn(
+        public UnresolvedMetadataColumn(
                 String columnName,
                 AbstractDataType<?> dataType,
                 @Nullable String metadataKey,
                 boolean isVirtual,
-                String comment) {
+                @Nullable String comment) {
             super(columnName, comment);
             this.dataType = dataType;
             this.metadataKey = metadataKey;
             this.isVirtual = isVirtual;
         }
 
+        @Override
         UnresolvedMetadataColumn withComment(@Nullable String comment) {
             return new UnresolvedMetadataColumn(
                     columnName, dataType, metadataKey, isVirtual, comment);
@@ -914,7 +918,7 @@ public final class Schema {
         private final String columnName;
         private final Expression watermarkExpression;
 
-        UnresolvedWatermarkSpec(String columnName, Expression watermarkExpression) {
+        public UnresolvedWatermarkSpec(String columnName, Expression watermarkExpression) {
             this.columnName = columnName;
             this.watermarkExpression = watermarkExpression;
         }
@@ -1000,7 +1004,7 @@ public final class Schema {
 
         private final List<String> columnNames;
 
-        UnresolvedPrimaryKey(String constraintName, List<String> columnNames) {
+        public UnresolvedPrimaryKey(String constraintName, List<String> columnNames) {
             super(constraintName);
             this.columnNames = columnNames;
         }

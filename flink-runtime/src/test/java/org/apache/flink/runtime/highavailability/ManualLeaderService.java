@@ -90,8 +90,9 @@ public class ManualLeaderService {
     }
 
     public void revokeLeadership() {
-        assert (currentLeaderId != null);
-        assert (0 <= currentLeaderIndex && currentLeaderIndex < leaderElectionServices.size());
+        Preconditions.checkState(currentLeaderId != null);
+        Preconditions.checkState(
+                0 <= currentLeaderIndex && currentLeaderIndex < leaderElectionServices.size());
 
         TestingLeaderElectionService testingLeaderElectionService =
                 leaderElectionServices.get(currentLeaderIndex);

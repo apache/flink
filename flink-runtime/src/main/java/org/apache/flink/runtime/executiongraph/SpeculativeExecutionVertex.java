@@ -37,7 +37,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
-import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -73,12 +72,8 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         this.nextInputSplitIndexToConsumeByAttempts = new HashMap<>();
     }
 
-    public boolean containsSources() {
-        return getJobVertex().getJobVertex().containsSources();
-    }
-
-    public boolean containsSinks() {
-        return getJobVertex().getJobVertex().containsSinks();
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        return getJobVertex().getJobVertex().isSupportsConcurrentExecutionAttempts();
     }
 
     public Execution createNewSpeculativeExecution(final long timestamp) {
@@ -108,11 +103,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
     @Override
     public Execution getPartitionProducer() {
-        final Execution finishedExecution = getCurrentExecutionAttempt();
-        checkState(
-                finishedExecution.getState() == FINISHED,
-                "It's not allowed to get the partition producer of an un-finished SpeculativeExecutionVertex");
-        return finishedExecution;
+        return getCurrentExecutionAttempt();
     }
 
     @Override
@@ -291,8 +282,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
     @Override
     void cachePartitionInfo(PartitionInfo partitionInfo) {
-        throw new UnsupportedOperationException(
-                "Method is not supported in SpeculativeExecutionVertex.");
+        getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
     }
 
     @Override

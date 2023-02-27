@@ -140,6 +140,15 @@ public class HiveOptions {
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
             FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 
+    public static final ConfigOption<MemorySize> COMPACT_SMALL_FILES_AVG_SIZE =
+            key("compaction.small-files.avg-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(16))
+                    .withDescription(
+                            "When it's for writing Hive in batch mode and `auto-compaction` is configured to be true, if the average written file size is less this number,"
+                                    + " Flink will start to compact theses files to bigger files with target size which is configured by `compaction.file-size`."
+                                    + " If the `compaction.file-size` is not configured, it will use `sink.rolling-policy.file-size` as the target size.");
+
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE =
             key("table.exec.hive.sink.statistic-auto-gather.enable")
                     .booleanType()
@@ -229,6 +238,13 @@ public class HiveOptions {
                     .defaultValue(Duration.ofMinutes(60))
                     .withDescription(
                             "The cache TTL (e.g. 10min) for the build table in lookup join.");
+
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED =
+            key("table.exec.hive.native-agg-function.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enabling native aggregate function for hive dialect to use hash-agg strategy that can improve the aggregation performance.");
 
     // --------------------------------------------------------------------------------------------
     // Enums

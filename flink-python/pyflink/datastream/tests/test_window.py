@@ -15,10 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from typing import Iterable, Tuple, Dict
-
-import pytest
 
 from pyflink.common import Configuration
 from pyflink.common.time import Time
@@ -600,12 +597,44 @@ class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
         config.setString("python.execution-mode", "process")
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
 class EmbeddedWindowTests(WindowTests, PyFlinkStreamingTestCase):
     def setUp(self) -> None:
         super(EmbeddedWindowTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "thread")
+
+    def test_chained_window(self):
+        class MyTimestampAssigner(TimestampAssigner):
+            def extract_timestamp(self, value: tuple, record_timestamp: int) -> int:
+                return value[0]
+
+        ds = self.env.from_collection(
+            [(1676461680000, "a1", "b1", 1), (1676461680000, "a1", "b1", 1),
+             (1676461680000, "a2", "b2", 1), (1676461680000, "a1", "b2", 1),
+             (1676461740000, "a1", "b1", 1), (1676461740000, "a2", "b2", 1)]
+        ).assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                MyTimestampAssigner())
+        )
+        ds.key_by(
+            lambda x: (x[0], x[1], x[2])
+        ).window(
+            TumblingEventTimeWindows.of(Time.minutes(1))
+        ).reduce(
+            lambda x, y: (x[0], x[1], x[2], x[3] + y[3]),
+            output_type=Types.TUPLE([Types.LONG(), Types.STRING(), Types.STRING(), Types.INT()])
+        ).map(
+            lambda x: (x[0], x[1], x[3]),
+            output_type=Types.TUPLE([Types.LONG(), Types.STRING(), Types.INT()])
+        ).add_sink(self.test_sink)
+        self.env.execute('test_chained_window')
+        results = self.test_sink.get_results()
+        expected = ['(1676461680000,a1,1)',
+                    '(1676461680000,a1,2)',
+                    '(1676461680000,a2,1)',
+                    '(1676461740000,a1,1)',
+                    '(1676461740000,a2,1)']
+        self.assert_equals_sorted(expected, results)
 
 
 class SecondColumnTimestampAssigner(TimestampAssigner):

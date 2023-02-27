@@ -32,7 +32,7 @@ ES_INDEX=index_${TEST_TYPE}
 # get the dummy Flink dependency from flink-quickstart-test
 ES_DEPENDENCY="<dependency>\
 <groupId>org.apache.flink</groupId>\
-$(awk '/flink-quickstart-test-dummy-dependency/ {print $1}' ${END_TO_END_DIR}/flink-quickstart-test/target/dependency-reduced-pom.xml)\
+$(awk '/flink-quickstart-test-dummy-dependency/ {print $1}' ${END_TO_END_DIR}/flink-quickstart-test/dependency-reduced-pom.xml)\
 <version>\${flink.version}</version>\
 </dependency>"
 

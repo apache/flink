@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-kubernetes</artifactId>
@@ -31,7 +31,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>5.12.3</kubernetes.client.version>
+		<kubernetes.client.version>5.12.4</kubernetes.client.version>
 	</properties>
 
 	<dependencies>

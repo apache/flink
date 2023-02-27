@@ -29,6 +29,7 @@ import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,5 +75,15 @@ class OrcFileSystemFilterTest {
         OrcFilters.Predicate predicate6 =
                 new OrcFilters.LessThan("long1", PredicateLeaf.Type.LONG, 10);
         assertThat(predicate5).hasToString(predicate6.toString());
+
+        // and
+        CallExpression andExpression =
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.AND,
+                        Arrays.asList(greaterExpression, lessExpression),
+                        DataTypes.BOOLEAN());
+        OrcFilters.Predicate predicate7 = OrcFilters.toOrcPredicate(andExpression);
+        OrcFilters.Predicate predicate8 = new OrcFilters.And(predicate4, predicate6);
+        assertThat(predicate7).hasToString(predicate8.toString());
     }
 }

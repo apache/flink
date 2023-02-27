@@ -35,8 +35,10 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
@@ -48,13 +50,17 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
     private SessionManager sessionManager;
     private TemporaryFolder temporaryFolder;
     private final Supplier<Configuration> configSupplier;
-
-    public SqlGatewayServiceExtension() {
-        this(Configuration::new);
-    }
+    private final Function<DefaultContext, SessionManager> sessionManagerCreator;
 
     public SqlGatewayServiceExtension(Supplier<Configuration> configSupplier) {
+        this(configSupplier, SessionManager::create);
+    }
+
+    public SqlGatewayServiceExtension(
+            Supplier<Configuration> configSupplier,
+            Function<DefaultContext, SessionManager> sessionManagerCreator) {
         this.configSupplier = configSupplier;
+        this.sessionManagerCreator = sessionManagerCreator;
     }
 
     @Override
@@ -80,7 +86,10 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
             CommonTestUtils.setEnv(map);
 
-            sessionManager = new SessionManager(DefaultContext.load(new Configuration()));
+            sessionManager =
+                    sessionManagerCreator.apply(
+                            DefaultContext.load(
+                                    new Configuration(), Collections.emptyList(), true, false));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }

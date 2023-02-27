@@ -615,8 +615,6 @@ val counts: DataStream[(String, Int)] = stream
  2. 它仅在一些特殊的算子中可用。这些算子的输入为一个*广播*数据流和*非广播*数据流，
  3. 这类算子可以拥有不同命名的*多个广播状态* 。
 
-**注意：** Python DataStream API 仍无法支持广播状态。
-
 {{< top >}}
 
 ## 使用 Operator State

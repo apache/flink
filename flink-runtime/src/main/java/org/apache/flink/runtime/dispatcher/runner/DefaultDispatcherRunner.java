@@ -74,6 +74,10 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
                 CompletableFuture.completedFuture(null);
     }
 
+    void start() throws Exception {
+        leaderElectionService.start(this);
+    }
+
     @Override
     public CompletableFuture<ApplicationStatus> getShutDownFuture() {
         return shutDownFuture;
@@ -89,11 +93,14 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
             }
         }
 
+        final CompletableFuture<Void> stopLeaderElectionServiceFuture = stopLeaderElectionService();
+
         stopDispatcherLeaderProcess();
 
         FutureUtils.forward(previousDispatcherLeaderProcessTerminationFuture, terminationFuture);
 
-        return terminationFuture;
+        return FutureUtils.completeAll(
+                Arrays.asList(terminationFuture, stopLeaderElectionServiceFuture));
     }
 
     // ---------------------------------------------------------------
@@ -191,6 +198,16 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
                 });
     }
 
+    private CompletableFuture<Void> stopLeaderElectionService() {
+        try {
+            leaderElectionService.stop();
+        } catch (Exception e) {
+            return FutureUtils.completedExceptionally(e);
+        }
+
+        return FutureUtils.completedVoidFuture();
+    }
+
     private void runActionIfRunning(Runnable runnable) {
         synchronized (lock) {
             if (running) {
@@ -221,7 +238,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         final DefaultDispatcherRunner dispatcherRunner =
                 new DefaultDispatcherRunner(
                         leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
-        return DispatcherRunnerLeaderElectionLifecycleManager.createFor(
-                dispatcherRunner, leaderElectionService);
+        dispatcherRunner.start();
+        return dispatcherRunner;
     }
 }

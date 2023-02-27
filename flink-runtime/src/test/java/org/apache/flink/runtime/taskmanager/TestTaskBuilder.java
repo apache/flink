@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -206,6 +208,7 @@ public final class TestTaskBuilder {
                 resultPartitions,
                 inputGates,
                 MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),
+                new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
                 kvStateService,
@@ -223,7 +226,8 @@ public final class TestTaskBuilder {
                 new TestingTaskManagerRuntimeInfo(taskManagerConfig),
                 taskMetricGroup,
                 partitionProducerStateChecker,
-                executor);
+                executor,
+                new ChannelStateWriteRequestExecutorFactory(jobId));
     }
 
     public static void setTaskState(Task task, ExecutionState state) {

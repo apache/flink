@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
@@ -96,10 +97,10 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
     }
 
     @Override
-    public String explain(ExplainDetail... extraDetails) {
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
         List<Operation> operationList =
                 operations.stream().map(o -> (Operation) o).collect(Collectors.toList());
-        return tableEnvironment.explainInternal(operationList, extraDetails);
+        return tableEnvironment.explainInternal(operationList, format, extraDetails);
     }
 
     @Override

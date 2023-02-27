@@ -24,7 +24,6 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.FunctionWithException;
 
@@ -32,7 +31,6 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFram
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
@@ -53,7 +51,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for the error handling in case of a suspended connection to the ZooKeeper instance when
  * retrieving the leader information.
  */
-@ExtendWith(TestLoggerExtension.class)
 class ZooKeeperLeaderRetrievalConnectionHandlingTest {
 
     @RegisterExtension
@@ -67,7 +64,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     @Nullable private CuratorFramework zooKeeperClient;
 
     @BeforeEach
-    public void before() throws Exception {
+    void before() throws Exception {
         zooKeeperClient =
                 zooKeeperExtension
                         .getCustomExtension()
@@ -81,7 +78,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     }
 
     @Test
-    public void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
+    void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
         testWithQueueLeaderElectionListener(
                 queueLeaderElectionListener ->
                         ZooKeeperUtils.createLeaderRetrievalDriverFactory(zooKeeperClient)
@@ -107,7 +104,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     }
 
     @Test
-    public void testConnectionSuspendedHandling() throws Exception {
+    void testConnectionSuspendedHandling() throws Exception {
         testWithQueueLeaderElectionListener(
                 queueLeaderElectionListener ->
                         new ZooKeeperLeaderRetrievalDriver(
@@ -141,7 +138,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     }
 
     @Test
-    public void testSuspendedConnectionDoesNotClearLeaderInformationIfClearanceOnLostConnection()
+    void testSuspendedConnectionDoesNotClearLeaderInformationIfClearanceOnLostConnection()
             throws Exception {
         testWithQueueLeaderElectionListener(
                 queueLeaderElectionListener ->
@@ -176,7 +173,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     }
 
     @Test
-    public void testSameLeaderAfterReconnectTriggersListenerNotification() throws Exception {
+    void testSameLeaderAfterReconnectTriggersListenerNotification() throws Exception {
         testWithQueueLeaderElectionListener(
                 queueLeaderElectionListener ->
                         new ZooKeeperLeaderRetrievalDriver(
@@ -235,7 +232,7 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
     }
 
     @Test
-    public void testNewLeaderAfterReconnectTriggersListenerNotification() throws Exception {
+    void testNewLeaderAfterReconnectTriggersListenerNotification() throws Exception {
         testWithQueueLeaderElectionListener(
                 queueLeaderElectionListener ->
                         new ZooKeeperLeaderRetrievalDriver(

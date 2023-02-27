@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.runtime.operators.sort.RankOperator;
@@ -43,7 +44,8 @@ import java.util.Collections;
  *
  * <p>This node supports two-stage(local and global) rank to reduce data-shuffling.
  */
-public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedExecNode<RowData> {
+public class BatchExecRank extends ExecNodeBase<RowData>
+        implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] partitionFields;
     private final int[] sortFields;
@@ -112,6 +114,7 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedE
                 createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

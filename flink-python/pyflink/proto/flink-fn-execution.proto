@@ -25,6 +25,11 @@ package org.apache.flink.fn_execution.v1;
 option java_package = "org.apache.flink.fnexecution.v1";
 option java_outer_classname = "FlinkFnApi";
 
+message JobParameter {
+  string key = 1;
+  string value = 2;
+}
+
 // ------------------------------------------------------------------------
 // Table API & SQL
 // ------------------------------------------------------------------------
@@ -65,6 +70,7 @@ message UserDefinedFunctions {
   bool metric_enabled = 2;
   repeated OverWindow windows = 3;
   bool profile_enabled = 4;
+  repeated JobParameter job_parameters = 5;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation
@@ -182,6 +188,7 @@ message UserDefinedAggregateFunctions {
   GroupWindow group_window = 12;
 
   bool profile_enabled = 13;
+  repeated JobParameter job_parameters = 14;
 }
 
 // A representation of the data schema.
@@ -208,6 +215,7 @@ message Schema {
     MULTISET = 18;
     LOCAL_ZONED_TIMESTAMP = 19;
     ZONED_TIMESTAMP = 20;
+    NULL = 21;
   }
 
   message MapInfo {
@@ -359,11 +367,6 @@ message UserDefinedDataStreamFunction {
     CO_BROADCAST_PROCESS = 5;
     KEYED_CO_BROADCAST_PROCESS = 6;
     REVISE_OUTPUT = 100;
-  }
-
-  message JobParameter {
-    string key = 1;
-    string value = 2;
   }
 
   message RuntimeContext {

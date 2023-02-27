@@ -528,6 +528,69 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
 **注意：**
 - 只有批模式才支持自动收集统计信息，流模式目前还不支持自动收集统计信息。
 
+### 文件合并
+
+在使用 Flink 写 Hive 表的时候，Flink 也支持自动对小文件进行合并以减少小文件的数量。
+
+#### Stream Mode
+
+流模式下，合并小文件的行为与写 `文件系统` 一样，更多细节请参考 [文件合并]({{< ref "docs/connectors/table/filesystem" >}}#file-compaction)。
+
+#### Batch Mode
+
+在批模式，并且自动合并小文件已经开启的情况下，在结束写 Hive 表后，Flink 会计算每个分区下文件的平均大小，如果文件的平均大小小于用户指定的一个阈值，Flink 则会将这些文件合并成指定大小的文件。下面是文件合并涉及到的参数：
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>auto-compaction</h5></td>
+        <td>optional</td>
+        <td>no</td>
+        <td style="word-wrap: break-word;">false</td>
+        <td>Boolean</td>
+        <td>是否开启自动合并，数据将会首先被写入临时文件，合并结束后，文件才可见。</td>
+    </tr>
+    <tr>
+        <td><h5>compaction.small-files.avg-size</h5></td>
+        <td>optional</td>
+        <td>yes</td>
+        <td style="word-wrap: break-word;">16MB</td>
+        <td>MemorySize</td>
+        <td>合并文件的阈值，当文件的平均大小小于该阈值，Flink 将对这些文件进行合并。默认值是 16MB。</td>
+    </tr>
+    <tr>
+        <td><h5>compaction.file-size</h5></td>
+        <td>optional</td>
+        <td>yes</td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>MemorySize</td>
+        <td>合并文件的目标大小，即期望将文件合并成多大的文件，默认值是 <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-rolling-policy-file-size">rolling file</a>的大小。</td>
+    </tr>
+    <tr>
+        <td><h5>compaction.parallelism</h5></td>
+        <td>optional</td>
+        <td>no</td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>Integer</td>
+        <td>
+        合并文件的并行度。 如果没有设置，它将使用 <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-parallelism">sink parallelism</a> 作为并行度。
+        当使用了 <a href="{{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler">adaptive batch scheduler</a>, 该并行度可能会很小，导致花费很多时间进行文件合并。
+        在这种情况下, 你可以手动设置该值为一个更大的值。
+        </td>
+    </tr>
+  </tbody>
+</table>
+
 ## 格式
 
 Flink 对 Hive 的集成已经在如下的文件格式进行了测试：

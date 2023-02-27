@@ -157,7 +157,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[], metadata=[]]], fields=[])
+   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[id], metadata=[]]], fields=[id])
 ]]>
     </Resource>
   </TestCase>

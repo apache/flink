@@ -23,7 +23,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-/** {@link ResponseBody} for execute a statement. */
+/** {@link ResponseBody} for executing a statement. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExecuteStatementResponseBody implements ResponseBody {
 

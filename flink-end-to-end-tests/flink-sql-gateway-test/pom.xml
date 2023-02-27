@@ -22,19 +22,13 @@ under the License.
     <parent>
         <artifactId>flink-end-to-end-tests</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>1.17-SNAPSHOT</version>
+        <version>1.18-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>flink-sql-gateway-test</artifactId>
     <name>Flink : E2E Tests : SQL Gateway</name>
     <packaging>jar</packaging>
-
-    <properties>
-        <!-- The test container uses hive-2.1.0 -->
-        <hive.version>2.3.9</hive.version>
-        <flink.hadoop.version>2.8.5</flink.hadoop.version>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -80,12 +74,26 @@ under the License.
                     <groupId>jdk.tools</groupId>
                     <artifactId>jdk.tools</artifactId>
                 </exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils-junit</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-sql-gateway-api</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
 		<dependency>
@@ -114,6 +122,14 @@ under the License.
                     <groupId>jdk.tools</groupId>
                     <artifactId>jdk.tools</artifactId>
                 </exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
     </dependencies>

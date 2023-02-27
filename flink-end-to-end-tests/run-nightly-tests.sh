@@ -46,7 +46,6 @@ source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
 function run_on_exit {
     collect_coredumps $(pwd) $DEBUG_FILES_OUTPUT_DIR
-    collect_dmesg $DEBUG_FILES_OUTPUT_DIR
 }
 
 on_exit run_on_exit
@@ -150,9 +149,6 @@ function run_group_1 {
                 run_test "Running Kerberized YARN application on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh"
                 run_test "Running Kerberized YARN application on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh dummy-fs"
             fi
-
-            # `google/cloud-sdk` docker image doesn't support aarch64 currently.
-            run_test "Test PubSub connector with Docker based Google PubSub Emulator" "$END_TO_END_DIR/test-scripts/test_streaming_gcp_pubsub.sh"
         fi
     fi
 
@@ -212,7 +208,7 @@ function run_group_2 {
 
     run_test "TPC-H end-to-end test" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
     run_test "TPC-DS end-to-end test" "$END_TO_END_DIR/test-scripts/test_tpcds.sh"
-    run_test "TPC-DS end-to-end test with adaptive batch scheduler" "$END_TO_END_DIR/test-scripts/test_tpcds.sh AdaptiveBatch"
+    run_test "TPC-DS end-to-end test with adaptive batch scheduler" "$END_TO_END_DIR/test-scripts/test_tpcds.sh AdaptiveBatch run_test" "custom_check_exceptions" "$END_TO_END_DIR/test-scripts/test_tpcds.sh AdaptiveBatch check_exceptions"
 
     run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh" "skip_check_exceptions"
 

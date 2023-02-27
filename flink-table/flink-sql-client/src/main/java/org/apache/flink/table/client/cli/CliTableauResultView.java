@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.result.ChangelogResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.table.utils.print.TableauStyle;
@@ -42,20 +43,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CliTableauResultView implements AutoCloseable {
 
     private final Terminal terminal;
-    private final Executor sqlExecutor;
-    private final String sessionId;
     private final ResultDescriptor resultDescriptor;
+
+    private final ChangelogResult collectResult;
     private final ExecutorService displayResultExecutorService;
 
+    public CliTableauResultView(final Terminal terminal, final ResultDescriptor resultDescriptor) {
+        this(terminal, resultDescriptor, resultDescriptor.createResult());
+    }
+
+    @VisibleForTesting
     public CliTableauResultView(
             final Terminal terminal,
-            final Executor sqlExecutor,
-            final String sessionId,
-            final ResultDescriptor resultDescriptor) {
+            final ResultDescriptor resultDescriptor,
+            final ChangelogResult collectResult) {
         this.terminal = terminal;
-        this.sqlExecutor = sqlExecutor;
-        this.sessionId = sessionId;
         this.resultDescriptor = resultDescriptor;
+        this.collectResult = collectResult;
         this.displayResultExecutorService =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("CliTableauResultView"));
@@ -111,11 +115,7 @@ public class CliTableauResultView implements AutoCloseable {
 
     private void checkAndCleanUpQuery(boolean cleanUpQuery) {
         if (cleanUpQuery) {
-            try {
-                sqlExecutor.cancelQuery(sessionId, resultDescriptor.getResultId());
-            } catch (SqlExecutionException e) {
-                // ignore further exceptions
-            }
+            collectResult.close();
         }
     }
 
@@ -126,7 +126,7 @@ public class CliTableauResultView implements AutoCloseable {
                 PrintStyle.tableauWithDataInferredColumnWidths(
                         resultDescriptor.getResultSchema(),
                         resultDescriptor.getRowDataStringConverter(),
-                        PrintStyle.DEFAULT_MAX_COLUMN_WIDTH,
+                        resultDescriptor.maxColumnWidth(),
                         false,
                         false);
         style.print(resultRows.iterator(), terminal.writer());
@@ -148,8 +148,7 @@ public class CliTableauResultView implements AutoCloseable {
         terminal.flush();
 
         while (true) {
-            final TypedResult<List<RowData>> result =
-                    sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
+            final TypedResult<List<RowData>> result = collectResult.retrieveChanges();
 
             switch (result.getType()) {
                 case EMPTY:
@@ -177,6 +176,9 @@ public class CliTableauResultView implements AutoCloseable {
                 case PAYLOAD:
                     List<RowData> changes = result.getPayload();
                     for (RowData change : changes) {
+                        if (Thread.currentThread().isInterrupted()) {
+                            return;
+                        }
                         style.printTableauRow(style.rowFieldsToString(change), terminal.writer());
                         receivedRowCount.incrementAndGet();
                     }
@@ -195,8 +197,7 @@ public class CliTableauResultView implements AutoCloseable {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            TypedResult<List<RowData>> result =
-                    sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
+            TypedResult<List<RowData>> result = collectResult.retrieveChanges();
 
             if (result.getType() == TypedResult.ResultType.EOS) {
                 break;

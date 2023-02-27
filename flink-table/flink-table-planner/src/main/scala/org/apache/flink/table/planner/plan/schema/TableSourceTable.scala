@@ -116,6 +116,36 @@ class TableSourceTable(
   }
 
   /**
+   * Creates a copy of this table with specified digest and context resolved table
+   *
+   * @param newTableSource
+   *   tableSource to replace
+   * @param newResolveTable
+   *   resolved table to replace
+   * @param newRowType
+   *   new row type
+   * @return
+   *   added TableSourceTable instance with specified digest
+   */
+  def copy(
+      newTableSource: DynamicTableSource,
+      newResolveTable: ContextResolvedTable,
+      newRowType: RelDataType,
+      newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      newRowType,
+      statistic,
+      newTableSource,
+      isStreamingMode,
+      newResolveTable,
+      flinkContext,
+      flinkTypeFactory,
+      abilitySpecs ++ newAbilitySpecs
+    )
+  }
+
+  /**
    * Creates a copy of this table with specified digest and statistic.
    *
    * @param newTableSource

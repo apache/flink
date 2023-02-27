@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -199,6 +201,7 @@ public class TaskAsyncCallTest extends TestLogger {
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 mock(MemoryManager.class),
+                new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
                 new KvStateService(new KvStateRegistry(), null, null),
@@ -216,7 +219,8 @@ public class TaskAsyncCallTest extends TestLogger {
                 new TestingTaskManagerRuntimeInfo(),
                 taskMetricGroup,
                 partitionProducerStateChecker,
-                executor);
+                executor,
+                new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()));
     }
 
     /** Invokable for testing checkpoints. */

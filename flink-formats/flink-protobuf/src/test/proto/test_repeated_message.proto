@@ -22,11 +22,9 @@ option java_package = "org.apache.flink.formats.protobuf.testproto";
 option java_multiple_files = true;
 
 message RepeatedMessageTest {
-    repeated InnerMessageTest d = 4;
-    message InnerMessageTest{
-      optional int32 a =1;
-      optional int64 b =2;
-    }
+  repeated InnerMessageTest d = 4;
+  message InnerMessageTest{
+    optional int32 a = 1;
+    optional int64 b = 2;
+  }
 }
-
-

@@ -62,7 +62,6 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationImpl;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
@@ -1581,8 +1580,7 @@ public class HiveParserCalcitePlanner {
 
             // create rel node
             RelTraitSet traitSet = cluster.traitSet();
-            RelCollation canonizedCollation =
-                    traitSet.canonize(RelCollationImpl.of(fieldCollations));
+            RelCollation canonizedCollation = traitSet.canonize(RelCollations.of(fieldCollations));
             res = LogicalDistribution.create(realInput, canonizedCollation, distKeys);
 
             Map<String, Integer> hiveColNameCalcitePosMap = buildHiveToCalciteColumnMap(outputRR);
@@ -1740,8 +1738,7 @@ public class HiveParserCalcitePlanner {
 
             // 4. Construct SortRel
             RelTraitSet traitSet = cluster.traitSet();
-            RelCollation canonizedCollation =
-                    traitSet.canonize(RelCollationImpl.of(fieldCollations));
+            RelCollation canonizedCollation = traitSet.canonize(RelCollations.of(fieldCollations));
             sortRel = LogicalSort.create(obInputRel, canonizedCollation, null, null);
 
             // 5. Update the maps

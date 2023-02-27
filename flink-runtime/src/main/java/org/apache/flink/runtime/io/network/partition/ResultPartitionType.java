@@ -189,6 +189,21 @@ public enum ResultPartitionType {
     }
 
     /**
+     * {@link #isHybridResultPartition()} is used to judge whether it is the specified {@link
+     * #HYBRID_FULL} or {@link #HYBRID_SELECTIVE} resultPartitionType.
+     *
+     * <p>this method suitable for judgment conditions related to the specific implementation of
+     * {@link ResultPartitionType}.
+     *
+     * <p>this method not related to data consumption and partition release. As for the logic
+     * related to partition release, use {@link #isReleaseByScheduler()} instead, and as consume
+     * type, use {@link #mustBePipelinedConsumed()} or {@link #canBePipelinedConsumed()} instead.
+     */
+    public boolean isHybridResultPartition() {
+        return this == HYBRID_FULL || this == HYBRID_SELECTIVE;
+    }
+
+    /**
      * {@link #isPipelinedOrPipelinedBoundedResultPartition()} is used to judge whether it is the
      * specified {@link #PIPELINED} or {@link #PIPELINED_BOUNDED} resultPartitionType.
      *

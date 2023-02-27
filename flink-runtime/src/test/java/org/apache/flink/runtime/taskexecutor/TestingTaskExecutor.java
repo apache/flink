@@ -27,6 +27,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +48,8 @@ class TestingTaskExecutor extends TaskExecutor {
             @Nullable String metricQueryServiceAddress,
             TaskExecutorBlobService taskExecutorBlobService,
             FatalErrorHandler fatalErrorHandler,
-            TaskExecutorPartitionTracker partitionTracker) {
+            TaskExecutorPartitionTracker partitionTracker,
+            DelegationTokenReceiverRepository delegationTokenReceiverRepository) {
         super(
                 rpcService,
                 taskManagerConfiguration,
@@ -59,7 +61,8 @@ class TestingTaskExecutor extends TaskExecutor {
                 metricQueryServiceAddress,
                 taskExecutorBlobService,
                 fatalErrorHandler,
-                partitionTracker);
+                partitionTracker,
+                delegationTokenReceiverRepository);
     }
 
     @Override

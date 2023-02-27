@@ -89,6 +89,7 @@ public abstract class AbstractStreamOperator<OUT>
         implements StreamOperator<OUT>,
                 SetupableStreamOperator<OUT>,
                 CheckpointedStreamOperator,
+                KeyContextHandler,
                 Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -159,23 +160,13 @@ public abstract class AbstractStreamOperator<OUT>
         final Environment environment = containingTask.getEnvironment();
         this.container = containingTask;
         this.config = config;
-        try {
-            InternalOperatorMetricGroup operatorMetricGroup =
-                    environment
-                            .getMetricGroup()
-                            .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
-            this.output = registerCounterOnOutput(output, operatorMetricGroup);
-            if (config.isChainEnd()) {
-                operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
-            }
-            this.metrics = operatorMetricGroup;
-        } catch (Exception e) {
-            LOG.warn("An error occurred while instantiating task metrics.", e);
-            this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-            this.output = output;
-        }
-
+        this.output = output;
+        this.metrics =
+                environment
+                        .getMetricGroup()
+                        .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
         this.combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(2);
+
         try {
             Configuration taskManagerConfig = environment.getTaskManagerInfo().getConfiguration();
             int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
@@ -493,6 +484,18 @@ public abstract class AbstractStreamOperator<OUT>
         setKeyContextElement(record, stateKeySelector2);
     }
 
+    @Internal
+    @Override
+    public boolean hasKeyContext1() {
+        return stateKeySelector1 != null;
+    }
+
+    @Internal
+    @Override
+    public boolean hasKeyContext2() {
+        return stateKeySelector2 != null;
+    }
+
     private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector)
             throws Exception {
         if (selector != null) {
@@ -645,11 +648,5 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
         return Optional.ofNullable(timeServiceManager);
-    }
-
-    protected Output<StreamRecord<OUT>> registerCounterOnOutput(
-            Output<StreamRecord<OUT>> output, OperatorMetricGroup operatorMetricGroup) {
-        return new CountingOutput<>(
-                output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
     }
 }

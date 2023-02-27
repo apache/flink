@@ -25,7 +25,9 @@ import org.apache.flink.util.TestLoggerExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,8 +44,10 @@ class HsFileDataIndexImplTest {
     private HsFileDataIndex hsDataIndex;
 
     @BeforeEach
-    void before() {
-        hsDataIndex = new HsFileDataIndexImpl(NUM_SUBPARTITIONS);
+    void before(@TempDir Path tempDir) throws Exception {
+        hsDataIndex =
+                new HsFileDataIndexImpl(
+                        NUM_SUBPARTITIONS, tempDir.resolve(".index"), 256, Long.MAX_VALUE);
     }
 
     /**

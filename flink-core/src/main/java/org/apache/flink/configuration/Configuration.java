@@ -699,6 +699,19 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         return Optional.empty();
     }
 
+    /**
+     * Please check the java doc of {@link #getRawValueFromOption(ConfigOption)}. If no keys are
+     * found in {@link Configuration}, default value of the given option will return. Please make
+     * sure there will be at least one value available. Otherwise, a NPE will be thrown by Flink
+     * when the value is used.
+     *
+     * <p>NOTE: current logic is not able to get the default value of the fallback key's
+     * ConfigOption, in case the given ConfigOption has no default value. If you want to use
+     * fallback key, please make sure its value could be found in {@link Configuration} at runtime.
+     *
+     * @param option metadata of the option to read
+     * @return the value of the given option
+     */
     @Override
     public <T> T get(ConfigOption<T> option) {
         return getOptional(option).orElseGet(option::defaultValue);
@@ -826,6 +839,16 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         }
     }
 
+    /**
+     * This method will do the following steps to get the value of a config option:
+     *
+     * <p>1. get the value from {@link Configuration}. <br>
+     * 2. if key is not found, try to get the value with fallback keys from {@link Configuration}
+     * <br>
+     * 3. if no fallback keys are found, return {@link Optional#empty()}. <br>
+     *
+     * @return the value of the configuration or {@link Optional#empty()}.
+     */
     private Optional<Object> getRawValueFromOption(ConfigOption<?> configOption) {
         return applyWithOption(configOption, this::getRawValue);
     }

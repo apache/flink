@@ -444,7 +444,7 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testAsyncJoinTemporalTableWithRetry(): Unit = {
-    val maxRetryTwiceHint = getAsyncRetryLookupHint("user_table", 2)
+    val maxRetryTwiceHint = getAsyncRetryLookupHint("D", 2)
     val sink = new TestingAppendSink
     tEnv
       .sqlQuery(s"""
@@ -463,7 +463,7 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testAsyncJoinTemporalTableWithLookupThresholdWithInsufficientRetry(): Unit = {
-    val maxRetryOnceHint = getAsyncRetryLookupHint("user_table_with_lookup_threshold3", 1)
+    val maxRetryOnceHint = getAsyncRetryLookupHint("D", 1)
     val sink = new TestingAppendSink
     tEnv
       .sqlQuery(s"""
@@ -492,7 +492,7 @@ class AsyncLookupJoinITCase(
     // retry work, but due the fast finish of testing bounded source, it has no assurance of the
     // max attempts number, it only ensures at least one retry for each element in current version
     // so we can only use a max lookup threshold to 2 to get a deterministic results
-    val maxRetryTwiceHint = getAsyncRetryLookupHint("user_table_with_lookup_threshold2", 2)
+    val maxRetryTwiceHint = getAsyncRetryLookupHint("D", 2)
 
     val sink = new TestingAppendSink
     tEnv

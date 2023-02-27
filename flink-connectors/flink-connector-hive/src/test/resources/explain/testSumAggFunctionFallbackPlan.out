@@ -1,0 +1,23 @@
+== Abstract Syntax Tree ==
+LogicalProject(x=[$0], _o__c1=[$1])
++- LogicalAggregate(group=[{0}], agg#0=[sum($1)])
+   +- LogicalProject($f0=[$0], $f1=[$1])
+      +- LogicalTableScan(table=[[test-catalog, default, foo]])
+
+== Optimized Physical Plan ==
+SortAggregate(isMerge=[true], groupBy=[x], select=[x, Final_sum($f1) AS $f1])
++- Sort(orderBy=[x ASC])
+   +- Exchange(distribution=[hash[x]])
+      +- LocalSortAggregate(groupBy=[x], select=[x, Partial_sum(y) AS $f1])
+         +- Sort(orderBy=[x ASC])
+            +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])
+
+== Optimized Execution Plan ==
+SortAggregate(isMerge=[true], groupBy=[x], select=[x, Final_sum($f1) AS $f1])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[x ASC])
+      +- Exchange(distribution=[hash[x]])
+         +- LocalSortAggregate(groupBy=[x], select=[x, Partial_sum(y) AS $f1])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[x ASC])
+                  +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])

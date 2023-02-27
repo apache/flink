@@ -19,13 +19,18 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.apache.flink.runtime.metrics.groups.TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -34,6 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class JobManagerJobMetricGroup extends JobMetricGroup<JobManagerMetricGroup> {
+    private final Map<String, JobManagerOperatorMetricGroup> operators = new HashMap<>();
+
     JobManagerJobMetricGroup(
             MetricRegistry registry,
             JobManagerMetricGroup parent,
@@ -53,12 +60,65 @@ public class JobManagerJobMetricGroup extends JobMetricGroup<JobManagerMetricGro
         return parent;
     }
 
+    public JobManagerOperatorMetricGroup getOrAddOperator(
+            AbstractID vertexId, String taskName, OperatorID operatorID, String operatorName) {
+        final String truncatedOperatorName = getTruncatedOperatorName(operatorName);
+
+        // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
+        // operators
+        final String key = operatorID + truncatedOperatorName;
+
+        synchronized (this) {
+            return operators.computeIfAbsent(
+                    key,
+                    operator ->
+                            new JobManagerOperatorMetricGroup(
+                                    this.registry,
+                                    this,
+                                    vertexId,
+                                    taskName,
+                                    operatorID,
+                                    truncatedOperatorName));
+        }
+    }
+
+    private String getTruncatedOperatorName(String operatorName) {
+        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
+            LOG.warn(
+                    "The operator name {} exceeded the {} characters length limit and was truncated.",
+                    operatorName,
+                    METRICS_OPERATOR_NAME_MAX_LENGTH);
+            return operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+        } else {
+            return operatorName;
+        }
+    }
+
+    @VisibleForTesting
+    int numRegisteredOperatorMetricGroups() {
+        return operators.size();
+    }
+
+    void removeOperatorMetricGroup(OperatorID operatorID, String operatorName) {
+        final String truncatedOperatorName = getTruncatedOperatorName(operatorName);
+
+        // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
+        // operators
+        final String key = operatorID + truncatedOperatorName;
+
+        synchronized (this) {
+            if (!isClosed()) {
+                operators.remove(key);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Component Metric Group Specifics
     // ------------------------------------------------------------------------
 
     @Override
     protected Iterable<? extends ComponentMetricGroup> subComponents() {
-        return Collections.emptyList();
+        return operators.values();
     }
 }

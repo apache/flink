@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /** Message parameters for job vertex Flame Graph REST handler. */
 public class JobVertexFlameGraphParameters extends JobVertexMessageParameters {
@@ -27,8 +27,11 @@ public class JobVertexFlameGraphParameters extends JobVertexMessageParameters {
     public final FlameGraphTypeQueryParameter flameGraphTypeQueryParameter =
             new FlameGraphTypeQueryParameter();
 
+    public final SubtaskIndexQueryParameter subtaskIndexQueryParameter =
+            new SubtaskIndexQueryParameter();
+
     @Override
     public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Collections.singleton(flameGraphTypeQueryParameter);
+        return Arrays.asList(flameGraphTypeQueryParameter, subtaskIndexQueryParameter);
     }
 }

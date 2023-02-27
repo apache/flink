@@ -59,10 +59,10 @@ public class NonChainedOutput implements Serializable {
     private final OutputTag<?> outputTag;
 
     /** The corresponding data partitioner. */
-    private final StreamPartitioner<?> partitioner;
+    private StreamPartitioner<?> partitioner;
 
     /** Target {@link ResultPartitionType}. */
-    private final ResultPartitionType partitionType;
+    private ResultPartitionType partitionType;
 
     public NonChainedOutput(
             boolean supportsUnalignedCheckpoints,
@@ -117,6 +117,14 @@ public class NonChainedOutput implements Serializable {
 
     public OutputTag<?> getOutputTag() {
         return outputTag;
+    }
+
+    public void setPartitioner(StreamPartitioner<?> partitioner) {
+        this.partitioner = partitioner;
+    }
+
+    public void setPartitionType(ResultPartitionType partitionType) {
+        this.partitionType = partitionType;
     }
 
     public StreamPartitioner<?> getPartitioner() {

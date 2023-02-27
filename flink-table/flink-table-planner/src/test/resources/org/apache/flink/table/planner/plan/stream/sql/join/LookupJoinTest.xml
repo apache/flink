@@ -536,12 +536,12 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
   </TestCase>
   <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=false]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=AsyncLookupTable}]]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -558,12 +558,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   </TestCase>
   <TestCase name="testJoinAsyncTableWithAsyncHint[LegacyTableSource=true]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=AsyncLookupTable}]]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -580,12 +580,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   </TestCase>
   <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=false]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=false, table=AsyncLookupTable}]]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=false, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -602,12 +602,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   </TestCase>
   <TestCase name="testJoinAsyncTableWithSyncHint[LegacyTableSource=true]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=false, table=AsyncLookupTable}]]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=false, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -622,9 +622,133 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LOOKUP('table'='D', 'output-mode'='ordered','capacity'='200') */ T1.a
+FROM (
+   SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered', 'capacity'='1000') */
+     T.a a, T.proctime
+   FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+     ON T.a = D.id
+) T1
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T1.proctime AS D
+ON T1.a=D.id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=ordered, table=D, capacity=200}]]])
+   :- LogicalProject(a=[$0], proctime=[$3])
+   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D, capacity=1000}]]])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   :     +- LogicalFilter(condition=[=($cor0.a, $0)])
+   :        +- LogicalSnapshot(period=[$cor0.proctime])
+   :           +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]])
+   +- LogicalFilter(condition=[=($cor1.a, $0)])
+      +- LogicalSnapshot(period=[$cor1.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[ORDERED, 180000ms, 200])
+   +- Calc(select=[a])
+      +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[UNORDERED, 180000ms, 1000])
+         +- Calc(select=[a])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithNoPropagatingToSubQuery[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LOOKUP('table'='D', 'output-mode'='ordered','capacity'='200') */ T1.a
+FROM (
+   SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered', 'capacity'='1000') */
+     T.a a, T.proctime
+   FROM MyTable AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+     ON T.a = D.id
+) T1
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T1.proctime AS D
+ON T1.a=D.id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=ordered, table=D, capacity=200}]]])
+   :- LogicalProject(a=[$0], proctime=[$3])
+   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D, capacity=1000}]]])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   :     +- LogicalFilter(condition=[=($cor0.a, $0)])
+   :        +- LogicalSnapshot(period=[$cor0.proctime])
+   :           +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]])
+   +- LogicalFilter(condition=[=($cor1.a, $0)])
+      +- LogicalSnapshot(period=[$cor1.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[ORDERED, 180000ms, 200])
+   +- Calc(select=[a])
+      +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[UNORDERED, 180000ms, 1000])
+         +- Calc(select=[a])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithTableAlias[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=false]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -633,7 +757,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]], hints=[[[ALIAS inheritPath:[] options:[LookupTable]]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -646,7 +770,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   </TestCase>
   <TestCase name="testJoinHintWithTableNameOnly[LegacyTableSource=true]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -655,7 +779,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]], hints=[[[ALIAS inheritPath:[] options:[LookupTable]]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -668,12 +792,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   </TestCase>
   <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=false]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=LookupTable}]]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -690,12 +814,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   </TestCase>
   <TestCase name="testJoinSyncTableWithAsyncHint[LegacyTableSource=true]">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ LOOKUP('table'='LookupTable', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+      <![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=LookupTable}]]])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -787,7 +911,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- LogicalProject(a=[$0], name=[$6], age=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, time-out=600s, max-attempts=3, output-mode=allow_unordered, fixed-delay=10s, retry-predicate=lookup_miss, table=AsyncLookupTable, capacity=300}]]])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, time-out=600s, max-attempts=3, output-mode=allow_unordered, fixed-delay=10s, retry-predicate=lookup_miss, table=D, capacity=300}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1490,7 +1614,7 @@ Calc(select=[a, b, c, name])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- LogicalProject(a=[$0], name=[$6], age=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, time-out=600s, max-attempts=3, output-mode=allow_unordered, fixed-delay=10s, retry-predicate=lookup_miss, table=AsyncLookupTable, capacity=300}]]])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, time-out=600s, max-attempts=3, output-mode=allow_unordered, fixed-delay=10s, retry-predicate=lookup_miss, table=D, capacity=300}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1582,7 +1706,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- LogicalProject(a=[$0], name=[$6], age=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{time-out=600s, output-mode=allow_unordered, table=AsyncLookupTable, capacity=300}]]])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{time-out=600s, output-mode=allow_unordered, table=D, capacity=300}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1699,7 +1823,7 @@ Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- LogicalProject(a=[$0], name=[$6], age=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{time-out=600s, output-mode=allow_unordered, table=AsyncLookupTable, capacity=300}]]])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{time-out=600s, output-mode=allow_unordered, table=D, capacity=300}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1786,12 +1910,76 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 }]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss',
+'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+*/
+T.a
+FROM MyTable AS T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], retry=[lookup_miss, FIXED_DELAY, 155ms, 10])
+   +- Calc(select=[a])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithMixedCaseJoinHint[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LookuP('table'='D', 'retry-predicate'='lookup_miss',
+'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
+'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
+*/
+T.a
+FROM MyTable AS T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], retry=[lookup_miss, FIXED_DELAY, 155ms, 10])
+   +- Calc(select=[a])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithRetryHint[LegacyTableSource=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- LogicalProject(a=[$0], name=[$6], age=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1883,7 +2071,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- LogicalProject(a=[$0], name=[$6], age=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1995,11 +2183,11 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=true]">
     <Resource name="sql">
       <![CDATA[
-SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'), 
-           LOOKUP('table'='AsyncLookupTable', 'output-mode'='ordered') */ * 
-FROM MyTable AS T 
-JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
- ON T.a = D.id
+SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='AsyncLookupTable', 'output-mode'='ordered') */ *
+FROM MyTable AS T
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime
+ ON T.a = AsyncLookupTable.id
       ]]>
     </Resource>
     <Resource name="ast">
@@ -2009,7 +2197,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]], hints=[[[ALIAS inheritPath:[] options:[AsyncLookupTable]]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2042,12 +2230,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=false]">
+  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=false]">
     <Resource name="sql">
       <![CDATA[
-SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'), 
-           LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * 
-FROM MyTable AS T 
+SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='D1', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
+FROM MyTable AS T
 JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
   ON T.a = D.id
 JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1 
@@ -2057,8 +2245,8 @@ JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], id0=[$8], name0=[$9], age0=[$10])
-+- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
-   :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D1}]]])
+   :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D1}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    :  +- LogicalFilter(condition=[=($cor0.a, $0)])
    :     +- LogicalSnapshot(period=[$cor0.proctime])
@@ -2077,12 +2265,138 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
+FROM MyTable AS T
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime
+  ON T.a = AsyncLookupTable.id
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime
+  ON T.a = LookupTable.id
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], id0=[$8], name0=[$9], age0=[$10])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
+   :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   :  +- LogicalFilter(condition=[=($cor0.a, $0)])
+   :     +- LogicalSnapshot(period=[$cor0.proctime])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]], hints=[[[ALIAS inheritPath:[] options:[AsyncLookupTable]]]])
+   +- LogicalFilter(condition=[=($cor1.a, $0)])
+      +- LogicalSnapshot(period=[$cor1.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]], hints=[[[ALIAS inheritPath:[] options:[LookupTable]]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, id0, name0, age0])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, id0, name0, age0], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultipleJoinHintsWithDifferentTableName[LegacyTableSource=true]">
     <Resource name="sql">
       <![CDATA[
-SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'), 
-           LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * 
-FROM MyTable AS T 
+SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
+FROM MyTable AS T
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime
+  ON T.a = AsyncLookupTable.id
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime
+  ON T.a = LookupTable.id
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], id0=[$8], name0=[$9], age0=[$10])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
+   :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   :  +- LogicalFilter(condition=[=($cor0.a, $0)])
+   :     +- LogicalSnapshot(period=[$cor0.proctime])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]], hints=[[[ALIAS inheritPath:[] options:[AsyncLookupTable]]]])
+   +- LogicalFilter(condition=[=($cor1.a, $0)])
+      +- LogicalSnapshot(period=[$cor1.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]], hints=[[[ALIAS inheritPath:[] options:[LookupTable]]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, id0, name0, age0])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, id0, name0, age0], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='D', 'output-mode'='ordered') */ *
+FROM MyTable AS T
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+ ON T.a = D.id
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0] options:{output-mode=ordered, table=D}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleJoinHintsWithSameTableAlias[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='D', 'output-mode'='ordered') */ *
+FROM MyTable AS T
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+ ON T.a = D.id
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0] options:{output-mode=ordered, table=D}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleJoinHintsWithDifferentTableAlias[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='D1', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
+FROM MyTable AS T
 JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
   ON T.a = D.id
 JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1 
@@ -2092,8 +2406,8 @@ JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], id0=[$8], name0=[$9], age0=[$10])
-+- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
-   :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D1}]]])
+   :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D1}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    :  +- LogicalFilter(condition=[=($cor0.a, $0)])
    :     +- LogicalSnapshot(period=[$cor0.proctime])
@@ -2115,11 +2429,11 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   <TestCase name="testMultipleJoinHintsWithSameTableName[LegacyTableSource=false]">
     <Resource name="sql">
       <![CDATA[
-SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'), 
-           LOOKUP('table'='AsyncLookupTable', 'output-mode'='ordered') */ * 
-FROM MyTable AS T 
-JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
- ON T.a = D.id
+SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'),
+           LOOKUP('table'='AsyncLookupTable', 'output-mode'='ordered') */ *
+FROM MyTable AS T
+JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime
+ ON T.a = AsyncLookupTable.id
       ]]>
     </Resource>
     <Resource name="ast">
@@ -2129,7 +2443,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]], hints=[[[ALIAS inheritPath:[] options:[AsyncLookupTable]]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

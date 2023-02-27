@@ -34,6 +34,7 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils}
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.{Assert, Before, Rule, Test}
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.TemporaryFolder
@@ -246,6 +247,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
       replaceStageId(readFromResource("/explain/testSqlUpdateAndToDataStream.out")),
       replaceStageId(explain))
 
+    assertEquals(
+      replaceStageId(readFromResource("/explain/testSqlUpdateAndToDataStreamWithPlanAdvice.out")),
+      replaceStageId(streamTableEnv.explainSql(insertStmt, ExplainDetail.PLAN_ADVICE))
+    )
+
     streamEnv.execute("test2")
     // the table program is not executed
     checkEmptyFile(sink1Path)
@@ -285,6 +291,12 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertEquals(
       replaceStageId(readFromResource("/explain/testFromToDataStreamAndSqlUpdate.out")),
       replaceStageId(explain))
+
+    assertEquals(
+      replaceStageId(
+        readFromResource("/explain/testFromToDataStreamAndSqlUpdateWithPlanAdvice.out")),
+      replaceStageId(streamTableEnv.explainSql(insertStmt, ExplainDetail.PLAN_ADVICE))
+    )
 
     streamEnv.execute("test2")
     // the table program is not executed
@@ -436,6 +448,19 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val actual = stmtSet.explain()
     val expected = TableTestUtil.readFromResource("/explain/testStatementSet.out")
     assertEquals(replaceStageId(expected), replaceStageId(actual))
+
+    if (isStreaming) {
+      assertEquals(
+        replaceStageId(
+          TableTestUtil.readFromResource("/explain/testStatementSetWithPlanAdvice.out")),
+        replaceStageId(stmtSet.explain(ExplainDetail.PLAN_ADVICE))
+      )
+    } else {
+      assertThatThrownBy(() => stmtSet.explain(ExplainDetail.PLAN_ADVICE))
+        .hasMessageContaining("EXPLAIN PLAN_ADVICE is not supported under batch mode.")
+        .isInstanceOf[UnsupportedOperationException]
+
+    }
 
     val tableResult = stmtSet.execute()
     checkInsertTableResult(

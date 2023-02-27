@@ -24,17 +24,13 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalI
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /**
  * Rule that converts [[FlinkLogicalIntermediateTableScan]] to
  * [[StreamPhysicalIntermediateTableScan]].
  */
-class StreamPhysicalIntermediateTableScanRule
-  extends ConverterRule(
-    classOf[FlinkLogicalIntermediateTableScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalIntermediateTableScanRule") {
+class StreamPhysicalIntermediateTableScanRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalIntermediateTableScan]
@@ -44,5 +40,10 @@ class StreamPhysicalIntermediateTableScanRule
 }
 
 object StreamPhysicalIntermediateTableScanRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalIntermediateTableScanRule
+  val INSTANCE: RelOptRule = new StreamPhysicalIntermediateTableScanRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalIntermediateTableScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalIntermediateTableScanRule"))
 }

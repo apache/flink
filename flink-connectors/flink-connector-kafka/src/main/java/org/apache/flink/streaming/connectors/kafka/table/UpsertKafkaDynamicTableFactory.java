@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -139,6 +140,9 @@ public class UpsertKafkaDynamicTableFactory
                 getSourceTopicPattern(tableOptions),
                 properties,
                 earliest,
+                Collections.emptyMap(),
+                0,
+                BoundedMode.UNBOUNDED,
                 Collections.emptyMap(),
                 0,
                 true,

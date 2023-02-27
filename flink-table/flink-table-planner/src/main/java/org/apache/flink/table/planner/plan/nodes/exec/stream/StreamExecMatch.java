@@ -141,7 +141,8 @@ public class StreamExecMatch extends CommonExecMatch
                                     config),
                             new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
-                            inputTransform.getParallelism());
+                            inputTransform.getParallelism(),
+                            false);
             if (inputsContainSingleton()) {
                 transform.setParallelism(1);
                 transform.setMaxParallelism(1);

@@ -31,8 +31,18 @@
 >
   <thead>
     <tr>
-      <th nzWidth="50%">SubTask</th>
-      <th nzWidth="50%">Watermark</th>
+      <th nzWidth="33%">SubTask</th>
+      <th nzWidth="33%">Watermark</th>
+      <th nzWidth="34%">
+        Datetime of Watermark Timestamp
+        <i
+          class="header-icon"
+          nz-icon
+          nz-tooltip
+          nzTooltipTitle="This column shows the datetime that is parsed from watermark timestamp with local time zone. Note that the time zone is obtained through your browser. "
+          nzType="info-circle"
+        ></i>
+      </th>
     </tr>
   </thead>
   <tbody>
@@ -41,6 +51,7 @@
         <tr>
           <td>{{ watermark.subTaskIndex }}</td>
           <td>{{ watermark.watermark | humanizeWatermark }}</td>
+          <td>{{ watermark.watermark | humanizeWatermarkToDatetime }}</td>
         </tr>
       </ng-container>
     </ng-template>

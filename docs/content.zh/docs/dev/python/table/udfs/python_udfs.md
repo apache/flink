@@ -28,7 +28,7 @@ under the License.
 
 用户自定义函数是重要的功能，因为它们极大地扩展了 Python Table API 程序的表达能力。
 
-**注意:** 要执行 Python 用户自定义函数，客户端和集群端都需要安装 Python 3.6 以上版本(3.6、3.7 或 3.8)，并安装 PyFlink。
+**注意:** 要执行 Python 用户自定义函数，客户端和集群端都需要安装 Python 3.7 以上版本(3.7、3.8、3.9 或 3.10)，并安装 PyFlink。
 
 <a name="scalar-functions"></a>
 
@@ -55,13 +55,13 @@ class HashCode(ScalarFunction):
 settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
-hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
+hash_code = udf(HashCode(), result_type='BIGINT')
 
 # 在 Python Table API 中使用 Python 自定义函数
 my_table.select(col("string"), col("bigint"), hash_code(col("bigint")), call(hash_code, col("bigint")))
 
 # 在 SQL API 中使用 Python 自定义函数
-table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type='BIGINT'))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 ```
 
@@ -108,25 +108,25 @@ class Add(ScalarFunction):
 add = udf(Add(), result_type=DataTypes.BIGINT())
 
 # 方式二：普通 Python 函数
-@udf(result_type=DataTypes.BIGINT())
+@udf(result_type='BIGINT')
 def add(i, j):
   return i + j
 
 # 方式三：lambda 函数
-add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
+add = udf(lambda i, j: i + j, result_type='BIGINT')
 
 # 方式四：callable 函数
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
-add = udf(CallableAdd(), result_type=DataTypes.BIGINT())
+add = udf(CallableAdd(), result_type='BIGINT')
 
 # 方式五：partial 函数
 def partial_add(i, j, k):
   return i + j + k
 
-add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
+add = udf(functools.partial(partial_add, k=1), result_type='BIGINT')
 
 # 注册 Python 自定义函数
 table_env.create_temporary_function("add", add)
@@ -160,14 +160,14 @@ table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
 # 注册 Python 表值函数
-split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
+split = udtf(Split(), result_types=['STRING', 'INT'])
 
 # 在 Python Table API 中使用 Python 表值函数
 my_table.join_lateral(split(col("a")).alias("word", "length"))
 my_table.left_outer_join_lateral(split(col("a")).alias("word", "length"))
 
 # 在 SQL API 中使用 Python 表值函数
-table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+table_env.create_temporary_function("split", udtf(Split(), result_types=['STRING', 'INT']))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 ```
@@ -219,18 +219,18 @@ table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE
 
 ```python
 # 方式一：生成器函数
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def generator_func(x):
       yield 1
       yield 2
 
 # 方式二：返回迭代器
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def iterator_func(x):
       return range(5)
 
 # 方式三：返回可迭代子类
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def iterable_func(x):
       result = [1, 2, 3]
       return result
@@ -300,12 +300,10 @@ class WeightedAvg(AggregateFunction):
         accumulator[1] -= weight
         
     def get_result_type(self):
-        return DataTypes.BIGINT()
+        return 'BIGINT'
         
     def get_accumulator_type(self):
-        return DataTypes.ROW([
-            DataTypes.FIELD("f0", DataTypes.BIGINT()), 
-            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+        return 'ROW<f0 BIGINT, f1 BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()
@@ -475,11 +473,10 @@ class Top2(TableAggregateFunction):
                 accumulator[1] = row[0]
 
     def get_accumulator_type(self):
-        return DataTypes.ARRAY(DataTypes.BIGINT())
+        return 'ARRAY<BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+        return 'ROW<a BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()

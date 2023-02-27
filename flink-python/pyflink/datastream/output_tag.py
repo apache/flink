@@ -43,6 +43,7 @@ class OutputTag(object):
         if not tag_id:
             raise ValueError("OutputTag tag_id cannot be None or empty string")
         self.tag_id = tag_id
+
         if type_info is None:
             self.type_info = Types.PICKLED_BYTE_ARRAY()
         elif isinstance(type_info, list):
@@ -52,10 +53,23 @@ class OutputTag(object):
         else:
             self.type_info = type_info
 
+        self._j_output_tag = None
+
+    def __getstate__(self):
+        # prevent java object to be pickled
+        self.type_info._j_typeinfo = None
+        return self.tag_id, self.type_info
+
+    def __setstate__(self, state):
+        tag_id, type_info = state
+        self.tag_id = tag_id
+        self.type_info = type_info
+        self._j_output_tag = None
+
     def get_java_output_tag(self):
         gateway = get_gateway()
-        j_obj = gateway.jvm.org.apache.flink.util.OutputTag(self.tag_id,
-                                                            self.type_info.get_java_type_info())
-        # deal with serializability
-        self.type_info._j_typeinfo = None
-        return j_obj
+        if self._j_output_tag is None:
+            self._j_output_tag = gateway.jvm.org.apache.flink.util.OutputTag(
+                self.tag_id, self.type_info.get_java_type_info()
+            )
+        return self._j_output_tag

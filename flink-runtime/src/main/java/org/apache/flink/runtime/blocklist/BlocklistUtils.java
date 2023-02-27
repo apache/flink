@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.blocklist;
 
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SlowTaskDetectorOptions;
 
 /** Utility class for blocklist. */
@@ -37,7 +37,7 @@ public class BlocklistUtils {
 
     public static boolean isBlocklistEnabled(Configuration configuration) {
         // Currently, only enable blocklist for speculative execution
-        return configuration.getBoolean(JobManagerOptions.SPECULATIVE_ENABLED);
+        return configuration.getBoolean(BatchExecutionOptions.SPECULATIVE_ENABLED);
     }
 
     /** Private default constructor to avoid being instantiated. */

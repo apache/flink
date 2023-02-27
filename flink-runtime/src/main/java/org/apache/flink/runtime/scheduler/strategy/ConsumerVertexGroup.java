@@ -18,24 +18,46 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-/** Group of consumer {@link ExecutionVertexID}s. */
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
+/**
+ * Group of consumer {@link ExecutionVertexID}s. One such a group corresponds to one {@link
+ * ConsumedPartitionGroup}.
+ */
 public class ConsumerVertexGroup implements Iterable<ExecutionVertexID> {
     private final List<ExecutionVertexID> vertices;
 
-    private ConsumerVertexGroup(List<ExecutionVertexID> vertices) {
+    private final ResultPartitionType resultPartitionType;
+
+    @Nullable private ConsumedPartitionGroup consumedPartitionGroup;
+
+    private ConsumerVertexGroup(
+            List<ExecutionVertexID> vertices, ResultPartitionType resultPartitionType) {
         this.vertices = vertices;
+        this.resultPartitionType = resultPartitionType;
     }
 
-    public static ConsumerVertexGroup fromMultipleVertices(List<ExecutionVertexID> vertices) {
-        return new ConsumerVertexGroup(vertices);
+    public static ConsumerVertexGroup fromMultipleVertices(
+            List<ExecutionVertexID> vertices, ResultPartitionType resultPartitionType) {
+        return new ConsumerVertexGroup(vertices, resultPartitionType);
     }
 
-    public static ConsumerVertexGroup fromSingleVertex(ExecutionVertexID vertex) {
-        return new ConsumerVertexGroup(Collections.singletonList(vertex));
+    public static ConsumerVertexGroup fromSingleVertex(
+            ExecutionVertexID vertex, ResultPartitionType resultPartitionType) {
+        return new ConsumerVertexGroup(Collections.singletonList(vertex), resultPartitionType);
+    }
+
+    public ResultPartitionType getResultPartitionType() {
+        return resultPartitionType;
     }
 
     @Override
@@ -53,5 +75,14 @@ public class ConsumerVertexGroup implements Iterable<ExecutionVertexID> {
 
     public ExecutionVertexID getFirst() {
         return iterator().next();
+    }
+
+    public ConsumedPartitionGroup getConsumedPartitionGroup() {
+        return checkNotNull(consumedPartitionGroup, "ConsumedPartitionGroup is not properly set.");
+    }
+
+    public void setConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitionGroup) {
+        checkState(this.consumedPartitionGroup == null);
+        this.consumedPartitionGroup = checkNotNull(consumedPartitionGroup);
     }
 }

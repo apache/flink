@@ -34,6 +34,15 @@ public class MultipleInputTransformation<OUT> extends AbstractMultipleInputTrans
         super(name, operatorFactory, outputType, parallelism);
     }
 
+    public MultipleInputTransformation(
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, operatorFactory, outputType, parallelism, parallelismConfigured);
+    }
+
     public MultipleInputTransformation<OUT> addInput(Transformation<?> input) {
         inputs.add(input);
         return this;

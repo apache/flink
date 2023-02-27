@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.17-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -49,6 +49,18 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<dependency>
+			<groupId>org.immutables</groupId>
+			<artifactId>value</artifactId>
+			<version>2.8.8</version>
+		</dependency>
+		<dependency>
+			<groupId>org.immutables</groupId>
+			<artifactId>value-annotations</artifactId>
+			<version>2.8.8</version>
+		</dependency>
+
+
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>commons-compiler</artifactId>
@@ -128,15 +140,15 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.27.0:
+				"mvn dependency:tree" as of Calcite 1.29.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.27.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.27.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.29.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.29.0:compile
 				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.2:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.18.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.2.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.4:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.20.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.4:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.4.2:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
 				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
 				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
@@ -199,6 +211,14 @@ under the License.
 				<exclusion>
 					<groupId>com.google.errorprone</groupId>
 					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jetbrains.kotlin</groupId>
+					<artifactId>kotlin-stdlib-jdk8</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -336,7 +356,6 @@ under the License.
 					<!-- Base config -->
 					<createDependencyReducedPom>true</createDependencyReducedPom>
 					<keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
-					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 					<filters combine.children="append">
 						<filter>
 							<artifact>*:*</artifact>
@@ -447,8 +466,11 @@ under the License.
 							<includes>
 								<include>**/*ITCase.*</include>
 							</includes>
-							<!-- override reuseForks to true to reduce testing time -->
-							<reuseForks>true</reuseForks>
+							<!-- Setting this property to false is aims to alleviate OOM error
+							mentioned in issue: https://issues.apache.org/jira/browse/FLINK-18356.
+							This property can be removed after the OOM error mentioned in the above
+							issue is solved. -->
+							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
 				</executions>

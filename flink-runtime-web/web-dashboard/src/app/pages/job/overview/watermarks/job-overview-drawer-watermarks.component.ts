@@ -21,10 +21,15 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { of, Subject } from 'rxjs';
 import { catchError, map, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { HumanizeWatermarkPipe } from '@flink-runtime-web/components/humanize-watermark.pipe';
+import {
+  HumanizeWatermarkPipe,
+  HumanizeWatermarkToDatetimePipe
+} from '@flink-runtime-web/components/humanize-watermark.pipe';
 import { MetricsService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -38,7 +43,7 @@ interface WatermarkData {
   templateUrl: './job-overview-drawer-watermarks.component.html',
   styleUrls: ['./job-overview-drawer-watermarks.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe],
+  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule],
   standalone: true
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {

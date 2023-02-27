@@ -20,7 +20,7 @@ package org.apache.flink.table.gateway.rest.message.statement;
 
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
-/** {@link MessagePathParameter} that parse the token string. */
+/** {@link MessagePathParameter} that parses the token string. */
 public class FetchResultsTokenPathParameter extends MessagePathParameter<Long> {
 
     public static final String KEY = "token";

@@ -395,4 +395,63 @@ class AggregateTest extends TableTestBase {
   def testApproximateCountDistinct(): Unit = {
     util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable")
   }
+
+  @Test
+  def testCountStart(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
+  def testCountStartWithMetadata(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
+  def testCountStartWithMetadataOnly(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR METADATA,
+                               | cnt BIGINT METADATA
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING,id:STRING,cnt:BIGINT'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
+  def testCountStartWithNestedRow(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | nested row<name string, `value` int>,
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
 }

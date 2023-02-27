@@ -60,6 +60,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class HsResultPartition extends ResultPartition {
     public static final String DATA_FILE_SUFFIX = ".hybrid.data";
 
+    public static final String INDEX_FILE_SUFFIX = ".hybrid.index";
+
     public static final int BROADCAST_CHANNEL = 0;
 
     private final HsFileDataIndex dataIndex;
@@ -67,6 +69,8 @@ public class HsResultPartition extends ResultPartition {
     private final HsFileDataManager fileDataManager;
 
     private final Path dataFilePath;
+
+    private final Path indexFilePath;
 
     private final int networkBufferSize;
 
@@ -109,8 +113,14 @@ public class HsResultPartition extends ResultPartition {
                 bufferCompressor,
                 bufferPoolFactory);
         this.networkBufferSize = networkBufferSize;
-        this.dataIndex = new HsFileDataIndexImpl(isBroadcastOnly ? 1 : numSubpartitions);
         this.dataFilePath = new File(dataFileBashPath + DATA_FILE_SUFFIX).toPath();
+        this.indexFilePath = new File(dataFileBashPath + INDEX_FILE_SUFFIX).toPath();
+        this.dataIndex =
+                new HsFileDataIndexImpl(
+                        isBroadcastOnly ? 1 : numSubpartitions,
+                        indexFilePath,
+                        hybridShuffleConfiguration.getSpilledIndexSegmentSize(),
+                        hybridShuffleConfiguration.getNumRetainedInMemoryRegionsMax());
         this.hybridShuffleConfiguration = hybridShuffleConfiguration;
         this.isBroadcastOnly = isBroadcastOnly;
         this.fileDataManager =
@@ -152,7 +162,7 @@ public class HsResultPartition extends ResultPartition {
 
     @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-        numBytesProduced.inc(record.remaining());
+        resultPartitionBytes.inc(targetSubpartition, record.remaining());
         emit(record, targetSubpartition, Buffer.DataType.DATA_BUFFER);
     }
 
@@ -173,7 +183,7 @@ public class HsResultPartition extends ResultPartition {
     }
 
     private void broadcast(ByteBuffer record, Buffer.DataType dataType) throws IOException {
-        numBytesProduced.inc(record.remaining());
+        resultPartitionBytes.incAll(record.remaining());
         if (isBroadcastOnly) {
             emit(record, BROADCAST_CHANNEL, dataType);
         } else {
@@ -264,15 +274,12 @@ public class HsResultPartition extends ResultPartition {
 
     @Override
     protected void releaseInternal() {
-        // release is called when release by scheduler, later than close.
+        // release is called when release by scheduler or failed.
         // mainly work :
         // 1. release read scheduler.
         // 2. delete shuffle file.
-        // 3. release all data in memory.
 
         fileDataManager.release();
-
-        checkNotNull(memoryDataManager).release();
     }
 
     @Override

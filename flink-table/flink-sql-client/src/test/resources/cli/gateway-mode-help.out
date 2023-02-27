@@ -1,0 +1,38 @@
+
+Mode "gateway" mode connects to the SQL gateway for submission.
+
+  Syntax: gateway [OPTIONS]
+  "gateway" mode options:
+     -D <session dynamic config key=val>   The dynamic config key=val for a
+                                           session.
+     -e,--endpoint <SQL Gateway address>   The address of the remote SQL Gateway
+                                           to connect.
+     -f,--file <script file>               Script file that should be executed.
+                                           In this mode, the client will not
+                                           open an interactive terminal.
+     -h,--help                             Show the help message with
+                                           descriptions of all options.
+     -hist,--history <History file path>   The file which you want to save the
+                                           command history into. If not
+                                           specified, we will auto-generate one
+                                           under your user's home directory.
+     -i,--init <initialization file>       Script file that used to init the
+                                           session context. If get error in
+                                           execution, the sql client will exit.
+                                           Notice it's not allowed to add query
+                                           or insert into the init file.
+     -s,--session <session identifier>     The identifier for a session.
+                                           'default' is the default identifier.
+     -u,--update <SQL update statement>    Deprecated Experimental (for testing
+                                           only!) feature: Instructs the SQL
+                                           Client to immediately execute the
+                                           given update statement after starting
+                                           up. The process is shut down after
+                                           the statement has been submitted to
+                                           the cluster and returns an
+                                           appropriate return code. Currently,
+                                           this feature is only supported for
+                                           INSERT INTO statements that declare
+                                           the target sink table.Please use
+                                           option -f to submit update statement.
+

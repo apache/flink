@@ -20,10 +20,10 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.print.TableauStyle;
 
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -67,8 +67,8 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
     protected int selectedRow;
 
     public CliResultView(
-            CliClient client, ResultDescriptor resultDescriptor, TableauStyle tableauStyle) {
-        super(client);
+            Terminal terminal, ResultDescriptor resultDescriptor, TableauStyle tableauStyle) {
+        super(terminal);
         this.resultDescriptor = resultDescriptor;
         this.tableauStyle = tableauStyle;
         this.columnWidths = tableauStyle.getColumnWidths();
@@ -148,7 +148,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
         }
         final CliRowView view =
                 new CliRowView(
-                        client,
+                        terminal,
                         resultDescriptor.getResultSchema().getColumnNames().toArray(new String[0]),
                         CliUtils.typesToString(
                                 resultDescriptor
@@ -235,6 +235,8 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
         }
     }
 
+    abstract void cleanUpQuery();
+
     // --------------------------------------------------------------------------------------------
 
     private class RefreshThread extends Thread {
@@ -297,15 +299,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 
             if (cleanUpQuery) {
                 // cancel table program
-                try {
-                    // the cancellation happens in the refresh thread in order to keep the main
-                    // thread
-                    // responsive at all times; esp. if the cluster is not available
-                    client.getExecutor()
-                            .cancelQuery(client.getSessionId(), resultDescriptor.getResultId());
-                } catch (SqlExecutionException e) {
-                    // ignore further exceptions
-                }
+                cleanUpQuery();
             }
         }
     }

@@ -60,6 +60,11 @@ public class TestingFileDataIndex implements HsFileDataIndex {
         markBufferReadableConsumer.accept(subpartitionId, bufferIndex);
     }
 
+    @Override
+    public void close() {
+        // do nothing.
+    }
+
     public static Builder builder() {
         return new Builder();
     }

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -82,6 +84,8 @@ public class StreamMockEnvironment implements Environment {
 
     private final MemoryManager memManager;
 
+    private final SharedResources sharedResources;
+
     private final IOManager ioManager;
 
     private final InputSplitProvider inputSplitProvider;
@@ -92,7 +96,7 @@ public class StreamMockEnvironment implements Environment {
 
     private final List<IndexedInputGate> inputs;
 
-    private final List<ResultPartitionWriter> outputs;
+    private List<ResultPartitionWriter> outputs;
 
     private final JobID jobID;
 
@@ -116,6 +120,8 @@ public class StreamMockEnvironment implements Environment {
             TestingUserCodeClassLoader.newBuilder().build();
 
     private final boolean collectNetworkEvents;
+
+    private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
 
     @Nullable private Consumer<Throwable> externalExceptionHandler;
 
@@ -178,6 +184,7 @@ public class StreamMockEnvironment implements Environment {
         this.outputs = new LinkedList<ResultPartitionWriter>();
         this.memManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
+        this.sharedResources = new SharedResources();
         this.ioManager = new IOManagerAsync();
         this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
         this.aggregateManager = new TestGlobalAggregateManager();
@@ -192,6 +199,7 @@ public class StreamMockEnvironment implements Environment {
                 registry.createTaskRegistry(
                         jobID, executionAttemptID.getExecutionVertexId().getJobVertexId());
         this.collectNetworkEvents = collectNetworkEvents;
+        this.channelStateExecutorFactory = new ChannelStateWriteRequestExecutorFactory(jobID);
     }
 
     public StreamMockEnvironment(
@@ -232,6 +240,10 @@ public class StreamMockEnvironment implements Environment {
         }
     }
 
+    public void setOutputs(List<ResultPartitionWriter> outputs) {
+        this.outputs = outputs;
+    }
+
     public void setExternalExceptionHandler(Consumer<Throwable> externalExceptionHandler) {
         this.externalExceptionHandler = externalExceptionHandler;
     }
@@ -244,6 +256,11 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public MemoryManager getMemoryManager() {
         return this.memManager;
+    }
+
+    @Override
+    public SharedResources getSharedResources() {
+        return this.sharedResources;
     }
 
     @Override
@@ -401,5 +418,10 @@ public class StreamMockEnvironment implements Environment {
 
     public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
         this.checkpointResponder = checkpointResponder;
+    }
+
+    @Override
+    public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
+        return channelStateExecutorFactory;
     }
 }
