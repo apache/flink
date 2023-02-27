@@ -19,9 +19,11 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -29,13 +31,18 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.lang.invoke.MethodHandle;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.flink.table.api.Expressions.$;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_DISTINCT}. */
 @Internal
 public class ArrayDistinctFunction extends BuiltInScalarFunction {
     private final ArrayData.ElementGetter elementGetter;
+    private final SpecializedFunction.ExpressionEvaluator equalityEvaluator;
+    private transient MethodHandle equalityHandle;
 
     public ArrayDistinctFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_DISTINCT, context);
@@ -43,6 +50,17 @@ public class ArrayDistinctFunction extends BuiltInScalarFunction {
                 ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
                         .getElementDataType();
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
+        equalityEvaluator =
+                context.createEvaluator(
+                        $("element1").isEqual($("element2")),
+                        DataTypes.BOOLEAN(),
+                        DataTypes.FIELD("element1", dataType.notNull().toInternal()),
+                        DataTypes.FIELD("element2", dataType.notNull().toInternal()));
+    }
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        equalityHandle = equalityEvaluator.open(context);
     }
 
     public @Nullable ArrayData eval(ArrayData haystack) {
@@ -50,15 +68,39 @@ public class ArrayDistinctFunction extends BuiltInScalarFunction {
             if (haystack == null) {
                 return null;
             }
-            Set set = new LinkedHashSet<>();
-            final int size = haystack.size();
-            for (int pos = 0; pos < size; pos++) {
-                final Object element = elementGetter.getElementOrNull(haystack, pos);
-                set.add(element);
+
+            List list = new ArrayList();
+            boolean alreadyStoredNull = false;
+
+            for (int i = 0; i < haystack.size(); i++) {
+                final Object element1 = elementGetter.getElementOrNull(haystack, i);
+                if (element1 != null) {
+                    boolean found = false;
+                    for (int j = 0; !found && j < list.size(); j++) {
+                        Object element2 = list.get(j);
+                        if (element2 != null) {
+                            found = (boolean) equalityHandle.invoke(element1, element2);
+                        }
+                    }
+                    if (!found) {
+                        list.add(element1);
+                    }
+                } else {
+                    // De-duplicate the null values.
+                    if (!alreadyStoredNull) {
+                        list.add(element1);
+                        alreadyStoredNull = true;
+                    }
+                }
             }
-            return new GenericArrayData(set.toArray());
+            return new GenericArrayData(list.toArray());
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        equalityEvaluator.close();
     }
 }
