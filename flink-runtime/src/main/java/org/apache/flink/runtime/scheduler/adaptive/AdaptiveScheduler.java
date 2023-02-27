@@ -224,6 +224,8 @@ public class AdaptiveScheduler
 
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
+    private final Duration slotIdleTimeout;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             @Nullable JobResourceRequirements jobResourceRequirements,
@@ -315,6 +317,8 @@ public class AdaptiveScheduler
                 new BoundedFIFOQueue<>(
                         configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
+        this.slotIdleTimeout =
+                Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -445,6 +449,7 @@ public class AdaptiveScheduler
 
     @Override
     public void startScheduling() {
+        checkIdleSlotTimeout();
         state.as(Created.class)
                 .orElseThrow(
                         () ->
@@ -1255,5 +1260,36 @@ public class AdaptiveScheduler
     @VisibleForTesting
     State getState() {
         return state;
+    }
+
+    /**
+     * Check for slots that are idle for more than {@link JobManagerOptions#SLOT_IDLE_TIMEOUT} and
+     * release them back to the ResourceManager.
+     */
+    private void checkIdleSlotTimeout() {
+        if (getState().getJobStatus().isGloballyTerminalState()) {
+            // Job has reached the terminal state, so we can return all slots to the ResourceManager
+            // to speed things up because we no longer need them. This optimization lets us skip
+            // waiting for the slot pool service to close.
+            for (SlotInfo slotInfo : declarativeSlotPool.getAllSlotsInformation()) {
+                declarativeSlotPool.releaseSlot(
+                        slotInfo.getAllocationId(),
+                        new FlinkException(
+                                "Returning slots to their owners, because the job has reached a globally terminal state."));
+            }
+            return;
+        } else if (getState().getJobStatus().isTerminalState()) {
+            // do nothing
+            // prevent idleness check running again while scheduler was already shut down
+            // don't release slots because JobMaster may want to hold on to slots in case
+            // it re-acquires leadership
+            return;
+        }
+        declarativeSlotPool.releaseIdleSlots(System.currentTimeMillis());
+        getMainThreadExecutor()
+                .schedule(
+                        this::checkIdleSlotTimeout,
+                        slotIdleTimeout.toMillis(),
+                        TimeUnit.MILLISECONDS);
     }
 }
