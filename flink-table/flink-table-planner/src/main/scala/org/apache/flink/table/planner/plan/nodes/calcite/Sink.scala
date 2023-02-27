@@ -53,6 +53,7 @@ abstract class Sink(
     traitSet: RelTraitSet,
     input: RelNode,
     val hints: util.List[RelHint],
+    val targetColumns: Array[Array[Int]],
     val contextResolvedTable: ContextResolvedTable,
     val tableSink: DynamicTableSink)
   extends SingleRel(cluster, traitSet, input) {
@@ -65,6 +66,10 @@ abstract class Sink(
     super
       .explainTerms(pw)
       .item("table", contextResolvedTable.getIdentifier.asSummaryString())
+      .itemIf(
+        "targetColumns",
+        targetColumns.map(_.mkString("[", ",", "]")).mkString(","),
+        targetColumns.length > 0)
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
   }

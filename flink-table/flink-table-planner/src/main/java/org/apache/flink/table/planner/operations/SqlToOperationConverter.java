@@ -699,6 +699,7 @@ public class SqlToOperationConverter {
                     contextResolvedTable,
                     child,
                     partitionSpec.getPartitionSpec(),
+                    new int[0][],
                     false,
                     compactOptions);
         }
@@ -856,11 +857,21 @@ public class SqlToOperationConverter {
                 (PlannerQueryOperation)
                         convertValidatedSqlNodeOrFail(
                                 flinkPlanner, catalogManager, insert.getSource());
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31301 fixed
+
+        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        int[][] columnIndices =
+                Optional.ofNullable(insert.getTargetColumnList()).orElse(SqlNodeList.EMPTY).stream()
+                        .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
+                        .mapToObj(idx -> new int[] {idx})
+                        .toArray(int[][]::new);
 
         return new SinkModifyOperation(
                 contextResolvedTable,
                 query,
                 insert.getStaticPartitionKVs(),
+                columnIndices,
                 insert.isOverwrite(),
                 dynamicOptions);
     }
@@ -1542,7 +1553,10 @@ public class SqlToOperationConverter {
         // delete push down is not applicable, use row-level delete
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
         return new SinkModifyOperation(
-                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.DELETE);
+                contextResolvedTable,
+                queryOperation,
+                new int[0][],
+                SinkModifyOperation.ModifyType.DELETE);
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
@@ -1559,8 +1573,16 @@ public class SqlToOperationConverter {
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        // TODO
+        List<String> updateColumnList =
+                sqlUpdate.getTargetColumnList().stream()
+                        .map(c -> ((SqlIdentifier) c).getSimple())
+                        .collect(Collectors.toList());
         return new SinkModifyOperation(
-                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.UPDATE);
+                contextResolvedTable,
+                queryOperation,
+                new int[0][],
+                SinkModifyOperation.ModifyType.UPDATE);
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {

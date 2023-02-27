@@ -109,6 +109,7 @@ class BatchPhysicalSinkRule(config: Config) extends ConverterRule(config) {
       sink.hints,
       sink.contextResolvedTable,
       sink.tableSink,
+      sink.targetColumns,
       abilitySpecs.toArray)
   }
 }

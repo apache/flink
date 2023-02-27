@@ -52,6 +52,7 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
+import org.apache.flink.util.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -364,7 +365,9 @@ final class TestValuesRuntimeFunctions {
         private static final long serialVersionUID = 1L;
         private final DataStructureConverter converter;
         private final int[] keyIndices;
+        private final int[] targetColumnIndices;
         private final int expectedSize;
+        private final int totalColumns;
 
         // [key, value] map result
         private transient Map<String, String> localUpsertResult;
@@ -374,11 +377,15 @@ final class TestValuesRuntimeFunctions {
                 String tableName,
                 DataStructureConverter converter,
                 int[] keyIndices,
-                int expectedSize) {
+                int[] targetColumnIndices,
+                int expectedSize,
+                int totalColumns) {
             super(tableName);
             this.converter = converter;
             this.keyIndices = keyIndices;
+            this.targetColumnIndices = targetColumnIndices;
             this.expectedSize = expectedSize;
+            this.totalColumns = totalColumns;
         }
 
         @Override
@@ -412,7 +419,17 @@ final class TestValuesRuntimeFunctions {
                 Row key = Row.project(row, keyIndices);
 
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
-                    localUpsertResult.put(key.toString(), row.toString());
+                    if (targetColumnIndices.length > 0) {
+                        // perform partial insert
+                        localUpsertResult.put(
+                                key.toString(),
+                                updateRowValue(
+                                        localUpsertResult.get(key.toString()),
+                                        row,
+                                        targetColumnIndices));
+                    } else {
+                        localUpsertResult.put(key.toString(), row.toString());
+                    }
                 } else {
                     String oldValue = localUpsertResult.remove(key.toString());
                     if (oldValue == null) {
@@ -427,6 +444,30 @@ final class TestValuesRuntimeFunctions {
                     // we throw a SuccessException to indicate job is finished.
                     throw new SuccessException();
                 }
+            }
+        }
+
+        private String updateRowValue(String old, Row newRow, int[] targetColumnIndices) {
+            if (StringUtils.isNullOrWhitespaceOnly(old)) {
+                // no old value, just return current
+                return newRow.toString();
+            } else {
+                String[] oldCols =
+                        org.apache.commons.lang3.StringUtils.splitByWholeSeparatorPreserveAllTokens(
+                                old, ", ");
+                assert oldCols.length == totalColumns;
+                // exist old value, simply simulate an update
+                for (int i = 0; i < targetColumnIndices.length; i++) {
+                    int idx = targetColumnIndices[i];
+                    if (idx == 0) {
+                        oldCols[idx] = String.format("+I[%s", newRow.getField(idx));
+                    } else if (idx == totalColumns - 1) {
+                        oldCols[idx] = String.format("%s]", newRow.getField(idx));
+                    } else {
+                        oldCols[idx] = (String) newRow.getField(idx);
+                    }
+                }
+                return String.join(", ", oldCols);
             }
         }
     }

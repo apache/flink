@@ -157,6 +157,7 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(), // dynamicOptions
                 contextResolvedTable,
                 Collections.emptyMap(), // staticPartitions
+                new int[0][],
                 false,
                 tableSink);
     }
@@ -179,6 +180,7 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(),
                 externalModifyOperation.getContextResolvedTable(),
                 Collections.emptyMap(),
+                new int[0][],
                 false,
                 tableSink);
     }
@@ -198,6 +200,7 @@ public final class DynamicSinkUtils {
                 sinkModifyOperation.getDynamicOptions(),
                 sinkModifyOperation.getContextResolvedTable(),
                 sinkModifyOperation.getStaticPartitions(),
+                sinkModifyOperation.getTargetColumns(),
                 sinkModifyOperation.isOverwrite(),
                 sink);
     }
@@ -208,6 +211,7 @@ public final class DynamicSinkUtils {
             Map<String, String> dynamicOptions,
             ContextResolvedTable contextResolvedTable,
             Map<String, String> staticPartitions,
+            int[][] targetColumns,
             boolean isOverwrite,
             DynamicTableSink sink) {
         final DataTypeFactory dataTypeFactory =
@@ -289,6 +293,7 @@ public final class DynamicSinkUtils {
                 contextResolvedTable,
                 sink,
                 staticPartitions,
+                targetColumns,
                 sinkAbilitySpecs.toArray(new SinkAbilitySpec[0]));
     }
 

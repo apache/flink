@@ -340,6 +340,7 @@ public class HiveParserDMLHelper {
                 catalogManager.getTableOrError(insertOperationInfo.f0),
                 insertOperationInfo.f1,
                 insertOperationInfo.f2,
+                new int[0][], // targetColumns
                 insertOperationInfo.f3,
                 Collections.emptyMap());
     }
@@ -392,6 +393,7 @@ public class HiveParserDMLHelper {
                         plannerQueryOperation.getResolvedSchema(), props),
                 plannerQueryOperation,
                 Collections.emptyMap(),
+                new int[0][], // targetColumns
                 true, // insert into directory is always for overwrite
                 Collections.emptyMap());
     }
