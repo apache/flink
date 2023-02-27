@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
@@ -129,35 +131,26 @@ public final class SpecificInputTypeStrategies {
             callContext ->
                     Optional.of(
                             DataTypes.ARRAY(
-                                            callContext
-                                                    .getArgumentDataTypes()
-                                                    .get(0)
-                                                    .getChildren()
-                                                    .get(0))
-                                    .nullable());
+                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getKeyDataType()));
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_VALUES}. */
     public static final TypeStrategy MAP_VALUES =
             callContext ->
                     Optional.of(
                             DataTypes.ARRAY(
-                                    callContext
-                                            .getArgumentDataTypes()
-                                            .get(0)
-                                            .getChildren()
-                                            .get(1)));
+                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getValueDataType()));
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
     public static final TypeStrategy ARRAYS_FOR_MAP =
             callContext ->
                     Optional.of(
                             DataTypes.MAP(
-                                    callContext.getArgumentDataTypes().get(0).getChildren().get(0),
-                                    callContext
-                                            .getArgumentDataTypes()
-                                            .get(1)
-                                            .getChildren()
-                                            .get(0)));
+                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getElementDataType(),
+                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(1))
+                                            .getElementDataType()));
 
     private SpecificInputTypeStrategies() {
         // no instantiation
