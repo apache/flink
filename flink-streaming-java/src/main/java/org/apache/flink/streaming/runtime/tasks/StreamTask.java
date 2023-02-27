@@ -95,6 +95,7 @@ import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.TaskState.Status;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
@@ -215,6 +216,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     private final StreamTaskActionExecutor actionExecutor;
 
+    /** Current state of the task, can be any of {@link TaskState.Status}. */
+    private final TaskState taskState;
+
     /** The input processor. Initialized in {@link #init()} method. */
     @Nullable protected StreamInputProcessor inputProcessor;
 
@@ -254,24 +258,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private final AutoCloseableRegistry resourceCloser;
 
     private final StreamTaskAsyncExceptionHandler asyncExceptionHandler;
-
-    /**
-     * Flag to mark the task "in operation", in which case check needs to be initialized to true, so
-     * that early cancel() before invoke() behaves correctly.
-     */
-    private volatile boolean isRunning;
-
-    /** Flag to mark the task at restoring duration in {@link #restore()}. */
-    private volatile boolean isRestoring;
-
-    /** Flag to mark this task as canceled. */
-    private volatile boolean canceled;
-
-    /**
-     * Flag to mark this task as failing, i.e. if an exception has occurred inside {@link
-     * #invoke()}.
-     */
-    private volatile boolean failing;
 
     /** Flags indicating the finished method of all the operators are called. */
     private boolean finishedOperators;
@@ -423,7 +409,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
             this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
             this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
-
+            this.taskState = new TaskState();
             // With maxConcurrentCheckpoints + 1 we more or less adhere to the
             // maxConcurrentCheckpoints configuration, but allow for a small leeway with allowing
             // for simultaneous N ongoing concurrent checkpoints and for example clean up of one
@@ -671,7 +657,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 timerServiceProvider != null
                         ? timerServiceProvider
                         : InternalTimeServiceManagerImpl::create,
-                () -> canceled);
+                () -> isCanceled());
     }
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
@@ -689,11 +675,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     void restoreInternal() throws Exception {
-        if (isRunning) {
+        if (!taskState.transitionTo(Status.RESTORING)) {
             LOG.debug("Re-restore attempt rejected.");
             return;
         }
-        isRestoring = true;
         closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
@@ -734,8 +719,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // needed
         channelIOExecutor.shutdown();
 
-        isRunning = true;
-        isRestoring = false;
+        taskState.transitionTo(Status.RUNNING);
     }
 
     private CompletableFuture<Void> restoreGates() throws Exception {
@@ -778,7 +762,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     private void ensureNotCanceled() {
-        if (canceled) {
+        if (isCanceled()) {
             throw new CancelTaskException();
         }
     }
@@ -786,7 +770,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public final void invoke() throws Exception {
         // Allow invoking method 'invoke' without having to call 'restore' before it.
-        if (!isRunning) {
+        if (taskState.isInitialized()) {
             LOG.debug("Restoring during invoke will be called.");
             restoreInternal();
         }
@@ -896,14 +880,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // processes the remaining mails; no new mails can be enqueued
         mailboxProcessor.drain();
 
-        // Set isRunning to false after all the mails are drained so that
+        // Set Task to Finished after all the mails are drained so that
         // the queued checkpoint requirements could be triggered normally.
         actionExecutor.runThrowing(
                 () -> {
                     // only set the StreamTask to not running after all operators have been
                     // finished!
                     // See FLINK-7430
-                    isRunning = false;
+                    taskState.transitionTo(Status.FINISHED);
                 });
 
         LOG.debug("Finished operators for task {}", getName());
@@ -936,9 +920,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         LOG.debug(
                 "Cleanup StreamTask (operators closed: {}, cancelled: {})",
                 closedOperators,
-                canceled);
+                isCanceled());
 
-        failing = !canceled && throwable != null;
+        taskState.failing = !isCanceled() && throwable != null;
 
         Exception cancelException = null;
         if (throwable != null) {
@@ -955,7 +939,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // disabled the interruptions or not.
         getCompletionFuture().exceptionally(unused -> null).join();
         // clean up everything we initialized
-        isRunning = false;
+        taskState.transitionTo(Status.FINISHED);
 
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
@@ -980,8 +964,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @Override
     public final void cancel() throws Exception {
-        isRunning = false;
-        canceled = true;
+        taskState.transitionTo(Status.CANCELED);
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         // the "cancel task" call must come first, but the cancelables must be
@@ -1021,15 +1004,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     public final boolean isRunning() {
-        return isRunning;
+        return taskState.status == Status.RUNNING;
     }
 
     public final boolean isCanceled() {
-        return canceled;
+        return taskState.status == Status.CANCELED;
     }
 
     public final boolean isFailing() {
-        return failing;
+        return taskState.failing;
     }
 
     private void shutdownAsyncThreads() throws Exception {
@@ -1189,7 +1172,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             return success;
         } catch (Exception e) {
             // propagate exceptions only if the task is still in "running" state
-            if (isRunning) {
+            if (isRunning()) {
                 throw new Exception(
                         "Could not perform checkpoint "
                                 + checkpointMetaData.getCheckpointId()
@@ -1296,7 +1279,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 checkpointType,
                 getName());
 
-        if (isRunning) {
+        if (isRunning()) {
             actionExecutor.runThrowing(
                     () -> {
                         if (isSynchronous(checkpointType)) {
@@ -1442,7 +1425,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         subtaskCheckpointCoordinator.notifyCheckpointComplete(
                 checkpointId, operatorChain, this::isRunning);
-        if (isRunning) {
+        if (isRunning()) {
             if (isCurrentSyncSavepoint(checkpointId)) {
                 finalCheckpointCompleted.complete(null);
             } else if (syncSavepoint == null
@@ -1569,7 +1552,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     @Override
     public void handleAsyncException(String message, Throwable exception) {
-        if (isRestoring || isRunning) {
+        if (taskState.isRestoring() || isRunning()) {
             // only fail if the task is still in restoring or running
             asyncExceptionHandler.handleAsyncException(message, exception);
         }
@@ -1796,5 +1779,75 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     public interface CanEmitBatchOfRecordsChecker {
 
         boolean check();
+    }
+
+    /** Possible states of a Task. */
+    static class TaskState {
+        /**
+         * An enumeration of all states that a task can be in during its execution. Transitions
+         * usually follow the diagram bellow:
+         *
+         * <pre>{@code
+         * INITIALIZED  -> RESTORING -> RUNNING -> FINISHED
+         *                 |             |           |
+         *                 |             |           |
+         *                 |             V           |
+         *                 |           CANCELED -----+
+         *                 |            |
+         *                 +------------+
+         *
+         * }</pre>
+         *
+         * <p>Task enters {@code RESTORING} status before {@code RUNNING} to restore an invokable
+         * object from the last valid state, if any.
+         *
+         * <p>Task enters {@code FINISHED} status through cleanup method, regardless of
+         * cancellations or if the previous call succeeded.
+         *
+         * <p>It is possible for a Task to be {@code failing} while being in any status e.g, failing
+         * == true while status is RUNNING
+         */
+        enum Status {
+            /** Task has successfully terminated. */
+            FINISHED(),
+            /** Task has been cancelled. */
+            CANCELED(FINISHED),
+            /** The task is "in operation". */
+            RUNNING(CANCELED, FINISHED),
+            /** The task is restoring during {@link #restore()}. */
+            RESTORING(RUNNING, CANCELED, FINISHED),
+            /** Task constructor was called on init state. */
+            INITIALIZED(RESTORING);
+
+            Status[] transitions;
+
+            Status(Status... transitions) {
+                this.transitions = transitions;
+            }
+        }
+
+        /**
+         * Task is failing e.g., if an exception occurred inside {@link #invoke()}. Note that this
+         * can happen while Task is still in Running status.
+         */
+        private volatile boolean failing = false;
+
+        private volatile Status status = Status.INITIALIZED;
+
+        final boolean transitionTo(Status newStatus) {
+            if (Arrays.stream(status.transitions).anyMatch(newStatus::equals)) {
+                this.status = newStatus;
+                return true;
+            }
+            return false;
+        }
+
+        final boolean isInitialized() {
+            return status == Status.INITIALIZED;
+        }
+
+        final boolean isRestoring() {
+            return status == Status.RESTORING;
+        }
     }
 }
