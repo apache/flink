@@ -148,7 +148,7 @@ public final class SpecificInputTypeStrategies {
                                             .get(1)));
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
-    public static final TypeStrategy MAP_FROM_ARRAYS =
+    public static final TypeStrategy ARRAYS_FOR_MAP =
             callContext ->
                     Optional.of(
                             DataTypes.MAP(

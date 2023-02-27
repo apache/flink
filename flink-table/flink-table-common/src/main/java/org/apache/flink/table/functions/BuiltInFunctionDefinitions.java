@@ -166,7 +166,7 @@ public final class BuiltInFunctionDefinitions {
                                         logical(LogicalTypeRoot.ARRAY),
                                         logical(LogicalTypeRoot.ARRAY)
                                     }))
-                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.MAP_FROM_ARRAYS))
+                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.ARRAYS_FOR_MAP))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.MapFromArraysFunction")
                     .build();
