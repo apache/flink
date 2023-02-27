@@ -28,9 +28,9 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -62,7 +62,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
     private static final Logger LOG = LoggerFactory.getLogger(MetricFetcherImpl.class);
 
     private final GatewayRetriever<T> retriever;
-    private final MetricQueryServiceRetriever queryServiceRetriever;
+    private final AddressBasedGatewayRetriever<MetricQueryServiceGateway> queryServiceRetriever;
     private final Executor executor;
     private final Time timeout;
 
@@ -78,7 +78,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 
     public MetricFetcherImpl(
             GatewayRetriever<T> retriever,
-            MetricQueryServiceRetriever queryServiceRetriever,
+            AddressBasedGatewayRetriever<MetricQueryServiceGateway> queryServiceRetriever,
             Executor executor,
             Time timeout,
             long updateInterval) {
@@ -218,7 +218,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
                                             (Tuple2<ResourceID, String> tuple) -> {
                                                 queryMetricFutures.add(
                                                         queryServiceRetriever
-                                                                .retrieveService(tuple.f1)
+                                                                .getFutureFromAddress(tuple.f1)
                                                                 .thenComposeAsync(
                                                                         this::queryMetrics,
                                                                         executor));
@@ -241,7 +241,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
         LOG.debug("Retrieve metric query service gateway for {}", queryServiceAddress);
 
         final CompletableFuture<MetricQueryServiceGateway> queryServiceGatewayFuture =
-                queryServiceRetriever.retrieveService(queryServiceAddress);
+                queryServiceRetriever.getFutureFromAddress(queryServiceAddress);
         return queryServiceGatewayFuture.thenComposeAsync(this::queryMetrics, executor);
     }
 
@@ -267,7 +267,8 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
     @Nonnull
     public static <T extends RestfulGateway> MetricFetcherImpl<T> fromConfiguration(
             final Configuration configuration,
-            final MetricQueryServiceRetriever metricQueryServiceGatewayRetriever,
+            final AddressBasedGatewayRetriever<MetricQueryServiceGateway>
+                    metricQueryServiceGatewayRetriever,
             final GatewayRetriever<T> dispatcherGatewayRetriever,
             final ExecutorService executor) {
         final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));

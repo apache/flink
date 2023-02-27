@@ -68,7 +68,8 @@ import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.runtime.security.token.DefaultDelegationTokenManagerFactory;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.runtime.webmonitor.retriever.impl.RpcAddressBasedGatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -301,8 +302,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             delegationTokenManager,
                             metricRegistry,
                             executionGraphInfoStore,
-                            new RpcMetricQueryServiceRetriever(
-                                    metricRegistry.getMetricQueryServiceRpcService()),
+                            new RpcAddressBasedGatewayRetriever<>(
+                                    metricRegistry.getMetricQueryServiceRpcService(),
+                                    MetricQueryServiceGateway.class),
                             this);
 
             clusterComponent

@@ -28,7 +28,8 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 
 import java.util.concurrent.Executor;
 
@@ -46,7 +47,7 @@ public interface DispatcherResourceManagerComponentFactory {
             DelegationTokenManager delegationTokenManager,
             MetricRegistry metricRegistry,
             ExecutionGraphInfoStore executionGraphInfoStore,
-            MetricQueryServiceRetriever metricQueryServiceRetriever,
+            AddressBasedGatewayRetriever<MetricQueryServiceGateway> metricQueryServiceRetriever,
             FatalErrorHandler fatalErrorHandler)
             throws Exception;
 }

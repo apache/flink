@@ -32,8 +32,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.AbstractAggregatedMetr
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedMetric;
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedMetricsResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -91,7 +91,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
         MetricFetcher fetcher =
                 new MetricFetcherImpl<RestfulGateway>(
                         mock(GatewayRetriever.class),
-                        mock(MetricQueryServiceRetriever.class),
+                        mock(AddressBasedGatewayRetriever.class),
                         Executors.directExecutor(),
                         TestingUtils.TIMEOUT,
                         MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());

@@ -41,7 +41,8 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
@@ -177,7 +178,8 @@ public class ExecutionGraphInfoStoreTestUtils {
                         HeartbeatServices heartbeatServices,
                         DelegationTokenManager delegationTokenManager,
                         MetricRegistry metricRegistry,
-                        MetricQueryServiceRetriever metricQueryServiceRetriever,
+                        AddressBasedGatewayRetriever<MetricQueryServiceGateway>
+                                metricQueryServiceRetriever,
                         FatalErrorHandler fatalErrorHandler)
                         throws Exception {
             final DispatcherResourceManagerComponentFactory

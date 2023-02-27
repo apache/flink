@@ -94,10 +94,11 @@ import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.runtime.webmonitor.retriever.impl.RpcAddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
@@ -452,9 +453,11 @@ public class MiniCluster implements AutoCloseableAsync {
 
                 startTaskManagers();
 
-                MetricQueryServiceRetriever metricQueryServiceRetriever =
-                        new RpcMetricQueryServiceRetriever(
-                                metricRegistry.getMetricQueryServiceRpcService());
+                AddressBasedGatewayRetriever<MetricQueryServiceGateway>
+                        metricQueryServiceRetriever =
+                                new RpcAddressBasedGatewayRetriever<>(
+                                        metricRegistry.getMetricQueryServiceRpcService(),
+                                        MetricQueryServiceGateway.class);
 
                 setupDispatcherResourceManagerComponents(
                         configuration,
@@ -509,7 +512,7 @@ public class MiniCluster implements AutoCloseableAsync {
     private void setupDispatcherResourceManagerComponents(
             Configuration configuration,
             RpcServiceFactory dispatcherResourceManagerComponentRpcServiceFactory,
-            MetricQueryServiceRetriever metricQueryServiceRetriever)
+            AddressBasedGatewayRetriever<MetricQueryServiceGateway> metricQueryServiceRetriever)
             throws Exception {
         dispatcherResourceManagerComponents.addAll(
                 createDispatcherResourceManagerComponents(
@@ -538,7 +541,8 @@ public class MiniCluster implements AutoCloseableAsync {
                     HeartbeatServices heartbeatServices,
                     DelegationTokenManager delegationTokenManager,
                     MetricRegistry metricRegistry,
-                    MetricQueryServiceRetriever metricQueryServiceRetriever,
+                    AddressBasedGatewayRetriever<MetricQueryServiceGateway>
+                            metricQueryServiceRetriever,
                     FatalErrorHandler fatalErrorHandler)
                     throws Exception {
         DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory =

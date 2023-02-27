@@ -18,26 +18,32 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
+import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Retriever for {@link MetricQueryServiceGateway} implementation which always fails the retrieval
- * of the metric query service.
+ * {@link AddressBasedGatewayRetriever} implementation using the {@link RpcService}.
+ *
+ * @param <T> type of the gateway to retrieve
  */
-public enum VoidMetricQueryServiceRetriever
-        implements AddressBasedGatewayRetriever<MetricQueryServiceGateway> {
-    INSTANCE;
+public class RpcAddressBasedGatewayRetriever<T extends RpcGateway>
+        implements AddressBasedGatewayRetriever<T> {
+
+    private final RpcService rpcService;
+
+    private final Class<T> gatewayType;
+
+    public RpcAddressBasedGatewayRetriever(RpcService rpcService, Class<T> gatewayType) {
+        this.rpcService = Preconditions.checkNotNull(rpcService);
+        this.gatewayType = Preconditions.checkNotNull(gatewayType);
+    }
 
     @Override
-    public CompletableFuture<MetricQueryServiceGateway> getFutureFromAddress(
-            String queryServicePath) {
-        return FutureUtils.completedExceptionally(
-                new FlinkException(
-                        "Cannot retrieve metric query service for " + queryServicePath + '.'));
+    public CompletableFuture<T> getFutureFromAddress(String address) {
+        return rpcService.connect(address, gatewayType);
     }
 }

@@ -30,7 +30,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
@@ -147,7 +148,8 @@ public class TestingMiniCluster extends MiniCluster {
                     HeartbeatServices heartbeatServices,
                     DelegationTokenManager delegationTokenManager,
                     MetricRegistry metricRegistry,
-                    MetricQueryServiceRetriever metricQueryServiceRetriever,
+                    AddressBasedGatewayRetriever<MetricQueryServiceGateway>
+                            metricQueryServiceRetriever,
                     FatalErrorHandler fatalErrorHandler)
                     throws Exception {
         DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory =

@@ -56,8 +56,9 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -112,7 +113,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             DelegationTokenManager delegationTokenManager,
             MetricRegistry metricRegistry,
             ExecutionGraphInfoStore executionGraphInfoStore,
-            MetricQueryServiceRetriever metricQueryServiceRetriever,
+            AddressBasedGatewayRetriever<MetricQueryServiceGateway> metricQueryServiceRetriever,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 

@@ -18,16 +18,16 @@
 
 package org.apache.flink.runtime.webmonitor.retriever;
 
+import org.apache.flink.runtime.rpc.RpcGateway;
+
 import java.util.concurrent.CompletableFuture;
 
-/** Retriever for {@link MetricQueryServiceGateway}. */
-public interface MetricQueryServiceRetriever {
+/**
+ * Generic interface for retrieving the {@link RpcGateway} by its address.
+ *
+ * @param <T> type of the gateWay to retrieve
+ */
+public interface AddressBasedGatewayRetriever<T extends RpcGateway> {
 
-    /**
-     * Retrieves for the given query service address a {@link MetricQueryServiceGateway}.
-     *
-     * @param rpcServiceAddress under which the QueryService can be reached
-     * @return Future containing the resolved QueryServiceGateway
-     */
-    CompletableFuture<MetricQueryServiceGateway> retrieveService(String rpcServiceAddress);
+    CompletableFuture<T> getFutureFromAddress(String address);
 }
