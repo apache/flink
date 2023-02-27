@@ -33,6 +33,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AGG_DE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COALESCE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONCAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
@@ -40,6 +41,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
@@ -95,6 +97,14 @@ public class ExpressionBuilder {
 
     public static UnresolvedCallExpression isNull(Expression input) {
         return call(IS_NULL, input);
+    }
+
+    public static UnresolvedCallExpression isTrue(Expression input) {
+        return call(IS_TRUE, input);
+    }
+
+    public static UnresolvedCallExpression coalesce(Expression... args) {
+        return call(COALESCE, args);
     }
 
     public static UnresolvedCallExpression ifThenElse(
