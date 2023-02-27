@@ -134,7 +134,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     /** Service to retrieve the job leader ids. */
     private final JobLeaderIdService jobLeaderIdService;
 
-    /** All currently registered TaskExecutors with there framework specific worker information. */
+    /** All currently registered TaskExecutors with their framework specific worker information. */
     private final Map<ResourceID, WorkerRegistration<WorkerType>> taskExecutors;
 
     /** Ongoing registration of TaskExecutors per resource ID. */
@@ -1367,27 +1367,18 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         @Override
         public void jobLeaderLostLeadership(final JobID jobId, final JobMasterId oldJobMasterId) {
-            runAsync(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobMasterId);
-                        }
-                    });
+            runAsync(() -> ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobMasterId));
         }
 
         @Override
         public void notifyJobTimeout(final JobID jobId, final UUID timeoutId) {
             runAsync(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
-                                removeJob(
-                                        jobId,
-                                        new Exception(
-                                                "Job " + jobId + "was removed because of timeout"));
-                            }
+                    () -> {
+                        if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
+                            removeJob(
+                                    jobId,
+                                    new Exception(
+                                            "Job " + jobId + "was removed because of timeout"));
                         }
                     });
         }
