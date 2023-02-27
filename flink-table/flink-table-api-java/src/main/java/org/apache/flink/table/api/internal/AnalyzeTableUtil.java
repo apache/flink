@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Catalog;
@@ -78,14 +77,22 @@ public class AnalyzeTableUtil {
 
         if (operation.getPartitionSpecs().isPresent()) {
             List<CatalogPartitionSpec> targetPartitions = operation.getPartitionSpecs().get();
-            for (CatalogPartitionSpec partitionSpec : targetPartitions) {
-                String statSql =
-                        generateAnalyzeSql(operation.getTableIdentifier(), partitionSpec, columns);
-                Tuple2<CatalogTableStatistics, CatalogColumnStatistics> result =
-                        executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
-                CatalogTableStatistics tableStat = result.f0;
-                catalog.alterPartitionStatistics(objectPath, partitionSpec, tableStat, false);
-                CatalogColumnStatistics newColumnStat = result.f1;
+            if (targetPartitions.isEmpty()) {
+                return TableResultImpl.TABLE_RESULT_OK;
+            }
+            String statSql =
+                    generateAnalyzeSqlForMultiParts(
+                            operation.getTableIdentifier(), targetPartitions, columns);
+            int partitionCount = targetPartitions.size();
+            Map<Integer, StatisticsWrapper> results =
+                    executeSqlAndGenerateStatisticsForMultiParts(
+                            tableEnv, columns, statSql, partitionCount);
+            for (int i = 0; i < partitionCount; ++i) {
+                StatisticsWrapper result = results.get(i);
+                CatalogPartitionSpec partitionSpec = targetPartitions.get(i);
+                catalog.alterPartitionStatistics(
+                        objectPath, partitionSpec, result.tableStat, false);
+                CatalogColumnStatistics newColumnStat = result.columnStat;
                 if (newColumnStat != null) {
                     CatalogColumnStatistics oldColumnStat =
                             catalog.getPartitionColumnStatistics(objectPath, partitionSpec);
@@ -97,12 +104,10 @@ public class AnalyzeTableUtil {
                 }
             }
         } else {
-            String statSql = generateAnalyzeSql(operation.getTableIdentifier(), null, columns);
-            Tuple2<CatalogTableStatistics, CatalogColumnStatistics> result =
-                    executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
-            CatalogTableStatistics tableStat = result.f0;
-            catalog.alterTableStatistics(objectPath, tableStat, false);
-            CatalogColumnStatistics newColumnStat = result.f1;
+            String statSql = generateAnalyzeSql(operation.getTableIdentifier(), null, columns, -1);
+            StatisticsWrapper result = executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
+            catalog.alterTableStatistics(objectPath, result.tableStat, false);
+            CatalogColumnStatistics newColumnStat = result.columnStat;
             if (newColumnStat != null) {
                 CatalogColumnStatistics oldColumnStat =
                         catalog.getTableColumnStatistics(objectPath);
@@ -125,9 +130,8 @@ public class AnalyzeTableUtil {
         return columnStatistics;
     }
 
-    private static Tuple2<CatalogTableStatistics, CatalogColumnStatistics>
-            executeSqlAndGenerateStatistics(
-                    TableEnvironmentImpl tableEnv, List<Column> columns, String statSql) {
+    private static StatisticsWrapper executeSqlAndGenerateStatistics(
+            TableEnvironmentImpl tableEnv, List<Column> columns, String statSql) {
         TableResult tableResult = tableEnv.executeSql(statSql);
         List<Row> result = CollectionUtil.iteratorToList(tableResult.collect());
         Preconditions.checkArgument(result.size() == 1);
@@ -137,13 +141,46 @@ public class AnalyzeTableUtil {
         if (!columns.isEmpty()) {
             columnStat = convertToColumnStatistics(row, columns);
         }
-        return new Tuple2<>(tableStat, columnStat);
+        return new StatisticsWrapper(tableStat, columnStat);
+    }
+
+    private static Map<Integer, StatisticsWrapper> executeSqlAndGenerateStatisticsForMultiParts(
+            TableEnvironmentImpl tableEnv,
+            List<Column> columns,
+            String statSql,
+            int partitionCount) {
+        TableResult tableResult = tableEnv.executeSql(statSql);
+        List<Row> result = CollectionUtil.iteratorToList(tableResult.collect());
+        Preconditions.checkArgument(result.size() == partitionCount);
+        Map<Integer, StatisticsWrapper> map = new HashMap<>();
+        for (Row row : result) {
+            CatalogTableStatistics tableStat = convertToTableStatistics(row);
+            CatalogColumnStatistics columnStat = null;
+            if (!columns.isEmpty()) {
+                columnStat = convertToColumnStatistics(row, columns);
+            }
+            int index = row.getFieldAs(getPartitionIdxColumn());
+            map.put(index, new StatisticsWrapper(tableStat, columnStat));
+        }
+        return map;
+    }
+
+    private static String generateAnalyzeSqlForMultiParts(
+            ObjectIdentifier tableIdentifier,
+            List<CatalogPartitionSpec> partitionSpecs,
+            List<Column> columns) {
+        List<String> sqlList = new ArrayList<>();
+        for (int i = 0; i < partitionSpecs.size(); ++i) {
+            sqlList.add(generateAnalyzeSql(tableIdentifier, partitionSpecs.get(i), columns, i));
+        }
+        return String.join("\n UNION ALL \n", sqlList);
     }
 
     private static String generateAnalyzeSql(
             ObjectIdentifier tableIdentifier,
             @Nullable CatalogPartitionSpec partitionSpec,
-            List<Column> columns) {
+            List<Column> columns,
+            int index) {
         String partitionFilter;
         if (partitionSpec != null) {
             partitionFilter =
@@ -163,8 +200,12 @@ public class AnalyzeTableUtil {
         }
 
         return String.format(
-                "SELECT COUNT(1) AS %s %s FROM %s %s",
-                getRowCountColumn(), columnStatsSelects, tableIdentifier, partitionFilter);
+                "SELECT COUNT(1) AS %s %s %s FROM %s %s",
+                getRowCountColumn(),
+                columnStatsSelects,
+                index >= 0 ? String.format(", %s as %s", index, getPartitionIdxColumn()) : "",
+                tableIdentifier,
+                partitionFilter);
     }
 
     private static String getColumnStatsSelects(List<Column> columns) {
@@ -365,6 +406,17 @@ public class AnalyzeTableUtil {
         }
     }
 
+    private static class StatisticsWrapper {
+        private final CatalogTableStatistics tableStat;
+        private final CatalogColumnStatistics columnStat;
+
+        private StatisticsWrapper(
+                CatalogTableStatistics tableStat, CatalogColumnStatistics columnStat) {
+            this.tableStat = tableStat;
+            this.columnStat = columnStat;
+        }
+    }
+
     private static String getRowCountColumn() {
         return "rowCount";
     }
@@ -399,5 +451,9 @@ public class AnalyzeTableUtil {
 
     private static String getMaxLenColumn(String column) {
         return String.format("%s_maxLen", column);
+    }
+
+    private static String getPartitionIdxColumn() {
+        return "part_idx";
     }
 }
