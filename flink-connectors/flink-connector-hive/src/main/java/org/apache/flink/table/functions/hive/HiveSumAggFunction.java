@@ -22,13 +22,20 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
+import java.math.BigDecimal;
+
 import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_NATIVE_AGG_FUNCTION_ENABLED;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.and;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.coalesce;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isTrue;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.tryCast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
@@ -40,7 +47,10 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
 public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
+    private final UnresolvedReferenceExpression isEmpty = unresolvedRef("isEmpty");
+
     private DataType resultType;
+    private ValueLiteralExpression zero;
 
     @Override
     public int operandCount() {
@@ -49,12 +59,12 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public UnresolvedReferenceExpression[] aggBufferAttributes() {
-        return new UnresolvedReferenceExpression[] {sum};
+        return new UnresolvedReferenceExpression[] {sum, isEmpty};
     }
 
     @Override
     public DataType[] getAggBufferTypes() {
-        return new DataType[] {getResultType()};
+        return new DataType[] {getResultType(), DataTypes.BOOLEAN()};
     }
 
     @Override
@@ -64,20 +74,19 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {/* sum = */ nullOf(getResultType())};
+        return new Expression[] {/* sum = */ nullOf(getResultType()), valueLiteral(true)};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         Expression tryCastOperand = tryCast(operand(0), typeLiteral(getResultType()));
+        Expression coalesceSum = coalesce(sum, zero);
         return new Expression[] {
             /* sum = */ ifThenElse(
                     isNull(tryCastOperand),
-                    sum,
-                    ifThenElse(
-                            isNull(sum),
-                            tryCastOperand,
-                            adjustedPlus(getResultType(), sum, tryCastOperand)))
+                    coalesceSum,
+                    adjustedPlus(getResultType(), coalesceSum, tryCastOperand)),
+            and(isEmpty, isNull(operand(0)))
         };
     }
 
@@ -88,20 +97,19 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
 
     @Override
     public Expression[] mergeExpressions() {
+        Expression coalesceSum = coalesce(sum, zero);
         return new Expression[] {
             /* sum = */ ifThenElse(
                     isNull(mergeOperand(sum)),
-                    sum,
-                    ifThenElse(
-                            isNull(sum),
-                            mergeOperand(sum),
-                            adjustedPlus(getResultType(), sum, mergeOperand(sum))))
+                    coalesceSum,
+                    adjustedPlus(getResultType(), coalesceSum, mergeOperand(sum))),
+            and(isEmpty, mergeOperand(isEmpty))
         };
     }
 
     @Override
     public Expression getValueExpression() {
-        return sum;
+        return ifThenElse(isTrue(isEmpty), nullOf(getResultType()), sum);
     }
 
     @Override
@@ -109,6 +117,7 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
         if (resultType == null) {
             checkArgumentNum(callContext.getArgumentDataTypes());
             resultType = initResultType(callContext.getArgumentDataTypes().get(0));
+            zero = defaultValue(resultType);
         }
     }
 
@@ -139,6 +148,24 @@ public class HiveSumAggFunction extends HiveDeclarativeAggregateFunction {
                         String.format(
                                 "Only numeric or string type arguments are accepted but %s is passed.",
                                 argsType));
+        }
+    }
+
+    private ValueLiteralExpression defaultValue(DataType dataType) {
+        switch (dataType.getLogicalType().getTypeRoot()) {
+            case BIGINT:
+                return valueLiteral(0L);
+            case DOUBLE:
+                return valueLiteral(0.0);
+            case DECIMAL:
+                return valueLiteral(
+                        BigDecimal.valueOf(0, getScale(dataType.getLogicalType())),
+                        dataType.notNull());
+            default:
+                throw new TableException(
+                        String.format(
+                                "Unsupported type %s is passed when initialize the default value.",
+                                dataType));
         }
     }
 }
