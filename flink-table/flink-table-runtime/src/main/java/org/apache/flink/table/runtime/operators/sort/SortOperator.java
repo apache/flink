@@ -48,9 +48,9 @@ public class SortOperator extends TableStreamOperator<RowData>
     private GeneratedRecordComparator gComparator;
 
     private final int maxNumFileHandles;
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final int compressionBlockSize;
-    private final boolean asyncMergeEnable;
+    private final boolean asyncMergeEnabled;
 
     private transient BinaryExternalSorter sorter;
     private transient StreamRecordCollector<RowData> collector;
@@ -60,15 +60,15 @@ public class SortOperator extends TableStreamOperator<RowData>
             GeneratedNormalizedKeyComputer gComputer,
             GeneratedRecordComparator gComparator,
             int maxNumFileHandles,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
-            boolean asyncMergeEnable) {
+            boolean asyncMergeEnabled) {
         this.gComputer = gComputer;
         this.gComparator = gComparator;
         this.maxNumFileHandles = maxNumFileHandles;
-        this.compressionEnable = compressionEnable;
+        this.compressionEnabled = compressionEnabled;
         this.compressionBlockSize = compressionBlockSize;
-        this.asyncMergeEnable = asyncMergeEnable;
+        this.asyncMergeEnabled = asyncMergeEnabled;
     }
 
     @Override
@@ -100,9 +100,9 @@ public class SortOperator extends TableStreamOperator<RowData>
                         computer,
                         comparator,
                         maxNumFileHandles,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionBlockSize,
-                        asyncMergeEnable);
+                        asyncMergeEnabled);
         this.sorter.startThreads();
 
         collector = new StreamRecordCollector<>(output);

@@ -213,7 +213,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                         condFunc,
                         1.0 * externalBufferMemory / managedMemory);
 
-        boolean compressionEnable =
+        boolean compressionEnabled =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
         int compressionBlockSize =
                 (int)
@@ -235,7 +235,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                             reverseJoin,
                             condFunc,
                             leftIsBuild,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionBlockSize,
                             sortMergeJoinFunction);
         } else {
@@ -244,7 +244,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                             HashJoinOperator.newHashJoinOperator(
                                     hashJoinType,
                                     leftIsBuild,
-                                    compressionEnable,
+                                    compressionEnabled,
                                     compressionBlockSize,
                                     condFunc,
                                     reverseJoin,

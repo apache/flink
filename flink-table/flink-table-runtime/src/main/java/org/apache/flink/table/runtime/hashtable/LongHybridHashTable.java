@@ -70,7 +70,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
     public LongHybridHashTable(
             Object owner,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
             BinaryRowDataSerializer buildSideSerializer,
             BinaryRowDataSerializer probeSideSerializer,
@@ -81,7 +81,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             long buildRowCount) {
         super(
                 owner,
-                compressionEnable,
+                compressionEnabled,
                 compressionBlockSize,
                 memManager,
                 reservedMemorySize,
@@ -413,7 +413,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
                         ioManager,
                         channelWithMeta,
                         new ArrayList<>(),
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize,
                         segmentSize);
@@ -659,8 +659,8 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         this.partitionsPendingForSMJ.clear();
     }
 
-    public boolean compressionEnable() {
-        return compressionEnable;
+    public boolean compressionEnabled() {
+        return compressionEnabled;
     }
 
     public BlockCompressionFactory compressionCodecFactory() {

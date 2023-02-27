@@ -60,9 +60,9 @@ public class SortMergeJoinFunction implements Serializable {
     private final boolean leftIsSmaller;
     private final boolean[] filterNulls;
     private final int maxNumFileHandles;
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final int compressionBlockSize;
-    private final boolean asyncMergeEnable;
+    private final boolean asyncMergeEnabled;
 
     // generated code to cook
     private GeneratedJoinCondition condFuncCode;
@@ -98,9 +98,9 @@ public class SortMergeJoinFunction implements Serializable {
             FlinkJoinType type,
             boolean leftIsSmaller,
             int maxNumFileHandles,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
-            boolean asyncMergeEnable,
+            boolean asyncMergeEnabled,
             GeneratedJoinCondition condFuncCode,
             GeneratedProjection projectionCode1,
             GeneratedProjection projectionCode2,
@@ -114,9 +114,9 @@ public class SortMergeJoinFunction implements Serializable {
         this.type = type;
         this.leftIsSmaller = leftIsSmaller;
         this.maxNumFileHandles = maxNumFileHandles;
-        this.compressionEnable = compressionEnable;
+        this.compressionEnabled = compressionEnabled;
         this.compressionBlockSize = compressionBlockSize;
-        this.asyncMergeEnable = asyncMergeEnable;
+        this.asyncMergeEnabled = asyncMergeEnabled;
         this.condFuncCode = condFuncCode;
         this.projectionCode1 = projectionCode1;
         this.projectionCode2 = projectionCode2;
@@ -183,9 +183,9 @@ public class SortMergeJoinFunction implements Serializable {
                         computer1.newInstance(cl),
                         comparator1.newInstance(cl),
                         maxNumFileHandles,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionBlockSize,
-                        asyncMergeEnable);
+                        asyncMergeEnabled);
         this.sorter1.startThreads();
 
         // sorter2
@@ -200,9 +200,9 @@ public class SortMergeJoinFunction implements Serializable {
                         computer2.newInstance(cl),
                         comparator2.newInstance(cl),
                         maxNumFileHandles,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionBlockSize,
-                        asyncMergeEnable);
+                        asyncMergeEnabled);
         this.sorter2.startThreads();
 
         keyComparator = genKeyComparator.newInstance(cl);

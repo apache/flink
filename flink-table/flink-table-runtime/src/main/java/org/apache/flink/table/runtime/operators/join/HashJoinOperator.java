@@ -125,7 +125,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         this.table =
                 new BinaryHashTable(
                         getContainingTask(),
-                        parameter.compressionEnable,
+                        parameter.compressionEnabled,
                         parameter.compressionBlockSize,
                         buildSerializer,
                         probeSerializer,
@@ -377,7 +377,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     static class HashJoinParameter implements Serializable {
         HashJoinType type;
         boolean leftIsBuild;
-        boolean compressionEnable;
+        boolean compressionEnabled;
         int compressionBlockSize;
         GeneratedJoinCondition condFuncCode;
         boolean reverseJoinFunction;
@@ -394,7 +394,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         HashJoinParameter(
                 HashJoinType type,
                 boolean leftIsBuild,
-                boolean compressionEnable,
+                boolean compressionEnabled,
                 int compressionBlockSize,
                 GeneratedJoinCondition condFuncCode,
                 boolean reverseJoinFunction,
@@ -409,7 +409,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 SortMergeJoinFunction sortMergeJoinFunction) {
             this.type = type;
             this.leftIsBuild = leftIsBuild;
-            this.compressionEnable = compressionEnable;
+            this.compressionEnabled = compressionEnabled;
             this.compressionBlockSize = compressionBlockSize;
             this.condFuncCode = condFuncCode;
             this.reverseJoinFunction = reverseJoinFunction;

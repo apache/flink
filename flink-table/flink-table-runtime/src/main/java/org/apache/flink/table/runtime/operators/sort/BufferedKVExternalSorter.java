@@ -78,7 +78,7 @@ public class BufferedKVExternalSorter {
     private long spillInBytes;
     private long spillInCompressedBytes;
 
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final BlockCompressionFactory compressionCodecFactory;
     private final int compressionBlockSize;
 
@@ -90,7 +90,7 @@ public class BufferedKVExternalSorter {
             RecordComparator comparator,
             int pageSize,
             int maxNumFileHandles,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize) {
         this.keySerializer = keySerializer;
         this.valueSerializer = valueSerializer;
@@ -99,9 +99,9 @@ public class BufferedKVExternalSorter {
         this.pageSize = pageSize;
         this.sorter = new QuickSort();
         this.maxNumFileHandles = maxNumFileHandles;
-        this.compressionEnable = compressionEnable;
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
-                this.compressionEnable
+                this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
@@ -118,7 +118,7 @@ public class BufferedKVExternalSorter {
                         keySerializer,
                         valueSerializer,
                         comparator,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize);
     }
@@ -170,7 +170,7 @@ public class BufferedKVExternalSorter {
                     FileChannelUtil.createOutputView(
                             ioManager,
                             channel,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionCodecFactory,
                             compressionBlockSize,
                             pageSize);

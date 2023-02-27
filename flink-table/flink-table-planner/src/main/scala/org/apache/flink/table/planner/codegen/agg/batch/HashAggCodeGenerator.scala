@@ -107,7 +107,7 @@ object HashAggCodeGenerator {
       isFinal: Boolean,
       supportAdaptiveLocalHashAgg: Boolean,
       maxNumFileHandles: Int,
-      compressionEnable: Boolean,
+      compressionEnabled: Boolean,
       compressionBlockSize: Int): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
 
     val aggInfos = aggInfoList.aggInfos
@@ -242,7 +242,7 @@ object HashAggCodeGenerator {
       sorterTerm,
       retryAppend,
       maxNumFileHandles,
-      compressionEnable,
+      compressionEnabled,
       compressionBlockSize
     )
 

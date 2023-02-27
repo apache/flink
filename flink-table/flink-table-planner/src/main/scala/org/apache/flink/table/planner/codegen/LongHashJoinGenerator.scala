@@ -111,7 +111,7 @@ object LongHashJoinGenerator {
       reverseJoinFunction: Boolean,
       condFunc: GeneratedJoinCondition,
       leftIsBuild: Boolean,
-      compressionEnable: Boolean,
+      compressionEnabled: Boolean,
       compressionBlockSize: Int,
       sortMergeJoinFunction: SortMergeJoinFunction): CodeGenOperatorFactory[RowData] = {
 
@@ -188,7 +188,7 @@ object LongHashJoinGenerator {
          |
          |  public $tableTerm() {
          |    super(getContainingTask(),
-         |      $compressionEnable, $compressionBlockSize,
+         |      $compressionEnabled, $compressionBlockSize,
          |      $buildSerTerm, $probeSerTerm,
          |      getContainingTask().getEnvironment().getMemoryManager(),
          |      computeMemorySize(),

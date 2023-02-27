@@ -143,7 +143,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 
     public BinaryHashTable(
             Object owner,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
             AbstractRowDataSerializer buildSideSerializer,
             AbstractRowDataSerializer probeSideSerializer,
@@ -162,7 +162,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
             boolean tryDistinctBuildRow) {
         super(
                 owner,
-                compressionEnable,
+                compressionEnabled,
                 compressionBlockSize,
                 memManager,
                 reservedMemorySize,
@@ -448,7 +448,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
                         ioManager,
                         channelWithMeta,
                         new ArrayList<>(),
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize,
                         segmentSize);
@@ -615,7 +615,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
                             getNotNullNextBuffer(),
                             this,
                             this.segmentSize,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionCodecFactory,
                             compressionBlockSize);
             area.setPartition(p);

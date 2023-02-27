@@ -51,13 +51,13 @@ public class SorMergeJoinOperatorUtil {
 
         int maxNumFileHandles =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
-        boolean compressionEnable =
+        boolean compressionEnabled =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
         int compressionBlockSize =
                 (int)
                         config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
                                 .getBytes();
-        boolean asyncMergeEnable =
+        boolean asyncMergeEnabled =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
 
         SortCodeGenerator leftSortGen =
@@ -70,9 +70,9 @@ public class SorMergeJoinOperatorUtil {
                 joinType,
                 leftIsSmaller,
                 maxNumFileHandles,
-                compressionEnable,
+                compressionEnabled,
                 compressionBlockSize,
-                asyncMergeEnable,
+                asyncMergeEnabled,
                 condFunc,
                 ProjectionCodeGenerator.generateProjection(
                         new CodeGeneratorContext(config, classLoader),

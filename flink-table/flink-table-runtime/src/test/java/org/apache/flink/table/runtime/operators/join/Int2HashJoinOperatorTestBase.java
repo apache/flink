@@ -151,14 +151,14 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
 
         int maxNumFileHandles =
                 ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue();
-        boolean compressionEnable =
+        boolean compressionEnabled =
                 ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue();
         int compressionBlockSize =
                 (int)
                         ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
                                 .defaultValue()
                                 .getBytes();
-        boolean asyncMergeEnable =
+        boolean asyncMergeEnabled =
                 ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue();
 
         SortMergeJoinFunction sortMergeJoinFunction;
@@ -169,9 +169,9 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                             flinkJoinType,
                             buildLeft,
                             maxNumFileHandles,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionBlockSize,
-                            asyncMergeEnable,
+                            asyncMergeEnabled,
                             condFuncCode,
                             buildProjectionCode,
                             probeProjectionCode,
@@ -188,9 +188,9 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                             flinkJoinType,
                             buildLeft,
                             maxNumFileHandles,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionBlockSize,
-                            asyncMergeEnable,
+                            asyncMergeEnabled,
                             condFuncCode,
                             probeProjectionCode,
                             buildProjectionCode,
@@ -205,7 +205,7 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
         return HashJoinOperator.newHashJoinOperator(
                 hashJoinType,
                 buildLeft,
-                compressionEnable,
+                compressionEnabled,
                 compressionBlockSize,
                 condFuncCode,
                 reverseJoinFunction,

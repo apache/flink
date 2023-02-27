@@ -125,7 +125,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
      */
     protected FileIOChannel.Enumerator currentEnumerator;
 
-    protected final boolean compressionEnable;
+    protected final boolean compressionEnabled;
     protected final BlockCompressionFactory compressionCodecFactory;
     protected final int compressionBlockSize;
 
@@ -134,7 +134,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
     public BaseHybridHashTable(
             Object owner,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
             MemoryManager memManager,
             long reservedMemorySize,
@@ -142,9 +142,9 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             int avgRecordLen,
             long buildRowCount,
             boolean tryDistinctBuildRow) {
-        this.compressionEnable = compressionEnable;
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
-                this.compressionEnable
+                this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
@@ -489,7 +489,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
                         ioManager,
                         id,
                         retSegments,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize,
                         segmentSize);
@@ -510,7 +510,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
                         ioManager,
                         id,
                         new LinkedBlockingQueue<>(),
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize,
                         segmentSize);

@@ -150,11 +150,11 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
 
     private final int memorySegmentSize;
 
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final BlockCompressionFactory compressionCodecFactory;
     private final int compressionBlockSize;
 
-    private final boolean asyncMergeEnable;
+    private final boolean asyncMergeEnabled;
 
     // ------------------------------------------------------------------------
     //                         Constructor & Shutdown
@@ -177,9 +177,9 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             NormalizedKeyComputer normalizedKeyComputer,
             RecordComparator comparator,
             int maxNumFileHandles,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
-            boolean asyncMergeEnable) {
+            boolean asyncMergeEnabled) {
         this(
                 owner,
                 memoryManager,
@@ -190,9 +190,9 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                 normalizedKeyComputer,
                 comparator,
                 maxNumFileHandles,
-                compressionEnable,
+                compressionEnabled,
                 compressionBlockSize,
-                asyncMergeEnable,
+                asyncMergeEnabled,
                 AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue());
     }
 
@@ -206,18 +206,18 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             NormalizedKeyComputer normalizedKeyComputer,
             RecordComparator comparator,
             int maxNumFileHandles,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             int compressionBlockSize,
-            boolean asyncMergeEnable,
+            boolean asyncMergeEnabled,
             float startSpillingFraction) {
-        this.compressionEnable = compressionEnable;
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
-                this.compressionEnable
+                this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
         this.compressionBlockSize = compressionBlockSize;
-        this.asyncMergeEnable = asyncMergeEnable;
+        this.asyncMergeEnabled = asyncMergeEnabled;
 
         checkArgument(maxNumFileHandles >= 2);
         checkNotNull(ioManager);
@@ -256,8 +256,8 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         + "maxNumFileHandles({}), compressionEnable({}), compressionCodecFactory({}), compressionBlockSize({}).",
                 sortMemPages,
                 maxNumFileHandles,
-                compressionEnable,
-                compressionEnable ? compressionCodecFactory.getClass() : null,
+                compressionEnabled,
+                compressionEnabled ? compressionCodecFactory.getClass() : null,
                 compressionBlockSize);
 
         this.sortBuffers = new ArrayList<>();
@@ -314,7 +314,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         channelManager,
                         (BinaryRowDataSerializer) serializer.duplicate(),
                         comparator,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize);
 
@@ -1010,7 +1010,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                                 FileChannelUtil.createOutputView(
                                         ioManager,
                                         channel,
-                                        compressionEnable,
+                                        compressionEnabled,
                                         compressionCodecFactory,
                                         compressionBlockSize,
                                         memorySegmentSize);
@@ -1126,7 +1126,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                 spillChannelIDs.add(channelID);
                 // if async merge is disabled, we will only do the final merge
                 // otherwise we wait for `maxFanIn` number of channels to begin a merge
-                if (!asyncMergeEnable || spillChannelIDs.size() < maxFanIn) {
+                if (!asyncMergeEnabled || spillChannelIDs.size() < maxFanIn) {
                     continue;
                 }
 

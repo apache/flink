@@ -587,7 +587,7 @@ object HashAggCodeGenHelper {
       sorterTerm: String,
       retryAppend: String,
       maxNumFileHandles: Int,
-      compressionEnable: Boolean,
+      compressionEnabled: Boolean,
       compressionBlockSize: Int): (String, String) = {
     val (grouping, auxGrouping) = groupingAndAuxGrouping
     if (isFinal) {
@@ -608,7 +608,7 @@ object HashAggCodeGenHelper {
         aggBufferTypesTerm,
         sorterTerm,
         maxNumFileHandles,
-        compressionEnable,
+        compressionEnabled,
         compressionBlockSize)
       val fallbackToSortAggCode = genFallbackToSortAgg(
         ctx,
@@ -719,7 +719,7 @@ object HashAggCodeGenHelper {
       aggBufferTypesTerm: String,
       sorterTerm: String,
       maxNumFileHandles: Int,
-      compressionEnable: Boolean,
+      compressionEnabled: Boolean,
       compressionBlockSize: Int): String = {
     val keyComputerTerm = CodeGenUtils.newName("keyComputer")
     val recordComparatorTerm = CodeGenUtils.newName("recordComparator")
@@ -736,7 +736,7 @@ object HashAggCodeGenHelper {
        |    new $binaryRowSerializerTypeTerm($aggBufferTypesTerm.length),
        |    $keyComputerTerm, $recordComparatorTerm,
        |    getContainingTask().getEnvironment().getMemoryManager().getPageSize(),
-       |    $maxNumFileHandles, $compressionEnable, $compressionBlockSize
+       |    $maxNumFileHandles, $compressionEnabled, $compressionBlockSize
        |  );
        """.stripMargin
   }
