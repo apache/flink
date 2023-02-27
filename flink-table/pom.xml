@@ -49,7 +49,8 @@ under the License.
 		<module>flink-sql-parser</module>
 		<module>flink-table-code-splitter</module>
 		<module>flink-table-test-utils</module>
-	</modules>
+        <module>flink-table-calcite-bridge</module>
+    </modules>
 
 	<dependencyManagement>
 		<dependencies>

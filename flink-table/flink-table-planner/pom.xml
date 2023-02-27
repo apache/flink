@@ -60,7 +60,6 @@ under the License.
 			<version>2.8.8</version>
 		</dependency>
 
-
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>commons-compiler</artifactId>
@@ -120,96 +119,10 @@ under the License.
 		</dependency>
 
 		<!-- Other 3rd party dependencies (included in the uber) -->
-
 		<dependency>
-			<!-- Used for translation of table programs -->
-			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-core</artifactId>
-			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>${calcite.version}</version>
-			<exclusions>
-				<!--
-				"mvn dependency:tree" as of Calcite 1.29.0:
-
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.29.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.29.0:compile
-				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.4:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.20.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.4:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.4.2:compile
-				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
-				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
-				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
-				[INFO] |  |        \- org.ow2.asm:asm:jar:5.0.4:runtime
-				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
-				[INFO] |  \- commons-io:commons-io:jar:2.11.0:compile
-
-
-				Dependencies that are not needed for how we use Calcite right now.
-				-->
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-server</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-metrics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protobuf-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.uzaygezen</groupId>
-					<artifactId>uzaygezen-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-dbcp2</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-lang3</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.dataformat</groupId>
-					<artifactId>jackson-dataformat-yaml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.yahoo.datasketches</groupId>
-					<artifactId>sketches-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>net.hydromatic</groupId>
-					<artifactId>aggdesigner-algorithm</artifactId>
-				</exclusion>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
-				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.errorprone</groupId>
-					<artifactId>error_prone_annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.jetbrains</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.jetbrains.kotlin</groupId>
-					<artifactId>kotlin-stdlib-jdk8</artifactId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-calcite-bridge</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -380,6 +293,7 @@ under the License.
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
+							<include>org.apache.flink:flink-table-calcite-bridge</include>
 						</includes>
 					</artifactSet>
 					<relocations>
