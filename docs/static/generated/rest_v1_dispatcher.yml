@@ -852,6 +852,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/resource-requirements:
+    get:
+      description: Request details on the job's resource requirements.
+      operationId: getJobResourceRequirements
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResourceRequirementsBody'
+    put:
+      description: Request to update job's resource requirements.
+      operationId: updateJobResourceRequirements
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobResourceRequirementsBody'
+      responses:
+        "200":
+          description: The request was successful.
   /jobs/{jobid}/savepoints:
     post:
       description: "Triggers a savepoint, and optionally cancels the job afterwards.\
@@ -2344,6 +2380,10 @@ components:
       properties:
         plan:
           $ref: '#/components/schemas/RawJson'
+    JobResourceRequirementsBody:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/JobVertexResourceRequirements'
     JobResult:
       type: object
       properties:
@@ -2447,6 +2487,11 @@ components:
     JobVertexID:
       pattern: "[0-9a-f]{32}"
       type: string
+    JobVertexResourceRequirements:
+      type: object
+      properties:
+        parallelism:
+          $ref: '#/components/schemas/Parallelism'
     JobVertexTaskManagersInfo:
       type: object
       properties:
@@ -2528,6 +2573,15 @@ components:
         name:
           type: string
         value:
+          type: integer
+          format: int32
+    Parallelism:
+      type: object
+      properties:
+        lowerBound:
+          type: integer
+          format: int32
+        upperBound:
           type: integer
           format: int32
     PendingCheckpointStatistics:
