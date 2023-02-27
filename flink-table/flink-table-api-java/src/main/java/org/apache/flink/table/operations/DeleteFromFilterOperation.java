@@ -42,7 +42,7 @@ public class DeleteFromFilterOperation extends SinkModifyOperation {
             ContextResolvedTable contextResolvedTable,
             @Nonnull SupportsDeletePushDown supportsDeletePushDownSink,
             @Nonnull List<ResolvedExpression> filters) {
-        super(contextResolvedTable, null, ModifyType.DELETE);
+        super(contextResolvedTable, null, new int[0][], ModifyType.DELETE);
         this.supportsDeletePushDownSink = Preconditions.checkNotNull(supportsDeletePushDownSink);
         this.filters = Preconditions.checkNotNull(filters);
     }

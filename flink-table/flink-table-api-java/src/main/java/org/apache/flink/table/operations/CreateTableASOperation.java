@@ -56,6 +56,7 @@ public class CreateTableASOperation implements ModifyOperation {
                 catalogManager.getTableOrError(createTableOperation.getTableIdentifier()),
                 sinkModifyQuery,
                 sinkModifyStaticPartitions,
+                new int[0][],
                 sinkModifyOverwrite,
                 Collections.emptyMap());
     }
