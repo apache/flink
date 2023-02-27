@@ -625,6 +625,22 @@ public final class InstantiationUtil {
     }
 
     /**
+     * Unchecked equivalent of {@link #clone(Serializable)}.
+     *
+     * @param obj Object to clone
+     * @param <T> Type of the object to clone
+     * @return The cloned object
+     */
+    public static <T extends Serializable> T cloneUnchecked(T obj) {
+        try {
+            return clone(obj, obj.getClass().getClassLoader());
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(
+                    String.format("Unable to clone instance of %s.", obj.getClass().getName()), e);
+        }
+    }
+
+    /**
      * Clones the given writable using the {@link IOReadableWritable serialization}.
      *
      * @param original Object to clone
