@@ -55,10 +55,12 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.runtime.webmonitor.retriever.impl.RpcAddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -146,6 +148,11 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             new ExponentialBackoffRetryStrategy(
                                     12, Duration.ofMillis(10), Duration.ofMillis(50)));
 
+            final AddressBasedGatewayRetriever<TaskExecutorThreadInfoGateway>
+                    taskExecutorThreadInfoGatewayRetriever =
+                            new RpcAddressBasedGatewayRetriever<>(
+                                    rpcService, TaskExecutorThreadInfoGateway.class);
+
             final ScheduledExecutorService executor =
                     WebMonitorEndpoint.createExecutorService(
                             configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
@@ -168,6 +175,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             configuration,
                             dispatcherGatewayRetriever,
                             resourceManagerGatewayRetriever,
+                            taskExecutorThreadInfoGatewayRetriever,
                             blobServer,
                             executor,
                             metricFetcher,

@@ -45,7 +45,6 @@ import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 
@@ -258,11 +257,11 @@ public interface ResourceManagerGateway
             ResourceID taskManagerId, @RpcTimeout Time timeout);
 
     /**
-     * Requests the {@link TaskExecutorGateway}.
+     * Requests the address of {@link TaskExecutorThreadInfoGateway}.
      *
      * @param taskManagerId identifying the {@link TaskExecutor}.
-     * @return Future containing the task executor gateway.
+     * @return Future containing the address of task executor thread info gateway.
      */
-    CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
+    CompletableFuture<String> requestTaskExecutorThreadInfoGatewayAddress(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
 }

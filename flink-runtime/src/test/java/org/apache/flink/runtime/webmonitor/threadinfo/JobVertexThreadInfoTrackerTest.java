@@ -36,6 +36,7 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.JvmUtils;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
@@ -294,6 +295,7 @@ class JobVertexThreadInfoTrackerTest {
 
         return JobVertexThreadInfoTrackerBuilder.newBuilder(
                         JobVertexThreadInfoTrackerTest::createMockResourceManagerGateway,
+                        new TestingTaskExecutorThreadInfoGatewayRetriever(new HashMap<>()),
                         Function.identity(),
                         executor,
                         TestingUtils.TIMEOUT)
@@ -353,12 +355,12 @@ class JobVertexThreadInfoTrackerTest {
 
     private static CompletableFuture<ResourceManagerGateway> createMockResourceManagerGateway() {
         // ignored in TestingThreadInfoRequestCoordinator
-        Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>> function =
+        Function<ResourceID, CompletableFuture<String>> function =
                 (resourceID) -> CompletableFuture.completedFuture(null);
 
         TestingResourceManagerGateway testingResourceManagerGateway =
                 new TestingResourceManagerGateway();
-        testingResourceManagerGateway.setRequestTaskExecutorGatewayFunction(function);
+        testingResourceManagerGateway.setRequestTaskExecutorGatewayAddressFunction(function);
         return CompletableFuture.completedFuture(testingResourceManagerGateway);
     }
 
@@ -381,10 +383,10 @@ class JobVertexThreadInfoTrackerTest {
 
         @Override
         public CompletableFuture<VertexThreadInfoStats> triggerThreadInfoRequest(
-                Map<
-                                ImmutableSet<ExecutionAttemptID>,
-                                CompletableFuture<TaskExecutorThreadInfoGateway>>
+                Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<String>>
                         executionsWithGateways,
+                AddressBasedGatewayRetriever<TaskExecutorThreadInfoGateway>
+                        taskExecutorThreadInfoGatewayRetriever,
                 int ignored2,
                 Duration ignored3,
                 int ignored4) {

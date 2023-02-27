@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
 import org.apache.flink.runtime.webmonitor.stats.Statistics;
@@ -83,6 +84,9 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
+    private final AddressBasedGatewayRetriever<TaskExecutorThreadInfoGateway>
+            taskExecutorThreadInfoGatewayRetriever;
+
     @GuardedBy("lock")
     private final Cache<Key, T> vertexStatsCache;
 
@@ -108,6 +112,8 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     JobVertexThreadInfoTracker(
             ThreadInfoRequestCoordinator coordinator,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            AddressBasedGatewayRetriever<TaskExecutorThreadInfoGateway>
+                    taskExecutorThreadInfoGatewayRetriever,
             Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Duration cleanUpInterval,
@@ -121,6 +127,10 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         this.coordinator = checkNotNull(coordinator, "Thread info samples coordinator");
         this.resourceManagerGatewayRetriever =
                 checkNotNull(resourceManagerGatewayRetriever, "Gateway retriever");
+        this.taskExecutorThreadInfoGatewayRetriever =
+                checkNotNull(
+                        taskExecutorThreadInfoGatewayRetriever,
+                        "Gateway retriever must be not null.");
         this.createStatsFn = checkNotNull(createStatsFn, "Create stats function");
         this.executor = checkNotNull(executor, "Scheduled executor");
         this.statsRefreshInterval =
@@ -197,8 +207,9 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                     gatewayFuture.thenCompose(
                             (ResourceManagerGateway resourceManagerGateway) ->
                                     coordinator.triggerThreadInfoRequest(
-                                            matchExecutionsWithGateways(
+                                            matchExecutionsWithGatewayAddresses(
                                                     executionVertices, resourceManagerGateway),
+                                            taskExecutorThreadInfoGatewayRetriever,
                                             numSamples,
                                             delayBetweenSamples,
                                             maxThreadInfoDepth));
@@ -207,8 +218,8 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         }
     }
 
-    private Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
-            matchExecutionsWithGateways(
+    private Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<String>>
+            matchExecutionsWithGatewayAddresses(
                     AccessExecutionVertex[] executionVertices,
                     ResourceManagerGateway resourceManagerGateway) {
 
@@ -217,31 +228,29 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         final Map<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> executionsByLocation =
                 groupExecutionsByLocation(executionVertices);
 
-        return mapExecutionsToGateways(resourceManagerGateway, executionsByLocation);
+        return mapExecutionsToGatewayAddresses(resourceManagerGateway, executionsByLocation);
     }
 
-    private Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
-            mapExecutionsToGateways(
+    private Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<String>>
+            mapExecutionsToGatewayAddresses(
                     ResourceManagerGateway resourceManagerGateway,
                     Map<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> verticesByLocation) {
 
-        final Map<
-                        ImmutableSet<ExecutionAttemptID>,
-                        CompletableFuture<TaskExecutorThreadInfoGateway>>
-                executionsWithGateways = new HashMap<>();
+        final Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<String>>
+                executionsWithGatewayAddresses = new HashMap<>();
 
         for (Map.Entry<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> entry :
                 verticesByLocation.entrySet()) {
             TaskManagerLocation tmLocation = entry.getKey();
             ImmutableSet<ExecutionAttemptID> attemptIds = entry.getValue();
 
-            CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
-                    resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
+            CompletableFuture<String> taskExecutorGatewayFuture =
+                    resourceManagerGateway.requestTaskExecutorThreadInfoGatewayAddress(
                             tmLocation.getResourceID(), rpcTimeout);
 
-            executionsWithGateways.put(attemptIds, taskExecutorGatewayFuture);
+            executionsWithGatewayAddresses.put(attemptIds, taskExecutorGatewayFuture);
         }
-        return executionsWithGateways;
+        return executionsWithGatewayAddresses;
     }
 
     private Map<TaskManagerLocation, ImmutableSet<ExecutionAttemptID>> groupExecutionsByLocation(

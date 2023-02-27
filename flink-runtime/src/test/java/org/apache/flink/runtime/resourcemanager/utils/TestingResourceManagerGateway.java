@@ -53,7 +53,6 @@ import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -112,8 +111,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private volatile Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>>
             requestTaskManagerDetailsInfoFunction;
 
-    private volatile Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>>
-            requestTaskExecutorThreadInfoGateway;
+    private volatile Function<ResourceID, CompletableFuture<String>>
+            requestTaskExecutorThreadInfoGatewayAddress;
 
     private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>>
             requestThreadDumpFunction;
@@ -199,10 +198,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.requestTaskManagerDetailsInfoFunction = requestTaskManagerDetailsInfoFunction;
     }
 
-    public void setRequestTaskExecutorGatewayFunction(
-            Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>>
-                    requestTaskExecutorThreadInfoGateway) {
-        this.requestTaskExecutorThreadInfoGateway = requestTaskExecutorThreadInfoGateway;
+    public void setRequestTaskExecutorGatewayAddressFunction(
+            Function<ResourceID, CompletableFuture<String>>
+                    requestTaskExecutorThreadInfoGatewayAddress) {
+        this.requestTaskExecutorThreadInfoGatewayAddress =
+                requestTaskExecutorThreadInfoGatewayAddress;
     }
 
     public void setDisconnectTaskExecutorConsumer(
@@ -469,10 +469,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
+    public CompletableFuture<String> requestTaskExecutorThreadInfoGatewayAddress(
             ResourceID taskManagerId, Time timeout) {
-        final Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>> function =
-                this.requestTaskExecutorThreadInfoGateway;
+        final Function<ResourceID, CompletableFuture<String>> function =
+                this.requestTaskExecutorThreadInfoGatewayAddress;
 
         if (function != null) {
             return function.apply(taskManagerId);

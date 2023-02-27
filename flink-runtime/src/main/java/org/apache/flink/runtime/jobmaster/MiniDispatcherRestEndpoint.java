@@ -27,8 +27,10 @@ import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.runtime.webmonitor.retriever.AddressBasedGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 
@@ -43,6 +45,8 @@ public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGatewa
             Configuration clusterConfiguration,
             RestHandlerConfiguration restConfiguration,
             GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+            AddressBasedGatewayRetriever<TaskExecutorThreadInfoGateway>
+                    taskExecutorThreadInfoGatewayRetriever,
             TransientBlobService transientBlobService,
             ScheduledExecutorService executor,
             MetricFetcher metricFetcher,
@@ -55,6 +59,7 @@ public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGatewa
                 clusterConfiguration,
                 restConfiguration,
                 resourceManagerRetriever,
+                taskExecutorThreadInfoGatewayRetriever,
                 transientBlobService,
                 executor,
                 metricFetcher,

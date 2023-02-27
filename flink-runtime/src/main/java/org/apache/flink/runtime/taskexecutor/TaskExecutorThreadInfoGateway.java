@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
+import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 
@@ -27,7 +28,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /** RPC gateway for requesting {@link org.apache.flink.runtime.messages.ThreadInfoSample}. */
-public interface TaskExecutorThreadInfoGateway {
+public interface TaskExecutorThreadInfoGateway extends RpcGateway {
 
     /**
      * Request a thread info sample from the given tasks.

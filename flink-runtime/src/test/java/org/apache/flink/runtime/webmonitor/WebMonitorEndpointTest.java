@@ -58,6 +58,7 @@ class WebMonitorEndpointTest {
                         configuration,
                         RestHandlerConfiguration.fromConfiguration(configuration),
                         CompletableFuture::new,
+                        rpcServiceAddress -> new CompletableFuture<>(),
                         NoOpTransientBlobService.INSTANCE,
                         executor,
                         VoidMetricFetcher.INSTANCE,

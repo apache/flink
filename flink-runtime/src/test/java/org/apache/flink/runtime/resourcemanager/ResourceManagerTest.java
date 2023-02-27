@@ -60,7 +60,6 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
@@ -219,13 +218,13 @@ class ResourceManagerTest {
         registerTaskExecutor(
                 resourceManagerGateway, taskManagerId, taskExecutorGateway.getAddress());
 
-        CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
-                resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
+        CompletableFuture<String> taskExecutorGatewayAddressFuture =
+                resourceManagerGateway.requestTaskExecutorThreadInfoGatewayAddress(
                         taskManagerId, TestingUtils.TIMEOUT);
 
-        TaskExecutorThreadInfoGateway taskExecutorGatewayResult = taskExecutorGatewayFuture.get();
+        String taskExecutorGatewayAddressResult = taskExecutorGatewayAddressFuture.get();
 
-        assertThat(taskExecutorGatewayResult).isEqualTo(taskExecutorGateway);
+        assertThat(taskExecutorGatewayAddressResult).isEqualTo(taskExecutorGateway.getAddress());
     }
 
     private void registerTaskExecutor(
