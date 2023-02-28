@@ -27,6 +27,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
@@ -125,6 +126,12 @@ public class KafkaUtil {
         return drainAllRecordsFromTopic(topic, consumerConfig);
     }
 
+    public static List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(
+            String topic, Properties properties) throws KafkaException {
+        return drainAllRecordsFromTopic(
+                topic, properties, ByteArrayDeserializer.class, ByteArrayDeserializer.class);
+    }
+
     /**
      * Drain all records available from the given topic from the beginning until the current highest
      * offset.
@@ -134,24 +141,29 @@ public class KafkaUtil {
      *
      * @param topic to fetch from
      * @param properties used to configure the created {@link KafkaConsumer}
+     * @param keyDeserializer to deserialize the key of record.
+     * @param valueDeserializer to deserialize the value of record.
      * @return all {@link ConsumerRecord} in the topic
-     * @throws KafkaException
      */
-    public static List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(
-            String topic, Properties properties) throws KafkaException {
+    public static <K, V> List<ConsumerRecord<K, V>> drainAllRecordsFromTopic(
+            String topic,
+            Properties properties,
+            Class<? extends Deserializer<? super K>> keyDeserializer,
+            Class<? extends Deserializer<? super V>> valueDeserializer)
+            throws KafkaException {
         final Properties consumerConfig = new Properties();
         consumerConfig.putAll(properties);
-        consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
-        try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(consumerConfig)) {
+        consumerConfig.put("key.deserializer", keyDeserializer.getName());
+        consumerConfig.put("value.deserializer", valueDeserializer.getName());
+        try (KafkaConsumer<K, V> consumer = new KafkaConsumer<>(consumerConfig)) {
             Set<TopicPartition> topicPartitions = getAllPartitions(consumer, topic);
             Map<TopicPartition, Long> endOffsets = consumer.endOffsets(topicPartitions);
             consumer.assign(topicPartitions);
             consumer.seekToBeginning(topicPartitions);
 
-            final List<ConsumerRecord<byte[], byte[]>> consumerRecords = new ArrayList<>();
+            final List<ConsumerRecord<K, V>> consumerRecords = new ArrayList<>();
             while (!topicPartitions.isEmpty()) {
-                ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_DURATION);
+                ConsumerRecords<K, V> records = consumer.poll(CONSUMER_POLL_DURATION);
                 LOG.debug("Fetched {} records from topic {}.", records.count(), topic);
 
                 // Remove partitions from polling which have reached its end.
@@ -172,7 +184,7 @@ public class KafkaUtil {
                 if (topicPartitions.removeAll(finishedPartitions)) {
                     consumer.assign(topicPartitions);
                 }
-                for (ConsumerRecord<byte[], byte[]> r : records) {
+                for (ConsumerRecord<K, V> r : records) {
                     consumerRecords.add(r);
                 }
             }
@@ -180,8 +192,8 @@ public class KafkaUtil {
         }
     }
 
-    private static Set<TopicPartition> getAllPartitions(
-            KafkaConsumer<byte[], byte[]> consumer, String topic) {
+    private static <K, V> Set<TopicPartition> getAllPartitions(
+            KafkaConsumer<K, V> consumer, String topic) {
         return consumer.partitionsFor(topic).stream()
                 .map(info -> new TopicPartition(info.topic(), info.partition()))
                 .collect(Collectors.toSet());
