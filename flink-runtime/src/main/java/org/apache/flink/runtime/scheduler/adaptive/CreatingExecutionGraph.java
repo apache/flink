@@ -341,16 +341,16 @@ public class CreatingExecutionGraph implements State {
     static class ExecutionGraphWithVertexParallelism {
         private final ExecutionGraph executionGraph;
 
-        private final VertexParallelism vertexParallelism;
+        private final JobSchedulingPlan jobSchedulingPlan;
 
         private ExecutionGraphWithVertexParallelism(
-                ExecutionGraph executionGraph, VertexParallelism vertexParallelism) {
+                ExecutionGraph executionGraph, JobSchedulingPlan jobSchedulingPlan) {
             this.executionGraph = executionGraph;
-            this.vertexParallelism = vertexParallelism;
+            this.jobSchedulingPlan = jobSchedulingPlan;
         }
 
         public static ExecutionGraphWithVertexParallelism create(
-                ExecutionGraph executionGraph, VertexParallelism vertexParallelism) {
+                ExecutionGraph executionGraph, JobSchedulingPlan vertexParallelism) {
             return new ExecutionGraphWithVertexParallelism(executionGraph, vertexParallelism);
         }
 
@@ -359,7 +359,11 @@ public class CreatingExecutionGraph implements State {
         }
 
         public VertexParallelism getVertexParallelism() {
-            return vertexParallelism;
+            return jobSchedulingPlan.getVertexParallelism();
+        }
+
+        public JobSchedulingPlan getJobSchedulingPlan() {
+            return jobSchedulingPlan;
         }
     }
 }

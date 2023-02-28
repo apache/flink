@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
@@ -96,15 +98,12 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
 
-        final VertexParallelism slotSharingAssignments =
+        final VertexParallelism vertexParallelism =
                 slotAllocator.determineParallelism(jobInformation, getSlots(2)).get();
 
-        final Map<JobVertexID, Integer> maxParallelismForVertices =
-                slotSharingAssignments.getMaxParallelismForVertices();
-
-        assertThat(maxParallelismForVertices.get(vertex1.getJobVertexID()), is(1));
-        assertThat(maxParallelismForVertices.get(vertex2.getJobVertexID()), is(1));
-        assertThat(maxParallelismForVertices.get(vertex3.getJobVertexID()), is(1));
+        assertThat(vertexParallelism.getParallelism(vertex1.getJobVertexID()), is(1));
+        assertThat(vertexParallelism.getParallelism(vertex2.getJobVertexID()), is(1));
+        assertThat(vertexParallelism.getParallelism(vertex3.getJobVertexID()), is(1));
     }
 
     @Test
@@ -118,20 +117,17 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
 
-        final VertexParallelism slotSharingAssignments =
+        final VertexParallelism vertexParallelism =
                 slotAllocator.determineParallelism(jobInformation, getSlots(50)).get();
 
-        final Map<JobVertexID, Integer> maxParallelismForVertices =
-                slotSharingAssignments.getMaxParallelismForVertices();
-
         assertThat(
-                maxParallelismForVertices.get(vertex1.getJobVertexID()),
+                vertexParallelism.getParallelism(vertex1.getJobVertexID()),
                 is(vertex1.getParallelism()));
         assertThat(
-                maxParallelismForVertices.get(vertex2.getJobVertexID()),
+                vertexParallelism.getParallelism(vertex2.getJobVertexID()),
                 is(vertex2.getParallelism()));
         assertThat(
-                maxParallelismForVertices.get(vertex3.getJobVertexID()),
+                vertexParallelism.getParallelism(vertex3.getJobVertexID()),
                 is(vertex3.getParallelism()));
     }
 
@@ -153,19 +149,18 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         TestJobInformation testJobInformation =
                 new TestJobInformation(Arrays.asList(vertex11, vertex12, vertex2));
 
-        Map<JobVertexID, Integer> maxParallelismForVertices =
+        VertexParallelism vertexParallelism =
                 slotAllocator
                         .determineParallelism(
                                 testJobInformation,
                                 getSlots(vertex11.getParallelism() + vertex2.getParallelism()))
-                        .get()
-                        .getMaxParallelismForVertices();
+                        .get();
 
-        Assertions.assertThat(maxParallelismForVertices.get(vertex11.getJobVertexID()))
+        Assertions.assertThat(vertexParallelism.getParallelism(vertex11.getJobVertexID()))
                 .isEqualTo(vertex11.getParallelism());
-        Assertions.assertThat(maxParallelismForVertices.get(vertex12.getJobVertexID()))
+        Assertions.assertThat(vertexParallelism.getParallelism(vertex12.getJobVertexID()))
                 .isEqualTo(vertex12.getParallelism());
-        Assertions.assertThat(maxParallelismForVertices.get(vertex2.getJobVertexID()))
+        Assertions.assertThat(vertexParallelism.getParallelism(vertex2.getJobVertexID()))
                 .isEqualTo(vertex2.getParallelism());
     }
 
@@ -180,10 +175,10 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
 
-        final Optional<VertexParallelismWithSlotSharing> slotSharingAssignments =
+        final Optional<VertexParallelism> vertexParallelism =
                 slotAllocator.determineParallelism(jobInformation, getSlots(1));
 
-        assertThat(slotSharingAssignments.isPresent(), is(false));
+        assertThat(vertexParallelism.isPresent(), is(false));
     }
 
     @Test
@@ -197,20 +192,23 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
 
-        final VertexParallelismWithSlotSharing slotAssignments =
-                slotAllocator.determineParallelism(jobInformation, getSlots(50)).get();
+        final JobSchedulingPlan jobSchedulingPlan =
+                slotAllocator
+                        .determineParallelismAndCalculateAssignment(jobInformation, getSlots(50))
+                        .get();
 
         final ReservedSlots reservedSlots =
                 slotAllocator
-                        .tryReserveResources(slotAssignments)
+                        .tryReserveResources(jobSchedulingPlan)
                         .orElseThrow(
                                 () -> new RuntimeException("Expected that reservation succeeds."));
 
         final Map<ExecutionVertexID, SlotInfo> expectedAssignments = new HashMap<>();
-        for (SlotSharingSlotAllocator.ExecutionSlotSharingGroupAndSlot assignment :
-                slotAssignments.getAssignments()) {
+        for (JobSchedulingPlan.SlotAssignment assignment : jobSchedulingPlan.getSlotAssignments()) {
+            ExecutionSlotSharingGroup target =
+                    assignment.getTargetAs(ExecutionSlotSharingGroup.class);
             for (ExecutionVertexID containedExecutionVertex :
-                    assignment.getExecutionSlotSharingGroup().getContainedExecutionVertices()) {
+                    target.getContainedExecutionVertices()) {
                 expectedAssignments.put(containedExecutionVertex, assignment.getSlotInfo());
             }
         }
@@ -234,11 +232,13 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
 
-        final VertexParallelismWithSlotSharing slotAssignments =
-                slotSharingSlotAllocator.determineParallelism(jobInformation, getSlots(50)).get();
+        JobSchedulingPlan jobSchedulingPlan =
+                slotSharingSlotAllocator
+                        .determineParallelismAndCalculateAssignment(jobInformation, getSlots(50))
+                        .get();
 
         final Optional<? extends ReservedSlots> reservedSlots =
-                slotSharingSlotAllocator.tryReserveResources(slotAssignments);
+                slotSharingSlotAllocator.tryReserveResources(jobSchedulingPlan);
 
         assertFalse(reservedSlots.isPresent());
     }
