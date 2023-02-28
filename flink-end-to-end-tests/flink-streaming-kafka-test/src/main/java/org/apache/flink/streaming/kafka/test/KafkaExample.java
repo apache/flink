@@ -29,8 +29,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.IntegerDeserializer;
-import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 
 /**
  * A simple application used as smoke test example to forward messages from one topic to another
@@ -46,9 +46,9 @@ public class KafkaExample {
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
         StreamExecutionEnvironment env = prepareExecutionEnv(parameterTool);
 
-        DataStream<Integer> input =
+        DataStream<String> input =
                 env.fromSource(
-                        KafkaSource.<Integer>builder()
+                        KafkaSource.<String>builder()
                                 .setBootstrapServers(
                                         parameterTool
                                                 .getProperties()
@@ -57,14 +57,14 @@ public class KafkaExample {
                                 .setBounded(OffsetsInitializer.latest())
                                 .setDeserializer(
                                         KafkaRecordDeserializationSchema.valueOnly(
-                                                IntegerDeserializer.class))
+                                                StringDeserializer.class))
                                 .setTopics(parameterTool.getRequired("input-topic"))
                                 .build(),
                         WatermarkStrategy.noWatermarks(),
                         "kafka-source");
 
         input.sinkTo(
-                KafkaSink.<Integer>builder()
+                KafkaSink.<String>builder()
                         .setBootstrapServers(
                                 parameterTool
                                         .getProperties()
@@ -72,7 +72,7 @@ public class KafkaExample {
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
                                         .setTopic(parameterTool.getRequired("output-topic"))
-                                        .setKafkaValueSerializer(IntegerSerializer.class)
+                                        .setKafkaValueSerializer(StringSerializer.class)
                                         .build())
                         .build());
         env.execute("Smoke Kafka Example");
