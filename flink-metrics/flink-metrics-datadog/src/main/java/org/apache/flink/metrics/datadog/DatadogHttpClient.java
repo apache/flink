@@ -23,11 +23,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.Interceptor;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okio.BufferedSink;
+import okio.GzipSink;
+import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +77,7 @@ public class DatadogHttpClient {
 
         client =
                 new OkHttpClient.Builder()
+                        .addInterceptor(new GzipRequestInterceptor())
                         .connectTimeout(TIMEOUT, TimeUnit.SECONDS)
                         .writeTimeout(TIMEOUT, TimeUnit.SECONDS)
                         .readTimeout(TIMEOUT, TimeUnit.SECONDS)
@@ -154,4 +159,39 @@ public class DatadogHttpClient {
             response.close();
         }
     }
+
+
+  /** This interceptor compresses the HTTP request body. */
+  static class GzipRequestInterceptor implements Interceptor {
+    @Override public Response intercept(Chain chain) throws IOException {
+      Request originalRequest = chain.request();
+      if (originalRequest.body() == null || originalRequest.header("Content-Encoding") != null) {
+        return chain.proceed(originalRequest);
+      }
+
+      Request compressedRequest = originalRequest.newBuilder()
+          .header("Content-Encoding", "gzip")
+          .method(originalRequest.method(), gzip(originalRequest.body()))
+          .build();
+      return chain.proceed(compressedRequest);
+    }
+
+    private RequestBody gzip(final RequestBody body) {
+      return new RequestBody() {
+        @Override public MediaType contentType() {
+          return body.contentType();
+        }
+
+        @Override public long contentLength() {
+          return -1; // We don't know the compressed length in advance!
+        }
+
+        @Override public void writeTo(BufferedSink sink) throws IOException {
+          BufferedSink gzipSink = Okio.buffer(new GzipSink(sink));
+          body.writeTo(gzipSink);
+          gzipSink.close();
+        }
+      };
+    }
+  }
 }
