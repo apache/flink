@@ -470,10 +470,9 @@ For detailed explanations of security configurations, please refer to
 
 Kafka Rack Awareness allows flink to select and control the cloud region and availability zone configured by the use of rackId, this feature could allow a significant cost reduction in the cloud provider bill and achieve a better networking performance when connecting to closer and more reliable networks.
 
-### Testing
+### Validation
 
-The test function validates if there a valid rack id supplied, valid rack IDs are:
-
+Additional validation are added to make sure any input to the supplier gets propertly configured by the comsumer and makes sure null values are handled propertly.
 
 ### Behind the Scene
 {{< hint info >}}
