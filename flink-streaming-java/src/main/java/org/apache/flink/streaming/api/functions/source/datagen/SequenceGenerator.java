@@ -50,12 +50,18 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     /**
      * Creates a DataGenerator that emits all numbers from the given interval exactly once.
      *
+     * <p>He requires that the end must be greater than the start and that the total number cannot
+     * be greater than max-1.
+     *
      * @param start Start of the range of numbers to emit.
      * @param end End of the range of numbers to emit.
      */
     public SequenceGenerator(long start, long end) {
         Preconditions.checkArgument(
                 start < end, "The start value cannot be greater than the end value.");
+        Preconditions.checkArgument(
+                end - start <= Long.MAX_VALUE - 1,
+                "The total quantity exceeds the maximum limit: Long.MAX_VALUE - 1.");
         this.start = start;
         this.end = end;
     }
@@ -86,8 +92,6 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             final int taskIdx = runtimeContext.getIndexOfThisSubtask();
             final long congruence = start + taskIdx;
 
-            Preconditions.checkArgument(
-                    end - start < Long.MAX_VALUE - 1, "Limit exceeded Long.MAX_VALUE-1");
             long totalNoOfElements = Math.abs(end - start + 1);
             final long baseSize = safeDivide(totalNoOfElements, stepSize);
             final long toCollect =

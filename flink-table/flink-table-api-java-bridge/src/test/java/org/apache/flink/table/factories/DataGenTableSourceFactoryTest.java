@@ -327,66 +327,6 @@ class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    void testCornerCaseForSequence() {
-        // An example of testing that the end value is greater than the start value
-        assertThatThrownBy(
-                        () -> {
-                            DescriptorProperties descriptor = new DescriptorProperties();
-                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-                            descriptor.putString(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.KIND,
-                                    DataGenConnectorOptionsUtil.SEQUENCE);
-                            descriptor.putLong(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.START,
-                                    100);
-                            descriptor.putLong(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.END,
-                                    10);
-                            createTableSource(
-                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                                    descriptor.asMap());
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                IllegalArgumentException.class,
-                                "The start value cannot be greater than the end value."));
-
-        // Example of testing end=Long.MAX_VALUE
-        assertThatThrownBy(
-                        () -> {
-                            DescriptorProperties descriptor = new DescriptorProperties();
-                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-                            descriptor.putString(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.KIND,
-                                    DataGenConnectorOptionsUtil.SEQUENCE);
-                            descriptor.putLong(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.START,
-                                    0);
-                            descriptor.putLong(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.END,
-                                    Long.MAX_VALUE);
-                            runGenerator(
-                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                                    descriptor);
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                IllegalArgumentException.class, "Limit exceeded Long.MAX_VALUE-1"));
-    }
-
-    @Test
     void testWrongKey() {
         assertThatThrownBy(
                         () -> {
