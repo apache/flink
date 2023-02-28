@@ -466,6 +466,15 @@ client dependencies in the job JAR, so you may need to rewrite it with the actua
 For detailed explanations of security configurations, please refer to
 <a href="https://kafka.apache.org/documentation/#security">the "Security" section in Apache Kafka documentation</a>.
 
+## Kafka Rack Awareness
+
+Kafka Rack Awareness allows flink to select and control the cloud region and availability zone configured by the use of rackId, this feature could allow a significant cost reduction in the cloud provider bill and achieve a better networking performance when connecting to closer and more reliable networks.
+
+### Testing
+
+The test function validates if there a valid rack id supplied, valid rack IDs are:
+
+
 ### Behind the Scene
 {{< hint info >}}
 If you are interested in how Kafka source works under the design of new data source API, you may
