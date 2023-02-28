@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
@@ -33,9 +34,7 @@ public class TestingSlotAllocator implements SlotAllocator {
             calculateRequiredSlotsFunction;
 
     private final BiFunction<
-                    JobInformation,
-                    Collection<? extends SlotInfo>,
-                    Optional<? extends VertexParallelism>>
+                    JobInformation, Collection<? extends SlotInfo>, Optional<VertexParallelism>>
             determineParallelismFunction;
 
     private final Function<VertexParallelism, Optional<ReservedSlots>> tryReserveResourcesFunction;
@@ -43,10 +42,7 @@ public class TestingSlotAllocator implements SlotAllocator {
     private TestingSlotAllocator(
             Function<Iterable<JobInformation.VertexInformation>, ResourceCounter>
                     calculateRequiredSlotsFunction,
-            BiFunction<
-                            JobInformation,
-                            Collection<? extends SlotInfo>,
-                            Optional<? extends VertexParallelism>>
+            BiFunction<JobInformation, Collection<? extends SlotInfo>, Optional<VertexParallelism>>
                     determineParallelismFunction,
             Function<VertexParallelism, Optional<ReservedSlots>> tryReserveResourcesFunction) {
         this.calculateRequiredSlotsFunction = calculateRequiredSlotsFunction;
@@ -61,14 +57,20 @@ public class TestingSlotAllocator implements SlotAllocator {
     }
 
     @Override
-    public Optional<? extends VertexParallelism> determineParallelism(
+    public Optional<VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> slots) {
         return determineParallelismFunction.apply(jobInformation, slots);
     }
 
     @Override
-    public Optional<ReservedSlots> tryReserveResources(VertexParallelism vertexParallelism) {
-        return tryReserveResourcesFunction.apply(vertexParallelism);
+    public Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
+            JobInformation jobInformation, Collection<? extends SlotInfo> slots) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<ReservedSlots> tryReserveResources(JobSchedulingPlan jobSchedulingPlan) {
+        return tryReserveResourcesFunction.apply(jobSchedulingPlan.getVertexParallelism());
     }
 
     public static Builder newBuilder() {
@@ -80,9 +82,7 @@ public class TestingSlotAllocator implements SlotAllocator {
         private Function<Iterable<JobInformation.VertexInformation>, ResourceCounter>
                 calculateRequiredSlotsFunction = ignored -> ResourceCounter.empty();
         private BiFunction<
-                        JobInformation,
-                        Collection<? extends SlotInfo>,
-                        Optional<? extends VertexParallelism>>
+                        JobInformation, Collection<? extends SlotInfo>, Optional<VertexParallelism>>
                 determineParallelismFunction = (ignoredA, ignoredB) -> Optional.empty();
         private Function<VertexParallelism, Optional<ReservedSlots>> tryReserveResourcesFunction =
                 ignored -> Optional.empty();
@@ -98,7 +98,7 @@ public class TestingSlotAllocator implements SlotAllocator {
                 BiFunction<
                                 JobInformation,
                                 Collection<? extends SlotInfo>,
-                                Optional<? extends VertexParallelism>>
+                                Optional<VertexParallelism>>
                         determineParallelismFunction) {
             this.determineParallelismFunction = determineParallelismFunction;
             return this;

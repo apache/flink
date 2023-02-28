@@ -1408,8 +1408,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final CreatingExecutionGraph.AssignmentResult assignmentResult =
                 adaptiveScheduler.tryToAssignSlots(
                         CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
-                                new StateTrackingMockExecutionGraph(),
-                                new CreatingExecutionGraphTest.TestingVertexParallelism()));
+                                new StateTrackingMockExecutionGraph(), JobSchedulingPlan.empty()));
 
         assertThat(assignmentResult.isSuccess()).isFalse();
     }

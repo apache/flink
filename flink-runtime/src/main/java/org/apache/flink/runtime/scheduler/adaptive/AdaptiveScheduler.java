@@ -760,11 +760,12 @@ public class AdaptiveScheduler
                 .isPresent();
     }
 
-    private VertexParallelism determineParallelism(SlotAllocator slotAllocator)
+    private JobSchedulingPlan determineParallelism(SlotAllocator slotAllocator)
             throws NoResourceAvailableException {
 
         return slotAllocator
-                .determineParallelism(jobInformation, declarativeSlotPool.getFreeSlotsInformation())
+                .determineParallelismAndCalculateAssignment(
+                        jobInformation, declarativeSlotPool.getFreeSlotsInformation())
                 .orElseThrow(
                         () ->
                                 new NoResourceAvailableException(
@@ -932,11 +933,11 @@ public class AdaptiveScheduler
 
     private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
             createExecutionGraphWithAvailableResourcesAsync() {
-        final VertexParallelism vertexParallelism;
+        final JobSchedulingPlan schedulingPlan;
         final VertexParallelismStore adjustedParallelismStore;
 
         try {
-            vertexParallelism = determineParallelism(slotAllocator);
+            schedulingPlan = determineParallelism(slotAllocator);
             JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
 
             for (JobVertex vertex : adjustedJobGraph.getVertices()) {
@@ -944,7 +945,7 @@ public class AdaptiveScheduler
 
                 // use the determined "available parallelism" to use
                 // the resources we have access to
-                vertex.setParallelism(vertexParallelism.getParallelism(id));
+                vertex.setParallelism(schedulingPlan.getVertexParallelism().getParallelism(id));
             }
 
             // use the originally configured max parallelism
@@ -966,7 +967,7 @@ public class AdaptiveScheduler
                 .thenApply(
                         executionGraph ->
                                 CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
-                                        executionGraph, vertexParallelism));
+                                        executionGraph, schedulingPlan));
     }
 
     @Override
@@ -982,10 +983,10 @@ public class AdaptiveScheduler
         executionGraph.setInternalTaskFailuresListener(
                 new UpdateSchedulerNgOnInternalFailuresListener(this));
 
-        final VertexParallelism vertexParallelism =
-                executionGraphWithVertexParallelism.getVertexParallelism();
+        final JobSchedulingPlan jobSchedulingPlan =
+                executionGraphWithVertexParallelism.getJobSchedulingPlan();
         return slotAllocator
-                .tryReserveResources(vertexParallelism)
+                .tryReserveResources(jobSchedulingPlan)
                 .map(
                         reservedSlots ->
                                 CreatingExecutionGraph.AssignmentResult.success(
@@ -1050,14 +1051,14 @@ public class AdaptiveScheduler
         int availableSlots = declarativeSlotPool.getFreeSlotsInformation().size();
 
         if (availableSlots > 0) {
-            final Optional<? extends VertexParallelism> potentialNewParallelism =
+            final Optional<VertexParallelism> potentialNewParallelism =
                     slotAllocator.determineParallelism(
                             jobInformation, declarativeSlotPool.getAllSlotsInformation());
 
             if (potentialNewParallelism.isPresent()) {
                 int currentCumulativeParallelism = getCurrentCumulativeParallelism(executionGraph);
                 int newCumulativeParallelism =
-                        getCumulativeParallelism(potentialNewParallelism.get());
+                        potentialNewParallelism.get().getCumulativeParallelism();
                 if (newCumulativeParallelism > currentCumulativeParallelism) {
                     LOG.debug(
                             "Offering scale up to scale up controller with currentCumulativeParallelism={}, newCumulativeParallelism={}",
@@ -1074,11 +1075,6 @@ public class AdaptiveScheduler
     private static int getCurrentCumulativeParallelism(ExecutionGraph executionGraph) {
         return executionGraph.getAllVertices().values().stream()
                 .map(ExecutionJobVertex::getParallelism)
-                .reduce(0, Integer::sum);
-    }
-
-    private static int getCumulativeParallelism(VertexParallelism potentialNewParallelism) {
-        return potentialNewParallelism.getMaxParallelismForVertices().values().stream()
                 .reduce(0, Integer::sum);
     }
 
