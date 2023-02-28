@@ -58,6 +58,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -834,7 +835,8 @@ public class ExecutingTest extends TestLogger {
                     Time.milliseconds(1L),
                     1L,
                     new DefaultSubtaskAttemptNumberStore(Collections.emptyList()),
-                    new CoordinatorStoreImpl());
+                    new CoordinatorStoreImpl(),
+                    UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
             mockExecutionVertex = executionVertexSupplier.apply(this);
         }
 

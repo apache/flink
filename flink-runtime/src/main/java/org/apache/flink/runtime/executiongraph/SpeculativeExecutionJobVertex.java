@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
@@ -61,10 +62,17 @@ public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
     protected OperatorCoordinatorHolder createOperatorCoordinatorHolder(
             SerializedValue<OperatorCoordinator.Provider> provider,
             ClassLoader classLoader,
-            CoordinatorStore coordinatorStore)
+            CoordinatorStore coordinatorStore,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws Exception {
         return OperatorCoordinatorHolder.create(
-                provider, this, classLoader, coordinatorStore, true, getTaskInformation());
+                provider,
+                this,
+                classLoader,
+                coordinatorStore,
+                true,
+                getTaskInformation(),
+                jobManagerJobMetricGroup);
     }
 
     /** Factory to create {@link SpeculativeExecutionJobVertex}. */

@@ -234,8 +234,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.operatorCoordinatorHandler =
                 new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
-        operatorCoordinatorHandler.initializeOperatorCoordinators(
-                this.mainThreadExecutor, jobManagerJobMetricGroup);
+        operatorCoordinatorHandler.initializeOperatorCoordinators(this.mainThreadExecutor);
 
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(

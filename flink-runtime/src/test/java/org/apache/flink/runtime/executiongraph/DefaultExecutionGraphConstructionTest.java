@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.testutils.TestingUtils;
@@ -94,8 +95,10 @@ class DefaultExecutionGraphConstructionTest {
 
         ExecutionGraph eg1 = createDefaultExecutionGraph(ordered);
         ExecutionGraph eg2 = createDefaultExecutionGraph(ordered);
-        eg1.attachJobGraph(ordered);
-        eg2.attachJobGraph(ordered);
+        eg1.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+        eg2.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         assertThat(
                         Sets.intersection(
@@ -151,7 +154,8 @@ class DefaultExecutionGraphConstructionTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         verifyTestGraph(eg, v1, v2, v3, v4, v5);
     }
 
@@ -208,7 +212,13 @@ class DefaultExecutionGraphConstructionTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        assertThatThrownBy(() -> eg.attachJobGraph(ordered)).isInstanceOf(JobException.class);
+        assertThatThrownBy(
+                        () ->
+                                eg.attachJobGraph(
+                                        ordered,
+                                        UnregisteredMetricGroups
+                                                .createUnregisteredJobManagerJobMetricGroup()))
+                .isInstanceOf(JobException.class);
     }
 
     @Test
@@ -258,7 +268,8 @@ class DefaultExecutionGraphConstructionTest {
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4, v5));
 
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         assertThat(eg.getAllVertices().get(v3.getID()).getSplitAssigner()).isEqualTo(assigner1);
         assertThat(eg.getAllVertices().get(v5.getID()).getSplitAssigner()).isEqualTo(assigner2);
@@ -278,7 +289,8 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2, v3));
         ExecutionGraph eg = createDefaultExecutionGraph(vertices);
-        eg.attachJobGraph(vertices);
+        eg.attachJobGraph(
+                vertices, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         ExecutionJobVertex ejv1 = checkNotNull(eg.getJobVertex(v1.getID()));
         assertThat(ejv1.getProducedDataSets()).hasSize(1);
@@ -316,7 +328,8 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -351,7 +364,8 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -390,7 +404,8 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         ExecutionGraph eg = createDefaultExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -421,10 +436,12 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         ExecutionGraph eg = createDynamicExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         ExecutionJobVertex ejv1 = eg.getJobVertex(v1.getID());
-        eg.initializeJobVertex(ejv1, 0L);
+        eg.initializeJobVertex(
+                ejv1, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -438,7 +455,8 @@ class DefaultExecutionGraphConstructionTest {
         assertThat(partition1.getConsumedPartitionGroups()).isEmpty();
 
         ExecutionJobVertex ejv2 = eg.getJobVertex(v2.getID());
-        eg.initializeJobVertex(ejv2, 0L);
+        eg.initializeJobVertex(
+                ejv2, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         ConsumedPartitionGroup consumedPartitionGroup =
                 partition1.getConsumedPartitionGroups().get(0);
@@ -459,10 +477,12 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         ExecutionGraph eg = createDynamicExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         ExecutionJobVertex ejv1 = eg.getJobVertex(v1.getID());
-        eg.initializeJobVertex(ejv1, 0L);
+        eg.initializeJobVertex(
+                ejv1, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         IntermediateResult result =
                 Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
@@ -481,7 +501,8 @@ class DefaultExecutionGraphConstructionTest {
         assertThat(partition4.getConsumedPartitionGroups()).isEmpty();
 
         ExecutionJobVertex ejv2 = eg.getJobVertex(v2.getID());
-        eg.initializeJobVertex(ejv2, 0L);
+        eg.initializeJobVertex(
+                ejv2, 0L, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         ConsumedPartitionGroup consumedPartitionGroup1 =
                 partition1.getConsumedPartitionGroups().get(0);
@@ -504,7 +525,8 @@ class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         ExecutionGraph eg = createDynamicExecutionGraph(ordered);
-        eg.attachJobGraph(ordered);
+        eg.attachJobGraph(
+                ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         assertThat(eg.getAllVertices()).hasSize(2);
         Iterator<ExecutionJobVertex> jobVertices = eg.getVerticesTopologically().iterator();
