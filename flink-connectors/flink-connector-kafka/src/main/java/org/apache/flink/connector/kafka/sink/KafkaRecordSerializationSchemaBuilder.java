@@ -84,6 +84,7 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
     @Nullable private SerializationSchema<? super IN> valueSerializationSchema;
     @Nullable private FlinkKafkaPartitioner<? super IN> partitioner;
     @Nullable private SerializationSchema<? super IN> keySerializationSchema;
+    @Nullable private Boolean writeTimestamp = true;
 
     /**
      * Sets a custom partitioner determining the target partition of the target topic.
@@ -187,6 +188,21 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
         checkValueSerializerNotSet();
         KafkaRecordSerializationSchemaBuilder<T> self = self();
         self.valueSerializationSchema = checkNotNull(valueSerializationSchema);
+        return self;
+    }
+
+    /**
+     * Sets an option to determine whether to pass event timestamp to Kafka.
+     * This option should be set when you want to avoid passing the event timestamps from the 
+     * data source directly to the Kafka, which may cause Kafka segment deletion unexpectedly.
+     * 
+     * @param writeTimestamp
+     * @return {@code this}
+     */
+    public <T extends IN> KafkaRecordSerializationSchemaBuilder<T> setWriteTimestamp(
+            Boolean writeTimestamp) {
+        KafkaRecordSerializationSchemaBuilder<T> self = self();
+        self.writeTimestamp = checkNotNull(writeTimestamp);
         return self;
     }
 
@@ -328,7 +344,7 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
             return new ProducerRecord<>(
                     targetTopic,
                     partition.isPresent() ? partition.getAsInt() : null,
-                    timestamp == null || timestamp < 0L ? null : timestamp,
+                    this.writeTimestamp && timestamp == null || timestamp < 0L ? null : timestamp,
                     key,
                     value);
         }
