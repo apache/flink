@@ -142,7 +142,7 @@ class ApplicationDispatcherBootstrapITCase {
 
         private final JobManagerRunner jobManagerRunner;
 
-        public StandaloneDispatcherFactoryWithCustomJobManagerRunnerFactory(
+        private StandaloneDispatcherFactoryWithCustomJobManagerRunnerFactory(
                 JobManagerRunner jobManagerRunner) {
             this.jobManagerRunner = jobManagerRunner;
         }
@@ -386,7 +386,7 @@ class ApplicationDispatcherBootstrapITCase {
             // start mini cluster and submit the job
             cluster.start();
 
-            future.completeExceptionally(new FlinkException("test"));
+            future.completeExceptionally(new FlinkException("Unable to restore checkpoint."));
 
             // wait until the failed job has been submitted
             awaitJobStatus(cluster, jobId, JobStatus.FAILED);
