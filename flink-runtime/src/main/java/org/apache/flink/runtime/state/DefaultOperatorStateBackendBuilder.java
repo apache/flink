@@ -80,8 +80,7 @@ public class DefaultOperatorStateBackendBuilder
                         userClassloader,
                         registeredOperatorStates,
                         registeredBroadcastStates,
-                        restoreStateHandles,
-                        compressionDecorator);
+                        restoreStateHandles);
         try {
             restoreOperation.restore();
         } catch (Exception e) {

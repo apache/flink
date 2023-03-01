@@ -43,21 +43,18 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
     private final Map<String, PartitionableListState<?>> registeredOperatorStates;
     private final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates;
     private final Collection<OperatorStateHandle> stateHandles;
-    private final StreamCompressionDecorator compressionDecorator;
 
     public OperatorStateRestoreOperation(
             CloseableRegistry closeStreamOnCancelRegistry,
             ClassLoader userClassloader,
             Map<String, PartitionableListState<?>> registeredOperatorStates,
             Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
-            @Nonnull Collection<OperatorStateHandle> stateHandles,
-            StreamCompressionDecorator compressionDecorator) {
+            @Nonnull Collection<OperatorStateHandle> stateHandles) {
         this.closeStreamOnCancelRegistry = closeStreamOnCancelRegistry;
         this.userClassloader = userClassloader;
         this.registeredOperatorStates = registeredOperatorStates;
         this.registeredBroadcastStates = registeredBroadcastStates;
         this.stateHandles = stateHandles;
-        this.compressionDecorator = compressionDecorator;
     }
 
     @Override
@@ -179,6 +176,10 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
 
                     PartitionableListState<?> listStateForName =
                             registeredOperatorStates.get(stateName);
+                    final StreamCompressionDecorator compressionDecorator =
+                            backendSerializationProxy.isUsingStateCompression()
+                                    ? SnappyStreamCompressionDecorator.INSTANCE
+                                    : UncompressedStreamCompressionDecorator.INSTANCE;
                     // create the compressed stream for each state to have the compression header
                     // for each
                     try (final CompressibleFSDataInputStream compressedIn =

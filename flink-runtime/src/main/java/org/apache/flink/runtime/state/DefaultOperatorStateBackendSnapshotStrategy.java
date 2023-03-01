@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Snapshot strategy for this backend. This strategy compresses the regular and broadcast operator
@@ -152,7 +153,11 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
             OperatorBackendSerializationProxy backendSerializationProxy =
                     new OperatorBackendSerializationProxy(
-                            operatorMetaInfoSnapshots, broadcastMetaInfoSnapshots);
+                            operatorMetaInfoSnapshots,
+                            broadcastMetaInfoSnapshots,
+                            !Objects.equals(
+                                    UncompressedStreamCompressionDecorator.INSTANCE,
+                                    compressionDecorator));
 
             backendSerializationProxy.write(dov);
 
