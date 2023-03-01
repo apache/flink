@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.kafka.test;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
@@ -26,7 +27,6 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.kafka.test.base.KafkaExampleUtil;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -39,12 +39,12 @@ import org.apache.kafka.common.serialization.IntegerSerializer;
  * <p>Example usage: --input-topic test-input --output-topic test-output --bootstrap.servers
  * localhost:9092 --group.id myconsumer
  */
-public class KafkaExample extends KafkaExampleUtil {
+public class KafkaExample {
 
     public static void main(String[] args) throws Exception {
         // parse input arguments
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
-        StreamExecutionEnvironment env = KafkaExampleUtil.prepareExecutionEnv(parameterTool);
+        StreamExecutionEnvironment env = prepareExecutionEnv(parameterTool);
 
         DataStream<Integer> input =
                 env.fromSource(
@@ -76,5 +76,31 @@ public class KafkaExample extends KafkaExampleUtil {
                                         .build())
                         .build());
         env.execute("Smoke Kafka Example");
+    }
+
+    public static StreamExecutionEnvironment prepareExecutionEnv(ParameterTool parameterTool)
+            throws Exception {
+
+        if (parameterTool.getNumberOfParameters() < 5) {
+            System.out.println(
+                    "Missing parameters!\n"
+                            + "Usage: Kafka --input-topic <topic> --output-topic <topic> "
+                            + "--bootstrap.servers <kafka brokers> "
+                            + "--group.id <some id>");
+            throw new Exception(
+                    "Missing parameters!\n"
+                            + "Usage: Kafka --input-topic <topic> --output-topic <topic> "
+                            + "--bootstrap.servers <kafka brokers> "
+                            + "--group.id <some id>");
+        }
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(4, 10000));
+        env.enableCheckpointing(5000); // create a checkpoint every 5 seconds
+        env.getConfig()
+                .setGlobalJobParameters(
+                        parameterTool); // make parameters available in the web interface
+
+        return env;
     }
 }
