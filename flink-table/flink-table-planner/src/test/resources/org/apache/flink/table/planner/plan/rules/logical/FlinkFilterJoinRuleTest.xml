@@ -714,28 +714,6 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightJoinWithAllFilterInONClause">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 AND a1 = 2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
-+- LogicalJoin(condition=[AND(=($0, $5), =($0, 2))], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
-+- LogicalJoin(condition=[=($0, $5)], joinType=[right])
-   :- LogicalFilter(condition=[=($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testLeftJoinWithAllFiltersFromWhere">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON true WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ]]>
@@ -757,6 +735,54 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalFilter(condition=[AND(=($2, 2), >($0, 10))])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithNullFilterInRightSide">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[IS NULL($5)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[IS NULL($5)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithNullFilterInRightSide2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[AND(IS NULL($5), <($0, 10))])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[IS NULL($5)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalFilter(condition=[<($0, 10)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalFilter(condition=[<($2, 10)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
   </TestCase>
@@ -784,6 +810,77 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftJoinWithSomeFiltersFromLeftSide">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a1 = 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[=($0, 2)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+   :- LogicalFilter(condition=[=($0, 2)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalFilter(condition=[=($2, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithAllFilterInONClause">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 AND a1 = 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalJoin(condition=[AND(=($0, $5), =($0, 2))], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+   :- LogicalFilter(condition=[=($0, 2)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithNullFilterInRightSide2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 WHERE a1 IS NULL AND a2 < 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[AND(IS NULL($0), <($5, 10))])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
++- LogicalFilter(condition=[IS NULL($0)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+      :- LogicalFilter(condition=[<($0, 10)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalFilter(condition=[<($2, 10)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRightJoinWithAllFiltersFromWhere">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON true WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ]]>
@@ -808,15 +905,15 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftJoinWithSomeFiltersFromLeftSide">
+  <TestCase name="testRightJoinWithNullFilterInLeftSide">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a1 = 2]]>
+      <![CDATA[SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 WHERE a1 IS NULL]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
-+- LogicalFilter(condition=[=($0, 2)])
-   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
++- LogicalFilter(condition=[IS NULL($0)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -824,10 +921,9 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
-+- LogicalJoin(condition=[=($0, $5)], joinType=[left])
-   :- LogicalFilter(condition=[=($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalFilter(condition=[=($2, 2)])
++- LogicalFilter(condition=[IS NULL($0)])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>

@@ -41,6 +41,7 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
@@ -353,7 +354,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         for (RexNode filter : filtersToPush) {
             final RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(filter);
             final ImmutableBitSet inputBits = inputFinder.build();
-            if (filter.isAlwaysTrue()) {
+            if (!isSuitableFilterToPush(filter, joinType)) {
                 continue;
             }
 
@@ -384,6 +385,21 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 }
             }
         }
+    }
+
+    private boolean isSuitableFilterToPush(RexNode filter, JoinRelType joinType) {
+        if (filter.isAlwaysTrue()) {
+            return false;
+        }
+        // For left/right outer join, we cannot push down IS_NULL filter to other side. Take left
+        // outer join as an example, If the join right side contains an IS_NULL filter, while we try
+        // to push it to the join left side and the left side have any other filter on this column,
+        // which will conflict and generate wrong plan.
+        if ((joinType == JoinRelType.LEFT || joinType == JoinRelType.RIGHT)
+                && filter.isA(SqlKind.IS_NULL)) {
+            return false;
+        }
+        return true;
     }
 
     private RexNode remapFilter(

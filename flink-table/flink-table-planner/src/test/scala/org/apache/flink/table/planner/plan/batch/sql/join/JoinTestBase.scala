@@ -19,8 +19,6 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import org.junit.Test
@@ -34,6 +32,12 @@ abstract class JoinTestBase extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinNonExistingKey(): Unit = {
     util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
+  }
+
+  @Test
+  def testLeftOuterJoinWithFilter1(): Unit = {
+    util.verifyExecPlan(
+      "SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d IS NULL AND a < 12")
   }
 
   @Test(expected = classOf[TableException])

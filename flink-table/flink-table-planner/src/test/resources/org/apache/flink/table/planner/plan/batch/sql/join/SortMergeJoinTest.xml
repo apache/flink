@@ -520,6 +520,32 @@ Calc(select=[a, 1 AS b, CAST(2 AS INTEGER) AS d, 1 AS e])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftOuterJoinWithFilter1">
+    <Resource name="sql">
+      <![CDATA[SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d IS NULL AND a < 12]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(IS NULL($3), <($0, 12))])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[null:INTEGER AS d, e, f], where=[d IS NULL])
++- SortMergeJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a], where=[(a < 12)])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, e, f], where=[(d < 12)])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRightJoinWithFilterPushDown">
     <Resource name="sql">
       <![CDATA[

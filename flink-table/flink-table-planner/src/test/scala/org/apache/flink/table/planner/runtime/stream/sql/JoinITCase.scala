@@ -1501,6 +1501,30 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         row(6, null, 1, 6, null, 1),
         row(null, null, null, 4, 1.0, 1))
     )
+
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, null, null),
+        row(1, 2.0, null, null),
+        row(null, 5.0, null, null),
+        row(null, null, null, null)
+      )
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c IS NULL AND a <= 1
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, null, null),
+        row(1, 2.0, null, null)
+      )
+    )
   }
 
   @Test
