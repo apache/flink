@@ -217,6 +217,48 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testInnerJoinWithNullFilter() {
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL");
+    }
+
+    @Test
+    public void testInnerJoinWithNullFilter2() {
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter1() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 < 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter2() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 <> 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter3() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 > 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter4() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 >= 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter5() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter6() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 = null");
+    }
+
+    @Test
     public void testLeftJoinWithSomeFiltersFromLeftSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a1 = 2");
     }
@@ -241,6 +283,50 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testLeftJoinWithNullFilterInRightSide() {
+        // Even if there is a filter 'a2 IS NULL', the 'a1 IS NULL' cannot be generated for left
+        // join and this filter cannot be pushed down to both MyTable1 and MyTable2.
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL");
+    }
+
+    @Test
+    public void testLeftJoinWithNullFilterInRightSide2() {
+        // 'a2 IS NULL' cannot infer that 'a1 IS NULL'.
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter1() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 < 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter2() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <> 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter3() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 > 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter4() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 >= 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter5() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter6() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 = null");
+    }
+
+    @Test
     public void testRightJoinWithAllFilterInONClause() {
         util.verifyRelPlan("SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 AND a1 = 2");
     }
@@ -262,6 +348,22 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON true WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ");
+    }
+
+    @Test
+    public void testRightJoinWithNullFilterInLeftSide() {
+        // Even if there is a filter 'a1 IS NULL', the 'a2 IS NULL' cannot be generated for right
+        // join and this filter cannot be pushed down to both MyTable1 and MyTable2.
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 WHERE a1 IS NULL");
+    }
+
+    @Test
+    public void testRightJoinWithNullFilterInRightSide2() {
+        // 'a1 IS NULL' cannot infer that 'a2 IS NULL'. However, 'a2 < 10' can infer that 'a1 < 10',
+        // and both of them can be pushed down.
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 WHERE a1 IS NULL AND a2 < 10");
     }
 
     @Test
