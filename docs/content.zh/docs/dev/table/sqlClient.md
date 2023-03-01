@@ -177,6 +177,7 @@ There is a list of available key-strokes in SQL Client
 | `alt-l`                          | `Esc-l`          | Lowercase word                                                                         |
 | `alt-u`                          | `Esc-u`          | Uppercase word                                                                         |
 | `alt-d`                          | `Esc-d`          | Kill word                                                                              |
+| `alt-h`                          | `Esc-h`          | Switch color scheme                                                                    |
 | `alt-n`                          | `Esc-n`          | History search forward (behaves same as down line from history in case of empty input) |
 | `alt-p`                          | `Esc-p`          | History search backward (behaves same as up line from history in case of empty input)  |
 | `alt-t`                          | `Esc-t`          | Transpose words                                                                        |

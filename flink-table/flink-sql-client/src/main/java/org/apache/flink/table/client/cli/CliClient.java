@@ -20,8 +20,10 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.cli.parser.SqlClientSyntaxHighlighter;
 import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
+import org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -31,6 +33,7 @@ import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.reader.UserInterruptException;
+import org.jline.reader.Widget;
 import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -49,12 +52,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
+import static org.jline.keymap.KeyMap.alt;
+
 /** SQL CLI client. */
 public class CliClient implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
     public static final Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
             TerminalUtils::createDefaultTerminal;
+    public static final String COLOR_SCHEMA_VAR = "sql-client.color-schema";
     private static final String NEWLINE_PROMPT =
             new AttributedStringBuilder()
                     .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN))
@@ -285,6 +291,7 @@ public class CliClient implements AutoCloseable {
 
         if (mode == ExecutionMode.INTERACTIVE_EXECUTION) {
             builder.completer(new SqlCompleter(executor));
+            builder.highlighter(new SqlClientSyntaxHighlighter(executor));
         }
         LineReader lineReader = builder.build();
 
@@ -306,6 +313,21 @@ public class CliClient implements AutoCloseable {
             String msg = "Unable to create history file: " + historyFilePath;
             terminal.writer().println(msg);
             LOG.warn(msg);
+        }
+        if (mode == ExecutionMode.INTERACTIVE_EXECUTION) {
+            final Widget widget =
+                    () -> {
+                        final Object colorSchemeOrdinal = lineReader.getVariable(COLOR_SCHEMA_VAR);
+                        int ord = colorSchemeOrdinal == null ? 0 : (Integer) colorSchemeOrdinal;
+                        lineReader.setVariable(
+                                COLOR_SCHEMA_VAR,
+                                (ord + 1) % SyntaxHighlightStyle.BuiltInStyle.values().length);
+                        return false;
+                    };
+            lineReader.getWidgets().put(COLOR_SCHEMA_VAR, widget);
+            final CharSequence keySeq = alt('h');
+            lineReader.getKeyMaps().get(LineReader.EMACS).bind(widget, keySeq);
+            lineReader.getKeyMaps().get(LineReader.VIINS).bind(widget, keySeq);
         }
         return lineReader;
     }
