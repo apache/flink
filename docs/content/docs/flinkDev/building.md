@@ -33,7 +33,7 @@ This page covers how to build Flink {{< version >}} from sources.
 
 In order to build Flink you need the source code. Either [download the source of a release]({{< downloads >}}) or [clone the git repository]({{< github_repo >}}).
 
-In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 11** to build.
+In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **Java 8 (deprecated) or Java 11** to build.
 
 *NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.2.5 creates the libraries properly.*
 
