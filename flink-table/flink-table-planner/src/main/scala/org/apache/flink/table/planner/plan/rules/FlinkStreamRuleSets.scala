@@ -220,6 +220,10 @@ object FlinkStreamRuleSets {
     CoreRules.JOIN_TO_MULTI_JOIN
   )
 
+  val RUBICON_RULES: RuleSet = RuleSets.ofList(
+    FlinkJoinSaltNullsRule.INSTANCE
+  )
+
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,

@@ -212,7 +212,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                             minRetentionTime,
                             isBatchBackfillEnabled,
                             isMinibatchEnabled,
-                            maxMinibatchSize);
+                            maxMinibatchSize,
+                            joinSpec.getNonEquiCondition().isEmpty());
 
         }
 
