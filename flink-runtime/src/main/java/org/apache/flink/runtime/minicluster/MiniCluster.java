@@ -520,7 +520,9 @@ public class MiniCluster implements AutoCloseableAsync {
                         delegationTokenManager,
                         metricRegistry,
                         metricQueryServiceRetriever,
-                        new ShutDownFatalErrorHandler()));
+                        miniClusterConfiguration
+                                .getFatalErrorHandler()
+                                .orElseGet(ShutDownFatalErrorHandler::new)));
 
         FutureUtils.completeAll(
                         dispatcherResourceManagerComponents.stream()

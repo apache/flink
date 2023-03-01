@@ -27,12 +27,14 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
@@ -53,6 +55,8 @@ public class MiniClusterConfiguration {
 
     @Nullable private final PluginManager pluginManager;
 
+    @Nullable private final FatalErrorHandler fatalErrorHandler;
+
     // ------------------------------------------------------------------------
     //  Construction
     // ------------------------------------------------------------------------
@@ -63,13 +67,15 @@ public class MiniClusterConfiguration {
             RpcServiceSharing rpcServiceSharing,
             @Nullable String commonBindAddress,
             MiniCluster.HaServices haServices,
-            @Nullable PluginManager pluginManager) {
+            @Nullable PluginManager pluginManager,
+            @Nullable FatalErrorHandler fatalErrorHandler) {
         this.numTaskManagers = numTaskManagers;
         this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
         this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
         this.commonBindAddress = commonBindAddress;
         this.haServices = haServices;
         this.pluginManager = pluginManager;
+        this.fatalErrorHandler = fatalErrorHandler;
     }
 
     private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
@@ -154,6 +160,10 @@ public class MiniClusterConfiguration {
         return haServices;
     }
 
+    public Optional<FatalErrorHandler> getFatalErrorHandler() {
+        return Optional.ofNullable(fatalErrorHandler);
+    }
+
     @Override
     public String toString() {
         return "MiniClusterConfiguration {"
@@ -187,6 +197,7 @@ public class MiniClusterConfiguration {
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
         private boolean useRandomPorts = false;
         @Nullable private PluginManager pluginManager;
+        @Nullable private FatalErrorHandler fatalErrorHandler;
 
         public Builder setConfiguration(Configuration configuration1) {
             this.configuration = Preconditions.checkNotNull(configuration1);
@@ -228,6 +239,11 @@ public class MiniClusterConfiguration {
             return this;
         }
 
+        public Builder setFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
+            this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
+            return this;
+        }
+
         public MiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
             modifiedConfiguration.setInteger(
@@ -251,7 +267,8 @@ public class MiniClusterConfiguration {
                     rpcServiceSharing,
                     commonBindAddress,
                     haServices,
-                    pluginManager);
+                    pluginManager,
+                    fatalErrorHandler);
         }
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -49,14 +50,16 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
             RpcServiceSharing rpcServiceSharing,
             @Nullable String commonBindAddress,
             int numberDispatcherResourceManagerComponents,
-            boolean localCommunication) {
+            boolean localCommunication,
+            @Nullable FatalErrorHandler fatalErrorHandler) {
         super(
                 configuration,
                 numTaskManagers,
                 rpcServiceSharing,
                 commonBindAddress,
                 MiniCluster.HaServices.CONFIGURED,
-                null);
+                null,
+                fatalErrorHandler);
         this.numberDispatcherResourceManagerComponents = numberDispatcherResourceManagerComponents;
         this.localCommunication = localCommunication;
     }
@@ -77,8 +80,8 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
         private RpcServiceSharing rpcServiceSharing = SHARED;
         private int numberDispatcherResourceManagerComponents = 1;
         private boolean localCommunication = false;
-
         @Nullable private String commonBindAddress = null;
+        @Nullable private FatalErrorHandler fatalErrorHandler = null;
 
         private Builder() {
             // No-op.
@@ -121,6 +124,11 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
             return this;
         }
 
+        public Builder setFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
+            this.fatalErrorHandler = fatalErrorHandler;
+            return this;
+        }
+
         public TestingMiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
             modifiedConfiguration.setInteger(
@@ -137,7 +145,8 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
                     rpcServiceSharing,
                     commonBindAddress,
                     numberDispatcherResourceManagerComponents,
-                    localCommunication);
+                    localCommunication,
+                    fatalErrorHandler);
         }
     }
 }
