@@ -55,8 +55,9 @@ public class DiscardRecordableStateChangeUploader implements StateChangeUploader
 
         // fake StreamStateHandle without data, just for discarding records
         StreamStateHandle handle = new TestingStreamStateHandle();
+        StreamStateHandle localHandle = new TestingStreamStateHandle();
         changelogRegistry.startTracking(handle, numOfChangeSets);
-        return new UploadTasksResult(tasksOffsets, handle);
+        return new UploadTasksResult(tasksOffsets, handle, localHandle);
     }
 
     public boolean isDiscarded(StreamStateHandle handle) {

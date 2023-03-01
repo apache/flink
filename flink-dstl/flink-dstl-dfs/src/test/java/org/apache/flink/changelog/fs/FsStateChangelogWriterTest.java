@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistryImpl;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -242,6 +243,159 @@ class FsStateChangelogWriterTest {
                     resultHandle.getHandlesAndOffsets()) {
                 assertThat(uploader.isDiscarded(handleAndOffset.f0))
                         .isFalse(); // all handles should not be discarded
+            }
+        }
+    }
+
+    @Test
+    void testLocalFileDiscard() throws Exception {
+        long appendPersistThreshold = 100;
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.enabledForTest(),
+                                new LocalChangelogRegistryImpl(Executors.directExecutor()))) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            // checkpoint 1 trigger
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn);
+            uploadScheduler.scheduleAll(); // checkpoint 1 completed
+            writer.confirm(initialSqn, checkpoint1sqn, 1);
+
+            // trigger pre-emptive upload
+            writer.append(KEY_GROUP, getBytes(100));
+            uploadScheduler.scheduleAll();
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 2 trigger
+            SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future2 =
+                    writer.persist(initialSqn);
+            uploadScheduler.scheduleAll(); // checkpoint 2 completed
+            writer.confirm(initialSqn, checkpoint2sqn, 2);
+            // checkpoint 1 subsumed
+            writer.subsume(1);
+            SnapshotResult<ChangelogStateHandleStreamImpl> result2 = future2.get();
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result2.getTaskLocalSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
+            }
+
+            // materialization 1 trigger
+            SequenceNumber materializationSqn = writer.nextSequenceNumber();
+            writer.append(KEY_GROUP, getBytes(10));
+
+            // materialization 1 completed
+            // checkpoint 3 trigger
+            SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
+            writer.persist(materializationSqn);
+            uploadScheduler.scheduleAll(); // checkpoint 3 completed
+            writer.confirm(materializationSqn, checkpoint3sqn, 3);
+            // checkpoint 2 subsumed
+            writer.subsume(2);
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result2.getTaskLocalSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isTrue();
+            }
+        }
+    }
+
+    @Test
+    void testLocalFileAfterMaterialize() throws Exception {
+        // cp1 trigger: file1,file1'(local)
+        // JM: register [file1] to sharedRegistry
+        // cp1 complete: stopTracking [file1], register [file1'] to localRegistry
+        // cp2 trigger: file1,file1',file2,file2'
+        // JM: register [file1,file2] to sharedRegistry
+        // cp2 complete: stopTracking [file1, file2],register [file1',file2'] to localRegistry
+        // cp1 subsume
+        // cp3 trigger:  file1,file1',file2,file2',file3,file3'
+        // materialization: uploaded.clear()
+        // JM: register [file1,file2,file3] to sharedRegistry
+        // cp3 complete: stopTracking [file3], register [file3] to localRegistry
+        // cp2 subsume: [file1', file2'] are discarded
+        // if restore from cp3: local file1',file2' are not found
+        long appendPersistThreshold = 100;
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.enabledForTest(),
+                                new LocalChangelogRegistryImpl(Executors.directExecutor()))) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            // checkpoint 1 trigger
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn);
+            uploadScheduler.scheduleAll(); // checkpoint 1 completed
+            writer.confirm(initialSqn, checkpoint1sqn, 1);
+
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 2 trigger
+            SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn);
+            uploadScheduler.scheduleAll(); // checkpoint 2 completed
+            writer.confirm(initialSqn, checkpoint2sqn, 2);
+            writer.truncate(initialSqn);
+            writer.subsume(1);
+
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 3 trigger
+            SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future3 =
+                    writer.persist(initialSqn);
+            uploadScheduler.scheduleAll(); // checkpoint 3 completed
+
+            // materialization 1 trigger
+            SequenceNumber materializationSqn = writer.nextSequenceNumber();
+            writer.truncate(
+                    materializationSqn.compareTo(checkpoint2sqn) < 0
+                            ? materializationSqn
+                            : checkpoint2sqn);
+            // materialization 1 completed
+            // checkpoint 3 confirm
+            writer.confirm(materializationSqn, checkpoint3sqn, 3);
+            writer.subsume(2);
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            SnapshotResult<ChangelogStateHandleStreamImpl> result3 = future3.get();
+
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result3.getJobManagerOwnedSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
+            }
+
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result3.getTaskLocalSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
             }
         }
     }
