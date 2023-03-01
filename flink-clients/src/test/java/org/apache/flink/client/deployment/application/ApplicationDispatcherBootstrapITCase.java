@@ -34,7 +34,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
-import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
@@ -67,6 +66,7 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
@@ -386,7 +386,13 @@ class ApplicationDispatcherBootstrapITCase {
             // start mini cluster and submit the job
             cluster.start();
 
-            future.completeExceptionally(new FlinkException("Unable to restore checkpoint."));
+            final Throwable cause = new FlinkException("Unable to restore checkpoint.");
+            future.complete(
+                    JobManagerRunnerResult.forInitializationFailure(
+                            new ExecutionGraphInfo(
+                                    ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
+                                            jobId, "jobName", JobStatus.FAILED, cause, null, 0L)),
+                            new FlinkException("Unable to restore checkpoint.")));
 
             // wait until the failed job has been submitted
             awaitJobStatus(cluster, jobId, JobStatus.FAILED);
@@ -399,7 +405,7 @@ class ApplicationDispatcherBootstrapITCase {
                     .extracting(ErrorInfo::getException)
                     .extracting(
                             e -> e.deserializeError(Thread.currentThread().getContextClassLoader()))
-                    .satisfies(e -> assertThat(e).isInstanceOf(JobInitializationException.class));
+                    .satisfies(e -> assertThat(e).isEqualTo(cause));
         }
     }
 
