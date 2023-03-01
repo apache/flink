@@ -482,7 +482,7 @@ CREATE TABLE Orders_in_file (
     `user` BIGINT,
     product STRING,
     order_time_string STRING,
-    order_time AS to_timestamp(order_time)
+    order_time AS to_timestamp(order_time_string)
     
 )
 PARTITIONED BY (`user`) 
