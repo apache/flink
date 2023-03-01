@@ -149,12 +149,7 @@ mvn clean install
 Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时模块。使用 Scala API 和库的同学必须配置 Flink 的 Scala 版本和自己的 Flink 版本（因为 Scala 
 并不严格的向后兼容）。
 
-从 1.7 版本开始，Flink 可以使用 Scala 2.11（默认）和 2.12 来构建。
-
-如果使用 Scala 2.12 来进行构建，执行如下命令：
-```bash
-mvn clean install -DskipTests -Dscala-2.12
-```
+从 1.15 版本开始，Flink 已经不再支持使用Scala 2.11编译，默认使用 2.12 来构建。
 
 要针对特定的二进制 Scala 版本进行构建，可以使用
 ```bash
