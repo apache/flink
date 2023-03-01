@@ -1418,6 +1418,13 @@ class Expression(Generic[T]):
             return _binary_op("ceil")(
                 self, time_interval_unit._to_j_time_interval_unit())
 
+    def dateSub(self, interval) -> 'Expression':
+        """
+        Subtracts interval from the date.
+        e.g. `dateSub(lit("2019-01-01").to_date(), lit(1).days())` leads to 2018-12-31.
+        """
+        return _binary_op("dateSub")(self, interval)
+
     # ---------------------------- advanced type helper functions -----------------------------
 
     def get(self, name_or_index: Union[str, int]) -> 'Expression':

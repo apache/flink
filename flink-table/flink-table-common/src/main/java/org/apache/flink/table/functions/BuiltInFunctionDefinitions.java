@@ -1556,6 +1556,17 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition DATE_SUB =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATE_SUB")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.DATETIME),
+                                    logical(LogicalTypeFamily.INTERVAL)))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")

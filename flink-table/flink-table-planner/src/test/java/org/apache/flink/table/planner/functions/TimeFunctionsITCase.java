@@ -36,12 +36,16 @@ import static org.apache.flink.table.api.DataTypes.DAY;
 import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
+import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
 
 /** Test time-related built-in functions. */
@@ -53,7 +57,8 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         extractTestCases(),
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
-                        floorTestCases())
+                        floorTestCases(),
+                        dateSubTestCases())
                 .flatMap(s -> s);
     }
 
@@ -733,5 +738,48 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
+    }
+
+    private Stream<TestSetSpec> dateSubTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATE_SUB)
+                        .onFieldsWithData(LocalDate.of(2019, 1, 1), LocalDate.of(2016, 2, 24), null)
+                        .andDataTypes(DATE().notNull(), DATE().notNull(), DATE().nullable())
+                        .testResult(
+                                $("f0").dateSub(lit(1).days()),
+                                "DATE_SUB(f0, interval 1 day)",
+                                LocalDate.of(2018, 12, 31),
+                                DATE().notNull())
+                        .testResult(
+                                $("f0").dateSub(lit(1).days().cast(INTERVAL(DAY()))),
+                                "DATE_SUB(f0, interval 1 day)",
+                                LocalDate.of(2018, 12, 31),
+                                DATE().notNull())
+                        .testResult(
+                                $("f1").dateSub(lit(2).days().cast(INTERVAL(DAY()))),
+                                "DATE_SUB(f1, interval 2 days)",
+                                LocalDate.of(2016, 2, 22),
+                                DATE().notNull())
+                        .testResult(
+                                $("f1").dateSub(lit(3).months().cast(INTERVAL(MONTH()))),
+                                "DATE_SUB(f1, interval 3 month)",
+                                LocalDate.of(2015, 11, 24),
+                                DATE().notNull())
+                        .testResult(
+                                $("f1").dateSub(lit(2).years().cast(INTERVAL(YEAR()))),
+                                "DATE_SUB(f1, interval 2 years)",
+                                LocalDate.of(2014, 2, 24),
+                                DATE().notNull())
+                        // arg is null.
+                        .testResult(
+                                $("f2").dateSub(lit(1).days().cast(INTERVAL(DAY()))),
+                                "DATE_SUB(f2, interval 1 day)",
+                                null,
+                                DATE().nullable())
+                        .testResult(
+                                $("f0").dateSub(nullOf(INTERVAL(DAY()))),
+                                "DATE_SUB(f0, cast(null as interval day))",
+                                null,
+                                DATE().nullable()));
     }
 }

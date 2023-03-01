@@ -73,6 +73,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DATE_SUB;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
@@ -1284,6 +1285,16 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType ceil(TimeIntervalUnit timeIntervalUnit) {
         return toApiSpecificExpression(
                 unresolvedCall(CEIL, toExpr(), valueLiteral(timeIntervalUnit)));
+    }
+
+    /**
+     * Subtracts interval from the date.
+     *
+     * <p>e.g. dateSub(lit("2019-01-01").toDate(), lit(1).days()) leads to 2018-12-31.
+     */
+    public OutType dateSub(InType interval) {
+        return toApiSpecificExpression(
+                unresolvedCall(DATE_SUB, toExpr(), objectToExpression(interval)));
     }
 
     // Advanced type helper functions

@@ -529,7 +529,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         requireNumeric(right)
         generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
 
-      case MINUS | MINUS_DATE if isTemporal(resultType) =>
+      case MINUS | MINUS_DATE | DATE_SUB if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTemporal(left)

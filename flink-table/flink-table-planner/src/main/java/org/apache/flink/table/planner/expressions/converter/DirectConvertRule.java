@@ -290,6 +290,8 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 FlinkSqlOperatorTable.TO_TIMESTAMP_LTZ);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_TIMESTAMP, FlinkSqlOperatorTable.TO_TIMESTAMP);
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.DATE_SUB, FlinkSqlOperatorTable.DATE_SUB);
 
         // catalog functions
         definitionSqlOperatorHashMap.put(

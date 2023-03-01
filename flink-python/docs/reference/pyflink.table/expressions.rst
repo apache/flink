@@ -209,6 +209,7 @@ temporal functions
     Expression.extract
     Expression.floor
     Expression.ceil
+    Expression.dateSub
 
 
 advanced type helper functions
