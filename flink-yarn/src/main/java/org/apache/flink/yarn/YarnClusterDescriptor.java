@@ -76,6 +76,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -1151,14 +1153,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
-        if (configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN)) {
-            KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
-            if (kerberosLoginProvider.isLoginPossible()) {
-                setTokensFor(amContainer);
-            } else {
-                LOG.info(
-                        "Cannot use kerberos delegation token manager, no valid kerberos credentials provided.");
-            }
+        boolean fetchToken = configuration.getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED);
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+        if (kerberosLoginProvider.isLoginPossible(true)) {
+            setTokensFor(amContainer, fetchToken);
+        } else {
+            LOG.info(
+                    "Cannot use kerberos delegation token manager, no valid kerberos credentials provided.");
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
@@ -1292,21 +1293,36 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         });
     }
 
-    private void setTokensFor(ContainerLaunchContext containerLaunchContext) throws Exception {
-        LOG.info("Adding delegation tokens to the AM container.");
-
-        DelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
-        DelegationTokenContainer container = new DelegationTokenContainer();
-        delegationTokenManager.obtainDelegationTokens(container);
-
-        // This is here for backward compatibility to make log aggregation work
+    private void setTokensFor(ContainerLaunchContext containerLaunchContext, boolean fetchToken)
+            throws Exception {
         Credentials credentials = new Credentials();
-        for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
-            if (e.getKey().equals("hadoopfs")) {
-                credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+
+        LOG.info("Loading delegation tokens available locally to add to the AM container");
+        // for user
+        UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
+
+        Collection<Token<? extends TokenIdentifier>> usrTok =
+                currUsr.getCredentials().getAllTokens();
+        for (Token<? extends TokenIdentifier> token : usrTok) {
+            LOG.info("Adding user token " + token.getService() + " with " + token);
+            credentials.addToken(token.getService(), token);
+        }
+
+        if (fetchToken) {
+            LOG.info("Fetching delegation tokens to add to the AM container.");
+            DelegationTokenManager delegationTokenManager =
+                    new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
+            DelegationTokenContainer container = new DelegationTokenContainer();
+            delegationTokenManager.obtainDelegationTokens(container);
+
+            // This is here for backward compatibility to make log aggregation work
+            for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
+                if (e.getKey().equals("hadoopfs")) {
+                    credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+                }
             }
         }
+
         ByteBuffer tokens = ByteBuffer.wrap(HadoopDelegationTokenConverter.serialize(credentials));
         containerLaunchContext.setTokens(tokens);
 

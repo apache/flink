@@ -1186,8 +1186,8 @@ public abstract class DataSet<T> {
      * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started
      * by {@link #iterate(int)}, but maintains state across the individual iteration steps. The
      * Solution set, which represents the current state at the beginning of each iteration can be
-     * obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getSolutionSet()} ()}.
-     * It can be be accessed by joining (or CoGrouping) with it. The DataSet that represents the
+     * obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getSolutionSet()}. It
+     * can be be accessed by joining (or CoGrouping) with it. The DataSet that represents the
      * workset of an iteration can be obtained via {@link
      * org.apache.flink.api.java.operators.DeltaIteration#getWorkset()}. The solution set is updated
      * by producing a delta for it, which is merged into the solution set at the end of each

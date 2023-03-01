@@ -122,6 +122,18 @@ public class PythonOptions {
                                     + "optional parameter exists. The option is equivalent to the command line option "
                                     + "\"-pyreq\".");
 
+    /** The configuration allows user to define python path for client and workers. */
+    public static final ConfigOption<String> PYTHON_PATH =
+            ConfigOptions.key("python.pythonpath")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Specify the path on the Worker Node where the Flink Python Dependencies are installed, which "
+                                                    + "gets added into the PYTHONPATH of the Python Worker. ")
+                                    .build());
+
     public static final ConfigOption<String> PYTHON_ARCHIVES =
             ConfigOptions.key("python.archives")
                     .stringType()

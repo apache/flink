@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -46,6 +47,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -64,10 +66,12 @@ import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerialize
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_NAME;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_TYPE;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FILED_DESCRIPTION;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FRACTIONAL_PRECISION;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_PRECISION;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_RESOLUTION;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_SCALE;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_SERIALIZER;
 import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_TYPE_NAME;
@@ -143,6 +147,9 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
             case TIMESTAMP_WITH_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return deserializeTimestamp(typeRoot, logicalTypeNode).copy(isNullable);
+            case INTERVAL_DAY_TIME:
+            case INTERVAL_YEAR_MONTH:
+                return deserializeInterval(isNullable, typeRoot, logicalTypeNode);
             case MAP:
                 return deserializeMap(logicalTypeNode).copy(isNullable);
             case ARRAY:
@@ -201,6 +208,28 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
                 return new LocalZonedTimestampType(precision);
             default:
                 throw new TableException("Timestamp type root expected.");
+        }
+    }
+
+    private LogicalType deserializeInterval(
+            boolean isNullable, LogicalTypeRoot typeRoot, JsonNode logicalTypeNode) {
+        int precision = logicalTypeNode.get(FIELD_NAME_PRECISION).asInt();
+        switch (typeRoot) {
+            case INTERVAL_YEAR_MONTH:
+                return new YearMonthIntervalType(
+                        isNullable,
+                        YearMonthIntervalType.YearMonthResolution.valueOf(
+                                logicalTypeNode.get(FIELD_NAME_RESOLUTION).asText()),
+                        precision);
+            case INTERVAL_DAY_TIME:
+                return new DayTimeIntervalType(
+                        isNullable,
+                        DayTimeIntervalType.DayTimeResolution.valueOf(
+                                logicalTypeNode.get(FIELD_NAME_RESOLUTION).asText()),
+                        precision,
+                        logicalTypeNode.get(FIELD_NAME_FRACTIONAL_PRECISION).asInt());
+            default:
+                throw new TableException("Interval type root expected.");
         }
     }
 

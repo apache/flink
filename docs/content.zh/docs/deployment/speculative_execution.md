@@ -45,21 +45,29 @@ under the License.
 {{< /hint >}}
 
 ### 启用预测执行
-要启用预测执行，你需要设置以下配置项：
-- `jobmanager.scheduler: AdaptiveBatch`
-    - 因为当前只有 [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) 支持预测执行.
-- `jobmanager.adaptive-batch-scheduler.speculative.enabled: true`
+你可以通过以下配置项启用预测执行：
+- `execution.batch.speculative.enabled: true`
+
+需要注意的是，当前只有 [Adaptive Batch Scheduler]({{< ref "docs/deployment/elastic_scaling" >}}#adaptive-batch-scheduler) 支持预测执行。不过 Flink 批作业会默认使用该调度器，除非显式配置了其他调度器。
 
 ### 配置调优
 考虑到不同作业的差异，为了让预测执行获得更好的效果，你可以调优下列调度器配置项：
-- [`jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-max-concurrent-e)
-- [`jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#jobmanager-adaptive-batch-scheduler-speculative-block-slow-node)
+- [`execution.batch.speculative.max-concurrent-executions`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-max-concurrent-e)
+- [`execution.batch.speculative.block-slow-node-duration`]({{< ref "docs/deployment/config" >}}#execution-batch-speculative-speculative-block-slow-node)
 
-你还可以调优下列慢任务检测器的配置项：
+你也可以通过下列配置项来对慢任务检测器进行调优：
 - [`slow-task-detector.check-interval`]({{< ref "docs/deployment/config" >}}#slow-task-detector-check-interval)
 - [`slow-task-detector.execution-time.baseline-lower-bound`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-lower-bound)
 - [`slow-task-detector.execution-time.baseline-multiplier`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-multiplier)
 - [`slow-task-detector.execution-time.baseline-ratio`]({{< ref "docs/deployment/config" >}}#slow-task-detector-execution-time-baseline-ratio)
+
+目前，预测执行通过基于执行时间的慢任务检测器来检测慢任务，检测器将定期统计所有已执行完成的节点，当完成率达到基线比率(`slow-task-detector.execution-time.baseline-ratio`)时，
+基线将被定义为执行时间中位数乘以系数(`slow-task-detector.execution-time.baseline-multiplier`)，若运行中节点的执行时间超过基线则会被判定为慢节点。值得一提的是，
+处理执行时间时会将其与节点实际输入数据量进行加权，若发生数据倾斜，数据量差异较大但算力接近的节点并不会被检测为慢任务，从而避免拉起无效预测执行实例浪费资源。
+
+{{< hint warning >}}
+注意：若节点为 Source 或使用了 Hybrid Shuffle 模式，执行时间与数据量加权优化将不生效，因为无法判断输入数据量。
+{{< /hint >}}
 
 ### 让 Source 支持预测执行
 如果你的作业有用到自定义 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}}, 

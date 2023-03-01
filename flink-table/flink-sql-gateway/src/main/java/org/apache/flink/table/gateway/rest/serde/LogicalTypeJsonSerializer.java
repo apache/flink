@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -35,6 +36,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -64,7 +66,7 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
     // CHAR, VARCHAR, BINARY, VARBINARY
     public static final String FIELD_NAME_LENGTH = "length";
 
-    // DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE
+    // DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL
     public static final String FIELD_NAME_PRECISION = "precision";
 
     // DECIMAL
@@ -86,6 +88,10 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
     // RAW
     public static final String FIELD_NAME_CLASS = "class";
     public static final String FIELD_NAME_SERIALIZER = "serializer";
+
+    // INTERVAL
+    public static final String FIELD_NAME_RESOLUTION = "resolution";
+    public static final String FIELD_NAME_FRACTIONAL_PRECISION = "fractionalPrecision";
 
     public LogicalTypeJsonSerializer() {
         super(LogicalType.class);
@@ -163,6 +169,12 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
             case ROW:
                 serializeRow((RowType) logicalType, jsonGenerator);
                 break;
+            case INTERVAL_YEAR_MONTH:
+                serializeYearMonthInterval((YearMonthIntervalType) logicalType, jsonGenerator);
+                break;
+            case INTERVAL_DAY_TIME:
+                serializeDayTimeInterval((DayTimeIntervalType) logicalType, jsonGenerator);
+                break;
             case RAW:
                 if (logicalType instanceof RawType) {
                     serializeRaw((RawType<?>) logicalType, jsonGenerator);
@@ -205,6 +217,25 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
             default:
                 throw new TableException("Time or time stamp type root expected.");
         }
+    }
+
+    private void serializeYearMonthInterval(
+            YearMonthIntervalType yearMonthIntervalType, JsonGenerator jsonGenerator)
+            throws IOException {
+        jsonGenerator.writeNumberField(
+                FIELD_NAME_PRECISION, yearMonthIntervalType.getYearPrecision());
+        jsonGenerator.writeStringField(
+                FIELD_NAME_RESOLUTION, yearMonthIntervalType.getResolution().toString());
+    }
+
+    private void serializeDayTimeInterval(
+            DayTimeIntervalType dayTimeIntervalType, JsonGenerator jsonGenerator)
+            throws IOException {
+        jsonGenerator.writeNumberField(FIELD_NAME_PRECISION, dayTimeIntervalType.getDayPrecision());
+        jsonGenerator.writeNumberField(
+                FIELD_NAME_FRACTIONAL_PRECISION, dayTimeIntervalType.getFractionalPrecision());
+        jsonGenerator.writeStringField(
+                FIELD_NAME_RESOLUTION, dayTimeIntervalType.getResolution().toString());
     }
 
     private void serializeMap(MapType mapType, JsonGenerator jsonGenerator) throws IOException {

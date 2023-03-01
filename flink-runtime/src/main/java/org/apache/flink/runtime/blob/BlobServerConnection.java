@@ -120,7 +120,10 @@ class BlobServerConnection extends Thread {
             // this happens when the remote site closes the connection
             LOG.debug("Socket connection closed", e);
         } catch (Throwable t) {
-            LOG.error("Error while executing BLOB connection.", t);
+            LOG.error(
+                    "Error while executing BLOB connection from {}.",
+                    clientSocket.getRemoteSocketAddress(),
+                    t);
         } finally {
             closeSilently(clientSocket, LOG);
             blobServer.unregisterConnection(this);

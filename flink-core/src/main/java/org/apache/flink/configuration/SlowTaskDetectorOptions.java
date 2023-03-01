@@ -51,7 +51,9 @@ public class SlowTaskDetectorOptions {
                                     + "detection baseline. Given that the parallelism is N and the "
                                     + "ratio is R, define T as the median of the first N*R finished "
                                     + "tasks' execution time. The baseline will be T*M, where M is "
-                                    + "the multiplier of the baseline.");
+                                    + "the multiplier of the baseline. Note that the execution time "
+                                    + "will be weighted with the task's input bytes to ensure the "
+                                    + "accuracy of the detection if data skew occurs.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Double> EXECUTION_TIME_BASELINE_MULTIPLIER =
@@ -63,7 +65,9 @@ public class SlowTaskDetectorOptions {
                                     + "that the parallelism is N and the ratio is R, define T as "
                                     + "the median of the first N*R finished tasks' execution time. "
                                     + "The baseline will be T*M, where M is the multiplier of the "
-                                    + "baseline.");
+                                    + "baseline. Note that the execution time will be weighted with "
+                                    + "the task's input bytes to ensure the accuracy of the "
+                                    + "detection if data skew occurs.");
 
     private SlowTaskDetectorOptions() {
         throw new IllegalAccessError();

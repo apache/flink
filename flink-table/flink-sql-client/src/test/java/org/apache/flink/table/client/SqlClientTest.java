@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.client;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.client.cli.TerminalUtils;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -27,7 +30,9 @@ import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
@@ -35,6 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -48,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
+import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -56,6 +63,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SqlClientTest {
 
     @TempDir private Path tempFolder;
+
+    @RegisterExtension
+    @Order(1)
+    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+            new SqlGatewayServiceExtension(
+                    () -> {
+                        Configuration configuration = new Configuration();
+                        configuration.set(TARGET, "yarn-session");
+                        return configuration;
+                    });
+
+    @RegisterExtension
+    @Order(2)
+    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     private Map<String, String> originalEnv;
 
@@ -107,10 +129,32 @@ class SqlClientTest {
     }
 
     @Test
+    void testEmbeddedWithConfigOptions() throws Exception {
+        String[] args = new String[] {"embedded", "-D", "key1=val1", "-D", "key2=val2"};
+        String output = runSqlClient(args, "SET;\nQUIT;\n", false);
+        assertThat(output).contains("key1", "val1", "key2", "val2");
+    }
+
+    @Test
     void testEmptyOptions() throws Exception {
         String[] args = new String[] {};
         String actual = runSqlClient(args);
         assertThat(actual).contains("Command history file path");
+    }
+
+    @Test
+    void testGatewayMode() throws Exception {
+        String[] args =
+                new String[] {
+                    "gateway",
+                    "-e",
+                    InetSocketAddress.createUnresolved(
+                                    SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                    SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort())
+                            .toString()
+                };
+        String actual = runSqlClient(args, String.join("\n", "SET;", "QUIT;"), false);
+        assertThat(actual).contains("execution.target", "yarn-session");
     }
 
     @Test

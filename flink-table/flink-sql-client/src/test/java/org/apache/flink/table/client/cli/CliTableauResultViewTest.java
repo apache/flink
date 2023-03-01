@@ -57,6 +57,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -141,7 +142,7 @@ class CliTableauResultViewTest {
                                 null,
                                 -1,
                                 -1L,
-                                "abcdefghijklmnopqrstuvwxyz",
+                                "abcdefghijklmnopqrstuvwxyz12345",
                                 BigDecimal.valueOf(-12345.06789),
                                 null,
                                 null),
@@ -211,7 +212,7 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "|    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |         x'6e17fffe' |"
                                 + System.lineSeparator()
-                                + "|  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |              <NULL> |"
+                                + "|  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz1... |   -12345.06789 |                     <NULL> |              <NULL> |"
                                 + System.lineSeparator()
                                 + "|  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |   x'fdfeff00010203' |"
                                 + System.lineSeparator()
@@ -221,6 +222,19 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "8 rows in set"
                                 + System.lineSeparator());
+
+        // adjust the max column width for printing
+        testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
+
+        collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
+        view = new CliTableauResultView(terminal, resultDescriptor, collectResult);
+        view.displayResults();
+        assertThat(terminalOutput.toString()).contains("abcdefghijklmnopqrstuvwxyz12345");
+
         view.close();
         // Job is finished. Don't need to close the job manually.
         assertThat(collectResult.closed).isFalse();
@@ -341,7 +355,7 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "| +I |    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |                    x'6e17fffe' |"
                                 + System.lineSeparator()
-                                + "| -D |  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |                         <NULL> |"
+                                + "| -D |  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz1... |   -12345.06789 |                     <NULL> |                         <NULL> |"
                                 + System.lineSeparator()
                                 + "| +I |  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |              x'fdfeff00010203' |"
                                 + System.lineSeparator()
@@ -351,6 +365,19 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Received a total of 8 rows"
                                 + System.lineSeparator());
+
+        // adjust the max column width for printing
+        testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
+
+        collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
+        view = new CliTableauResultView(terminal, resultDescriptor, collectResult);
+        view.displayResults();
+        assertThat(terminalOutput.toString()).contains("abcdefghijklmnopqrstuvwxyz12345");
+
         // Job is finished. Don't need to close the job manually.
         assertThat(collectResult.closed).isFalse();
     }

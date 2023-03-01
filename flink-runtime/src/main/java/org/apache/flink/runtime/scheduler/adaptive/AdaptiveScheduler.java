@@ -216,6 +216,8 @@ public class AdaptiveScheduler
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
+    private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -297,6 +299,7 @@ public class AdaptiveScheduler
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+        this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -1118,6 +1121,11 @@ public class AdaptiveScheduler
     @Override
     public ComponentMainThreadExecutor getMainThreadExecutor() {
         return componentMainThreadExecutor;
+    }
+
+    @Override
+    public JobManagerJobMetricGroup getMetricGroup() {
+        return jobManagerJobMetricGroup;
     }
 
     @Override

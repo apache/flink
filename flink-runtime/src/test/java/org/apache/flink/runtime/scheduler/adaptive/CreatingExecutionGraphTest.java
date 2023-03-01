@@ -26,6 +26,8 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
@@ -329,6 +331,11 @@ public class CreatingExecutionGraphTest extends TestLogger {
         @Override
         public ComponentMainThreadExecutor getMainThreadExecutor() {
             return ComponentMainThreadExecutorServiceAdapter.forMainThread();
+        }
+
+        @Override
+        public JobManagerJobMetricGroup getMetricGroup() {
+            return UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
         }
 
         @Override

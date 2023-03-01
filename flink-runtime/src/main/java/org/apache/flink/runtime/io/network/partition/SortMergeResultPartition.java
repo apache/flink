@@ -509,7 +509,7 @@ public class SortMergeResultPartition extends ResultPartition {
     @Override
     public void close() {
         releaseFreeBuffers();
-        // the close method will be always called by the task thread, so there is need to make
+        // the close method will always be called by the task thread, so there is need to make
         // the sort buffer fields volatile and visible to the cancel thread intermediately
         releaseDataBuffer(unicastDataBuffer);
         releaseDataBuffer(broadcastDataBuffer);

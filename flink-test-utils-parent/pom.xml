@@ -38,6 +38,7 @@ under the License.
 		<module>flink-test-utils-junit</module>
 		<module>flink-test-utils</module>
 		<module>flink-connector-test-utils</module>
+		<module>flink-clients-test-utils</module>
 	</modules>
 
 </project>

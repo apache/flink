@@ -149,7 +149,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class StreamExecutionEnvironment implements AutoCloseable {
 
-    private static final List<CollectResultIterator<?>> collectIterators = new ArrayList<>();
+    private final List<CollectResultIterator<?>> collectIterators = new ArrayList<>();
 
     @Internal
     public void registerCollectIterator(CollectResultIterator<?> iterator) {

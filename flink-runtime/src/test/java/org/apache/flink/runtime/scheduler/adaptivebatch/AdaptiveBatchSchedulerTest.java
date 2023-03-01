@@ -67,7 +67,7 @@ import java.util.stream.LongStream;
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
-import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDefaultVertexParallelismAndInputInfosDecider;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,7 +93,7 @@ class AdaptiveBatchSchedulerTest {
 
     @Test
     void testAdaptiveBatchScheduler() throws Exception {
-        JobGraph jobGraph = createJobGraph(false);
+        JobGraph jobGraph = createJobGraph();
         Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
         JobVertex source1 = jobVertexIterator.next();
         JobVertex source2 = jobVertexIterator.next();
@@ -118,44 +118,68 @@ class AdaptiveBatchSchedulerTest {
         // check that the jobGraph is updated
         assertThat(sink.getParallelism()).isEqualTo(10);
 
-        // check aggregatedInputDataBytes of each ExecutionVertex calculated.
-        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex);
+        // check aggregatedInputDataBytes of each ExecutionVertex calculated. Total number of
+        // subpartitions of source1 is ceil(128 / 6) * 6 = 132, total number of subpartitions of
+        // source2 is ceil(128 / 4) * 4 = 128, so total bytes is (132 + 128) * SUBPARTITION_BYTES =
+        // 26_000L.
+        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex, 26_000L);
     }
 
     @Test
     void testDecideParallelismForForwardTarget() throws Exception {
-        JobGraph jobGraph = createJobGraph(true);
-        Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
-        JobVertex source1 = jobVertexIterator.next();
-        JobVertex source2 = jobVertexIterator.next();
-        JobVertex sink = jobVertexIterator.next();
+        final JobVertex source = createJobVertex("source", SOURCE_PARALLELISM_1);
+        final JobVertex map = createJobVertex("map", -1);
+        final JobVertex sink = createJobVertex("sink", -1);
 
-        SchedulerBase scheduler = createScheduler(jobGraph);
+        map.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        sink.connectNewDataSetAsInput(
+                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        map.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source, map, sink),
+                        createCustomParallelismDecider(
+                                jobVertexId -> {
+                                    if (jobVertexId.equals(map.getID())) {
+                                        return 5;
+                                    } else {
+                                        return 10;
+                                    }
+                                }),
+                        128);
 
         final DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
+        final ExecutionJobVertex mapExecutionJobVertex = graph.getJobVertex(map.getID());
         final ExecutionJobVertex sinkExecutionJobVertex = graph.getJobVertex(sink.getID());
 
         scheduler.startScheduling();
+        assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(-1);
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
-        // trigger source1 finished.
-        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source1);
+        // trigger source finished.
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
+        assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
-        // trigger source2 finished.
-        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source2);
-        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
+        // trigger map finished.
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);
+        assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
 
         // check that the jobGraph is updated
-        assertThat(sink.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
+        assertThat(sink.getParallelism()).isEqualTo(5);
 
-        // check aggregatedInputDataBytes of each ExecutionVertex calculated.
-        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex);
+        // check aggregatedInputDataBytes of each ExecutionVertex calculated. Total number of
+        // subpartitions of map is ceil(128 / 5) * 5 = 130, so total bytes sink consume is 130 *
+        // SUBPARTITION_BYTES = 13_000L.
+        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex, 13_000L);
     }
 
     @Test
     void testUpdateBlockingResultInfoWhileScheduling() throws Exception {
-        JobGraph jobGraph = createJobGraph(false);
+        JobGraph jobGraph = createJobGraph();
         Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
         JobVertex source1 = jobVertexIterator.next();
         JobVertex source2 = jobVertexIterator.next();
@@ -242,8 +266,7 @@ class AdaptiveBatchSchedulerTest {
         SchedulerBase scheduler =
                 createScheduler(
                         new JobGraph(new JobID(), "test job", source, sink),
-                        createDefaultVertexParallelismAndInputInfosDecider(
-                                1, 16, 4 * SUBPARTITION_BYTES),
+                        createDecider(1, 16, 4 * SUBPARTITION_BYTES),
                         16);
 
         final DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
@@ -274,6 +297,67 @@ class AdaptiveBatchSchedulerTest {
         assertThat(sinkExecutionJobVertex.isInitialized()).isTrue();
     }
 
+    @Test
+    void testUserConfiguredMaxParallelismIsLargerThanGlobalMaxParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(1, 32, 128, 1L, 32);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalMaxParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(1, 128, 32, 1L, 32);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalMinParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(16, 128, 8, 4 * SUBPARTITION_BYTES, 8);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalDefaultSourceParallelism()
+            throws Exception {
+        final JobVertex source = createJobVertex("source", -1);
+        source.setMaxParallelism(8);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source),
+                        createDecider(1, 128, 1L, 32),
+                        128);
+
+        scheduler.startScheduling();
+
+        // check source's parallelism
+        assertThat(source.getParallelism()).isEqualTo(8);
+    }
+
+    void testUserConfiguredMaxParallelism(
+            int globalMinParallelism,
+            int globalMaxParallelism,
+            int userConfiguredMaxParallelism,
+            long dataVolumePerTask,
+            int expectedParallelism)
+            throws Exception {
+        final JobVertex source = createJobVertex("source", 8);
+        final JobVertex sink = createJobVertex("sink", -1);
+        sink.setMaxParallelism(userConfiguredMaxParallelism);
+
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source, sink),
+                        createDecider(
+                                globalMinParallelism, globalMaxParallelism, dataVolumePerTask),
+                        globalMaxParallelism);
+
+        scheduler.startScheduling();
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
+
+        // check sink's parallelism
+        assertThat(sink.getParallelism()).isEqualTo(expectedParallelism);
+    }
+
     private BlockingResultInfo getBlockingResultInfo(
             AdaptiveBatchScheduler scheduler, JobVertex jobVertex) {
         return scheduler.getBlockingResultInfo(
@@ -281,7 +365,7 @@ class AdaptiveBatchSchedulerTest {
     }
 
     private void checkAggregatedInputDataBytesIsCalculated(
-            ExecutionJobVertex sinkExecutionJobVertex) {
+            ExecutionJobVertex sinkExecutionJobVertex, long expectedTotalBytes) {
         final ExecutionVertex[] executionVertices = sinkExecutionJobVertex.getTaskVertices();
         long totalInputBytes = 0;
         for (ExecutionVertex ev : executionVertices) {
@@ -290,7 +374,7 @@ class AdaptiveBatchSchedulerTest {
             totalInputBytes += executionInputBytes;
         }
 
-        assertThat(totalInputBytes).isEqualTo(26_000L);
+        assertThat(totalInputBytes).isEqualTo(expectedTotalBytes);
     }
 
     private void triggerFailedByPartitionNotFound(
@@ -375,7 +459,7 @@ class AdaptiveBatchSchedulerTest {
         return jobVertex;
     }
 
-    public JobGraph createJobGraph(boolean withForwardEdge) {
+    public JobGraph createJobGraph() {
         final JobVertex source1 = createJobVertex("source1", SOURCE_PARALLELISM_1);
         final JobVertex source2 = createJobVertex("source2", SOURCE_PARALLELISM_2);
         final JobVertex sink = createJobVertex("sink", -1);
@@ -383,9 +467,6 @@ class AdaptiveBatchSchedulerTest {
                 source1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
         sink.connectNewDataSetAsInput(
                 source2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        if (withForwardEdge) {
-            source1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        }
         return new JobGraph(new JobID(), "test job", source1, source2, sink);
     }
 

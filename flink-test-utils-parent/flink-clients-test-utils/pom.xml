@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-test-utils-parent</artifactId>
+		<version>1.18-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>flink-clients-test-utils</artifactId>
+	<name>Flink : Clients : Test Utils</name>
+	<description>This module builds test user jars for classloading tests in flink-clients.</description>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>test-user-classloader-job-jar</id>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>**/TestUserClassLoaderJob.*</include>
+										<include>META-INF/**</include>
+									</includes>
+								</filter>
+							</filters>
+							<finalName>test-user-classloader-job-jar</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>job-jar</shadedClassifierName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.client.testjar.TestUserClassLoaderJob</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+					<execution><id>test-user-classloader-job-lib-jar</id>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>**/TestUserClassLoaderJobLib.*</include>
+										<include>META-INF/**</include>
+									</includes>
+								</filter>
+							</filters>
+							<finalName>test-user-classloader-job-lib-jar</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>job-lib-jar</shadedClassifierName>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

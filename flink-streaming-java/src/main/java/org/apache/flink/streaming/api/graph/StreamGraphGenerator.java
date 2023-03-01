@@ -310,11 +310,6 @@ public class StreamGraphGenerator {
 
     public StreamGraph generate() {
         streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
-        streamGraph.setAutoParallelismEnabled(
-                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED));
-        streamGraph.setEnableCheckpointsAfterTasksFinish(
-                configuration.get(
-                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
@@ -327,15 +322,6 @@ public class StreamGraphGenerator {
         streamGraph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         setFineGrainedGlobalStreamExchangeMode(streamGraph);
-
-        Optional<JobManagerOptions.SchedulerType> schedulerTypeOptional =
-                executionConfig.getSchedulerType();
-        boolean dynamic =
-                shouldExecuteInBatchMode
-                        && schedulerTypeOptional.orElse(
-                                        JobManagerOptions.SchedulerType.AdaptiveBatch)
-                                == JobManagerOptions.SchedulerType.AdaptiveBatch;
-        streamGraph.setDynamic(dynamic);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
@@ -359,6 +345,17 @@ public class StreamGraphGenerator {
         return partitioner.isPointwise() || partitioner.isBroadcast();
     }
 
+    private void setDynamic(final StreamGraph graph) {
+        Optional<JobManagerOptions.SchedulerType> schedulerTypeOptional =
+                executionConfig.getSchedulerType();
+        boolean dynamic =
+                shouldExecuteInBatchMode
+                        && schedulerTypeOptional.orElse(
+                                        JobManagerOptions.SchedulerType.AdaptiveBatch)
+                                == JobManagerOptions.SchedulerType.AdaptiveBatch;
+        graph.setDynamic(dynamic);
+    }
+
     private void configureStreamGraph(final StreamGraph graph) {
         checkNotNull(graph);
 
@@ -368,6 +365,12 @@ public class StreamGraphGenerator {
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
         graph.setVertexNameIncludeIndexPrefix(
                 configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));
+        graph.setAutoParallelismEnabled(
+                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED));
+        graph.setEnableCheckpointsAfterTasksFinish(
+                configuration.get(
+                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
+        setDynamic(graph);
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);

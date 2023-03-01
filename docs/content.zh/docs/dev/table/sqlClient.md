@@ -167,7 +167,7 @@ Received a total of 5 rows
 
 ### Key-strokes
 
-There is a list of available key-strokes in SQL client
+There is a list of available key-strokes in SQL Client
 
 | Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                                                            |
 |:---------------------------------|------------------|:---------------------------------------------------------------------------------------|
@@ -199,7 +199,13 @@ There is a list of available key-strokes in SQL client
 | `ctrl-r`                         | `⌘-r`            | History incremental search backward                                                    |
 | `ctrl-s`                         | `⌘-s`            | History incremental search forward                                                     |
 
-<a name="configuration"></a>
+### Getting help
+
+The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
+
+See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
+
+{{< top >}}
 
 Configuration
 -------------
@@ -217,6 +223,8 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
+     -D <session dynamic config key=val>        The dynamic config key=val for a
+                                                session.
      -f,--file <script file>                    Script file that should be
                                                 executed. In this mode, the
                                                 client will not open an
@@ -353,6 +361,8 @@ Mode "gateway" mode connects to the SQL gateway for submission.
 
   Syntax: gateway [OPTIONS]
   "gateway" mode options:
+     -D <session dynamic config key=val>   The dynamic config key=val for a
+                                           session.
      -e,--endpoint <SQL Gateway address>   The address of the remote SQL Gateway
                                            to connect.
      -f,--file <script file>               Script file that should be executed.
@@ -387,7 +397,111 @@ Mode "gateway" mode connects to the SQL gateway for submission.
 
 ### SQL Client Configuration
 
+You can configure the SQL Client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
+
+```sql
+SET 'key' = 'value';
+```
+
 {{< generated/sql_client_configuration >}}
+
+### SQL Client result modes
+
+The CLI supports **three modes** for maintaining and visualizing results.
+
+The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation.
+It can be enabled by executing the following command in the CLI:
+
+```text
+SET 'sql-client.execution.result-mode' = 'table';
+```
+
+The result of a query would then look like this, you can use the keys indicated at the bottom of the screen as well
+as the arrows keys to navigate and open the various records:
+
+```text
+
+                           name         age isHappy        dob                         height
+                          user1          20    true 1995-12-03                            1.7
+                          user2          30    true 1972-08-02                           1.89
+                          user3          40   false 1983-12-23                           1.63
+                          user4          41    true 1977-11-13                           1.72
+                          user5          22   false 1998-02-20                           1.61
+                          user6          12    true 1969-04-08                           1.58
+                          user7          38   false 1987-12-15                            1.6
+                          user8          62    true 1996-08-05                           1.82
+
+
+
+
+Q Quit                     + Inc Refresh              G Goto Page                N Next Page                O Open Row
+R Refresh                  - Dec Refresh              L Last Page                P Prev Page
+```
+
+The **changelog mode** does not materialize results and visualizes the result stream that is produced
+by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+
+```text
+SET 'sql-client.execution.result-mode' = 'changelog';
+```
+
+The result of a query would then look like this:
+
+```text
+ op                           name         age isHappy        dob                         height
+ +I                          user1          20    true 1995-12-03                            1.7
+ +I                          user2          30    true 1972-08-02                           1.89
+ +I                          user3          40   false 1983-12-23                           1.63
+ +I                          user4          41    true 1977-11-13                           1.72
+ +I                          user5          22   false 1998-02-20                           1.61
+ +I                          user6          12    true 1969-04-08                           1.58
+ +I                          user7          38   false 1987-12-15                            1.6
+ +I                          user8          62    true 1996-08-05                           1.82
+
+
+
+
+Q Quit                                       + Inc Refresh                                O Open Row
+R Refresh                                    - Dec Refresh
+
+```
+
+The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
+The displaying content will be influenced by the query execution type (`execution.type`).
+
+```text
+SET 'sql-client.execution.result-mode' = 'tableau';
+```
+
+The result of a query would then look like this:
+
+```text
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+| op |                           name |         age | isHappy |        dob |                         height |
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+| +I |                          user1 |          20 |    true | 1995-12-03 |                            1.7 |
+| +I |                          user2 |          30 |    true | 1972-08-02 |                           1.89 |
+| +I |                          user3 |          40 |   false | 1983-12-23 |                           1.63 |
+| +I |                          user4 |          41 |    true | 1977-11-13 |                           1.72 |
+| +I |                          user5 |          22 |   false | 1998-02-20 |                           1.61 |
+| +I |                          user6 |          12 |    true | 1969-04-08 |                           1.58 |
+| +I |                          user7 |          38 |   false | 1987-12-15 |                            1.6 |
+| +I |                          user8 |          62 |    true | 1996-08-05 |                           1.82 |
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+Received a total of 8 rows
+```
+
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of
+this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
+Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+
+All these result modes can be useful during the prototyping of SQL queries. In all these modes,
+results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive,
+the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through
+bigger results that are only limited by the available main memory and the configured
+[maximum number of rows](#sql-client-execution-max-table-result-rows) (`sql-client.execution.max-table-result.rows`).
+
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
 
 ### Initialize Session Using SQL Files
 
@@ -486,7 +600,9 @@ The full list of offered SQL JARs can be found on the [connection to external sy
 You can refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section for
 information on how to configure connector and format dependencies.
 
-Use SQL Client to submit job
+{{< top >}}
+
+Usage
 ----------------------------
 
 SQL Client allows users to submit jobs either within the interactive command line or using `-f` option to execute sql file.
@@ -495,7 +611,7 @@ In both modes, SQL Client supports to parse and execute all types of the Flink s
 
 ### Interactive Command Line
 
-In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by semicolon (`;`).
+In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by a semicolon (`;`).
 
 SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
@@ -552,7 +668,7 @@ This configuration:
 - set the savepoint path,
 - submit a sql job that load the savepoint from the specified savepoint path.
 
-<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exit when there are errors.
+<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
 
 ### Execute a set of SQL statements
 
@@ -699,11 +815,15 @@ Cluster ID: StandaloneClusterId
 Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 ```
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the
+running Flink job after submission. The CLI process can be shutdown after the submission without
+affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
+use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
+or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
 
 However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
-`table.dml-sync` option `true` in SQL Client.
+`table.dml-sync` option to `true` in SQL Client.
 
 ```sql
 Flink SQL> SET 'table.dml-sync' = 'true';
@@ -760,5 +880,36 @@ Flink SQL> RESET pipeline.name;
 ```
 
 If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
+
+### Monitoring Job Status
+
+SQL Client supports to list jobs status in the cluster through `SHOW JOBS` statements.
+
+```sql
+Flink SQL> SHOW JOBS;
++----------------------------------+---------------+----------+-------------------------+
+|                           job id |      job name |   status |              start time |
++----------------------------------+---------------+----------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c | kafka-to-hive |  RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+---------------+----------+-------------------------+
+```
+
+### Terminating a Job
+
+SQL Client supports to stop jobs with or without savepoints through `STOP JOB` statements.
+
+```sql
+Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
++-----------------------------------------+
+|                          savepoint path |
++-----------------------------------------+
+| file:/tmp/savepoint-3addd4-0b224d9311e6 |
++-----------------------------------------+
+```
+
+The savepoint path could be specified with [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir)
+either in the cluster configuration or session configuration (the latter would take precedence).
+
+For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
 {{< top >}}

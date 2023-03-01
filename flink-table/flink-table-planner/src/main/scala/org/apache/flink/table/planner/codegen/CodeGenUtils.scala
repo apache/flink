@@ -922,7 +922,9 @@ object CodeGenUtils {
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
+      val externalResultTypeTerm = typeTerm(targetDataType.getConversionClass)
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 
@@ -1020,16 +1022,19 @@ object CodeGenUtils {
     }
 
     // convert internal format to target type
-    val externalResultTerm = if (isInternalClass(targetDataType)) {
-      s"($targetTypeTerm) ${internalExpr.resultTerm}"
+    val (externalResultTerm, externalResultTypeTerm) = if (isInternalClass(targetDataType)) {
+      (s"($targetTypeTerm) ${internalExpr.resultTerm}", s"($targetTypeTerm)")
     } else {
-      genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm)
+      (
+        genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm),
+        typeTerm(targetDataType.getConversionClass))
     }
     // merge null term into the result term
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 }

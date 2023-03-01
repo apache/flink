@@ -127,6 +127,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     private final Set<String> lastBlockedNodes = new HashSet<>();
 
+    private volatile boolean isRunning = false;
+
     public YarnResourceManagerDriver(
             Configuration flinkConfig,
             YarnResourceManagerDriverConfiguration configuration,
@@ -175,6 +177,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     @Override
     protected void initializeInternal() throws Exception {
+        isRunning = true;
         final YarnContainerEventHandler yarnContainerEventHandler = new YarnContainerEventHandler();
         try {
             resourceManagerClient =
@@ -204,6 +207,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     @Override
     public void terminate() throws Exception {
+        isRunning = false;
         // wait for all containers to stop
         trackerOfReleasedResources.register();
         trackerOfReleasedResources.arriveAndAwaitAdvance();
@@ -278,51 +282,57 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
 
-            requestResourceFuture.whenComplete(
-                    (ignore, t) -> {
-                        if (t instanceof CancellationException) {
-                            try {
-                                final Queue<CompletableFuture<YarnWorkerNode>>
-                                        pendingRequestResourceFutures =
-                                                requestResourceFutures.getOrDefault(
-                                                        taskExecutorProcessSpec,
-                                                        new LinkedList<>());
-                                Preconditions.checkState(
-                                        pendingRequestResourceFutures.remove(
-                                                requestResourceFuture));
-                                log.info(
-                                        "cancelling pending request with priority {}, remaining {} pending container requests.",
-                                        priority,
-                                        pendingRequestResourceFutures.size());
-                                int pendingRequestsSizeBeforeCancel =
-                                        pendingRequestResourceFutures.size() + 1;
-                                final Iterator<AMRMClient.ContainerRequest>
-                                        pendingContainerRequestIterator =
-                                                getPendingRequestsAndCheckConsistency(
-                                                                priority,
-                                                                resource,
-                                                                pendingRequestsSizeBeforeCancel)
-                                                        .iterator();
-
-                                Preconditions.checkState(pendingContainerRequestIterator.hasNext());
-
-                                final AMRMClient.ContainerRequest pendingRequest =
-                                        pendingContainerRequestIterator.next();
-                                removeContainerRequest(pendingRequest);
-
-                                if (pendingRequestResourceFutures.isEmpty()) {
-                                    requestResourceFutures.remove(taskExecutorProcessSpec);
+            FutureUtils.assertNoException(
+                    requestResourceFuture.handle(
+                            (ignore, t) -> {
+                                if (t == null) {
+                                    return null;
                                 }
+                                if (t instanceof CancellationException) {
 
-                                if (getNumRequestedNotAllocatedWorkers() <= 0) {
-                                    resourceManagerClient.setHeartbeatInterval(
-                                            yarnHeartbeatIntervalMillis);
+                                    final Queue<CompletableFuture<YarnWorkerNode>>
+                                            pendingRequestResourceFutures =
+                                                    requestResourceFutures.getOrDefault(
+                                                            taskExecutorProcessSpec,
+                                                            new LinkedList<>());
+                                    Preconditions.checkState(
+                                            pendingRequestResourceFutures.remove(
+                                                    requestResourceFuture));
+                                    log.info(
+                                            "cancelling pending request with priority {}, remaining {} pending container requests.",
+                                            priority,
+                                            pendingRequestResourceFutures.size());
+                                    int pendingRequestsSizeBeforeCancel =
+                                            pendingRequestResourceFutures.size() + 1;
+                                    final Iterator<AMRMClient.ContainerRequest>
+                                            pendingContainerRequestIterator =
+                                                    getPendingRequestsAndCheckConsistency(
+                                                                    priority,
+                                                                    resource,
+                                                                    pendingRequestsSizeBeforeCancel)
+                                                            .iterator();
+
+                                    Preconditions.checkState(
+                                            pendingContainerRequestIterator.hasNext());
+
+                                    final AMRMClient.ContainerRequest pendingRequest =
+                                            pendingContainerRequestIterator.next();
+                                    removeContainerRequest(pendingRequest);
+
+                                    if (pendingRequestResourceFutures.isEmpty()) {
+                                        requestResourceFutures.remove(taskExecutorProcessSpec);
+                                    }
+
+                                    if (getNumRequestedNotAllocatedWorkers() <= 0) {
+                                        resourceManagerClient.setHeartbeatInterval(
+                                                yarnHeartbeatIntervalMillis);
+                                    }
+                                } else {
+                                    log.error("Error completing resource request.", t);
+                                    ExceptionUtils.rethrow(t);
                                 }
-                            } catch (Throwable unhandledError) {
-                                getResourceEventHandler().onError(unhandledError);
-                            }
-                        }
-                    });
+                                return null;
+                            }));
 
             addContainerRequest(resource, priority);
 
@@ -715,7 +725,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
         @Override
         public void onError(Throwable throwable) {
-            getResourceEventHandler().onError(throwable);
+            if (isRunning) {
+                getResourceEventHandler().onError(throwable);
+            }
         }
 
         @Override

@@ -597,7 +597,7 @@ configured threshold, then Flink will try to compact these files to files with a
         <td>yes</td>
         <td style="word-wrap: break-word;">16MB</td>
         <td>MemorySize</td>
-        <td>The threshold for file compaction. If the average size of the files is less than this value, FLink will then compact these files. the default value is 16MB.</td>
+        <td>The threshold for file compaction. If the average size of the files is less than this value, Flink will then compact these files. the default value is 16MB.</td>
     </tr>
     <tr>
         <td><h5>compaction.file-size</h5></td>
@@ -605,7 +605,7 @@ configured threshold, then Flink will try to compact these files to files with a
         <td>yes</td>
         <td style="word-wrap: break-word;">(none)</td>
         <td>MemorySize</td>
-        <td>The compaction target file size, the default value is the <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink.rolling-policy.file-size">rolling file size</a>.</td>
+        <td>The compaction target file size, the default value is the <a href="{{< ref "docs/connectors/table/filesystem" >}}#sink-rolling-policy-file-size">rolling file size</a>.</td>
     </tr>
     <tr>
         <td><h5>compaction.parallelism</h5></td>

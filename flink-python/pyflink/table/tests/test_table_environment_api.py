@@ -67,6 +67,11 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
 
         assert isinstance(actual, str)
 
+    def test_explain_sql(self):
+        t_env = self.t_env
+        actual = t_env.explain_sql("SELECT * FROM (VALUES ('a', 1))")
+        assert isinstance(actual, str)
+
     def test_explain_with_extended(self):
         schema = RowType() \
             .add('a', DataTypes.INT()) \
@@ -79,6 +84,17 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
         actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
                                 ExplainDetail.JSON_EXECUTION_PLAN, ExplainDetail.PLAN_ADVICE)
 
+        assert isinstance(actual, str)
+
+    def test_explain_sql_extended(self):
+        t_env = self.t_env
+        actual = t_env.explain_sql(
+            "SELECT * FROM (VALUES ('a', 1))",
+            ExplainDetail.ESTIMATED_COST,
+            ExplainDetail.CHANGELOG_MODE,
+            ExplainDetail.JSON_EXECUTION_PLAN,
+            ExplainDetail.PLAN_ADVICE
+        )
         assert isinstance(actual, str)
 
     def test_register_functions(self):

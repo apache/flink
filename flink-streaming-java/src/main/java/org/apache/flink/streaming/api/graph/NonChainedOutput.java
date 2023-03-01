@@ -62,7 +62,7 @@ public class NonChainedOutput implements Serializable {
     private StreamPartitioner<?> partitioner;
 
     /** Target {@link ResultPartitionType}. */
-    private final ResultPartitionType partitionType;
+    private ResultPartitionType partitionType;
 
     public NonChainedOutput(
             boolean supportsUnalignedCheckpoints,
@@ -121,6 +121,10 @@ public class NonChainedOutput implements Serializable {
 
     public void setPartitioner(StreamPartitioner<?> partitioner) {
         this.partitioner = partitioner;
+    }
+
+    public void setPartitionType(ResultPartitionType partitionType) {
+        this.partitionType = partitionType;
     }
 
     public StreamPartitioner<?> getPartitioner() {

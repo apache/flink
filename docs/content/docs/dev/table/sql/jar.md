@@ -76,7 +76,7 @@ ADD JAR '<path_to_filename>.jar'
 Add a JAR file to the list of resources, it supports adding the jar locates in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}). The added JAR file can be listed using [`SHOW JARS`](#show-jars) statements.
 
 ### Limitation
-Please don't use `ADD JAR` statement to load Hive source/sink/function/catalog. This is a known limitation of Hive connector and will be fixed in the future version. Currently, it's recommended to follow this [instruction]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) to setup Hive integration.
+Please don't use `ADD JAR` statements to load Hive source/sink/function/catalog. This is a known limitation of Hive connector and will be fixed in the future version. Currently, it's recommended to follow this [instruction]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) to setup Hive integration.
 
 ## SHOW JARS
 
@@ -94,6 +94,6 @@ REMOVE JAR '<path_to_filename>.jar'
 
 Remove the specified jar that is added by the [`ADD JAR`](#add-jar) statements.
 
-<span class="label label-danger">Attention</span> REMOVE JAR statement only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+<span class="label label-danger">Attention</span> REMOVE JAR statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
 {{< top >}}

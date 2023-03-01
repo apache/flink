@@ -135,8 +135,11 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
@@ -257,6 +260,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      * that early cancel() before invoke() behaves correctly.
      */
     private volatile boolean isRunning;
+
+    /** Flag to mark the task at restoring duration in {@link #restore()}. */
+    private volatile boolean isRestoring;
 
     /** Flag to mark this task as canceled. */
     private volatile boolean canceled;
@@ -418,8 +424,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             this.mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
             this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 
+            // With maxConcurrentCheckpoints + 1 we more or less adhere to the
+            // maxConcurrentCheckpoints configuration, but allow for a small leeway with allowing
+            // for simultaneous N ongoing concurrent checkpoints and for example clean up of one
+            // aborted one.
             this.asyncOperationsThreadPool =
-                    Executors.newCachedThreadPool(
+                    new ThreadPoolExecutor(
+                            0,
+                            configuration.getMaxConcurrentCheckpoints() + 1,
+                            60L,
+                            TimeUnit.SECONDS,
+                            new LinkedBlockingQueue<>(),
                             new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
             // Register all asynchronous checkpoint threads.
@@ -677,6 +692,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             LOG.debug("Re-restore attempt rejected.");
             return;
         }
+        isRestoring = true;
         closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
@@ -718,6 +734,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         channelIOExecutor.shutdown();
 
         isRunning = true;
+        isRestoring = false;
     }
 
     private CompletableFuture<Void> restoreGates() throws Exception {
@@ -1551,8 +1568,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     @Override
     public void handleAsyncException(String message, Throwable exception) {
-        if (isRunning) {
-            // only fail if the task is still running
+        if (isRestoring || isRunning) {
+            // only fail if the task is still in restoring or running
             asyncExceptionHandler.handleAsyncException(message, exception);
         }
     }

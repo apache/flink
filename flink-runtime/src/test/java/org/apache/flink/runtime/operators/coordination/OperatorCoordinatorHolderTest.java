@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -514,9 +519,19 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                         3,
                         1775,
                         eventTarget,
-                        false);
+                        false,
+                        new TaskInformation(
+                                new JobVertexID(),
+                                "test task",
+                                1,
+                                1,
+                                NoOpInvokable.class.getName(),
+                                new Configuration()));
 
-        holder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+        holder.lazyInitialize(
+                globalFailureHandler,
+                mainThreadExecutor,
+                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         holder.start();
 
         return holder;

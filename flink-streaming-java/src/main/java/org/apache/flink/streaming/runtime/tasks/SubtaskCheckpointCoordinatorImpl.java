@@ -603,7 +603,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         synchronized (lock) {
             asyncCheckpointRunnable = checkpoints.remove(checkpointId);
         }
-        closeQuietly(asyncCheckpointRunnable);
+        if (asyncCheckpointRunnable != null) {
+            asyncOperationsThreadPool.execute(() -> closeQuietly(asyncCheckpointRunnable));
+        }
         return asyncCheckpointRunnable != null;
     }
 

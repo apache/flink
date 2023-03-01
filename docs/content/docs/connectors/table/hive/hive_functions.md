@@ -73,6 +73,34 @@ Some Hive built-in functions in older versions have [thread safety issues](https
 We recommend users patch their own Hive to fix them.
 {{< /hint >}}
 
+## Use Native Hive Aggregate Functions
+
+If [HiveModule]({{< ref "docs/dev/table/modules" >}}#hivemodule) is loaded with a higher priority than CoreModule, Flink will try to use the Hive built-in function first. And then for Hive built-in aggregation functions,
+Flink can only use the sort-based aggregation operator now. From Flink 1.17, we have introduced some native hive aggregation functions, which can be executed using the hash-based aggregation operator.
+Currently, only five functions are supported, namely sum/count/avg/min/max, and more aggregation functions will be supported in the future. Users can use the native aggregation function by turning on
+the option `table.exec.hive.native-agg-function.enabled`, which brings significant performance improvement to the job.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.native-agg-function.enabled</h5></td>
+        <td style="word-wrap: break-word;">false</td>
+        <td>Boolean</td>
+        <td>Enabling to use native aggregation functions, hash-based aggregation strategy could be used that can improve the aggregation performance. This is a job-level option.</td>
+    </tr>
+  </tbody>
+</table>
+
+<span class="label label-danger">Attention</span> The ability of the native aggregation functions doesn't fully align with Hive built-in aggregation functions now, for example, some data types are not supported. If performance is not a bottleneck, you don't need to turn on this option.
+
 ## Hive User Defined Functions
 
 Users can use their existing Hive User Defined Functions in Flink.

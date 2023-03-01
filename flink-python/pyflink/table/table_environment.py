@@ -792,8 +792,9 @@ class TableEnvironment(object):
         .. versionadded:: 1.11.0
         """
 
+        JExplainFormat = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_tenv.explainSql(stmt, j_extra_details)
+        return self._j_tenv.explainSql(stmt, JExplainFormat.TEXT, j_extra_details)
 
     def sql_query(self, query: str) -> Table:
         """

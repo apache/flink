@@ -58,6 +58,7 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingSqlGatewayRestEndpoint;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.session.SessionManagerImpl;
+import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
@@ -68,6 +69,7 @@ import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
@@ -96,6 +98,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -163,6 +166,9 @@ class ExecutorImplITCase {
 
     // a generated UDF jar used for testing classloading of dependencies
     private static URL udfDependency;
+
+    private final ThreadFactory threadFactory =
+            new ExecutorThreadFactory("Executor Test Pool", IgnoreExceptionHandler.INSTANCE);
 
     @BeforeAll
     static void setup(@InjectClusterClient RestClusterClient<?> injectedClusterClient)
@@ -604,7 +610,7 @@ class ExecutorImplITCase {
 
     private void testInterrupting(Consumer<Executor> task) throws Exception {
         try (Executor executor = createTestServiceExecutor()) {
-            Thread t = new Thread(() -> task.accept(executor), "worker");
+            Thread t = threadFactory.newThread(() -> task.accept(executor));
             t.start();
 
             TestSqlGatewayService service =

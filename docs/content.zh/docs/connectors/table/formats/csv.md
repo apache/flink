@@ -95,14 +95,14 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>是否禁止对引用的值使用引号 (默认是 false). 如果禁止，选项 <code>'csv.quote-character'</code> 不能设置。</td>
+      <td>是否禁止对引用的值使用引号 (默认是 false)。 如果禁止，选项 <code>'csv.quote-character'</code> 不能设置。</td>
     </tr>
     <tr>
       <td><h5>csv.quote-character</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
-      <td>用于围住字段值的引号字符 (默认<code>"</code>).</td>
+      <td>用于围住字段值的引号字符 (默认<code>"</code>)。</td>
     </tr>
     <tr>
       <td><h5>csv.allow-comments</h5></td>
@@ -125,28 +125,28 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
-      <td>分隔数组和行元素的字符串(默认<code>';'</code>).</td>
+      <td>分隔数组和行元素的字符串(默认<code>';'</code>)。</td>
     </tr>
     <tr>
       <td><h5>csv.escape-character</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>转义字符(默认关闭).</td>
+      <td>转义字符(默认关闭)。</td>
     </tr>
     <tr>
       <td><h5>csv.null-literal</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>是否将 "null" 字符串转化为 null 值。</td>
+      <td>指定识别成 null 值的字符串（默认禁用）。在输入端会将该字符串转为 null 值，在输出端会将 null 值转成该字符串。</td>
     </tr>
     <tr>
       <td><h5>csv.write-bigdecimal-in-scientific-notation</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>设置将 Bigdecimal 类型的数据表示为科学计数法（默认为true，即需要转为科学计数法），例如一个BigDecimal的值为100000，设置true，结果为 '1E+5'；设置为false，结果为 100000。注意：只有当值不等于0且是10的倍数才会转为科学计数法</td>
+      <td>设置将 Bigdecimal 类型的数据表示为科学计数法（默认为true，即需要转为科学计数法），例如一个BigDecimal的值为100000，设置true，结果为 '1E+5'；设置为false，结果为 100000。注意：只有当值不等于0且是10的倍数才会转为科学计数法。</td>
     </tr>
     </tbody>
 </table>

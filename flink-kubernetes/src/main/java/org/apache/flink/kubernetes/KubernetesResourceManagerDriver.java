@@ -213,16 +213,29 @@ public class KubernetesResourceManagerDriver
                         },
                         getMainThreadExecutor()));
 
-        requestResourceFuture.whenComplete(
-                (ignore, t) -> {
-                    if (t instanceof CancellationException) {
-                        requestResourceFutures.remove(taskManagerPod.getName());
-                        if (createPodFuture.isDone()) {
-                            log.info("pod {} is cancelled before scheduled, stop it.", podName);
-                            stopPod(taskManagerPod.getName());
-                        }
-                    }
-                });
+        FutureUtils.assertNoException(
+                requestResourceFuture.handle(
+                        (ignore, t) -> {
+                            if (t == null) {
+                                return null;
+                            }
+                            if (t instanceof CancellationException) {
+
+                                requestResourceFutures.remove(taskManagerPod.getName());
+                                if (createPodFuture.isDone()) {
+                                    log.info(
+                                            "pod {} is cancelled before scheduled, stop it.",
+                                            podName);
+                                    stopPod(taskManagerPod.getName());
+                                }
+                            } else if (t instanceof RetryableException) {
+                                // ignore
+                            } else {
+                                log.error("Error completing resource request.", t);
+                                ExceptionUtils.rethrow(t);
+                            }
+                            return null;
+                        }));
 
         return requestResourceFuture;
     }
@@ -365,7 +378,8 @@ public class KubernetesResourceManagerDriver
                 requestResourceFutures.remove(podName);
         if (requestResourceFuture != null) {
             log.warn("Pod {} is terminated before being scheduled.", podName);
-            requestResourceFuture.completeExceptionally(new FlinkException("Pod is terminated."));
+            requestResourceFuture.completeExceptionally(
+                    new RetryableException("Pod is terminated."));
         }
 
         getResourceEventHandler()
@@ -439,6 +453,14 @@ public class KubernetesResourceManagerDriver
             } else {
                 getResourceEventHandler().onError(throwable);
             }
+        }
+    }
+
+    private static class RetryableException extends FlinkException {
+        private static final long serialVersionUID = 1L;
+
+        RetryableException(String message) {
+            super(message);
         }
     }
 }

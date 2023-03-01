@@ -426,7 +426,11 @@ public class CepOperator<IN, KEY, OUT>
                             Collection<Map<String, List<IN>>>,
                             Collection<Tuple2<Map<String, List<IN>>, Long>>>
                     pendingMatchesAndTimeout =
-                            nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+                            nfa.advanceTime(
+                                    sharedBufferAccessor,
+                                    nfaState,
+                                    timestamp,
+                                    afterMatchSkipStrategy);
 
             Collection<Map<String, List<IN>>> pendingMatches = pendingMatchesAndTimeout.f0;
             Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut = pendingMatchesAndTimeout.f1;

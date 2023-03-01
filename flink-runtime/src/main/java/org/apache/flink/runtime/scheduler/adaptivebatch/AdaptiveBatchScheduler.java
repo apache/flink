@@ -49,6 +49,7 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResult;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
@@ -61,8 +62,6 @@ import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
-import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroup;
-import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -127,7 +126,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             final Time rpcTimeout,
             final VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
             int defaultMaxParallelism,
-            HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint)
+            final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint,
+            final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId)
             throws Exception {
 
         super(
@@ -162,10 +162,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         this.vertexParallelismAndInputInfosDecider =
                 checkNotNull(vertexParallelismAndInputInfosDecider);
 
-        this.forwardGroupsByJobVertexId =
-                ForwardGroupComputeUtil.computeForwardGroups(
-                        jobGraph.getVerticesSortedTopologicallyFromSources(),
-                        getExecutionGraph()::getJobVertex);
+        this.forwardGroupsByJobVertexId = checkNotNull(forwardGroupsByJobVertexId);
 
         this.blockingResultInfos = new HashMap<>();
 
@@ -323,7 +320,10 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
         final ParallelismAndInputInfos parallelismAndInputInfos =
                 vertexParallelismAndInputInfosDecider.decideParallelismAndInputInfosForVertex(
-                        jobVertex.getJobVertexId(), inputs, parallelism);
+                        jobVertex.getJobVertexId(),
+                        inputs,
+                        parallelism,
+                        jobVertex.getMaxParallelism());
 
         if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
             log.info(
@@ -442,7 +442,9 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
     private void initializeOperatorCoordinatorsFor(ExecutionJobVertex vertex) {
         operatorCoordinatorHandler.registerAndStartNewCoordinators(
-                vertex.getOperatorCoordinators(), getMainThreadExecutor());
+                vertex.getOperatorCoordinators(),
+                getMainThreadExecutor(),
+                jobManagerJobMetricGroup);
     }
 
     /**

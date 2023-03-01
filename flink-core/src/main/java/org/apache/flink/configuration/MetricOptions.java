@@ -272,6 +272,17 @@ public class MetricOptions {
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured");
 
+    /**
+     * The scope format string that is applied to all metrics scoped to the components running on a
+     * JobManager of an operator.
+     */
+    public static final ConfigOption<String> SCOPE_NAMING_JM_OPERATOR =
+            key("metrics.scope.jm-operator")
+                    .stringType()
+                    .defaultValue("<host>.jobmanager.<job_name>.<operator_name>")
+                    .withDescription(
+                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator.");
+
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
             key("metrics.scope.tm-job")

@@ -122,4 +122,7 @@ public class MetricNames {
     public static final String LATEST_LOAD_TIME = "latestLoadTime";
     public static final String NUM_CACHED_RECORDS = "numCachedRecords";
     public static final String NUM_CACHED_BYTES = "numCachedBytes";
+
+    // FLIP-27 for split enumerator
+    public static final String UNASSIGNED_SPLITS = "unassignedSplits";
 }

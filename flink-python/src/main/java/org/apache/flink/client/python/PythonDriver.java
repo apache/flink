@@ -154,6 +154,8 @@ public final class PythonDriver {
      */
     static List<String> constructPythonCommands(final PythonDriverOptions pythonDriverOptions) {
         final List<String> commands = new ArrayList<>();
+        // disable output buffer
+        commands.add("-u");
         if (pythonDriverOptions.getEntryPointScript().isPresent()) {
             commands.add(pythonDriverOptions.getEntryPointScript().get());
         } else {
