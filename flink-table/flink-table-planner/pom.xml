@@ -421,8 +421,11 @@ under the License.
 							<includes>
 								<include>**/*ITCase.*</include>
 							</includes>
-							<!-- override reuseForks to true to reduce testing time -->
-							<reuseForks>true</reuseForks>
+							<!-- Setting this property to false is aims to alleviate OOM error
+							mentioned in issue: https://issues.apache.org/jira/browse/FLINK-18356.
+							This property can be removed after the OOM error mentioned in the above
+							issue is solved. -->
+							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
 				</executions>
