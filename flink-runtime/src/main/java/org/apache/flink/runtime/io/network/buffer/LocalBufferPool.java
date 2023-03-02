@@ -295,7 +295,9 @@ class LocalBufferPool implements BufferPool {
 
     @VisibleForTesting
     public int getNumberOfRequestedOverdraftMemorySegments() {
-        return numberOfRequestedOverdraftMemorySegments;
+        synchronized (availableMemorySegments) {
+            return numberOfRequestedOverdraftMemorySegments;
+        }
     }
 
     @Override
@@ -312,6 +314,8 @@ class LocalBufferPool implements BufferPool {
         }
     }
 
+    // suppress the FieldAccessNotGuarded warning as this method is unsafe by design.
+    @SuppressWarnings("FieldAccessNotGuarded")
     @Override
     public int bestEffortGetNumOfUsedBuffers() {
         return Math.max(
@@ -413,6 +417,7 @@ class LocalBufferPool implements BufferPool {
         return segment;
     }
 
+    @GuardedBy("availableMemorySegments")
     private void checkDestroyed() {
         if (isDestroyed) {
             throw new CancelTaskException("Buffer pool has already been destroyed.");
@@ -424,6 +429,7 @@ class LocalBufferPool implements BufferPool {
         return requestMemorySegment(UNKNOWN_CHANNEL);
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean requestMemorySegmentFromGlobal() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -444,6 +450,7 @@ class LocalBufferPool implements BufferPool {
         return false;
     }
 
+    @GuardedBy("availableMemorySegments")
     private MemorySegment requestOverdraftMemorySegmentFromGlobal() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -499,6 +506,7 @@ class LocalBufferPool implements BufferPool {
         mayNotifyAvailable(toNotify);
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean shouldBeAvailable() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -551,6 +559,7 @@ class LocalBufferPool implements BufferPool {
                 shouldBeAvailable(), needRequestingNotificationOfGlobalPoolAvailable);
     }
 
+    @GuardedBy("availableMemorySegments")
     private void checkConsistentAvailability() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -719,6 +728,7 @@ class LocalBufferPool implements BufferPool {
         }
     }
 
+    @GuardedBy("availableMemorySegments")
     private void returnMemorySegment(MemorySegment segment) {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -731,6 +741,7 @@ class LocalBufferPool implements BufferPool {
         networkBufferPool.recyclePooledMemorySegment(segment);
     }
 
+    @GuardedBy("availableMemorySegments")
     private void returnExcessMemorySegments() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -744,11 +755,13 @@ class LocalBufferPool implements BufferPool {
         }
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean hasExcessBuffers() {
         return numberOfRequestedOverdraftMemorySegments > 0
                 || numberOfRequestedMemorySegments > currentPoolSize;
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean isRequestedSizeReached() {
         return numberOfRequestedMemorySegments >= currentPoolSize;
     }
