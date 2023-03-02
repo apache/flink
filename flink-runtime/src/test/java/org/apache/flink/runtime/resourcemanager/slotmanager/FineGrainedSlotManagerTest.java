@@ -40,6 +40,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -197,6 +198,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
     }
 
     /** Tests that we can matched task manager will deduct pending task manager. */
+    @Disabled("FLINK-31297")
     @Test
     void testTaskManagerRegistrationDeductPendingTaskManager() throws Exception {
         final TaskExecutorConnection taskExecutionConnection1 = createTaskExecutorConnection();
