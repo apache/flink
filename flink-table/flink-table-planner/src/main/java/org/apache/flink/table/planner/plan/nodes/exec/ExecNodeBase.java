@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -38,6 +39,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,6 +75,10 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     private List<ExecEdge> inputEdges;
 
     private transient Transformation<T> transformation;
+
+    private SlotSharingGroup defaultSlotShareGroup = null;
+
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
     /** Holds the context information (id, name, version) as deserialized from a JSON plan. */
     @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.WRITE_ONLY)
@@ -171,7 +179,48 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                 }
             }
         }
+        setDefaultSlotShareGroup(planner, transformation);
         return transformation;
+    }
+
+    protected void setDefaultSlotShareGroup(Planner planner, Transformation<T> transformation) {
+        if (planner instanceof PlannerBase) {
+            Configuration configuration =
+                    ((PlannerBase) planner).getTableConfig().getConfiguration();
+            String slotGroupName = configuration.getString("table.slot-share-group.name", null);
+            if (slotGroupName == null) {
+                return;
+            }
+
+            if (defaultSlotShareGroup != null
+                    && !defaultSlotShareGroup.getName().equals(slotGroupName)) {
+                throw new RuntimeException(
+                        String.format(
+                                "name is error: %s,%s",
+                                defaultSlotShareGroup.getName(), slotGroupName));
+            }
+
+            if (defaultSlotShareGroup != null) {
+                return;
+            }
+
+            double slotGroupCpu = configuration.getDouble("table.slot-share-group.cpu", -1);
+            int slotGroupMemory = configuration.getInteger("table.slot-share-group.memory", -1);
+            log.info(
+                    String.format(
+                            "start set table share group, name:%s,cpu:%s,memory:%s",
+                            slotGroupName, slotGroupCpu, slotGroupMemory));
+
+            defaultSlotShareGroup =
+                    SlotSharingGroup.newBuilder(slotGroupName)
+                            .setCpuCores(slotGroupCpu)
+                            .setTaskHeapMemoryMB(slotGroupMemory)
+                            .build();
+        }
+
+        if (defaultSlotShareGroup != null) {
+            transformation.setSlotSharingGroup(defaultSlotShareGroup);
+        }
     }
 
     @Override
