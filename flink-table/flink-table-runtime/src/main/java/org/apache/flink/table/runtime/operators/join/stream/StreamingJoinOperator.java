@@ -196,7 +196,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 // other side to pass through
                 // RowDataStringSerializer rowStringSerializer = new RowDataStringSerializer(leftType);
                 // LOG.info("SERGEI left input optimization {}", rowStringSerializer.asString(element.getValue()));
-                outputNullPadding(element.getValue(), true);
+                outputNullPaddingForce(element.getValue(), true);
                 return;
             }
         }
@@ -229,7 +229,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 // condition will result in an association failure, so
                 // we will never have associated rows data from the
                 // other side to pass through
-                outputNullPadding(element.getValue(), false);
+                outputNullPaddingForce(element.getValue(), false);
                 return;
             }
         }
@@ -537,15 +537,19 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         collector.collect(outRow);
     }
 
-    private void outputNullPadding(RowData row, boolean isLeft) {
-        if (isBatchMode()) {
-            return;
-        }
+    private void outputNullPaddingForce(RowData row, boolean isLeft) {
         if (isLeft) {
             outRow.replace(row, rightNullRow);
         } else {
             outRow.replace(leftNullRow, row);
         }
         collector.collect(outRow);
+    }
+
+    private void outputNullPadding(RowData row, boolean isLeft) {
+        if (isBatchMode()) {
+            return;
+        }
+        outputNullPaddingForce(row, isLeft);
     }
 }
