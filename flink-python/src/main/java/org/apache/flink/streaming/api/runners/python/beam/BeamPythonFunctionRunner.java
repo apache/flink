@@ -35,6 +35,7 @@ import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -179,6 +180,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
+    private transient Thread shutdownHook;
+
     public BeamPythonFunctionRunner(
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
@@ -272,6 +275,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                             jobBundleFactory, createPythonExecutionEnvironment(config, -1));
         }
         progressHandler = getProgressHandler(flinkMetricContainer);
+
+        shutdownHook =
+                ShutdownHookUtil.addShutdownHook(
+                        this, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
     }
 
     @Override
@@ -295,6 +302,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             }
         } finally {
             sharedResources = null;
+        }
+
+        if (shutdownHook != null) {
+            ShutdownHookUtil.removeShutdownHook(
+                    shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+            shutdownHook = null;
         }
     }
 

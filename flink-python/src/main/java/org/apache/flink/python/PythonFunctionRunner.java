@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 
 /** The base interface of runner which is responsible for the execution of Python functions. */
 @Internal
-public interface PythonFunctionRunner {
+public interface PythonFunctionRunner extends AutoCloseable {
 
     /**
      * Prepares the Python function runner, such as preparing the Python execution environment, etc.
