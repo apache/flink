@@ -44,6 +44,36 @@ import static org.hamcrest.Matchers.hasSize;
 
 /** {@link StateLocalitySlotAssigner} test. */
 class StateLocalitySlotAssignerTest {
+
+    @Test
+    public void testDownScaleWithUnevenStateSize() {
+        int newParallelism = 1;
+        VertexInformation vertex = createVertex(newParallelism);
+        AllocationID allocationWith100bytes = new AllocationID();
+        AllocationID allocationWith200bytes = new AllocationID();
+
+        List<VertexAllocationInformation> allocations =
+                Arrays.asList(
+                        new VertexAllocationInformation(
+                                allocationWith100bytes,
+                                vertex.getJobVertexID(),
+                                KeyGroupRange.of(0, 99),
+                                1),
+                        new VertexAllocationInformation(
+                                allocationWith200bytes,
+                                vertex.getJobVertexID(),
+                                KeyGroupRange.of(100, 100),
+                                200));
+
+        Collection<SlotAssignment> assignments =
+                assign(
+                        vertex,
+                        Arrays.asList(allocationWith100bytes, allocationWith200bytes),
+                        allocations);
+
+        verifyAssignments(assignments, newParallelism, allocationWith200bytes);
+    }
+
     @Test
     public void testSlotsAreNotWasted() {
         VertexInformation vertex = createVertex(2);

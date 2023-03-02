@@ -294,11 +294,6 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         freeSlots.add(new TestSlotInfo(allocation1));
         freeSlots.add(new TestSlotInfo(allocation2));
 
-        Map<JobVertexID, Long> stateSizes = new HashMap<>();
-        stateSizes.put(vertex1.getJobVertexID(), 10L);
-        stateSizes.put(vertex2.getJobVertexID(), 10L);
-        stateSizes.put(vertex3.getJobVertexID(), 10L);
-
         JobSchedulingPlan schedulingPlan =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                                 (allocationId, resourceProfile) ->
