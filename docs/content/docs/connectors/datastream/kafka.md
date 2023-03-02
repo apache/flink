@@ -472,7 +472,21 @@ Kafka Rack Awareness allows flink to select and control the cloud region and ava
 
 ### Validation
 
-Additional validation are added to make sure any input to the supplier gets propertly configured by the comsumer and makes sure null values are handled propertly.
+Additional validation is added to ensure any input to the supplier gets properly configured by the consumer and ensures null values are handled properly.
+
+### RackId
+
+setRackId is the variable where the desired or available availability zones get stored, if this variable is empty Rack Awareness feature simply gets ignored and assigned the AZs that are available to taskmanagers.
+
+One of the ways this can be implemented is by making setRackId equal to an environment variable within your taskManager, for instance:
+
+```
+.setRackId(() -> System.getenv("TM_NODE_AZ"))
+```
+
+The "TM_NODE_AZ" is the name of the environment variable in the TaskManager image that contains the available Network zones we want to use. 
+
+Another option could be extracting the AZ directly from AWS CLI or API.
 
 ### Behind the Scene
 {{< hint info >}}
