@@ -301,6 +301,19 @@ public class ResultPartitionFactory {
         }
     }
 
+    /** Return whether this result partition need overdraft buffer. */
+    private static boolean isOverdraftBufferNeeded(ResultPartitionType resultPartitionType) {
+        // Only pipelined / pipelined-bounded partition needs overdraft buffer. More
+        // specifically, there is no reason to request more buffers for non-pipelined (i.e.
+        // batch) shuffle. The reasons are as follows:
+        // 1. For BoundedBlockingShuffle, each full buffer will be directly released.
+        // 2. For SortMergeShuffle, the maximum capacity of buffer pool is 4 * numSubpartitions. It
+        // is efficient enough to spill this part of memory to disk.
+        // 3. For Hybrid Shuffle, the buffer pool is unbounded. If it can't get a normal buffer, it
+        // also can't get an overdraft buffer.
+        return resultPartitionType.isPipelinedOrPipelinedBoundedResultPartition();
+    }
+
     /**
      * The minimum pool size should be <code>numberOfSubpartitions + 1</code> for two
      * considerations:
@@ -330,7 +343,7 @@ public class ResultPartitionFactory {
                     pair.getRight(),
                     numberOfSubpartitions,
                     maxBuffersPerChannel,
-                    maxOverdraftBuffersPerGate);
+                    isOverdraftBufferNeeded(type) ? maxOverdraftBuffersPerGate : 0);
         };
     }
 
