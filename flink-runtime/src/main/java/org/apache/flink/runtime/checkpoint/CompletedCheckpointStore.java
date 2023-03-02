@@ -64,7 +64,7 @@ public interface CompletedCheckpointStore {
      * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
      * added.
      */
-    default CompletedCheckpoint getLatestCheckpoint() throws Exception {
+    default CompletedCheckpoint getLatestCheckpoint() {
         List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
         if (allCheckpoints.isEmpty()) {
             return null;
@@ -105,7 +105,7 @@ public interface CompletedCheckpointStore {
      *
      * <p>Returns an empty list if no checkpoint has been added yet.
      */
-    List<CompletedCheckpoint> getAllCheckpoints() throws Exception;
+    List<CompletedCheckpoint> getAllCheckpoints();
 
     /** Returns the current number of retained checkpoints. */
     int getNumberOfRetainedCheckpoints();

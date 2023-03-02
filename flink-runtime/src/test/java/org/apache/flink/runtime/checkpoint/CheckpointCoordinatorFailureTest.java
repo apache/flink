@@ -299,18 +299,17 @@ class CheckpointCoordinatorFailureTest extends TestLogger {
         }
 
         @Override
-        public CompletedCheckpoint getLatestCheckpoint() throws Exception {
+        public CompletedCheckpoint getLatestCheckpoint() {
             throw new UnsupportedOperationException("Not implemented.");
         }
 
         @Override
-        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
-                throws Exception {
+        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
             throw new UnsupportedOperationException("Not implemented.");
         }
 
         @Override
-        public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
+        public List<CompletedCheckpoint> getAllCheckpoints() {
             return Collections.emptyList();
         }
 

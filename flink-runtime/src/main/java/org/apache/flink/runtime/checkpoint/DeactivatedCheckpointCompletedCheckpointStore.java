@@ -45,7 +45,7 @@ public enum DeactivatedCheckpointCompletedCheckpointStore implements CompletedCh
             throws Exception {}
 
     @Override
-    public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
+    public List<CompletedCheckpoint> getAllCheckpoints() {
         throw unsupportedOperationException();
     }
 
