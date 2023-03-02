@@ -23,6 +23,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -44,7 +46,6 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.stream.StreamSupport;
 
 /**
  * State which waits for the creation of the {@link ExecutionGraph}. If the creation fails, then the
@@ -119,19 +120,16 @@ public class CreatingExecutionGraph implements State {
                 operatorCoordinatorHandler.initializeOperatorCoordinators(
                         context.getMainThreadExecutor(), context.getMetricGroup());
                 operatorCoordinatorHandler.startAllOperatorCoordinators();
-                String updatedPlan =
+                final String updatedPlan =
                         JsonPlanGenerator.generatePlan(
                                 executionGraph.getJobID(),
                                 executionGraph.getJobName(),
                                 JobType.STREAMING, // Adaptive scheduler works only with STREAMING
                                 // jobs
                                 () ->
-                                        StreamSupport.stream(
-                                                        executionGraph
-                                                                .getAllExecutionVertices()
-                                                                .spliterator(),
-                                                        false)
-                                                .map(v -> v.getJobVertex().getJobVertex())
+                                        IterableUtils.toStream(
+                                                        executionGraph.getVerticesTopologically())
+                                                .map(ExecutionJobVertex::getJobVertex)
                                                 .iterator(),
                                 executionGraphWithVertexParallelism.getVertexParallelism());
                 executionGraph.setJsonPlan(updatedPlan);
