@@ -1331,8 +1331,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=c0], joinCondition=[(a = id)], select=[a, b, c, proctime, rowtime, c0, id, name, age])
-   +- Calc(select=[a, b, c, proctime, rowtime, CAST(c AS INTEGER) AS c0])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
+   +- Calc(select=[a, b, c, proctime, rowtime], where=[(a = CAST(c AS INTEGER))])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -1354,8 +1354,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=c0], joinCondition=[(a = id)], select=[a, b, c, proctime, rowtime, c0, id, name, age])
-   +- Calc(select=[a, b, c, proctime, rowtime, CAST(c AS INTEGER) AS c0])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
+   +- Calc(select=[a, b, c, proctime, rowtime], where=[(a = CAST(c AS INTEGER))])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
