@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.service.operation;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -38,10 +39,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
@@ -123,6 +126,32 @@ public class OperationManagerTest {
 
         assertThat(operationManager.getOperationInfo(operationHandle).getStatus())
                 .isEqualTo(OperationStatus.CANCELED);
+    }
+
+    @Test
+    public void testCancelOperationByForce() throws Exception {
+        AtomicReference<Throwable> exception = new AtomicReference<>(null);
+        OperationHandle operationHandle =
+                operationManager.submitOperation(
+                        () -> {
+                            try {
+                                // mock cpu busy task that doesn't interrupt system call
+                                while (true) {}
+                            } catch (Throwable t) {
+                                exception.set(t);
+                                throw t;
+                            }
+                        });
+
+        threadFactory.newThread(() -> operationManager.cancelOperation(operationHandle)).start();
+        operationManager.awaitOperationTermination(operationHandle);
+
+        assertThat(operationManager.getOperationInfo(operationHandle).getStatus())
+                .isEqualTo(OperationStatus.CANCELED);
+        CommonTestUtils.waitUtil(
+                () -> exception.get() != null,
+                Duration.ofSeconds(10),
+                "Failed to kill the task with infinite loop.");
     }
 
     @Test
