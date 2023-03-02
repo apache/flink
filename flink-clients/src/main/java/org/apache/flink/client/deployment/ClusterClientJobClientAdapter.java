@@ -58,7 +58,7 @@ public class ClusterClientJobClientAdapter<ClusterID>
     private final ClassLoader classLoader;
 
     private ClusterClient<ClusterID> clusterClient;
-    //when select then isQuery = true;
+    // when select then isQuery = true;
     private Boolean isQuery = false;
 
     public ClusterClientJobClientAdapter(
@@ -70,8 +70,8 @@ public class ClusterClientJobClientAdapter<ClusterID>
         this.classLoader = classLoader;
     }
 
-    private ClusterClient<ClusterID> getClusterClient(){
-        if(clusterClient == null){
+    private ClusterClient<ClusterID> getClusterClient() {
+        if(clusterClient == null) {
             clusterClient = clusterClientProvider.getClusterClient();
         }
         return clusterClient;
@@ -84,22 +84,22 @@ public class ClusterClientJobClientAdapter<ClusterID>
 
     @Override
     public CompletableFuture<JobStatus> getJobStatus() {
-        if(!isQuery) {
+        if (!isQuery) {
             return bridgeClientRequest(
                     clusterClientProvider, (clusterClient -> clusterClient.getJobStatus(jobID)));
         }
         CompletableFuture<JobStatus> jobStatus = new CompletableFuture<JobStatus>();
-        try{
+        try {
             jobStatus = this.getClusterClient().getJobStatus(jobID);
-            if(jobStatus.get().isTerminalState() || jobStatus.get().isGloballyTerminalState()){
-                if(clusterClient != null){
+            if (jobStatus.get().isTerminalState() || jobStatus.get().isGloballyTerminalState()) {
+                if (clusterClient != null) {
                     clusterClient.close();
                 }
             }
-        }catch (Exception e){
-            //do nothing
+        } catch (Exception e) {
+            // do nothing
         }
-        return  jobStatus;
+        return jobStatus;
     }
 
     @Override
@@ -163,7 +163,7 @@ public class ClusterClientJobClientAdapter<ClusterID>
     @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             OperatorID operatorId, CoordinationRequest request) {
-        if(request instanceof CollectCoordinationRequest){
+        if (request instanceof CollectCoordinationRequest) {
             this.isQuery = true;
             return this.getClusterClient().sendCoordinationRequest(jobID, operatorId, request);
         }
