@@ -95,6 +95,7 @@ import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -294,7 +295,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .setJobMasterConfiguration(configuration)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        final int numAvailableSlots = 1;
+        final int numAvailableSlots = 2;
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
@@ -321,6 +322,13 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
                 .isEqualTo(numAvailableSlots);
+
+        assertThat(
+                        JacksonMapperFactory.createObjectMapper()
+                                .readTree(executionGraph.getJsonPlan())
+                                .get("nodes")
+                                .size())
+                .isEqualTo(1);
     }
 
     @Test
