@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.table.api.TableException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -26,6 +31,8 @@ import java.util.ServiceLoader;
 
 /** This class contains utilities to deal with {@link ServiceLoader}. */
 class ServiceLoaderUtil {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ServiceLoaderUtil.class);
 
     /**
      * This method behaves similarly to {@link ServiceLoader#load(Class, ClassLoader)}, but it
@@ -44,6 +51,20 @@ class ServiceLoaderUtil {
             } catch (NoSuchElementException e) {
                 break;
             } catch (Throwable t) {
+                if (t instanceof NoClassDefFoundError) {
+                    LOG.debug(
+                            "NoClassDefFoundError when loading a "
+                                    + clazz.getCanonicalName()
+                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
+                            t);
+                    // After logging, we just ignore this failure
+                    continue;
+                }
+
+                if (!clazz.isInstance(t)) {
+                    throw new TableException(
+                            "Unexpected error when trying to load service provider.", t);
+                }
                 loadResults.add(new LoadResult<>(t));
             }
         }

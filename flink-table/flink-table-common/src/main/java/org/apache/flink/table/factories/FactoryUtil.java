@@ -806,15 +806,6 @@ public final class FactoryUtil {
                 .forEach(
                         loadResult -> {
                             if (loadResult.hasFailed()) {
-                                if (loadResult.getError() instanceof NoClassDefFoundError) {
-                                    LOG.debug(
-                                            "NoClassDefFoundError when loading a "
-                                                    + Factory.class
-                                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
-                                            loadResult.getError());
-                                    // After logging, we just ignore this failure
-                                    return;
-                                }
                                 throw new TableException(
                                         "Unexpected error when trying to load service provider for factories.",
                                         loadResult.getError());
