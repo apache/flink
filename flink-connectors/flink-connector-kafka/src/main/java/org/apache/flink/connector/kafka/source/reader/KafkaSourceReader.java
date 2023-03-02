@@ -186,12 +186,6 @@ public class KafkaSourceReader<T>
         return splitState.toKafkaPartitionSplit();
     }
 
-    @Override
-    public void pauseOrResumeSplits(
-            Collection<String> splitsToPause, Collection<String> splitsToResume) {
-        splitFetcherManager.pauseOrResumeSplits(splitsToPause, splitsToResume);
-    }
-
     // ------------------------
 
     @VisibleForTesting
