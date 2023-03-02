@@ -208,6 +208,26 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 new AllocationID(), DEFAULT_SLOT_RESOURCE_PROFILE));
         new Context() {
             {
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        (jobRequirements, ignore) -> {
+                            assertThat(jobRequirements).hasSize(1);
+                            JobID jobID = jobRequirements.keySet().stream().findFirst().get();
+                            ResourceAllocationResult.Builder builder =
+                                    ResourceAllocationResult.builder();
+                            PendingTaskManager pendingTaskManager =
+                                    new PendingTaskManager(
+                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                            DEFAULT_NUM_SLOTS_PER_WORKER);
+                            builder.addPendingTaskManagerAllocate(pendingTaskManager);
+                            builder.addAllocationOnPendingResource(
+                                    jobID,
+                                    pendingTaskManager.getPendingTaskManagerId(),
+                                    DEFAULT_SLOT_RESOURCE_PROFILE);
+                            return builder.build();
+                        });
+
+                slotManagerConfigurationBuilder.setRequirementCheckDelay(Duration.ZERO);
+
                 runTest(
                         () -> {
                             final CompletableFuture<SlotManager.RegistrationResult>
@@ -218,11 +238,9 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     registerTaskManagerFuture3 = new CompletableFuture<>();
                             runInMainThread(
                                     () -> {
-                                        getTaskManagerTracker()
-                                                .addPendingTaskManager(
-                                                        new PendingTaskManager(
-                                                                DEFAULT_TOTAL_RESOURCE_PROFILE,
-                                                                DEFAULT_NUM_SLOTS_PER_WORKER));
+                                        getSlotManager()
+                                                .processResourceRequirements(
+                                                        createResourceRequirementsForSingleSlot());
                                         // task manager with allocated slot cannot deduct pending
                                         // task manager
                                         registerTaskManagerFuture1.complete(
@@ -576,7 +594,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             }
                             return ResourceAllocationResult.builder().build();
                         });
-                setRequirementCheckDelay(requirementCheckDelay);
+                slotManagerConfigurationBuilder.setRequirementCheckDelay(requirementCheckDelay);
                 runTest(
                         () -> {
                             final ResourceRequirements resourceRequirements1 =
