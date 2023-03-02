@@ -659,7 +659,7 @@ LogicalProject(id=[$0], ts=[$4])
 Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
 +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)]]], fields=[id, c], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[id, c], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>

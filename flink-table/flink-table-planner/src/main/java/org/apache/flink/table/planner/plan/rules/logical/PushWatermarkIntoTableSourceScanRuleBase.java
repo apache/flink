@@ -56,6 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_GROUP;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_MAX_DRIFT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_UPDATE_INTERVAL;
 import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_EMIT_STRATEGY;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition;
 
@@ -200,6 +203,12 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
         WatermarkParams.WatermarkParamsBuilder builder = WatermarkParams.builder();
         getOptions(WATERMARK_EMIT_STRATEGY, hintOptions, tableOptions)
                 .ifPresent(builder::emitStrategy);
+        getOptions(WATERMARK_ALIGNMENT_GROUP, hintOptions, tableOptions)
+                .ifPresent(builder::alignGroupName);
+        getOptions(WATERMARK_ALIGNMENT_MAX_DRIFT, hintOptions, tableOptions)
+                .ifPresent(builder::alignMaxDrift);
+        getOptions(WATERMARK_ALIGNMENT_UPDATE_INTERVAL, hintOptions, tableOptions)
+                .ifPresent(builder::alignUpdateInterval);
         return builder.build();
     }
 

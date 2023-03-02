@@ -96,6 +96,13 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                             generatedWatermarkGenerator, watermarkParams);
 
             WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.forGenerator(supplier);
+            if (watermarkParams != null && watermarkParams.alignWatermarkEnabled()) {
+                watermarkStrategy =
+                        watermarkStrategy.withWatermarkAlignment(
+                                watermarkParams.getAlignGroupName(),
+                                watermarkParams.getAlignMaxDrift(),
+                                watermarkParams.getAlignUpdateInterval());
+            }
             if (idleTimeoutMillis > 0) {
                 watermarkStrategy =
                         watermarkStrategy.withIdleness(Duration.ofMillis(idleTimeoutMillis));
@@ -124,6 +131,15 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
         if (watermarkParams != null) {
             WatermarkEmitStrategy emitStrategy = watermarkParams.getEmitStrategy();
             sb.append(", watermarkEmitStrategy=[").append(emitStrategy).append("]");
+            if (watermarkParams.alignWatermarkEnabled()) {
+                sb.append(", watermarkAlignment=[")
+                        .append(watermarkParams.getAlignGroupName())
+                        .append(", ")
+                        .append(watermarkParams.getAlignMaxDrift())
+                        .append(", ")
+                        .append(watermarkParams.getAlignUpdateInterval())
+                        .append("]");
+            }
         }
         return sb.toString();
     }

@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -129,6 +130,24 @@ public final class FactoryUtil {
                                     + "'on-periodic' means emitting watermark periodically. "
                                     + "The default strategy is 'on-periodic'");
 
+    public static final ConfigOption<String> WATERMARK_ALIGNMENT_GROUP =
+            ConfigOptions.key("scan.watermark.alignment.group")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The watermark alignment group name.");
+
+    public static final ConfigOption<Duration> WATERMARK_ALIGNMENT_MAX_DRIFT =
+            ConfigOptions.key("scan.watermark.alignment.max-drift")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription("The max allowed watermark drift.");
+
+    public static final ConfigOption<Duration> WATERMARK_ALIGNMENT_UPDATE_INTERVAL =
+            ConfigOptions.key("scan.watermark.alignment.update-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(1000))
+                    .withDescription("update interval to align watermark.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).
@@ -149,6 +168,9 @@ public final class FactoryUtil {
     static {
         Set<ConfigOption<?>> set = new HashSet<>();
         set.add(WATERMARK_EMIT_STRATEGY);
+        set.add(WATERMARK_ALIGNMENT_GROUP);
+        set.add(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        set.add(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
         watermarkOptionSet = Collections.unmodifiableSet(set);
     }
 
@@ -1396,6 +1418,23 @@ public final class FactoryUtil {
     public static Optional<String> checkWatermarkOptions(ReadableConfig conf) {
         // try to validate watermark options by parsing it
         watermarkOptionSet.forEach(option -> readOption(conf, option));
+
+        // check watermark alignment options
+        Optional<String> groupOptional = conf.getOptional(WATERMARK_ALIGNMENT_GROUP);
+        Optional<Duration> maxDriftOptional = conf.getOptional(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        Optional<Duration> updateIntervalOptional =
+                conf.getOptional(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
+
+        if ((groupOptional.isPresent()
+                        || maxDriftOptional.isPresent()
+                        || updateIntervalOptional.isPresent())
+                && (!groupOptional.isPresent() || !maxDriftOptional.isPresent())) {
+            String errMsg =
+                    String.format(
+                            "'%s' and '%s' must be set when configuring watermark alignment",
+                            WATERMARK_ALIGNMENT_GROUP.key(), WATERMARK_ALIGNMENT_MAX_DRIFT.key());
+            return Optional.of(errMsg);
+        }
         return Optional.empty();
     }
 }

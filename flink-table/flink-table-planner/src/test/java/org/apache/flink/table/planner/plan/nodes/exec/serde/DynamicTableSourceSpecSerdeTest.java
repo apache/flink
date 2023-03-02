@@ -70,6 +70,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -217,6 +218,9 @@ public class DynamicTableSourceSpecSerdeTest {
                                                 new TimestampType(false, TimestampKind.ROWTIME, 3)),
                                         WatermarkParams.builder()
                                                 .emitStrategy(WatermarkEmitStrategy.ON_PERIODIC)
+                                                .alignGroupName("align-group-1")
+                                                .alignMaxDrift(Duration.ofMinutes(1))
+                                                .alignUpdateInterval(Duration.ofSeconds(1))
                                                 .build()),
                                 new SourceWatermarkSpec(
                                         true,
