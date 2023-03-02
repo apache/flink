@@ -370,7 +370,7 @@ public class SortMergeResultPartitionTest extends TestLogger {
         ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
         partition.release();
 
-        while (!view.isReleased()) {
+        while (!view.isReleased() && partition.getResultFile() != null) {
             ResultSubpartition.BufferAndBacklog bufferAndBacklog = view.getNextBuffer();
             if (bufferAndBacklog != null) {
                 bufferAndBacklog.buffer().recycleBuffer();
