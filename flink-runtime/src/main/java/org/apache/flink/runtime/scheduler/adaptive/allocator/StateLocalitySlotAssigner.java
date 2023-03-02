@@ -199,9 +199,13 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
     private static long estimateSize(
             KeyGroupRange newRange, VertexAllocationInformation allocation) {
         KeyGroupRange oldRange = allocation.getKeyGroupRange();
-        // Estimate state size per key group. For scoring, assume 1 if size estimate is 0 to
-        // accommodate for averaging non-zero states
-        long keyGroupSize = Math.max(allocation.averageKeyGroupSizeInBytes, 1L);
+        if (allocation.stateSizeInBytes * oldRange.getNumberOfKeyGroups() == 0) {
+            return 0L;
+        }
+        // round up to 1
+        long keyGroupSize =
+                allocation.stateSizeInBytes
+                        / Math.min(allocation.stateSizeInBytes, oldRange.getNumberOfKeyGroups());
         int numberOfKeyGroups = oldRange.getIntersection(newRange).getNumberOfKeyGroups();
         return numberOfKeyGroups * keyGroupSize;
     }

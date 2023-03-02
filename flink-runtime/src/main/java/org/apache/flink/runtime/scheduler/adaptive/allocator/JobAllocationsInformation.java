@@ -63,8 +63,8 @@ public class JobAllocationsInformation {
         final Map<JobVertexID, List<VertexAllocationInformation>> allocations = new HashMap<>();
         for (ExecutionJobVertex vertex : graph.getVerticesTopologically()) {
             JobVertexID jobVertexId = vertex.getJobVertexId();
-            long avgKgSize = stateSizeEstimates.estimate(jobVertexId).orElse(0L);
             for (ExecutionVertex executionVertex : vertex.getTaskVertices()) {
+                long stateSize = stateSizeEstimates.estimate(executionVertex.getID()).orElse(0L);
                 AllocationID allocationId =
                         executionVertex.getCurrentExecutionAttempt().getAssignedAllocationID();
                 KeyGroupRange kgr =
@@ -76,7 +76,7 @@ public class JobAllocationsInformation {
                         .computeIfAbsent(jobVertexId, ignored -> new ArrayList<>())
                         .add(
                                 new VertexAllocationInformation(
-                                        allocationId, jobVertexId, kgr, avgKgSize));
+                                        allocationId, jobVertexId, kgr, stateSize));
             }
         }
         return allocations;
@@ -95,17 +95,17 @@ public class JobAllocationsInformation {
         private final AllocationID allocationID;
         private final JobVertexID jobVertexID;
         private final KeyGroupRange keyGroupRange;
-        public final long averageKeyGroupSizeInBytes;
+        public final long stateSizeInBytes;
 
         public VertexAllocationInformation(
                 AllocationID allocationID,
                 JobVertexID jobVertexID,
                 KeyGroupRange keyGroupRange,
-                long averageKeyGroupSizeInBytes) {
+                long stateSizeInBytes) {
             this.allocationID = allocationID;
             this.jobVertexID = jobVertexID;
             this.keyGroupRange = keyGroupRange;
-            this.averageKeyGroupSizeInBytes = averageKeyGroupSizeInBytes;
+            this.stateSizeInBytes = stateSizeInBytes;
         }
 
         public AllocationID getAllocationID() {
