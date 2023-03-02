@@ -53,9 +53,9 @@ class StateLocalitySlotAssignerTest {
         List<VertexAllocationInformation> allocations =
                 Arrays.asList(
                         new VertexAllocationInformation(
-                                alloc1, vertex.getJobVertexID(), KeyGroupRange.of(0, 9)),
+                                alloc1, vertex.getJobVertexID(), KeyGroupRange.of(0, 9), 1),
                         new VertexAllocationInformation(
-                                alloc2, vertex.getJobVertexID(), KeyGroupRange.of(10, 19)));
+                                alloc2, vertex.getJobVertexID(), KeyGroupRange.of(10, 19), 1));
 
         assign(vertex, Arrays.asList(alloc1, alloc2), allocations);
     }
@@ -76,7 +76,8 @@ class StateLocalitySlotAssignerTest {
                             iterator.next(),
                             vertex.getJobVertexID(),
                             KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
-                                    vertex.getMaxParallelism(), oldParallelism, i)));
+                                    vertex.getMaxParallelism(), oldParallelism, i),
+                            1));
         }
 
         Collection<SlotAssignment> assignments = assign(vertex, allocationIDs, prevAllocations);
@@ -106,7 +107,8 @@ class StateLocalitySlotAssignerTest {
                 new VertexAllocationInformation(
                         biggestAllocation,
                         vertex.getJobVertexID(),
-                        KeyGroupRange.of(0, halfOfKeyGroupRange - 1)));
+                        KeyGroupRange.of(0, halfOfKeyGroupRange - 1),
+                        1));
 
         // and the remaining subtasks had only one key group each
         for (int subtaskIdx = 1; subtaskIdx < oldParallelism; subtaskIdx++) {
@@ -115,7 +117,8 @@ class StateLocalitySlotAssignerTest {
                     new VertexAllocationInformation(
                             iterator.next(),
                             vertex.getJobVertexID(),
-                            KeyGroupRange.of(keyGroup, keyGroup)));
+                            KeyGroupRange.of(keyGroup, keyGroup),
+                            1));
         }
 
         Collection<SlotAssignment> assignments = assign(vertex, allocationIDs, prevAllocations);
