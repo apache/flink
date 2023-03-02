@@ -71,7 +71,7 @@ public class ClusterClientJobClientAdapter<ClusterID>
     }
 
     private ClusterClient<ClusterID> getClusterClient() {
-        if(clusterClient == null) {
+        if (clusterClient == null) {
             clusterClient = clusterClientProvider.getClusterClient();
         }
         return clusterClient;
