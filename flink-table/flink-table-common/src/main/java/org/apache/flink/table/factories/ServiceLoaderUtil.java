@@ -18,87 +18,45 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.table.api.TableException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.ServiceLoader;
 
 /** This class contains utilities to deal with {@link ServiceLoader}. */
 class ServiceLoaderUtil {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ServiceLoaderUtil.class);
-
     /**
-     * This method behaves similarly to {@link ServiceLoader#load(Class, ClassLoader)}, but it
-     * returns a list with the results of the iteration, wrapping the iteration failures such as
-     * {@link NoClassDefFoundError}.
+     * Tries to load all This method behaves similarly to {@link ServiceLoader#load(Class,
+     * ClassLoader)}, but it returns a list with the results of the iteration, wrapping the
+     * iteration failures such as {@link NoClassDefFoundError}.
      */
-    static <T> List<LoadResult<T>> load(Class<T> clazz, ClassLoader classLoader) {
-        List<LoadResult<T>> loadResults = new ArrayList<>();
+    static <S extends Throwable, T> List<T> load(
+            Class<T> clazz,
+            ClassLoader classLoader,
+            ThrowingConsumer<Throwable, S> errorHandlingCallback)
+            throws S {
+        List<T> loadResults = new ArrayList<>();
 
         Iterator<T> serviceLoaderIterator = ServiceLoader.load(clazz, classLoader).iterator();
 
         while (true) {
             try {
-                T next = serviceLoaderIterator.next();
-                loadResults.add(new LoadResult<>(next));
-            } catch (NoSuchElementException e) {
-                break;
-            } catch (Throwable t) {
-                if (t instanceof NoClassDefFoundError) {
-                    LOG.debug(
-                            "NoClassDefFoundError when loading a "
-                                    + clazz.getCanonicalName()
-                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
-                            t);
-                    // After logging, we just ignore this failure
-                    continue;
+                // error handling should also be applied to the hasNext() call because service
+                // loading might cause problems here as well
+                if (!serviceLoaderIterator.hasNext()) {
+                    break;
                 }
 
-                if (!clazz.isInstance(t)) {
-                    throw new TableException(
-                            "Unexpected error when trying to load service provider.", t);
-                }
-                loadResults.add(new LoadResult<>(t));
+                T next = serviceLoaderIterator.next();
+                loadResults.add(next);
+            } catch (Throwable t) {
+                errorHandlingCallback.accept(t);
             }
         }
 
         return loadResults;
-    }
-
-    static class LoadResult<T> {
-        private final T service;
-        private final Throwable error;
-
-        private LoadResult(T service, Throwable error) {
-            this.service = service;
-            this.error = error;
-        }
-
-        private LoadResult(T service) {
-            this(service, null);
-        }
-
-        private LoadResult(Throwable error) {
-            this(null, error);
-        }
-
-        public boolean hasFailed() {
-            return error != null;
-        }
-
-        public Throwable getError() {
-            return error;
-        }
-
-        public T getService() {
-            return service;
-        }
     }
 }

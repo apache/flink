@@ -52,7 +52,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -801,18 +800,23 @@ public final class FactoryUtil {
     }
 
     static List<Factory> discoverFactories(ClassLoader classLoader) {
-        final List<Factory> result = new LinkedList<>();
-        ServiceLoaderUtil.load(Factory.class, classLoader)
-                .forEach(
-                        loadResult -> {
-                            if (loadResult.hasFailed()) {
-                                throw new TableException(
-                                        "Unexpected error when trying to load service provider for factories.",
-                                        loadResult.getError());
-                            }
-                            result.add(loadResult.getService());
-                        });
-        return result;
+        final Class<Factory> classToLoad = Factory.class;
+        return ServiceLoaderUtil.load(
+                classToLoad,
+                classLoader,
+                throwable -> {
+                    if (throwable instanceof NoClassDefFoundError) {
+                        LOG.debug(
+                                "NoClassDefFoundError when loading a "
+                                        + classToLoad.getCanonicalName()
+                                        + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
+                                throwable);
+                    } else {
+                        throw new TableException(
+                                "Unexpected error when trying to load service provider.",
+                                throwable);
+                    }
+                });
     }
 
     private static String stringifyOption(String key, String value) {
