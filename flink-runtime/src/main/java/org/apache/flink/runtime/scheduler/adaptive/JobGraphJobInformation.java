@@ -79,9 +79,8 @@ public class JobGraphJobInformation implements JobInformation {
                 jobGraph.getVertices(), (vertex) -> getVertexInformation(vertex.getID()));
     }
 
-    /** Returns a copy of a jobGraph that can be mutated. */
-    public JobGraph copyJobGraph() throws IOException, ClassNotFoundException {
-        return InstantiationUtil.clone(jobGraph);
+    public JobGraph getJobGraph() {
+        return jobGraph;
     }
 
     private static final class JobVertexInformation implements JobInformation.VertexInformation {

@@ -933,7 +933,7 @@ public class AdaptiveScheduler
 
         try {
             vertexParallelism = determineParallelism(slotAllocator);
-            JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
+            JobGraph adjustedJobGraph = jobInformation.getJobGraph();
 
             for (JobVertex vertex : adjustedJobGraph.getVertices()) {
                 JobVertexID id = vertex.getID();
@@ -1025,7 +1025,7 @@ public class AdaptiveScheduler
     private ExecutionGraph createExecutionGraphAndRestoreState(
             VertexParallelismStore adjustedParallelismStore) throws Exception {
         return executionGraphFactory.createAndRestoreExecutionGraph(
-                jobInformation.copyJobGraph(),
+                jobInformation.getJobGraph(),
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
