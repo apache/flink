@@ -300,7 +300,8 @@ public class NettyShuffleEnvironmentOptions {
                                     + " such uninterruptible action, without blocking unaligned checkpoints for long period of"
                                     + " time. Overdraft buffers are provided on best effort basis only if the system has some"
                                     + " unused buffers available. Subtask that has used overdraft buffers won't be allowed to"
-                                    + " process any more records until the overdraft buffers are returned to the pool.");
+                                    + " process any more records until the overdraft buffers are returned to the pool."
+                                    + " It should be noted that this config option only takes effect for Pipelined Shuffle.");
 
     /** The timeout for requesting exclusive buffers for each channel. */
     @Documentation.ExcludeFromDocumentation(
