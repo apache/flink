@@ -133,56 +133,54 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 
 <span class="label label-danger">注意</span> 请记住，只有在扩展 API 时才需要使用到物理提示。使用预定义的 source、sink 以及 Flink 函数时，不需要用到物理提示。在使用 Table API 编写程序时，Flink 会忽略物理提示（例如 `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`）。
 
-List of Data Types
+数据类型列表
 ------------------
-
-This section lists all pre-defined data types.
+这部分列举了所有预定义的数据类型。
 {{< tabs "datatypesimport" >}}
 {{< tab "Java/Scala" >}}
-For the JVM-based Table API those types are also available in `org.apache.flink.table.api.DataTypes`.
+Java/Scala Table API的数据类型详见： `org.apache.flink.table.api.DataTypes`.
 {{< /tab >}}
 {{< tab "Python" >}}
-For the Python Table API, those types are available in `pyflink.table.types.DataTypes`.
+Python Table API, 的数据类型详见： `pyflink.table.types.DataTypes`.
 {{< /tab >}}
 {{< /tabs >}}
 
-The default planner supports the following set of SQL types:
+默认 `Planner` 支持下列SQL数据类型：
 
-| Data Type        | Remarks for Data Type                              |
-|:-----------------|:---------------------------------------------------|
-| `CHAR`           |                                                    |
-| `VARCHAR`        |                                                    |
-| `STRING`         |                                                    |
-| `BOOLEAN`        |                                                    |
-| `BINARY`         |                                                    |
-| `VARBINARY`      |                                                    |
-| `BYTES`          |                                                    |
-| `DECIMAL`        | Supports fixed precision and scale.                |
-| `TINYINT`        |                                                    |
-| `SMALLINT`       |                                                    |
-| `INTEGER`        |                                                    |
-| `BIGINT`         |                                                    |
-| `FLOAT`          |                                                    |
-| `DOUBLE`         |                                                    |
-| `DATE`           |                                                    |
-| `TIME`           | Supports only a precision of `0`.                  |
-| `TIMESTAMP`      |                                                    |
-| `TIMESTAMP_LTZ`  |                                                    |
-| `INTERVAL`       | Supports only interval of `MONTH` and `SECOND(3)`. |
-| `ARRAY`          |                                                    |
-| `MULTISET`       |                                                    |
-| `MAP`            |                                                    |
-| `ROW`            |                                                    |
-| `RAW`            |                                                    |
-| Structured types | Only exposed in user-defined functions yet.        |
+| 数据类型             | 备注                   |
+|:-----------------|:---------------------|
+| `CHAR`           |                      |
+| `VARCHAR`        |                      |
+| `STRING`         |                      |
+| `BOOLEAN`        |                      |
+| `BINARY`         |                      |
+| `VARBINARY`      |                      |
+| `BYTES`          |                      |
+| `DECIMAL`        | 支持固定精度和比例            |
+| `TINYINT`        |                      |
+| `SMALLINT`       |                      |
+| `INTEGER`        |                      |
+| `BIGINT`         |                      |
+| `FLOAT`          |                      |
+| `DOUBLE`         |                      |
+| `DATE`           |                      |
+| `TIME`           | 仅支到0.的精度             |
+| `TIMESTAMP`      |                      |
+| `TIMESTAMP_LTZ`  |                      |
+| `INTERVAL`       | 仅支持MONTH 到 SECOND(3） |
+| `ARRAY`          |                      |
+| `MULTISET`       |                      |
+| `MAP`            |                      |
+| `ROW`            |                      |
+| `RAW`            |                      |
+| Structured types | 目前只暴露在UDF函数中         |
 
-### Character Strings
+### 字符串
 
 #### `CHAR`
+定长字符串的数据类型。
 
-Data type of a fixed-length character string.
-
-**Declaration**
+**声明**
 
 {{< tabs "d937c413-bace-4c17-9bc0-8899dac482ae" >}}
 {{< tab "SQL" >}}
@@ -196,32 +194,29 @@ CHAR(n)
 DataTypes.CHAR(n)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                               | Input | Output | Remarks                  |
-|:----------------------------------------|:-----:|:------:|:-------------------------|
-|`java.lang.String`                       | X     | X      | *Default*                |
-|`byte[]`                                 | X     | X      | Assumes UTF-8 encoding.  |
-|`org.apache.flink.table.data.StringData` | X     | X      | Internal data structure. |
+| Java Type                                | 输入 | 输入 | 备注          |
+|:-----------------------------------------|:-----:|:------:|:------------|
+| `java.lang.String`                       |   X   |   X    | *默认*   |
+| `byte[]`                                 |   X   |   X    | 假定 UTF-8 编码 |
+| `org.apache.flink.table.data.StringData` |   X   |   X    | 内部数据结构      |
 
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-Not supported.
+Not supported.。
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-
-The type can be declared using `CHAR(n)` where `n` is the number of code points. `n` must have a value between `1`
-and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+可以使用 `CHAR(n)` 声明该类型，其中n表示其长度，n 的取值范围为[`1`,`2,147,483,647`] 如果没有指定`n` 的值，n 等于 1 
 
 
 #### `VARCHAR` / `STRING`
+变长字符串的数据类型。
 
-Data type of a variable-length character string.
-
-**Declaration**
+**声明**
 
 {{< tabs "3e9c301a-f481-477f-aaa1-f26239481b74" >}}
 {{< tab "SQL" >}}
@@ -239,13 +234,13 @@ DataTypes.VARCHAR(n)
 DataTypes.STRING()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                               | Input | Output | Remarks                  |
-|:----------------------------------------|:-----:|:------:|:-------------------------|
-|`java.lang.String`                       | X     | X      | *Default*                |
-|`byte[]`                                 | X     | X      | Assumes UTF-8 encoding.  |
-|`org.apache.flink.table.data.StringData` | X     | X      | Internal data structure. |
+| Java Type                                | 输入 | 输入 | 备注          |
+|:-----------------------------------------|:-----:|:------:|:------------|
+| `java.lang.String`                       |   X   |   X    | *默认*        |
+| `byte[]`                                 |   X   |   X    | 假定 UTF-8 编码 |
+| `org.apache.flink.table.data.StringData` |   X   |   X    | 内部数据结构      |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -255,22 +250,20 @@ DataTypes.VARCHAR(n)
 DataTypes.STRING()
 ```
 
-<span class="label label-danger">Attention</span> The specified maximum number of code points `n` in `DataTypes.VARCHAR(n)` must be `2,147,483,647` currently.
+<span class="label label-danger">请注意</span> 目前，`DataTypes.VARCHAR(n)` 中指定的最大指 `n` 当前必须为 `2,147,483,647`。
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `VARCHAR(n)` where `n` is the maximum number of code points. `n` must have a value
-between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+可以使用 `VARCHAR(n)` 声明该类型，其中 `n` 表示其最大值。`n` 的取值范围为[ `1` , `2,147,483,647` ] ，如果没有指定 `n` 的值，n 等于 1。
 
-`STRING` is a synonym for `VARCHAR(2147483647)`.
+`STRING` 等价于 `VARCHAR(2147483647)`。
 
-### Binary Strings
+### 二进制字符串
 
 #### `BINARY`
+固定长度二进制字符串的数据类型（可以理解为是一种字节序列）。
 
-Data type of a fixed-length binary string (=a sequence of bytes).
-
-**Declaration**
+**声明**
 
 {{< tabs "2152b311-40e1-4d92-8b99-1b84a4692073" >}}
 {{< tab "SQL" >}}
@@ -284,11 +277,11 @@ BINARY(n)
 DataTypes.BINARY(n)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                 |
-|:-------------------|:-----:|:------:|:------------------------|
-|`byte[]`            | X     | X      | *Default*               |
+| Java Type          | 输入 | 输入 | 备注   |
+|:-------------------|:-----:|:------:|:-----|
+|`byte[]`            | X     | X      | *默认* |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -298,15 +291,14 @@ Not supported.
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `BINARY(n)` where `n` is the number of bytes. `n` must have a value
-between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+可以使用 `BINARY(n)` 声明该类型，其中 `n` 表示字节数。 `n` 的取值范围为 [`1` , `2,147,483,647` ] 如果没有指定 `n` 的值， n 等于 1。
 
 
 #### `VARBINARY` / `BYTES`
 
-Data type of a variable-length binary string (=a sequence of bytes).
+可变长度的二进制字符串的数据类型（可以理解为是一种字节序列）
 
-**Declaration**
+**声明**
 
 {{< tabs "5761633b-a968-4328-81f8-1f36ab67bcab" >}}
 {{< tab "SQL" >}}
@@ -324,11 +316,11 @@ DataTypes.VARBINARY(n)
 DataTypes.BYTES()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                 |
-|:-------------------|:-----:|:------:|:------------------------|
-|`byte[]`            | X     | X      | *Default*               |
+| Java Type          | 输入 | 输出 | 备注 |
+|:-------------------|:-----:|:------:|:--------|
+|`byte[]`            | X     | X      | *默认*    |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -338,23 +330,22 @@ DataTypes.VARBINARY(n)
 DataTypes.BYTES()
 ```
 
-<span class="label label-danger">Attention</span> The specified maximum number of bytes `n` in `DataTypes.VARBINARY(n)` must be `2,147,483,647` currently.
+<span class="label label-danger">请注意</span> 当前，`DataTypes.VARBINARY(n)` 中指定的最大字节数 `n` 必须是 `2,147,483,647`。
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `VARBINARY(n)` where `n` is the maximum number of bytes. `n` must
-have a value between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is
-equal to `1`.
+可以使用 `VARBINARY(n)` 声明该类型，其中 `n` 表示字节数的最大值。 `n` 的取值范围为 [`1`,`2,147,483,647`], 如果没有指定 `n` 的值， n 等于 1 。
 
-`BYTES` is a synonym for `VARBINARY(2147483647)`.
 
-### Exact Numerics
+`BYTES` 等价于 `VARBINARY(2147483647)`。
+
+### 数值
 
 #### `DECIMAL`
 
-Data type of a decimal number with fixed precision and scale.
+具有固定精度和比例的十进制数。
 
-**Declaration**
+**声明**
 
 {{< tabs "923d4502-4db8-462d-9d4c-4d3d3445ddac" >}}
 {{< tab "SQL" >}}
@@ -377,12 +368,12 @@ NUMERIC(p, s)
 DataTypes.DECIMAL(p, s)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                                | Input | Output | Remarks                  |
+| Java Type                                | 输入 | 输出 | 备注                  |
 |:-----------------------------------------|:-----:|:------:|:-------------------------|
-|`java.math.BigDecimal`                    | X     | X      | *Default*                |
-|`org.apache.flink.table.data.DecimalData` | X     | X      | Internal data structure. |
+|`java.math.BigDecimal`                    | X     | X      | *默认*                |
+|`org.apache.flink.table.data.DecimalData` | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -390,23 +381,21 @@ DataTypes.DECIMAL(p, s)
 DataTypes.DECIMAL(p, s)
 ```
 
-<span class="label label-danger">Attention</span> The `precision` and `scale` specified in `DataTypes.DECIMAL(p, s)` must be `38` and `18` separately currently.
+<span class="label label-danger">请注意</span> 当前， `DataTypes.DECIMAL(p, s)`中指定的`precision`和`scale`当前必须分别为`38`和`18`。
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `DECIMAL(p, s)` where `p` is the number of digits in a
-number (*precision*) and `s` is the number of digits to the right of the decimal point
-in a number (*scale*). `p` must have a value between `1` and `38` (both inclusive). `s`
-must have a value between `0` and `p` (both inclusive). The default value for `p` is 10.
-The default value for `s` is `0`.
+可以使用`DECIMAL(p, s)` 声明类型，其中`p` 是该数字中整数部分的位数(*precision*) ， `s` 是该数字小数点右边的位数（*scale*）。
+`p` 的取值范围是[`1`,`38`] , `s`的取值范围是[`0` , `p`] 。 `p` 的默认值为 10。 `s` 的默认值为 0。
 
-`NUMERIC(p, s)` and `DEC(p, s)` are synonyms for this type.
+
+`NUMERIC(p, s)` 等价于 `DEC(p, s)` 。
 
 #### `TINYINT`
 
-Data type of a 1-byte signed integer with values from `-128` to `127`.
+单字节的有符号整数类型，存储 `-128` ~ `127` 的整数。
 
-**Declaration**
+**声明**
 
 {{< tabs "5754537d-071a-4793-a6a4-bf61c546799c" >}}
 {{< tab "SQL" >}}
@@ -419,12 +408,12 @@ TINYINT
 DataTypes.TINYINT()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                      |
+| Java Type          | 输入 | 输出 | 备注                                      |
 |:-------------------|:-----:|:------:|:---------------------------------------------|
-|`java.lang.Byte`    | X     | X      | *Default*                                    |
-|`byte`              | X     | (X)    | Output only if type is not nullable.         |
+|`java.lang.Byte`    | X     | X      | *默认*                                    |
+|`byte`              | X     | (X)    | 仅当类型不可为空时才输出。         |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -435,10 +424,9 @@ DataTypes.TINYINT()
 {{< /tabs >}}
 
 #### `SMALLINT`
+2字节的有符号整数类型，存储`-32,768` ~ `32,767` 的整数。
 
-Data type of a 2-byte signed integer with values from `-32,768` to `32,767`.
-
-**Declaration**
+**声明**
 
 {{< tabs "4678d5ed-d2e1-4e47-bd74-7a2ce4e5f624" >}}
 {{< tab "SQL" >}}
@@ -451,12 +439,12 @@ SMALLINT
 DataTypes.SMALLINT()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                      |
+| Java Type          | 输入 | 输出 | 备注                                      |
 |:-------------------|:-----:|:------:|:---------------------------------------------|
-|`java.lang.Short`   | X     | X      | *Default*                                    |
-|`short`             | X     | (X)    | Output only if type is not nullable.         |
+|`java.lang.Short`   | X     | X      | *默认*                                    |
+|`short`             | X     | (X)    | 仅当类型不可为空时才输出。         |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -467,10 +455,9 @@ DataTypes.SMALLINT()
 {{< /tabs >}}
 
 #### `INT`
+4字节的有符号整数类型，存储 `-2,147,483,648` ~ `2,147,483,647` 的整数。
 
-Data type of a 4-byte signed integer with values from `-2,147,483,648` to `2,147,483,647`.
-
-**Declaration**
+**声明**
 
 {{< tabs "68c86706-bd0c-4fdc-a113-950c6bd68402" >}}
 {{< tab "SQL" >}}
@@ -485,12 +472,12 @@ INTEGER
 DataTypes.INT()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                      |
+| Java Type          | 输入 | 输出 | 备注                                      |
 |:-------------------|:-----:|:------:|:---------------------------------------------|
-|`java.lang.Integer` | X     | X      | *Default*                                    |
-|`int`               | X     | (X)    | Output only if type is not nullable.         |
+|`java.lang.Integer` | X     | X      | *默认*                                    |
+|`int`               | X     | (X)    | 仅当类型不可为空时才输出。         |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -500,14 +487,13 @@ DataTypes.INT()
 {{< /tab >}}
 {{< /tabs >}}
 
-`INTEGER` is a synonym for this type.
+`INTEGER` 是这种类型的同义词。
 
 #### `BIGINT`
 
-Data type of an 8-byte signed integer with values from `-9,223,372,036,854,775,808` to
-`9,223,372,036,854,775,807`.
+8字节的有符号整数类型，存储 `-9,223,372,036,854,775,808` ~ `9,223,372,036,854,775,807`的整数 。
 
-**Declaration**
+**声明**
 
 {{< tabs "1506658c-be8d-472c-aacd-1479af0850fa" >}}
 {{< tab "SQL" >}}
@@ -520,12 +506,12 @@ BIGINT
 DataTypes.BIGINT()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                      |
+| Java Type          | 输入 | 输出 | 备注                                      |
 |:-------------------|:-----:|:------:|:---------------------------------------------|
-|`java.lang.Long`    | X     | X      | *Default*                                    |
-|`long`              | X     | (X)    | Output only if type is not nullable.         |
+|`java.lang.Long`    | X     | X      | *默认*                                    |
+|`long`              | X     | (X)    | 仅当类型不可为空时才输出。         |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -535,15 +521,14 @@ DataTypes.BIGINT()
 {{< /tab >}}
 {{< /tabs >}}
 
-### Approximate Numerics
+### 近似数值
 
 #### `FLOAT`
 
-Data type of a 4-byte single precision floating point number.
+4字节单精度浮点数类型。
+与 SQL 标准相比，该类型不带参数。
 
-Compared to the SQL standard, the type does not take parameters.
-
-**Declaration**
+**声明**
 
 {{< tabs "b0b09ce1-0ab5-4dda-983d-5cec7b9cd49f" >}}
 {{< tab "SQL" >}}
@@ -556,12 +541,12 @@ FLOAT
 DataTypes.FLOAT()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                      |
+| Java Type          | 输入 | 输出 | 备注                                      |
 |:-------------------|:-----:|:------:|:---------------------------------------------|
-|`java.lang.Float`   | X     | X      | *Default*                                    |
-|`float`             | X     | (X)    | Output only if type is not nullable.         |
+|`java.lang.Float`   | X     | X      | *默认*                                    |
+|`float`             | X     | (X)    | 仅当类型不可为空时才输出。         |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -573,9 +558,9 @@ DataTypes.FLOAT()
 
 #### `DOUBLE`
 
-Data type of an 8-byte double precision floating point number.
+8字节单精度浮点数类型
 
-**Declaration**
+**声明**
 
 {{< tabs "10f7cbc5-8269-44d1-9295-9219ceb77a2f" >}}
 {{< tab "SQL" >}}
@@ -590,12 +575,12 @@ DOUBLE PRECISION
 DataTypes.DOUBLE()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                      |
+| Java Type          | 输入 | 输出 | 备注                                      |
 |:-------------------|:-----:|:------:|:---------------------------------------------|
-|`java.lang.Double`  | X     | X      | *Default*                                    |
-|`double`            | X     | (X)    | Output only if type is not nullable.         |
+|`java.lang.Double`  | X     | X      | *默认*                                    |
+|`double`            | X     | (X)    | 仅当类型不可为空时才输出。         |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -605,18 +590,16 @@ DataTypes.DOUBLE()
 {{< /tab >}}
 {{< /tabs >}}
 
-`DOUBLE PRECISION` is a synonym for this type.
+`DOUBLE PRECISION` 是这种类型的同义词。
 
-### Date and Time
+### 日期和时间
 
 #### `DATE`
 
-Data type of a date consisting of `year-month-day` with values ranging from `0000-01-01`
-to `9999-12-31`.
+日期的数据类型，由 `年-月-日` 组成，取值范围为 `0000-01-01` 到 `9999-12-31` 。
+与 SQL 标准相比，范围从 `0000` 年开始。
 
-Compared to the SQL standard, the range starts at year `0000`.
-
-**Declaration**
+**声明**
 
 {{< tabs "ce6ab001-794e-4124-985b-d942bc6727e3" >}}
 {{< tab "SQL" >}}
@@ -629,14 +612,14 @@ DATE
 DataTypes.DATE()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type            | Input | Output | Remarks                                      |
+| Java Type            | 输入 | 输出 | 备注                                      |
 |:---------------------|:-----:|:------:|:---------------------------------------------|
-|`java.time.LocalDate` | X     | X      | *Default*                                    |
+|`java.time.LocalDate` | X     | X      | *默认*                                    |
 |`java.sql.Date`       | X     | X      |                                              |
-|`java.lang.Integer`   | X     | X      | Describes the number of days since epoch.    |
-|`int`                 | X     | (X)    | Describes the number of days since epoch.<br>Output only if type is not nullable. |
+|`java.lang.Integer`   | X     | X      | 描述自纪元以来的天数。   |
+|`int`                 | X     | (X)    | 描述自纪元以来的天数。<br>仅当类型不可为空时才输出。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -648,22 +631,22 @@ DataTypes.DATE()
 
 #### `TIME`
 
-Data type of a time *without* time zone consisting of `hour:minute:second[.fractional]` with
-up to nanosecond precision and values ranging from `00:00:00.000000000` to
-`23:59:59.999999999`.
+无时区的时间类型，包括 `小时:分钟:秒[.fractional]`，精度可达纳秒，取值范围为` 00:00:00.000000000` 到 `23:59:59.999999999`。
+
 
 {{< tabs "time" >}}
 {{< tab "SQL/Java/Scala" >}}
-Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as
-the semantics are closer to `java.time.LocalTime`. A time *with* time zone is not provided.
+与SQL标准相比，不支持leap秒（23:59:60和23:59:61），因为语义更接近java.time.LocalTime。没有提供带时区的时间。
+
 {{< /tab >}}
 {{< tab "Python" >}}
-Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
-A time *with* time zone is not provided.
+
+与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`）。不提供 *包含* 时区的时间。
+
 {{< /tab >}}
 {{< /tabs >}}
 
-**Declaration**
+**声明**
 
 {{< tabs "c44284f9-1674-45e7-87b2-3e1da2e8a182" >}}
 {{< tab "SQL" >}}
@@ -677,16 +660,16 @@ TIME(p)
 DataTypes.TIME(p)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type            | Input | Output | Remarks                                             |
-|:---------------------|:-----:|:------:|:----------------------------------------------------|
-|`java.time.LocalTime` | X     | X      | *Default*                                           |
-|`java.sql.Time`       | X     | X      |                                                     |
-|`java.lang.Integer`   | X     | X      | Describes the number of milliseconds of the day.    |
-|`int`                 | X     | (X)    | Describes the number of milliseconds of the day.<br>Output only if type is not nullable. |
-|`java.lang.Long`      | X     | X      | Describes the number of nanoseconds of the day.     |
-|`long`                | X     | (X)    | Describes the number of nanoseconds of the day.<br>Output only if type is not nullable. |
+| Java Type            | 输入 | 输出 | 备注                                                                                      |
+|:---------------------|:-----:|:------:|:----------------------------------------------------------------------------------------|
+|`java.time.LocalTime` | X     | X      | *默认*                                                                                    |
+|`java.sql.Time`       | X     | X      |                                                                                         |
+|`java.lang.Integer`   | X     | X      | 描述一天中的毫秒数。                                                                              |
+|`int`                 | X     | (X)    | 描述一天中的毫秒数。<br>仅当类型不可为空时才输出。                                      |
+|`java.lang.Long`      | X     | X      | 描述一天中的纳秒数。                                         |
+|`long`                | X     | (X)    | 描述一天中的纳秒数。<br>仅当类型不可为空时才输出。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -694,38 +677,33 @@ DataTypes.TIME(p)
 DataTypes.TIME(p)
 ```
 
-<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIME(p)` must be `0` currently.
+<span class="label label-danger">请注意</span> 当前，`DataTypes.TIME(p)` 中指定的 `precision` 必须为 `0`。
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `TIME(p)` where `p` is the number of digits of fractional
-seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
-precision is specified, `p` is equal to `0`.
+可以使用 `TIME(p)` 声明该类型，其中 `p` 是小数秒的位数（精度）。 p 的取值范围为[`0`,`9`]。 如果未指定精度，则 p 等于 0。
 
 #### `TIMESTAMP`
 
-Data type of a timestamp *without* time zone consisting of `year-month-day hour:minute:second[.fractional]`
-with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000` to
-`9999-12-31 23:59:59.999999999`.
+有时区的时间类型，由 `年-月-日 小时:分钟:秒[.fractional]`组成，具有高达纳秒的精度，范围从`0000-01-01 00:00:00.000000000`到 `9999-12-31 23:59:59.999999999`。
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
-Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as
-the semantics are closer to `java.time.LocalDateTime`.
+与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`）这种语义更接近`java.time.LocalDateTime`。
 
-A conversion from and to `BIGINT` (a JVM `long` type) is not supported as this would imply a time
-zone. However, this type is time zone free. For more `java.time.Instant`-like semantics use
-`TIMESTAMP_LTZ`.
+不支持从和到 `BIGINT`（JVM `long` 类型）的转换，因为这将暗示时区。 但是，这种类型是无时区限制。 有关更多类似“java.time.Instant”的语义，请使用`TIMESTAMP_LTZ`。
+
 {{< /tab >}}
 {{< tab "Python" >}}
-Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
 
-A conversion from and to `BIGINT` is not supported as this would imply a time zone.
-However, this type is time zone free. If you have such a requirement please use `TIMESTAMP_LTZ`.
+与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`）。
+
+不支持从和到“BIGINT”的转换，因为这意味着时区。 但是，这种类型是无时区限制。 如果您有这样的需求，请使用 `TIMESTAMP_LTZ`。
+
 {{< /tab >}}
 {{< /tabs >}}
 
-**Declaration**
+**声明**
 
 {{< tabs "5ba9017d-ae5f-4129-b7d7-bed06e6e2598" >}}
 {{< tab "SQL" >}}
@@ -742,13 +720,13 @@ TIMESTAMP(p) WITHOUT TIME ZONE
 DataTypes.TIMESTAMP(p)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                                  | Input | Output | Remarks                  |
+| Java Type                                  | 输入 | 输出 | 备注                  |
 |:-------------------------------------------|:-----:|:------:|:-------------------------|
-|`java.time.LocalDateTime`                   | X     | X      | *Default*                |
+|`java.time.LocalDateTime`                   | X     | X      | *默认*                |
 |`java.sql.Timestamp`                        | X     | X      |                          |
-|`org.apache.flink.table.data.TimestampData` | X     | X      | Internal data structure. |
+|`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -756,37 +734,31 @@ DataTypes.TIMESTAMP(p)
 DataTypes.TIMESTAMP(p)
 ```
 
-<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIMESTAMP(p)` must be `3` currently.
+<span class="label label-danger">请注意</span> 当前，`DataTypes.TIMESTAMP(p)` 中指定的 `precision` 必须为 `3`。
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `TIMESTAMP(p)` where `p` is the number of digits of fractional
-seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no precision
-is specified, `p` is equal to `6`.
+可以使用 `TIMESTAMP(p)` 声明该类型，其中 `p` 是小数秒的位数（*精度*）。 `p` 的取值范围为[`0`,`9`]。如果没有指定精度，p 等于 6。
 
-`TIMESTAMP(p) WITHOUT TIME ZONE` is a synonym for this type.
+`TIMESTAMP(p) WITHOUT TIME ZONE` 是这种类型的同义词。
 
 #### `TIMESTAMP WITH TIME ZONE`
 
-Data type of a timestamp *with* time zone consisting of `year-month-day hour:minute:second[.fractional] zone`
-with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
-`9999-12-31 23:59:59.999999999 -14:59`.
+包含时区的时间戳的数据类型，格式为 `年-月-日 时：分：秒[.fractional]`，精度可达纳秒，取值范围为 `0000-01-01 00:00:00.000000000 +14:59` 至 `9999 -12-31 23:59:59.999999999 -14:59`。
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
-Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics
-are closer to `java.time.OffsetDateTime`.
+与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`），其语义更接近`java.time.OffsetDateTime`。
 {{< /tab >}}
 {{< tab "Python" >}}
-Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`）。
 {{< /tab >}}
 {{< /tabs >}}
 
-Compared to `TIMESTAMP_LTZ`, the time zone offset information is physically
-stored in every datum. It is used individually for every computation, visualization, or communication
-to external systems.
+与 `TIMESTAMP_LTZ` 相比，时区偏移信息物理存储在每个数据中。 它单独用于每次计算、可视化或与外部系统的通信。
 
-**Declaration**
+
+**声明**
 
 {{< tabs "47663464-5865-44be-b23d-c03c9ec2b186" >}}
 {{< tab "SQL" >}}
@@ -800,12 +772,12 @@ TIMESTAMP(p) WITH TIME ZONE
 DataTypes.TIMESTAMP_WITH_TIME_ZONE(p)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                 | Input | Output | Remarks              |
-|:--------------------------|:-----:|:------:|:---------------------|
-|`java.time.OffsetDateTime` | X     | X      | *Default*            |
-|`java.time.ZonedDateTime`  | X     |        | Ignores the zone ID. |
+| Java Type                 | 输入 | 输出 | 备注      |
+|:--------------------------|:-----:|:------:|:--------|
+|`java.time.OffsetDateTime` | X     | X      | *默认*    |
+|`java.time.ZonedDateTime`  | X     |        | 忽略时区ID. |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -817,42 +789,37 @@ Not supported.
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
-The type can be declared using `TIMESTAMP(p) WITH TIME ZONE` where `p` is the number of digits of
-fractional seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
-precision is specified, `p` is equal to `6`.
 {{< /tab >}}
 {{< tab "Python" >}}
 {{< /tab >}}
 {{< /tabs >}}
+
+可以使用 `TIMESTAMP(p) WITH TIME ZONE` 声明该类型，其中 `p` 是小数秒的位数（*精度*）。 `p` 取值范围为[`0`,`9`]。如果不指定精度，p 等于 6。
 
 #### `TIMESTAMP_LTZ`
 
-Data type of a timestamp *with local* time zone consisting of `year-month-day hour:minute:second[.fractional] zone`
-with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
-`9999-12-31 23:59:59.999999999 -14:59`.
+时间戳的数据类型 *带有本地*时区，格式为`年-月-日 时:分:秒[.fractional] zone` ，精度高达纳秒，值范围从 `0000-01-01 00:00:00.000000000 +14:59` 到 `9999-12-31 23:59:59.999999999 -14:59`。
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
-Leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics are closer to `java.time.OffsetDateTime`.
 
-Compared to `TIMESTAMP WITH TIME ZONE`, the time zone offset information is not stored physically
-in every datum. Instead, the type assumes `java.time.Instant` semantics in UTC time zone at
-the edges of the table ecosystem. Every datum is interpreted in the local time zone configured in
-the current session for computation and visualization.
+不支持闰秒（`23:59:60` 和 `23:59:61`），其语义更接近 `java.time.OffsetDateTime`。
+
+与`TIMESTAMP WITH TIME ZONE`相比，时区偏移信息没有物理存储在每个数据中。 相反，该类型在 UTC 时区假定为 `java.time.Instant`的语义处于 Table生态系统的边缘。
+每个数据都在配置的本地时区中解释 当前会话用于计算和可视化。
+
 {{< /tab >}}
 {{< tab "Python" >}}
-Leap seconds (`23:59:60` and `23:59:61`) are not supported.
 
-Compared to `TIMESTAMP WITH TIME ZONE`, the time zone offset information is not stored physically
-in every datum. 
-Every datum is interpreted in the local time zone configured in the current session for computation and visualization.
+不支持闰秒（`23:59:60` 和 `23:59:61`）。
+与`TIMESTAMP WITH TIME ZONE`相比，时区偏移信息没有物理存储 在每个数据中。每个数据都在当前会话中配置的本地时区进行解释，以进行计算和可视化。
+
 {{< /tab >}}
 {{< /tabs >}}
 
-This type fills the gap between time zone free and time zone mandatory timestamp types by allowing
-the interpretation of UTC timestamps according to the configured session time zone.
+此类型通过允许根据配置的会话时区解释 UTC 时间戳来填补无时区和时区强制时间戳类型之间的空白。
 
-**Declaration**
+**声明**
 
 {{< tabs "75734ebe-7f16-4df8-83e9-99fcd2a28527" >}}
 {{< tab "SQL" >}}
@@ -870,17 +837,17 @@ DataTypes.TIMESTAMP_LTZ(p)
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                                           |
+| Java Type          | 输入 | 输出 | 备注                                           |
 |:-------------------|:-----:|:------:|:--------------------------------------------------|
-|`java.time.Instant` | X     | X      | *Default*                                         |
-|`java.lang.Integer` | X     | X      | Describes the number of seconds since epoch.      |
-|`int`               | X     | (X)    | Describes the number of seconds since epoch.<br>Output only if type is not nullable. |
-|`java.lang.Long`    | X     | X      | Describes the number of milliseconds since epoch. |
-|`long`              | X     | (X)    | Describes the number of milliseconds since epoch.<br>Output only if type is not nullable. |
-|`java.sql.Timestamp`| X     | X      | Describes the number of milliseconds since epoch. |
-|`org.apache.flink.table.data.TimestampData` | X     | X      | Internal data structure. |
+|`java.time.Instant` | X     | X      | *默认*                                         |
+|`java.lang.Integer` | X     | X      | 描述自纪元以来的秒数。      |
+|`int`               | X     | (X)    | 描述自纪元以来的秒数。<br>仅当类型不可为空时才输出。 |
+|`java.lang.Long`    | X     | X      | 描述自纪元以来的毫秒数。 |
+|`long`              | X     | (X)    | 描述自纪元以来的毫秒数。<br>仅当类型不可为空时才输出。 |
+|`java.sql.Timestamp`| X     | X      | 描述自纪元以来的毫秒数。 |
+|`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -889,33 +856,26 @@ DataTypes.TIMESTAMP_LTZ(p)
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 ```
 
-<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIMESTAMP_LTZ(p)` must be `3` currently.
+<span class="label label-danger">请注意</span> 当前，`DataTypes.TIMESTAMP_LTZ(p)` 中指定的 `precision` 必须为 `3`。
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `TIMESTAMP_LTZ(p)` where `p` is the number
-of digits of fractional seconds (*precision*). `p` must have a value between `0` and `9`
-(both inclusive). If no precision is specified, `p` is equal to `6`.
+可以使用 `TIMESTAMP_LTZ(p)` 声明该类型，其中 `p` 是小数秒的位数（精度）。 `p` 取值范围为[`0`,`9`]。如果未指定精度，则 p 等于 6。
 
-`TIMESTAMP(p) WITH LOCAL TIME ZONE` is a synonym for this type.
+`TIMESTAMP(p) WITH LOCAL TIME ZONE` 是这种类型的同义词。
 
 #### `INTERVAL YEAR TO MONTH`
+一组年月间隔类型的数据类型。
 
-Data type for a group of year-month interval types.
+必须将类型 参数化为下列颗粒度中的一种：
+- 年间隔，
+- 几年到几个月的间隔，
+- 几个月的间隔。
+年-月的间隔由 `+年-月`组成，取值范围从 `-9999-11` 到 `+9999-11` 。
 
-The type must be parameterized to one of the following resolutions:
-- interval of years,
-- interval of years to months,
-- or interval of months.
+所有类型的颗粒度的值表示都是一样的。 例如，50 个月的间隔总是以年到月的间隔格式表示（默认年份精度）：`+04-02`。
 
-An interval of year-month consists of `+years-months` with values ranging from `-9999-11` to
-`+9999-11`.
-
-The value representation is the same for all types of resolutions. For example, an interval
-of months of 50 is always represented in an interval-of-years-to-months format (with default
-year precision): `+04-02`.
-
-**Declaration**
+**声明**
 
 {{< tabs "6d3ddd2e-5751-45af-a153-aecfaf561f41" >}}
 {{< tab "SQL" >}}
@@ -934,13 +894,13 @@ DataTypes.INTERVAL(DataTypes.YEAR(p), DataTypes.MONTH())
 DataTypes.INTERVAL(DataTypes.MONTH())
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                            |
-|:-------------------|:-----:|:------:|:-----------------------------------|
-|`java.time.Period`  | X     | X      | Ignores the `days` part. *Default* |
-|`java.lang.Integer` | X     | X      | Describes the number of months.    |
-|`int`               | X     | (X)    | Describes the number of months.<br>Output only if type is not nullable. |
+| Java Type          | 输入 | 输出 | 备注                     |
+|:-------------------|:-----:|:------:|:-----------------------|
+|`java.time.Period`  | X     | X      | 忽略 `天` 部分。 *默认*        |
+|`java.lang.Integer` | X     | X      | 描述月数。                  |
+|`int`               | X     | (X)    | 描述月数。<br>仅当类型不可为空时才输出。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -953,32 +913,29 @@ DataTypes.INTERVAL(DataTypes.MONTH())
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using the above combinations where `p` is the number of digits of years
-(*year precision*). `p` must have a value between `1` and `4` (both inclusive). If no year precision
-is specified, `p` is equal to `2`.
+
+可以使用上述组合声明类型，其中 `p` 是年份的位数（年份精度）。 `p`取值范围为[`1` ,`4`]。 如果未指定年份精度，则 p 等于 2。
 
 #### `INTERVAL DAY TO SECOND`
 
-Data type for a group of day-time interval types.
+一组日时间间隔类型的数据类型。
 
-The type must be parameterized to one of the following resolutions with up to nanosecond precision:
-- interval of days,
-- interval of days to hours,
-- interval of days to minutes,
-- interval of days to seconds,
-- interval of hours,
-- interval of hours to minutes,
-- interval of hours to seconds,
-- interval of minutes,
-- interval of minutes to seconds,
-- or interval of seconds.
+必须将类型参数化为以下颗粒度之一，精度最高可达纳秒：
+- 天的间隔，
+- 几天到几小时的间隔，
+- 几天到几分钟的间隔，
+- 天到秒的间隔，
+- 小时间隔，
+- 小时到分钟的间隔，
+- 小时到秒的间隔，
+- 分钟间隔，
+- 分钟到秒的间隔，
+- 或秒的间隔。
 
-An interval of day-time consists of `+days hours:months:seconds.fractional` with values ranging from
-`-999999 23:59:59.999999999` to `+999999 23:59:59.999999999`. The value representation is the same
-for all types of resolutions. For example, an interval of seconds of 70 is always represented in
-an interval-of-days-to-seconds format (with default precisions): `+00 00:01:10.000000`.
+白天时间间隔由 `+days hours:months:seconds.fractional` 组成，其值范围为
+`-999999 23:59:59.999999999` 到`+999999 23:59:59.999999999`。 值表示是一样的适用于所有类型的颗粒度。 例如，70秒的间隔 始终表示为天到秒的间隔格式（具有默认精度）：`+00 00:01:10.000000`。
 
-**Declaration**
+**声明**
 
 {{< tabs "89aea284-08df-4671-b323-366f668304e7" >}}
 {{< tab "SQL" >}}
@@ -1013,13 +970,13 @@ DataTypes.INTERVAL(DataTypes.SECOND())
 DataTypes.INTERVAL(DataTypes.SECOND(p2))
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type           | Input | Output | Remarks                               |
+| Java Type           | 输入 | 输出 | 备注                               |
 |:--------------------|:-----:|:------:|:--------------------------------------|
-|`java.time.Duration` | X     | X      | *Default*                             |
-|`java.lang.Long`     | X     | X      | Describes the number of milliseconds. |
-|`long`               | X     | (X)    | Describes the number of milliseconds.<br>Output only if type is not nullable. |
+|`java.time.Duration` | X     | X      | *默认*                             |
+|`java.lang.Long`     | X     | X      | 描述毫秒数。 |
+|`long`               | X     | (X)    | 描述毫秒数。<br>仅当类型不可为空时才输出。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1040,22 +997,19 @@ DataTypes.INTERVAL(DataTypes.SECOND(p2))
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using the above combinations where `p1` is the number of digits of days
-(*day precision*) and `p2` is the number of digits of fractional seconds (*fractional precision*).
-`p1` must have a value between `1` and `6` (both inclusive). `p2` must have a value between `0`
-and `9` (both inclusive). If no `p1` is specified, it is equal to `2` by default. If no `p2` is
-specified, it is equal to `6` by default.
 
-### Constructured Data Types
+可以使用上述组合声明类型，其中 `p1` 是天数 (*日精度*）和`p2`是小数秒的位数（*小数精度*）。
+`p1` 的取值范围为[`1` , `6`]。 `p2` 的值取值范围为[`0`,`9`]。
+如果没有指定`p1`的值， `p1` 默认等于`2`。 如果没有指定`p2`的值，默认等于 `6`。
+
+### 结构型数据类型
 
 #### `ARRAY`
+具有相同子类型的元素数组的数据类型。
 
-Data type of an array of elements with same subtype.
+与 SQL 标准相比，数组的最大基数不能指定，而是固定为 `2,147,483,647` 。 此外，支持任何有效类型作为子类型。
 
-Compared to the SQL standard, the maximum cardinality of an array cannot be specified but is
-fixed at `2,147,483,647`. Also, any valid type is supported as a subtype.
-
-**Declaration**
+**声明**
 
 {{< tabs "74fa3a61-58ee-4ba6-b757-d0a401f20f7a" >}}
 {{< tab "SQL" >}}
@@ -1069,14 +1023,14 @@ t ARRAY
 DataTypes.ARRAY(t)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                              | Input | Output | Remarks                           |
+| Java Type                              | 输入 | 输出 | 备注                           |
 |:---------------------------------------|:-----:|:------:|:----------------------------------|
-|*t*`[]`                                 | (X)   | (X)    | Depends on the subtype. *Default* |
+|*t*`[]`                                 | (X)   | (X)    | 取决于子类型。 *默认* |
 | `java.util.List<t>`                    | X     | X      |                                   |
 | *subclass* of `java.util.List<t>`      | X     |        |                                   |
-|`org.apache.flink.table.data.ArrayData` | X     | X      | Internal data structure.          |
+|`org.apache.flink.table.data.ArrayData` | X     | X      | 内部数据结构。          |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1086,22 +1040,17 @@ DataTypes.ARRAY(t)
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `ARRAY<t>` where `t` is the data type of the contained
-elements.
 
-`t ARRAY` is a synonym for being closer to the SQL standard. For example, `INT ARRAY` is
-equivalent to `ARRAY<INT>`.
+可以使用 `ARRAY<t>` 声明类型，其中 `t` 是包含的数据类型元素。
+`t ARRAY` 是更接近 SQL 标准的同义词。 例如，`INT ARRAY` 是相当于`ARRAY<INT>`。
 
 #### `MAP`
 
-Data type of an associative array that maps keys (including `NULL`) to values (including `NULL`). A map
-cannot contain duplicate keys; each key can map to at most one value.
-
-There is no restriction of element types; it is the responsibility of the user to ensure uniqueness.
-
-The map type is an extension to the SQL standard.
-
-**Declaration**
+将键（包括“NULL”）映射到值（包括“NULL”）的关联数组的数据类型。 
+1个map中不能包含重复的键； 每个键最多可以映射到一个值。
+没有元素类型的限制； 确保唯一性是用户的责任。
+map 类型是 SQL 标准的扩展。
+**声明**
 
 {{< tabs "a1a3a740-4781-4098-9cef-ef860e728514" >}}
 {{< tab "SQL" >}}
@@ -1114,13 +1063,13 @@ MAP<kt, vt>
 DataTypes.MAP(kt, vt)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                             | Input | Output | Remarks                  |
+| Java Type                             | 输入 | 输出 | 备注                  |
 |:--------------------------------------|:-----:|:------:|:-------------------------|
-| `java.util.Map<kt, vt>`               | X     | X      | *Default*                |
+| `java.util.Map<kt, vt>`               | X     | X      | *默认*                |
 | *subclass* of `java.util.Map<kt, vt>` | X     |        |                          |
-|`org.apache.flink.table.data.MapData`  | X     | X      | Internal data structure. |
+|`org.apache.flink.table.data.MapData`  | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1130,17 +1079,16 @@ DataTypes.MAP(kt, vt)
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `MAP<kt, vt>` where `kt` is the data type of the key elements
-and `vt` is the data type of the value elements.
+可以使用 `MAP<kt, vt>` 声明类型，其中 `kt` 是关键元素的数据类型 ，并且 `vt` 是值元素的数据类型。
+
 
 #### `MULTISET`
 
-Data type of a multiset (=bag). Unlike a set, it allows for multiple instances for each of its
-elements with a common subtype. Each unique value (including `NULL`) is mapped to some multiplicity.
+多重集 (=bag) 的数据类型。 与集合不同的是，它允许每个具有共同子类型的元素有多个实例。 每个唯一值（包括 NULL）都映射到某个多重性。
+没有元素类型的限制； 确保唯一性是用户的责任。
 
-There is no restriction of element types; it is the responsibility of the user to ensure uniqueness.
 
-**Declaration**
+**声明**
 
 {{< tabs "a6db836a-7554-4dab-8f5f-3fefabb4fc27" >}}
 {{< tab "SQL" >}}
@@ -1154,13 +1102,13 @@ t MULTISET
 DataTypes.MULTISET(t)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                             | Input | Output | Remarks                                                  |
+| Java Type                             | 输入 | 输出 | 备注                                                  |
 |:--------------------------------------|:-----:|:------:|:---------------------------------------------------------|
-|`java.util.Map<t, java.lang.Integer>`  | X     | X      | Assigns each value to an integer multiplicity. *Default* |
+|`java.util.Map<t, java.lang.Integer>`  | X     | X      | 将每个值分配给整数倍数。 *默认* |
 | *subclass* of `java.util.Map<t, java.lang.Integer>>` | X     |        |                                           |
-|`org.apache.flink.table.data.MapData`  | X     | X      | Internal data structure.                                 |
+|`org.apache.flink.table.data.MapData`  | X     | X      | 内部数据结构。                                 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1170,26 +1118,21 @@ DataTypes.MULTISET(t)
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `MULTISET<t>` where `t` is the data type
-of the contained elements.
 
-`t MULTISET` is a synonym for being closer to the SQL standard. For example, `INT MULTISET` is
-equivalent to `MULTISET<INT>`.
+可以使用 `MULTISET<t>` 声明类型，其中 `t` 是数据类型 所包含的元素。
+`t MULTISET` 是更接近 SQL 标准的同义词。 例如，`INT MULTISET` 相当于`MULTISET<INT>`。 
+
 
 #### `ROW`
 
-Data type of a sequence of fields.
 
-A field consists of a field name, field type, and an optional description. The most specific type
-of a row of a table is a row type. In this case, each column of the row corresponds to the field
-of the row type that has the same ordinal position as the column.
+字段序列的数据类型。
 
-Compared to the SQL standard, an optional field description simplifies the handling with complex
-structures.
+字段由字段名称、字段类型和可选描述组成。 最具体的类型 表的一行是行类型。 在这种情况下，行的每一列对应于字段 与列具有相同序号位置的行类型。
+与 SQL 标准相比，可选的字段描述简化了复杂的处理 结构。
+行类型类似于其他非标准兼容框架中已知的`STRUCT`类型。
 
-A row type is similar to the `STRUCT` type known from other non-standard-compliant frameworks.
-
-**Declaration**
+**声明**
 
 {{< tabs "d81eee80-a9a8-421e-b976-977de85bde77" >}}
 {{< tab "SQL" >}}
@@ -1207,12 +1150,12 @@ DataTypes.ROW(DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...)
 DataTypes.ROW(DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                            | Input | Output | Remarks                  |
+| Java Type                            | 输入 | 输出 | 备注                  |
 |:-------------------------------------|:-----:|:------:|:-------------------------|
-|`org.apache.flink.types.Row`          | X     | X      | *Default*                |
-|`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure. |
+|`org.apache.flink.types.Row`          | X     | X      | *默认*                |
+|`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1223,67 +1166,55 @@ DataTypes.ROW([DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...])
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `ROW<n0 t0 'd0', n1 t1 'd1', ...>` where `n` is the unique name of
-a field, `t` is the logical type of a field, `d` is the description of a field.
 
-`ROW(...)` is a synonym for being closer to the SQL standard. For example, `ROW(myField INT, myOtherField BOOLEAN)` is
-equivalent to `ROW<myField INT, myOtherField BOOLEAN>`.
+可以使用 `ROW<n0 t0 'd0', n1 t1 'd1', ...>` 声明类型，其中 `n` 是一个字段，`t`是字段的逻辑类型，`d`是字段的描述。
+`ROW(...)` 是更接近 SQL 标准的同义词。 例如，`ROW(myField INT, myOtherField BOOLEAN)` 相当于`ROW<myField INT, myOtherField BOOLEAN>`。
 
-### User-Defined Data Types
+
+### 自定义数据类型
 
 {{< tabs "udf" >}}
 {{< tab "Java/Scala" >}}
-<span class="label label-danger">Attention</span> User-defined data types are not fully supported yet. They are
-currently (as of Flink 1.11) only exposed as unregistered structured types in parameters and return types of functions.
+<span class="label label-danger">请注意</span> 尚不完全支持用户定义的数据类型。 其目前（从 Flink 1.11 开始）仅在参数和函数返回类型中作为未注册的结构化类型公开。
 
-A structured type is similar to an object in an object-oriented programming language. It contains
-zero, one or more attributes. Each attribute consists of a name and a type.
+结构化类型类似于面向对象编程语言中的对象。 它包含零个、一个或多个属性。 每个属性都由名称和类型组成。
 
-There are two kinds of structured types:
+有两种结构化类型:
 
-- Types that are stored in a catalog and are identified by a _catalog identifier_ (like `cat.db.MyType`). Those
-are equal to the SQL standard definition of structured types.
+- 存储在目录中并由 _目录标识符_ 标识的类型（如 cat.db.MyType）。 这些等同于结构化类型的 SQL 标准定义。
 
-- Anonymously defined, unregistered types (usually reflectively extracted) that are identified by
-an _implementation class_ (like `com.myorg.model.MyType`). Those are useful when programmatically
-defining a table program. They enable reusing existing JVM classes without manually defining the
-schema of a data type again.
+- 匿名定义的、未注册的类型（通常是反射提取的），由 一个 _实现类_ （如`com.myorg.model.MyType`）。 
+  这些在以编程方式时很有用定义表程序。 它们可以重用现有的 JVM 类，而无需手动定义数据类型的模式。
 
 #### Registered Structured Types
 
-Currently, registered structured types are not supported. Thus, they cannot be stored in a catalog
-or referenced in a `CREATE TABLE` DDL.
+不支持注册的结构化类型。 因此该类型无法存储在Catalog中，也无法在 `CREATE TABLE` 这样的`DDL`语句中引用。
+
 
 #### Unregistered Structured Types
+可以使用自动反射提取从常规 POJO（普通旧 Java 对象）创建未注册的结构化类型。
 
-Unregistered structured types can be created from regular POJOs (Plain Old Java Objects) using automatic reflective extraction.
+结构化类型的实现类必须满足以下要求：
+- 必须保证全局可访问，因此必须被修饰为 `public` ， `static` 而不能使用 `abstract` 。
+- 必须提供一个缺省构造函数或一个完整构造函数。
+- 所有字段都必须可读 ，可以通过 `public` 修饰 或遵循 common 的 getter 读取编码风格，例如`getField()`、`isField()`、`field()`。
+- 所有字段都必须可写 ，可以通过 `public`修饰、完全赋值构造函数写入，或遵循常见编码样式的设置器，例如 `setField(...)`、`field(...)`。
+- 所有字段必须通过反射提取隐式或显式映射到数据类型 使用 `@DataTypeHint` [注释](#data-type-annotations)。
+- 使用 `static` or `transient` 修饰的字段将被忽略。
 
-The implementation class of a structured type must meet the following requirements:
-- The class must be globally accessible which means it must be declared `public`, `static`, and not `abstract`.
-- The class must offer a default constructor with zero arguments or a full constructor that assigns all
-fields.
-- All fields of the class must be readable by either `public` declaration or a getter that follows common
-coding style such as `getField()`, `isField()`, `field()`.
-- All fields of the class must be writable by either `public` declaration, fully assigning constructor,
-or a setter that follows common coding style such as `setField(...)`, `field(...)`.
-- All fields must be mapped to a data type either implicitly via reflective extraction or explicitly
-using the `@DataTypeHint` [annotations](#data-type-annotations).
-- Fields that are declared `static` or `transient` are ignored.
+反射提取支持字段的任意嵌套，只要字段类型不 （及物）指代自己。
 
-The reflective extraction supports arbitrary nesting of fields as long as a field type does not
-(transitively) refer to itself.
+声明的字段类（例如`public int age;`）必须包含在支持的JVM列表中 
+为本文档中的每种数据类型定义的桥接类（例如，`java.lang.Integer` 或 `int` for `INT`）。
 
-The declared field class (e.g. `public int age;`) must be contained in the list of supported JVM
-bridging classes defined for every data type in this document (e.g. `java.lang.Integer` or `int` for `INT`).
+对于某些类，需要注释才能将类映射到数据类型（例如 `@DataTypeHint("DECIMAL(10, 2)")` 为`java.math.BigDecimal`分配一个固定的精度和比例）。
 
-For some classes an annotation is required in order to map the class to a data type (e.g. `@DataTypeHint("DECIMAL(10, 2)")`
-to assign a fixed precision and scale for `java.math.BigDecimal`).
 {{< /tab >}}
 {{< tab "Python" >}}
 {{< /tab >}}
 {{< /tabs >}}
 
-**Declaration**
+**声明**
 
 {{< tabs "c5e5527b-b09d-4dc5-9549-8fd2bfc7cc2a" >}}
 {{< tab "Java" >}}
@@ -1304,13 +1235,13 @@ class User {
 DataTypes.of(User.class);
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                            | Input | Output | Remarks                                 |
+| Java Type                            | 输入 | 输出 | 备注                                 |
 |:-------------------------------------|:-----:|:------:|:----------------------------------------|
-|*class*                               | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
-|`org.apache.flink.types.Row`          | X     | X      | Represent the structured type as a row. |
-|`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure.                |
+|*class*                               | X     | X      | 原始类或子类（用于输入）或者<br>子类 (用于输出)。*默认* |
+|`org.apache.flink.types.Row`          | X     | X      | 将结构化类型表示为一行。                 |
+|`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。                |
 
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1331,13 +1262,13 @@ case class User(
 DataTypes.of(classOf[User])
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type                            | Input | Output | Remarks                                 |
-|:-------------------------------------|:-----:|:------:|:----------------------------------------|
-|*class*                               | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
-|`org.apache.flink.types.Row`          | X     | X      | Represent the structured type as a row. |
-|`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure.                |
+| Java Type                            | 输入 | 输出 | 备注                                |
+|:-------------------------------------|:-----:|:------:|:----------------------------------|
+|*class*                               | X     | X      | 原始类或子类（用于输入）或者<br>子类 (用于输出)。 *默认* |
+|`org.apache.flink.types.Row`          | X     | X      | 将结构化类型表示为一行。                      |
+|`org.apache.flink.table.data.RowData` | X     | X      | 内部数据结构。                           |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1347,13 +1278,13 @@ Not supported.
 {{< /tab >}}
 {{< /tabs >}}
 
-### Other Data Types
+### 其他
 
 #### `BOOLEAN`
 
-Data type of a boolean with a (possibly) three-valued logic of `TRUE`, `FALSE`, and `UNKNOWN`.
+布尔值的数据类型，具有（可能）三值逻辑 `TRUE`、`FALSE` 和 `UNKNOWN`。
 
-**Declaration**
+**声明**
 
 {{< tabs "8dfc33fb-c7e5-43c4-ade0-bfc197d46aef" >}}
 {{< tab "SQL" >}}
@@ -1366,12 +1297,12 @@ BOOLEAN
 DataTypes.BOOLEAN()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type          | Input | Output | Remarks                              |
+| Java Type          | 输入 | 输出 | 备注                              |
 |:-------------------|:-----:|:------:|:-------------------------------------|
-|`java.lang.Boolean` | X     | X      | *Default*                            |
-|`boolean`           | X     | (X)    | Output only if type is not nullable. |
+|`java.lang.Boolean` | X     | X      | *默认*                            |
+|`boolean`           | X     | (X)    | 仅当类型不可为空时才输出。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1383,12 +1314,9 @@ DataTypes.BOOLEAN()
 
 #### `RAW`
 
-Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
-and is only deserialized at the edges.
+任意序列化类型的数据类型。 这种类型是表生态系统中的黑匣子 并且仅在边缘反序列化。 原始类型是 SQL 标准的扩展。
 
-The raw type is an extension to the SQL standard.
-
-**Declaration**
+**声明**
 
 {{< tabs "529ac5b5-0fb4-4004-a2da-0a9915b2b36b" >}}
 {{< tab "SQL" >}}
@@ -1403,13 +1331,13 @@ DataTypes.RAW(class, serializer)
 DataTypes.RAW(class)
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type         | Input | Output | Remarks                              |
+| Java Type         | 输入 | 输出 | 备注                              |
 |:------------------|:-----:|:------:|:-------------------------------------------|
-|*class*            | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
+|*class*            | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *默认* |
 |`byte[]`           |       | X      |                                      |
-|`org.apache.flink.table.data.RawValueData` | X     | X      | Internal data structure. |
+|`org.apache.flink.table.data.RawValueData` | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1421,12 +1349,10 @@ Not supported.
 
 {{< tabs "raw" >}}
 {{< tab "SQL/Java/Scala" >}}
-The type can be declared using `RAW('class', 'snapshot')` where `class` is the originating class and
-`snapshot` is the serialized `TypeSerializerSnapshot` in Base64 encoding. Usually, the type string is not
-declared directly but is generated while persisting the type.
+可以使用 `RAW('class', 'snapshot')` 声明类型，其中 `class` 是原始类，并且`snapshot` 是 Base64 编码的序列化 `TypeSerializerSnapshot`。 
+通常，类型字符串不是 直接声明但在持久化类型时生成。
 
-In the API, the `RAW` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
-by passing `Class` and letting the framework extract `Class` + `TypeSerializer` from there.
+在 API 中，可以通过直接提供 `Class` + `TypeSerializer` 或通过传递 `Class` 的方式，使框架可以提取到 `Class` + `TypeSerializer`。
 {{< /tab >}}
 {{< tab "Python" >}}
 {{< /tab >}}
@@ -1434,17 +1360,15 @@ by passing `Class` and letting the framework extract `Class` + `TypeSerializer` 
 
 #### `NULL`
 
-Data type for representing untyped `NULL` values.
+用于表示无类型 `NULL` 值的数据类型。
 
-The null type is an extension to the SQL standard. A null type has no other value
-except `NULL`, thus, it can be cast to any nullable type similar to JVM semantics.
+null 类型是对 SQL 标准的扩展。 空类型没有其他值
+除了 `NULL`，因此，它可以转换为类似于 JVM 语义的任何可空类型。
 
-This type helps in representing unknown types in API calls that use a `NULL` literal
-as well as bridging to formats such as JSON or Avro that define such a type as well.
+此类型有助于在使用 `NULL` 文字的 API 调用中表示未知类型 以及桥接到 JSON 或 Avro 等定义此类类型的格式。
+这种类型在实践中一般不会用到，这里只是为了完整性而提到。
 
-This type is not very useful in practice and is just mentioned here for completeness.
-
-**Declaration**
+**声明**
 
 {{< tabs "45f4daee-66be-4a39-a445-874d79e7b248" >}}
 {{< tab "SQL" >}}
@@ -1457,12 +1381,12 @@ NULL
 DataTypes.NULL()
 ```
 
-**Bridging to JVM Types**
+**JVM Types桥接**
 
-| Java Type         | Input | Output | Remarks                              |
+| Java Type         | 输入 | 输出 | 备注                              |
 |:------------------|:-----:|:------:|:-------------------------------------|
-|`java.lang.Object` | X     | X      | *Default*                            |
-|*any class*        |       | (X)    | Any non-primitive type.              |
+|`java.lang.Object` | X     | X      | *默认*                            |
+|*any class*        |       | (X)    | 任何非原始类型。              |
 
 {{< /tab >}}
 {{< tab "Python" >}}
