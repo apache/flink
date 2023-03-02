@@ -388,12 +388,18 @@ class SlotSharingSlotAllocatorTest {
                 vertex1.getJobVertexID(),
                 Collections.singletonList(
                         new VertexAllocationInformation(
-                                allocation1, vertex1.getJobVertexID(), KeyGroupRange.of(1, 100))));
+                                allocation1,
+                                vertex1.getJobVertexID(),
+                                KeyGroupRange.of(1, 100),
+                                1)));
         locality.put(
                 vertex2.getJobVertexID(),
                 Collections.singletonList(
                         new VertexAllocationInformation(
-                                allocation1, vertex2.getJobVertexID(), KeyGroupRange.of(1, 100))));
+                                allocation1,
+                                vertex2.getJobVertexID(),
+                                KeyGroupRange.of(1, 100),
+                                1)));
 
         // previous allocation allocation2: v3
         AllocationID allocation2 = new AllocationID();
@@ -401,7 +407,10 @@ class SlotSharingSlotAllocatorTest {
                 vertex3.getJobVertexID(),
                 Collections.singletonList(
                         new VertexAllocationInformation(
-                                allocation2, vertex3.getJobVertexID(), KeyGroupRange.of(1, 100))));
+                                allocation2,
+                                vertex3.getJobVertexID(),
+                                KeyGroupRange.of(1, 100),
+                                1)));
 
         List<SlotInfo> freeSlots = new ArrayList<>();
         IntStream.range(0, 10).forEach(i -> freeSlots.add(new TestSlotInfo(new AllocationID())));

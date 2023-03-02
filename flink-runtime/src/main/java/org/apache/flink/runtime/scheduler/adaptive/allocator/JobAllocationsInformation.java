@@ -48,7 +48,10 @@ public class JobAllocationsInformation {
     }
 
     public static JobAllocationsInformation fromGraph(@Nullable ExecutionGraph graph) {
-        return graph == null ? empty() : new JobAllocationsInformation(calculateAllocations(graph));
+        return graph == null
+                ? empty()
+                : new JobAllocationsInformation(
+                        calculateAllocations(graph, StateSizeEstimates.fromGraph(graph)));
     }
 
     public List<VertexAllocationInformation> getAllocations(JobVertexID jobVertexID) {
@@ -56,10 +59,11 @@ public class JobAllocationsInformation {
     }
 
     private static Map<JobVertexID, List<VertexAllocationInformation>> calculateAllocations(
-            ExecutionGraph graph) {
+            ExecutionGraph graph, StateSizeEstimates stateSizeEstimates) {
         final Map<JobVertexID, List<VertexAllocationInformation>> allocations = new HashMap<>();
         for (ExecutionJobVertex vertex : graph.getVerticesTopologically()) {
             JobVertexID jobVertexId = vertex.getJobVertexId();
+            long avgKgSize = stateSizeEstimates.estimate(jobVertexId).orElse(0L);
             for (ExecutionVertex executionVertex : vertex.getTaskVertices()) {
                 AllocationID allocationId =
                         executionVertex.getCurrentExecutionAttempt().getAssignedAllocationID();
@@ -70,7 +74,9 @@ public class JobAllocationsInformation {
                                 executionVertex.getParallelSubtaskIndex());
                 allocations
                         .computeIfAbsent(jobVertexId, ignored -> new ArrayList<>())
-                        .add(new VertexAllocationInformation(allocationId, jobVertexId, kgr));
+                        .add(
+                                new VertexAllocationInformation(
+                                        allocationId, jobVertexId, kgr, avgKgSize));
             }
         }
         return allocations;
@@ -89,12 +95,17 @@ public class JobAllocationsInformation {
         private final AllocationID allocationID;
         private final JobVertexID jobVertexID;
         private final KeyGroupRange keyGroupRange;
+        public final long averageKeyGroupSizeInBytes;
 
         public VertexAllocationInformation(
-                AllocationID allocationID, JobVertexID jobVertexID, KeyGroupRange keyGroupRange) {
+                AllocationID allocationID,
+                JobVertexID jobVertexID,
+                KeyGroupRange keyGroupRange,
+                long averageKeyGroupSizeInBytes) {
             this.allocationID = allocationID;
             this.jobVertexID = jobVertexID;
             this.keyGroupRange = keyGroupRange;
+            this.averageKeyGroupSizeInBytes = averageKeyGroupSizeInBytes;
         }
 
         public AllocationID getAllocationID() {

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation.VertexAllocationInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -183,11 +184,7 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
                     .getAllocations(evi.getJobVertexId())
                     .forEach(
                             allocation -> {
-                                long value =
-                                        allocation
-                                                .getKeyGroupRange()
-                                                .getIntersection(kgr)
-                                                .getNumberOfKeyGroups();
+                                long value = estimateSize(kgr, allocation);
                                 if (value > 0) {
                                     score.merge(allocation.getAllocationID(), value, Long::sum);
                                 }
@@ -197,5 +194,15 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
         return score.entrySet().stream()
                 .map(e -> new AllocationScore(group.getId(), e.getKey(), e.getValue()))
                 .collect(Collectors.toList());
+    }
+
+    private static long estimateSize(
+            KeyGroupRange newRange, VertexAllocationInformation allocation) {
+        KeyGroupRange oldRange = allocation.getKeyGroupRange();
+        // Estimate state size per key group. For scoring, assume 1 if size estimate is 0 to
+        // accommodate for averaging non-zero states
+        long keyGroupSize = Math.max(allocation.averageKeyGroupSizeInBytes, 1L);
+        int numberOfKeyGroups = oldRange.getIntersection(newRange).getNumberOfKeyGroups();
+        return numberOfKeyGroups * keyGroupSize;
     }
 }
