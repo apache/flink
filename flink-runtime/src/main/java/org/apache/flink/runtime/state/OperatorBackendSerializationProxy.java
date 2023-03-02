@@ -50,7 +50,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(2, 2);
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(3, 3);
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(4, 5);
-        META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, 5);
+        META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, 6);
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(6, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
     }
 
@@ -123,7 +123,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
                     "Cannot determine corresponding meta info snapshot version for operator backend serialization readVersion="
                             + proxyReadVersion);
         }
-        if (metaInfoSnapshotVersion >= 6) {
+        if (metaInfoSnapshotVersion >= 7) {
             usingStateCompression = in.readBoolean();
         } else {
             usingStateCompression = false;
