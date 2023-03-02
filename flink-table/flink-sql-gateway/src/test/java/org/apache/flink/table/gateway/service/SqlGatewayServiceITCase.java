@@ -247,6 +247,22 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testCancelOperationByForce() {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        OperationHandle operationHandle =
+                submitDefaultOperation(
+                        sessionHandle,
+                        () -> {
+                            // mock cpu busy task that doesn't interrupt system call
+                            while (true) {}
+                        });
+
+        service.cancelOperation(sessionHandle, operationHandle);
+        assertThat(service.getOperationInfo(sessionHandle, operationHandle).getStatus())
+                .isEqualTo(OperationStatus.CANCELED);
+    }
+
+    @Test
     public void testOperationGetErrorAndFetchError() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
@@ -33,8 +34,11 @@ import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
@@ -357,7 +361,6 @@ public class OperationManager {
                             String.format(
                                     "Failed to convert the Operation Status from %s to %s for %s.",
                                     currentStatus, toStatus, operationHandle);
-                    LOG.error(message);
                     throw new SqlGatewayException(message);
                 }
             } while (!status.compareAndSet(currentStatus, toStatus));
@@ -375,6 +378,7 @@ public class OperationManager {
         private void closeResources() {
             if (invocation != null && !invocation.isDone()) {
                 invocation.cancel(true);
+                stopExecutionByForce(invocation);
                 LOG.debug(String.format("Cancel the operation %s.", operationHandle));
             }
 
@@ -390,6 +394,47 @@ public class OperationManager {
             // Update status should be placed at last. Because the client is able to fetch exception
             // when status is error.
             updateState(OperationStatus.ERROR);
+        }
+
+        private void stopExecutionByForce(FutureTask<?> invocation) {
+            // thread is cleaned async, waiting for a while
+            Deadline deadline = Deadline.fromNow(Duration.ofSeconds(1));
+            while (deadline.hasTimeLeft()) {
+                Optional<Thread> threadOptional = getThreadInFuture(invocation);
+                if (!threadOptional.isPresent()) {
+                    // thread has been cleaned up
+                    return;
+                }
+            }
+            Optional<Thread> threadOptional = getThreadInFuture(invocation);
+            if (threadOptional.isPresent()) {
+                // we have to use Thread.stop() here, because this can
+                // guarantee thread to be stopped, even there is some
+                // potential consistent problem, we are fine with it.
+                Thread thread = threadOptional.get();
+                LOG.info(
+                        "\"Future.cancel(true)\" can't cleanup current thread {}, using \"Thread.stop()\" instead.",
+                        thread.getName());
+                try {
+                    thread.stop();
+                } catch (Throwable e) {
+                    // catch all errors to project the sqlserver
+                    LOG.error("Failed to stop thread: " + thread.getName(), e);
+                }
+            }
+        }
+
+        private Optional<Thread> getThreadInFuture(FutureTask<?> invocation) {
+            try {
+                Class<?> k = FutureTask.class;
+                Field runnerField = k.getDeclaredField("runner");
+                runnerField.setAccessible(true);
+                Thread t = (Thread) runnerField.get(invocation);
+                return Optional.of(t);
+            } catch (Throwable e) {
+                // can't get thread
+                return Optional.empty();
+            }
         }
     }
 
