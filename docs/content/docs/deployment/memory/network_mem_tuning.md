@@ -142,6 +142,10 @@ buffers concept has been added. Those overdraft buffers are strictly optional an
 gradually make progress using only regular buffers, which means `0` is an acceptable configuration
 for the `taskmanager.network.memory.max-overdraft-buffers-per-gate`.
 
+{{< hint warning >}}
+This feature only takes effect for `Pipelined Shuffle`.
+{{< /hint >}}
+
 ## The number of in-flight buffers 
 
 The default settings for exclusive buffers and floating buffers should be sufficient for the maximum throughput.  If the minimum of in-flight data needs to be set, the exclusive buffers can be set to `0` and the memory segment size can be decreased.
