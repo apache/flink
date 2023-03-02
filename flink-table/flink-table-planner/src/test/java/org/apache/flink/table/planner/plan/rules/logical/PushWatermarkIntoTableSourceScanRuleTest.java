@@ -314,4 +314,45 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                 "select a, c from MyTable /*+ OPTIONS("
                         + "'scan.watermark.emit.strategy'='on-event') */");
     }
+
+    @Test
+    public void testWatermarkAlignmentWithOptions() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'scan.watermark.alignment.group' = 'group1',\n"
+                        + "  'scan.watermark.alignment.max-drift' = '1min',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("select a, c from MyTable");
+    }
+
+    @Test
+    public void testWatermarkAlignmentWithHint() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan(
+                "select a, c from MyTable /*+ OPTIONS("
+                        + "'scan.watermark.alignment.group'='group1', "
+                        + "'scan.watermark.alignment.max-drift'='1min') */");
+    }
 }

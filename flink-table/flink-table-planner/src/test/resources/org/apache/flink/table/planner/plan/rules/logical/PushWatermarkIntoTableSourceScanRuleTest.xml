@@ -251,4 +251,40 @@ FlinkLogicalCalc(select=[a, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWatermarkAlignmentWithOptions">
+    <Resource name="sql">
+      <![CDATA[select a, c from MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], watermarkAlignment=[group1, PT1M, PT1S]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkAlignmentWithHint">
+    <Resource name="sql">
+      <![CDATA[select a, c from MyTable /*+ OPTIONS('scan.watermark.alignment.group'='group1', 'scan.watermark.alignment.max-drift'='1min') */]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{scan.watermark.alignment.max-drift=1min, scan.watermark.alignment.group=group1}]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], watermarkAlignment=[group1, PT1M, PT1S]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.alignment.max-drift=1min, scan.watermark.alignment.group=group1}]]])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

@@ -194,6 +194,9 @@ class FactoryUtilTest {
                         + "key.test-format.readable-metadata\n"
                         + "password\n"
                         + "property-version\n"
+                        + "scan.watermark.alignment.group\n"
+                        + "scan.watermark.alignment.max-drift\n"
+                        + "scan.watermark.alignment.update-interval\n"
                         + "scan.watermark.emit.strategy\n"
                         + "target\n"
                         + "value.format\n"
@@ -214,6 +217,25 @@ class FactoryUtilTest {
                     options.put(FactoryUtil.WATERMARK_EMIT_STRATEGY.key(), "test_strategy");
                 },
                 "Invalid value for option 'scan.watermark.emit.strategy'.");
+    }
+
+    @Test
+    void testWatermarkAlignmentOptions() {
+        Map<String, String> watermarkOptions = createWatermarkOptions();
+        assertCreateTableSourceWithOptionModifier(
+                options -> {
+                    options.putAll(watermarkOptions);
+                    options.remove(FactoryUtil.WATERMARK_ALIGNMENT_GROUP.key());
+                },
+                "Error configuring watermark for 'test-connector', 'scan.watermark.alignment.group' "
+                        + "and 'scan.watermark.alignment.max-drift' must be set when configuring watermark alignment");
+        assertCreateTableSourceWithOptionModifier(
+                options -> {
+                    options.putAll(watermarkOptions);
+                    options.remove(FactoryUtil.WATERMARK_ALIGNMENT_MAX_DRIFT.key());
+                },
+                "Error configuring watermark for 'test-connector', 'scan.watermark.alignment.group' "
+                        + "and 'scan.watermark.alignment.max-drift' must be set when configuring watermark alignment");
     }
 
     @Test
@@ -737,6 +759,9 @@ class FactoryUtilTest {
     private static Map<String, String> createWatermarkOptions() {
         final Map<String, String> options = new HashMap<>();
         options.put("scan.watermark.emit.strategy", "on-event");
+        options.put("scan.watermark.alignment.group", "group1");
+        options.put("scan.watermark.alignment.max-drift", "1min");
+        options.put("scan.watermark.alignment.update-interval", "1s");
         return options;
     }
 
