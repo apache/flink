@@ -44,7 +44,6 @@ import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -152,7 +151,6 @@ abstract class FineGrainedSlotManagerTestBase {
                 new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
         private FineGrainedSlotManager slotManager;
-        private Duration requirementCheckDelay = Duration.ZERO;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
@@ -179,10 +177,6 @@ abstract class FineGrainedSlotManagerTestBase {
 
         ResourceManagerId getResourceManagerId() {
             return resourceManagerId;
-        }
-
-        public void setRequirementCheckDelay(Duration requirementCheckDelay) {
-            this.requirementCheckDelay = requirementCheckDelay;
         }
 
         public void setSlotManagerMetricGroup(SlotManagerMetricGroup slotManagerMetricGroup) {
