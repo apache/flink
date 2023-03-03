@@ -145,21 +145,23 @@ public class HiveDialectAggITCase {
 
     @Test
     public void testSumDecimal() throws Exception {
-        tableEnv.executeSql("create table test_sum_dec(a int, x string, z decimal(10, 5))");
         tableEnv.executeSql(
-                        "insert into test_sum_dec values (1, 'b', null), "
-                                + "(1, 'b', 1.2), "
-                                + "(2, 'b', null), "
-                                + "(2, 'b', null),"
-                                + "(4, '1', null),"
-                                + "(4, 'b', null)")
+                "create table test_sum_dec(a int, x string, z decimal(10, 5), g decimal(18, 5))");
+        tableEnv.executeSql(
+                        "insert into test_sum_dec values (1, 'b', null, null), "
+                                + "(1, 'b', 1.2, null), "
+                                + "(2, 'b', null, null), "
+                                + "(2, 'b', null, null),"
+                                + "(4, '1', null, null),"
+                                + "(4, 'b', null, null)")
                 .await();
 
         List<Row> result =
                 CollectionUtil.iteratorToList(
-                        tableEnv.executeSql("select a, sum(z) from test_sum_dec group by a")
+                        tableEnv.executeSql("select a, sum(z), sum(g) from test_sum_dec group by a")
                                 .collect());
-        assertThat(result.toString()).isEqualTo("[+I[1, 1.20000], +I[2, null], +I[4, null]]");
+        assertThat(result.toString())
+                .isEqualTo("[+I[1, 1.20000, null], +I[2, null, null], +I[4, null, null]]");
 
         List<Row> result2 =
                 CollectionUtil.iteratorToList(
