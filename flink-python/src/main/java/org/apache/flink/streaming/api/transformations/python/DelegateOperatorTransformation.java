@@ -44,7 +44,7 @@ public interface DelegateOperatorTransformation<OUT> {
 
     SimpleOperatorFactory<OUT> getOperatorFactory();
 
-    static void configureDelegatedOperator(
+    static void configureOperator(
             DelegateOperatorTransformation<?> transformation,
             AbstractPythonFunctionOperator<?> operator) {
         DelegateOperator<?> delegateOperator =

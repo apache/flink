@@ -73,7 +73,7 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
                             transformation.getOutputType());
         }
 
-        DelegateOperatorTransformation.configureDelegatedOperator(transformation, operator);
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,
@@ -115,7 +115,7 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
                             transformation.getOutputType());
         }
 
-        DelegateOperatorTransformation.configureDelegatedOperator(transformation, operator);
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,

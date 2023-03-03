@@ -55,6 +55,8 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
+import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
@@ -405,6 +407,11 @@ public class PythonOperatorChainingOptimizer {
     private static boolean areOperatorsChainable(
             Transformation<?> upTransform, Transformation<?> downTransform) {
         if (!areOperatorsChainableByChainingStrategy(upTransform, downTransform)) {
+            return false;
+        }
+
+        if (upTransform instanceof PythonBroadcastStateTransformation
+                || upTransform instanceof PythonKeyedBroadcastStateTransformation) {
             return false;
         }
 

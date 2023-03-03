@@ -74,7 +74,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getOutputType());
         }
 
-        DelegateOperatorTransformation.configureDelegatedOperator(transformation, operator);
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,
@@ -116,7 +116,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getOutputType());
         }
 
-        DelegateOperatorTransformation.configureDelegatedOperator(transformation, operator);
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,

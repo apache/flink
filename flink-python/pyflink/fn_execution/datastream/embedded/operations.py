@@ -102,7 +102,6 @@ def extract_process_function(
         def process_func(values):
             if values is None:
                 return
-                yield
             for value in values:
                 if isinstance(value, tuple) and isinstance(value[0], OutputTag):
                     output_tag = value[0]  # type: OutputTag
@@ -113,7 +112,6 @@ def extract_process_function(
         def process_func(values):
             if values is None:
                 return
-                yield
             yield from values
 
     def open_func():
