@@ -55,14 +55,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @JsonTypeName("WatermarkPushDown")
 public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
-    public static final String FIELD_NAME_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
+    public static final String FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
     public static final String FIELD_NAME_WATERMARK_PARAMS = "watermarkParams";
 
     @JsonProperty(FIELD_NAME_WATERMARK_EXPR)
     private final RexNode watermarkExpr;
 
-    @JsonProperty(FIELD_NAME_IDLE_TIMEOUT_MILLIS)
-    private final long idleTimeoutMillis;
+    @JsonProperty(FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS)
+    private final long globalIdleTimeoutMillis;
 
     @Nullable
     @JsonProperty(FIELD_NAME_WATERMARK_PARAMS)
@@ -71,12 +71,12 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     @JsonCreator
     public WatermarkPushDownSpec(
             @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
-            @JsonProperty(FIELD_NAME_IDLE_TIMEOUT_MILLIS) long idleTimeoutMillis,
+            @JsonProperty(FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS) long globalIdleTimeoutMillis,
             @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType,
             @JsonProperty(FIELD_NAME_WATERMARK_PARAMS) WatermarkParams watermarkParams) {
         super(producedType);
         this.watermarkExpr = checkNotNull(watermarkExpr);
-        this.idleTimeoutMillis = idleTimeoutMillis;
+        this.globalIdleTimeoutMillis = globalIdleTimeoutMillis;
         this.watermarkParams = watermarkParams;
     }
 
@@ -103,9 +103,10 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                                 watermarkParams.getAlignMaxDrift(),
                                 watermarkParams.getAlignUpdateInterval());
             }
-            if (idleTimeoutMillis > 0) {
+            long actualIdleTimeoutMillis = calculateIdleTimeoutMillis();
+            if (actualIdleTimeoutMillis > 0) {
                 watermarkStrategy =
-                        watermarkStrategy.withIdleness(Duration.ofMillis(idleTimeoutMillis));
+                        watermarkStrategy.withIdleness(Duration.ofMillis(actualIdleTimeoutMillis));
             }
             ((SupportsWatermarkPushDown) tableSource).applyWatermark(watermarkStrategy);
         } else {
@@ -125,8 +126,9 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                                 context.getSourceRowType().getFieldNames()));
         StringBuilder sb = new StringBuilder();
         sb.append("watermark=[").append(expressionStr).append("]");
-        if (idleTimeoutMillis > 0) {
-            sb.append(", idletimeout=[").append(idleTimeoutMillis).append("]");
+        long actualIdleTimeoutMillis = calculateIdleTimeoutMillis();
+        if (actualIdleTimeoutMillis > 0) {
+            sb.append(", idletimeout=[").append(actualIdleTimeoutMillis).append("]");
         }
         if (watermarkParams != null) {
             WatermarkEmitStrategy emitStrategy = watermarkParams.getEmitStrategy();
@@ -156,12 +158,22 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
             return false;
         }
         WatermarkPushDownSpec that = (WatermarkPushDownSpec) o;
-        return idleTimeoutMillis == that.idleTimeoutMillis
-                && Objects.equals(watermarkExpr, that.watermarkExpr);
+        return globalIdleTimeoutMillis == that.globalIdleTimeoutMillis
+                && Objects.equals(watermarkExpr, that.watermarkExpr)
+                && Objects.equals(watermarkParams, that.watermarkParams);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), watermarkExpr, idleTimeoutMillis);
+        return Objects.hash(
+                super.hashCode(), watermarkExpr, globalIdleTimeoutMillis, watermarkParams);
+    }
+
+    private long calculateIdleTimeoutMillis() {
+        long actualIdleTimeoutMillis = globalIdleTimeoutMillis;
+        if (watermarkParams != null && watermarkParams.getSourceIdleTimeout() >= 0) {
+            actualIdleTimeoutMillis = watermarkParams.getSourceIdleTimeout();
+        }
+        return actualIdleTimeoutMillis;
     }
 }

@@ -35,6 +35,7 @@ public class WatermarkParams implements Serializable {
     private String alignGroupName;
     private Duration alignMaxDrift;
     private Duration alignUpdateInterval;
+    private long sourceIdleTimeout;
 
     public WatermarkParams() {}
 
@@ -42,11 +43,13 @@ public class WatermarkParams implements Serializable {
             WatermarkEmitStrategy emitStrategy,
             String alignGroupName,
             Duration alignMaxDrift,
-            Duration alignUpdateInterval) {
+            Duration alignUpdateInterval,
+            long sourceIdleTimeout) {
         this.emitStrategy = emitStrategy;
         this.alignGroupName = alignGroupName;
         this.alignMaxDrift = alignMaxDrift;
         this.alignUpdateInterval = alignUpdateInterval;
+        this.sourceIdleTimeout = sourceIdleTimeout;
     }
 
     public WatermarkEmitStrategy getEmitStrategy() {
@@ -81,16 +84,22 @@ public class WatermarkParams implements Serializable {
         this.alignUpdateInterval = alignUpdateInterval;
     }
 
-    public boolean alignWatermarkEnabled() {
-        return !StringUtils.isNullOrWhitespaceOnly(alignGroupName)
-                && alignMaxDrift != null
-                && isDurationPositive(alignMaxDrift)
-                && alignUpdateInterval != null
-                && isDurationPositive(alignUpdateInterval);
+    public long getSourceIdleTimeout() {
+        return sourceIdleTimeout;
     }
 
-    private boolean isDurationPositive(Duration duration) {
-        return !duration.isNegative() && !duration.isZero();
+    public void setSourceIdleTimeout(long sourceIdleTimeout) {
+        this.sourceIdleTimeout = sourceIdleTimeout;
+    }
+
+    public boolean alignWatermarkEnabled() {
+        return !StringUtils.isNullOrWhitespaceOnly(alignGroupName)
+                && isLegalDuration(alignMaxDrift)
+                && isLegalDuration(alignUpdateInterval);
+    }
+
+    private boolean isLegalDuration(Duration duration) {
+        return duration != null && !duration.isNegative() && !duration.isZero();
     }
 
     public static WatermarkParamsBuilder builder() {
@@ -109,6 +118,8 @@ public class WatermarkParams implements Serializable {
                 + alignMaxDrift
                 + ", alignUpdateInterval="
                 + alignUpdateInterval
+                + ", sourceIdleTimeout="
+                + sourceIdleTimeout
                 + '}';
     }
 
@@ -121,7 +132,8 @@ public class WatermarkParams implements Serializable {
             return false;
         }
         WatermarkParams that = (WatermarkParams) o;
-        return emitStrategy == that.emitStrategy
+        return sourceIdleTimeout == that.sourceIdleTimeout
+                && emitStrategy == that.emitStrategy
                 && Objects.equals(alignGroupName, that.alignGroupName)
                 && Objects.equals(alignMaxDrift, that.alignMaxDrift)
                 && Objects.equals(alignUpdateInterval, that.alignUpdateInterval);
@@ -133,7 +145,8 @@ public class WatermarkParams implements Serializable {
                 emitStrategy,
                 alignGroupName,
                 alignMaxDrift,
-                alignUpdateInterval);
+                alignUpdateInterval,
+                sourceIdleTimeout);
     }
 
     /** Builder of WatermarkHintParams. */
@@ -144,6 +157,7 @@ public class WatermarkParams implements Serializable {
         private Duration alignMaxDrift = Duration.ZERO;
         private Duration alignUpdateInterval =
                 FactoryUtil.WATERMARK_ALIGNMENT_UPDATE_INTERVAL.defaultValue();
+        private long sourceIdleTimeout = -1;
 
         public WatermarkParamsBuilder emitStrategy(WatermarkEmitStrategy emitStrategy) {
             this.emitStrategy = emitStrategy;
@@ -165,9 +179,18 @@ public class WatermarkParams implements Serializable {
             return this;
         }
 
+        public WatermarkParamsBuilder sourceIdleTimeout(long sourceIdleTimeout) {
+            this.sourceIdleTimeout = sourceIdleTimeout;
+            return this;
+        }
+
         public WatermarkParams build() {
             return new WatermarkParams(
-                    emitStrategy, alignGroupName, alignMaxDrift, alignUpdateInterval);
+                    emitStrategy,
+                    alignGroupName,
+                    alignMaxDrift,
+                    alignUpdateInterval,
+                    sourceIdleTimeout);
         }
     }
 }

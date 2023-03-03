@@ -221,6 +221,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                                 .alignGroupName("align-group-1")
                                                 .alignMaxDrift(Duration.ofMinutes(1))
                                                 .alignUpdateInterval(Duration.ofSeconds(1))
+                                                .sourceIdleTimeout(60000)
                                                 .build()),
                                 new SourceWatermarkSpec(
                                         true,
