@@ -110,6 +110,12 @@ public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Confi
         final List<RexNode> hashExprs = new ArrayList<>();
 
         for (RelDataTypeField field : fields) {
+            if (!(field.getType() instanceof BasicSqlType)) {
+                // we only support basic SQL types for hasing, and more
+                // complex types like arrays, maps, etc. are not going to
+                // be supported by our hash function
+                continue;
+            }
             BasicSqlType type = (BasicSqlType) field.getType();
             RexInputRef inputRef = new RexInputRef(field.getIndex(), field.getType());
             RexNode expr = relBuilder.call(FlinkSqlOperatorTable.HASH_CODE, inputRef);
