@@ -205,32 +205,40 @@ public class ExecutorImpl implements Executor {
                         ExecuteStatementHeaders.getInstance(),
                         new SessionMessageParameters(sessionHandle),
                         request);
+
         // It's possible that the execution is canceled during the submission.
         // Close the Operation in background to make sure the execution can continue.
-        getResponse(
-                executeStatementResponse,
-                e -> {
-                    executorService.submit(
-                            () -> {
-                                try {
-                                    ExecuteStatementResponseBody executeStatementResponseBody =
-                                            executeStatementResponse.get();
-                                    // close operation in background to make sure users can not
-                                    // interrupt the execution.
-                                    closeOperationAsync(
-                                            getOperationHandle(
-                                                    executeStatementResponseBody
-                                                            ::getOperationHandle));
-                                } catch (Exception newException) {
-                                    // ignore
-                                }
-                            });
-                    return new SqlExecutionException("Interrupted to get response.", e);
-                });
-
         OperationHandle operationHandle =
                 getOperationHandle(
-                        () -> getResponse(executeStatementResponse).getOperationHandle());
+                        () ->
+                                getResponse(
+                                                executeStatementResponse,
+                                                e -> {
+                                                    executorService.submit(
+                                                            () -> {
+                                                                try {
+                                                                    ExecuteStatementResponseBody
+                                                                            executeStatementResponseBody =
+                                                                                    executeStatementResponse
+                                                                                            .get();
+                                                                    // close operation in background
+                                                                    // to make sure users can not
+                                                                    // interrupt the execution.
+                                                                    closeOperationAsync(
+                                                                            getOperationHandle(
+                                                                                    executeStatementResponseBody
+                                                                                            ::getOperationHandle));
+                                                                } catch (Exception newException) {
+                                                                    e.addSuppressed(newException);
+                                                                    LOG.error(
+                                                                            "Failed to cancel the interrupted exception.",
+                                                                            e);
+                                                                }
+                                                            });
+                                                    return new SqlExecutionException(
+                                                            "Interrupted to get response.", e);
+                                                })
+                                        .getOperationHandle());
         FetchResultsResponseBody fetchResultsResponse = fetchUtilResultsReady(operationHandle);
         ResultInfo firstResult = fetchResultsResponse.getResults();
 
@@ -316,7 +324,7 @@ public class ExecutorImpl implements Executor {
             return getFetchResultResponse(
                     operationHandle,
                     token,
-                    true,
+                    false,
                     e -> {
                         sendRequest(
                                 CancelOperationHeaders.getInstance(),
@@ -368,7 +376,7 @@ public class ExecutorImpl implements Executor {
                     getFetchResultResponse(
                             operationHandle,
                             0L,
-                            false,
+                            true,
                             e -> {
                                 // CliClient will not close the results. Try best to close it.
                                 closeOperationAsync(operationHandle);
@@ -385,7 +393,7 @@ public class ExecutorImpl implements Executor {
             boolean fetchResultWithInterval,
             Function<InterruptedException, SqlExecutionException> interruptedExceptionHandler) {
         try {
-            if (!fetchResultWithInterval) {
+            if (fetchResultWithInterval) {
                 Thread.sleep(100);
             }
             return sendRequest(

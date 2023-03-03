@@ -518,7 +518,7 @@ class ExecutorImplITCase {
         testInterrupting(
                 executor -> {
                     try (StatementResult result =
-                            executor.executeStatement(BlockPhase.EXECUTION.name())) {
+                            executor.executeStatement(BlockPhase.FETCHING.name())) {
                         // trigger to fetch again
                         result.hasNext();
                     }
@@ -610,18 +610,25 @@ class ExecutorImplITCase {
 
     private void testInterrupting(Consumer<Executor> task) throws Exception {
         try (Executor executor = createTestServiceExecutor()) {
-            Thread t = threadFactory.newThread(() -> task.accept(executor));
-            t.start();
-
             TestSqlGatewayService service =
                     (TestSqlGatewayService)
                             TEST_SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getSqlGatewayService();
+            Thread t =
+                    threadFactory.newThread(
+                            () -> {
+                                try {
+                                    task.accept(executor);
+                                } finally {
+                                    // notify server to return results until the executor finishes
+                                    // exception processing.
+                                    service.latch.countDown();
+                                }
+                            });
+            t.start();
             CommonTestUtils.waitUntilCondition(() -> service.isBlocking, 100L);
 
             // interrupt the submission
             t.interrupt();
-            // notify service return handle
-            service.latch.countDown();
 
             CommonTestUtils.waitUntilCondition(() -> service.isClosed, 100L);
         }
