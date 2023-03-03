@@ -246,6 +246,7 @@ public class HsFileDataIndexSpilledRegionManagerImpl
         if (channel != null) {
             channel.close();
         }
+        subpartitionFinishedSegmentMetas.clear();
     }
 
     private static boolean shouldLoadEntireSegmentToCache(
