@@ -298,7 +298,7 @@ public class KafkaSourceEnumerator
         if (t != null) {
             throw new FlinkRuntimeException("Failed to initialize partition splits due to ", t);
         }
-        if (partitionDiscoveryIntervalMs < 0) {
+        if (partitionDiscoveryIntervalMs <= 0) {
             LOG.debug("Partition discovery is disabled.");
             noMoreNewPartitionSplits = true;
         }
