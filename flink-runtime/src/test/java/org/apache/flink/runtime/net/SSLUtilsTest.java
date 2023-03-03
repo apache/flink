@@ -52,7 +52,7 @@ import java.util.Locale;
 import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.JDK;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SSLUtils}. */
 public class SSLUtilsTest {
@@ -70,10 +70,7 @@ public class SSLUtilsTest {
 
     static {
         if (System.getProperty("flink.tests.with-openssl") != null) {
-            if (!OpenSsl.isAvailable()) {
-                fail(
-                        "openSSL not available but required (property 'flink.tests.with-openssl' is set)");
-            }
+            assertThat(OpenSsl.isAvailable()).isTrue();
             AVAILABLE_SSL_PROVIDERS = Arrays.asList("JDK", "OPENSSL");
         } else {
             AVAILABLE_SSL_PROVIDERS = Collections.singletonList("JDK");
@@ -85,20 +82,14 @@ public class SSLUtilsTest {
     }
 
     @Test
-    void testSocketFactoriesWhenSslDisabled() throws Exception {
+    void testSocketFactoriesWhenSslDisabled() {
         Configuration config = new Configuration();
 
-        try {
-            SSLUtils.createSSLServerSocketFactory(config);
-            fail("exception expected");
-        } catch (IllegalConfigurationException ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createSSLServerSocketFactory(config))
+                .isInstanceOf(IllegalConfigurationException.class);
 
-        try {
-            SSLUtils.createSSLClientSocketFactory(config);
-            fail("exception expected");
-        } catch (IllegalConfigurationException ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createSSLClientSocketFactory(config))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     // ------------------------ REST client --------------------------
@@ -116,43 +107,34 @@ public class SSLUtilsTest {
     /** Tests that REST Client SSL Client is not created if SSL is not configured. */
     @ParameterizedTest
     @MethodSource("parameters")
-    void testRESTClientSSLDisabled(String sslProvider) throws Exception {
+    void testRESTClientSSLDisabled(String sslProvider) {
         Configuration clientConfig = createRestSslConfigWithTrustStore(sslProvider);
         clientConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
 
-        try {
-            SSLUtils.createRestClientSSLEngineFactory(clientConfig);
-            fail("exception expected");
-        } catch (IllegalConfigurationException ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(clientConfig))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     /** Tests that REST Client SSL creation fails with bad SSL configuration. */
     @Test
-    void testRESTClientSSLMissingTrustStore() throws Exception {
+    void testRESTClientSSLMissingTrustStore() {
         Configuration config = new Configuration();
         config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
         config.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "some password");
 
-        try {
-            SSLUtils.createRestClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (IllegalConfigurationException ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(config))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     /** Tests that REST Client SSL creation fails with bad SSL configuration. */
     @Test
-    void testRESTClientSSLMissingPassword() throws Exception {
+    void testRESTClientSSLMissingPassword() {
         Configuration config = new Configuration();
         config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
         config.setString(SecurityOptions.SSL_REST_TRUSTSTORE, TRUST_STORE_PATH);
 
-        try {
-            SSLUtils.createRestClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (IllegalConfigurationException ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(config))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     /** Tests that REST Client SSL creation fails with bad SSL configuration. */
@@ -162,11 +144,8 @@ public class SSLUtilsTest {
         Configuration clientConfig = createRestSslConfigWithTrustStore(sslProvider);
         clientConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "badpassword");
 
-        try {
-            SSLUtils.createRestClientSSLEngineFactory(clientConfig);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(clientConfig))
+                .isInstanceOf(Exception.class);
     }
 
     @ParameterizedTest
@@ -180,8 +159,8 @@ public class SSLUtilsTest {
                 (JdkSslContext)
                         SSLUtils.createRestNettySSLContext(config, true, ClientAuth.NONE, JDK);
         List<String> cipherSuites = checkNotNull(nettySSLContext).cipherSuites();
-        assertThat(cipherSuites.size()).isEqualTo(2);
-        assertThat(cipherSuites.toArray()).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
+        assertThat(cipherSuites).hasSize(2);
+        assertThat(cipherSuites).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
     }
 
     // ------------------------ server --------------------------
@@ -199,15 +178,12 @@ public class SSLUtilsTest {
     /** Tests that REST Server SSL Engine is not created if SSL is disabled. */
     @ParameterizedTest
     @MethodSource("parameters")
-    void testRESTServerSSLDisabled(String sslProvider) throws Exception {
+    void testRESTServerSSLDisabled(String sslProvider) {
         Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
         serverConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
 
-        try {
-            SSLUtils.createRestServerSSLEngineFactory(serverConfig);
-            fail("exception expected");
-        } catch (IllegalConfigurationException ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     /** Tests that REST Server SSL Engine creation fails with bad SSL configuration. */
@@ -217,11 +193,8 @@ public class SSLUtilsTest {
         Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
         serverConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "badpassword");
 
-        try {
-            SSLUtils.createRestServerSSLEngineFactory(serverConfig);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
+                .isInstanceOf(Exception.class);
     }
 
     /** Tests that REST Server SSL Engine creation fails with bad SSL configuration. */
@@ -231,11 +204,8 @@ public class SSLUtilsTest {
         Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
         serverConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "badpassword");
 
-        try {
-            SSLUtils.createRestServerSSLEngineFactory(serverConfig);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
+                .isInstanceOf(Exception.class);
     }
 
     // ----------------------- mutual auth contexts --------------------------
@@ -266,17 +236,11 @@ public class SSLUtilsTest {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
 
-        try {
-            SSLUtils.createInternalClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
     }
 
     @ParameterizedTest
@@ -284,17 +248,11 @@ public class SSLUtilsTest {
     void testInternalSSLKeyStoreOnly(String sslProvider) {
         final Configuration config = createInternalSslConfigWithKeyStore(sslProvider);
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
 
-        try {
-            SSLUtils.createInternalClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
     }
 
     @ParameterizedTest
@@ -302,17 +260,11 @@ public class SSLUtilsTest {
     void testInternalSSLTrustStoreOnly(String sslProvider) {
         final Configuration config = createInternalSslConfigWithTrustStore(sslProvider);
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
 
-        try {
-            SSLUtils.createInternalClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
     }
 
     @ParameterizedTest
@@ -321,17 +273,11 @@ public class SSLUtilsTest {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "badpw");
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
 
-        try {
-            SSLUtils.createInternalClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
     }
 
     @ParameterizedTest
@@ -340,17 +286,11 @@ public class SSLUtilsTest {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "badpw");
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
 
-        try {
-            SSLUtils.createInternalClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
     }
 
     @ParameterizedTest
@@ -359,17 +299,11 @@ public class SSLUtilsTest {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         config.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "badpw");
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
 
-        try {
-            SSLUtils.createInternalClientSSLEngineFactory(config);
-            fail("exception expected");
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(Exception.class);
     }
 
     // -------------------- protocols and cipher suites -----------------------
@@ -388,15 +322,15 @@ public class SSLUtilsTest {
 
         try (ServerSocket socket =
                 SSLUtils.createSSLServerSocketFactory(serverConfig).createServerSocket(0)) {
-            assertThat(socket instanceof SSLServerSocket).isTrue();
+            assertThat(socket).isInstanceOf(SSLServerSocket.class);
             final SSLServerSocket sslSocket = (SSLServerSocket) socket;
 
             String[] protocols = sslSocket.getEnabledProtocols();
             String[] algorithms = sslSocket.getEnabledCipherSuites();
 
-            assertThat(protocols.length).isEqualTo(1);
+            assertThat(protocols).hasSize(1);
             assertThat(protocols[0]).isEqualTo("TLSv1.1");
-            assertThat(algorithms.length).isEqualTo(2);
+            assertThat(algorithms).hasSize(2);
             assertThat(algorithms)
                     .contains("TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA256");
         }
@@ -433,12 +367,10 @@ public class SSLUtilsTest {
         final SslHandler sslHandler =
                 serverSSLHandlerFactory.createNettySSLHandler(UnpooledByteBufAllocator.DEFAULT);
 
-        assertThat(sslHandler.engine().getEnabledProtocols().length)
-                .isEqualTo(expectedSslProtocols.length);
+        assertThat(sslHandler.engine().getEnabledProtocols()).hasSameSizeAs(expectedSslProtocols);
         assertThat(sslHandler.engine().getEnabledProtocols()).contains(expectedSslProtocols);
 
-        assertThat(sslHandler.engine().getEnabledCipherSuites().length)
-                .isEqualTo(sslAlgorithms.length);
+        assertThat(sslHandler.engine().getEnabledCipherSuites()).hasSameSizeAs(sslAlgorithms);
         assertThat(sslHandler.engine().getEnabledCipherSuites()).contains(sslAlgorithms);
     }
 
@@ -452,12 +384,8 @@ public class SSLUtilsTest {
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 fingerprint.substring(0, fingerprint.length() - 3));
 
-        try {
-            SSLUtils.createInternalServerSSLEngineFactory(config);
-            fail("expected exception");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.getMessage()).contains("malformed fingerprint");
-        }
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ------------------------------- utils ----------------------------------
