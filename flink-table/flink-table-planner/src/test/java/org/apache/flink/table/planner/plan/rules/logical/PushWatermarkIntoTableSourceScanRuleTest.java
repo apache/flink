@@ -275,4 +275,43 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("SELECT * FROM MyTable");
     }
+
+    @Test
+    public void testWatermarkEmitStrategyWithOptions() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'scan.watermark.emit.strategy' = 'on-event',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("select a, c from MyTable");
+    }
+
+    @Test
+    public void testWatermarkEmitStrategyWithHint() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan(
+                "select a, c from MyTable /*+ OPTIONS("
+                        + "'scan.watermark.emit.strategy'='on-event') */");
+    }
 }

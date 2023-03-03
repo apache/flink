@@ -88,6 +88,9 @@
               "kind" : "ROWTIME"
             }
           } ]
+        },
+        "watermarkParams":{
+         "emitStrategy" : "ON_PERIODIC"
         }
       } ]
     },

@@ -54,6 +54,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
+import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rex.RexBuilder;
@@ -212,8 +214,10 @@ public class DynamicTableSourceSpecSerdeTest {
                                                 new BigIntType(),
                                                 new IntType(),
                                                 new IntType(),
-                                                new TimestampType(
-                                                        false, TimestampKind.ROWTIME, 3))),
+                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                                        WatermarkParams.builder()
+                                                .emitStrategy(WatermarkEmitStrategy.ON_PERIODIC)
+                                                .build()),
                                 new SourceWatermarkSpec(
                                         true,
                                         RowType.of(
