@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.types.RowUtils.deepEqualsRow;
 import static org.apache.flink.types.RowUtils.deepHashCodeRow;
@@ -291,6 +292,10 @@ public final class Row implements Serializable {
                 throw new IllegalArgumentException(
                         String.format("Unknown field name '%s' for mapping to a position.", name));
             }
+            assert fieldByPosition != null;
+            return fieldByPosition[pos];
+        } else if (Pattern.matches("^f[1-9]+[0-9]*$|^f0$", name)) {
+            int pos = Integer.parseInt(name.substring(1));
             assert fieldByPosition != null;
             return fieldByPosition[pos];
         } else {

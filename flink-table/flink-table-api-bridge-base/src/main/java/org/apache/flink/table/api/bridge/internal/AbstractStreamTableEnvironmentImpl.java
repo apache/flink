@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -36,6 +37,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -58,10 +60,14 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.collections.CollectionUtils;
 
 import javax.annotation.Nullable;
 
@@ -306,6 +312,46 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
                             "A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
                             executionEnvironment.getStreamTimeCharacteristic()));
         }
+    }
+
+    protected <T> DataStream<T> bypassTableConversion(
+            Table table, AbstractDataType<?> targetDataType, DataTypeFactory dataTypeFactory) {
+        final boolean hasWatermark =
+                CollectionUtils.isNotEmpty(table.getResolvedSchema().getWatermarkSpecs());
+        final boolean hasPrimaryKey = table.getResolvedSchema().getPrimaryKey().isPresent();
+
+        final QueryOperation queryOperation = table.getQueryOperation();
+
+        if (!hasWatermark && !hasPrimaryKey && queryOperation instanceof ExternalQueryOperation) {
+            final ExternalQueryOperation<T> externalQueryOperation =
+                    (ExternalQueryOperation<T>) queryOperation;
+            final DataStream<T> dataStream = externalQueryOperation.getDataStream();
+            final TypeInformation<T> typeInfo = dataStream.getType();
+
+            final DataType inputDataType =
+                    TypeInfoDataTypeConverter.toDataType(dataTypeFactory, typeInfo);
+            final DataType outputDataType = dataTypeFactory.createDataType(targetDataType);
+
+            final boolean objectReuseEnabled = this.executionEnvironment.getConfig().isObjectReuseEnabled();
+
+            if (inputDataType.equals(outputDataType)) {
+                boolean canSafelyAccessRow = true;
+
+                if (objectReuseEnabled && typeInfo instanceof RowTypeInfo) {
+                    RowTypeInfo rowTypeInfo = (RowTypeInfo) typeInfo;
+                    for (int i = 0; i < rowTypeInfo.getArity(); i++) {
+                        if (!("f" + i).equals(rowTypeInfo.getFieldNames()[i])) {
+                            canSafelyAccessRow = false;
+                            break;
+                        }
+                    }
+                }
+                if (canSafelyAccessRow) {
+                    return dataStream;
+                }
+            }
+        }
+        return null;
     }
 
     @Override

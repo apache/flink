@@ -38,6 +38,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -132,6 +133,18 @@ public class RowTest {
         assertThat(row.getField(0), equalTo(13));
         assertThat(row.getField(1), equalTo(true));
         assertThat(row.getField(2), equalTo("Hello"));
+
+        // test accessing positioned row by default name
+        assertEquals(13, row.getField("f0"));
+        assertTrue((boolean) row.getField("f1"));
+        assertEquals("Hello", row.getField("f2"));
+
+        try {
+            row.getField("f01");
+            fail();
+        } catch (Throwable t) {
+            assertThat(t, hasMessage(containsString("not supported in position-based field mode")));
+        }
 
         // test equality
         final Row otherRow1 = Row.withPositions(RowKind.DELETE, 3);

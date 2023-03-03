@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -29,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
@@ -38,6 +40,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.DataTypes;
@@ -110,6 +113,8 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 /** Tests for connecting to the {@link DataStream} API. */
 @RunWith(Parameterized.class)
@@ -310,9 +315,12 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 table.execute(),
                 Row.of(DayOfWeek.MONDAY, ZoneOffset.UTC),
                 Row.of(DayOfWeek.FRIDAY, ZoneOffset.ofHours(5)));
-        testResult(
-                tableEnv.toDataStream(table, DataTypes.of(dataStream.getType())),
-                rawRecords.toArray(new Tuple2[0]));
+
+        final DataStream<Tuple2<DayOfWeek, ZoneOffset>> resultDataStream =
+                tableEnv.toDataStream(table, DataTypes.of(dataStream.getType()));
+        assertEquals(dataStream, resultDataStream);
+
+        testResult(resultDataStream, rawRecords.toArray(new Tuple2[0]));
     }
 
     @Test
@@ -375,6 +383,102 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 Row.of("a", 47),
                 Row.of("c", 1000),
                 Row.of("c", 1000));
+    }
+
+    @Test
+    public void testFromAndToDataStreamBypassWithPojo() throws Exception {
+        env.setParallelism(1);
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+        final List<Tuple2<Long, String>> tuples =
+                Arrays.asList(Tuple2.of(1L, "a"), Tuple2.of(2L, "b"), Tuple2.of(3L, "c"));
+
+        final DataStream<Tuple2<Long, String>> dataStream =
+                env.fromCollection(tuples, Types.TUPLE(Types.LONG, Types.STRING));
+
+        final Table table = tableEnv.fromDataStream(dataStream);
+
+        final DataStream<Tuple2<Long, String>> convertedDataStream =
+                tableEnv.toDataStream(table, DataTypes.of(dataStream.getType()));
+
+        assertEquals(dataStream, convertedDataStream);
+        testResult(convertedDataStream, tuples.toArray(new Tuple2[0]));
+
+        final Table tableWithPK =
+                tableEnv.fromDataStream(
+                        dataStream,
+                        Schema.newBuilder()
+                                .column("f0", BIGINT().notNull())
+                                .column("f1", STRING())
+                                .primaryKey("f0")
+                                .build());
+        final DataStream<Tuple2<Long, String>> convertedDataStreamWithPK =
+                tableEnv.toDataStream(tableWithPK, DataTypes.of(dataStream.getType()));
+
+        assertNotEquals(dataStream, convertedDataStreamWithPK);
+        testResult(convertedDataStreamWithPK, tuples.toArray(new Tuple2[0]));
+    }
+
+    @Test
+    public void testFromAndToDataStreamBypassWithRow() throws Exception {
+        env.setParallelism(1);
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+        final SourceFunction<Row> rowGenerator =
+                new SourceFunction<Row>() {
+                    @Override
+                    public final void run(SourceContext<Row> ctx) throws Exception {
+                        Row row = new Row(2);
+                        row.setField(0, 1L);
+                        row.setField(1, "a");
+                        ctx.collect(row);
+                    }
+
+                    @Override
+                    public void cancel() {}
+                };
+
+        final RowTypeInfo typeInfo =
+                new RowTypeInfo(new TypeInformation[] {Types.LONG, Types.STRING});
+
+        // test datastream of rows with non-default name
+        DataStream<Row> dataStream = env.addSource(rowGenerator, typeInfo);
+
+        Table table = tableEnv.fromDataStream(dataStream);
+        DataStream<Row> convertedDataStream =
+                tableEnv.toDataStream(table, DataTypes.of(dataStream.getType()));
+
+        assertEquals(dataStream, convertedDataStream);
+
+        // access rows by default name
+        DataStream<Row> transformedDataStream =
+                convertedDataStream.map(
+                        (MapFunction<Row, Row>)
+                                value -> Row.of(value.getField("f0"), value.getField("f1")),
+                        typeInfo);
+
+        testResult(transformedDataStream, Row.of(1L, "a"));
+
+        // test datastreams of row with non-default name
+        final RowTypeInfo typeInfoWithColNames =
+                new RowTypeInfo(
+                        new TypeInformation[] {Types.LONG, Types.STRING},
+                        new String[] {"col0", "col1"});
+
+        final DataStream<Row> dataStreamWithFieldName =
+                env.addSource(rowGenerator, typeInfoWithColNames);
+
+        table = tableEnv.fromDataStream(dataStreamWithFieldName);
+
+        convertedDataStream =
+                tableEnv.toDataStream(table, DataTypes.of(dataStreamWithFieldName.getType()));
+
+        if (objectReuse == ObjectReuse.ENABLED) {
+            assertNotEquals(dataStreamWithFieldName, convertedDataStream);
+        } else if (objectReuse == ObjectReuse.DISABLED) {
+            assertEquals(dataStreamWithFieldName, convertedDataStream);
+        }
+        testResult(convertedDataStream, Row.of(1L, "a"));
     }
 
     @Test

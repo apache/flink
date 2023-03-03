@@ -143,8 +143,16 @@ class StreamTableEnvironmentImpl(
     Preconditions.checkNotNull(table, "Table must not be null.")
     Preconditions.checkNotNull(targetDataType, "Target data type must not be null.")
 
+    val dataTypeFactory = catalogManager.getDataTypeFactory
+
+    val originalDataStream = bypassTableConversion(table, targetDataType, dataTypeFactory)
+
+    if (originalDataStream != null) {
+      return originalDataStream.asInstanceOf[DataStream[T]]
+    }
+
     val schemaTranslationResult = SchemaTranslator.createProducingResult(
-      catalogManager.getDataTypeFactory,
+      dataTypeFactory,
       table.getResolvedSchema,
       targetDataType)
 

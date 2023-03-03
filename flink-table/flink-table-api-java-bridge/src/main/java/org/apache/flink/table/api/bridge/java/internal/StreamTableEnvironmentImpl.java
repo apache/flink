@@ -32,6 +32,7 @@ import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironment
 import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.SchemaTranslator;
@@ -244,11 +245,18 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetDataType, "Target data type must not be null.");
 
+        DataTypeFactory dataTypeFactory = getCatalogManager().getDataTypeFactory();
+
+        DataStream<T> originalDataStream =
+                bypassTableConversion(table, targetDataType, dataTypeFactory);
+
+        if (originalDataStream != null) {
+            return originalDataStream;
+        }
+
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(
-                        getCatalogManager().getDataTypeFactory(),
-                        table.getResolvedSchema(),
-                        targetDataType);
+                        dataTypeFactory, table.getResolvedSchema(), targetDataType);
 
         return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly());
     }
