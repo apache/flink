@@ -35,12 +35,8 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.fun.SqlNullifFunction;
 import org.apache.calcite.sql.type.BasicSqlType;
-import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.calcite.sql.fun.SqlNullifFunction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +48,78 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 /**
+ * For outer joins, we run into data skew problems when the join condition is sparse,
+ * creating a scenario where NULL keys are all distributed to a single task. It makes
+ * the pipeline single-threaded and underutilized.
+ *
+ * The optimization strategy we use here is to generate a salt value that we add to
+ * the join key. The salt value is 0 if the join keys are not null, but if any of the
+ * keys are null, then we generate a salt value that's a hash of the other keys in
+ * the input row.
+ *
+ * The strategy works because when any of the columns in an equijoin are NULL, the
+ * join expression becomes NULL (i.e. not True), so it doesn't matter whether the
+ * salt expressions on both sides evaluate to true or false. But we will use the
+ * salt expression as part of the distribution key, fixing the work imbalance.
+ *
+ * The following example demostrates the effect of the optimization. Notice the
+ * following changes to the plan:
+ *   1. We compute __rubisalt_left and __rubisalt_right on the join inputs
+ *   2. The Exchange into the Join node now includes the salt fields
+ *   3. We test inputs for NULLness at runtime, conditionally generating a
+ *      a salt value as a hash of other avaiable fields in the row
+ *         CASE(OR(IS NULL(a), IS NULL(b)), HASH_CODE(id), 0) AS __rubisalt_left
+ *         CASE(OR(IS NULL(c), IS NULL(a)), HASH_CODE(id), 0) AS __rubisalt_right
+ *   4. The Join condition also gets a conjuction to compare salt values.
+ *         AND(=(a, c), =(b, a0), =(__rubisalt_left, __rubisalt_right))
+ *
+ *   If none of the join keys are null, then the salt values as 0 and compare as true.
+ *   If any of the join keys are null, then the join expression will always fail,
+ *   the salt values will be non-zero, but it's OK that the salt values from left
+ *   and right side don't line up -- we only need them for the distribution.
+ *
+ * Flink SQL> explain select f1.a, f2.a
+ *       from source_1.foodelta f1
+ *       left join source_1.foodelta f2 on f1.a = f2.c and f1.b = f2.a;
+ *
+ * == Abstract Syntax Tree ==
+ * LogicalProject(a=[$1], a0=[$5])
+ * +- LogicalJoin(condition=[AND(=($1, $7), =($2, $5))], joinType=[left])
+ *    :- LogicalTableScan(table=[[default_catalog, source_1, foodelta]])
+ *    +- LogicalTableScan(table=[[default_catalog, source_1, foodelta]])
+ *
+ * == Optimized Physical Plan ==
+ * Calc(select=[a, a0])
+ *  +- Join(joinType=[LeftOuterJoin],
+ *           where=[AND(=(a, c), =(b, a0), =(__rubisalt_left, __rubisalt_right))],
+ *           select=[a, b, __rubisalt_left, a0, c, __rubisalt_right],
+ *           leftInputSpec=[NoUniqueKey],
+ *           rightInputSpec=[NoUniqueKey])
+ *     :- Exchange(distribution=[hash[a, b, __rubisalt_left]])
+ *     :  +- Calc(select=[a, b, CASE(OR(IS NULL(a), IS NULL(b)), HASH_CODE(id), 0) AS __rubisalt_left])
+ *     :     +- ChangelogNormalize(key=[id])
+ *     :        +- Exchange(distribution=[hash[id]])
+ *     :           +- DropUpdateBefore
+ *     :              +- MiniBatchAssigner(interval=[3000ms], mode=[ProcTime])
+ *     :                 +- TableSourceScan(table=[[default_catalog, source_1, foodelta]], fields=[id, a, b, c])
+ *     +- Exchange(distribution=[hash[c, a, __rubisalt_right]])
+ *        +- Calc(select=[a, c, CASE(OR(IS NULL(c), IS NULL(a)), HASH_CODE(id), 0) AS __rubisalt_right])
+ *           +- ChangelogNormalize(key=[id])
+ *              +- Exchange(distribution=[hash[id]])
+ *                 +- DropUpdateBefore
+ *                    +- MiniBatchAssigner(interval=[3000ms], mode=[ProcTime])
+ *                       +- TableSourceScan(table=[[default_catalog, source_1, foodelta]], fields=[id, a, b, c])
+ *
+ * Optimization TODO:
+ *  1. Do not include key columns in salt calculation -- they are already part of the distribution key,
+ *     so the work to compute a possible hash value is wasted effort. In the example below, columns
+ *     c and a are the join key, so there's no value in incorporating them into the salt.
+ *       CASE((c IS NULL OR a IS NULL),
+ *              (IF(a IS NULL, 0, HASH_CODE(a))
+ *             + IF(b IS NULL, 0, HASH_CODE(b))
+ *             + IF(c IS NULL, 0, HASH_CODE(c))), 0) AS __rubisalt_right]
  */
+
 public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Config>
         implements TransformationRule {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkJoinSaltNullsRule.class);
