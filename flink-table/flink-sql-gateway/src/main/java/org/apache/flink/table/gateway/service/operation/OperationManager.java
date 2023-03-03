@@ -261,15 +261,11 @@ public class OperationManager {
                         new FutureTask<Void>(work, null) {
                             @Override
                             protected void done() {
-                                try {
-                                    stopExecutionByForce(this);
-                                } finally {
-                                    LOG.debug(
-                                            String.format(
-                                                    "Release the operation lock: %s when task completes.",
-                                                    operationHandle));
-                                    operationLock.release();
-                                }
+                                LOG.debug(
+                                        String.format(
+                                                "Release the operation lock: %s when task completes.",
+                                                operationHandle));
+                                operationLock.release();
                             }
                         };
                 service.submit(copiedTask);
@@ -392,6 +388,7 @@ public class OperationManager {
         private void closeResources() {
             if (invocation != null && !invocation.isDone()) {
                 invocation.cancel(true);
+                stopExecutionByForce(invocation);
                 LOG.debug(String.format("Cancel the operation %s.", operationHandle));
             }
 
