@@ -181,6 +181,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Nullable private final String metricServiceQueryAddress;
 
     private final Map<JobID, CompletableFuture<Void>> jobManagerRunnerTerminationFutures;
+    private final Set<JobID> submittedAndWaitingTerminationJobIDs;
 
     protected final CompletableFuture<ApplicationStatus> shutDownFuture;
 
@@ -293,6 +294,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         this.jobManagerRunnerTerminationFutures =
                 new HashMap<>(INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY);
+        this.submittedAndWaitingTerminationJobIDs = new HashSet<>();
 
         this.shutDownFuture = new CompletableFuture<>();
 
@@ -1520,11 +1522,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                     throwable));
                                 });
 
+        // keep track of the job as outstanding, if not done
+        if (!jobManagerTerminationFuture.isDone()) {
+            submittedAndWaitingTerminationJobIDs.add(jobId);
+        }
+
         return FutureUtils.thenAcceptAsyncIfNotDone(
                 jobManagerTerminationFuture,
                 getMainThreadExecutor(),
                 FunctionUtils.uncheckedConsumer(
                         (ignored) -> {
+                            submittedAndWaitingTerminationJobIDs.remove(jobId);
                             jobManagerRunnerTerminationFutures.remove(jobId);
                             action.accept(jobGraph);
                         }));
