@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.factories.FactoryUtil.SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_GROUP;
 import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_MAX_DRIFT;
 import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_UPDATE_INTERVAL;
@@ -120,13 +121,13 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             sourceWatermarkSpec.apply(newDynamicTableSource, abilityContext);
             abilitySpec = sourceWatermarkSpec;
         } else {
-            final Duration idleTimeout =
+            final Duration globalIdleTimeout =
                     tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
-            final long idleTimeoutMillis;
-            if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
-                idleTimeoutMillis = idleTimeout.toMillis();
+            final long globalIdleTimeoutMillis;
+            if (!globalIdleTimeout.isZero() && !globalIdleTimeout.isNegative()) {
+                globalIdleTimeoutMillis = globalIdleTimeout.toMillis();
             } else {
-                idleTimeoutMillis = -1L;
+                globalIdleTimeoutMillis = -1L;
             }
 
             Optional<RelHint> optionsHintOptional =
@@ -158,7 +159,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
 
             final WatermarkPushDownSpec watermarkPushDownSpec =
                     new WatermarkPushDownSpec(
-                            watermarkExpr, idleTimeoutMillis, producedType, watermarkParams);
+                            watermarkExpr, globalIdleTimeoutMillis, producedType, watermarkParams);
             watermarkPushDownSpec.apply(newDynamicTableSource, abilityContext);
             abilitySpec = watermarkPushDownSpec;
         }
@@ -209,6 +210,8 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
                 .ifPresent(builder::alignMaxDrift);
         getOptions(WATERMARK_ALIGNMENT_UPDATE_INTERVAL, hintOptions, tableOptions)
                 .ifPresent(builder::alignUpdateInterval);
+        getOptions(SOURCE_IDLE_TIMEOUT, hintOptions, tableOptions)
+                .ifPresent(timeout -> builder.sourceIdleTimeout(timeout.toMillis()));
         return builder.build();
     }
 

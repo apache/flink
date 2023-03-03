@@ -198,6 +198,7 @@ class FactoryUtilTest {
                         + "scan.watermark.alignment.max-drift\n"
                         + "scan.watermark.alignment.update-interval\n"
                         + "scan.watermark.emit.strategy\n"
+                        + "scan.watermark.idle-timeout\n"
                         + "target\n"
                         + "value.format\n"
                         + "value.test-format.changelog-mode\n"
@@ -762,6 +763,7 @@ class FactoryUtilTest {
         options.put("scan.watermark.alignment.group", "group1");
         options.put("scan.watermark.alignment.max-drift", "1min");
         options.put("scan.watermark.alignment.update-interval", "1s");
+        options.put("scan.watermark.idle-timeout", "1min");
         return options;
     }
 

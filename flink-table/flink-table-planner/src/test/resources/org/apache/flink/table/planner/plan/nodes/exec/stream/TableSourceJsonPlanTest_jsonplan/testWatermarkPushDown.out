@@ -93,7 +93,8 @@
          "emitStrategy" : "ON_PERIODIC",
          "alignGroupName" : null,
          "alignMaxDrift" : "PT0S",
-         "alignUpdateInterval" : "PT1S"
+         "alignUpdateInterval" : "PT1S",
+         "sourceIdleTimeout" : -1
         }
       } ]
     },
