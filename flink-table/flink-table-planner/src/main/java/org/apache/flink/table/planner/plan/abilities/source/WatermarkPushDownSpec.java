@@ -30,12 +30,16 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGeneratorSupplier;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
+import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -52,6 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
     public static final String FIELD_NAME_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
+    public static final String FIELD_NAME_WATERMARK_PARAMS = "watermarkParams";
 
     @JsonProperty(FIELD_NAME_WATERMARK_EXPR)
     private final RexNode watermarkExpr;
@@ -59,14 +64,20 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     @JsonProperty(FIELD_NAME_IDLE_TIMEOUT_MILLIS)
     private final long idleTimeoutMillis;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_WATERMARK_PARAMS)
+    private final WatermarkParams watermarkParams;
+
     @JsonCreator
     public WatermarkPushDownSpec(
             @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
             @JsonProperty(FIELD_NAME_IDLE_TIMEOUT_MILLIS) long idleTimeoutMillis,
-            @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType) {
+            @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType,
+            @JsonProperty(FIELD_NAME_WATERMARK_PARAMS) WatermarkParams watermarkParams) {
         super(producedType);
         this.watermarkExpr = checkNotNull(watermarkExpr);
         this.idleTimeoutMillis = idleTimeoutMillis;
+        this.watermarkParams = watermarkParams;
     }
 
     @Override
@@ -81,7 +92,8 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                             Option.apply("context"));
 
             WatermarkGeneratorSupplier<RowData> supplier =
-                    new GeneratedWatermarkGeneratorSupplier(generatedWatermarkGenerator);
+                    new GeneratedWatermarkGeneratorSupplier(
+                            generatedWatermarkGenerator, watermarkParams);
 
             WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.forGenerator(supplier);
             if (idleTimeoutMillis > 0) {
@@ -104,11 +116,16 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                         watermarkExpr,
                         JavaScalaConversionUtil.toScala(
                                 context.getSourceRowType().getFieldNames()));
+        StringBuilder sb = new StringBuilder();
+        sb.append("watermark=[").append(expressionStr).append("]");
         if (idleTimeoutMillis > 0) {
-            return String.format(
-                    "watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
+            sb.append(", idletimeout=[").append(idleTimeoutMillis).append("]");
         }
-        return String.format("watermark=[%s]", expressionStr);
+        if (watermarkParams != null) {
+            WatermarkEmitStrategy emitStrategy = watermarkParams.getEmitStrategy();
+            sb.append(", watermarkEmitStrategy=[").append(emitStrategy).append("]");
+        }
+        return sb.toString();
     }
 
     @Override

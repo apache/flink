@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
@@ -32,6 +33,7 @@ import org.apache.calcite.util.Litmus;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Optional;
 
 /** A collection of Flink style {@link HintStrategy}s. */
 public abstract class FlinkHintStrategies {
@@ -47,12 +49,7 @@ public abstract class FlinkHintStrategies {
                 .hintStrategy(
                         FlinkHints.HINT_NAME_OPTIONS,
                         HintStrategy.builder(HintPredicates.TABLE_SCAN)
-                                .optionChecker(
-                                        (hint, errorHandler) ->
-                                                errorHandler.check(
-                                                        hint.kvOptions.size() > 0,
-                                                        "Hint [{}] only support non empty key value options",
-                                                        hint.hintName))
+                                .optionChecker(OPTIONS_KV_OPTION_CHECKER)
                                 .build())
                 .hintStrategy(
                         FlinkHints.HINT_NAME_JSON_AGGREGATE_WRAPPED,
@@ -121,6 +118,20 @@ public abstract class FlinkHintStrategies {
                                     + "one table or view specified in hint {}.",
                             FlinkHints.stringifyHints(Collections.singletonList(hint)),
                             hint.hintName);
+
+    private static final HintOptionChecker OPTIONS_KV_OPTION_CHECKER =
+            (hint, errorHandler) -> {
+                errorHandler.check(
+                        hint.kvOptions.size() > 0,
+                        "Hint [{}] only support non empty key value options",
+                        hint.hintName);
+
+                Configuration conf = Configuration.fromMap(hint.kvOptions);
+                Optional<String> errMsgOptional = FactoryUtil.checkWatermarkOptions(conf);
+                errorHandler.check(
+                        !errMsgOptional.isPresent(), errMsgOptional.orElse("No errors."));
+                return true;
+            };
 
     private static final HintOptionChecker LOOKUP_NON_EMPTY_KV_OPTION_CHECKER =
             (lookupHint, litmus) -> {

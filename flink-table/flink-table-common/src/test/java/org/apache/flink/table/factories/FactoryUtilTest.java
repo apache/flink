@@ -194,6 +194,7 @@ class FactoryUtilTest {
                         + "key.test-format.readable-metadata\n"
                         + "password\n"
                         + "property-version\n"
+                        + "scan.watermark.emit.strategy\n"
                         + "target\n"
                         + "value.format\n"
                         + "value.test-format.changelog-mode\n"
@@ -202,6 +203,17 @@ class FactoryUtilTest {
                         + "value.test-format.fail-on-missing\n"
                         + "value.test-format.fallback-fail-on-missing\n"
                         + "value.test-format.readable-metadata");
+    }
+
+    @Test
+    void testWatermarkEmitOptions() {
+        Map<String, String> watermarkOptions = createWatermarkOptions();
+        assertCreateTableSourceWithOptionModifier(
+                options -> {
+                    options.putAll(watermarkOptions);
+                    options.put(FactoryUtil.WATERMARK_EMIT_STRATEGY.key(), "test_strategy");
+                },
+                "Invalid value for option 'scan.watermark.emit.strategy'.");
     }
 
     @Test
@@ -719,6 +731,12 @@ class FactoryUtilTest {
         options.put("value.format", "test-format");
         options.put("value.test-format.delimiter", "|");
         options.put("value.test-format.fail-on-missing", "true");
+        return options;
+    }
+
+    private static Map<String, String> createWatermarkOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("scan.watermark.emit.strategy", "on-event");
         return options;
     }
 
