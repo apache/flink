@@ -73,6 +73,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     private transient Counter leftInputDroppedNullKeyCount;
     private transient Counter rightInputDroppedNullKeyCount;
 
+    private static final boolean statelessNullKeysEnabled = false;
     private boolean isEquijoin;
 
     public StreamingJoinOperator(
@@ -188,7 +189,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 LOG.debug("dropping LEFT input {}", rowStringSerializer.asString(element.getValue()));
                 leftInputDroppedNullKeyCount.inc();
                 return;
-            } else if (isEquijoin) {
+            } else if (isEquijoin && !isBatchMode() && statelessNullKeysEnabled) {
                 // special optimization for outer joins on a NULL key
                 // we do not need to maintain any state since the join
                 // condition will result in an association failure, so
@@ -223,7 +224,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 LOG.debug("dropping RIGHT input {}", rowStringSerializer.asString(element.getValue()));
                 rightInputDroppedNullKeyCount.inc();
                 return;
-            } else if (isEquijoin) {
+            } else if (isEquijoin && !isBatchMode() && statelessNullKeysEnabled) {
                 // special optimization for outer joins on a NULL key
                 // we do not need to maintain any state since the join
                 // condition will result in an association failure, so

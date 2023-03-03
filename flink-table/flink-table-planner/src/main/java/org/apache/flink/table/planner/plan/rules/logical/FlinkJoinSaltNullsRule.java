@@ -27,6 +27,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -34,7 +35,12 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.fun.SqlNullifFunction;
+import org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.calcite.sql.fun.SqlNullifFunction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,6 +101,35 @@ public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Confi
         return false;
     }
 
+    private RexNode generateSaltHashExpr(
+        RelBuilder relBuilder,
+        RexBuilder rexBuilder,
+        RelNode relNode) {
+        final List<RelDataTypeField> fields = relNode.getRowType().getFieldList();
+        final RelDataType intType = rexBuilder.getTypeFactory().createSqlType(SqlTypeName.INTEGER);
+        final List<RexNode> hashExprs = new ArrayList<>();
+
+        for (RelDataTypeField field : fields) {
+            BasicSqlType type = (BasicSqlType) field.getType();
+            RexInputRef inputRef = new RexInputRef(field.getIndex(), field.getType());
+            RexNode expr = relBuilder.call(FlinkSqlOperatorTable.HASH_CODE, inputRef);
+            if (type.isNullable()) {
+                expr = relBuilder.call(
+                    FlinkSqlOperatorTable.IF,
+                    relBuilder.isNull(inputRef),
+                    rexBuilder.makeLiteral(0, intType, false),
+                    expr);
+            }
+            hashExprs.add(expr);
+        }
+
+        if (hashExprs.size() > 1) {
+            return relBuilder.call(FlinkSqlOperatorTable.PLUS, hashExprs);
+        } else {
+            return hashExprs.get(0);
+        }
+    }
+
     @Override
     public void onMatch(RelOptRuleCall call) {
         final Join origJoin = call.rel(0);
@@ -121,7 +156,7 @@ public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Confi
         RexNode leftSaltExpr =
             relBuilder.call(FlinkSqlOperatorTable.CASE,
                             relBuilder.or(leftNullChecks),
-                            relBuilder.call(FlinkSqlOperatorTable.RAND_INTEGER, rexBuilder.makeLiteral(128, intType, false)),
+                            generateSaltHashExpr(relBuilder, rexBuilder, origLeft),
                             rexBuilder.makeLiteral(0, intType, false));
 
         RelNode leftSaltedProject =
@@ -147,7 +182,7 @@ public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Confi
             relBuilder
                 .call(FlinkSqlOperatorTable.CASE,
                         relBuilder.or(rightNullChecks),
-                        relBuilder.call(FlinkSqlOperatorTable.RAND_INTEGER, rexBuilder.makeLiteral(128, intType, false)),
+                        generateSaltHashExpr(relBuilder, rexBuilder, origRight),
                         rexBuilder.makeLiteral(0, intType, false))
                 .accept(new RexShuttle() {
                         public RexNode visitInputRef(RexInputRef node) {
