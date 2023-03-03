@@ -107,7 +107,8 @@ public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Confi
         RelNode relNode) {
         final List<RelDataTypeField> fields = relNode.getRowType().getFieldList();
         final RelDataType intType = rexBuilder.getTypeFactory().createSqlType(SqlTypeName.INTEGER);
-        final List<RexNode> hashExprs = new ArrayList<>();
+        List<RexNode> hashExprs = new ArrayList<>();
+        final List<RexNode> notNullHashExprs = new ArrayList<>();
 
         for (RelDataTypeField field : fields) {
             if (!(field.getType() instanceof BasicSqlType)) {
@@ -125,8 +126,18 @@ public class FlinkJoinSaltNullsRule extends RelRule<FlinkJoinSaltNullsRule.Confi
                     relBuilder.isNull(inputRef),
                     rexBuilder.makeLiteral(0, intType, false),
                     expr);
+            } else {
+                // maintain a list of exclusively non-nullable expressions that
+                // we prefer to use for salt; if we don't have any non-null exprssions,
+                // we will fall back to all expressions
+                notNullHashExprs.add(expr);
             }
             hashExprs.add(expr);
+        }
+
+        if (notNullHashExprs.size() > 0) {
+            // use not-null fields only, otherwise use all fields
+            hashExprs = notNullHashExprs;
         }
 
         if (hashExprs.size() > 1) {
