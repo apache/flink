@@ -20,6 +20,8 @@ package org.apache.flink.yarn.cli;
 
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.DynamicPropertiesUtil;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -856,6 +858,9 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                             configurationDirectory,
                             "",
                             ""); // no prefix for the YARN session
+
+            final CommandLine commandLine = CliFrontendParser.parse(cli.allOptions, args, true);
+            DynamicPropertiesUtil.encodeDynamicProperties(commandLine, flinkConfiguration);
 
             SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
 
