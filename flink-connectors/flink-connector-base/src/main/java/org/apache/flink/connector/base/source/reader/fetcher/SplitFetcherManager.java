@@ -98,6 +98,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      *
      * @param elementsQueue the queue that split readers will put elements into.
      * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param configuration the configuration of this fetcher manager.
      */
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -111,6 +112,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      *
      * @param elementsQueue the queue that split readers will put elements into.
      * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param configuration the configuration of this fetcher manager.
      * @param splitFinishedHook Hook for handling finished splits in split fetchers.
      */
     @VisibleForTesting
