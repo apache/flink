@@ -31,7 +31,7 @@ to automate tasks in the development process.
 ## Requirements
 
 - Gradle 7.x 
-- Java 11
+- Java 8 (deprecated) or Java 11
 
 ## Importing the project into your IDE
 

@@ -35,7 +35,7 @@ under the License.
 
 首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
-还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 11** 或更新的版本来进行构建。
+还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8 (deprecated) 或 Java 11** 来进行构建。
 
 *注意：Maven 3.3.x 可以构建 Flink，但是不能正确地屏蔽掉指定的依赖。Maven 3.2.5 可以正确地构建库文件。
 

@@ -31,7 +31,7 @@ publish, and deploy projects. You can use it to manage the entire lifecycle of y
 ## Requirements
 
 - Maven 3.0.4 (or higher)
-- Java 11
+- Java 8 (deprecated) or Java 11
 
 ## Importing the project into your IDE
 
