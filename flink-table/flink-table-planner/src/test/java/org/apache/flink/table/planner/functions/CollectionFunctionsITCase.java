@@ -24,7 +24,6 @@ import org.apache.flink.types.Row;
 
 import java.time.LocalDate;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -34,6 +33,8 @@ import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.map;
 import static org.apache.flink.table.api.Expressions.mapFromArrays;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
 class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
@@ -280,21 +281,14 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 mapFromArrays($("f0"), $("f1")),
                                 "MAP_FROM_ARRAYS(f0, f1)",
-                                of(1, "one", 2, "two"),
+                                map(entry(1, "one"), entry(2, "two")),
                                 DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
                         .testTableApiResult(
                                 mapFromArrays($("f1"), $("f2")),
-                                of("one", new Integer[] {1, 2}, "two", new Integer[] {3, 4}),
+                                map(
+                                        entry("one", new Integer[] {1, 2}),
+                                        entry("two", new Integer[] {3, 4})),
                                 DataTypes.MAP(
                                         DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT()))));
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2) {
-        Map<K, V> map = new HashMap<>();
-        map.put(k1, v1);
-        map.put(k2, v2);
-        return map;
     }
 }
