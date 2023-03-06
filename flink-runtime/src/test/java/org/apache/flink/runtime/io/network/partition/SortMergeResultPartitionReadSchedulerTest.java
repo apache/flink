@@ -48,6 +48,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionedFileWriteReadTest.createAndConfigIndexEntryBuffer;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SortMergeResultPartitionReadScheduler}. */
@@ -282,16 +283,16 @@ class SortMergeResultPartitionReadSchedulerTest {
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
                         bufferPool, executor, this, bufferRequestTimeout);
-        SortMergeSubpartitionReader subpartitionReader =
-                new SortMergeSubpartitionReader(new NoOpBufferAvailablityListener(), fileReader);
 
         long startTimestamp = System.nanoTime();
-        Queue<MemorySegment> allocatedBuffers = readScheduler.allocateBuffers();
+        Queue<MemorySegment> allocatedBuffers = new ArrayDeque<>();
+
+        assertThatCode(() -> allocatedBuffers.addAll(readScheduler.allocateBuffers()))
+                .doesNotThrowAnyException();
         long requestDuration = System.nanoTime() - startTimestamp;
 
         assertThat(allocatedBuffers).hasSize(3);
         assertThat(requestDuration).isGreaterThan(bufferRequestTimeout.toNanos() * 2);
-        assertThat(subpartitionReader.getFailureCause()).isNull();
 
         bufferPool.recycle(allocatedBuffers);
         bufferPool.destroy();
