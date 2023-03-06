@@ -66,7 +66,8 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
                               |  `d` STRING,
                               |  `e` DOUBLE,
                               |  `f` BIGINT METADATA,
-                              |  `g` INT METADATA VIRTUAL
+                              |  `g` INT METADATA VIRTUAL,
+                              |  `h` AS `a` + 1
                               |) with (
                               |  'connector' = 'values',
                               |  'sink-insert-only' = 'false',
@@ -142,12 +143,23 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
   }
 
   @Test
-  def testPartialInsertWithVirtualMetaData(): Unit = {
+  def testPartialInsertWithVirtualMetaDataColumn(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "SQL validation failed. At line 1, column 38: Unknown target column 'g'")
     util.verifyRelPlanInsert(
       "INSERT INTO metadata_sink (a,b,c,d,e,g) " +
+        "SELECT a,b,c,d,e,123 FROM MyTable"
+    )
+  }
+
+  @Test
+  def testPartialInsertWithComputedColumn(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "SQL validation failed. At line 1, column 38: Unknown target column 'h'")
+    util.verifyRelPlanInsert(
+      "INSERT INTO metadata_sink (a,b,c,d,e,h) " +
         "SELECT a,b,c,d,e,123 FROM MyTable"
     )
   }
