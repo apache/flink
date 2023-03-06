@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
+import org.apache.flink.table.planner.plan.rules.physical.stream.PushCalcsPastChangelogNormalize
 
 import java.util
 import java.util.Collections
@@ -319,5 +320,6 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
   override protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = {
     StreamNonDeterministicPhysicalPlanResolver.resolvePhysicalPlan(expanded, planner.getTableConfig)
+    PushCalcsPastChangelogNormalize.optimize(planner.createRelBuilder, expanded)
   }
 }
