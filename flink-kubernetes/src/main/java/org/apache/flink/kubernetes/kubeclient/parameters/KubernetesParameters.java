@@ -113,4 +113,7 @@ public interface KubernetesParameters {
 
     /** The custom kubernetes pod scheduler name. */
     String getPodSchedulerName();
+
+    /** Get podGroupConfig of volcano. */
+    Map<String, String> getPodGroupConfig();
 }

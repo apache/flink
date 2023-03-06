@@ -494,6 +494,5 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         final List<HasMetadata> prePreparedResources =
                 this.kubernetesJobManagerSpecification.getPrePreparedResources();
         assertThat(prePreparedResources).hasSize(0);
-        assertThat(prePreparedResources).isEmpty();
     }
 }

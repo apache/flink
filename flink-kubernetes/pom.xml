@@ -64,6 +64,15 @@ under the License.
 			<version>${kubernetes.client.version}</version>
 		</dependency>
 
+		<!-- Due to volcano-model depends on kubernetes-model-core, and operate the
+		     said kubernetes resources also need volcano-model, so we make volcano-model
+		     in flink-kubernetes. -->
+		<dependency>
+			<groupId>io.fabric8</groupId>
+			<artifactId>volcano-model-v1beta1</artifactId>
+			<version>${kubernetes.client.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>io.fabric8</groupId>
@@ -96,6 +105,39 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>shade-k8s-volcano</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<includes combine.children="append">
+										<include>**/*VolcanoStepDecorator*</include>
+										<include>META-INF/services/*PluginFactory*</include>
+									</includes>
+								</filter>
+							</filters>
+							<relocations>
+								<relocation>
+									<pattern>io.fabric8</pattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8</shadedPattern>
+								</relocation>
+							</relocations>
+							<outputFile>
+								flink-kubernetes-volcano.jar
+							</outputFile>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
 						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
@@ -107,6 +149,7 @@ under the License.
 									<include>io.fabric8:kubernetes-client</include>
 									<include>io.fabric8:kubernetes-model-*</include>
 									<include>io.fabric8:zjsonpatch</include>
+									<include>io.fabric8:volcano-model-*</include>
 
 									<!-- Shade all the dependencies of kubernetes client  -->
 									<include>com.fasterxml.jackson.core:jackson-core</include>
@@ -172,6 +215,26 @@ under the License.
 								    <shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8</shadedPattern>
 								</relocation>
 							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>create-ext-decorator-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>ext-decorator</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-ext-decorator-assembly.xml</descriptor>
+							</descriptors>
 						</configuration>
 					</execution>
 				</executions>

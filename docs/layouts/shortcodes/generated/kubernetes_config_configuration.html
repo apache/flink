@@ -308,5 +308,11 @@
             <td>Integer</td>
             <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <code class="highlighter-rouge">FlinkKubeClient#checkAndUpdateConfigMap</code>.</td>
         </tr>
+        <tr>
+            <td><h5>kubernetes.podgroup.config</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Map</td>
+            <td>contains the config of pod group when use batchScheduler like Volcano.  For example, priorityClassName:mid-priority,minMember:1,queue:default<code class="highlighter-rouge">FlinkKubeClient#checkAndUpdateConfigMap</code>.</td>
+        </tr>
     </tbody>
 </table>

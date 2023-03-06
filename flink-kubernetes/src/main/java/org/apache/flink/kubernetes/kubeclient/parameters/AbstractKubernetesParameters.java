@@ -211,4 +211,9 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public String getPodSchedulerName() {
         return flinkConfig.get(KubernetesConfigOptions.POD_SCHEDULER_NAME);
     }
+
+    @Override
+    public Map<String, String> getPodGroupConfig() {
+        return flinkConfig.get(KubernetesConfigOptions.POD_GROUP_CONFOG);
+    }
 }

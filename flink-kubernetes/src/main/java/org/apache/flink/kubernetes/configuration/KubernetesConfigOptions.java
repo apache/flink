@@ -33,6 +33,7 @@ import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -50,6 +51,8 @@ public class KubernetesConfigOptions {
     private static final String KUBERNETES_SERVICE_ACCOUNT_KEY = "kubernetes.service-account";
     private static final String KUBERNETES_POD_TEMPLATE_FILE_KEY = "kubernetes.pod-template-file";
     private static final String KUBERNETES_POD_SCHEDULER_NAME_KEY = "kubernetes.scheduler-name";
+
+    private static final String KUBERNETES_PODGROUP_CONFIG = "kubernetes.podgroup.config";
 
     public static final ConfigOption<String> CONTEXT =
             key("kubernetes.context")
@@ -484,6 +487,19 @@ public class KubernetesConfigOptions {
                                     + "' and '"
                                     + TASK_MANAGER_POD_SCHEDULER_NAME.key()
                                     + "' for jobmanager and taskmanager respectively.");
+
+    public static final ConfigOption<Map<String, String>> POD_GROUP_CONFOG =
+            key(KUBERNETES_PODGROUP_CONFIG)
+                    .mapType()
+                    .defaultValue(
+                            new HashMap<String, String>() {
+                                {
+                                    put("priorityClassName", "mid-priority");
+                                    put("minMember", "1");
+                                    put("queue", "default");
+                                }
+                            })
+                    .withDescription("the pod group config of volcano");
 
     /**
      * This option is here only for documentation generation, it is the fallback key of

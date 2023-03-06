@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.decorators.CmdJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExtStepDecoratorUtils;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
@@ -90,11 +91,18 @@ public class KubernetesJobManagerFactory {
                         new FlinkConfMountDecorator(kubernetesJobManagerParameters),
                         new PodTemplateMountDecorator(kubernetesJobManagerParameters)));
 
+        // load extend step decorators via SPI
+        stepDecorators.addAll(
+                ExtStepDecoratorUtils.loadExtStepDecorators(kubernetesJobManagerParameters));
+
         for (KubernetesStepDecorator stepDecorator : stepDecorators) {
             prePreparedResources.addAll(stepDecorator.buildPrePreparedResources());
             flinkPod = stepDecorator.decorateFlinkPod(flinkPod);
             accompanyingResources.addAll(stepDecorator.buildAccompanyingKubernetesResources());
         }
+
+        // Add all prepared AccompanyingResources to refresh owner reference
+        accompanyingResources.addAll(prePreparedResources);
 
         final Deployment deployment =
                 createJobManagerDeployment(flinkPod, kubernetesJobManagerParameters);
