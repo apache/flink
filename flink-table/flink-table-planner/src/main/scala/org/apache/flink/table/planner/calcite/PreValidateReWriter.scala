@@ -371,10 +371,10 @@ object PreValidateReWriter {
     table.unwrap(classOf[FlinkPreparingTableBase]) match {
       case t: CatalogSourceTable =>
         val schema = t.getCatalogTable.getSchema
-        typeFactory.asInstanceOf[FlinkTypeFactory].buildPhysicalRelNodeRowType(schema)
+        typeFactory.asInstanceOf[FlinkTypeFactory].buildPersistedRelNodeRowType(schema)
       case t: LegacyCatalogSourceTable[_] =>
         val schema = t.catalogTable.getSchema
-        typeFactory.asInstanceOf[FlinkTypeFactory].buildPhysicalRelNodeRowType(schema)
+        typeFactory.asInstanceOf[FlinkTypeFactory].buildPersistedRelNodeRowType(schema)
       case _ =>
         table.getRowType
     }
