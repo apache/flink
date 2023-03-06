@@ -436,7 +436,17 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
                 && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
                 && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
             isRunning = true;
-            ioExecutor.execute(this);
+            ioExecutor.execute(
+                    () -> {
+                        try {
+                            run();
+                        } catch (Exception e) {
+                            // handle un-expected exception as unhandledExceptionHandler is not
+                            // worked for ScheduledExecutorService.
+                            FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                    Thread.currentThread(), e);
+                        }
+                    });
         }
     }
 
