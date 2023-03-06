@@ -48,8 +48,8 @@ import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcas
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator;
-import org.apache.flink.streaming.runtime.translators.python.PythonKeyedBroadcastStateTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.PythonBroadcastStateTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.PythonKeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
