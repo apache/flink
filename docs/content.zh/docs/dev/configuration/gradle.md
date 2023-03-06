@@ -29,7 +29,7 @@ under the License.
 ## 要求
 
 - Gradle 7.x 
-- Java 11
+- Java 8 (deprecated) 或 Java 11
 
 ## 将项目导入 IDE
 
