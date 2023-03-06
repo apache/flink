@@ -30,10 +30,15 @@ public class KubernetesJobManagerSpecification {
 
     private List<HasMetadata> accompanyingResources;
 
+    private List<HasMetadata> prePreparedResources;
+
     public KubernetesJobManagerSpecification(
-            Deployment deployment, List<HasMetadata> accompanyingResources) {
+            Deployment deployment,
+            List<HasMetadata> accompanyingResources,
+            List<HasMetadata> prePreparedResources) {
         this.deployment = deployment;
         this.accompanyingResources = accompanyingResources;
+        this.prePreparedResources = prePreparedResources;
     }
 
     public Deployment getDeployment() {
@@ -42,5 +47,9 @@ public class KubernetesJobManagerSpecification {
 
     public List<HasMetadata> getAccompanyingResources() {
         return accompanyingResources;
+    }
+
+    public List<HasMetadata> getPrePreparedResources() {
+        return prePreparedResources;
     }
 }

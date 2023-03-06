@@ -485,4 +485,15 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
                                         && x.getMetadata().getName().equals(configMapName))
                 .collect(Collectors.toList());
     }
+
+    @Test
+    void testPrePreparedResourcesWontAffectOriginalProcess() throws IOException {
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+        final List<HasMetadata> prePreparedResources =
+                this.kubernetesJobManagerSpecification.getPrePreparedResources();
+        assertThat(prePreparedResources).hasSize(0);
+        assertThat(prePreparedResources).isEmpty();
+    }
 }
