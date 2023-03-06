@@ -165,6 +165,12 @@
             <td>Specify how many JobManager pods will be started simultaneously. Configure the value to greater than 1 to start standby JobManagers. It will help to achieve faster recovery. Notice that high availability should be enabled when starting standby JobManagers.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.scheduler-name</h5></td>
+            <td style="word-wrap: break-word;">"default-scheduler"</td>
+            <td>String</td>
+            <td>Specify the kubernetes pod scheduler for jobmanager pods of deployment. The default value is using the kubernetes default pod scheduler. For customerized kubernetes pod scheduler, allow to set pod scheduler for customerized pod scheduling. If not explicitly configured, config option 'kubernetes.scheduler-name' will be used.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
             <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>
@@ -219,6 +225,12 @@
             <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li><li>"Headless_ClusterIP"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>kubernetes.scheduler-name</h5></td>
+            <td style="word-wrap: break-word;">"default-scheduler"</td>
+            <td>String</td>
+            <td>Specify the kubernetes pod scheduler for Flink pods of deployment. The default value is using the kubernetes default pod scheduler. For customerized kubernetes pod scheduler, allow to set pod scheduler for customerized pod scheduling. Notice that this can be overwritten by config options 'kubernetes.jobmanager.scheduler-name' and 'kubernetes.taskmanager.scheduler-name' for jobmanager and taskmanager respectively.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.secrets</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
@@ -271,6 +283,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.scheduler-name</h5></td>
+            <td style="word-wrap: break-word;">"default-scheduler"</td>
+            <td>String</td>
+            <td>Specify the kubernetes pod scheduler for taskmanager pods of deployment. The default value is using the kubernetes default pod scheduler. For customerized kubernetes pod scheduler, allow to set pod scheduler for customerized pod scheduling. If not explicitly configured, config option 'kubernetes.scheduler-name' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.service-account</h5></td>

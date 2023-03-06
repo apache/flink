@@ -72,6 +72,7 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
     private static final String RESOURCE_CONFIG_KEY = "test.com/test";
 
     private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
+    private static final String TEST_K8S_POD_SCHEDULER = "test-k8s-pod-scheduler";
 
     private Pod resultPod;
     private Container resultMainContainer;
@@ -100,6 +101,8 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                         KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX),
                 RESOURCE_CONFIG_KEY);
         this.flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, USER_DEFINED_FLINK_LOG_DIR);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_POD_SCHEDULER_NAME, TEST_K8S_POD_SCHEDULER);
     }
 
     @Override
@@ -289,5 +292,10 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                                         KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL),
                                 "NotIn",
                                 new ArrayList<>(BLOCKED_NODES)));
+    }
+
+    @Test
+    void testPodSchedulerName() {
+        assertThat(this.resultPod.getSpec().getSchedulerName()).isEqualTo(TEST_K8S_POD_SCHEDULER);
     }
 }

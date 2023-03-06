@@ -63,6 +63,7 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                     new Toleration("NoExecute", "key2", "Exists", 6000L, null));
 
     private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
+    private static final String TEST_K8S_POD_SCHEDULER = "test-k8s-pod-scheduler";
 
     private Pod resultPod;
     private Container resultMainContainer;
@@ -79,6 +80,8 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         this.flinkConfig.setString(
                 KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
         this.flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, USER_DEFINED_FLINK_LOG_DIR);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_POD_SCHEDULER_NAME, TEST_K8S_POD_SCHEDULER);
     }
 
     @Override
@@ -226,5 +229,10 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     @Test
     void testDNSPolicyDefaultValue() {
         assertThat(this.resultPod.getSpec().getDnsPolicy()).isEqualTo(Constants.DNS_POLICY_DEFAULT);
+    }
+
+    @Test
+    void testPodSchedulerName() {
+        assertThat(this.resultPod.getSpec().getSchedulerName()).isEqualTo(TEST_K8S_POD_SCHEDULER);
     }
 }

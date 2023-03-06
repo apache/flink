@@ -202,4 +202,27 @@ class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
     void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
         assertThat(kubernetesTaskManagerParameters.getServiceAccount()).isEqualTo("default");
     }
+
+    @Test
+    void testGetPodSchedulerName() {
+        final String testJobManagerSchedulerName = "test-k8s-job-manager-pod-scheduler";
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_POD_SCHEDULER_NAME,
+                testJobManagerSchedulerName);
+        assertThat(kubernetesTaskManagerParameters.getPodSchedulerName())
+                .isEqualTo(testJobManagerSchedulerName);
+    }
+
+    @Test
+    void testGetPodSchedulerNameWithDefaultValue() {
+        assertThat(kubernetesTaskManagerParameters.getPodSchedulerName())
+                .isEqualTo("default-scheduler");
+    }
+
+    @Test
+    void testGetPodSchedulerNameFallback() {
+        final String testScheduler = "test-k8s-pod-scheduler";
+        flinkConfig.set(KubernetesConfigOptions.POD_SCHEDULER_NAME, testScheduler);
+        assertThat(kubernetesTaskManagerParameters.getPodSchedulerName()).isEqualTo(testScheduler);
+    }
 }

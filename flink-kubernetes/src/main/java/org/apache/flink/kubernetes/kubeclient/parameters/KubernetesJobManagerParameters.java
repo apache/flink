@@ -204,4 +204,9 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     public String getEntrypointArgs() {
         return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS);
     }
+
+    @Override
+    public String getPodSchedulerName() {
+        return flinkConfig.get(KubernetesConfigOptions.JOB_MANAGER_POD_SCHEDULER_NAME);
+    }
 }

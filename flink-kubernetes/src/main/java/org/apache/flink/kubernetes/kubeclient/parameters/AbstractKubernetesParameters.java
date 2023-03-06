@@ -206,4 +206,9 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public boolean isHostNetworkEnabled() {
         return flinkConfig.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
+
+    @Override
+    public String getPodSchedulerName() {
+        return flinkConfig.get(KubernetesConfigOptions.POD_SCHEDULER_NAME);
+    }
 }

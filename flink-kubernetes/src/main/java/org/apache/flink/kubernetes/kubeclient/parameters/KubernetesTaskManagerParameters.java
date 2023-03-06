@@ -196,4 +196,9 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
         return flinkConfig.getString(
                 KubernetesConfigOptions.KUBERNETES_TASKMANAGER_ENTRYPOINT_ARGS);
     }
+
+    @Override
+    public String getPodSchedulerName() {
+        return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_POD_SCHEDULER_NAME);
+    }
 }

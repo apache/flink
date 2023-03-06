@@ -96,6 +96,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
                 .withHostNetwork(kubernetesTaskManagerParameters.isHostNetworkEnabled())
                 .withDnsPolicy(dnsPolicy)
+                .withSchedulerName(kubernetesTaskManagerParameters.getPodSchedulerName())
                 .endSpec();
 
         // Merge fields
