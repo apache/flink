@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
@@ -44,14 +45,16 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     Row.of(true, LocalDate.of(1990, 10, 14)),
                                     null
                                 },
-                                new Integer[] {1, null, 3})
+                                new Integer[] {1, null, 3},
+                                new Integer[] {1, 2, 3})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull(),
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
-                                DataTypes.ARRAY(DataTypes.INT()))
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull())
                         // ARRAY<INT>
                         .testResult(
                                 $("f0").arrayContains(2),
@@ -102,6 +105,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_CONTAINS(f4, NULL)",
                                 true,
                                 DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f5").arrayContains(lit(null, DataTypes.INT())),
+                                "ARRAY_CONTAINS(f5, CAST(NULL AS INT))",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
                         // invalid signatures
                         .testSqlValidationError(
                                 "ARRAY_CONTAINS(f0, TRUE)",

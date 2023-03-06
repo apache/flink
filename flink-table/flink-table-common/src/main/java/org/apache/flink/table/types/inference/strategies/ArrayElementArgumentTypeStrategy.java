@@ -42,7 +42,7 @@ class ArrayElementArgumentTypeStrategy implements ArgumentTypeStrategy {
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         final ArrayType haystackType =
                 (ArrayType) callContext.getArgumentDataTypes().get(0).getLogicalType();
-        final LogicalType haystackElementType = haystackType.getElementType();
+        final LogicalType haystackElementType = haystackType.getElementType().copy(true);
         final LogicalType needleType =
                 callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
         if (supportsImplicitCast(needleType, haystackElementType)) {
