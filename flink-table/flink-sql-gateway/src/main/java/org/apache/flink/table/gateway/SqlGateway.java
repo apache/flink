@@ -19,7 +19,11 @@
 package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -39,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
@@ -59,7 +64,7 @@ public class SqlGateway {
         this.latch = new CountDownLatch(1);
     }
 
-    public void start() throws Exception {
+    public int start() throws Exception {
         DefaultContext context =
                 DefaultContext.load(ConfigurationUtils.createConfiguration(dynamicConfig));
         sessionManager = new SessionManager(context);
@@ -78,6 +83,7 @@ public class SqlGateway {
             LOG.error("Failed to start the endpoints.", t);
             throw new SqlGatewayException("Failed to start the endpoints.", t);
         }
+        return 0;
     }
 
     public void stop() {
@@ -113,9 +119,15 @@ public class SqlGateway {
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
         SqlGateway gateway = new SqlGateway(cliOptions.getDynamicConfigs());
+        final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+        for(Map.Entry<Object, Object> property : cliOptions.getDynamicConfigs().entrySet()){
+            flinkConfiguration.setString(property.getKey().toString(), property.getValue().toString());
+        }
+
         try {
             Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
-            gateway.start();
+            SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+            SecurityUtils.getInstalledContext().runSecured(gateway::start);
             gateway.waitUntilStop();
         } catch (Throwable t) {
             // User uses ctrl + c to cancel the Gateway manually
