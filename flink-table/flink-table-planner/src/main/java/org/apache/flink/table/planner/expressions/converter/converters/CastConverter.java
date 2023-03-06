@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -37,9 +38,8 @@ class CastConverter extends CustomizedConverter {
         final RexNode child = context.toRexNode(call.getChildren().get(0));
         final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
         final RelDataType targetRelDataType =
-                context.getTypeFactory()
-                        .createFieldTypeFromLogicalType(
-                                targetType.getOutputDataType().getLogicalType());
+                LogicalRelDataTypeConverter.toRelDataType(
+                        targetType.getOutputDataType().getLogicalType(), context.getTypeFactory());
 
         return context.getRelBuilder().getRexBuilder().makeAbstractCast(targetRelDataType, child);
     }

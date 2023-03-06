@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
@@ -595,13 +596,32 @@ object FlinkTypeFactory {
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         new LocalZonedTimestampType(relDataType.getPrecision)
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
-        DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
-      case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
-        if (relDataType.getPrecision > 3) {
-          throw new TableException(
-            s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getPrecision}")
+        if (typeName.equals(SqlTypeName.INTERVAL_YEAR)) {
+          DataTypes.INTERVAL(DataTypes.YEAR).getLogicalType
+        } else {
+          DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
         }
-        DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
+      case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
+        if (typeName.equals(SqlTypeName.INTERVAL_DAY)) {
+          DataTypes.INTERVAL(DataTypes.DAY).getLogicalType
+        } else if (
+          typeName.equals(SqlTypeName.INTERVAL_DAY_HOUR) ||
+          typeName.equals(SqlTypeName.INTERVAL_HOUR)
+        ) {
+          DataTypes.INTERVAL(DataTypes.HOUR).getLogicalType
+        } else if (
+          typeName.equals(SqlTypeName.INTERVAL_DAY_MINUTE) ||
+          typeName.equals(SqlTypeName.INTERVAL_HOUR_MINUTE) ||
+          typeName.equals(SqlTypeName.INTERVAL_MINUTE)
+        ) {
+          DataTypes.INTERVAL(DataTypes.MINUTE).getLogicalType
+        } else {
+          if (relDataType.getPrecision > 3) {
+            throw new TableException(
+              s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getPrecision}")
+          }
+          DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
+        }
 
       case NULL =>
         new NullType()

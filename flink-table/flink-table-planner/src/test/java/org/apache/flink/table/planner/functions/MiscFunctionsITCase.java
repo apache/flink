@@ -23,6 +23,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Period;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -36,11 +38,60 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TYPE_OF)
-                        .onFieldsWithData(12, "Hello world", false)
+                        .onFieldsWithData(
+                                12,
+                                "Hello world",
+                                false,
+                                Period.ofYears(2),
+                                Period.ofMonths(2),
+                                Duration.ofDays(2),
+                                Duration.ofHours(2),
+                                Duration.ofMinutes(2),
+                                Duration.ofSeconds(2))
+                        .andDataTypes(
+                                DataTypes.INT().notNull(),
+                                DataTypes.CHAR(11).notNull(),
+                                DataTypes.BOOLEAN().notNull(),
+                                DataTypes.INTERVAL(DataTypes.YEAR()),
+                                DataTypes.INTERVAL(DataTypes.MONTH()),
+                                DataTypes.INTERVAL(DataTypes.DAY()),
+                                DataTypes.INTERVAL(DataTypes.HOUR()),
+                                DataTypes.INTERVAL(DataTypes.MINUTE()),
+                                DataTypes.INTERVAL(DataTypes.SECOND()))
                         .testResult(
                                 call("TYPEOF", $("f0")),
                                 "TYPEOF(f0)",
                                 "INT NOT NULL",
+                                DataTypes.STRING())
+                        .testResult(
+                                call("TYPEOF", $("f3")),
+                                "TYPEOF(f3)",
+                                "INTERVAL YEAR(2) NOT NULL",
+                                DataTypes.STRING())
+                        .testResult(
+                                call("TYPEOF", $("f4")),
+                                "TYPEOF(f4)",
+                                "INTERVAL MONTH NOT NULL",
+                                DataTypes.STRING())
+                        .testResult(
+                                call("TYPEOF", $("f5")),
+                                "TYPEOF(f5)",
+                                "INTERVAL DAY(2) NOT NULL",
+                                DataTypes.STRING())
+                        .testResult(
+                                call("TYPEOF", $("f6")),
+                                "TYPEOF(f6)",
+                                "INTERVAL HOUR NOT NULL",
+                                DataTypes.STRING())
+                        .testResult(
+                                call("TYPEOF", $("f7")),
+                                "TYPEOF(f7)",
+                                "INTERVAL MINUTE NOT NULL",
+                                DataTypes.STRING())
+                        .testResult(
+                                call("TYPEOF", $("f8")),
+                                "TYPEOF(f8)",
+                                "INTERVAL SECOND(3) NOT NULL",
                                 DataTypes.STRING())
                         .testTableApiValidationError(
                                 call("TYPEOF", $("f0"), $("f2")),
