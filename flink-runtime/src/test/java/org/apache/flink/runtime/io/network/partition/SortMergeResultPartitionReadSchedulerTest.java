@@ -39,7 +39,6 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -261,17 +260,23 @@ class SortMergeResultPartitionReadSchedulerTest {
     @Test
     void testRequestBufferTimeout() throws Exception {
         Duration bufferRequestTimeout = Duration.ofSeconds(3);
-        List<MemorySegment> buffers = bufferPool.requestBuffers();
+        // avoid auto trigger reading.
+        ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
-                        bufferPool, executor, this, bufferRequestTimeout);
+                        bufferPool, executorService, this, bufferRequestTimeout);
+        readScheduler.createSubpartitionReader(
+                new NoOpBufferAvailablityListener(), 0, partitionedFile);
+        // request and use all buffers of buffer pool.
+        readScheduler.run();
 
+        assertThat(bufferPool.getAvailableBuffers()).isZero();
         long startTimestamp = System.nanoTime();
         assertThatThrownBy(readScheduler::allocateBuffers).isInstanceOf(TimeoutException.class);
         long requestDuration = System.nanoTime() - startTimestamp;
         assertThat(requestDuration > bufferRequestTimeout.toNanos()).isTrue();
 
-        bufferPool.recycle(buffers);
         readScheduler.release();
     }
 
