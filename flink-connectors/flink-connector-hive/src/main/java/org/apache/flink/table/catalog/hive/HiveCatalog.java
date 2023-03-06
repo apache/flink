@@ -25,12 +25,6 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
-import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -68,6 +62,9 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
+import org.apache.flink.table.catalog.hive.util.AlterHiveDatabaseOp;
+import org.apache.flink.table.catalog.hive.util.AlterTableOp;
+import org.apache.flink.table.catalog.hive.util.HiveDDLUtils;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
@@ -127,17 +124,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_COL_CASCADE;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_DATABASE_OP;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
+import static org.apache.flink.table.catalog.hive.util.Constants.DATABASE_LOCATION_URI;
+import static org.apache.flink.table.catalog.hive.util.Constants.DATABASE_OWNER_NAME;
+import static org.apache.flink.table.catalog.hive.util.Constants.DATABASE_OWNER_TYPE;
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
+import static org.apache.flink.table.catalog.hive.util.Constants.NOT_NULL_COLS;
+import static org.apache.flink.table.catalog.hive.util.Constants.NOT_NULL_CONSTRAINT_TRAITS;
+import static org.apache.flink.table.catalog.hive.util.Constants.PK_CONSTRAINT_TRAIT;
+import static org.apache.flink.table.catalog.hive.util.Constants.ROLE_OWNER;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_FILE_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_LOCATION_URI;
+import static org.apache.flink.table.catalog.hive.util.Constants.USER_OWNER;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
@@ -345,7 +346,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         Map<String, String> properties = new HashMap<>(hiveDatabase.getParameters());
 
-        properties.put(SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+        properties.put(DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
 
         return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
     }
@@ -360,7 +361,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         Map<String, String> properties = database.getProperties();
 
-        String dbLocationUri = properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+        String dbLocationUri = properties.remove(DATABASE_LOCATION_URI);
 
         Database hiveDatabase =
                 new Database(databaseName, database.getComment(), dbLocationUri, properties);
@@ -1015,8 +1016,7 @@ public class HiveCatalog extends AbstractCatalog {
 
             Map<String, String> properties = hivePartition.getParameters();
 
-            properties.put(
-                    SqlCreateHiveTable.TABLE_LOCATION_URI, hivePartition.getSd().getLocation());
+            properties.put(TABLE_LOCATION_URI, hivePartition.getSd().getLocation());
 
             String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
@@ -1115,8 +1115,7 @@ public class HiveCatalog extends AbstractCatalog {
         }
         // TODO: handle GenericCatalogPartition
         StorageDescriptor sd = hiveTable.getSd().deepCopy();
-        sd.setLocation(
-                catalogPartition.getProperties().remove(SqlCreateHiveTable.TABLE_LOCATION_URI));
+        sd.setLocation(catalogPartition.getProperties().remove(TABLE_LOCATION_URI));
 
         Map<String, String> properties = new HashMap<>(catalogPartition.getProperties());
         String comment = catalogPartition.getComment();
@@ -1959,11 +1958,10 @@ public class HiveCatalog extends AbstractCatalog {
         String opStr = newParams.remove(ALTER_DATABASE_OP);
         if (opStr == null) {
             // by default is to alter db properties
-            opStr = SqlAlterHiveDatabase.AlterHiveDatabaseOp.CHANGE_PROPS.name();
+            opStr = AlterHiveDatabaseOp.CHANGE_PROPS.name();
         }
-        String newLocation = newParams.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
-        SqlAlterHiveDatabase.AlterHiveDatabaseOp op =
-                SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
+        String newLocation = newParams.remove(DATABASE_LOCATION_URI);
+        AlterHiveDatabaseOp op = AlterHiveDatabaseOp.valueOf(opStr);
         switch (op) {
             case CHANGE_PROPS:
                 hiveDB.setParameters(newParams);
@@ -1976,10 +1974,10 @@ public class HiveCatalog extends AbstractCatalog {
                 String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
                 hiveDB.setOwnerName(ownerName);
                 switch (ownerType) {
-                    case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
+                    case ROLE_OWNER:
                         hiveDB.setOwnerType(PrincipalType.ROLE);
                         break;
-                    case SqlAlterHiveDatabaseOwner.USER_OWNER:
+                    case USER_OWNER:
                         hiveDB.setOwnerType(PrincipalType.USER);
                         break;
                     default:

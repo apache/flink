@@ -110,17 +110,6 @@ under the License.
 			<artifactId>checker-qual</artifactId>
 			<version>3.10.0</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-parser-hive</artifactId>
-			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-core</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 
 		<!-- Table Runtime (not included in the uber) -->
 
@@ -391,7 +380,6 @@ under the License.
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
-							<include>org.apache.flink:flink-sql-parser-hive</include>
 						</includes>
 					</artifactSet>
 					<relocations>

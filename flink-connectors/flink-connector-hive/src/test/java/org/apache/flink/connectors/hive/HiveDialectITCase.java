@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlDialect;
@@ -91,6 +90,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_LOCATION_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -225,8 +225,7 @@ public class HiveDialectITCase {
         assertThat(hiveTable.getPartitionKeysSize()).isEqualTo(1);
         assertThat(locationPath(hiveTable.getSd().getLocation())).isEqualTo(location);
         assertThat(hiveTable.getParameters().get("k1")).isEqualTo("v1");
-        assertThat(hiveTable.getParameters())
-                .doesNotContainKey(SqlCreateHiveTable.TABLE_LOCATION_URI);
+        assertThat(hiveTable.getParameters()).doesNotContainKey(TABLE_LOCATION_URI);
 
         tableEnv.executeSql("create table tbl2 (s struct<ts:timestamp,bin:binary>) stored as orc");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
@@ -372,7 +371,7 @@ public class HiveDialectITCase {
         assertThat(results.toString())
                 .isEqualTo(
                         "[+I[1, 0, static], +I[1, 1, a], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]");
-        tableEnv.executeSql("insert overwrite dest2 partition (p1,p2) select 1,x,y from src")
+        tableEnv.executeSql("insert overwrite table dest2 partition (p1,p2) select 1,x,y from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
         assertThat(results.toString())
@@ -390,7 +389,8 @@ public class HiveDialectITCase {
         // test table partitioned by decimal type
         tableEnv.executeSql(
                 "create table dest3 (key int, value string) partitioned by (p1 decimal(5, 2)) ");
-        tableEnv.executeSql("insert overwrite dest3 partition (p1) select 1,y,100.45 from src")
+        tableEnv.executeSql(
+                        "insert overwrite table dest3 partition (p1) select 1,y,100.45 from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest3"));
         assertThat(results.toString())

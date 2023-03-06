@@ -266,8 +266,9 @@ public class PlannerContext {
     private FlinkSqlConformance getSqlConformance() {
         SqlDialect sqlDialect = context.getTableConfig().getSqlDialect();
         switch (sqlDialect) {
+                // Actually, in Hive dialect, we won't use Calcite parser.
+                // So, we can just use Flink's default sql conformance as a placeholder
             case HIVE:
-                return FlinkSqlConformance.HIVE;
             case DEFAULT:
                 return FlinkSqlConformance.DEFAULT;
             default:
