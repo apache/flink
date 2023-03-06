@@ -32,6 +32,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Utilities to {@link TableSchema}. */
@@ -48,13 +49,30 @@ public class TableSchemaUtils {
      * additional columns.
      */
     public static TableSchema getPhysicalSchema(TableSchema tableSchema) {
+        return getTableSchema(tableSchema, TableColumn::isPhysical);
+    }
+
+    /**
+     * Return {@link TableSchema} which consists of all persisted columns. That means, the virtual
+     * computed columns and metadata columns are filtered out.
+     *
+     * <p>Its difference from {@link TableSchemaUtils#getPhysicalSchema(TableSchema)} is that it
+     * includes of all physical columns and metadata columns without virtual keyword.
+     */
+    public static TableSchema getPersistedSchema(TableSchema tableSchema) {
+        return getTableSchema(tableSchema, TableColumn::isPersisted);
+    }
+
+    /** Build a {@link TableSchema} with columns filtered by a given columnFilter. */
+    private static TableSchema getTableSchema(
+            TableSchema tableSchema, Function<TableColumn, Boolean> columnFilter) {
         Preconditions.checkNotNull(tableSchema);
         TableSchema.Builder builder = new TableSchema.Builder();
         tableSchema
                 .getTableColumns()
                 .forEach(
                         tableColumn -> {
-                            if (tableColumn.isPhysical()) {
+                            if (columnFilter.apply(tableColumn)) {
                                 builder.field(tableColumn.getName(), tableColumn.getType());
                             }
                         });

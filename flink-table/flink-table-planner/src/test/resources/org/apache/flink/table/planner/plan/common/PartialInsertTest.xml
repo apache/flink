@@ -536,4 +536,42 @@ Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d,
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPartialInsertWithPersistedMetadata[isBatch: true]">
+    <Resource name="sql">
+	  <![CDATA[INSERT INTO metadata_sink (a,b,c,d,e,f) SELECT a,b,c,d,e,123 FROM MyTable]]>
+	</Resource>
+    <Resource name="ast">
+	  <![CDATA[
+LogicalSink(table=[default_catalog.default_database.metadata_sink], fields=[a, b, c, d, e, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+	  <![CDATA[
+Sink(table=[default_catalog.default_database.metadata_sink], fields=[a, b, c, d, e, f])
++- Calc(select=[a, b, c, d, e, CAST(123 AS BIGINT) AS f])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithPersistedMetadata[isBatch: false]">
+	<Resource name="sql">
+	  <![CDATA[INSERT INTO metadata_sink (a,b,c,d,e,f) SELECT a,b,c,d,e,123 FROM MyTable]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalSink(table=[default_catalog.default_database.metadata_sink], fields=[a, b, c, d, e, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+	  <![CDATA[
+Sink(table=[default_catalog.default_database.metadata_sink], fields=[a, b, c, d, e, f])
++- Calc(select=[a, b, c, d, e, CAST(123 AS BIGINT) AS f])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+	</Resource>
+  </TestCase>
 </Root>
