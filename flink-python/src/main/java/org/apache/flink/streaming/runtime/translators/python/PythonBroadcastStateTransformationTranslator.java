@@ -15,40 +15,39 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.translators;
+package org.apache.flink.streaming.runtime.translators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonBatchKeyedCoBroadcastProcessOperator;
-import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedCoProcessOperator;
-import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchKeyedCoBroadcastProcessOperator;
-import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonBatchCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.python.DelegateOperatorTransformation;
-import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
-import org.apache.flink.types.Row;
+import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
+import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} that translates {@link
- * PythonKeyedBroadcastStateTransformation} into {@link ExternalPythonKeyedCoProcessOperator}/{@link
- * EmbeddedPythonKeyedCoProcessOperator} in streaming mode or {@link
- * ExternalPythonBatchKeyedCoBroadcastProcessOperator}/{@link
- * EmbeddedPythonBatchKeyedCoBroadcastProcessOperator} in batch mode.
+ * PythonBroadcastStateTransformation} into {@link ExternalPythonCoProcessOperator}/{@link
+ * EmbeddedPythonCoProcessOperator} in streaming mode or {@link
+ * ExternalPythonBatchCoBroadcastProcessOperator}/{@link
+ * EmbeddedPythonBatchCoBroadcastProcessOperator} in batch mode.
  */
 @Internal
-public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
+public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
         extends AbstractTwoInputTransformationTranslator<
-                Row, Row, OUT, PythonKeyedBroadcastStateTransformation<OUT>> {
+                IN1, IN2, OUT, PythonBroadcastStateTransformation<IN1, IN2, OUT>> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(
-            PythonKeyedBroadcastStateTransformation<OUT> transformation, Context context) {
+            PythonBroadcastStateTransformation<IN1, IN2, OUT> transformation, Context context) {
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
@@ -58,7 +57,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
-                    new EmbeddedPythonBatchKeyedCoBroadcastProcessOperator<>(
+                    new EmbeddedPythonBatchCoBroadcastProcessOperator<>(
                             transformation.getConfiguration(),
                             transformation.getDataStreamPythonFunctionInfo(),
                             transformation.getRegularInput().getOutputType(),
@@ -66,58 +65,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getOutputType());
         } else {
             operator =
-                    new ExternalPythonBatchKeyedCoBroadcastProcessOperator<>(
-                            transformation.getConfiguration(),
-                            transformation.getDataStreamPythonFunctionInfo(),
-                            transformation.getRegularInput().getOutputType(),
-                            transformation.getBroadcastInput().getOutputType(),
-                            transformation.getOutputType());
-        }
-
-        DelegateOperatorTransformation.configureOperator(transformation, operator);
-
-        Collection<Integer> result =
-                translateInternal(
-                        transformation,
-                        transformation.getRegularInput(),
-                        transformation.getBroadcastInput(),
-                        SimpleOperatorFactory.of(operator),
-                        transformation.getStateKeyType(),
-                        transformation.getKeySelector(),
-                        null,
-                        context);
-
-        BatchExecutionUtils.applyBatchExecutionSettings(
-                transformation.getId(),
-                context,
-                StreamConfig.InputRequirement.SORTED,
-                StreamConfig.InputRequirement.PASS_THROUGH);
-
-        return result;
-    }
-
-    @Override
-    protected Collection<Integer> translateForStreamingInternal(
-            PythonKeyedBroadcastStateTransformation<OUT> transformation, Context context) {
-        Preconditions.checkNotNull(transformation);
-        Preconditions.checkNotNull(context);
-
-        Configuration config = transformation.getConfiguration();
-
-        AbstractPythonFunctionOperator<OUT> operator;
-
-        if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
-            operator =
-                    new EmbeddedPythonKeyedCoProcessOperator<>(
-                            transformation.getConfiguration(),
-                            transformation.getDataStreamPythonFunctionInfo(),
-                            transformation.getRegularInput().getOutputType(),
-                            transformation.getBroadcastInput().getOutputType(),
-                            transformation.getOutputType());
-
-        } else {
-            operator =
-                    new ExternalPythonKeyedCoProcessOperator<>(
+                    new ExternalPythonBatchCoBroadcastProcessOperator<>(
                             transformation.getConfiguration(),
                             transformation.getDataStreamPythonFunctionInfo(),
                             transformation.getRegularInput().getOutputType(),
@@ -132,8 +80,50 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                 transformation.getRegularInput(),
                 transformation.getBroadcastInput(),
                 SimpleOperatorFactory.of(operator),
-                transformation.getStateKeyType(),
-                transformation.getKeySelector(),
+                null,
+                null,
+                null,
+                context);
+    }
+
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            PythonBroadcastStateTransformation<IN1, IN2, OUT> transformation, Context context) {
+        Preconditions.checkNotNull(transformation);
+        Preconditions.checkNotNull(context);
+
+        Configuration config = transformation.getConfiguration();
+
+        AbstractPythonFunctionOperator<OUT> operator;
+
+        if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
+            operator =
+                    new EmbeddedPythonCoProcessOperator<>(
+                            transformation.getConfiguration(),
+                            transformation.getDataStreamPythonFunctionInfo(),
+                            transformation.getRegularInput().getOutputType(),
+                            transformation.getBroadcastInput().getOutputType(),
+                            transformation.getOutputType());
+        } else {
+
+            operator =
+                    new ExternalPythonCoProcessOperator<>(
+                            transformation.getConfiguration(),
+                            transformation.getDataStreamPythonFunctionInfo(),
+                            transformation.getRegularInput().getOutputType(),
+                            transformation.getBroadcastInput().getOutputType(),
+                            transformation.getOutputType());
+        }
+
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
+
+        return translateInternal(
+                transformation,
+                transformation.getRegularInput(),
+                transformation.getBroadcastInput(),
+                SimpleOperatorFactory.of(operator),
+                null,
+                null,
                 null,
                 context);
     }

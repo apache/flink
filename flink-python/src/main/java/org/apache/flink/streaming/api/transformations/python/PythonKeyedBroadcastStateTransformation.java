@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
-import org.apache.flink.streaming.runtime.translators.PythonKeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.types.Row;
 
 import java.util.List;
@@ -34,7 +33,7 @@ import java.util.List;
 /**
  * A {@link Transformation} representing a Python Keyed-Co-Broadcast-Process operation, which will
  * be translated into different operations by {@link
- * PythonKeyedBroadcastStateTransformationTranslator}.
+ * org.apache.flink.streaming.runtime.translators.python.PythonKeyedBroadcastStateTransformationTranslator}.
  */
 @Internal
 public class PythonKeyedBroadcastStateTransformation<OUT>

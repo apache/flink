@@ -25,13 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
-import org.apache.flink.streaming.runtime.translators.PythonBroadcastStateTransformationTranslator;
 
 import java.util.List;
 
 /**
  * A {@link Transformation} representing a Python Co-Broadcast-Process operation, which will be
- * translated into different operations by {@link PythonBroadcastStateTransformationTranslator}.
+ * translated into different operations by {@link
+ * org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator}.
  */
 @Internal
 public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
