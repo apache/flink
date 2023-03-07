@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
@@ -251,7 +252,7 @@ public class HiveParser extends ParserImpl {
         }
         if (setCmdArgs.equals("-v")) {
             // the command is "set -v", for such case, we will follow Hive's behavior.
-            return new HiveSetOperation(true);
+            return new HiveExecutableOperation(new HiveSetOperation(true));
         }
 
         String[] part = new String[2];
@@ -282,9 +283,9 @@ public class HiveParser extends ParserImpl {
             if (part[0].equals("silent")) {
                 throw new UnsupportedOperationException("Unsupported command 'set silent'.");
             }
-            return new HiveSetOperation(part[0], part[1]);
+            return new HiveExecutableOperation(new HiveSetOperation(part[0], part[1]));
         }
-        return new HiveSetOperation(setCmdArgs);
+        return new HiveExecutableOperation(new HiveSetOperation(setCmdArgs));
     }
 
     /**
@@ -362,10 +363,18 @@ public class HiveParser extends ParserImpl {
         if (explain) {
             Operation operation = convertASTNodeToOperation(context, hiveConf, hiveShim, input);
             // explain a nop is also considered nop
-            return Collections.singletonList(
-                    operation instanceof NopOperation
-                            ? operation
-                            : new ExplainOperation(operation));
+            if (operation instanceof NopOperation) {
+                return Collections.singletonList(operation);
+            } else {
+                if (operation instanceof HiveExecutableOperation) {
+                    Operation innerOperation =
+                            ((HiveExecutableOperation) operation).getInnerOperation();
+                    return Collections.singletonList(
+                            new HiveExecutableOperation(new ExplainOperation(innerOperation)));
+                } else {
+                    return Collections.singletonList(new ExplainOperation(operation));
+                }
+            }
         }
         return Collections.singletonList(
                 convertASTNodeToOperation(context, hiveConf, hiveShim, input));

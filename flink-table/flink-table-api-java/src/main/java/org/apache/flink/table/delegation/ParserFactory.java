@@ -18,25 +18,25 @@
 
 package org.apache.flink.table.delegation;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.operations.Operation;
-
-import java.util.Optional;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.CatalogRegistry;
+import org.apache.flink.table.factories.Factory;
 
 /**
- * An extended operation executor which provides method for executing operation. External pluggable
- * dialect can implement this interface to execute operation in its own way instead of using Flink's
- * own implementation for operation execution.
+ * Factory that creates {@link Parser}.
+ *
+ * <p>The {@link #factoryIdentifier()} is identified by matching it against {@link
+ * TableConfigOptions#TABLE_SQL_DIALECT}.
  */
-@Internal
-public interface ExtendedOperationExecutor {
+@PublicEvolving
+public interface ParserFactory extends Factory {
+    /** Creates a new parser. */
+    Parser create(Context context);
 
-    /**
-     * Execute the given operation and return the execution result. This method will delegate
-     * Flink's own operation execution.
-     *
-     * <p>If return Optional.empty(), the operation will then fall to Flink's operation execution.
-     */
-    Optional<TableResultInternal> executeOperation(Operation operation);
+    /** Context provided when a parser is created. */
+    @PublicEvolving
+    interface Context {
+        CatalogRegistry getCatalogRegistry();
+    }
 }

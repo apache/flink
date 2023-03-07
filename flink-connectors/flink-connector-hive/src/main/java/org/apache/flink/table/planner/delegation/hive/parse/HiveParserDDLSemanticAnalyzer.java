@@ -107,6 +107,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserRowResolver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.resource.ResourceType;
@@ -723,7 +724,7 @@ public class HiveParserDDLSemanticAnalyzer {
                                 tablePath));
             }
         }
-        return new HiveShowCreateTableOperation(tablePath);
+        return new HiveExecutableOperation(new HiveShowCreateTableOperation(tablePath));
     }
 
     private boolean isHive310OrLater() {
@@ -1746,7 +1747,8 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tableName);
-        return new DescribeTableOperation(tableIdentifier, isExt || isFormatted);
+        return new HiveExecutableOperation(
+                new DescribeTableOperation(tableIdentifier, isExt || isFormatted));
     }
 
     public static HashMap<String, String> getPartSpec(HiveParserASTNode partspec) {
