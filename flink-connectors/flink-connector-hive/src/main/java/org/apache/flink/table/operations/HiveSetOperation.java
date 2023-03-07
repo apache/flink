@@ -29,10 +29,6 @@ public class HiveSetOperation implements Operation {
     // for Hive's command "set -v"
     private final boolean isVerbose;
 
-    public HiveSetOperation() {
-        this(null, null, false);
-    }
-
     public HiveSetOperation(boolean isVerbose) {
         this(null, null, isVerbose);
     }

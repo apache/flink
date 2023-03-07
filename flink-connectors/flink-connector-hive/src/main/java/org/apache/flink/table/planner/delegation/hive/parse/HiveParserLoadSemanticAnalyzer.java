@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive.parse;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
@@ -65,13 +65,13 @@ public class HiveParserLoadSemanticAnalyzer {
     private final Hive db;
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
-    private final CatalogManager catalogManager;
+    private final CatalogRegistry catalogRegistry;
 
     public HiveParserLoadSemanticAnalyzer(
             HiveConf conf,
             FrameworkConfig frameworkConfig,
             RelOptCluster cluster,
-            CatalogManager catalogManager)
+            CatalogRegistry catalogRegistry)
             throws SemanticException {
         this.conf = conf;
         try {
@@ -81,7 +81,7 @@ public class HiveParserLoadSemanticAnalyzer {
         }
         this.frameworkConfig = frameworkConfig;
         this.cluster = cluster;
-        this.catalogManager = catalogManager;
+        this.catalogRegistry = catalogRegistry;
     }
 
     public HiveLoadDataOperation convertToOperation(HiveParserASTNode ast)
@@ -114,18 +114,18 @@ public class HiveParserLoadSemanticAnalyzer {
         }
 
         // initialize destination table/partition
-        TableSpec ts = new TableSpec(catalogManager, conf, tableTree, frameworkConfig, cluster);
+        TableSpec ts = new TableSpec(catalogRegistry, conf, tableTree, frameworkConfig, cluster);
         if (!HiveCatalog.isHiveTable(ts.table.getOptions())) {
             throw new UnsupportedOperationException(
                     "Load data into non-hive table is not supported yet.");
         }
-        if (!ts.tableIdentifier.getCatalogName().equals(catalogManager.getCurrentCatalog())) {
+        if (!ts.tableIdentifier.getCatalogName().equals(catalogRegistry.getCurrentCatalog())) {
             throw new UnsupportedOperationException(
                     String.format(
                             "Load data into a table which isn't in current catalog is not supported yet."
                                     + " The table's catalog is %s, but the current catalog is %s.",
                             ts.tableIdentifier.getCatalogName(),
-                            catalogManager.getCurrentCatalog()));
+                            catalogRegistry.getCurrentCatalog()));
         }
         Table table;
         try {

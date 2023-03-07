@@ -43,14 +43,9 @@ import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStr
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.AddJarOperation;
-import org.apache.flink.table.operations.command.ClearOperation;
-import org.apache.flink.table.operations.command.HelpOperation;
-import org.apache.flink.table.operations.command.QuitOperation;
-import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveOperationExecutor;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
-import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -153,19 +148,6 @@ public class HiveDialectITCase {
                                 .getClass()
                                 .getName())
                 .isNotEqualTo(operationExecutor.getClass().getName());
-    }
-
-    @Test
-    public void testParseCommand() {
-        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
-        Parser parser = tableEnvInternal.getParser();
-
-        // hive dialect should use HiveParser
-        assertThat(parser).isInstanceOf(HiveParser.class);
-        assertThat(parser.parse("HELP").get(0)).isInstanceOf(HelpOperation.class);
-        assertThat(parser.parse("clear").get(0)).isInstanceOf(ClearOperation.class);
-        assertThat(parser.parse("ResET").get(0)).isInstanceOf(ResetOperation.class);
-        assertThat(parser.parse("Exit").get(0)).isInstanceOf(QuitOperation.class);
     }
 
     @Test
@@ -355,7 +337,7 @@ public class HiveDialectITCase {
         tableEnv.executeSql("insert into dest select x from src").await();
         List<Row> results = queryResult(tableEnv.sqlQuery("select * from dest"));
         assertThat(results.toString()).isEqualTo("[+I[1], +I[2], +I[3]]");
-        tableEnv.executeSql("insert overwrite dest values (3),(4),(5)").await();
+        tableEnv.executeSql("insert overwrite table dest values (3),(4),(5)").await();
         results = queryResult(tableEnv.sqlQuery("select * from dest"));
         assertThat(results.toString()).isEqualTo("[+I[3], +I[4], +I[5]]");
 
@@ -388,7 +370,7 @@ public class HiveDialectITCase {
 
         // test table partitioned by decimal type
         tableEnv.executeSql(
-                "create table dest3 (key int, value string) partitioned by (p1 decimal(5, 2)) ");
+                "create table dest3 (key int, value string) partitioned by (p1 decimal(5, 2))");
         tableEnv.executeSql(
                         "insert overwrite table dest3 partition (p1) select 1,y,100.45 from src")
                 .await();
@@ -856,25 +838,6 @@ public class HiveDialectITCase {
         tableEnv.executeSql("drop temporary function temp_split_struct_obj_inspector");
         functions = tableEnv.listUserDefinedFunctions();
         assertThat(functions.length).isEqualTo(0);
-    }
-
-    @Test
-    public void testCatalog() {
-        List<Row> catalogs =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("show catalogs").collect());
-        assertThat(catalogs).hasSize(2);
-        tableEnv.executeSql("use catalog " + CatalogManagerMocks.DEFAULT_CATALOG);
-        List<Row> databases =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("show databases").collect());
-        assertThat(databases).hasSize(1);
-        assertThat(databases.get(0).toString())
-                .isEqualTo("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]");
-        String catalogName =
-                tableEnv.executeSql("show current catalog").collect().next().toString();
-        assertThat(catalogName).isEqualTo("+I[" + CatalogManagerMocks.DEFAULT_CATALOG + "]");
-        String databaseName =
-                tableEnv.executeSql("show current database").collect().next().toString();
-        assertThat(databaseName).isEqualTo("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]");
     }
 
     @Test

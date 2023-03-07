@@ -26,8 +26,9 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.calcite.bridge.CalciteContext;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -39,7 +40,6 @@ import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
@@ -66,13 +66,13 @@ import java.util.stream.Collectors;
  */
 public class HiveOperationExecutor implements ExtendedOperationExecutor {
 
-    private final CatalogManager catalogManager;
+    private final CatalogRegistry catalogRegistry;
     private final Map<String, String> hiveVariables;
     private final TableConfig tableConfig;
 
-    public HiveOperationExecutor(CatalogManager catalogManager, PlannerContext plannerContext) {
-        this.catalogManager = catalogManager;
-        tableConfig = plannerContext.getFlinkContext().getTableConfig();
+    public HiveOperationExecutor(CatalogRegistry catalogRegistry, CalciteContext calciteContext) {
+        this.catalogRegistry = catalogRegistry;
+        this.tableConfig = calciteContext.getTableConfig();
         this.hiveVariables = tableConfig.get(HiveInternalOptions.HIVE_VARIABLES);
     }
 
@@ -98,7 +98,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
 
     private Optional<TableResult> executeHiveSetOperation(HiveSetOperation hiveSetOperation) {
         Catalog currentCatalog =
-                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+                catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
             throw new FlinkHiveException(
                     "Only support SET command when the current catalog is HiveCatalog in Hive dialect.");
@@ -156,7 +156,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
     private Optional<TableResult> executeHiveLoadDataOperation(
             HiveLoadDataOperation hiveLoadDataOperation) {
         Catalog currentCatalog =
-                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+                catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
             throw new FlinkHiveException(
                     "Only support 'LOAD DATA INPATH' when the current catalog is HiveCatalog in Hive dialect.");
@@ -165,7 +165,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             // Hive's loadTable/loadPartition will call method
             // SessionState.get().getCurrentDatabase(), so we have to start a session state
             HiveSessionState.startSessionState(
-                    ((HiveCatalog) currentCatalog).getHiveConf(), catalogManager);
+                    ((HiveCatalog) currentCatalog).getHiveConf(), catalogRegistry);
             HiveCatalog hiveCatalog = (HiveCatalog) currentCatalog;
             if (hiveLoadDataOperation.getPartitionSpec().size() > 0) {
                 hiveCatalog.loadPartition(
@@ -240,7 +240,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             HiveShowCreateTableOperation showCreateTableOperation) {
         ObjectPath tablePath = showCreateTableOperation.getTablePath();
         Catalog currentCatalog =
-                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+                catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
             throw new FlinkHiveException(
                     "Only support 'SHOW CREATE TABLE' when the current catalog is HiveCatalog in Hive dialect.");
@@ -282,7 +282,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
         } else {
             ObjectIdentifier tableIdentifier = describeTableOperation.getSqlIdentifier();
             Catalog currentCatalog =
-                    catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+                    catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).orElse(null);
             if (!(currentCatalog instanceof HiveCatalog)) {
                 // delegate to Flink's own implementation
                 return Optional.empty();
@@ -298,7 +298,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 throw new FlinkHiveException(
                         String.format(
                                 "The table or view %s doesn't exist in catalog %s.",
-                                tablePath, catalogManager.getCurrentCatalog()),
+                                tablePath, catalogRegistry.getCurrentCatalog()),
                         e);
             }
             if (!HiveCatalog.isHiveTable(table.getParameters())) {
