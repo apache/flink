@@ -21,6 +21,7 @@ package org.apache.flink.table.calcite.bridge;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.delegation.ParserFactory;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -34,7 +35,7 @@ import org.apache.calcite.tools.RelBuilder;
  * provided by Flink's table planner.
  */
 @Internal
-public interface CalciteContext {
+public interface CalciteContext extends ParserFactory.Context {
 
     /** Create an instance of {@link CalciteCatalogReader} provided by Flink's table planner. */
     CalciteCatalogReader createCatalogReader(boolean lenientCaseSensitivity);

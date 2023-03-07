@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -36,7 +35,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
 import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStructObjectInspector;
@@ -48,8 +46,8 @@ import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
-import org.apache.flink.table.planner.delegation.hive.HiveOperationExecutor;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -129,30 +127,18 @@ public class HiveDialectITCase {
     }
 
     @Test
-    public void testPluggableDialect() {
+    public void testPluggableParser() {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         Parser parser = tableEnvInternal.getParser();
         // hive dialect should use HiveParser
         assertThat(parser).isInstanceOf(HiveParser.class);
-        ExtendedOperationExecutor operationExecutor =
-                ((TableEnvironmentImpl) tableEnvInternal).getExtendedOperationExecutor();
-        // hive dialect should use HiveOperationExecutor
-        assertThat(operationExecutor).isInstanceOf(HiveOperationExecutor.class);
         // execute some sql and verify the parser/operation executor instance is reused
         tableEnvInternal.executeSql("show databases");
         assertThat(tableEnvInternal.getParser()).isSameAs(parser);
-        assertThat(((TableEnvironmentImpl) tableEnvInternal).getExtendedOperationExecutor())
-                .isSameAs(operationExecutor);
         // switching dialect will result in a new parser
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         assertThat(tableEnvInternal.getParser().getClass().getName())
                 .isNotEqualTo(parser.getClass().getName());
-        assertThat(
-                        ((TableEnvironmentImpl) tableEnvInternal)
-                                .getExtendedOperationExecutor()
-                                .getClass()
-                                .getName())
-                .isNotEqualTo(operationExecutor.getClass().getName());
     }
 
     @Test
@@ -285,17 +271,25 @@ public class HiveDialectITCase {
         // test describe table
         Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
         DescribeTableOperation operation =
-                (DescribeTableOperation) parser.parse("desc tbl1").get(0);
+                (DescribeTableOperation)
+                        ((HiveExecutableOperation) parser.parse("desc tbl1").get(0))
+                                .getInnerOperation();
         assertThat(operation.isExtended()).isFalse();
         assertThat(operation.getSqlIdentifier())
                 .isEqualTo(ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl1"));
 
-        operation = (DescribeTableOperation) parser.parse("describe default.tbl2").get(0);
+        operation =
+                (DescribeTableOperation)
+                        ((HiveExecutableOperation) parser.parse("describe default.tbl2").get(0))
+                                .getInnerOperation();
         assertThat(operation.isExtended()).isFalse();
         assertThat(operation.getSqlIdentifier())
                 .isEqualTo(ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl2"));
 
-        operation = (DescribeTableOperation) parser.parse("describe extended tbl3").get(0);
+        operation =
+                (DescribeTableOperation)
+                        ((HiveExecutableOperation) parser.parse("describe extended tbl3").get(0))
+                                .getInnerOperation();
         assertThat(operation.isExtended()).isTrue();
         assertThat(operation.getSqlIdentifier())
                 .isEqualTo(ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl3"));

@@ -22,8 +22,10 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
 import org.apache.flink.util.StringUtils;
 
@@ -84,8 +86,7 @@ public class HiveParserLoadSemanticAnalyzer {
         this.catalogManager = catalogManager;
     }
 
-    public HiveLoadDataOperation convertToOperation(HiveParserASTNode ast)
-            throws SemanticException {
+    public Operation convertToOperation(HiveParserASTNode ast) throws SemanticException {
         boolean isLocal = false;
         boolean isOverWrite = false;
         Tree fromTree = ast.getChild(0);
@@ -177,12 +178,14 @@ public class HiveParserLoadSemanticAnalyzer {
             ensureFileFormatsMatch(ts, table, files, fromURI);
         }
 
-        return new HiveLoadDataOperation(
-                new Path(fromURI),
-                new ObjectPath(table.getDbName(), table.getTableName()),
-                isOverWrite,
-                isLocal,
-                ts.partSpec == null ? new LinkedHashMap<>() : ts.partSpec);
+        HiveLoadDataOperation hiveLoadDataOperation =
+                new HiveLoadDataOperation(
+                        new Path(fromURI),
+                        new ObjectPath(table.getDbName(), table.getTableName()),
+                        isOverWrite,
+                        isLocal,
+                        ts.partSpec == null ? new LinkedHashMap<>() : ts.partSpec);
+        return new HiveExecutableOperation(hiveLoadDataOperation);
     }
 
     private List<FileStatus> applyConstraintsAndGetFiles(URI fromURI, Tree ast, boolean isLocal)

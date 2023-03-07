@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.delegation;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /** Provides methods for parsing SQL objects from a SQL string. */
-@Internal
+@PublicEvolving
 public interface Parser {
 
     /**
