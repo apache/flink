@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -415,15 +415,16 @@ public class HiveParserBaseSemanticAnalyzer {
     }
 
     public static ObjectIdentifier getObjectIdentifier(
-            CatalogManager catalogManager, HiveParserASTNode tabNameNode) throws SemanticException {
+            CatalogRegistry catalogRegistry, HiveParserASTNode tabNameNode)
+            throws SemanticException {
         UnresolvedIdentifier qualifiedTableName = getQualifiedTableName(tabNameNode);
-        return catalogManager.qualifyIdentifier(qualifiedTableName);
+        return catalogRegistry.qualifyIdentifier(qualifiedTableName);
     }
 
     public static ObjectIdentifier parseCompoundName(
-            CatalogManager catalogManager, String compoundName) {
+            CatalogRegistry catalogRegistry, String compoundName) {
         String[] names = compoundName.split("\\.");
-        return catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(names));
+        return catalogRegistry.qualifyIdentifier(UnresolvedIdentifier.of(names));
     }
 
     public static UnresolvedIdentifier getQualifiedTableName(HiveParserASTNode tabNameNode)
@@ -2094,17 +2095,16 @@ public class HiveParserBaseSemanticAnalyzer {
         throw new SemanticException(ErrorMsg.PARTSPEC_DIFFER_FROM_SCHEMA.getMsg(sb.toString()));
     }
 
-    public static ResolvedCatalogBaseTable<?> getCatalogBaseTable(
-            CatalogManager catalogManager, ObjectIdentifier tableIdentifier) {
-        return catalogManager
-                .getTable(tableIdentifier)
+    public static ResolvedCatalogBaseTable<?> getResolvedCatalogBaseTable(
+            CatalogRegistry catalogRegistry, ObjectIdentifier tableIdentifier) {
+        return catalogRegistry
+                .getCatalogBaseTable(tableIdentifier)
                 .orElseThrow(
                         () ->
                                 new IllegalArgumentException(
                                         String.format(
                                                 "Table %s doesn't exist.",
-                                                tableIdentifier.asSummaryString())))
-                .getResolvedTable();
+                                                tableIdentifier.asSummaryString())));
     }
 
     /** Counterpart of hive's BaseSemanticAnalyzer.TableSpec. */
@@ -2126,7 +2126,7 @@ public class HiveParserBaseSemanticAnalyzer {
         public TableSpec.SpecType specType;
 
         public TableSpec(
-                CatalogManager catalogManager,
+                CatalogRegistry catalogRegistry,
                 HiveConf conf,
                 HiveParserASTNode ast,
                 FrameworkConfig frameworkConfig,
@@ -2142,10 +2142,10 @@ public class HiveParserBaseSemanticAnalyzer {
 
             // get table metadata
             tableIdentifier =
-                    getObjectIdentifier(catalogManager, (HiveParserASTNode) ast.getChild(0));
+                    getObjectIdentifier(catalogRegistry, (HiveParserASTNode) ast.getChild(0));
             if (ast.getToken().getType() != HiveASTParser.TOK_CREATETABLE
                     && ast.getToken().getType() != HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW) {
-                table = getCatalogBaseTable(catalogManager, tableIdentifier);
+                table = getResolvedCatalogBaseTable(catalogRegistry, tableIdentifier);
             }
 
             // get partition metadata if partition specified

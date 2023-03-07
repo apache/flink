@@ -23,20 +23,20 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.calcite.bridge.CalciteContext;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -92,7 +92,6 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
-import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.table.planner.delegation.hive.HiveParserCalcitePlanner;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
@@ -201,7 +200,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private final HiveConf conf;
     private final HiveParserQueryState queryState;
     private final HiveCatalog hiveCatalog;
-    private final CatalogManager catalogManager;
+    private final CatalogRegistry catalogRegistry;
     private final String currentDB;
     private final HiveParser hiveParser;
     private final HiveFunctionDefinitionFactory funcDefFactory;
@@ -268,20 +267,20 @@ public class HiveParserDDLSemanticAnalyzer {
     public HiveParserDDLSemanticAnalyzer(
             HiveParserQueryState queryState,
             HiveCatalog hiveCatalog,
-            CatalogManager catalogManager,
+            CatalogRegistry catalogRegistry,
             HiveParser hiveParser,
             HiveShim hiveShim,
             HiveParserContext context,
             HiveParserDMLHelper dmlHelper,
             FrameworkConfig frameworkConfig,
             RelOptCluster cluster,
-            FlinkContext flinkContext)
+            CalciteContext calciteContext)
             throws SemanticException {
         this.queryState = queryState;
         this.conf = queryState.getConf();
         this.hiveCatalog = hiveCatalog;
-        this.currentDB = catalogManager.getCurrentDatabase();
-        this.catalogManager = catalogManager;
+        this.currentDB = catalogRegistry.getCurrentDatabase();
+        this.catalogRegistry = catalogRegistry;
         this.hiveParser = hiveParser;
         this.funcDefFactory = new HiveFunctionDefinitionFactory(hiveShim);
         this.hiveShim = hiveShim;
@@ -289,8 +288,8 @@ public class HiveParserDDLSemanticAnalyzer {
         this.dmlHelper = dmlHelper;
         this.frameworkConfig = frameworkConfig;
         this.cluster = cluster;
-        this.classLoader = flinkContext.getClassLoader();
-        this.functionCatalog = flinkContext.getFunctionCatalog();
+        this.classLoader = calciteContext.getClassLoader();
+        this.functionCatalog = calciteContext.getFunctionCatalog();
         reservedPartitionValues = new HashSet<>();
         // Partition can't have this name
         reservedPartitionValues.add(HiveConf.getVar(conf, HiveConf.ConfVars.DEFAULTPARTITIONNAME));
@@ -432,7 +431,7 @@ public class HiveParserDDLSemanticAnalyzer {
         HiveParserASTNode ast = (HiveParserASTNode) input.getChild(1);
         ObjectIdentifier tableIdentifier =
                 HiveParserBaseSemanticAnalyzer.getObjectIdentifier(
-                        catalogManager, (HiveParserASTNode) input.getChild(0));
+                        catalogRegistry, (HiveParserASTNode) input.getChild(0));
         String[] qualified =
                 new String[] {tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName()};
         String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
@@ -686,7 +685,7 @@ public class HiveParserDDLSemanticAnalyzer {
             throws SemanticException {
         HiveParserSemanticAnalyzer semanticAnalyzer =
                 new HiveParserSemanticAnalyzer(
-                        queryState, frameworkConfig, cluster, catalogManager);
+                        queryState, frameworkConfig, cluster, catalogRegistry);
         return arguments.isEmpty()
                 ? semanticAnalyzer.genExprNodeDesc((HiveParserASTNode) ast.getChild(1), rowResolver)
                 : semanticAnalyzer.genExprNodeDesc(
@@ -710,7 +709,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertShowCreateTable(HiveParserASTNode ast) throws SemanticException {
         ObjectIdentifier identifier =
                 HiveParserBaseSemanticAnalyzer.getObjectIdentifier(
-                        catalogManager, (HiveParserASTNode) ast.getChild(0));
+                        catalogRegistry, (HiveParserASTNode) ast.getChild(0));
         String[] qualTabName =
                 new String[] {identifier.getDatabaseName(), identifier.getObjectName()};
         ObjectPath tablePath = new ObjectPath(qualTabName[0], qualTabName[1]);
@@ -735,7 +734,7 @@ public class HiveParserDDLSemanticAnalyzer {
         Operation operation = null;
         ObjectIdentifier tableIdentifier =
                 HiveParserBaseSemanticAnalyzer.getObjectIdentifier(
-                        catalogManager, (HiveParserASTNode) ast.getChild(0));
+                        catalogRegistry, (HiveParserASTNode) ast.getChild(0));
         String[] qualified =
                 new String[] {tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName()};
         String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
@@ -771,7 +770,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertCreateView(HiveParserASTNode ast) throws SemanticException {
         ObjectIdentifier tableIdentifier =
                 HiveParserBaseSemanticAnalyzer.getObjectIdentifier(
-                        catalogManager, (HiveParserASTNode) ast.getChild(0));
+                        catalogRegistry, (HiveParserASTNode) ast.getChild(0));
         String[] qualTabName =
                 new String[] {tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName()};
         String dbDotTable = HiveParserBaseSemanticAnalyzer.getDotName(qualTabName);
@@ -857,7 +856,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         null);
         Map<String, String> props = new HashMap<>();
         if (isAlterViewAs) {
-            ResolvedCatalogBaseTable<?> baseTable = getCatalogBaseTable(viewIdentifier);
+            ResolvedCatalogBaseTable<?> baseTable = getResolvedCatalogBaseTable(viewIdentifier);
             props.putAll(baseTable.getOptions());
             comment = baseTable.getComment();
         } else {
@@ -882,7 +881,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertCreateTable(HiveParserASTNode ast) throws SemanticException {
         ObjectIdentifier tableIdentifier =
                 HiveParserBaseSemanticAnalyzer.getObjectIdentifier(
-                        catalogManager, (HiveParserASTNode) ast.getChild(0));
+                        catalogRegistry, (HiveParserASTNode) ast.getChild(0));
         String[] qualifiedTabName =
                 new String[] {tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName()};
         String dbDotTab = HiveParserBaseSemanticAnalyzer.getDotName(qualifiedTabName);
@@ -1270,7 +1269,7 @@ public class HiveParserDDLSemanticAnalyzer {
         props.put(ALTER_DATABASE_OP, AlterHiveDatabaseOp.CHANGE_PROPS.name());
         props.putAll(dbProps);
         CatalogDatabase newDB = new CatalogDatabaseImpl(props, originDB.getComment());
-        return new AlterDatabaseOperation(catalogManager.getCurrentCatalog(), dbName, newDB);
+        return new AlterDatabaseOperation(catalogRegistry.getCurrentCatalog(), dbName, newDB);
     }
 
     private Operation convertAlterDatabaseOwner(HiveParserASTNode ast) throws SemanticException {
@@ -1295,7 +1294,7 @@ public class HiveParserDDLSemanticAnalyzer {
         props.put(DATABASE_OWNER_NAME, principalDesc.getName());
         props.put(DATABASE_OWNER_TYPE, principalDesc.getType().name().toLowerCase());
         CatalogDatabase newDB = new CatalogDatabaseImpl(props, originDB.getComment());
-        return new AlterDatabaseOperation(catalogManager.getCurrentCatalog(), dbName, newDB);
+        return new AlterDatabaseOperation(catalogRegistry.getCurrentCatalog(), dbName, newDB);
     }
 
     private Operation convertAlterDatabaseLocation(HiveParserASTNode ast) throws SemanticException {
@@ -1309,7 +1308,7 @@ public class HiveParserDDLSemanticAnalyzer {
         props.put(ALTER_DATABASE_OP, CHANGE_LOCATION.name());
         props.put(DATABASE_LOCATION_URI, newLocation);
         CatalogDatabase newDB = new CatalogDatabaseImpl(props, originDB.getComment());
-        return new AlterDatabaseOperation(catalogManager.getCurrentCatalog(), dbName, newDB);
+        return new AlterDatabaseOperation(catalogRegistry.getCurrentCatalog(), dbName, newDB);
     }
 
     private Operation convertCreateDatabase(HiveParserASTNode ast) {
@@ -1355,7 +1354,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
         CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(props, dbComment);
         return new CreateDatabaseOperation(
-                catalogManager.getCurrentCatalog(), dbName, catalogDatabase, ifNotExists);
+                catalogRegistry.getCurrentCatalog(), dbName, catalogDatabase, ifNotExists);
     }
 
     private Operation convertDropDatabase(HiveParserASTNode ast) {
@@ -1373,13 +1372,13 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         return new DropDatabaseOperation(
-                catalogManager.getCurrentCatalog(), dbName, ifExists, ifCascade);
+                catalogRegistry.getCurrentCatalog(), dbName, ifExists, ifCascade);
     }
 
     private Operation convertSwitchDatabase(HiveParserASTNode ast) {
         String dbName =
                 HiveParserBaseSemanticAnalyzer.unescapeIdentifier(ast.getChild(0).getText());
-        return new UseDatabaseOperation(catalogManager.getCurrentCatalog(), dbName);
+        return new UseDatabaseOperation(catalogRegistry.getCurrentCatalog(), dbName);
     }
 
     private Operation convertDropTable(HiveParserASTNode ast, TableType expectedType)
@@ -1390,7 +1389,7 @@ public class HiveParserDDLSemanticAnalyzer {
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);
 
         ObjectIdentifier identifier = parseObjectIdentifier(tableName);
-        CatalogBaseTable baseTable = getCatalogBaseTable(identifier, true);
+        ResolvedCatalogBaseTable<?> baseTable = getResolvedCatalogBaseTable(identifier, true);
 
         if (expectedType == TableType.VIRTUAL_VIEW) {
             if (baseTable instanceof CatalogTable) {
@@ -1674,7 +1673,7 @@ public class HiveParserDDLSemanticAnalyzer {
 
     private CatalogPartition getPartition(
             ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
-        return catalogManager
+        return catalogRegistry
                 .getPartition(tableIdentifier, partitionSpec)
                 .orElseThrow(
                         () ->
@@ -1869,7 +1868,7 @@ public class HiveParserDDLSemanticAnalyzer {
             String sourceName, HiveParserASTNode ast, boolean expectView) throws SemanticException {
         ObjectIdentifier tableIdentifier =
                 HiveParserBaseSemanticAnalyzer.getObjectIdentifier(
-                        catalogManager, (HiveParserASTNode) ast.getChild(0));
+                        catalogRegistry, (HiveParserASTNode) ast.getChild(0));
         String[] target =
                 new String[] {tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName()};
 
@@ -1883,7 +1882,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableChangeCol(
-            ResolvedCatalogBaseTable<?> alteredTable, String[] qualified, HiveParserASTNode ast)
+            CatalogBaseTable alteredTable, String[] qualified, HiveParserASTNode ast)
             throws SemanticException {
         String newComment = null;
         boolean first = false;
@@ -1989,7 +1988,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableModifyCols(
-            ResolvedCatalogBaseTable alteredTable,
+            ResolvedCatalogBaseTable<?> alteredTable,
             String tblName,
             HiveParserASTNode ast,
             boolean replace)
@@ -2083,7 +2082,7 @@ public class HiveParserDDLSemanticAnalyzer {
         validateAlterTableType(tab);
 
         ObjectIdentifier tableIdentifier =
-                catalogManager.qualifyIdentifier(
+                catalogRegistry.qualifyIdentifier(
                         UnresolvedIdentifier.of(qualified[0], qualified[1]));
         List<CatalogPartitionSpec> specs =
                 partSpecs.stream().map(CatalogPartitionSpec::new).collect(Collectors.toList());
@@ -2155,7 +2154,7 @@ public class HiveParserDDLSemanticAnalyzer {
         ObjectIdentifier tableIdentifier =
                 tab.getDbName() == null
                         ? parseObjectIdentifier(tab.getTableName())
-                        : catalogManager.qualifyIdentifier(
+                        : catalogRegistry.qualifyIdentifier(
                                 UnresolvedIdentifier.of(tab.getDbName(), tab.getTableName()));
         return new AddPartitionsOperation(tableIdentifier, ifNotExists, specs, partitions);
     }
@@ -2180,26 +2179,27 @@ public class HiveParserDDLSemanticAnalyzer {
 
     private ResolvedCatalogBaseTable<?> getAlteredTable(String tableName, boolean expectView) {
         ObjectIdentifier objectIdentifier = parseObjectIdentifier(tableName);
-        ResolvedCatalogBaseTable<?> catalogBaseTable = getCatalogBaseTable(objectIdentifier);
+        ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable =
+                getResolvedCatalogBaseTable(objectIdentifier);
         if (expectView) {
-            if (catalogBaseTable instanceof CatalogTable) {
+            if (resolvedCatalogBaseTable instanceof CatalogTable) {
                 throw new ValidationException("ALTER VIEW for a table is not allowed");
             }
         } else {
-            if (catalogBaseTable instanceof CatalogView) {
+            if (resolvedCatalogBaseTable instanceof CatalogView) {
                 throw new ValidationException("ALTER TABLE for a view is not allowed");
             }
         }
-        return catalogBaseTable;
+        return resolvedCatalogBaseTable;
     }
 
     private ObjectIdentifier parseObjectIdentifier(String compoundName) {
         UnresolvedIdentifier unresolvedIdentifier = hiveParser.parseIdentifier(compoundName);
-        return catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return catalogRegistry.qualifyIdentifier(unresolvedIdentifier);
     }
 
     private CatalogDatabase getDatabase(String databaseName) {
-        Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+        Catalog catalog = catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog());
         CatalogDatabase database;
         try {
             database = catalog.getDatabase(databaseName);
@@ -2209,14 +2209,19 @@ public class HiveParserDDLSemanticAnalyzer {
         return database;
     }
 
-    private ResolvedCatalogBaseTable<?> getCatalogBaseTable(ObjectIdentifier tableIdentifier) {
-        return getCatalogBaseTable(tableIdentifier, false);
+    private ResolvedCatalogBaseTable<?> getResolvedCatalogBaseTable(
+            ObjectIdentifier tableIdentifier) {
+        return getResolvedCatalogBaseTable(tableIdentifier, false);
     }
 
-    private ResolvedCatalogBaseTable<?> getCatalogBaseTable(
+    private ResolvedCatalogBaseTable<?> getResolvedCatalogBaseTable(
             ObjectIdentifier tableIdentifier, boolean ifExists) {
-        Optional<ContextResolvedTable> optionalCatalogTable =
-                catalogManager.getTable(tableIdentifier);
+        if (catalogRegistry.isTemporaryTable(tableIdentifier)) {
+            throw new ValidationException(
+                    String.format("Table or View %s is temporary.", tableIdentifier.toString()));
+        }
+        Optional<ResolvedCatalogBaseTable<?>> optionalCatalogTable =
+                catalogRegistry.getCatalogBaseTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent()) {
             if (ifExists) {
                 return null;
@@ -2226,11 +2231,7 @@ public class HiveParserDDLSemanticAnalyzer {
                                 "Table or View %s doesn't exist.", tableIdentifier.toString()));
             }
         }
-        if (optionalCatalogTable.get().isTemporary()) {
-            throw new ValidationException(
-                    String.format("Table or View %s is temporary.", tableIdentifier.toString()));
-        }
-        return optionalCatalogTable.get().getResolvedTable();
+        return optionalCatalogTable.get();
     }
 
     /**

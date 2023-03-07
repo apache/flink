@@ -22,8 +22,9 @@ import org.apache.flink.connectors.hive.HiveInternalOptions;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.calcite.bridge.CalciteContext;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -35,9 +36,8 @@ import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.delegation.DefaultCalciteContext;
 import org.apache.flink.table.planner.delegation.ParserImpl;
-import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseException;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
@@ -49,10 +49,9 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateView
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserLoadSemanticAnalyzer;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
-import org.apache.flink.table.planner.parse.CalciteParser;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -71,7 +70,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor.startWithHiveSpecialVariablePrefix;
 
@@ -151,42 +149,44 @@ public class HiveParser extends ParserImpl {
                                 HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW));
     }
 
-    private final PlannerContext plannerContext;
-    private final FlinkCalciteCatalogReader catalogReader;
+    private final CalciteContext calciteContext;
+    private final CatalogRegistry catalogRegistry;
+    private final CalciteCatalogReader catalogReader;
     private final FrameworkConfig frameworkConfig;
-    private final SqlFunctionConverter funcConverter;
     private final HiveParserDMLHelper dmlHelper;
-    private final TableConfig tableConfig;
     private final Map<String, String> hiveVariables;
 
-    HiveParser(
-            CatalogManager catalogManager,
-            Supplier<FlinkPlannerImpl> validatorSupplier,
-            Supplier<CalciteParser> calciteParserSupplier,
-            PlannerContext plannerContext) {
+    HiveParser(CalciteContext calciteContext) {
+        // todo: remove the following code in FLINK-31413
         super(
-                catalogManager,
-                validatorSupplier,
-                calciteParserSupplier,
-                plannerContext.getRexFactory());
-        this.plannerContext = plannerContext;
-        this.catalogReader = plannerContext.createCatalogReader(false);
-        this.frameworkConfig = plannerContext.createFrameworkConfig();
-        this.funcConverter =
+                ((DefaultCalciteContext) calciteContext).getCatalogManager(),
+                () ->
+                        ((DefaultCalciteContext) calciteContext)
+                                .getPlannerContext()
+                                .createFlinkPlanner(),
+                () ->
+                        ((DefaultCalciteContext) calciteContext)
+                                .getPlannerContext()
+                                .createCalciteParser(),
+                ((DefaultCalciteContext) calciteContext).getPlannerContext().getRexFactory());
+        this.catalogRegistry = calciteContext.getCatalogRegistry();
+        this.calciteContext = calciteContext;
+        this.catalogReader = calciteContext.createCatalogReader(false);
+        this.frameworkConfig = calciteContext.createFrameworkConfig();
+        SqlFunctionConverter funcConverter =
                 new SqlFunctionConverter(
-                        plannerContext.getCluster(),
+                        calciteContext.getCluster(),
                         frameworkConfig.getOperatorTable(),
                         catalogReader.nameMatcher());
-        this.dmlHelper = new HiveParserDMLHelper(plannerContext, funcConverter, catalogManager);
-        this.tableConfig = plannerContext.getFlinkContext().getTableConfig();
+        this.dmlHelper = new HiveParserDMLHelper(calciteContext, funcConverter, catalogRegistry);
+        TableConfig tableConfig = calciteContext.getTableConfig();
         this.hiveVariables = tableConfig.get(HiveInternalOptions.HIVE_VARIABLES);
     }
 
     @Override
     public List<Operation> parse(String statement) {
-        CatalogManager catalogManager = getCatalogManager();
         Catalog currentCatalog =
-                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+                catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog());
         if (!(currentCatalog instanceof HiveCatalog)) {
             LOG.warn("Current catalog is not HiveCatalog. Falling back to Flink's planner.");
             return super.parse(statement);
@@ -208,7 +208,7 @@ public class HiveParser extends ParserImpl {
             // substitute variables for the statement
             statement = substituteVariables(hiveConf, statement);
             // creates SessionState
-            HiveSessionState.startSessionState(hiveConf, catalogManager);
+            HiveSessionState.startSessionState(hiveConf, catalogRegistry);
             // We override Hive's grouping function. Refer to the implementation for more details.
             hiveShim.registerTemporaryFunction("grouping", HiveGenericUDFGrouping.class);
             return processCmd(statement, hiveConf, hiveShim, (HiveCatalog) currentCatalog);
@@ -330,14 +330,14 @@ public class HiveParser extends ParserImpl {
                         new HiveParserDDLSemanticAnalyzer(
                                 queryState,
                                 hiveCatalog,
-                                getCatalogManager(),
+                                catalogRegistry,
                                 this,
                                 hiveShim,
                                 context,
                                 dmlHelper,
                                 frameworkConfig,
-                                plannerContext.getCluster(),
-                                plannerContext.getFlinkContext());
+                                calciteContext.getCluster(),
+                                calciteContext);
                 return Collections.singletonList(ddlAnalyzer.convertToOperation(node));
             } else {
                 return processQuery(context, hiveConf, hiveShim, node);
@@ -391,8 +391,8 @@ public class HiveParser extends ParserImpl {
                     new HiveParserLoadSemanticAnalyzer(
                             hiveConf,
                             frameworkConfig,
-                            plannerContext.getCluster(),
-                            getCatalogManager());
+                            calciteContext.getCluster(),
+                            catalogRegistry);
             return loadSemanticAnalyzer.convertToOperation(input);
         }
         if (isMultiDestQuery(input)) {
@@ -463,10 +463,10 @@ public class HiveParser extends ParserImpl {
         HiveParserCalcitePlanner calciteAnalyzer =
                 new HiveParserCalcitePlanner(
                         queryState,
-                        plannerContext,
+                        calciteContext,
                         catalogReader,
                         frameworkConfig,
-                        getCatalogManager());
+                        catalogRegistry);
         calciteAnalyzer.initCtx(context);
         calciteAnalyzer.init(false);
         return calciteAnalyzer;
