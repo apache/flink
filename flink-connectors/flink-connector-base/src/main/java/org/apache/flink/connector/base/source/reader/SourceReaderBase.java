@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -278,11 +279,17 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     }
 
     // -------------------- Abstract method to allow different implementations ------------------
-    /** Handles the finished splits to clean the state if needed. */
-    protected abstract void onSplitFinished(Map<String, SplitStateT> finishedSplitIds);
 
     /**
-     * When new splits are added to the reader. The initialize the state of the new splits.
+     * Callback to handle when a split is finished. Default implementation asks the {@link
+     * SplitEnumerator} for a new split. It is also recommended to clean the states.
+     */
+    protected void onSplitFinished(Map<String, SplitStateT> finishedSplitIds) {
+        context.sendSplitRequest();
+    }
+
+    /**
+     * When new splits are added to the reader, this initializes the state of the new splits.
      *
      * @param split a newly added split.
      */
