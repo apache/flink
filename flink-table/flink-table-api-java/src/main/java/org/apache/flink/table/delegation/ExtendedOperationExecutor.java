@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.delegation;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.Optional;
@@ -29,7 +29,7 @@ import java.util.Optional;
  * dialect can implement this interface to execute operation in its own way instead of using Flink's
  * own implementation for operation execution.
  */
-@Internal
+@PublicEvolving
 public interface ExtendedOperationExecutor {
 
     /**
@@ -38,5 +38,5 @@ public interface ExtendedOperationExecutor {
      *
      * <p>If return Optional.empty(), the operation will then fall to Flink's operation execution.
      */
-    Optional<TableResultInternal> executeOperation(Operation operation);
+    Optional<TableResult> executeOperation(Operation operation);
 }

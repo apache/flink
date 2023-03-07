@@ -46,6 +46,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
@@ -80,7 +81,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /** A builder for constructing validated {@link QueryOperation}s. */
 @Internal
-public final class OperationTreeBuilder {
+public final class OperationTreeBuilderImpl implements OperationTreeBuilder {
 
     private final TableConfig tableConfig;
     private final ClassLoader userClassLoader;
@@ -100,7 +101,7 @@ public final class OperationTreeBuilder {
     private final JoinOperationFactory joinOperationFactory;
     private final ValuesOperationFactory valuesOperationFactory;
 
-    private OperationTreeBuilder(
+    private OperationTreeBuilderImpl(
             TableConfig tableConfig,
             ClassLoader userClassLoader,
             FunctionLookup functionLookup,
@@ -130,7 +131,7 @@ public final class OperationTreeBuilder {
         this.lookupResolver = new LookupCallResolver(functionLookup);
     }
 
-    public static OperationTreeBuilder create(
+    public static OperationTreeBuilderImpl create(
             TableConfig tableConfig,
             ClassLoader userClassLoader,
             FunctionLookup functionCatalog,
@@ -138,7 +139,7 @@ public final class OperationTreeBuilder {
             TableReferenceLookup tableReferenceLookup,
             SqlExpressionResolver sqlExpressionResolver,
             boolean isStreamingMode) {
-        return new OperationTreeBuilder(
+        return new OperationTreeBuilderImpl(
                 tableConfig,
                 userClassLoader,
                 functionCatalog,

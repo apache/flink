@@ -56,7 +56,7 @@ import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.table.operations.utils.OperationTreeBuilderImpl;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -135,7 +135,7 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         }
 
         final CatalogManager catalogManager = getCatalogManager();
-        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
+        final OperationTreeBuilderImpl operationTreeBuilder = getOperationTreeBuilder();
 
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
@@ -185,7 +185,7 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
             SchemaTranslator.ProducingResult schemaTranslationResult,
             @Nullable ChangelogMode changelogMode) {
         final CatalogManager catalogManager = getCatalogManager();
-        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
+        final OperationTreeBuilderImpl operationTreeBuilder = getOperationTreeBuilder();
 
         final QueryOperation projectOperation =
                 schemaTranslationResult

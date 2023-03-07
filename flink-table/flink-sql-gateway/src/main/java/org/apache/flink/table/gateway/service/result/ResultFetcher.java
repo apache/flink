@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.StaticResultProvider;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
@@ -31,6 +33,7 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
@@ -45,6 +48,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
 
@@ -134,9 +138,22 @@ public class ResultFetcher {
     }
 
     public static ResultFetcher fromTableResult(
-            OperationHandle operationHandle,
-            TableResultInternal tableResult,
-            boolean isQueryResult) {
+            OperationHandle operationHandle, TableResult tableResult, boolean isQueryResult) {
+        CloseableIterator<RowData> resultRows;
+        RowDataToStringConverter rowDataToStringConverter;
+        if (tableResult instanceof TableResultInternal) {
+            TableResultInternal tableResultInternal = (TableResultInternal) tableResult;
+            resultRows = tableResultInternal.collectInternal();
+            rowDataToStringConverter = tableResultInternal.getRowDataToStringConverter();
+        } else {
+            // sometime, the tableResult maybe not an instance of TableResultInternal
+            // in the case of pluggable dialect implements method
+            // ExtendedOperationExecutor#executeOperation, and it doesn't return TableResultInternal
+            resultRows =
+                    new CloseableRowIteratorWrapper<>(
+                            tableResult.collect(), StaticResultProvider::rowToInternalRow);
+            rowDataToStringConverter = SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
+        }
         if (isQueryResult) {
             JobID jobID =
                     tableResult
@@ -151,8 +168,8 @@ public class ResultFetcher {
             return new ResultFetcher(
                     operationHandle,
                     tableResult.getResolvedSchema(),
-                    tableResult.collectInternal(),
-                    tableResult.getRowDataToStringConverter(),
+                    resultRows,
+                    rowDataToStringConverter,
                     true,
                     jobID,
                     tableResult.getResultKind());
@@ -160,7 +177,7 @@ public class ResultFetcher {
             return new ResultFetcher(
                     operationHandle,
                     tableResult.getResolvedSchema(),
-                    CollectionUtil.iteratorToList(tableResult.collectInternal()),
+                    CollectionUtil.iteratorToList(resultRows),
                     tableResult.getJobClient().map(JobClient::getJobID).orElse(null),
                     tableResult.getResultKind());
         }
@@ -335,5 +352,38 @@ public class ResultFetcher {
     @VisibleForTesting
     public ResultStore getResultStore() {
         return resultStore;
+    }
+
+    /** An iterator wrapper that wrap {@link Row} to other type. */
+    private static final class CloseableRowIteratorWrapper<T> implements CloseableIterator<T> {
+        private final CloseableIterator<Row> iterator;
+        private final Function<Row, T> mapper;
+
+        private boolean firstRowProcessed = false;
+
+        private CloseableRowIteratorWrapper(
+                CloseableIterator<Row> iterator, Function<Row, T> mapper) {
+            this.iterator = iterator;
+            this.mapper = mapper;
+        }
+
+        @Override
+        public void close() throws Exception {
+            iterator.close();
+        }
+
+        @Override
+        public boolean hasNext() {
+            boolean hasNext = iterator.hasNext();
+            firstRowProcessed = firstRowProcessed || hasNext;
+            return hasNext;
+        }
+
+        @Override
+        public T next() {
+            Row next = iterator.next();
+            firstRowProcessed = true;
+            return mapper.apply(next);
+        }
     }
 }

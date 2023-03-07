@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericRowData;
@@ -98,8 +97,7 @@ public class StaticResultProvider implements ResultProvider {
     }
 
     /** This function supports only String, long, int and boolean fields. */
-    @VisibleForTesting
-    static RowData rowToInternalRow(Row row) {
+    public static RowData rowToInternalRow(Row row) {
         Object[] values = new Object[row.getArity()];
         for (int i = 0; i < row.getArity(); i++) {
             Object value = row.getField(i);

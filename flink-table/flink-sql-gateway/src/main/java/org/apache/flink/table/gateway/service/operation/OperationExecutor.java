@@ -37,10 +37,10 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
@@ -434,7 +434,7 @@ public class OperationExecutor {
             return callModifyOperations(
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
         } else if (op instanceof QueryOperation) {
-            TableResultInternal result = tableEnv.executeInternal(op);
+            TableResult result = tableEnv.executeInternal(op);
             return ResultFetcher.fromTableResult(handle, result, true);
         } else if (op instanceof StopJobOperation) {
             return callStopJobOperation(tableEnv, handle, (StopJobOperation) op);
@@ -512,7 +512,7 @@ public class OperationExecutor {
             TableEnvironmentInternal tableEnv,
             OperationHandle handle,
             List<ModifyOperation> modifyOperations) {
-        TableResultInternal result = tableEnv.executeInternal(modifyOperations);
+        TableResult result = tableEnv.executeInternal(modifyOperations);
         JobID jobID =
                 result.getJobClient()
                         .orElseThrow(
@@ -538,7 +538,7 @@ public class OperationExecutor {
 
     private ResultFetcher callOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
-        TableResultInternal result = tableEnv.executeInternal(op);
+        TableResult result = tableEnv.executeInternal(op);
         return ResultFetcher.fromTableResult(handle, result, false);
     }
 

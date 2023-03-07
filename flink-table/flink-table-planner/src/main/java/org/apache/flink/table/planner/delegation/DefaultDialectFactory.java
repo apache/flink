@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.delegation.DialectFactory;
 import org.apache.flink.table.delegation.Parser;
 
 import java.util.Collections;
@@ -45,10 +46,11 @@ public class DefaultDialectFactory implements DialectFactory {
 
     @Override
     public Parser create(Context context) {
+        DefaultCalciteContext defaultCalciteContext = (DefaultCalciteContext) context;
         return new ParserImpl(
-                context.getCatalogManager(),
-                context.getPlannerContext()::createFlinkPlanner,
-                context.getPlannerContext()::createCalciteParser,
-                context.getPlannerContext().getRexFactory());
+                defaultCalciteContext.getCatalogManager(),
+                defaultCalciteContext.getPlannerContext()::createFlinkPlanner,
+                defaultCalciteContext.getPlannerContext()::createCalciteParser,
+                defaultCalciteContext.getPlannerContext().getRexFactory());
     }
 }

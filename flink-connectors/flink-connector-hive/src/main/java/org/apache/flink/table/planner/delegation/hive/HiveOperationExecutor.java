@@ -23,6 +23,7 @@ import org.apache.flink.connectors.hive.HiveInternalOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
@@ -76,7 +77,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
     }
 
     @Override
-    public Optional<TableResultInternal> executeOperation(Operation operation) {
+    public Optional<TableResult> executeOperation(Operation operation) {
         if (operation instanceof HiveSetOperation) {
             return executeHiveSetOperation((HiveSetOperation) operation);
         } else if (operation instanceof HiveLoadDataOperation) {
@@ -95,8 +96,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
         return Optional.empty();
     }
 
-    private Optional<TableResultInternal> executeHiveSetOperation(
-            HiveSetOperation hiveSetOperation) {
+    private Optional<TableResult> executeHiveSetOperation(HiveSetOperation hiveSetOperation) {
         Catalog currentCatalog =
                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
@@ -153,7 +153,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 .build();
     }
 
-    private Optional<TableResultInternal> executeHiveLoadDataOperation(
+    private Optional<TableResult> executeHiveLoadDataOperation(
             HiveLoadDataOperation hiveLoadDataOperation) {
         Catalog currentCatalog =
                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
@@ -187,7 +187,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
         }
     }
 
-    private Optional<TableResultInternal> explainHiveLoadDataOperation(
+    private Optional<TableResult> explainHiveLoadDataOperation(
             HiveLoadDataOperation hiveLoadDataOperation) {
         // get the plan for the partition part
         String partitionExplain = "";
@@ -236,7 +236,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                         .build());
     }
 
-    private Optional<TableResultInternal> executeShowCreateTableOperation(
+    private Optional<TableResult> executeShowCreateTableOperation(
             HiveShowCreateTableOperation showCreateTableOperation) {
         ObjectPath tablePath = showCreateTableOperation.getTablePath();
         Catalog currentCatalog =
@@ -274,7 +274,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
         return Optional.of(resultInternal);
     }
 
-    private Optional<TableResultInternal> executeDescribeTableOperation(
+    private Optional<TableResult> executeDescribeTableOperation(
             DescribeTableOperation describeTableOperation) {
         // currently, if it's 'describe extended', we still delegate to Flink's own implementation
         if (describeTableOperation.isExtended()) {

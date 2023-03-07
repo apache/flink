@@ -53,7 +53,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
-import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.table.operations.utils.OperationTreeBuilderImpl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,7 +73,7 @@ public class TableImpl implements Table {
 
     private final TableEnvironmentInternal tableEnvironment;
     private final QueryOperation operationTree;
-    private final OperationTreeBuilder operationTreeBuilder;
+    private final OperationTreeBuilderImpl operationTreeBuilder;
     private final LookupCallResolver lookupResolver;
 
     private String tableName = null;
@@ -85,7 +85,7 @@ public class TableImpl implements Table {
     private TableImpl(
             TableEnvironmentInternal tableEnvironment,
             QueryOperation operationTree,
-            OperationTreeBuilder operationTreeBuilder,
+            OperationTreeBuilderImpl operationTreeBuilder,
             LookupCallResolver lookupResolver) {
         this.tableEnvironment = tableEnvironment;
         this.operationTree = operationTree;
@@ -96,7 +96,7 @@ public class TableImpl implements Table {
     public static TableImpl createTable(
             TableEnvironmentInternal tableEnvironment,
             QueryOperation operationTree,
-            OperationTreeBuilder operationTreeBuilder,
+            OperationTreeBuilderImpl operationTreeBuilder,
             FunctionLookup functionLookup) {
         return new TableImpl(
                 tableEnvironment,

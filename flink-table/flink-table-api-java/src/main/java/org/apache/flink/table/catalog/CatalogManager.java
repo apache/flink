@@ -62,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * encapsulates all available catalogs and stores temporary objects.
  */
 @Internal
-public final class CatalogManager {
+public final class CatalogManager implements CatalogRegistry {
     private static final Logger LOG = LoggerFactory.getLogger(CatalogManager.class);
 
     // A map between names and catalogs.
@@ -363,6 +363,19 @@ public final class CatalogManager {
         } else {
             return getPermanentTable(objectIdentifier);
         }
+    }
+
+    @Override
+    public Optional<CatalogBaseTable> getCatalogBaseTable(ObjectIdentifier objectIdentifier) {
+        ContextResolvedTable resolvedTable = getTable(objectIdentifier).orElse(null);
+        return resolvedTable == null
+                ? Optional.empty()
+                : Optional.of(resolvedTable.getResolvedTable());
+    }
+
+    @Override
+    public boolean isTemporaryTable(ObjectIdentifier objectIdentifier) {
+        return temporaryTables.containsKey(objectIdentifier);
     }
 
     /**

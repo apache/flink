@@ -58,7 +58,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link OperationTreeBuilder#values}. */
+/** Tests for {@link OperationTreeBuilderImpl#values}. */
 public class ValuesOperationTreeBuilderTest {
 
     static Stream<TestSpec> parameters() {
@@ -488,8 +488,8 @@ public class ValuesOperationTreeBuilderTest {
             return this;
         }
 
-        public OperationTreeBuilder getTreeBuilder() {
-            return OperationTreeBuilder.create(
+        public OperationTreeBuilderImpl getTreeBuilder() {
+            return OperationTreeBuilderImpl.create(
                     TableConfig.getDefault(),
                     Thread.currentThread().getContextClassLoader(),
                     new FunctionLookupMock(Collections.emptyMap()),

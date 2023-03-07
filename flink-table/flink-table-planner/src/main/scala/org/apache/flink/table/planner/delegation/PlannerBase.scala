@@ -26,17 +26,18 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
-import org.apache.flink.table.delegation.{Executor, ExtendedOperationExecutor, Parser, Planner}
+import org.apache.flink.table.delegation.{DialectFactory, Executor, ExtendedOperationExecutor, Parser, Planner}
+import org.apache.flink.table.expressions.{ApiExpressionUtils, TableReferenceExpression}
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
+import org.apache.flink.table.operations.utils.OperationTreeBuilderImpl
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
-import org.apache.flink.table.planner.delegation.DialectFactory.DefaultParserContext
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
@@ -53,6 +54,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toS
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
 import _root_.scala.collection.JavaConversions._
@@ -64,7 +66,7 @@ import org.apache.calcite.rel.logical.LogicalTableModify
 
 import java.lang.{Long => JLong}
 import java.util
-import java.util.{Collections, TimeZone}
+import java.util.{Collections, Optional, TimeZone}
 
 import scala.collection.mutable
 
@@ -169,17 +171,46 @@ abstract class PlannerBase(
   override def getParser: Parser = {
     if (parser == null || getTableConfig.getSqlDialect != currentDialect) {
       dialectFactory = getDialectFactory
-      parser =
-        dialectFactory.create(new DefaultParserContext(catalogManager, plannerContext, executor))
+      parser = dialectFactory.create(
+        new DefaultCalciteContext(catalogManager, getOperationTreeBuilder, plannerContext))
     }
     parser
+  }
+
+  def getOperationTreeBuilder: OperationTreeBuilder = {
+    OperationTreeBuilderImpl.create(
+      tableConfig,
+      classLoader,
+      functionCatalog.asLookup(f => getParser.parseIdentifier(f)),
+      catalogManager.getDataTypeFactory,
+      (path: String) => getTableReferenceExpression(path),
+      (s: String, inputRowType: RowType, outputType) =>
+        getParser.parseSqlExpression(s, inputRowType, outputType),
+      isStreamingMode
+    )
+  }
+
+  def getTableReferenceExpression(path: String): Optional[TableReferenceExpression] = {
+    try {
+      val unresolvedIdentifier = getParser.parseIdentifier(path)
+      val tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
+      val optionalTable = catalogManager.getTable(tableIdentifier)
+      if (!optionalTable.isPresent) {
+        Optional.empty()
+      } else {
+        val queryOperation = new SourceQueryOperation(optionalTable.get())
+        Optional.of(ApiExpressionUtils.tableRef(path, queryOperation))
+      }
+    } catch {
+      case _: SqlParserException => Optional.empty()
+    }
   }
 
   override def getExtendedOperationExecutor: ExtendedOperationExecutor = {
     if (extendedOperationExecutor == null || getTableConfig.getSqlDialect != currentDialect) {
       dialectFactory = getDialectFactory
       extendedOperationExecutor = dialectFactory.createExtendedOperationExecutor(
-        new DefaultParserContext(catalogManager, plannerContext, executor))
+        new DefaultCalciteContext(catalogManager, getOperationTreeBuilder, plannerContext))
     }
     extendedOperationExecutor
   }

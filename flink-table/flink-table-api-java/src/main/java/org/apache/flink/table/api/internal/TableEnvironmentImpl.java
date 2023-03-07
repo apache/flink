@@ -148,7 +148,7 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
-import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.table.operations.utils.OperationTreeBuilderImpl;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
@@ -196,7 +196,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
     protected final ResourceManager resourceManager;
-    private final OperationTreeBuilder operationTreeBuilder;
+    private final OperationTreeBuilderImpl operationTreeBuilder;
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -234,7 +234,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         this.planner = planner;
         this.isStreamingMode = isStreamingMode;
         this.operationTreeBuilder =
-                OperationTreeBuilder.create(
+                OperationTreeBuilderImpl.create(
                         tableConfig,
                         resourceManager.getUserClassLoader(),
                         functionCatalog.asLookup(getParser()::parseIdentifier),
@@ -845,7 +845,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public TableResultInternal executeInternal(List<ModifyOperation> operations) {
+    public TableResult executeInternal(List<ModifyOperation> operations) {
         List<ModifyOperation> mapOperations = new ArrayList<>();
         for (ModifyOperation modify : operations) {
             // execute CREATE TABLE first for CTAS statements
@@ -976,9 +976,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public TableResultInternal executeInternal(Operation operation) {
+    public TableResult executeInternal(Operation operation) {
         // try to use extended operation executor to execute the operation
-        Optional<TableResultInternal> tableResult =
+        Optional<TableResult> tableResult =
                 getExtendedOperationExecutor().executeOperation(operation);
         // if the extended operation executor return non-empty result, return it
         if (tableResult.isPresent()) {
@@ -1774,7 +1774,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public OperationTreeBuilder getOperationTreeBuilder() {
+    public OperationTreeBuilderImpl getOperationTreeBuilder() {
         return operationTreeBuilder;
     }
 

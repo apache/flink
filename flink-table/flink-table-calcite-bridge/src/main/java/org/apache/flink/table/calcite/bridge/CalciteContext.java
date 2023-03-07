@@ -21,6 +21,7 @@ package org.apache.flink.table.calcite.bridge;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.delegation.DialectFactory;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -31,7 +32,7 @@ import org.apache.calcite.tools.RelBuilder;
 
 /** Context for calcite. */
 @Internal
-public interface CalciteContext {
+public interface CalciteContext extends DialectFactory.Context {
     CalciteCatalogReader createCatalogReader(boolean lenientCaseSensitivity);
 
     RelOptCluster getCluster();

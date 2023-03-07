@@ -20,9 +20,10 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.delegation.DialectFactory;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.planner.delegation.DialectFactory;
+import org.apache.flink.table.planner.delegation.DefaultCalciteContext;
 
 import java.util.Collections;
 import java.util.Set;
@@ -47,15 +48,19 @@ public class HiveDialectFactory implements DialectFactory {
 
     @Override
     public Parser create(Context context) {
+        DefaultCalciteContext defaultCalciteContext = (DefaultCalciteContext) context;
         return new HiveParser(
-                context.getCatalogManager(),
-                context.getPlannerContext()::createFlinkPlanner,
-                context.getPlannerContext()::createCalciteParser,
-                context.getPlannerContext());
+                defaultCalciteContext.getCatalogManager(),
+                defaultCalciteContext.getPlannerContext()::createFlinkPlanner,
+                defaultCalciteContext.getPlannerContext()::createCalciteParser,
+                defaultCalciteContext.getPlannerContext());
     }
 
     @Override
     public ExtendedOperationExecutor createExtendedOperationExecutor(Context context) {
-        return new HiveOperationExecutor(context.getCatalogManager(), context.getPlannerContext());
+        DefaultCalciteContext defaultCalciteContext = (DefaultCalciteContext) context;
+        return new HiveOperationExecutor(
+                defaultCalciteContext.getCatalogManager(),
+                defaultCalciteContext.getPlannerContext());
     }
 }

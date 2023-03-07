@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation;
+package org.apache.flink.table.delegation;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
-import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExtendedOperationExecutor;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.OperationTreeBuilder;
 
 import java.util.Optional;
 
@@ -36,52 +34,22 @@ import java.util.Optional;
  * <p>The {@link #factoryIdentifier()} is identified by matching it against {@link
  * TableConfigOptions#TABLE_SQL_DIALECT}.
  */
-@Internal
+@PublicEvolving
 public interface DialectFactory extends Factory {
-
     /** Creates a new parser. */
     Parser create(Context context);
 
+    /** Create an extended operation executor. */
     default ExtendedOperationExecutor createExtendedOperationExecutor(Context context) {
         return new EmptyOperationExecutor();
     }
 
     /** Context provided when a parser is created. */
+    @PublicEvolving
     interface Context {
-        CatalogManager getCatalogManager();
+        CatalogRegistry getCatalogRegistry();
 
-        PlannerContext getPlannerContext();
-
-        Executor getExecutor();
-    }
-
-    /** Default implementation for {@link Context}. */
-    class DefaultParserContext implements Context {
-        private final CatalogManager catalogManager;
-        private final PlannerContext plannerContext;
-        private final Executor executor;
-
-        public DefaultParserContext(
-                CatalogManager catalogManager, PlannerContext plannerContext, Executor executor) {
-            this.catalogManager = catalogManager;
-            this.plannerContext = plannerContext;
-            this.executor = executor;
-        }
-
-        @Override
-        public CatalogManager getCatalogManager() {
-            return catalogManager;
-        }
-
-        @Override
-        public PlannerContext getPlannerContext() {
-            return plannerContext;
-        }
-
-        @Override
-        public Executor getExecutor() {
-            return executor;
-        }
+        OperationTreeBuilder getOperationTreeBuilder(); // interfaces provided to build Operation.
     }
 
     /**
@@ -91,7 +59,7 @@ public interface DialectFactory extends Factory {
     class EmptyOperationExecutor implements ExtendedOperationExecutor {
 
         @Override
-        public Optional<TableResultInternal> executeOperation(Operation operation) {
+        public Optional<TableResult> executeOperation(Operation operation) {
             // return empty so that it'll use Flink's own implementation for operation execution.
             return Optional.empty();
         }
