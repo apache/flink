@@ -81,5 +81,7 @@ new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
   .addSink(new DiscardingSink[Int])
 env.execute()
 ```
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< top >}}
