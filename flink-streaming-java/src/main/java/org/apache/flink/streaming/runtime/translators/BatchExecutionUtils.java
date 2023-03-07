@@ -39,10 +39,10 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A utility class for applying sorting inputs. */
-class BatchExecutionUtils {
+public class BatchExecutionUtils {
     private static final Logger LOG = LoggerFactory.getLogger(BatchExecutionUtils.class);
 
-    static void applyBatchExecutionSettings(
+    public static void applyBatchExecutionSettings(
             int transformationId,
             TransformationTranslator.Context context,
             StreamConfig.InputRequirement... inputRequirements) {

@@ -59,6 +59,21 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
                               |)
                               |""".stripMargin)
 
+  util.tableEnv.executeSql(s"""create table metadata_sink (
+                              |  `a` INT,
+                              |  `b` STRING,
+                              |  `c` STRING,
+                              |  `d` STRING,
+                              |  `e` DOUBLE,
+                              |  `f` BIGINT METADATA,
+                              |  `g` INT METADATA VIRTUAL,
+                              |  `h` AS `a` + 1
+                              |) with (
+                              |  'connector' = 'values',
+                              |  'sink-insert-only' = 'false',
+                              |  'writable-metadata' = 'f:BIGINT, g:INT'
+                              |)""".stripMargin)
+
   @Test
   def testPartialInsertWithComplexReorder(): Unit = {
     util.verifyRelPlanInsert(
@@ -117,6 +132,36 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
     util.verifyRelPlanInsert(
       "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d")
+  }
+
+  @Test
+  def testPartialInsertWithPersistedMetadata(): Unit = {
+    util.verifyRelPlanInsert(
+      "INSERT INTO metadata_sink (a,b,c,d,e,f) " +
+        "SELECT a,b,c,d,e,123 FROM MyTable"
+    )
+  }
+
+  @Test
+  def testPartialInsertWithVirtualMetaDataColumn(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "SQL validation failed. At line 1, column 38: Unknown target column 'g'")
+    util.verifyRelPlanInsert(
+      "INSERT INTO metadata_sink (a,b,c,d,e,g) " +
+        "SELECT a,b,c,d,e,123 FROM MyTable"
+    )
+  }
+
+  @Test
+  def testPartialInsertWithComputedColumn(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "SQL validation failed. At line 1, column 38: Unknown target column 'h'")
+    util.verifyRelPlanInsert(
+      "INSERT INTO metadata_sink (a,b,c,d,e,h) " +
+        "SELECT a,b,c,d,e,123 FROM MyTable"
+    )
   }
 }
 
