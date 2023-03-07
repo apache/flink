@@ -113,7 +113,8 @@ public class SqlGateway {
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-        Configuration dynamicConfiguration = ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs());
+        Configuration dynamicConfiguration =
+                ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs());
         DefaultContext defaultContext =
                 DefaultContext.load(
                         dynamicConfiguration,
