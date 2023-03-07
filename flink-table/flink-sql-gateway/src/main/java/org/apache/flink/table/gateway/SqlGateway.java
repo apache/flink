@@ -116,11 +116,7 @@ public class SqlGateway {
         Configuration dynamicConfiguration =
                 ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs());
         DefaultContext defaultContext =
-                DefaultContext.load(
-                        dynamicConfiguration,
-                        Collections.emptyList(),
-                        true,
-                        true);
+                DefaultContext.load(dynamicConfiguration, Collections.emptyList(), true, true);
         SqlGateway gateway =
                 new SqlGateway(
                         defaultContext.getFlinkConfig(), SessionManager.create(defaultContext));
