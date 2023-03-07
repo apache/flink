@@ -27,7 +27,6 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -328,43 +327,41 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     @NotThreadSafe
     public class CompletedCheckpointDiscardObject implements DiscardObject {
 
+        public boolean hasDroppedMetaData;
+
+        public boolean hasDiscardedStateObjects;
+
+        public boolean hasDiscardedStorageLocation;
+
+        public boolean hasClearedOperatorStates;
+
         @Override
         public void discard() throws Exception {
             LOG.trace("Executing discard procedure for {}.", this);
             checkState(
                     isMarkedAsDiscarded(),
                     "Checkpoint should be marked as discarded before discard.");
+            // drop the metadata
+            if (!hasDroppedMetaData) {
+                metadataHandle.discardState();
+                hasDroppedMetaData = true;
+            }
 
-            try {
-                // collect exceptions and continue cleanup
-                Exception exception = null;
+            // discard private state objects
+            if (!hasDiscardedStateObjects) {
+                StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+                hasDiscardedStateObjects = true;
+            }
 
-                // drop the metadata
-                try {
-                    metadataHandle.discardState();
-                } catch (Exception e) {
-                    exception = e;
-                }
+            // discard location as a whole
+            if (!hasDiscardedStorageLocation) {
+                storageLocation.disposeStorageLocation();
+                hasDiscardedStorageLocation = true;
+            }
 
-                // discard private state objects
-                try {
-                    StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-                } catch (Exception e) {
-                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
-                }
-
-                // discard location as a whole
-                try {
-                    storageLocation.disposeStorageLocation();
-                } catch (Exception e) {
-                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
-                }
-
-                if (exception != null) {
-                    throw exception;
-                }
-            } finally {
+            if (!hasClearedOperatorStates) {
                 operatorStates.clear();
+                hasClearedOperatorStates = true;
             }
         }
 

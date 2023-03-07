@@ -389,7 +389,21 @@ public class CompletedCheckpointTest {
                         new TestCompletedCheckpointStorageLocation(),
                         checkpointStats);
 
-        completed.markAsDiscardedOnShutdown(JobStatus.FINISHED).discard();
+        Checkpoint.DiscardObject discardObject =
+                completed.markAsDiscardedOnShutdown(JobStatus.FINISHED);
+        discardObject.discard();
+        assertTrue(
+                ((CompletedCheckpoint.CompletedCheckpointDiscardObject) discardObject)
+                        .hasDroppedMetaData);
+        assertTrue(
+                ((CompletedCheckpoint.CompletedCheckpointDiscardObject) discardObject)
+                        .hasDiscardedStateObjects);
+        assertTrue(
+                ((CompletedCheckpoint.CompletedCheckpointDiscardObject) discardObject)
+                        .hasDiscardedStorageLocation);
+        assertTrue(
+                ((CompletedCheckpoint.CompletedCheckpointDiscardObject) discardObject)
+                        .hasClearedOperatorStates);
         assertTrue(checkpointStats.isDiscarded());
     }
 
