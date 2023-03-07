@@ -21,6 +21,9 @@ package org.apache.flink.table.gateway;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -60,7 +63,7 @@ public class SqlGateway {
         this.latch = new CountDownLatch(1);
     }
 
-    public void start() throws Exception {
+    public int start() throws Exception {
         sessionManager.start();
 
         SqlGatewayService sqlGatewayService = new SqlGatewayServiceImpl(sessionManager);
@@ -75,6 +78,7 @@ public class SqlGateway {
             LOG.error("Failed to start the endpoints.", t);
             throw new SqlGatewayException("Failed to start the endpoints.", t);
         }
+        return 0;
     }
 
     public void stop() {
@@ -109,16 +113,23 @@ public class SqlGateway {
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
+        Configuration dynamicConfiguration = ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs());
         DefaultContext defaultContext =
                 DefaultContext.load(
-                        ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs()),
+                        dynamicConfiguration,
                         Collections.emptyList(),
                         true,
                         true);
         SqlGateway gateway =
                 new SqlGateway(
                         defaultContext.getFlinkConfig(), SessionManager.create(defaultContext));
+
+        final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+        flinkConfiguration.addAll(dynamicConfiguration);
+
         try {
+            SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+            SecurityUtils.getInstalledContext().runSecured(gateway::start);
             Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
             gateway.start();
             gateway.waitUntilStop();
