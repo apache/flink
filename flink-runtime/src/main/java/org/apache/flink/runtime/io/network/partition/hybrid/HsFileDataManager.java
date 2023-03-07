@@ -290,11 +290,11 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                         () -> {
                             try {
                                 run();
-                            } catch (Exception e) {
+                            } catch (Throwable throwable) {
                                 // handle un-expected exception as unhandledExceptionHandler is not
                                 // worked for ScheduledExecutorService.
                                 FatalExitExceptionHandler.INSTANCE.uncaughtException(
-                                        Thread.currentThread(), e);
+                                        Thread.currentThread(), throwable);
                             }
                         });
             }
