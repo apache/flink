@@ -36,10 +36,13 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
             DEFAULT_TOTAL_RESOURCE_PROFILE.multiply(2);
 
     @Override
-    protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy() {
+    protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy(
+            SlotManagerConfiguration slotManagerConfiguration) {
         return Optional.of(
                 new DefaultResourceAllocationStrategy(
-                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER));
+                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                        DEFAULT_NUM_SLOTS_PER_WORKER,
+                        slotManagerConfiguration.isEvenlySpreadOutSlots()));
     }
 
     /**
