@@ -48,22 +48,22 @@ class SessionContextTest {
     private SessionContext sessionContext;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         sessionContext = createSessionContext();
     }
 
     @AfterEach
-    public void cleanUp() {
+    void cleanUp() {
         sessionContext.close();
     }
 
     @AfterAll
-    public static void closeResources() {
+    static void closeResources() {
         EXECUTOR_SERVICE.shutdown();
     }
 
     @Test
-    public void testSetAndResetOption() {
+    void testSetAndResetOption() {
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
         // runtime config option
@@ -88,7 +88,7 @@ class SessionContextTest {
     }
 
     @Test
-    public void testSetAndResetKeyInConfigOptions() {
+    void testSetAndResetKeyInConfigOptions() {
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
         // runtime config option
@@ -117,7 +117,7 @@ class SessionContextTest {
     }
 
     @Test
-    public void testSetAndResetArbitraryKey() {
+    void testSetAndResetArbitraryKey() {
         // other property not in flink-conf
         sessionContext.set("aa", "11");
         sessionContext.set("bb", "22");

@@ -88,17 +88,17 @@ class OperationRelatedITCase extends RestAPIITCaseBase {
         // Get the RUNNING status when an operation is submitted
         ids = submitOperation();
         status = getOperationStatus(ids);
-        assertThat(OperationStatus.RUNNING.toString()).isEqualTo(status);
+        assertThat(OperationStatus.RUNNING).hasToString(status);
         // Get the CANCELED status when an operation is canceled
         ids = submitOperation();
         status = cancelOperation(ids);
-        assertThat(OperationStatus.CANCELED.toString()).isEqualTo(status);
+        assertThat(OperationStatus.CANCELED).hasToString(status);
         status = getOperationStatus(ids);
-        assertThat(OperationStatus.CANCELED.toString()).isEqualTo(status);
+        assertThat(OperationStatus.CANCELED).hasToString(status);
         // Get the CLOSED status when an operation is closed
         ids = submitOperation();
         status = closeOperation(ids);
-        assertThat(OperationStatus.CLOSED.toString()).isEqualTo(status);
+        assertThat(OperationStatus.CLOSED).hasToString(status);
         SessionHandle sessionHandle = new SessionHandle(UUID.fromString(ids.get(0)));
         OperationHandle operationHandle = new OperationHandle(UUID.fromString(ids.get(1)));
         assertThatThrownBy(
