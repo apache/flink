@@ -34,14 +34,14 @@ import org.apache.flink.table.gateway.service.utils.SqlCancelException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.util.IOUtils;
 
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -54,8 +54,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 /** Manager for the {@link Operation}. */
 @Internal
@@ -193,13 +191,11 @@ public class OperationManager {
         Exception closeException = null;
         try {
             isRunning = false;
-            List<Operation> copiedOperations = new ArrayList<>(submittedOperations.values());
-            submittedOperations.clear();
-
-            IOUtils.closeAll(copiedOperations, Throwable.class);
+            IOUtils.closeAll(submittedOperations.values(), Throwable.class);
         } catch (Exception e) {
             closeException = e;
         } finally {
+            submittedOperations.clear();
             stateLock.writeLock().unlock();
         }
         // wait all operations closed
@@ -431,12 +427,13 @@ public class OperationManager {
                     return;
                 }
                 // try to release the use of the processor to let the task finish its cleanup.
-                sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
             }
             Optional<Thread> threadOptional = getThreadInFuture(invocation);
             // Currently, SQL Gateway still doesn't have health reporter to notify the users the
-            // resource leak or HA to restart the running process. So we just log the problem here.
-            threadOptional.ifPresent(this::logTaskThreadStackTrace);
+            // resource leak or HA to restart the running process. So we just dump the thread and
+            // throw an exception to notify the users.
+            threadOptional.ifPresent(this::throwExceptionWithThreadStackTrace);
         }
 
         private Optional<Thread> getThreadInFuture(FutureTask<?> invocation) {
@@ -452,7 +449,7 @@ public class OperationManager {
             }
         }
 
-        private void logTaskThreadStackTrace(Thread thread) {
+        private void throwExceptionWithThreadStackTrace(Thread thread) {
             StackTraceElement[] stack = thread.getStackTrace();
             StringBuilder stackTraceStr = new StringBuilder();
             for (StackTraceElement e : stack) {
@@ -469,7 +466,6 @@ public class OperationManager {
                             thread.getName(),
                             thread.getState(),
                             stackTraceStr);
-            LOG.warn(msg);
             throw new SqlCancelException(msg);
         }
     }
