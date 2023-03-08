@@ -110,6 +110,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_CONTAINS(f5, CAST(NULL AS INT))",
                                 false,
                                 DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f5").arrayContains(lit(4, DataTypes.INT().notNull())),
+                                "ARRAY_CONTAINS(f5, 4)",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
                         // invalid signatures
                         .testSqlValidationError(
                                 "ARRAY_CONTAINS(f0, TRUE)",
