@@ -137,6 +137,7 @@ public class SlotManagerConfigurationBuilder {
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
                 AnyMatchingSlotMatchingStrategy.INSTANCE,
+                false,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 maxSlotNum,

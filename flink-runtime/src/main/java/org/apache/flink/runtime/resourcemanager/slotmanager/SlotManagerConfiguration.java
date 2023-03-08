@@ -48,6 +48,7 @@ public class SlotManagerConfiguration {
     private final Duration declareNeededResourceDelay;
     private final boolean waitResultConsumedBeforeRelease;
     private final SlotMatchingStrategy slotMatchingStrategy;
+    private final boolean evenlySpreadOutSlots;
     private final WorkerResourceSpec defaultWorkerResourceSpec;
     private final int numSlotsPerWorker;
     private final int maxSlotNum;
@@ -63,6 +64,7 @@ public class SlotManagerConfiguration {
             Duration declareNeededResourceDelay,
             boolean waitResultConsumedBeforeRelease,
             SlotMatchingStrategy slotMatchingStrategy,
+            boolean evenlySpreadOutSlots,
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
             int maxSlotNum,
@@ -77,6 +79,7 @@ public class SlotManagerConfiguration {
         this.declareNeededResourceDelay = Preconditions.checkNotNull(declareNeededResourceDelay);
         this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
         this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
         this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
         Preconditions.checkState(numSlotsPerWorker > 0);
         Preconditions.checkState(maxSlotNum > 0);
@@ -114,6 +117,10 @@ public class SlotManagerConfiguration {
 
     public SlotMatchingStrategy getSlotMatchingStrategy() {
         return slotMatchingStrategy;
+    }
+
+    public boolean isEvenlySpreadOutSlots() {
+        return evenlySpreadOutSlots;
     }
 
     public WorkerResourceSpec getDefaultWorkerResourceSpec() {
@@ -184,6 +191,7 @@ public class SlotManagerConfiguration {
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
                 slotMatchingStrategy,
+                evenlySpreadOutSlots,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 maxSlotNum,

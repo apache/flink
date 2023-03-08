@@ -162,6 +162,7 @@ public class DeclarativeSlotManagerBuilder {
                         declareNeededResourceDelay,
                         waitResultConsumedBeforeRelease,
                         slotMatchingStrategy,
+                        false,
                         defaultWorkerResourceSpec,
                         numSlotsPerWorker,
                         maxSlotNum,
