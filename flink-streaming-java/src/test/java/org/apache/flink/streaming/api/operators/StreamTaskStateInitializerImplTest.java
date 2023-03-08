@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
 
@@ -317,11 +318,13 @@ public class StreamTaskStateInitializerImplTest {
                                 ClassLoader userClassloader,
                                 KeyContext keyContext,
                                 ProcessingTimeService processingTimeService,
-                                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+                                StreamTaskCancellationContext cancellationContext)
                                 throws Exception {
                             return null;
                         }
-                    });
+                    },
+                    StreamTaskCancellationContext.alwaysRunning());
         }
     }
 }

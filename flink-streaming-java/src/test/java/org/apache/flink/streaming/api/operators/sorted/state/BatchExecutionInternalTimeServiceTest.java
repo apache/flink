@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.TestLogger;
 
@@ -90,7 +91,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                 this.getClass().getClassLoader(),
                 new DummyKeyContext(),
                 new TestProcessingTimeService(),
-                Collections.emptyList());
+                Collections.emptyList(),
+                StreamTaskCancellationContext.alwaysRunning());
     }
 
     @Test
@@ -134,7 +136,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         InternalTimerService<VoidNamespace> timerService =
@@ -169,7 +172,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         InternalTimerService<VoidNamespace> timerService =
@@ -197,7 +201,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> eventTimeTrigger =
@@ -243,7 +248,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         InternalTimerService<VoidNamespace> timerService =
@@ -277,7 +283,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> trigger =
@@ -316,7 +323,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> trigger =
