@@ -302,7 +302,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
             transitionTransactionManagerStateTo(transactionManager, "READY");
 
             transitionTransactionManagerStateTo(transactionManager, "IN_TRANSACTION");
-            setField(transactionManager, "transactionStarted", true);
+            setField(transactionManager, "transactionStarted", false);
             this.inTransaction = true;
         }
     }
