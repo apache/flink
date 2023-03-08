@@ -92,11 +92,9 @@ public class DefaultPreferredLocationsRetriever implements PreferredLocationsRet
                 inputsLocationsRetriever.getConsumedPartitionGroups(executionVertexId);
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             // Ignore the location of a consumed partition group if it has too many distinct
-            // consumers compared to the consumed partition group size. This is to avoid tasks
-            // unevenly distributed on nodes when running batch jobs or running jobs in
-            // session/standalone mode.
-            if ((double) consumedPartitionGroup.getConsumerVertexGroup().size()
-                            / consumedPartitionGroup.size()
+            // consumers. This is to avoid tasks unevenly distributed on nodes when running batch
+            // jobs or running jobs in session/standalone mode.
+            if (consumedPartitionGroup.getConsumerVertexGroup().size()
                     > MAX_DISTINCT_CONSUMERS_TO_CONSIDER) {
                 continue;
             }
