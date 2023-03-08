@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -45,8 +46,10 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
+import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
+import org.apache.flink.table.gateway.service.utils.SqlCancelException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
@@ -58,6 +61,7 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.assertj.core.api.Assertions;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -260,6 +264,62 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         service.cancelOperation(sessionHandle, operationHandle);
         assertThat(service.getOperationInfo(sessionHandle, operationHandle).getStatus())
                 .isEqualTo(OperationStatus.CANCELED);
+    }
+
+    @Test
+    void testCancelUninterruptedOperation() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        AtomicReference<Boolean> isRunning = new AtomicReference<>(false);
+        OperationHandle operationHandle =
+                submitDefaultOperation(
+                        sessionHandle,
+                        () -> {
+                            // mock cpu busy task that doesn't interrupt system call
+                            while (true) {
+                                isRunning.compareAndSet(false, true);
+                            }
+                        });
+        CommonTestUtils.waitUtil(
+                isRunning::get, Duration.ofSeconds(10), "Failed to start up the task.");
+        Assertions.assertThatThrownBy(() -> service.cancelOperation(sessionHandle, operationHandle))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlCancelException.class,
+                                String.format(
+                                        "Operation '%s' did not react to \"Future.cancel(true)\" and "
+                                                + "is stuck for %s seconds in method.\n",
+                                        operationHandle, 5)));
+
+        assertThat(service.getOperationInfo(sessionHandle, operationHandle).getStatus())
+                .isEqualTo(OperationStatus.CANCELED);
+    }
+
+    @Test
+    void testCloseUninterruptedOperation() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        AtomicReference<Boolean> isRunning = new AtomicReference<>(false);
+        for (int i = 0; i < 10; i++) {
+            threadFactory
+                    .newThread(
+                            () -> {
+                                submitDefaultOperation(
+                                        sessionHandle,
+                                        () -> {
+                                            // mock cpu busy task that doesn't interrupt
+                                            // system call
+                                            while (true) {
+                                                isRunning.compareAndSet(false, true);
+                                            }
+                                        });
+                            })
+                    .start();
+        }
+        CommonTestUtils.waitUtil(
+                isRunning::get, Duration.ofSeconds(10), "Failed to start up the task.");
+        Session session = service.getSession(sessionHandle);
+        assertThatThrownBy(() -> service.closeSession(sessionHandle))
+                .satisfies(anyCauseMatches(SqlCancelException.class));
+        assertThat(session.getOperationManager().getOperationCount()).isEqualTo(0);
     }
 
     @Test
