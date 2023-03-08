@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlAddJar;
 import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
-import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
@@ -39,7 +38,6 @@ import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewRename;
 import org.apache.flink.sql.parser.ddl.SqlAnalyzeTable;
-import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlCompilePlan;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
@@ -549,18 +547,6 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropWatermark) sqlAlterTable, resolvedCatalogTable);
-        } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
-            return OperationConverterUtils.convertAddReplaceColumns(
-                    tableIdentifier,
-                    (SqlAddReplaceColumns) sqlAlterTable,
-                    (CatalogTable) baseTable,
-                    flinkPlanner.getOrCreateSqlValidator());
-        } else if (sqlAlterTable instanceof SqlChangeColumn) {
-            return OperationConverterUtils.convertChangeColumn(
-                    tableIdentifier,
-                    (SqlChangeColumn) sqlAlterTable,
-                    resolvedCatalogTable,
-                    flinkPlanner.getOrCreateSqlValidator());
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);

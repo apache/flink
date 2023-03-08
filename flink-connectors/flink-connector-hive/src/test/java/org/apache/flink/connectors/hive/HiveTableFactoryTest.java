@@ -20,10 +20,9 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -50,6 +49,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -76,17 +76,20 @@ class HiveTableFactoryTest {
 
     @Test
     void testGenericTable() throws Exception {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .field("name", DataTypes.STRING())
-                        .field("age", DataTypes.INT())
-                        .build();
+        final ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Column.physical("name", DataTypes.STRING()),
+                        Column.physical("age", DataTypes.INT()));
+        final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 
         final Map<String, String> options =
                 Collections.singletonMap(FactoryUtil.CONNECTOR.key(), "COLLECTION");
-        final CatalogTable table = new CatalogTableImpl(schema, options, "csv table");
+        final CatalogTable table =
+                new ResolvedCatalogTable(
+                        CatalogTable.of(schema, "csv table", new ArrayList<>(), options),
+                        resolvedSchema);
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
         final Optional<TableFactory> tableFactoryOpt = catalog.getTableFactory();
@@ -125,7 +128,13 @@ class HiveTableFactoryTest {
         final Map<String, String> options =
                 Collections.singletonMap(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         final CatalogTable table =
-                new CatalogTableImpl(TableSchema.fromResolvedSchema(schema), options, "hive table");
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(schema).build(),
+                                "hive table",
+                                new ArrayList<>(),
+                                options),
+                        schema);
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
         final DynamicTableSource tableSource =

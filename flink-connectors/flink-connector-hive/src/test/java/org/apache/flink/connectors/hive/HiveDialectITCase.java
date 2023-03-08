@@ -20,11 +20,11 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -309,16 +309,18 @@ public class HiveDialectITCase {
                         + "constraint pk_name primary key (x) disable rely)");
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
-        TableSchema tableSchema = catalogTable.getSchema();
-        assertThat(tableSchema.getPrimaryKey()).as("PK not present").isPresent();
-        assertThat(tableSchema.getPrimaryKey().get().getName()).isEqualTo("pk_name");
-        assertThat(tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable())
+        Schema schema = catalogTable.getUnresolvedSchema();
+        assertThat(schema.getPrimaryKey()).as("PK not present").isPresent();
+        assertThat(schema.getPrimaryKey().get().getColumnNames().size()).isEqualTo(1);
+        assertThat(schema.getPrimaryKey().get().getColumnNames().get(0)).isEqualTo("pk_name");
+        List<Schema.UnresolvedColumn> columns = schema.getColumns();
+        assertThat(HiveTestUtils.getType(columns.get(0)).getLogicalType().isNullable())
                 .as("PK cannot be null")
                 .isFalse();
-        assertThat(tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable())
+        assertThat(HiveTestUtils.getType(columns.get(1)).getLogicalType().isNullable())
                 .as("RELY NOT NULL should be reflected in schema")
                 .isFalse();
-        assertThat(tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable())
+        assertThat(HiveTestUtils.getType(columns.get(2)).getLogicalType().isNullable())
                 .as("NORELY NOT NULL shouldn't be reflected in schema")
                 .isTrue();
     }

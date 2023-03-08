@@ -91,16 +91,57 @@ public final class CatalogPropertiesUtil {
         }
     }
 
+    /** Serializes the given {@link ResolvedCatalogView} into a map of string properties. */
+    public static Map<String, String> serializeCatalogView(ResolvedCatalogView resolvedView) {
+        try {
+            final Map<String, String> properties = new HashMap<>();
+
+            serializeResolvedSchema(properties, resolvedView.getResolvedSchema());
+
+            final String comment = resolvedView.getComment();
+            if (comment != null && comment.length() > 0) {
+                properties.put(COMMENT, comment);
+            }
+
+            properties.putAll(resolvedView.getOptions());
+
+            properties.remove(IS_GENERIC); // reserved option
+
+            return properties;
+        } catch (Exception e) {
+            throw new CatalogException("Error in serializing catalog view.", e);
+        }
+    }
+
     /** Deserializes the given map of string properties into an unresolved {@link CatalogTable}. */
     public static CatalogTable deserializeCatalogTable(Map<String, String> properties) {
+        return deserializeCatalogTable(properties, null);
+    }
+
+    /**
+     * Deserializes the given map of string properties into an unresolved {@link CatalogTable}.
+     *
+     * @param properties The properties to deserialize from
+     * @param fallbackKey The fallback key to get the schema properties. This is meant to support
+     *     the old table (1.10) deserialization
+     * @return
+     */
+    public static CatalogTable deserializeCatalogTable(
+            Map<String, String> properties, @Nullable String fallbackKey) {
         try {
-            final Schema schema = deserializeSchema(properties);
+            int count = getCount(properties, SCHEMA, NAME);
+            String schemaKey = SCHEMA;
+            if (count == 0 && fallbackKey != null) {
+                schemaKey = fallbackKey;
+            }
+
+            final Schema schema = deserializeSchema(properties, schemaKey);
 
             final @Nullable String comment = properties.get(COMMENT);
 
             final List<String> partitionKeys = deserializePartitionKeys(properties);
 
-            final Map<String, String> options = deserializeOptions(properties);
+            final Map<String, String> options = deserializeOptions(properties, schemaKey);
 
             return CatalogTable.of(schema, comment, partitionKeys, options);
         } catch (Exception e) {
@@ -153,12 +194,13 @@ public final class CatalogPropertiesUtil {
 
     private static final String COMMENT = "comment";
 
-    private static Map<String, String> deserializeOptions(Map<String, String> map) {
+    private static Map<String, String> deserializeOptions(
+            Map<String, String> map, String schemaKey) {
         return map.entrySet().stream()
                 .filter(
                         e -> {
                             final String key = e.getKey();
-                            return !key.startsWith(SCHEMA + SEPARATOR)
+                            return !key.startsWith(schemaKey + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
                                     && !key.equals(COMMENT);
                         })
@@ -176,21 +218,22 @@ public final class CatalogPropertiesUtil {
         return partitionKeys;
     }
 
-    private static Schema deserializeSchema(Map<String, String> map) {
+    private static Schema deserializeSchema(Map<String, String> map, String schemaKey) {
         final Builder builder = Schema.newBuilder();
 
-        deserializeColumns(map, builder);
+        deserializeColumns(map, schemaKey, builder);
 
-        deserializeWatermark(map, builder);
+        deserializeWatermark(map, schemaKey, builder);
 
-        deserializePrimaryKey(map, builder);
+        deserializePrimaryKey(map, schemaKey, builder);
 
         return builder.build();
     }
 
-    private static void deserializePrimaryKey(Map<String, String> map, Builder builder) {
-        final String constraintNameKey = compoundKey(SCHEMA, PRIMARY_KEY_NAME);
-        final String columnsKey = compoundKey(SCHEMA, PRIMARY_KEY_COLUMNS);
+    private static void deserializePrimaryKey(
+            Map<String, String> map, String schemaKey, Builder builder) {
+        final String constraintNameKey = compoundKey(schemaKey, PRIMARY_KEY_NAME);
+        final String columnsKey = compoundKey(schemaKey, PRIMARY_KEY_COLUMNS);
         if (map.containsKey(constraintNameKey)) {
             final String constraintName = getValue(map, constraintNameKey);
             final String[] columns = getValue(map, columnsKey, s -> s.split(","));
@@ -198,8 +241,9 @@ public final class CatalogPropertiesUtil {
         }
     }
 
-    private static void deserializeWatermark(Map<String, String> map, Builder builder) {
-        final String watermarkKey = compoundKey(SCHEMA, WATERMARK);
+    private static void deserializeWatermark(
+            Map<String, String> map, String schemaKey, Builder builder) {
+        final String watermarkKey = compoundKey(schemaKey, WATERMARK);
         final int watermarkCount = getCount(map, watermarkKey, WATERMARK_ROWTIME);
         for (int i = 0; i < watermarkCount; i++) {
             final String rowtimeKey = compoundKey(watermarkKey, i, WATERMARK_ROWTIME);
@@ -211,16 +255,17 @@ public final class CatalogPropertiesUtil {
         }
     }
 
-    private static void deserializeColumns(Map<String, String> map, Builder builder) {
-        final int fieldCount = getCount(map, SCHEMA, NAME);
+    private static void deserializeColumns(
+            Map<String, String> map, String schemaKey, Builder builder) {
+        final int fieldCount = getCount(map, schemaKey, NAME);
 
         for (int i = 0; i < fieldCount; i++) {
-            final String nameKey = compoundKey(SCHEMA, i, NAME);
-            final String dataTypeKey = compoundKey(SCHEMA, i, DATA_TYPE);
-            final String exprKey = compoundKey(SCHEMA, i, EXPR);
-            final String metadataKey = compoundKey(SCHEMA, i, METADATA);
-            final String virtualKey = compoundKey(SCHEMA, i, VIRTUAL);
-            final String commentKey = compoundKey(SCHEMA, i, COMMENT);
+            final String nameKey = compoundKey(schemaKey, i, NAME);
+            final String dataTypeKey = compoundKey(schemaKey, i, DATA_TYPE);
+            final String exprKey = compoundKey(schemaKey, i, EXPR);
+            final String metadataKey = compoundKey(schemaKey, i, METADATA);
+            final String virtualKey = compoundKey(schemaKey, i, VIRTUAL);
+            final String commentKey = compoundKey(schemaKey, i, COMMENT);
 
             final String name = getValue(map, nameKey);
 
@@ -472,7 +517,8 @@ public final class CatalogPropertiesUtil {
         final String escapedSeparator = Pattern.quote(SEPARATOR);
         final Pattern pattern =
                 Pattern.compile(
-                        escapedKey
+                        "^"
+                                + escapedKey
                                 + escapedSeparator
                                 + "(\\d+)"
                                 + escapedSeparator

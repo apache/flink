@@ -169,7 +169,7 @@ public class ContinuousHiveSplitEnumeratorTest {
             extends HiveTableSource.HiveContinuousPartitionFetcherContext<Long> {
 
         public MockHiveContinuousPartitionFetcherContext(ObjectPath tablePath) {
-            super(tablePath, null, null, null, null, null, new Configuration(), "default");
+            super(tablePath, null, null, null, new Configuration(), "default");
         }
 
         @Override

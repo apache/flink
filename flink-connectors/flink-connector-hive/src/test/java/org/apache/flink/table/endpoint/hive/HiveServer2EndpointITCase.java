@@ -475,6 +475,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 0, // digits number
                                 10, // radix
                                 0, // nullable
+                                "user id.", // comment
                                 1, // position
                                 "NO", // isNullable
                                 "NO"))); // isAutoIncrement

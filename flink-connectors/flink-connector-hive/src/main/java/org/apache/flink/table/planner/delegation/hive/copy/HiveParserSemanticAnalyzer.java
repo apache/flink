@@ -20,16 +20,17 @@ package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
@@ -658,15 +659,15 @@ public class HiveParserSemanticAnalyzer {
             }
 
             // Step 2, create a temp table to maintain table schema
-            CatalogTable tempTable =
-                    new CatalogTableImpl(
-                            TableSchema.builder()
-                                    .fields(
-                                            fieldsName.toArray(new String[0]),
-                                            fieldsDataType.toArray(new DataType[0]))
-                                    .build(),
-                            Collections.emptyMap(),
-                            "values temp table");
+            ResolvedSchema resolvedSchema = ResolvedSchema.physical(fieldsName, fieldsDataType);
+            ResolvedCatalogTable tempTable =
+                    new ResolvedCatalogTable(
+                            CatalogTable.of(
+                                    Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                    "values temp table",
+                                    new ArrayList<>(),
+                                    Collections.emptyMap()),
+                            resolvedSchema);
             // remember the data for this table
             qb.getValuesTableToData().put(tableName, Tuple2.of(tempTable, valuesData));
         } catch (Exception e) {
@@ -1178,8 +1179,9 @@ public class HiveParserSemanticAnalyzer {
                                             + partition);
                             break;
                         }
-                        CatalogTable catalogTable =
-                                getCatalogTable(tableIdentifier.asSummaryString(), qb);
+                        ResolvedCatalogTable catalogTable =
+                                (ResolvedCatalogTable)
+                                        (getCatalogTable(tableIdentifier.asSummaryString(), qb));
                         validatePartColumnType(
                                 catalogTable,
                                 partition,
@@ -1317,9 +1319,9 @@ public class HiveParserSemanticAnalyzer {
             }
             CatalogTable targetTable = getCatalogTable(fullTableName, qb);
             Set<String> partitionColumns = new HashSet<>(targetTable.getPartitionKeys());
-            TableSchema tableSchema =
-                    HiveParserUtils.fromUnresolvedSchema(targetTable.getUnresolvedSchema());
-            for (String column : tableSchema.getFieldNames()) {
+            ResolvedSchema resolvedSchema =
+                    ((ResolvedCatalogTable) targetTable).getResolvedSchema();
+            for (String column : resolvedSchema.getColumnNames()) {
                 // parser only allows foo(a,b), not foo(foo.a, foo.b)
                 // only consider non-partition col
                 if (!partitionColumns.contains(column)) {

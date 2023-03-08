@@ -29,7 +29,7 @@ import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
@@ -66,7 +66,7 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
             StorageDescriptor sd,
             Properties properties,
             JobConf jobConf,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             String hiveVersion,
             RowType producedRowType,
             boolean useMapRedReader) {
@@ -78,8 +78,9 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
         this.properties = properties;
         this.jobConfWrapper = new JobConfWrapper(jobConf);
         this.partitionKeys = catalogTable.getPartitionKeys();
-        this.fieldNames = catalogTable.getSchema().getFieldNames();
-        this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
+        this.fieldNames = catalogTable.getResolvedSchema().getColumnNames().toArray(new String[0]);
+        this.fieldTypes =
+                catalogTable.getResolvedSchema().getColumnDataTypes().toArray(new DataType[0]);
         this.hiveVersion = hiveVersion;
         this.shim = HiveShimLoader.loadHiveShim(hiveVersion);
         this.producedRowType = producedRowType;
