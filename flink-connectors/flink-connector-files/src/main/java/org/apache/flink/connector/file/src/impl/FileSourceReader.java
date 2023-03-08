@@ -28,8 +28,6 @@ import org.apache.flink.connector.file.src.FileSourceSplitState;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 
-import java.util.Map;
-
 /** A {@link SourceReader} that read records from {@link FileSourceSplit}. */
 @Internal
 public final class FileSourceReader<T, SplitT extends FileSourceSplit>
@@ -53,11 +51,6 @@ public final class FileSourceReader<T, SplitT extends FileSourceSplit>
         if (getNumberOfCurrentlyAssignedSplits() == 0) {
             context.sendSplitRequest();
         }
-    }
-
-    @Override
-    protected void onSplitFinished(Map<String, FileSourceSplitState<SplitT>> finishedSplitIds) {
-        context.sendSplitRequest();
     }
 
     @Override
