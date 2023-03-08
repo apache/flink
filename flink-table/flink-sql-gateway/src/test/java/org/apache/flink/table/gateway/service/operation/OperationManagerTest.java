@@ -32,11 +32,13 @@ import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
+import org.apache.flink.table.gateway.service.utils.SqlCancelException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -64,8 +66,8 @@ public class OperationManagerTest {
             new ExecutorThreadFactory(
                     "SqlGatewayService Test Pool", IgnoreExceptionHandler.INSTANCE);
 
-    @BeforeAll
-    public static void setUp() {
+    @BeforeEach
+    public void setUp() {
         operationManager = new OperationManager(EXECUTOR_SERVICE);
         defaultResultSet =
                 new ResultSetImpl(
@@ -79,10 +81,14 @@ public class OperationManagerTest {
                         ResultKind.SUCCESS_WITH_CONTENT);
     }
 
+    @AfterEach
+    public void cleanEach() {
+        operationManager.close();
+    }
+
     @AfterAll
     public static void cleanUp() {
         EXECUTOR_SERVICE.shutdown();
-        operationManager.close();
     }
 
     @Test
@@ -129,29 +135,54 @@ public class OperationManagerTest {
     }
 
     @Test
-    public void testCancelOperationByForce() throws Exception {
-        AtomicReference<Throwable> exception = new AtomicReference<>(null);
+    public void testCancelUninterruptedOperation() throws Exception {
+        AtomicReference<Boolean> isRunning = new AtomicReference<>(false);
         OperationHandle operationHandle =
                 operationManager.submitOperation(
                         () -> {
-                            try {
-                                // mock cpu busy task that doesn't interrupt system call
-                                while (true) {}
-                            } catch (Throwable t) {
-                                exception.set(t);
-                                throw t;
+                            // mock cpu busy task that doesn't interrupt system call
+                            while (true) {
+                                isRunning.compareAndSet(false, true);
                             }
                         });
-
-        threadFactory.newThread(() -> operationManager.cancelOperation(operationHandle)).start();
-        operationManager.awaitOperationTermination(operationHandle);
+        CommonTestUtils.waitUtil(
+                isRunning::get, Duration.ofSeconds(10), "Failed to start up the task.");
+        assertThatThrownBy(() -> operationManager.cancelOperation(operationHandle))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlCancelException.class,
+                                String.format(
+                                        "Operation '%s' did not react to \"Future.cancel(true)\" and "
+                                                + "is stuck for %s seconds in method.\n",
+                                        operationHandle, 5)));
 
         assertThat(operationManager.getOperationInfo(operationHandle).getStatus())
                 .isEqualTo(OperationStatus.CANCELED);
+    }
+
+    @Test
+    public void testCloseUninterruptedOperation() throws Exception {
+        AtomicReference<Boolean> isRunning = new AtomicReference<>(false);
+        for (int i = 0; i < 10; i++) {
+            threadFactory
+                    .newThread(
+                            () -> {
+                                operationManager.submitOperation(
+                                        () -> {
+                                            // mock cpu busy task that doesn't interrupt system call
+                                            while (true) {
+                                                isRunning.compareAndSet(false, true);
+                                            }
+                                        });
+                            })
+                    .start();
+        }
         CommonTestUtils.waitUtil(
-                () -> exception.get() != null,
-                Duration.ofSeconds(10),
-                "Failed to kill the task with infinite loop.");
+                isRunning::get, Duration.ofSeconds(10), "Failed to start up the task.");
+
+        assertThatThrownBy(() -> operationManager.close())
+                .satisfies(FlinkAssertions.anyCauseMatches(SqlCancelException.class));
+        assertThat(operationManager.getOperationCount()).isEqualTo(0);
     }
 
     @Test
