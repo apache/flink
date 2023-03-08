@@ -71,26 +71,14 @@ class DefaultPreferredLocationsRetrieverTest {
 
     @Test
     void testInputLocations() {
-        {
-            final List<TaskManagerLocation> producerLocations =
-                    Collections.singletonList(new LocalTaskManagerLocation());
-            testInputLocationsInternal(
-                    1,
-                    MAX_DISTINCT_CONSUMERS_TO_CONSIDER,
-                    producerLocations,
-                    producerLocations,
-                    Collections.emptySet());
-        }
-        {
-            final List<TaskManagerLocation> producerLocations =
-                    Arrays.asList(new LocalTaskManagerLocation(), new LocalTaskManagerLocation());
-            testInputLocationsInternal(
-                    2,
-                    MAX_DISTINCT_CONSUMERS_TO_CONSIDER * 2,
-                    producerLocations,
-                    producerLocations,
-                    Collections.emptySet());
-        }
+        final List<TaskManagerLocation> producerLocations =
+                Collections.singletonList(new LocalTaskManagerLocation());
+        testInputLocationsInternal(
+                1,
+                MAX_DISTINCT_CONSUMERS_TO_CONSIDER,
+                producerLocations,
+                producerLocations,
+                Collections.emptySet());
     }
 
     @Test
@@ -101,7 +89,7 @@ class DefaultPreferredLocationsRetrieverTest {
     @Test
     void testInputLocationsIgnoresEdgeOfTooManyConsumers() {
         testNoPreferredInputLocationsInternal(1, MAX_DISTINCT_CONSUMERS_TO_CONSIDER + 1);
-        testNoPreferredInputLocationsInternal(2, MAX_DISTINCT_CONSUMERS_TO_CONSIDER * 2 + 1);
+        testNoPreferredInputLocationsInternal(2, MAX_DISTINCT_CONSUMERS_TO_CONSIDER + 1);
     }
 
     @Test
