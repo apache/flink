@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -53,6 +54,9 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     /** Event time timers that are currently in-flight. */
     private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
             eventTimeTimersQueue;
+
+    /** Context that allows us to stop firing timers if the containing task has been cancelled. */
+    private final StreamTaskCancellationContext cancellationContext;
 
     /** Information concerning the local key-group range. */
     private final KeyGroupRange localKeyGroupRange;
@@ -93,13 +97,15 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue,
-            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue) {
+            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
+            StreamTaskCancellationContext cancellationContext) {
 
         this.keyContext = checkNotNull(keyContext);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.localKeyGroupRange = checkNotNull(localKeyGroupRange);
         this.processingTimeTimersQueue = checkNotNull(processingTimeTimersQueue);
         this.eventTimeTimersQueue = checkNotNull(eventTimeTimersQueue);
+        this.cancellationContext = cancellationContext;
 
         // find the starting index of the local key-group range
         int startIdx = Integer.MAX_VALUE;
@@ -278,7 +284,9 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 
         InternalTimer<K, N> timer;
 
-        while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
+        while ((timer = processingTimeTimersQueue.peek()) != null
+                && timer.getTimestamp() <= time
+                && !cancellationContext.isCancelled()) {
             keyContext.setCurrentKey(timer.getKey());
             processingTimeTimersQueue.poll();
             triggerTarget.onProcessingTime(timer);
@@ -296,7 +304,9 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 
         InternalTimer<K, N> timer;
 
-        while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
+        while ((timer = eventTimeTimersQueue.peek()) != null
+                && timer.getTimestamp() <= time
+                && !cancellationContext.isCancelled()) {
             keyContext.setCurrentKey(timer.getKey());
             eventTimeTimersQueue.poll();
             triggerTarget.onEventTime(timer);
