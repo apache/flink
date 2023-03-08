@@ -246,6 +246,11 @@ under the License.
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
 								</relocation>
+								<!-- shade AbstractS3FileSystemFactory to support multi s3 plugins -->
+								<relocation>
+									<pattern>org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.common.AbstractS3FileSystemFactory</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
