@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.rules.physical.batch._
 
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
-import org.apache.calcite.rel.rules._
+import org.apache.calcite.rel.rules.{CoreRules, _}
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 
 import scala.collection.JavaConverters._
@@ -51,8 +51,10 @@ object FlinkBatchRuleSets {
    * create new plan nodes.
    */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
+    ProjectSnapshotTransposeRule.INSTANCE,
     LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITH_FILTER,
-    LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITHOUT_FILTER)
+    LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITHOUT_FILTER
+  )
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(EnumerableToLogicalTableScan.INSTANCE)
 
@@ -237,8 +239,6 @@ object FlinkBatchRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
-    // transpose project and snapshot for scan optimization
-    ProjectSnapshotTransposeRule.INSTANCE,
     // reorder sort and projection
     CoreRules.SORT_PROJECT_TRANSPOSE,
     // remove unnecessary sort rule

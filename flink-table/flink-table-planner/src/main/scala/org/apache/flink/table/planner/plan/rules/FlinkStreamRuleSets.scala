@@ -51,6 +51,7 @@ object FlinkStreamRuleSets {
    * create new plan nodes.
    */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
+    ProjectSnapshotTransposeRule.INSTANCE,
     LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITH_FILTER,
     LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITHOUT_FILTER,
     LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
@@ -235,9 +236,6 @@ object FlinkStreamRuleSets {
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     PushLimitIntoTableSourceScanRule.INSTANCE,
-
-    // transpose project and snapshot for scan optimization
-    ProjectSnapshotTransposeRule.INSTANCE,
 
     // reorder the project and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
