@@ -301,6 +301,13 @@ public class StreamTaskCancellationTest extends TestLogger {
                         }
                     });
             harness.processElement(new Watermark(Long.MAX_VALUE));
+
+            // We need to wait for the first timer being fired, otherwise this is prone to race
+            // condition because processing time timers are put into mailbox from a different
+            // thread.
+            while (processingTime && numKeyedTimersFired.get() == 0) {
+                harness.processAll();
+            }
         }
         Assertions.assertThat(numKeyedTimersFired).hasValue(numKeyedTimersToFire);
     }
