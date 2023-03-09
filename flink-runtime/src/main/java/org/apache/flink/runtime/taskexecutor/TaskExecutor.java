@@ -149,6 +149,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -2208,7 +2209,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                     fileTag,
                                     getResourceID().getStringWithMetadata());
                             throw new CompletionException(
-                                    new FlinkException(
+                                    new FileNotFoundException(
                                             "The file "
                                                     + fileTag
                                                     + " does not exist on the TaskExecutor."));
