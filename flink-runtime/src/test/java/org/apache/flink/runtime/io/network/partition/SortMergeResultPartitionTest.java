@@ -50,6 +50,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -325,7 +326,7 @@ public class SortMergeResultPartitionTest {
 
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(0);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffers);
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 0);
         partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 1);
@@ -348,7 +349,7 @@ public class SortMergeResultPartitionTest {
 
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(0);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffers);
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 0);
         partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 1);
@@ -381,7 +382,7 @@ public class SortMergeResultPartitionTest {
 
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(0);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffers);
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 5);
         assertThat(bufferPool.bestEffortGetNumOfUsedBuffers())
@@ -421,6 +422,107 @@ public class SortMergeResultPartitionTest {
     @TestTemplate
     void testNumBytesProducedCounterForBroadcast() throws IOException {
         testResultPartitionBytesCounter(true);
+    }
+
+    @TestTemplate
+    void testNetworkBufferReservation() throws IOException {
+        int numBuffers = 10;
+
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, 2 * numBuffers);
+        SortMergeResultPartition partition = createSortMergedPartition(1, bufferPool);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffers);
+
+        partition.finish();
+        partition.close();
+    }
+
+    @TestTemplate
+    void testNoDeadlockOnSpecificConsumptionOrder() throws Exception {
+        // see https://issues.apache.org/jira/browse/FLINK-31386 for more information
+        int numNetworkBuffers = 2 * BatchShuffleReadBufferPool.NUM_BYTES_PER_REQUEST / bufferSize;
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(numNetworkBuffers, bufferSize);
+        BatchShuffleReadBufferPool readBufferPool =
+                new BatchShuffleReadBufferPool(
+                        BatchShuffleReadBufferPool.NUM_BYTES_PER_REQUEST, bufferSize);
+
+        BufferPool bufferPool =
+                networkBufferPool.createBufferPool(numNetworkBuffers, numNetworkBuffers);
+        SortMergeResultPartition partition =
+                createSortMergedPartition(1, bufferPool, readBufferPool);
+        for (int i = 0; i < numNetworkBuffers; ++i) {
+            partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        }
+        partition.finish();
+        partition.close();
+
+        CountDownLatch condition1 = new CountDownLatch(1);
+        CountDownLatch condition2 = new CountDownLatch(1);
+
+        Runnable task1 =
+                () -> {
+                    try {
+                        ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
+                        BufferPool bufferPool1 =
+                                networkBufferPool.createBufferPool(
+                                        numNetworkBuffers / 2, numNetworkBuffers);
+                        SortMergeResultPartition partition1 =
+                                createSortMergedPartition(1, bufferPool1);
+                        readAndEmitData(view, partition1);
+
+                        condition1.countDown();
+                        condition2.await();
+                        readAndEmitAllData(view, partition1);
+                    } catch (Exception ignored) {
+                    }
+                };
+        Thread consumer1 = new Thread(task1);
+        consumer1.start();
+
+        Runnable task2 =
+                () -> {
+                    try {
+                        condition1.await();
+                        BufferPool bufferPool2 =
+                                networkBufferPool.createBufferPool(
+                                        numNetworkBuffers / 2, numNetworkBuffers);
+                        condition2.countDown();
+
+                        SortMergeResultPartition partition2 =
+                                createSortMergedPartition(1, bufferPool2);
+                        ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
+                        readAndEmitAllData(view, partition2);
+                    } catch (Exception ignored) {
+                    }
+                };
+        Thread consumer2 = new Thread(task2);
+        consumer2.start();
+
+        consumer1.join();
+        consumer2.join();
+    }
+
+    private boolean readAndEmitData(ResultSubpartitionView view, SortMergeResultPartition partition)
+            throws Exception {
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+        ResultSubpartition.BufferAndBacklog buffer;
+        do {
+            buffer = view.getNextBuffer();
+            if (buffer != null) {
+                Buffer data = ((CompositeBuffer) buffer.buffer()).getFullBufferData(segment);
+                partition.emitRecord(data.getNioBufferReadable(), 0);
+                if (!data.isRecycled()) {
+                    data.recycleBuffer();
+                }
+                return buffer.buffer().isBuffer();
+            }
+        } while (true);
+    }
+
+    private void readAndEmitAllData(ResultSubpartitionView view, SortMergeResultPartition partition)
+            throws Exception {
+        while (readAndEmitData(view, partition)) {}
+        partition.finish();
+        partition.close();
     }
 
     private void testResultPartitionBytesCounter(boolean isBroadcast) throws IOException {
