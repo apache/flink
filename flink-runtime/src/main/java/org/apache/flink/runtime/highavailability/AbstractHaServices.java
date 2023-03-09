@@ -20,8 +20,6 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -191,26 +189,16 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
 
-        if (deletedHAData) {
-            try {
+        try {
+            if (deletedHAData) {
                 blobStoreService.closeAndCleanupAllData();
-            } catch (Throwable t) {
-                exception = ExceptionUtils.firstOrSuppressed(t, exception);
-            }
-
-            try {
-                cleanupClusterHaStoragePath();
-            } catch (Throwable t) {
-                exception = ExceptionUtils.firstOrSuppressed(t, exception);
-            }
-        } else {
-            logger.info(
-                    "Cannot delete HA blobs because we failed to delete the pointers in the HA store.");
-            try {
+            } else {
+                logger.info(
+                        "Cannot delete HA blobs because we failed to delete the pointers in the HA store.");
                 blobStoreService.close();
-            } catch (Throwable t) {
-                exception = ExceptionUtils.firstOrSuppressed(t, exception);
             }
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
 
         if (exception != null) {
@@ -235,13 +223,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                             "Finished cleaning up the high availability data for job {}.", jobID);
                 },
                 executor);
-    }
-
-    protected void cleanupClusterHaStoragePath() throws Exception {
-        final Path clusterHaStoragePath =
-                HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(configuration);
-        final FileSystem fileSystem = clusterHaStoragePath.getFileSystem();
-        fileSystem.delete(clusterHaStoragePath, true);
     }
 
     private LeaderElectionService createLeaderElectionService(String leaderName) {

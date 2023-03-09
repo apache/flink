@@ -48,12 +48,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AbstractHaServicesTest {
 
     /**
-     * Tests that we first delete all pointers from the HA services before deleting the blobs and HA
-     * storage path. See FLINK-22014 for more details.
+     * Tests that we first delete all pointers from the HA services before deleting the blobs. See
+     * FLINK-22014 for more details.
      */
     @Test
-    void testCloseAndCleanupAllDataDeletesBlobsAndHaStoragePathAfterCleaningUpHAData()
-            throws Exception {
+    void testCloseAndCleanupAllDataDeletesBlobsAfterCleaningUpHAData() throws Exception {
         final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
 
         final TestingBlobStoreService testingBlobStoreService =
@@ -70,20 +69,18 @@ class AbstractHaServicesTest {
 
         haServices.closeAndCleanupAllData();
 
-        assertThat(closeOperations)
-                .contains(
-                        CloseOperations.HA_CLEANUP,
-                        CloseOperations.HA_CLOSE,
-                        CloseOperations.BLOB_CLEANUP_AND_CLOSE,
-                        CloseOperations.HA_STORAGE_PATH_CLEANUP);
+        assertThat(closeOperations).contains(
+                CloseOperations.HA_CLEANUP,
+                CloseOperations.HA_CLOSE,
+                CloseOperations.BLOB_CLEANUP_AND_CLOSE);
     }
 
     /**
-     * Tests that we don't delete the HA blobs and HA storage path if we could not clean up the
-     * pointers from the HA services. See FLINK-22014 for more details.
+     * Tests that we don't delete the HA blobs if we could not clean up the pointers from the HA
+     * services. See FLINK-22014 for more details.
      */
     @Test
-    void testCloseAndCleanupAllDataDoesNotDeleteBlobsAndHaStoragePathIfCleaningUpHADataFails() {
+    void testCloseAndCleanupAllDataDoesNotDeleteBlobsIfCleaningUpHADataFails() {
         final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
 
         final TestingBlobStoreService testingBlobStoreService =
@@ -102,7 +99,6 @@ class AbstractHaServicesTest {
 
         assertThatThrownBy(haServices::closeAndCleanupAllData).isInstanceOf(FlinkException.class);
         assertThat(closeOperations).contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE);
-        assertThat(closeOperations).doesNotContain(CloseOperations.HA_STORAGE_PATH_CLEANUP);
     }
 
     @Test
@@ -133,7 +129,6 @@ class AbstractHaServicesTest {
         HA_CLOSE,
         BLOB_CLEANUP_AND_CLOSE,
         BLOB_CLOSE,
-        HA_STORAGE_PATH_CLEANUP,
     }
 
     private static final class TestingBlobStoreService implements BlobStoreService {
@@ -237,11 +232,6 @@ class AbstractHaServicesTest {
         @Override
         protected void internalCleanupJobData(JobID jobID) throws Exception {
             internalJobCleanupConsumer.accept(jobID);
-        }
-
-        @Override
-        protected void cleanupClusterHaStoragePath() {
-            closeOperations.offer(CloseOperations.HA_STORAGE_PATH_CLEANUP);
         }
 
         @Override
