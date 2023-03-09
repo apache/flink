@@ -26,15 +26,11 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
-import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
-import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
@@ -54,7 +50,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Queue;
 import java.util.UUID;
@@ -223,39 +218,6 @@ class AbstractTaskManagerFileHandlerTest {
         // store the requested file in the BlobServer
         try (FileInputStream fileInputStream = new FileInputStream(fileToStore)) {
             return blobServer.getTransientBlobService().putTransient(fileInputStream);
-        }
-    }
-
-    /** Testing {@link UntypedResponseMessageHeaders}. */
-    private static final class TestUntypedMessageHeaders
-            implements UntypedResponseMessageHeaders<
-                    EmptyRequestBody, TaskManagerMessageParameters> {
-
-        private static final String URL = "/foobar";
-
-        @Override
-        public Class<EmptyRequestBody> getRequestClass() {
-            return EmptyRequestBody.class;
-        }
-
-        @Override
-        public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-            return new TaskManagerMessageParameters();
-        }
-
-        @Override
-        public HttpMethodWrapper getHttpMethod() {
-            return HttpMethodWrapper.GET;
-        }
-
-        @Override
-        public String getTargetRestEndpointURL() {
-            return URL;
-        }
-
-        @Override
-        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RuntimeRestAPIVersion.V1);
         }
     }
 }

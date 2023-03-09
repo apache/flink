@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.taskmanager;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledHeapByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -31,6 +32,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.EventExecutor;
@@ -46,9 +48,19 @@ class TestingChannelHandlerContext implements ChannelHandlerContext {
 
     private final File outputFile;
     private final ChannelPipeline pipeline = new TestingChannelPipeline();
+    private HttpResponse httpResponse;
+    private byte[] responseData;
 
     TestingChannelHandlerContext(File outputFile) {
         this.outputFile = Preconditions.checkNotNull(outputFile);
+    }
+
+    public HttpResponse getHttpResponse() {
+        return httpResponse;
+    }
+
+    public byte[] getResponseData() {
+        return responseData;
     }
 
     @Override
@@ -63,9 +75,13 @@ class TestingChannelHandlerContext implements ChannelHandlerContext {
             } catch (IOException ioe) {
                 throw new RuntimeException(ioe);
             }
+        } else if (msg instanceof HttpResponse) {
+            this.httpResponse = (HttpResponse) msg;
+        } else if (msg instanceof UnpooledHeapByteBuf) {
+            this.responseData = ((UnpooledHeapByteBuf) msg).array();
         }
 
-        return new DefaultChannelPromise(new EmbeddedChannel());
+        return new DefaultChannelPromise(new EmbeddedChannel()).setSuccess();
     }
 
     @Override

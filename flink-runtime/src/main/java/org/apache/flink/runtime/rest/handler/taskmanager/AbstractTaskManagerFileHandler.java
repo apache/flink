@@ -58,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /** Base class for serving files from the {@link TaskExecutor}. */
 public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessageParameters>
@@ -151,35 +152,15 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
                         },
                         ctx.executor());
 
-        return resultFuture.whenComplete(
-                (Void ignored, Throwable throwable) -> {
-                    if (throwable != null) {
-                        log.error(
-                                "Failed to transfer file from TaskExecutor {}.",
-                                taskManagerId,
-                                throwable);
-                        fileBlobKeys.invalidate(taskManagerId);
-
-                        final Throwable strippedThrowable =
-                                ExceptionUtils.stripCompletionException(throwable);
-
-                        if (strippedThrowable instanceof UnknownTaskExecutorException) {
-                            throw new CompletionException(
-                                    new NotFoundException(
-                                            String.format(
-                                                    "Failed to transfer file from TaskExecutor %s because it was unknown.",
-                                                    taskManagerId),
-                                            strippedThrowable));
-                        } else {
-                            throw new CompletionException(
-                                    new FlinkException(
-                                            String.format(
-                                                    "Failed to transfer file from TaskExecutor %s.",
-                                                    taskManagerId),
-                                            strippedThrowable));
-                        }
-                    }
-                });
+        return resultFuture
+                .handle(
+                        (Void ignored, Throwable throwable) -> {
+                            if (throwable != null) {
+                                return handleException(ctx, httpRequest, throwable, taskManagerId);
+                            }
+                            return CompletableFuture.<Void>completedFuture(null);
+                        })
+                .thenCompose(Function.identity());
     }
 
     private CompletableFuture<TransientBlobKey> loadTaskManagerFile(
@@ -218,5 +199,31 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
     protected String getFileName(HandlerRequest<EmptyRequestBody> handlerRequest) {
         return null;
+    }
+
+    protected CompletableFuture<Void> handleException(
+            ChannelHandlerContext channelHandlerContext,
+            HttpRequest httpRequest,
+            Throwable throwable,
+            ResourceID taskManagerId) {
+        log.error("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
+        fileBlobKeys.invalidate(taskManagerId);
+
+        final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+        if (strippedThrowable instanceof UnknownTaskExecutorException) {
+            throw new CompletionException(
+                    new NotFoundException(
+                            String.format(
+                                    "Failed to transfer file from TaskExecutor %s because it was unknown.",
+                                    taskManagerId),
+                            strippedThrowable));
+        } else {
+            throw new CompletionException(
+                    new FlinkException(
+                            String.format(
+                                    "Failed to transfer file from TaskExecutor %s.", taskManagerId),
+                            strippedThrowable));
+        }
     }
 }
