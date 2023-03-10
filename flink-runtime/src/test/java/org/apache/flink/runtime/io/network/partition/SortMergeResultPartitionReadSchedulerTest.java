@@ -272,10 +272,10 @@ class SortMergeResultPartitionReadSchedulerTest {
         readScheduler.run();
 
         assertThat(bufferPool.getAvailableBuffers()).isZero();
-        long startTimestamp = System.nanoTime();
+        long startTimestamp = System.currentTimeMillis();
         assertThatThrownBy(readScheduler::allocateBuffers).isInstanceOf(TimeoutException.class);
-        long requestDuration = System.nanoTime() - startTimestamp;
-        assertThat(requestDuration > bufferRequestTimeout.toNanos()).isTrue();
+        long requestDuration = System.currentTimeMillis() - startTimestamp;
+        assertThat(requestDuration > bufferRequestTimeout.toMillis()).isTrue();
 
         readScheduler.release();
     }
@@ -289,15 +289,15 @@ class SortMergeResultPartitionReadSchedulerTest {
                 new SortMergeResultPartitionReadScheduler(
                         bufferPool, executor, this, bufferRequestTimeout);
 
-        long startTimestamp = System.nanoTime();
+        long startTimestamp = System.currentTimeMillis();
         Queue<MemorySegment> allocatedBuffers = new ArrayDeque<>();
 
         assertThatCode(() -> allocatedBuffers.addAll(readScheduler.allocateBuffers()))
                 .doesNotThrowAnyException();
-        long requestDuration = System.nanoTime() - startTimestamp;
+        long requestDuration = System.currentTimeMillis() - startTimestamp;
 
         assertThat(allocatedBuffers).hasSize(3);
-        assertThat(requestDuration).isGreaterThan(bufferRequestTimeout.toNanos() * 2);
+        assertThat(requestDuration).isGreaterThan(bufferRequestTimeout.toMillis() * 2);
 
         bufferPool.recycle(allocatedBuffers);
         bufferPool.destroy();

@@ -257,8 +257,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                 return new ArrayDeque<>(buffers);
             }
             checkState(!isReleased, "Result partition has been already released.");
-        } while (System.nanoTime() < timeoutTime
-                || System.nanoTime() < (timeoutTime = getBufferRequestTimeoutTime()));
+        } while (System.currentTimeMillis() < timeoutTime
+                || System.currentTimeMillis() < (timeoutTime = getBufferRequestTimeoutTime()));
 
         // This is a safe net against potential deadlocks.
         //
@@ -311,7 +311,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     }
 
     private long getBufferRequestTimeoutTime() {
-        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toNanos();
+        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
     }
 
     private void releaseBuffers(Queue<MemorySegment> buffers) {

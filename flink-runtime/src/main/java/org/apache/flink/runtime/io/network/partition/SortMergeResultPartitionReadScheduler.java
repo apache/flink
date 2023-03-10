@@ -220,8 +220,8 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             // only visibility requirements here.
             // noinspection FieldAccessNotGuarded
             checkState(!isReleased, "Result partition has been already released.");
-        } while (System.nanoTime() < timeoutTime
-                || System.nanoTime() < (timeoutTime = getBufferRequestTimeoutTime()));
+        } while (System.currentTimeMillis() < timeoutTime
+                || System.currentTimeMillis() < (timeoutTime = getBufferRequestTimeoutTime()));
 
         // This is a safe net against potential deadlocks.
         //
@@ -242,7 +242,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
     }
 
     private long getBufferRequestTimeoutTime() {
-        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toNanos();
+        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
     }
 
     private void releaseBuffers(Queue<MemorySegment> buffers) {
