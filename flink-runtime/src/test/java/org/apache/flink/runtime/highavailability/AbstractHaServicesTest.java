@@ -69,10 +69,11 @@ class AbstractHaServicesTest {
 
         haServices.closeAndCleanupAllData();
 
-        assertThat(closeOperations).contains(
-                CloseOperations.HA_CLEANUP,
-                CloseOperations.HA_CLOSE,
-                CloseOperations.BLOB_CLEANUP_AND_CLOSE);
+        assertThat(closeOperations)
+                .contains(
+                        CloseOperations.HA_CLEANUP,
+                        CloseOperations.HA_CLOSE,
+                        CloseOperations.BLOB_CLEANUP_AND_CLOSE);
     }
 
     /**
