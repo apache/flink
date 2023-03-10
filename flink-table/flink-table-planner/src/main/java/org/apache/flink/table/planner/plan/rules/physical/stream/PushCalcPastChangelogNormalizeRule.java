@@ -71,13 +71,13 @@ import static org.apache.flink.table.planner.plan.utils.RexNodeExtractor.extract
  */
 @Internal
 @Value.Enclosing
-public class PushFilterPastChangelogNormalizeRule
-        extends RelRule<PushFilterPastChangelogNormalizeRule.Config> {
+public class PushCalcPastChangelogNormalizeRule
+        extends RelRule<PushCalcPastChangelogNormalizeRule.Config> {
 
     public static final RelOptRule INSTANCE =
-            new PushFilterPastChangelogNormalizeRule(Config.DEFAULT);
+            new PushCalcPastChangelogNormalizeRule(Config.DEFAULT);
 
-    public PushFilterPastChangelogNormalizeRule(Config config) {
+    public PushCalcPastChangelogNormalizeRule(Config config) {
         super(config);
     }
 
@@ -299,15 +299,15 @@ public class PushFilterPastChangelogNormalizeRule
 
     // ---------------------------------------------------------------------------------------------
 
-    /** Configuration for {@link PushFilterPastChangelogNormalizeRule}. */
+    /** Configuration for {@link PushCalcPastChangelogNormalizeRule}. */
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
         Config DEFAULT =
-                ImmutablePushFilterPastChangelogNormalizeRule.Config.builder().build().onMatch();
+                ImmutablePushCalcPastChangelogNormalizeRule.Config.builder().build().onMatch();
 
         @Override
         default RelOptRule toRule() {
-            return new PushFilterPastChangelogNormalizeRule(this);
+            return new PushCalcPastChangelogNormalizeRule(this);
         }
 
         default Config onMatch() {
