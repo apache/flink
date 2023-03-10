@@ -19,6 +19,8 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.CoreOptions
+import org.apache.flink.core.classloading.ComponentClassLoader
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
@@ -56,6 +58,8 @@ import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+import org.apache.flink.util.{ChildFirstClassLoader, FlinkUserCodeClassLoader, FlinkUserCodeClassLoaders}
+import org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader
 
 import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -63,10 +67,14 @@ import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
+import org.slf4j.LoggerFactory
 
 import java.lang.{Long => JLong}
+import java.net.URLClassLoader
+import java.nio.file.Paths
 import java.util
-import java.util.{Collections, Optional, TimeZone}
+import java.util.{Arrays, Collections, Optional, TimeZone}
+import java.util.stream.Stream
 
 import scala.collection.mutable
 
@@ -98,6 +106,8 @@ abstract class PlannerBase(
     isStreamingMode: Boolean,
     classLoader: ClassLoader)
   extends Planner {
+
+  private val log = LoggerFactory.getLogger(classOf[PlannerBase])
 
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
@@ -157,10 +167,57 @@ abstract class PlannerBase(
   def getDialectFactory: DialectFactory = {
     if (dialectFactory == null || getTableConfig.getSqlDialect != currentDialect) {
       val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
-      dialectFactory = FactoryUtil.discoverFactory(
-        getClass.getClassLoader,
-        classOf[DialectFactory],
-        factoryIdentifier)
+      log.info("class loader: userclass loader" + classLoader)
+      log.info("class loader: DialectFactory " + classOf[DialectFactory].getClassLoader)
+      log.info("class loader: PlannerBase " + getClass.getClassLoader)
+      try {
+        dialectFactory = FactoryUtil.discoverFactory(
+          getClass.getClassLoader,
+          classOf[DialectFactory],
+          factoryIdentifier)
+      } catch {
+        case _: ValidationException =>
+          log.info("Again class loader: PlannerBase " + getClass.getClassLoader)
+          val urlClassLoaders = getClass.getClassLoader.asInstanceOf[URLClassLoader]
+          val appClassLoader = classOf[DialectFactory].getClassLoader.asInstanceOf[URLClassLoader]
+          val newUrls = urlClassLoaders.getURLs ++
+            Array(
+              Paths
+                .get(
+                  "/Users/luoyuxia/Projects/forked/flink-dev/" +
+                    "flink/build-target/lib/flink-sql-connector-hive-3.1.3_2.12-1.18-SNAPSHOT.jar")
+                .toUri
+                .toURL,
+              Paths
+                .get(
+                  "/Users/luoyuxia/Projects/forked/flink-dev" +
+                    "/flink/build-target/lib" +
+                    "/flink-shaded-hadoop-3-uber-3.1.1.7.2.8.0-224-9.0.jar")
+                .toUri
+                .toURL
+            )
+          log.info("new urls: " + newUrls.mkString(", "))
+          val ownerClassPaths = CoreOptions.PARENT_FIRST_LOGGING_PATTERNS ++
+            Array(
+              "org.codehaus.janino",
+              "org.codehaus.commons",
+              "org.apache.hadoop",
+              "org.apache.commons.lang3",
+              "org.apache.commons.math3",
+              "org.apache.flink.table.calcite.bridge"
+            )
+          val newClassLoader =
+            new ComponentClassLoader(
+              newUrls,
+              getClass.getClassLoader,
+              ownerClassPaths,
+              Array("org.apache.flink"),
+              new util.HashMap[String, String]())
+
+          dialectFactory =
+            FactoryUtil.discoverFactory(newClassLoader, classOf[DialectFactory], factoryIdentifier)
+      }
+
       currentDialect = getTableConfig.getSqlDialect
       parser = null
       extendedOperationExecutor = null

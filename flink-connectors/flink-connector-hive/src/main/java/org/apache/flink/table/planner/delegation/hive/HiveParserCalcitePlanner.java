@@ -840,7 +840,8 @@ public class HiveParserCalcitePlanner {
                 }
 
                 ObjectIdentifier tableIdentifier =
-                        HiveParserBaseSemanticAnalyzer.parseCompoundName(catalogRegistry, tableName);
+                        HiveParserBaseSemanticAnalyzer.parseCompoundName(
+                                catalogRegistry, tableName);
 
                 // Build Hive Table Scan Rel
                 RelNode tableRel =

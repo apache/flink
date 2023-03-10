@@ -51,6 +51,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateView
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserLoadSemanticAnalyzer;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.utils.HiveCatalogUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -185,25 +186,42 @@ public class HiveParser implements Parser {
     public List<Operation> parse(String statement) {
         Catalog currentCatalog =
                 catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).orElse(null);
-        if (!(currentCatalog instanceof HiveCatalog)) {
+        LOG.info("current catalog: " + currentCatalog.getClass().getClassLoader());
+        LOG.info("current catalog: " + HiveCatalog.class.getClassLoader());
+
+        // we can't compare currentCatalog instanceof HiveCatalog directly
+        // The classloader of currentCatalog is FlinkUserClassloader as it's create via sql api.
+        // but the classloader of HiveCatalog is ComponentClassLoader, see PlannerModule.
+        // although currentCatalog is the instance of HiveCatalog, but currentCatalog instanceof
+        // HiveCatalog
+        // will return false since they actually belong to different classloaders
+
+        if (!(currentCatalog.getClass().getName().equals(HiveCatalog.class.getName()))) {
             throw new TableException(
                     String.format(
                             "Current catalog is %s, which not a HiveCatalog, but Hive dialect is only supported when the current catalog is HiveCatalog.",
                             catalogRegistry.getCurrentCatalog()));
         }
+        //        if (!(currentCatalog instanceof HiveCatalog)) {
+        //            throw new TableException(
+        //                    String.format(
+        //                            "Current catalog is %s, which not a HiveCatalog, but Hive
+        // dialect is only supported when the current catalog is HiveCatalog.",
+        //                            catalogRegistry.getCurrentCatalog()));
+        //        }
 
         Optional<Operation> nonSqlOperation =
                 tryProcessHiveNonSqlStatement(
-                        ((HiveCatalog) currentCatalog).getHiveConf(), statement);
+                        HiveCatalogUtils.getHiveConf(currentCatalog), statement);
         if (nonSqlOperation.isPresent()) {
             return Collections.singletonList(nonSqlOperation.get());
         }
-        HiveConf hiveConf = new HiveConf(((HiveCatalog) currentCatalog).getHiveConf());
+        HiveConf hiveConf = new HiveConf(HiveCatalogUtils.getHiveConf(currentCatalog));
         hiveConf.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
         hiveConf.set("hive.allow.udf.load.on.demand", "false");
         hiveConf.setVar(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE, "mr");
         HiveShim hiveShim =
-                HiveShimLoader.loadHiveShim(((HiveCatalog) currentCatalog).getHiveVersion());
+                HiveShimLoader.loadHiveShim(HiveCatalogUtils.getHiveVersion(currentCatalog));
         try {
             // substitute variables for the statement
             statement = substituteVariables(hiveConf, statement);
@@ -211,7 +229,7 @@ public class HiveParser implements Parser {
             HiveSessionState.startSessionState(hiveConf, catalogRegistry);
             // We override Hive's grouping function. Refer to the implementation for more details.
             hiveShim.registerTemporaryFunction("grouping", HiveGenericUDFGrouping.class);
-            return processCmd(statement, hiveConf, hiveShim, (HiveCatalog) currentCatalog);
+            return processCmd(statement, hiveConf, hiveShim, currentCatalog);
         } finally {
             HiveSessionState.clearSessionState();
         }
@@ -350,7 +368,7 @@ public class HiveParser implements Parser {
     }
 
     private List<Operation> processCmd(
-            String cmd, HiveConf hiveConf, HiveShim hiveShim, HiveCatalog hiveCatalog) {
+            String cmd, HiveConf hiveConf, HiveShim hiveShim, Catalog hiveCatalog) {
         try {
             HiveParserContext context = new HiveParserContext(hiveConf);
             // parse statement to get AST
@@ -360,7 +378,9 @@ public class HiveParser implements Parser {
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
                         new HiveParserDDLSemanticAnalyzer(
                                 queryState,
-                                hiveCatalog,
+                                // todo: yuxia, we can't cast directly, we may need to
+                                // use reflection to call some methods of HiveCatalog
+                                (HiveCatalog) hiveCatalog,
                                 catalogRegistry,
                                 this,
                                 hiveShim,

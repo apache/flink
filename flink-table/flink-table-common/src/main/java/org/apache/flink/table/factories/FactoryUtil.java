@@ -523,6 +523,13 @@ public final class FactoryUtil {
     public static <T extends Factory> T discoverFactory(
             ClassLoader classLoader, Class<T> factoryClass, String factoryIdentifier) {
         final List<Factory> factories = discoverFactories(classLoader);
+        factories.forEach(
+                f ->
+                        LOG.info(
+                                "discoverFactory "
+                                        + f.getClass()
+                                        + " "
+                                        + f.getClass().getClassLoader()));
 
         final List<Factory> foundFactories =
                 factories.stream()

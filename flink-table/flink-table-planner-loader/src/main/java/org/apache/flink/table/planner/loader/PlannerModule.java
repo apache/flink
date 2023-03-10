@@ -23,7 +23,10 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.classloading.ComponentClassLoader;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.delegation.DialectFactory;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -38,7 +41,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -68,6 +74,12 @@ class PlannerModule {
                                     // flink-table-runtime or flink-dist itself
                                     "org.codehaus.janino",
                                     "org.codehaus.commons",
+                                    // with hive dialect, hadoop jar should be in classpath,
+                                    // also, we should make it loaded by owner classloader, that's
+                                    // app classloader; otherwise, it'll throw class not found
+                                    // exception when initialize HiveParser which requires hadoop
+                                    // dependencies
+                                    "org.apache.hadoop",
                                     "org.apache.commons.lang3",
                                     "org.apache.commons.math3"))
                     .toArray(String[]::new);
@@ -114,9 +126,20 @@ class PlannerModule {
             IOUtils.copyBytes(resourceStream, Files.newOutputStream(tempFile));
             tempFile.toFile().deleteOnExit();
 
+            // we should add the jar url which contains HiveParser
+            // so that we can make sure the loader of HiveParser, calcite
+            // classes, others in flink-table-planner
+            // has same class loaders, otherwise, it'll throw class not assign
+            // from/ is not instance of exception
+            Optional<URL> hiveDialectJarUrl = tryGetURLForHiveDialect(flinkClassLoader);
+            URL[] plannerUrls =
+                    hiveDialectJarUrl.isPresent()
+                            ? new URL[] {tempFile.toUri().toURL(), hiveDialectJarUrl.get()}
+                            : new URL[] {tempFile.toUri().toURL()};
+
             this.submoduleClassLoader =
                     new ComponentClassLoader(
-                            new URL[] {tempFile.toUri().toURL()},
+                            plannerUrls,
                             flinkClassLoader,
                             OWNER_CLASSPATH,
                             COMPONENT_CLASSPATH,
@@ -149,5 +172,39 @@ class PlannerModule {
     public PlannerFactory loadPlannerFactory() {
         return FactoryUtil.discoverFactory(
                 this.submoduleClassLoader, PlannerFactory.class, PlannerFactory.DEFAULT_IDENTIFIER);
+    }
+
+    private Optional<URL> tryGetURLForHiveDialect(ClassLoader flinkClassLoader) {
+        final Iterator<DialectFactory> serviceLoaderIterator =
+                ServiceLoader.load(DialectFactory.class, flinkClassLoader).iterator();
+        DialectFactory hiveDialectFactory = null;
+        while (serviceLoaderIterator.hasNext()) {
+            // get the dialect factory
+            DialectFactory discoveredDialectFactory = serviceLoaderIterator.next();
+            if (discoveredDialectFactory
+                    .factoryIdentifier()
+                    .equals(SqlDialect.HIVE.name().toLowerCase())) {
+                // if we have assigned the hive dialect factory, it means
+                if (hiveDialectFactory != null) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Multiple dialect factories for identifier '%s' that implement '%s' found in the classpath.\n\n",
+                                    SqlDialect.HIVE.name(), DialectFactory.class.getName()));
+                }
+                hiveDialectFactory = discoveredDialectFactory;
+            }
+        }
+
+        if (hiveDialectFactory == null) {
+            return Optional.empty();
+        } else {
+            URL url =
+                    hiveDialectFactory
+                            .getClass()
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            return Optional.of(url);
+        }
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation.hive;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.hive.common.JavaUtils;
@@ -96,7 +97,19 @@ public class HiveSessionState extends SessionState {
         File resourceDir = new File(getConf().getVar(HiveConf.ConfVars.DOWNLOADED_RESOURCES_DIR));
         LOG.debug("Removing resource dir " + resourceDir);
         FileUtils.deleteDirectoryQuietly(resourceDir);
-        Hive.closeCurrent();
+        try {
+            // we can't use Hive#closeCurrent directly for Flink will use
+            // app classloader to load Hive as the prefix of the package starts with
+            // org.apache.hadoop, but Hive will require
+            // calcite classes, but the calcite classes can only be loaded by the
+            // ComponentClassLoader. So we should use ComponentClassLoader which is the classloader
+            // of HiveParser to load Hive.
+            // for more details, please see class
+            // org.apache.flink.table.planner.loader#PlannerModule
+            Hive.closeCurrent();
+        } catch (Throwable e) {
+            LOG.error(ExceptionUtils.stringifyException(e));
+        }
         detachSession();
     }
 
