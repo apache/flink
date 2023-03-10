@@ -740,8 +740,10 @@ class TableScanTest extends TableTestBase {
   def testInvalidWatermarkOutputType(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Watermark strategy '' must be of type TIMESTAMP or TIMESTAMP_LTZ" +
-        " but is of type 'CHAR(0) NOT NULL'.")
+      "Invalid data type of expression for watermark definition. " +
+        "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), " +
+        "the supported precision 'p' is from 0 to 3, but the watermark " +
+        "expression type is CHAR(0) NOT NULL")
     util.addTable("""
                     |CREATE TABLE src (
                     |  ts TIMESTAMP(3),
