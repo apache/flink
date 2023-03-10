@@ -75,6 +75,7 @@ import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaCo
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.drainAllRecordsFromTopic;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 
 /** Tests for the standalone KafkaWriter. */
 @ExtendWith(TestLoggerExtension.class)
@@ -223,6 +224,9 @@ public class KafkaWriterITCase {
             }
 
             writer.write(3, SINK_WRITER_CONTEXT);
+            // this doesn't throw exception because the exception is thrown in the Producer IO
+            // thread in unit tests due to the mock mailbox executor, while it would be thrown in
+            // flush() when the real mailbox executor is configured
             writer.flush(false);
             writer.prepareCommit();
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
@@ -380,6 +384,28 @@ public class KafkaWriterITCase {
             }
 
             assertThat(drainAllRecordsFromTopic(topic, properties, true)).hasSize(1);
+        }
+    }
+
+    @Test
+    public void testErrorPropagation() {
+        Properties properties = getKafkaClientConfiguration();
+        final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(properties, DeliveryGuarantee.AT_LEAST_ONCE);
+        try {
+            writer.setAsyncProducerException(
+                    new IOException("previous send request encountered error."));
+            assertThatCode(() -> writer.write(1, SINK_WRITER_CONTEXT))
+                    .hasRootCauseExactlyInstanceOf(IOException.class);
+
+            writer.setAsyncProducerException(
+                    new IOException("previous send request encountered error."));
+            assertThatCode(() -> writer.flush(false))
+                    .hasRootCauseExactlyInstanceOf(IOException.class);
+        } finally {
+            writer.setAsyncProducerException(
+                    new IOException("previous send request encountered error."));
+            assertThatCode(writer::close).hasRootCauseExactlyInstanceOf(IOException.class);
         }
     }
 
