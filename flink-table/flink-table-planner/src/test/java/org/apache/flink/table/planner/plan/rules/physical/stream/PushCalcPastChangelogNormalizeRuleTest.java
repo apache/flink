@@ -33,8 +33,8 @@ import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 
-/** Tests for {@link PushFilterPastChangelogNormalizeRule}. */
-public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
+/** Tests for {@link PushCalcPastChangelogNormalizeRule}. */
+public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
 
     private StreamTableTestUtil util;
 
