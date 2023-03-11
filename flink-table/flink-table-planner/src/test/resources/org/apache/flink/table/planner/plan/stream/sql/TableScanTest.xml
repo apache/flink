@@ -98,10 +98,11 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
 Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
 +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
-      +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I,UA,D])
-         +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[I,UA,D])
-            +- DropUpdateBefore(changelogMode=[I,UA,D])
-               +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[I,UB,UA,D])
+      +- Calc(select=[id, a, b, c], changelogMode=[I,UA,D])
+         +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I,UA,D])
+            +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[I,UA,D])
+               +- DropUpdateBefore(changelogMode=[I,UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -630,9 +631,10 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
 Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
 +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
-         +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[UA,D])
+      +- Calc(select=[id, a, b, c], changelogMode=[UA,D])
+         +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
+            +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
