@@ -123,6 +123,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
@@ -1311,11 +1312,10 @@ public class AdaptiveSchedulerTest {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        assertThat(
+        assertThatFuture(
                         scheduler.triggerSavepoint(
                                 "some directory", false, SavepointFormatType.CANONICAL))
-                .failsWithin(1, TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(CheckpointException.class);
     }
 
@@ -1325,11 +1325,10 @@ public class AdaptiveSchedulerTest {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        assertThat(
+        assertThatFuture(
                         scheduler.triggerSavepoint(
                                 "some directory", false, SavepointFormatType.CANONICAL))
-                .failsWithin(1, TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(CheckpointException.class);
     }
 
@@ -1354,11 +1353,10 @@ public class AdaptiveSchedulerTest {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        assertThat(
+        assertThatFuture(
                         scheduler.deliverCoordinationRequestToCoordinator(
                                 new OperatorID(), new CoordinationRequest() {}))
-                .failsWithin(1, TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(FlinkException.class);
     }
 

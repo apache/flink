@@ -70,7 +70,9 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -347,13 +349,15 @@ class ZooKeeperLeaderElectionTest {
             assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
 
             // First update will successfully complete.
-            assertThat(leaderInformationConsumer.getFirstUpdateFuture())
-                    .succeedsWithin(5, TimeUnit.SECONDS);
+            assertThatFuture(leaderInformationConsumer.getFirstUpdateFuture()).eventuallySucceeds();
             // Wait for a while to make sure other updates don't appear.
-            assertThat(leaderInformationConsumer.getAnotherUpdateFuture())
-                    .withFailMessage("Another leader information update is not expected.")
-                    .failsWithin(5, TimeUnit.MILLISECONDS)
-                    .withThrowableOfType(TimeoutException.class);
+            assertThatThrownBy(
+                            () ->
+                                    leaderInformationConsumer
+                                            .getAnotherUpdateFuture()
+                                            .get(5, TimeUnit.MILLISECONDS),
+                            "Another leader information update is not expected.")
+                    .isInstanceOf(TimeoutException.class);
         } finally {
             electionEventHandler.close();
             if (leaderElectionDriver != null) {

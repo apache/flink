@@ -46,7 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -63,6 +62,7 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.STREAM_THROWABLE;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -291,11 +291,11 @@ class SessionDispatcherLeaderProcessTest {
             dispatcherLeaderProcess.onAddedJobGraph(dirtyJobResult.getJobId());
             jobGraphAddedLatch.trigger();
 
-            assertThat(recoveredJobGraphsFuture)
-                    .succeedsWithin(Duration.ofHours(1))
-                    .satisfies(recovedJobGraphs -> assertThat(recovedJobGraphs).isEmpty());
-            assertThat(recoveredDirtyJobResultsFuture)
-                    .succeedsWithin(Duration.ofHours(1))
+            assertThatFuture(recoveredJobGraphsFuture)
+                    .eventuallySucceeds()
+                    .satisfies(recoverJobGraphs -> assertThat(recoverJobGraphs).isEmpty());
+            assertThatFuture(recoveredDirtyJobResultsFuture)
+                    .eventuallySucceeds()
                     .satisfies(
                             recoveredDirtyJobResults ->
                                     assertThat(recoveredDirtyJobResults)
@@ -421,8 +421,8 @@ class SessionDispatcherLeaderProcessTest {
 
             createDispatcherServiceLatch.trigger();
 
-            assertThat(confirmLeaderSessionFuture)
-                    .succeedsWithin(100, TimeUnit.MILLISECONDS)
+            assertThatFuture(confirmLeaderSessionFuture)
+                    .eventuallySucceeds()
                     .isEqualTo(dispatcherAddress);
         }
     }
@@ -625,8 +625,8 @@ class SessionDispatcherLeaderProcessTest {
             jobGraphStore.putJobGraph(JOB_GRAPH);
             dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
 
-            assertThat(fatalErrorHandler.getErrorFuture())
-                    .succeedsWithin(100, TimeUnit.MILLISECONDS)
+            assertThatFuture(fatalErrorHandler.getErrorFuture())
+                    .eventuallySucceeds()
                     .extracting(FlinkAssertions::chainOfCauses, STREAM_THROWABLE)
                     .contains(expectedFailure);
 
@@ -672,8 +672,8 @@ class SessionDispatcherLeaderProcessTest {
             dispatcherLeaderProcess.start();
 
             // we expect that a fatal error occurred
-            assertThat(fatalErrorHandler.getErrorFuture())
-                    .succeedsWithin(100, TimeUnit.MILLISECONDS)
+            assertThatFuture(fatalErrorHandler.getErrorFuture())
+                    .eventuallySucceeds()
                     .satisfies(
                             error ->
                                     assertThat(error)

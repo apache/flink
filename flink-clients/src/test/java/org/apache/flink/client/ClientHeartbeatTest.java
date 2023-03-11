@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PerJobMiniClusterFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -59,9 +60,8 @@ class ClientHeartbeatTest {
 
         // The client doesn't report heartbeat to the dispatcher.
 
-        assertThat(jobClient.getJobExecutionResult())
-                .failsWithin(Duration.ofSeconds(1))
-                .withThrowableOfType(ExecutionException.class)
+        FlinkAssertions.assertThatFuture(jobClient.getJobExecutionResult())
+                .eventuallyFailsWith(ExecutionException.class)
                 .withMessageContaining("Job was cancelled");
 
         assertThat(miniCluster.isRunning()).isFalse();

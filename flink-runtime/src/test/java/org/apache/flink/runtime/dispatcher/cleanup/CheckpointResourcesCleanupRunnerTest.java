@@ -46,7 +46,6 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +53,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -64,7 +64,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CheckpointResourcesCleanupRunnerTest {
 
     private static final Time TIMEOUT_FOR_REQUESTS = Time.milliseconds(0);
-    private static final Duration TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY = Duration.ofMinutes(60);
 
     private static final ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
             BEFORE_START = ignored -> {};
@@ -139,16 +138,16 @@ class CheckpointResourcesCleanupRunnerTest {
 
         checkpointRecoveryFactory.triggerCreation();
 
-        assertThat(completedCheckpointStoreShutdownFuture)
+        assertThatFuture(completedCheckpointStoreShutdownFuture)
                 .as("The CompletedCheckpointStore should have been shut down properly.")
-                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .eventuallySucceeds()
                 .isEqualTo(JobStatus.FINISHED);
-        assertThat(checkpointIdCounterShutdownFuture)
+        assertThatFuture(checkpointIdCounterShutdownFuture)
                 .as("The CheckpointIDCounter should have been shut down properly.")
-                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .eventuallySucceeds()
                 .isEqualTo(JobStatus.FINISHED);
 
-        assertThat(testInstance.closeAsync()).succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY);
+        assertThatFuture(testInstance.closeAsync()).eventuallySucceeds();
     }
 
     @Test
@@ -185,14 +184,13 @@ class CheckpointResourcesCleanupRunnerTest {
 
         checkpointRecoveryFactory.triggerCreation();
 
-        assertThat(checkpointIdCounterShutdownFuture)
+        assertThatFuture(checkpointIdCounterShutdownFuture)
                 .as("The CheckpointIDCounter should have been shut down properly.")
-                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .eventuallySucceeds()
                 .isEqualTo(JobStatus.FINISHED);
 
-        assertThat(testInstance.closeAsync())
-                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(testInstance.closeAsync())
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(RuntimeException.class);
     }
 
@@ -231,14 +229,13 @@ class CheckpointResourcesCleanupRunnerTest {
 
         checkpointRecoveryFactory.triggerCreation();
 
-        assertThat(completedCheckpointStoreShutdownFuture)
+        assertThatFuture(completedCheckpointStoreShutdownFuture)
                 .as("The CompletedCheckpointStore should have been shut down properly.")
-                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .eventuallySucceeds()
                 .isEqualTo(JobStatus.FINISHED);
 
-        assertThat(testInstance.closeAsync())
-                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(testInstance.closeAsync())
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(RuntimeException.class);
     }
 
@@ -247,9 +244,8 @@ class CheckpointResourcesCleanupRunnerTest {
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder().withExecutor(ForkJoinPool.commonPool()).build();
 
-        assertThat(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
-                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(FlinkException.class);
         assertThat(testInstance.closeAsync())
                 .as("The closeAsync result shouldn't be completed, yet.")
@@ -269,9 +265,8 @@ class CheckpointResourcesCleanupRunnerTest {
                         .withExecutor(ForkJoinPool.commonPool())
                         .build();
         AFTER_START.accept(testInstance);
-        assertThat(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
-                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(FlinkException.class);
         assertThat(testInstance.closeAsync())
                 .as("The closeAsync result shouldn't be completed, yet.")
@@ -285,9 +280,8 @@ class CheckpointResourcesCleanupRunnerTest {
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder().withExecutor(ForkJoinPool.commonPool()).build();
         AFTER_CLOSE.accept(testInstance);
-        assertThat(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
-                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(FlinkException.class);
         assertThat(testInstance.closeAsync())
                 .as("The closeAsync result should be completed by now.")

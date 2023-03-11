@@ -30,7 +30,6 @@ import org.apache.flink.util.concurrent.RetryStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -42,6 +41,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.STREAM_THROWABLE;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@code DefaultResourceCleanerTest} tests {@link DefaultResourceCleaner}. */
@@ -49,9 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultResourceCleanerTest {
 
     // runs with retry utilizes the ComponentMainThreadExecutor which adds concurrency despite using
-    // Executors.directExecutor as the cleanupExecutor
-    private static final Duration TIMEOUT_FOR_RUNS_WITH_RETRY = Duration.ofHours(1);
-
+    // Executors.directExecutor as the cleanupExecutor.
     private static final Executor EXECUTOR = Executors.directExecutor();
     private static final JobID JOB_ID = new JobID();
 
@@ -99,9 +97,8 @@ class DefaultResourceCleanerTest {
         assertThat(cleanupResult).isNotCompleted();
 
         cleanup1.completeCleanup();
-        assertThat(cleanupResult)
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(cleanupResult)
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, STREAM_THROWABLE)
                 .hasExactlyElementsOfTypes(
                         ExecutionException.class,
@@ -133,9 +130,8 @@ class DefaultResourceCleanerTest {
 
         final RuntimeException expectedException = new RuntimeException("Expected exception");
         cleanup1.completeCleanupExceptionally(expectedException);
-        assertThat(cleanupResult)
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(cleanupResult)
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, STREAM_THROWABLE)
                 .hasExactlyElementsOfTypes(
                         ExecutionException.class,
@@ -174,7 +170,7 @@ class DefaultResourceCleanerTest {
 
         highPriorityCleanup.completeCleanup();
 
-        assertThat(overallCleanupResult).succeedsWithin(Duration.ZERO);
+        assertThat(overallCleanupResult).isCompleted();
 
         assertThat(highPriorityCleanup.isDone()).isTrue();
         assertThat(lowerThanHighPriorityCleanup.isDone()).isTrue();
@@ -211,7 +207,7 @@ class DefaultResourceCleanerTest {
 
         lowerThanHighPriorityCleanup.completeCleanup();
 
-        assertThat(overallCleanupResult).succeedsWithin(Duration.ZERO);
+        assertThat(overallCleanupResult).isCompleted();
 
         assertThat(highPriorityCleanup.isDone()).isTrue();
         assertThat(lowerThanHighPriorityCleanup.isDone()).isTrue();
@@ -232,7 +228,7 @@ class DefaultResourceCleanerTest {
                         .build()
                         .cleanupAsync(JOB_ID);
 
-        assertThat(compositeCleanupResult).succeedsWithin(TIMEOUT_FOR_RUNS_WITH_RETRY);
+        assertThatFuture(compositeCleanupResult).eventuallySucceeds();
 
         assertThat(oneRunCleanup.getProcessedJobId()).isEqualTo(JOB_ID);
         assertThat(oneRunCleanup.isDone()).isTrue();
@@ -255,7 +251,7 @@ class DefaultResourceCleanerTest {
                         .build()
                         .cleanupAsync(JOB_ID);
 
-        assertThat(compositeCleanupResult).succeedsWithin(TIMEOUT_FOR_RUNS_WITH_RETRY);
+        assertThatFuture(compositeCleanupResult).eventuallySucceeds();
 
         assertThat(oneRunCleanup.getProcessedJobId()).isEqualTo(JOB_ID);
         assertThat(oneRunCleanup.isDone()).isTrue();

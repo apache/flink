@@ -46,8 +46,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -90,8 +90,8 @@ class HsMemoryDataSpillerTest {
                 memoryDataSpiller.spillAsync(bufferWithIdentityList);
         List<SpilledBuffer> expectedSpilledBuffers =
                 getExpectedSpilledBuffers(bufferWithIdentityList);
-        assertThat(future)
-                .succeedsWithin(60, TimeUnit.SECONDS)
+        assertThatFuture(future)
+                .eventuallySucceeds()
                 .satisfies(
                         spilledBuffers ->
                                 assertThat(spilledBuffers)
