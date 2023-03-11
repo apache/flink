@@ -220,6 +220,7 @@ public final class CatalogPropertiesUtil {
             final String exprKey = compoundKey(SCHEMA, i, EXPR);
             final String metadataKey = compoundKey(SCHEMA, i, METADATA);
             final String virtualKey = compoundKey(SCHEMA, i, VIRTUAL);
+            final String commentKey = compoundKey(SCHEMA, i, COMMENT);
 
             final String name = getValue(map, nameKey);
 
@@ -243,6 +244,12 @@ public final class CatalogPropertiesUtil {
             else {
                 final String dataType = getValue(map, dataTypeKey);
                 builder.column(name, dataType);
+            }
+
+            // column comment
+            if (map.containsKey(commentKey)) {
+                final String comment = getValue(map, commentKey);
+                builder.withComment(comment);
             }
         }
     }
@@ -303,15 +310,25 @@ public final class CatalogPropertiesUtil {
         final String[] expressions = serializeColumnComputations(columns);
         final String[] metadata = serializeColumnMetadataKeys(columns);
         final String[] virtual = serializeColumnVirtuality(columns);
+        final String[] comments = serializeColumnComments(columns);
 
         final List<List<String>> values = new ArrayList<>();
         for (int i = 0; i < columns.size(); i++) {
             values.add(
-                    Arrays.asList(names[i], dataTypes[i], expressions[i], metadata[i], virtual[i]));
+                    Arrays.asList(
+                            names[i],
+                            dataTypes[i],
+                            expressions[i],
+                            metadata[i],
+                            virtual[i],
+                            comments[i]));
         }
 
         putIndexedProperties(
-                map, SCHEMA, Arrays.asList(NAME, DATA_TYPE, EXPR, METADATA, VIRTUAL), values);
+                map,
+                SCHEMA,
+                Arrays.asList(NAME, DATA_TYPE, EXPR, METADATA, VIRTUAL, COMMENT),
+                values);
     }
 
     private static String serializeResolvedExpression(ResolvedExpression resolvedExpression) {
@@ -394,6 +411,10 @@ public final class CatalogPropertiesUtil {
                             return null;
                         })
                 .toArray(String[]::new);
+    }
+
+    private static String[] serializeColumnComments(List<Column> columns) {
+        return columns.stream().map(c -> c.getComment().orElse(null)).toArray(String[]::new);
     }
 
     /**
