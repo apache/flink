@@ -55,7 +55,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -69,6 +68,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -848,9 +848,8 @@ class ApplicationDispatcherBootstrapTest {
                         TestingDispatcherGateway.newBuilder().build(),
                         scheduledExecutor,
                         exception -> {});
-        assertThat(bootstrap.getBootstrapCompletionFuture())
-                .failsWithin(Duration.ofHours(1))
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(bootstrap.getBootstrapCompletionFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(Throwable::getCause)
                 .satisfies(
                         e ->

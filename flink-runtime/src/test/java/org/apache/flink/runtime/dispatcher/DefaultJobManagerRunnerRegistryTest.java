@@ -28,11 +28,11 @@ import org.apache.flink.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -155,11 +155,11 @@ class DefaultJobManagerRunnerRegistryTest {
         final RuntimeException expectedException = new RuntimeException("Expected exception");
         jobManagerRunner.completeTerminationFutureExceptionally(expectedException);
 
-        assertThat(
+        assertThatFuture(
                         testInstance.localCleanupAsync(
                                 jobManagerRunner.getJobID(), Executors.directExecutor()))
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
+                .isCompletedExceptionally()
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
@@ -192,10 +192,9 @@ class DefaultJobManagerRunnerRegistryTest {
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(), Executors.directExecutor());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
-        assertThat(cleanupResult)
+        assertThatFuture(cleanupResult)
                 .isCompletedExceptionally()
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()

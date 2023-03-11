@@ -36,17 +36,16 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultJobMasterServiceProcess}. */
 class DefaultJobMasterServiceProcessTest {
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final JobID jobId = new JobID();
     private static final Function<Throwable, ArchivedExecutionGraph>
             failedArchivedExecutionGraphFactory =
@@ -167,9 +166,8 @@ class DefaultJobMasterServiceProcessTest {
 
         serviceProcess.closeAsync().get();
         assertThat(testingJobMasterService.isClosed()).isTrue();
-        assertThat(serviceProcess.getResultFuture())
-                .failsWithin(TIMEOUT)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(serviceProcess.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .anySatisfy(t -> assertThat(t).isInstanceOf(JobNotFinishedException.class));
     }
@@ -187,9 +185,8 @@ class DefaultJobMasterServiceProcessTest {
         RuntimeException testException = new RuntimeException("Fake exception from JobMaster");
         jobMasterTerminationFuture.completeExceptionally(testException);
 
-        assertThat(serviceProcess.getResultFuture())
-                .failsWithin(TIMEOUT)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(serviceProcess.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .anySatisfy(t -> assertThat(t).isEqualTo(testException));
     }

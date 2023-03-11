@@ -36,9 +36,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -152,8 +152,8 @@ class HsMemoryDataManagerTest {
                     createRecord(i), targetSubpartition, Buffer.DataType.DATA_BUFFER);
         }
 
-        assertThat(spilledFuture).succeedsWithin(10, TimeUnit.SECONDS);
-        assertThat(readableFuture).succeedsWithin(10, TimeUnit.SECONDS);
+        assertThatFuture(spilledFuture).eventuallySucceeds();
+        assertThatFuture(readableFuture).eventuallySucceeds();
         assertThat(readableFuture).isCompletedWithValue(2);
         assertThat(memoryDataManager.getNumTotalUnSpillBuffers()).isEqualTo(1);
     }
@@ -240,7 +240,7 @@ class HsMemoryDataManagerTest {
         networkBufferPool.createBufferPool(maxBuffers - requiredBuffers, maxBuffers);
         assertThat(bufferPool.getNumBuffers()).isEqualTo(requiredBuffers);
 
-        assertThat(triggerGlobalDecision).succeedsWithin(10, TimeUnit.SECONDS);
+        assertThatFuture(triggerGlobalDecision).eventuallySucceeds();
     }
 
     private HsMemoryDataManager createMemoryDataManager(HsSpillingStrategy spillStrategy)

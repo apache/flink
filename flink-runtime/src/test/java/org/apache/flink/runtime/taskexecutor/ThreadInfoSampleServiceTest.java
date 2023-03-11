@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.taskexecutor.IdleTestTask.executeWithTerminationGuarantee;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -195,7 +196,7 @@ class ThreadInfoSampleServiceTest {
                 sampleFuture =
                         threadInfoSampleService.requestThreadInfoSamples(threads, requestParams);
 
-        assertThat(sampleFuture).failsWithin(Duration.ofSeconds(10));
+        assertThatFuture(sampleFuture).eventuallyFails();
         assertThat(sampleFuture.handle((ignored, e) -> e).get())
                 .isInstanceOf(IllegalStateException.class);
     }
