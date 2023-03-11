@@ -468,9 +468,9 @@ Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id,
       :     +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
       :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
-         +- Calc(select=[id], changelogMode=[I,UB,UA,D])
-            +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
-               +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+               +- Calc(select=[id], changelogMode=[I,UA,D])
                   +- TableSourceScan(table=[[default_catalog, default_database, upsert_managed_table]], fields=[id, col1, col2], changelogMode=[I,UA,D])
 ]]>
 		</Resource>
