@@ -54,12 +54,12 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean isSortByOrdinal() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean isSortByAlias() {
-        return false;
+        return true;
     }
 
     @Override
