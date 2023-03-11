@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@code DefaultResourceCleanerTest} tests {@link DefaultResourceCleaner}. */
 @ExtendWith(TestLoggerExtension.class)
-public class DefaultResourceCleanerTest {
+class DefaultResourceCleanerTest {
 
     // runs with retry utilizes the ComponentMainThreadExecutor which adds concurrency despite using
     // Executors.directExecutor as the cleanupExecutor
@@ -56,7 +56,7 @@ public class DefaultResourceCleanerTest {
     private static final JobID JOB_ID = new JobID();
 
     @Test
-    public void testSuccessfulConcurrentCleanup() {
+    void testSuccessfulConcurrentCleanup() {
         final SingleCallCleanup cleanup0 = SingleCallCleanup.withoutCompletionOnCleanup();
         final SingleCallCleanup cleanup1 = SingleCallCleanup.withoutCompletionOnCleanup();
 
@@ -79,7 +79,7 @@ public class DefaultResourceCleanerTest {
     }
 
     @Test
-    public void testConcurrentCleanupWithExceptionFirst() {
+    void testConcurrentCleanupWithExceptionFirst() {
         final SingleCallCleanup cleanup0 = SingleCallCleanup.withoutCompletionOnCleanup();
         final SingleCallCleanup cleanup1 = SingleCallCleanup.withoutCompletionOnCleanup();
 
@@ -113,7 +113,7 @@ public class DefaultResourceCleanerTest {
     }
 
     @Test
-    public void testConcurrentCleanupWithExceptionSecond() {
+    void testConcurrentCleanupWithExceptionSecond() {
         final SingleCallCleanup cleanup0 = SingleCallCleanup.withoutCompletionOnCleanup();
         final SingleCallCleanup cleanup1 = SingleCallCleanup.withoutCompletionOnCleanup();
 
@@ -147,7 +147,7 @@ public class DefaultResourceCleanerTest {
     }
 
     @Test
-    public void testHighestPriorityCleanupBlocksAllOtherCleanups() {
+    void testHighestPriorityCleanupBlocksAllOtherCleanups() {
         final SingleCallCleanup highPriorityCleanup =
                 SingleCallCleanup.withoutCompletionOnCleanup();
         final SingleCallCleanup lowerThanHighPriorityCleanup =
@@ -183,7 +183,7 @@ public class DefaultResourceCleanerTest {
     }
 
     @Test
-    public void testMediumPriorityCleanupBlocksAllLowerPrioritizedCleanups() {
+    void testMediumPriorityCleanupBlocksAllLowerPrioritizedCleanups() {
         final SingleCallCleanup highPriorityCleanup = SingleCallCleanup.withCompletionOnCleanup();
         final SingleCallCleanup lowerThanHighPriorityCleanup =
                 SingleCallCleanup.withoutCompletionOnCleanup();
@@ -220,7 +220,7 @@ public class DefaultResourceCleanerTest {
     }
 
     @Test
-    public void testCleanupWithRetries() {
+    void testCleanupWithRetries() {
         final Collection<JobID> actualJobIds = new ArrayList<>();
         final CleanupCallback cleanupWithRetries = cleanupWithInitialFailingRuns(actualJobIds, 2);
         final SingleCallCleanup oneRunCleanup = SingleCallCleanup.withCompletionOnCleanup();
@@ -240,7 +240,7 @@ public class DefaultResourceCleanerTest {
     }
 
     @Test
-    public void testCleanupWithSingleRetryInHighPriorityTask() {
+    void testCleanupWithSingleRetryInHighPriorityTask() {
         final Collection<JobID> actualJobIds = new ArrayList<>();
         final CleanupCallback cleanupWithRetry = cleanupWithInitialFailingRuns(actualJobIds, 1);
         final CleanupCallback oneRunHigherPriorityCleanup =
