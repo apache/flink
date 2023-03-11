@@ -45,6 +45,7 @@ import org.apache.calcite.util.NlsString;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -210,7 +211,7 @@ class SqlCreateTableConverter {
         Set<String> columnNames =
                 mergedSchema.getColumns().stream()
                         .map(Schema.UnresolvedColumn::getName)
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
         for (String partitionKey : partitionKeys) {
             if (!columnNames.contains(partitionKey)) {
                 throw new ValidationException(
