@@ -32,7 +32,6 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -240,15 +239,14 @@ public class YarnFileStageTest {
             assertThat(localResources).hasSameSizeAs(srcFiles);
 
             final Path workDir =
-                    ConverterUtils.getPathFromYarnURL(
-                                    localResources
-                                            .get(
-                                                    new Path(
-                                                                    localResourceDirectory,
-                                                                    new Path(
-                                                                            srcPath.getName(), "1"))
-                                                            .toString())
-                                            .getResource())
+                    localResources
+                            .get(
+                                    new Path(
+                                                    localResourceDirectory,
+                                                    new Path(srcPath.getName(), "1"))
+                                            .toString())
+                            .getResource()
+                            .toPath()
                             .getParent();
 
             verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);
@@ -307,12 +305,10 @@ public class YarnFileStageTest {
             final Map<String, LocalResource> localResources =
                     uploader.getRegisteredLocalResources();
             final Path workDir =
-                    ConverterUtils.getPathFromYarnURL(
-                                    localResources
-                                            .get(
-                                                    new Path(localResourceDirectory, localFile)
-                                                            .toString())
-                                            .getResource())
+                    localResources
+                            .get(new Path(localResourceDirectory, localFile).toString())
+                            .getResource()
+                            .toPath()
                             .getParent();
             verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);
         } finally {
@@ -376,10 +372,10 @@ public class YarnFileStageTest {
             final Map<String, LocalResource> localResources =
                     uploader.getRegisteredLocalResources();
             final Path workDir =
-                    ConverterUtils.getPathFromYarnURL(
-                                    localResources
-                                            .get(new Path(localResourceDirectory, "1").toString())
-                                            .getResource())
+                    localResources
+                            .get(new Path(localResourceDirectory, "1").toString())
+                            .getResource()
+                            .toPath()
                             .getParent();
             verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);
         } finally {
