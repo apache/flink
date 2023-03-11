@@ -103,6 +103,30 @@ class FlinkAssertionsTest {
                 Duration.ofMillis(10));
     }
 
+    @Test
+    void testWillNotCompleteWithin() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        assertThatFuture(future).willNotCompleteWithin(Duration.ofMillis(1));
+
+        // test completed future.
+        assertThatThrownBy(
+                        () ->
+                                assertThatFuture(CompletableFuture.completedFuture(null))
+                                        .willNotCompleteWithin(Duration.ofMillis(1)))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("have not completed");
+
+        // test completed exceptionally future.
+        CompletableFuture<Void> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new RuntimeException());
+        assertThatThrownBy(
+                        () ->
+                                assertThatFuture(failedFuture)
+                                        .willNotCompleteWithin(Duration.ofMillis(1)))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("have not completed");
+    }
+
     private static void assertWaitingForInterrupt(Runnable runnable, Duration timeout)
             throws Exception {
         final CheckedThread thread =
