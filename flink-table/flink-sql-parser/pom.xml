@@ -62,9 +62,9 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.33.0:
+				"mvn dependency:tree" as of Calcite 1.34.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.33.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.34.0:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
 				[INFO] |  +- org.checkerframework:checker-qual:jar:3.12.0:compile
