@@ -224,7 +224,7 @@ Just include them in your build tool script/descriptor, and you can start develo
 
 ## Running and packaging
 
-If you want to run your job by simply executing the main class, you will need `flink-runtime` in your classpath.
+If you want to run your job by simply executing the main class, you will need `flink-clients` in your classpath.
 In case of Table API programs, you will also need `flink-table-runtime` and `flink-table-planner-loader`.
 
 As a rule of thumb, we **suggest** packaging the application code and all its required dependencies into one fat/uber JAR.
