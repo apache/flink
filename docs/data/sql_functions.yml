@@ -499,7 +499,24 @@ temporal:
     description: Gets current Unix timestamp in seconds. This function is not deterministic which means the value would be recalculated for each record.
   - sql: UNIX_TIMESTAMP(string1[, string2])
     table: unixTimestamp(STRING1[, STRING2])
-    description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
+    description: |
+      Converts a date time string string1 with format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+      
+      If a time zone is specified in the date time string and parsed by UTC+X format such as "yyyy-MM-dd HH:mm:ss.SSS X", this function will use the specified timezone in the date time string instead of the timezone in table config.
+      If the date time string can not be parsed, the default value Long.MIN_VALUE(-9223372036854775808) will be returned.
+      
+      ```
+      SET 'table.local-time-zone' = 'Europe/Berlin';
+      
+      -- 1641020400
+      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- 1640995200
+      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      -- 1641020400
+      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- -9223372036854775808
+      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      ```
   - sql: TO_DATE(string1[, string2])
     table: toDate(STRING1[, STRING2])
     description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
