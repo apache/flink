@@ -72,8 +72,8 @@ public class SqlClientOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<SyntaxHighlightStyle.BuiltInStyle>
-            DISPLAY_DEFAULT_COLOR_SCHEME =
-                    ConfigOptions.key("sql-client.display.default-color-scheme")
+            DISPLAY_DEFAULT_COLOR_SCHEMA =
+                    ConfigOptions.key("sql-client.display.default-color-schema")
                             .enumType(SyntaxHighlightStyle.BuiltInStyle.class)
                             .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT)
                             .withDescription(
