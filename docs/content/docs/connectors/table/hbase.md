@@ -223,7 +223,7 @@ Connector Options
       "lookup.cache" must be set to "PARTIAL" to use this option. </td>
     </tr>
     <tr>
-      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.cache-missing-key</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">true</td>
