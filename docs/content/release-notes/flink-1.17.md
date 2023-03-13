@@ -195,7 +195,9 @@ Upgrade FRocksDB to 6.20.3-ververica-2.0.
 The minimum Hadoop version supported by Apache Flink has been updated to version 2.10.2. For Hadoop 
 3, the minimum Hadoop version that is now supported is version 3.2.3.
 
-#### Upgrade Calcite version to 1.27
+#### Upgrade Calcite version to 1.29.0
 ##### [FLINK-20873](https://issues.apache.org/jira/browse/FLINK-20873)
+##### [FLINK-21239](https://issues.apache.org/jira/browse/FLINK-21239)
+##### [FLINK-29932](https://issues.apache.org/jira/browse/FLINK-29932)
 Calcite upgrade brings optimization changing logical plans for some queries involving `Sarg` and 
 queries with `count` of non-distinct values.
