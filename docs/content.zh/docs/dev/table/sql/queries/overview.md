@@ -31,18 +31,18 @@ under the License.
 
 `TableEnvironment` 的 `sqlQuery()` 方法可以执行 `SELECT` 和 `VALUES` 语句。
 这个方法把 `SELECT` 语句(或 `VALUES` 语句)的结果作为一个 `Table` 返回。
-`Table`可以用在[后续SQL和表API查询]({{< ref "docs/dev/table/common" >}}#mixing-table-api-and-sql)， 可以[转换为数据流]({{< ref "docs/dev/table/common" >}}#integration-with-datastream)， 或者 [写入到TableSink]({{< ref "docs/dev/table/common" >}}#emit-a-table)。
+`Table`可以用在[后续 SQL 和 Table API 查询]({{< ref "docs/dev/table/common" >}}#mixing-table-api-and-sql)中，可以[转换为 DataStream]({{< ref "docs/dev/table/common" >}}#integration-with-datastream)， 或者 [写入到TableSink]({{< ref "docs/dev/table/common" >}}#emit-a-table)。
 SQL 和 Table API 查询可以无缝混合，并进行整体优化并转换为单个程序。
 
-为了在SQL查询中访问表，它必须[注册在TableEnvironment]({{< ref "docs/dev/table/common" >}}#register-tables-in-the-catalog)。
-表使用下列方式注册：[TableSource]({{< ref "docs/dev/table/common" >}}#register-a-tablesource)， [Table]({{< ref "docs/dev/table/common" >}}#register-a-table)，[CREATE TABLE statement](#create-table)，[DataStream]({{< ref "docs/dev/table/common" >}}#register-a-datastream)。
-也可以通过[在TableEnvironment中注册catalog ]({{< ref "docs/dev/table/catalogs" >}})来指定数据源的位置。
+为了在SQL查询中访问表，它必须[注册在 TableEnvironment]({{< ref "docs/dev/table/common" >}}#register-tables-in-the-catalog)。
+表使用下列方式注册：[TableSource]({{< ref "docs/dev/table/common" >}}#register-a-tablesource)， [Table]({{< ref "docs/dev/table/common" >}}#register-a-table)，[CREATE TABLE 语句](#create-table)，[DataStream]({{< ref "docs/dev/table/common" >}}#register-a-datastream)。
+也可以通过[在 TableEnvironment 中注册 Catalog]({{< ref "docs/dev/table/catalogs" >}}) 来指定数据源的位置。
 
 为了方便起见，`Table.toString()` 自动在 `TableEnvironment` 中注册一个名称唯一的表，并返回表名。
-所以下面实例中的`Table`对象可以直接在SQL查询中使用。
+所以`Table`对象可以直接内嵌入 SQL 中查询使用，如下示例所示。
 
-**注意:** 查询如果包含不支持的SQL特性,会引起`TableException`。
-下面的部分阐述批处理和流处理表上支持的SQL特性。
+**注意:** 查询如果包含不支持的 SQL 特性，会抛出`TableException`异常。
+下面的章节中列出了批处理和流处理上支持的 SQL 特性。
 
 ## 指定查询
 
@@ -167,14 +167,14 @@ table_env \
 ## 执行查询
 
 
-通过 `TableEnvironment.executeSql()` 方法可以执行 `SELECT` 或 `VALUES` 语句，并把结果收集到本地。它将`SELECT`语句(或`VALUES`语句)的结果作为 `TableResult` 返回。和 `SELECT` 语句相似，`Table.execute()` 方法可以执行`Table`对象，并把结果收集到本地客户端。
-`TableResult.collect()` 方法返回一个可关闭的行迭代器（row iterator）。除非所有结果数据都被收集完成了，否则`SELECT`作业不会停止，所以应该积极使用 `CloseableIterator#close()` 方法关闭作业，以防止资源泄露。`TableResult.print()` 可以打印 `SELECT` 的结果到客户端的控制台中。 `TableResult` 上的结果数据只能被访问一次。因此 `collect()` 和 `print()` 只能二选一。
+通过 `TableEnvironment.executeSql()` 方法可以执行 `SELECT` 或 `VALUES` 语句，并把结果收集到本地。它将`SELECT`语句（或`VALUES`语句）的结果作为 `TableResult` 返回。和 `SELECT` 语句相似，`Table.execute()` 方法可以执行`Table`对象，并把结果收集到本地客户端。
+`TableResult.collect()` 方法返回一个可关闭的行迭代器（row iterator）。除非所有结果数据都被收集完成了，否则`SELECT`作业不会停止，所以应该主动使用 `CloseableIterator#close()` 方法关闭作业，以防止资源泄露。`TableResult.print()` 可以打印 `SELECT` 的结果到客户端的控制台中。 `TableResult` 上的结果数据只能被访问一次。因此 `collect()` 和 `print()` 只能二选一。
 
 `TableResult.collect()` 和 `TableResult.print()`在不同的 checkpointing 设置下有一些差异。(流式作业开启 checkpointing，参见 [checkpointing 设置]({{< ref "docs/deployment/config" >}}#checkpointing))。
 
-*   对于没有 checkpointing 的批式或流式作业，`TableResult.collect()` 和 `TableResult.print()` 既不保证精确一次（exactly-once）也不保证至少一次（at-least-once）。查询结果一旦产生，客户端可以立即访问，但是，作业失败或重启将抛出异常。
-*   对于 checkpointing 设置为精确一次（exactly-once）的流式作业， `TableResult.collect()` 和 `TableResult.print()` 保证端到端（end-to-end）的数据只传递一次。相应的checkpoint完成后，客户端才能访问结果。
-*   对于 checkpointing 设置为至少一次（at-least-once）的流式作业， `TableResult.collect()` 和 `TableResult.print()` 保证端到端(end-to-end)的数据至少传递一次， 查询结果一旦产生，客户端可以立即访问，但是可能会有同一条数据出现多次的情况。
+*   对于没有开启 checkpoint 的批作业或流作业，`TableResult.collect()` 和 `TableResult.print()` 既不保证精确一次（exactly-once）也不保证至少一次（at-least-once）。查询结果一旦产生，客户端可以立即访问，但是，作业失败或重启将抛出异常。
+*   对于 checkpoint 设置为精确一次（exactly-once）的流式作业， `TableResult.collect()` 和 `TableResult.print()` 保证端到端的数据只传递一次。相应的checkpoint完成后，客户端才能访问结果。
+*   对于 checkpoint 设置为至少一次（at-least-once）的流式作业， `TableResult.collect()` 和 `TableResult.print()` 保证端到端的数据至少传递一次，查询结果一旦产生，客户端可以立即访问，但是可能会有同一条数据出现多次的情况。
 
 {{< tabs "88a003e1-16ea-43cc-9d42-d43ef1351e53" >}}
 {{< tab "Java" >}}
@@ -254,9 +254,9 @@ table_result2.print()
 
 ## 语法
 
-Flink使用支持标准ANSI SQL的[Apache Calcite](https://calcite.apache.org/docs/reference.html)解析SQL。
+Flink使用支持标准 ANSI SQL 的 [Apache Calcite](https://calcite.apache.org/docs/reference.html) 解析 SQL。
 
-下面的 BNF-grammar 描述了批处理和流处理查询中所支持SQL特性的超集。[操作](#操作)部分的示例演示了批处理或流处理单独支持的部分。
+下面的 BNF-grammar 描述了批处理和流处理查询中所支持 SQL 特性的超集。[操作](#操作)展示了支持的功能以及示例，并指示了哪些功能仅支持批处理或流处理查询。
 
 {{< details Grammar >}}
 ```sql
@@ -404,11 +404,11 @@ patternQuantifier:
 
 Flink SQL使用的标识符词法规则(table，attribute，function names)和Java相似。
 
-*   大写或小些的标识符都是保留的，就算没有被引用。
+*   大写或小写的标识符都是保留的，就算没有被引用。
 *   标识符的匹配区分大小写。
 *   和Java不同，反引号(`\`)允许标识符包含非字母数字（no-alphanumeric）字符(例如：<code>"SELECT a AS \`my field\` FROM t"</code>)。
 
-字符串必须被单引号括起来（例如： `SELECT 'Hello World'`）。两个单引号用与转义(例如:`SELECT 'It''s me'`)。
+字符串必须被单引号括起来（例如： `SELECT 'Hello World'`）。两个单引号用于转义（例如:`SELECT 'It''s me'`）。
 
 ```text
 Flink SQL> SELECT 'Hello World', 'It''s me';
