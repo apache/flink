@@ -146,7 +146,7 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 {{< img src="/fig/sliding-windows.svg" alt="Hopping windows" width="70%">}}
 
 `HOP` 函数通过时间属性字段为每一行数据分配了一个窗口。
-在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time\_attributes" >}})。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
 在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 `HOP` 的返回值包括原有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
@@ -219,7 +219,7 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 {{< img src="/fig/cumulating-windows.png" alt="Cumulating Windows" width="70%">}}
 
 `CUMULATE`　函数通过时间属性字段为每一行数据分配了一个窗口。
-在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time\_attributes" >}})。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
 在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 `CUMULATE` 的返回值包括原有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
