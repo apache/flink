@@ -22,7 +22,7 @@ under the License.
 
 # Release notes - Flink 1.17
 
-These release notes discuss important aspects, such as configuration, behavior, or dependencies,
+These release notes discuss important aspects, such as configuration, behavior or dependencies,
 that changed between Flink 1.16 and Flink 1.17. Please read these notes carefully if you are
 planning to upgrade your Flink version to 1.17.
 
