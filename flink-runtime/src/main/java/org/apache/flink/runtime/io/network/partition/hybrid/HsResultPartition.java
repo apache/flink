@@ -70,8 +70,6 @@ public class HsResultPartition extends ResultPartition {
 
     private final Path dataFilePath;
 
-    private final Path indexFilePath;
-
     private final int networkBufferSize;
 
     private final HybridShuffleConfiguration hybridShuffleConfiguration;
@@ -114,11 +112,10 @@ public class HsResultPartition extends ResultPartition {
                 bufferPoolFactory);
         this.networkBufferSize = networkBufferSize;
         this.dataFilePath = new File(dataFileBashPath + DATA_FILE_SUFFIX).toPath();
-        this.indexFilePath = new File(dataFileBashPath + INDEX_FILE_SUFFIX).toPath();
         this.dataIndex =
                 new HsFileDataIndexImpl(
                         isBroadcastOnly ? 1 : numSubpartitions,
-                        indexFilePath,
+                        new File(dataFileBashPath + INDEX_FILE_SUFFIX).toPath(),
                         hybridShuffleConfiguration.getSpilledIndexSegmentSize(),
                         hybridShuffleConfiguration.getNumRetainedInMemoryRegionsMax());
         this.hybridShuffleConfiguration = hybridShuffleConfiguration;

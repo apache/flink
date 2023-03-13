@@ -139,7 +139,14 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                             auxGrouping,
                             isMerge,
                             isFinal,
-                            supportAdaptiveLocalHashAgg);
+                            supportAdaptiveLocalHashAgg,
+                            config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                            config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                            (int)
+                                    config.get(
+                                                    ExecutionConfigOptions
+                                                            .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                            .getBytes());
         }
 
         return ExecNodeUtil.createOneInputTransformation(

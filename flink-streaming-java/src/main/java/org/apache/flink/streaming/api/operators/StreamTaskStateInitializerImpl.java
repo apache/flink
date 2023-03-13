@@ -46,12 +46,11 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.OperatorSubtaskDescriptionText;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.io.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -79,9 +78,6 @@ import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleExce
  */
 public class StreamTaskStateInitializerImpl implements StreamTaskStateInitializer {
 
-    /** The logger for this class. */
-    private static final Logger LOG = LoggerFactory.getLogger(StreamTaskStateInitializerImpl.class);
-
     /**
      * The environment of the task. This is required as parameter to construct state backends via
      * their factory.
@@ -101,13 +97,16 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
     private final InternalTimeServiceManager.Provider timeServiceManagerProvider;
 
+    private final StreamTaskCancellationContext cancellationContext;
+
     public StreamTaskStateInitializerImpl(Environment environment, StateBackend stateBackend) {
 
         this(
                 environment,
                 stateBackend,
                 TtlTimeProvider.DEFAULT,
-                InternalTimeServiceManagerImpl::create);
+                InternalTimeServiceManagerImpl::create,
+                StreamTaskCancellationContext.alwaysRunning());
     }
 
     @VisibleForTesting
@@ -115,13 +114,15 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             Environment environment,
             StateBackend stateBackend,
             TtlTimeProvider ttlTimeProvider,
-            InternalTimeServiceManager.Provider timeServiceManagerProvider) {
+            InternalTimeServiceManager.Provider timeServiceManagerProvider,
+            StreamTaskCancellationContext cancellationContext) {
 
         this.environment = environment;
         this.taskStateManager = Preconditions.checkNotNull(environment.getTaskStateManager());
         this.stateBackend = Preconditions.checkNotNull(stateBackend);
         this.ttlTimeProvider = ttlTimeProvider;
         this.timeServiceManagerProvider = Preconditions.checkNotNull(timeServiceManagerProvider);
+        this.cancellationContext = cancellationContext;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -213,7 +214,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                 environment.getUserCodeClassLoader().asClassLoader(),
                                 keyContext,
                                 processingTimeService,
-                                restoredRawKeyedStateTimers);
+                                restoredRawKeyedStateTimers,
+                                cancellationContext);
             } else {
                 timeServiceManager = null;
             }

@@ -327,3 +327,17 @@ DROP TEMPORARY VIEW testUserData;
 SET 'sql-client.display.max-column-width' = '30';
 [INFO] Execute statement succeed.
 !info
+
+SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;
++-----------------+--------------+
+|     dayInterval | yearInterval |
++-----------------+--------------+
+| +1 00:00:00.000 |        +1-00 |
++-----------------+--------------+
+1 row in set
+!ok
+
+SELECT /*;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.sql.parser.impl.TokenMgrError: Lexical error at line 1, column 11.  Encountered: <EOF> after : ""
+!error

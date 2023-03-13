@@ -43,7 +43,7 @@ public class StateMetaInfoSnapshotReadersWriters {
      * Current version for the serialization format of {@link StateMetaInfoSnapshotReadersWriters}.
      * - v6: since Flink 1.7.x
      */
-    public static final int CURRENT_STATE_META_INFO_SNAPSHOT_VERSION = 6;
+    public static final int CURRENT_STATE_META_INFO_SNAPSHOT_VERSION = 7;
 
     /** Returns the writer for {@link StateMetaInfoSnapshot}. */
     @Nonnull
@@ -65,7 +65,7 @@ public class StateMetaInfoSnapshotReadersWriters {
                 readVersion <= CURRENT_STATE_META_INFO_SNAPSHOT_VERSION,
                 "Unsupported read version for state meta info [%s]",
                 readVersion);
-        if (readVersion < CURRENT_STATE_META_INFO_SNAPSHOT_VERSION) {
+        if (readVersion < 6) {
             // versions before 5 still had different state meta info formats between keyed /
             // operator state
             throw new UnsupportedOperationException(

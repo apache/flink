@@ -257,28 +257,25 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                 return new ArrayDeque<>(buffers);
             }
             checkState(!isReleased, "Result partition has been already released.");
-        } while (System.nanoTime() < timeoutTime
-                || System.nanoTime() < (timeoutTime = getBufferRequestTimeoutTime()));
+        } while (System.currentTimeMillis() < timeoutTime
+                || System.currentTimeMillis() < (timeoutTime = getBufferRequestTimeoutTime()));
 
-        if (numRequestedBuffers <= 0) {
-            // This is a safe net against potential deadlocks.
-            //
-            // A deadlock can happen when the downstream task needs to consume multiple result
-            // partitions (e.g., A and B) in specific order (cannot consume B before finishing
-            // consuming A). Since the reading buffer pool is shared across the TM, if B happens to
-            // take all the buffers, A cannot be consumed due to lack of buffers, which also blocks
-            // B from being consumed and releasing the buffers.
-            //
-            // The imperfect solution here is to fail all the subpartitionReaders (A), which
-            // consequently fail all the downstream tasks, unregister their other
-            // subpartitionReaders (B) and release the read buffers.
-            throw new TimeoutException(
-                    String.format(
-                            "Buffer request timeout, this means there is a fierce contention of"
-                                    + " the batch shuffle read memory, please increase '%s'.",
-                            TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
-        }
-        return new ArrayDeque<>();
+        // This is a safe net against potential deadlocks.
+        //
+        // A deadlock can happen when the downstream task needs to consume multiple result
+        // partitions (e.g., A and B) in specific order (cannot consume B before finishing
+        // consuming A). Since the reading buffer pool is shared across the TM, if B happens to
+        // take all the buffers, A cannot be consumed due to lack of buffers, which also blocks
+        // B from being consumed and releasing the buffers.
+        //
+        // The imperfect solution here is to fail all the subpartitionReaders (A), which
+        // consequently fail all the downstream tasks, unregister their other
+        // subpartitionReaders (B) and release the read buffers.
+        throw new TimeoutException(
+                String.format(
+                        "Buffer request timeout, this means there is a fierce contention of"
+                                + " the batch shuffle read memory, please increase '%s'.",
+                        TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
     }
 
     private void mayTriggerReading() {
@@ -289,7 +286,17 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                             <= maxRequestedBuffers
                     && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
                 isRunning = true;
-                ioExecutor.execute(this);
+                ioExecutor.execute(
+                        () -> {
+                            try {
+                                run();
+                            } catch (Throwable throwable) {
+                                // handle un-expected exception as unhandledExceptionHandler is not
+                                // worked for ScheduledExecutorService.
+                                FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                        Thread.currentThread(), throwable);
+                            }
+                        });
             }
         }
     }
@@ -304,7 +311,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     }
 
     private long getBufferRequestTimeoutTime() {
-        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toNanos();
+        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
     }
 
     private void releaseBuffers(Queue<MemorySegment> buffers) {

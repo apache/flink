@@ -43,6 +43,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -76,7 +77,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link ParquetColumnarRowSplitReader}. */
 class ParquetColumnarRowSplitReaderTest {
 
-    private static final int FIELD_NUMBER = 33;
+    private static final int FIELD_NUMBER = 34;
     private static final LocalDateTime BASE_TIME = LocalDateTime.now();
 
     private static final RowType ROW_TYPE =
@@ -115,6 +116,7 @@ class ParquetColumnarRowSplitReaderTest {
                             new VarCharType(VarCharType.MAX_LENGTH),
                             new VarCharType(VarCharType.MAX_LENGTH)),
                     new MapType(new IntType(), new BooleanType()),
+                    new MultisetType(new VarCharType(VarCharType.MAX_LENGTH)),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
     @TempDir File tmpDir;
@@ -218,7 +220,7 @@ class ParquetColumnarRowSplitReaderTest {
                 new String[] {
                     "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
                     "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
-                    "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", "f32"
+                    "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", "f32", "f33"
                 },
                 VectorizedColumnBatch::new,
                 500,
@@ -276,6 +278,7 @@ class ParquetColumnarRowSplitReaderTest {
                 assertThat(row.isNullAt(30)).isTrue();
                 assertThat(row.isNullAt(31)).isTrue();
                 assertThat(row.isNullAt(32)).isTrue();
+                assertThat(row.isNullAt(33)).isTrue();
             } else {
                 assertThat(row.getString(0)).hasToString("" + v);
                 assertThat(row.getBoolean(1)).isEqualTo(v % 2 == 0);
@@ -330,8 +333,9 @@ class ParquetColumnarRowSplitReaderTest {
                         .isEqualTo(DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0));
                 assertThat(row.getMap(30).valueArray().getString(0)).hasToString("" + v);
                 assertThat(row.getMap(31).valueArray().getBoolean(0)).isEqualTo(v % 2 == 0);
-                assertThat(row.getRow(32, 2).getString(0)).hasToString("" + v);
-                assertThat(row.getRow(32, 2).getInt(1)).isEqualTo(v.intValue());
+                assertThat(row.getMap(32).keyArray().getString(0)).hasToString("" + v);
+                assertThat(row.getRow(33, 2).getString(0)).hasToString("" + v);
+                assertThat(row.getRow(33, 2).getInt(1)).isEqualTo(v.intValue());
             }
             i++;
         }
@@ -345,6 +349,9 @@ class ParquetColumnarRowSplitReaderTest {
 
         Map<Integer, Boolean> f31 = new HashMap<>();
         f31.put(v, v % 2 == 0);
+
+        Map<StringData, Integer> f32 = new HashMap<>();
+        f32.put(StringData.fromString("" + v), v);
 
         return GenericRowData.of(
                 StringData.fromString("" + v),
@@ -402,6 +409,7 @@ class ParquetColumnarRowSplitReaderTest {
                         }),
                 new GenericMapData(f30),
                 new GenericMapData(f31),
+                new GenericMapData(f32),
                 GenericRowData.of(StringData.fromString("" + v), v));
     }
 

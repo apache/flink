@@ -71,10 +71,13 @@ class CatalogBaseTableResolutionTest {
             Schema.newBuilder()
                     .column("id", DataTypes.INT().notNull())
                     .column("region", DataTypes.VARCHAR(200))
+                    .withComment("This is a region column.")
                     .column("county", DataTypes.VARCHAR(200))
                     .columnByMetadata("topic", DataTypes.VARCHAR(200), true)
+                    .withComment("") // empty column comment
                     .columnByMetadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
                     .columnByExpression("ts", COMPUTED_SQL)
+                    .withComment("This is a computed column")
                     .watermark("ts", WATERMARK_SQL)
                     .primaryKeyNamed("primary_constraint", "id")
                     .build();
@@ -102,11 +105,14 @@ class CatalogBaseTableResolutionTest {
             new ResolvedSchema(
                     Arrays.asList(
                             Column.physical("id", DataTypes.INT().notNull()),
-                            Column.physical("region", DataTypes.VARCHAR(200)),
+                            Column.physical("region", DataTypes.VARCHAR(200))
+                                    .withComment("This is a region column."),
                             Column.physical("county", DataTypes.VARCHAR(200)),
-                            Column.metadata("topic", DataTypes.VARCHAR(200), null, true),
+                            Column.metadata("topic", DataTypes.VARCHAR(200), null, true)
+                                    .withComment(""), // empty column comment
                             Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
-                            Column.computed("ts", COMPUTED_COLUMN_RESOLVED)),
+                            Column.computed("ts", COMPUTED_COLUMN_RESOLVED)
+                                    .withComment("This is a computed column")),
                     Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")));
@@ -217,10 +223,12 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.0.data-type", "INT NOT NULL");
         properties.put("schema.1.name", "region");
         properties.put("schema.1.data-type", "VARCHAR(200)");
+        properties.put("schema.1.comment", "This is a region column.");
         properties.put("schema.2.name", "county");
         properties.put("schema.2.data-type", "VARCHAR(200)");
         properties.put("schema.3.name", "topic");
         properties.put("schema.3.data-type", "VARCHAR(200)");
+        properties.put("schema.3.comment", "");
         properties.put("schema.3.metadata", "topic");
         properties.put("schema.3.virtual", "true");
         properties.put("schema.4.name", "orig_ts");
@@ -230,6 +238,7 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.5.name", "ts");
         properties.put("schema.5.data-type", "TIMESTAMP(3)");
         properties.put("schema.5.expr", "orig_ts - INTERVAL '60' MINUTE");
+        properties.put("schema.5.comment", "This is a computed column");
         properties.put("schema.watermark.0.rowtime", "ts");
         properties.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
         properties.put("schema.watermark.0.strategy.expr", "ts - INTERVAL '5' SECOND");

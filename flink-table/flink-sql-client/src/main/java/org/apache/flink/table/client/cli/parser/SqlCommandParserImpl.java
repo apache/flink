@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli.parser;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImplTokenManager;
 import org.apache.flink.sql.parser.impl.SimpleCharStream;
 import org.apache.flink.sql.parser.impl.Token;
+import org.apache.flink.sql.parser.impl.TokenMgrError;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 
@@ -86,7 +87,12 @@ public class SqlCommandParserImpl implements SqlCommandParser {
             Token current = currentToken;
             while (pos-- > 0) {
                 if (current.next == null) {
-                    current.next = tokenManager.getNextToken();
+                    try {
+                        current.next = tokenManager.getNextToken();
+                    } catch (TokenMgrError tme) {
+                        throw new SqlExecutionException(
+                                "SQL parse failed. " + tme.getMessage(), tme);
+                    }
                 }
                 current = current.next;
             }

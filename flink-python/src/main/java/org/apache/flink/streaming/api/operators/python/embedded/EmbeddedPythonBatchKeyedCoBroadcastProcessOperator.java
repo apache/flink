@@ -22,8 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
-import org.apache.flink.streaming.api.operators.InputSelectable;
-import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
@@ -38,7 +36,7 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public class EmbeddedPythonBatchKeyedCoBroadcastProcessOperator<K, IN1, IN2, OUT>
         extends EmbeddedPythonKeyedCoProcessOperator<K, IN1, IN2, OUT>
-        implements BoundedMultiInput, InputSelectable {
+        implements BoundedMultiInput {
 
     private static final long serialVersionUID = 1L;
 
@@ -57,15 +55,6 @@ public class EmbeddedPythonBatchKeyedCoBroadcastProcessOperator<K, IN1, IN2, OUT
     public void endInput(int inputId) throws Exception {
         if (inputId == 2) {
             isBroadcastSideDone = true;
-        }
-    }
-
-    @Override
-    public InputSelection nextSelection() {
-        if (!isBroadcastSideDone) {
-            return InputSelection.SECOND;
-        } else {
-            return InputSelection.FIRST;
         }
     }
 

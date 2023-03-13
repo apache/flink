@@ -25,6 +25,8 @@ import org.assertj.core.api.InstanceOfAssertFactory;
 import org.assertj.core.api.ListAssert;
 import org.assertj.core.api.ThrowingConsumer;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -138,5 +140,30 @@ public final class FlinkAssertions {
             return Stream.of(throwable);
         }
         return Stream.concat(Stream.of(throwable), chainOfCauses(throwable.getCause()));
+    }
+
+    /**
+     * Create assertion for {@link java.util.concurrent.CompletableFuture}.
+     *
+     * @param actual the actual value.
+     * @param <T> the type of the value contained in the {@link
+     *     java.util.concurrent.CompletableFuture}.
+     * @return the created assertion object.
+     */
+    public static <T> FlinkCompletableFutureAssert<T> assertThatFuture(
+            CompletableFuture<T> actual) {
+        return new FlinkCompletableFutureAssert<>(actual);
+    }
+
+    /**
+     * Create assertion for {@link java.util.concurrent.CompletionStage}.
+     *
+     * @param actual the actual value.
+     * @param <T> the type of the value contained in the {@link
+     *     java.util.concurrent.CompletionStage}.
+     * @return the created assertion object.
+     */
+    public static <T> FlinkCompletableFutureAssert<T> assertThatFuture(CompletionStage<T> actual) {
+        return new FlinkCompletableFutureAssert<>(actual);
     }
 }

@@ -259,6 +259,9 @@ class StreamingJobGraphGeneratorTest {
     @Test
     public void testTransformationSetParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        /* The default parallelism of the environment (that is inherited by the source)
+        and the parallelism of the map operator needs to be different for this test */
+        env.setParallelism(4);
         env.fromSequence(1L, 3L).map(i -> i).setParallelism(10).print().setParallelism(20);
         StreamGraph streamGraph = env.getStreamGraph();
 

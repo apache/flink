@@ -26,11 +26,13 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.file.Files;
@@ -42,17 +44,18 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for Hive table compaction in batch mode. */
-public class HiveTableCompactSinkITCase {
+@ExtendWith(TestLoggerExtension.class)
+class HiveTableCompactSinkITCase {
 
     @RegisterExtension
-    private static final MiniClusterExtension MINI_CLUSTER = new MiniClusterExtension();
+    public static final MiniClusterExtension MINI_CLUSTER = new MiniClusterExtension();
 
     private TableEnvironment tableEnv;
     private HiveCatalog hiveCatalog;
     private String warehouse;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         hiveCatalog = HiveTestUtils.createHiveCatalog();
         hiveCatalog.open();
         warehouse = hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.METASTOREWAREHOUSE);
@@ -62,14 +65,14 @@ public class HiveTableCompactSinkITCase {
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         if (hiveCatalog != null) {
             hiveCatalog.close();
         }
     }
 
     @Test
-    public void testNoCompaction() throws Exception {
+    void testNoCompaction() throws Exception {
         tableEnv.executeSql(
                 "CREATE TABLE src ("
                         + " key string,"
@@ -77,7 +80,7 @@ public class HiveTableCompactSinkITCase {
                         + ") TBLPROPERTIES ("
                         + " 'auto-compaction' = 'true', "
                         + " 'compaction.small-files.avg-size' = '1b', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
+                        + " 'sink.parallelism' = '4'" // set sink parallelism = 4
                         + ")");
         tableEnv.executeSql(
                         "insert into src values ('k1', 'v1'), ('k2', 'v2'),"
@@ -93,14 +96,14 @@ public class HiveTableCompactSinkITCase {
     }
 
     @Test
-    public void testCompactNonPartitionedTable() throws Exception {
+    void testCompactNonPartitionedTable() throws Exception {
         tableEnv.executeSql(
                 "CREATE TABLE src ("
                         + " key string,"
                         + " value string"
                         + ") TBLPROPERTIES ("
                         + " 'auto-compaction' = 'true', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
+                        + " 'sink.parallelism' = '4'" // set sink parallelism = 4
                         + ")");
         tableEnv.executeSql(
                         "insert into src values ('k1', 'v1'), ('k2', 'v2'),"
@@ -115,7 +118,7 @@ public class HiveTableCompactSinkITCase {
     }
 
     @Test
-    public void testCompactPartitionedTable() throws Exception {
+    void testCompactPartitionedTable() throws Exception {
         tableEnv.executeSql(
                 "CREATE TABLE src ("
                         + " key string,"
@@ -158,7 +161,7 @@ public class HiveTableCompactSinkITCase {
     }
 
     @Test
-    public void testConditionalCompact() throws Exception {
+    void testConditionalCompact() throws Exception {
         tableEnv.executeSql(
                 "CREATE TABLE src ("
                         + " key string,"
@@ -166,7 +169,7 @@ public class HiveTableCompactSinkITCase {
                         + ") partitioned by (p int) TBLPROPERTIES ("
                         + " 'auto-compaction' = 'true', "
                         + " 'compaction.small-files.avg-size' = '9b', "
-                        + " 'sink.parallelism' = '4'" // set sink parallelism = 8
+                        + " 'sink.parallelism' = '4'" // set sink parallelism = 4
                         + ")");
 
         tableEnv.executeSql(

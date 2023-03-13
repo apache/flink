@@ -19,7 +19,6 @@
 package org.apache.flink.docs.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHeaders;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -113,6 +113,14 @@ public class OpenApiSpecGenerator {
             RestAPIVersion apiVersion,
             Path outputFile)
             throws IOException {
+        final OpenAPI openApi = createDocumentation(title, restEndpoint, apiVersion);
+        Files.deleteIfExists(outputFile);
+        Files.write(outputFile, Yaml.pretty(openApi).getBytes(StandardCharsets.UTF_8));
+    }
+
+    @VisibleForTesting
+    static OpenAPI createDocumentation(
+            String title, DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion) {
         final OpenAPI openApi = new OpenAPI();
 
         // eagerly initialize some data-structures to simplify operations later on
@@ -124,7 +132,7 @@ public class OpenApiSpecGenerator {
         List<MessageHeaders> specs =
                 restEndpoint.getSpecs().stream()
                         .filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
-                        .filter(OpenApiSpecGenerator::shouldBeDocumented)
+                        .filter(ApiSpecGeneratorUtils::shouldBeDocumented)
                         .collect(Collectors.toList());
         final Set<String> usedOperationIds = new HashSet<>();
         specs.forEach(spec -> add(spec, openApi, usedOperationIds));
@@ -143,8 +151,7 @@ public class OpenApiSpecGenerator {
         sortProperties(openApi);
         sortSchemas(openApi);
 
-        Files.deleteIfExists(outputFile);
-        Files.write(outputFile, Yaml.pretty(openApi).getBytes(StandardCharsets.UTF_8));
+        return openApi;
     }
 
     @SuppressWarnings("rawtypes")
@@ -170,10 +177,6 @@ public class OpenApiSpecGenerator {
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> sortedSchemas.put(entry.getKey(), entry.getValue()));
         components.setSchemas(sortedSchemas);
-    }
-
-    private static boolean shouldBeDocumented(MessageHeaders spec) {
-        return spec.getClass().getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
     }
 
     private static void setInfo(
@@ -452,7 +455,30 @@ public class OpenApiSpecGenerator {
     }
 
     private static Schema<?> getSchema(Type type) {
-        return modelConverterContext.resolve(new AnnotatedType(type).resolveAsRef(true));
+        final AnnotatedType annotatedType = new AnnotatedType(type).resolveAsRef(true);
+        final Schema<?> schema = modelConverterContext.resolve(annotatedType);
+        if (type instanceof Class<?>) {
+            final Class<?> clazz = (Class<?>) type;
+            ApiSpecGeneratorUtils.findAdditionalFieldType(clazz)
+                    .map(OpenApiSpecGenerator::getSchema)
+                    .ifPresent(
+                            additionalPropertiesSchema -> {
+                                // We need to update the schema of the component, that is referenced
+                                // by the resolved schema (because we're setting resolveAsRef to
+                                // true).
+                                final String referencedComponentName = clazz.getSimpleName();
+                                final Schema<?> referencedComponentSchema =
+                                        Preconditions.checkNotNull(
+                                                modelConverterContext
+                                                        .getDefinedModels()
+                                                        .get(referencedComponentName),
+                                                "Schema of the referenced component [%s] was not found.",
+                                                referencedComponentName);
+                                referencedComponentSchema.setAdditionalProperties(
+                                        additionalPropertiesSchema);
+                            });
+        }
+        return schema;
     }
 
     private static PathItem.HttpMethod convert(HttpMethodWrapper wrapper) {

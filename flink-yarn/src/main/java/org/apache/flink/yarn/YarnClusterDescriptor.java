@@ -76,6 +76,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -95,7 +97,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1151,14 +1152,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
-        if (configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN)) {
-            KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
-            if (kerberosLoginProvider.isLoginPossible()) {
-                setTokensFor(amContainer);
-            } else {
-                LOG.info(
-                        "Cannot use kerberos delegation token manager, no valid kerberos credentials provided.");
-            }
+        boolean fetchToken = configuration.getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED);
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+        if (kerberosLoginProvider.isLoginPossible(true)) {
+            setTokensFor(amContainer, fetchToken);
+        } else {
+            LOG.info(
+                    "Cannot use kerberos delegation token manager, no valid kerberos credentials provided.");
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
@@ -1229,6 +1229,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         LOG.info("Waiting for the cluster to be allocated");
         final long startTime = System.currentTimeMillis();
+        long lastLogTime = System.currentTimeMillis();
         ApplicationReport report;
         YarnApplicationState lastAppState = YarnApplicationState.NEW;
         loop:
@@ -1264,9 +1265,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     if (appState != lastAppState) {
                         LOG.info("Deploying cluster, current state " + appState);
                     }
-                    if (System.currentTimeMillis() - startTime > 60000) {
+                    if (System.currentTimeMillis() - lastLogTime > 60000) {
+                        lastLogTime = System.currentTimeMillis();
                         LOG.info(
-                                "Deployment took more than 60 seconds. Please check if the requested resources are available in the YARN cluster");
+                                "Deployment took more than {} seconds. Please check if the requested resources are available in the YARN cluster",
+                                (lastLogTime - startTime) / 1000);
                     }
             }
             lastAppState = appState;
@@ -1292,21 +1295,36 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         });
     }
 
-    private void setTokensFor(ContainerLaunchContext containerLaunchContext) throws Exception {
-        LOG.info("Adding delegation tokens to the AM container.");
-
-        DelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
-        DelegationTokenContainer container = new DelegationTokenContainer();
-        delegationTokenManager.obtainDelegationTokens(container);
-
-        // This is here for backward compatibility to make log aggregation work
+    private void setTokensFor(ContainerLaunchContext containerLaunchContext, boolean fetchToken)
+            throws Exception {
         Credentials credentials = new Credentials();
-        for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
-            if (e.getKey().equals("hadoopfs")) {
-                credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+
+        LOG.info("Loading delegation tokens available locally to add to the AM container");
+        // for user
+        UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
+
+        Collection<Token<? extends TokenIdentifier>> usrTok =
+                currUsr.getCredentials().getAllTokens();
+        for (Token<? extends TokenIdentifier> token : usrTok) {
+            LOG.info("Adding user token " + token.getService() + " with " + token);
+            credentials.addToken(token.getService(), token);
+        }
+
+        if (fetchToken) {
+            LOG.info("Fetching delegation tokens to add to the AM container.");
+            DelegationTokenManager delegationTokenManager =
+                    new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
+            DelegationTokenContainer container = new DelegationTokenContainer();
+            delegationTokenManager.obtainDelegationTokens(container);
+
+            // This is here for backward compatibility to make log aggregation work
+            for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
+                if (e.getKey().equals("hadoopfs")) {
+                    credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+                }
             }
         }
+
         ByteBuffer tokens = ByteBuffer.wrap(HadoopDelegationTokenConverter.serialize(credentials));
         containerLaunchContext.setTokens(tokens);
 
@@ -1857,7 +1875,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.setString(RestOptions.ADDRESS, host);
         flinkConfiguration.setInteger(RestOptions.PORT, port);
 
-        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(appId));
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, appId.toString());
 
         setHAClusterIdIfNotSet(flinkConfiguration, appId);
     }
@@ -1865,8 +1883,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private void setHAClusterIdIfNotSet(Configuration configuration, ApplicationId appId) {
         // set cluster-id to app id if not specified
         if (!configuration.contains(HighAvailabilityOptions.HA_CLUSTER_ID)) {
-            configuration.set(
-                    HighAvailabilityOptions.HA_CLUSTER_ID, ConverterUtils.toString(appId));
+            configuration.set(HighAvailabilityOptions.HA_CLUSTER_ID, appId.toString());
         }
     }
 

@@ -54,9 +54,9 @@ public class ClasspathProviderExtension implements BeforeEachCallback, AfterEach
     private static final Path TEST_JOB_JAR_PATH = Paths.get("target", "maven-test-jar.jar");
 
     private static final Path JOB_JAR_PATH =
-            Paths.get("target", "maven-test-user-classloader-job-jar.jar");
+            Paths.get("target", "flink-clients-test-utils-job-jar.jar");
     private static final Path JOB_LIB_JAR_PATH =
-            Paths.get("target", "maven-test-user-classloader-job-lib-jar.jar");
+            Paths.get("target", "flink-clients-test-utils-job-lib-jar.jar");
 
     protected File temporaryFolder = org.assertj.core.util.Files.newTemporaryFolder();
 

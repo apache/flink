@@ -37,6 +37,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.PythonOptions.PYTHON_PATH;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
 
 /** PythonDependencyInfo contains the information of third-party dependencies. */
@@ -62,6 +63,8 @@ public final class PythonDependencyInfo {
      * support installing python packages offline.
      */
     @Nullable private final String requirementsCacheDir;
+
+    @Nullable private final String pythonPath;
 
     /**
      * The python archives uploaded by TableEnvironment#add_python_archive() or command line option
@@ -91,7 +94,8 @@ public final class PythonDependencyInfo {
                 requirementsCacheDir,
                 archives,
                 pythonExec,
-                PYTHON_EXECUTION_MODE.defaultValue());
+                PYTHON_EXECUTION_MODE.defaultValue(),
+                PYTHON_PATH.defaultValue());
     }
 
     public PythonDependencyInfo(
@@ -100,13 +104,15 @@ public final class PythonDependencyInfo {
             @Nullable String requirementsCacheDir,
             @Nonnull Map<String, String> archives,
             @Nonnull String pythonExec,
-            @Nonnull String executionMode) {
+            @Nonnull String executionMode,
+            @Nullable String pythonPath) {
         this.pythonFiles = Objects.requireNonNull(pythonFiles);
         this.requirementsFilePath = requirementsFilePath;
         this.requirementsCacheDir = requirementsCacheDir;
         this.pythonExec = Objects.requireNonNull(pythonExec);
         this.archives = Objects.requireNonNull(archives);
         this.executionMode = Objects.requireNonNull(executionMode);
+        this.pythonPath = pythonPath;
     }
 
     public Map<String, String> getPythonFiles() {
@@ -131,6 +137,10 @@ public final class PythonDependencyInfo {
 
     public String getExecutionMode() {
         return executionMode;
+    }
+
+    public Optional<String> getPythonPath() {
+        return Optional.ofNullable(pythonPath);
     }
 
     /**
@@ -190,6 +200,7 @@ public final class PythonDependencyInfo {
                 requirementsCacheDir,
                 archives,
                 pythonExec,
-                config.get(PYTHON_EXECUTION_MODE));
+                config.get(PYTHON_EXECUTION_MODE),
+                config.get(PYTHON_PATH));
     }
 }

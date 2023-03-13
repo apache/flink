@@ -16,21 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.testjar;
+package org.apache.flink.table.gateway.service.utils;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+/** Thrown to trigger a canceling of the executing operation. */
+public class SqlCancelException extends RuntimeException {
 
-/** The test job information. */
-public class TestJobInfo {
+    private static final long serialVersionUID = 1L;
 
-    public static final String TEST_JAR_JOB_CLASS = "org.apache.flink.client.testjar.TestJob";
-    public static final String JOB_CLASS = "org.apache.flink.client.testjar.TestUserClassLoaderJob";
-    public static final String JOB_LIB_CLASS =
-            "org.apache.flink.client.testjar.TestUserClassLoaderJobLib";
-    public static final Path TEST_JOB_JAR_PATH = Paths.get("target", "maven-test-jar.jar");
-    public static final Path JOB_JAR_PATH =
-            Paths.get("target", "maven-test-user-classloader-job-jar.jar");
-    public static final Path JOB_LIB_JAR_PATH =
-            Paths.get("target", "maven-test-user-classloader-job-lib-jar.jar");
+    public SqlCancelException(String msg) {
+        super(msg);
+    }
 }

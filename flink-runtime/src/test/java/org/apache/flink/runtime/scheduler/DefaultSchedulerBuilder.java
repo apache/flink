@@ -42,13 +42,13 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
-import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
@@ -335,7 +335,7 @@ public class DefaultSchedulerBuilder {
                 vertexParallelismAndInputInfosDecider,
                 defaultMaxParallelism,
                 hybridPartitionDataConsumeConstraint,
-                ForwardGroupComputeUtil.computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                         jobGraph.getVerticesSortedTopologicallyFromSources()));
     }
 
@@ -367,7 +367,7 @@ public class DefaultSchedulerBuilder {
                 defaultMaxParallelism,
                 blocklistOperations,
                 HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED,
-                ForwardGroupComputeUtil.computeForwardGroupsAndSetVertexParallelismsIfNecessary(
+                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                         jobGraph.getVerticesSortedTopologicallyFromSources()));
     }
 

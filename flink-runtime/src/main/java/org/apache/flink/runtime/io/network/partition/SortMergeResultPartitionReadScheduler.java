@@ -217,22 +217,32 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             if (!buffers.isEmpty()) {
                 return new ArrayDeque<>(buffers);
             }
+            // only visibility requirements here.
+            // noinspection FieldAccessNotGuarded
             checkState(!isReleased, "Result partition has been already released.");
-        } while (System.nanoTime() < timeoutTime
-                || System.nanoTime() < (timeoutTime = getBufferRequestTimeoutTime()));
+        } while (System.currentTimeMillis() < timeoutTime
+                || System.currentTimeMillis() < (timeoutTime = getBufferRequestTimeoutTime()));
 
-        if (numRequestedBuffers <= 0) {
-            throw new TimeoutException(
-                    String.format(
-                            "Buffer request timeout, this means there is a fierce contention of"
-                                    + " the batch shuffle read memory, please increase '%s'.",
-                            TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
-        }
-        return new ArrayDeque<>();
+        // This is a safe net against potential deadlocks.
+        //
+        // A deadlock can happen when the downstream task needs to consume multiple result
+        // partitions (e.g., A and B) in specific order (cannot consume B before finishing
+        // consuming A). Since the reading buffer pool is shared across the TM, if B happens to
+        // take all the buffers, A cannot be consumed due to lack of buffers, which also blocks
+        // B from being consumed and releasing the buffers.
+        //
+        // The imperfect solution here is to fail all the subpartitionReaders (A), which
+        // consequently fail all the downstream tasks, unregister their other
+        // subpartitionReaders (B) and release the read buffers.
+        throw new TimeoutException(
+                String.format(
+                        "Buffer request timeout, this means there is a fierce contention of"
+                                + " the batch shuffle read memory, please increase '%s'.",
+                        TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
     }
 
     private long getBufferRequestTimeoutTime() {
-        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toNanos();
+        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
     }
 
     private void releaseBuffers(Queue<MemorySegment> buffers) {
@@ -291,6 +301,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private void mayNotifyReleased() {
         assert Thread.holdsLock(lock);
 
@@ -361,6 +372,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private PartitionedFileReader createFileReader(
             PartitionedFile resultFile, int targetSubpartition) throws IOException {
         assert Thread.holdsLock(lock);
@@ -387,6 +399,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private void openFileChannels(PartitionedFile resultFile) throws IOException {
         assert Thread.holdsLock(lock);
 
@@ -395,6 +408,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         indexFileChannel = openFileChannel(resultFile.getIndexFilePath());
     }
 
+    @GuardedBy("lock")
     private void closeFileChannels() {
         assert Thread.holdsLock(lock);
 
@@ -413,6 +427,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
+    @GuardedBy("lock")
     private void mayTriggerReading() {
         assert Thread.holdsLock(lock);
 
@@ -427,7 +442,17 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
                 && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
                 && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
             isRunning = true;
-            ioExecutor.execute(this);
+            ioExecutor.execute(
+                    () -> {
+                        try {
+                            run();
+                        } catch (Throwable throwable) {
+                            // handle un-expected exception as unhandledExceptionHandler is not
+                            // worked for ScheduledExecutorService.
+                            FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                    Thread.currentThread(), throwable);
+                        }
+                    });
         }
     }
 

@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
 import org.junit.Test
 
@@ -571,4 +571,14 @@ class JoinTest extends TableTestBase {
                           |""".stripMargin)
   }
 
+  @Test
+  def testJoinUDTFWithInvalidJoinHint(): Unit = {
+    // TODO the error message should be improved after we support extracting alias from table func
+    util.addTemporarySystemFunction("TableFunc1", new TableFunc1)
+    util.verifyExpectdException(
+      "SELECT /*+ LOOKUP('table'='D') */ T.a FROM t AS T CROSS JOIN LATERAL TABLE(TableFunc1(c)) AS D(c1)",
+      "The options of following hints cannot match the name of input tables or views: \n" +
+        "`D` in `LOOKUP`"
+    )
+  }
 }

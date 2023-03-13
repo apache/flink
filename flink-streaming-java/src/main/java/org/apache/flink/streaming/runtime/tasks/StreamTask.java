@@ -261,6 +261,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     private volatile boolean isRunning;
 
+    /** Flag to mark the task at restoring duration in {@link #restore()}. */
+    private volatile boolean isRestoring;
+
     /** Flag to mark this task as canceled. */
     private volatile boolean canceled;
 
@@ -667,7 +670,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 TtlTimeProvider.DEFAULT,
                 timerServiceProvider != null
                         ? timerServiceProvider
-                        : InternalTimeServiceManagerImpl::create);
+                        : InternalTimeServiceManagerImpl::create,
+                () -> canceled);
     }
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
@@ -689,6 +693,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             LOG.debug("Re-restore attempt rejected.");
             return;
         }
+        isRestoring = true;
         closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
@@ -730,6 +735,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         channelIOExecutor.shutdown();
 
         isRunning = true;
+        isRestoring = false;
     }
 
     private CompletableFuture<Void> restoreGates() throws Exception {
@@ -1563,8 +1569,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      */
     @Override
     public void handleAsyncException(String message, Throwable exception) {
-        if (isRunning) {
-            // only fail if the task is still running
+        if (isRestoring || isRunning) {
+            // only fail if the task is still in restoring or running
             asyncExceptionHandler.handleAsyncException(message, exception);
         }
     }

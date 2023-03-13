@@ -231,9 +231,11 @@ class SortMergeSubpartitionReader
         }
     }
 
+    // suppress warning as this method is only for unsafe purpose.
+    @SuppressWarnings("FieldAccessNotGuarded")
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
-        return Math.max(0, buffersRead.size());
+        return buffersRead.size();
     }
 
     @Override

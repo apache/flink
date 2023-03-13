@@ -97,7 +97,10 @@ class Restarting extends StateWithExecutionGraph {
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
         Preconditions.checkArgument(globallyTerminalState == JobStatus.CANCELED);
         goToWaitingForResourcesFuture =
-                context.runIfState(this, context::goToWaitingForResources, backoffTime);
+                context.runIfState(
+                        this,
+                        () -> context.goToWaitingForResources(getExecutionGraph()),
+                        backoffTime);
     }
 
     /** Context of the {@link Restarting} state. */

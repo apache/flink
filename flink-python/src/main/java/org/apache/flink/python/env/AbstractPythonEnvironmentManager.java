@@ -43,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -165,6 +166,13 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
         Map<String, String> env = new HashMap<>(this.systemEnv);
 
         constructFilesDirectory(env, baseDirectory);
+
+        if (dependencyInfo.getPythonPath().isPresent()) {
+            appendToPythonPath(
+                    env, Collections.singletonList(dependencyInfo.getPythonPath().get()));
+        }
+
+        LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
 
         constructRequirementsDirectory(env, baseDirectory);
 
@@ -294,7 +302,6 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
             pythonFilePaths.add(pythonPath);
         }
         appendToPythonPath(env, pythonFilePaths);
-        LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
     }
 
     private void constructRequirementsDirectory(Map<String, String> env, String baseDirectory)

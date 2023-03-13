@@ -113,6 +113,7 @@ public class SqlGateway {
                 DefaultContext.load(
                         ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs()),
                         Collections.emptyList(),
+                        true,
                         true);
         SqlGateway gateway =
                 new SqlGateway(

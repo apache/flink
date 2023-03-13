@@ -434,6 +434,18 @@ object CodeGenUtils {
       throw new CodeGenException("Integer expression type expected.")
     }
 
+  def requireNumericAndTimeInterval(left: GeneratedExpression, right: GeneratedExpression): Unit = {
+    val numericAndTimeInterval = TypeCheckUtils.isNumeric(left.resultType) &&
+      TypeCheckUtils.isTimeInterval(right.resultType)
+    val timeIntervalAndTimeNumeric = TypeCheckUtils.isTimeInterval(left.resultType) &&
+      TypeCheckUtils.isNumeric(right.resultType)
+    if (!(numericAndTimeInterval || timeIntervalAndTimeNumeric)) {
+      throw new CodeGenException(
+        "Numeric and Temporal expression type, or Temporal and Numeric expression type expected. " +
+          " But were " + s"'${left.resultType}' and '${right.resultType}'.")
+    }
+  }
+
   def udfFieldName(udf: UserDefinedFunction): String = {
     s"function_${udf.functionIdentifier.replace('.', '$')}"
   }
@@ -922,7 +934,9 @@ object CodeGenUtils {
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
+      val externalResultTypeTerm = typeTerm(targetDataType.getConversionClass)
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 
@@ -1020,16 +1034,19 @@ object CodeGenUtils {
     }
 
     // convert internal format to target type
-    val externalResultTerm = if (isInternalClass(targetDataType)) {
-      s"($targetTypeTerm) ${internalExpr.resultTerm}"
+    val (externalResultTerm, externalResultTypeTerm) = if (isInternalClass(targetDataType)) {
+      (s"($targetTypeTerm) ${internalExpr.resultTerm}", s"($targetTypeTerm)")
     } else {
-      genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm)
+      (
+        genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm),
+        typeTerm(targetDataType.getConversionClass))
     }
     // merge null term into the result term
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 }

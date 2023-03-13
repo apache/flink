@@ -186,6 +186,11 @@ public class SortMergeResultPartition extends ResultPartition {
             }
         }
 
+        // reserve the "guaranteed" buffers for this buffer pool to avoid the case that those
+        // buffers are taken by other result partitions and can not be released, which may cause
+        // deadlock
+        requestGuaranteedBuffers();
+
         // initialize the buffer pool eagerly to avoid reporting errors such as OOM too late
         readBufferPool.initialize();
         LOG.info("Sort-merge partition {} initialized.", getPartitionId());
@@ -325,7 +330,7 @@ public class SortMergeResultPartition extends ResultPartition {
         }
     }
 
-    private void requestNetworkBuffers() throws IOException {
+    private void requestGuaranteedBuffers() throws IOException {
         int numRequiredBuffer = bufferPool.getNumberOfRequiredMemorySegments();
         if (numRequiredBuffer < 2) {
             throw new IOException(
@@ -339,8 +344,13 @@ public class SortMergeResultPartition extends ResultPartition {
                 freeSegments.add(checkNotNull(bufferPool.requestMemorySegmentBlocking()));
             }
         } catch (InterruptedException exception) {
+            freeSegments.forEach(bufferPool::recycle);
             throw new IOException("Failed to allocate buffers for result partition.", exception);
         }
+    }
+
+    private void requestNetworkBuffers() throws IOException {
+        requestGuaranteedBuffers();
 
         // avoid taking too many buffers in one result partition
         while (freeSegments.size() < bufferPool.getMaxNumberOfMemorySegments()) {
@@ -509,7 +519,7 @@ public class SortMergeResultPartition extends ResultPartition {
     @Override
     public void close() {
         releaseFreeBuffers();
-        // the close method will be always called by the task thread, so there is need to make
+        // the close method will always be called by the task thread, so there is need to make
         // the sort buffer fields volatile and visible to the cancel thread intermediately
         releaseDataBuffer(unicastDataBuffer);
         releaseDataBuffer(broadcastDataBuffer);

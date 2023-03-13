@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.util.PythonConfigUtil;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -55,6 +56,8 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
+import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
@@ -408,6 +411,11 @@ public class PythonOperatorChainingOptimizer {
             return false;
         }
 
+        if (upTransform instanceof PythonBroadcastStateTransformation
+                || upTransform instanceof PythonKeyedBroadcastStateTransformation) {
+            return false;
+        }
+
         DataStreamPythonFunctionOperator<?> upOperator =
                 (DataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
@@ -497,13 +505,22 @@ public class PythonOperatorChainingOptimizer {
                     || transformation instanceof FeedbackTransformation
                     || transformation instanceof SideOutputTransformation
                     || transformation instanceof ReduceTransformation
-                    || transformation instanceof SinkTransformation
                     || transformation instanceof LegacySinkTransformation
                     || transformation instanceof TimestampsAndWatermarksTransformation
                     || transformation instanceof PartitionTransformation) {
                 final Field inputField = transformation.getClass().getDeclaredField("input");
                 inputField.setAccessible(true);
                 inputField.set(transformation, newInput);
+            } else if (transformation instanceof SinkTransformation) {
+                final Field inputField = transformation.getClass().getDeclaredField("input");
+                inputField.setAccessible(true);
+                inputField.set(transformation, newInput);
+
+                final Field transformationField =
+                        DataStream.class.getDeclaredField("transformation");
+                transformationField.setAccessible(true);
+                transformationField.set(
+                        ((SinkTransformation<?, ?>) transformation).getInputStream(), newInput);
             } else if (transformation instanceof TwoInputTransformation) {
                 final Field inputField;
                 if (((TwoInputTransformation<?, ?, ?>) transformation).getInput1() == oldInput) {
