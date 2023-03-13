@@ -913,4 +913,10 @@ either in the cluster configuration or session configuration (the latter would t
 
 For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
+### SQL Syntax highlighting
+
+SQL Client can highlight SQL syntax with several color schemes.
+With `sql-client.display.default-color-scheme` it could be set a color scheme used after start of SQL Client.
+Then with help of `Alt-h` (`Esc-h` in case of Mac) it is possible to switch to the next color scheme and pick more suitable.
+
 {{< top >}}

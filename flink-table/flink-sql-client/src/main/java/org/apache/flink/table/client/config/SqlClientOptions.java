@@ -22,6 +22,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle;
 
 /** Options used in sql client. */
 public class SqlClientOptions {
@@ -68,4 +69,13 @@ public class SqlClientOptions {
                             "Deprecated, please use table.display.max-column-width instead. When printing the query results, this parameter determines the number of characters shown on screen before truncating. "
                                     + "This only applies to columns with variable-length types (e.g. STRING) in streaming mode. "
                                     + "Fixed-length types and all types in batch mode are printed using a deterministic column width.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<SyntaxHighlightStyle.BuiltInStyle>
+            DISPLAY_DEFAULT_COLOR_SCHEME =
+                    ConfigOptions.key("sql-client.display.default-color-scheme")
+                            .enumType(SyntaxHighlightStyle.BuiltInStyle.class)
+                            .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT)
+                            .withDescription(
+                                    "SQL highlight color scheme to be used at SQL client start.");
 }

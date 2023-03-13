@@ -315,6 +315,11 @@ public class CliClient implements AutoCloseable {
             LOG.warn(msg);
         }
         if (mode == ExecutionMode.INTERACTIVE_EXECUTION) {
+            lineReader.setVariable(
+                    COLOR_SCHEMA_VAR,
+                    executor.getSessionConfig()
+                            .get(SqlClientOptions.DISPLAY_DEFAULT_COLOR_SCHEME)
+                            .ordinal());
             final Widget widget =
                     () -> {
                         final Object colorSchemeOrdinal = lineReader.getVariable(COLOR_SCHEMA_VAR);
