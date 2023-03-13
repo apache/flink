@@ -27,7 +27,7 @@ under the License.
 
 窗口去重是一种特殊的 [去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})，它根据指定的多个列来删除重复的行，保留每个窗口和分区键的第一个或最后一个数据。
 
-对于流式查询，与持续查询的普通去重不同，窗口去重只在窗口的最后返回结果数据，不会产生中间结果。它会清除不需要的中间状态。
+对于流式查询，与普通去重不同，窗口去重只在窗口的最后返回结果数据，不会产生中间结果。它会清除不需要的中间状态。
 因此，窗口去重查询在用户不需要更新结果时，性能较好。通常，窗口去重直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 上。另外，它可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作。比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
 窗口Top-N的语法和普通的Top-N相同，更多信息参见：[去重文档]({{< ref "docs/dev/table/sql/queries/deduplication" >}})。
@@ -105,11 +105,11 @@ Flink SQL> SELECT *
 
 ## 限制
 
-## 在窗口表值函数后直接进行窗口去重的限制
-目前，Flink 只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 后进行窗口去重。会话窗口不久之后就会支持。
+### 在窗口表值函数后直接进行窗口去重的限制
+目前，Flink 只支持在滚动窗口、滑动窗口和累积窗口的[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口去重。会话窗口的去重将在未来版本中支持。
 
 ### 根据时间属性排序的限制
-目前，Flink 只支持根据 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) 排序。根据处理时间排序不久之后就会支持。
+目前，窗口去重只支持根据[事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)进行排序。根据处理时间排序将在未来版本中支持。
 
 
 {{< top >}}
