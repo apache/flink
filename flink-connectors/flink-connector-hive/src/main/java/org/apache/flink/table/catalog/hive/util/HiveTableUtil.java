@@ -20,8 +20,6 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -72,16 +70,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_INPUT_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
+import static org.apache.flink.table.catalog.hive.util.Constants.COLLECTION_DELIM;
+import static org.apache.flink.table.catalog.hive.util.Constants.SERDE_INFO_PROP_PREFIX;
+import static org.apache.flink.table.catalog.hive.util.Constants.SERDE_LIB_CLASS_NAME;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_FILE_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_INPUT_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_OUTPUT_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_IS_EXTERNAL;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_LOCATION_URI;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -288,7 +287,7 @@ public class HiveTableUtil {
             // there was a typo of this property in hive, and was fixed in 3.0.0 --
             // https://issues.apache.org/jira/browse/HIVE-16922
             String key =
-                    prop.equals(HiveTableRowFormat.COLLECTION_DELIM)
+                    prop.equals(COLLECTION_DELIM)
                             ? serdeConstants.COLLECTION_DELIM
                             : prop.substring(SERDE_INFO_PROP_PREFIX.length());
             sd.getSerdeInfo().getParameters().put(key, value);
@@ -349,10 +348,10 @@ public class HiveTableUtil {
         sd.setCols(nonPartCols);
     }
 
-    public static SqlAlterHiveTable.AlterTableOp extractAlterTableOp(Map<String, String> props) {
+    public static AlterTableOp extractAlterTableOp(Map<String, String> props) {
         String opStr = props.remove(ALTER_TABLE_OP);
         if (opStr != null) {
-            return SqlAlterHiveTable.AlterTableOp.valueOf(opStr);
+            return AlterTableOp.valueOf(opStr);
         }
         return null;
     }

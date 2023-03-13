@@ -46,7 +46,6 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 ### Parser and planner
 
 * `flink-sql-parser`: Default ANSI SQL parser implementation
-* `flink-sql-parser-hive`: Hive SQL dialect parser implementation
 * `flink-table-planner`:
   * AST and Semantic tree
   * SQL validator

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
@@ -42,6 +41,7 @@ import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for data type mappings in HiveCatalog. */
@@ -200,7 +200,7 @@ public class HiveCatalogDataTypeTest {
                 new HashMap<String, String>() {
                     {
                         put("is_streaming", "false");
-                        put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+                        put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
                     }
                 },
                 "");

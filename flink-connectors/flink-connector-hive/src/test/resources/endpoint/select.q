@@ -47,7 +47,7 @@ CREATE TABLE hive_types_table (
     f7 DECIMAL(20, 8),
     f8 STRING,
     f9 VARCHAR(20),
-    f10 TIMESTAMP(9),
+    f10 TIMESTAMP,
     f11 DATE,
     f12 BINARY,
     f13 MAP<STRING, STRING>,

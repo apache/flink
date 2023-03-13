@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,21 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.hive.ddl;
+package org.apache.flink.table.catalog.hive.util;
 
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.parser.SqlParserPos;
-
-/** Enumeration of Hive constraint ENABLE. */
-public enum SqlHiveConstraintEnable {
-    ENABLE,
-    DISABLE;
-
-    /**
-     * Creates a parse-tree node representing an occurrence of this keyword at a particular position
-     * in the parsed text.
-     */
-    public SqlLiteral symbol(SqlParserPos pos) {
-        return SqlLiteral.createSymbol(this, pos);
-    }
+/** Type of ALTER TABLE operation. */
+public enum AlterTableOp {
+    CHANGE_TBL_PROPS,
+    CHANGE_SERDE_PROPS,
+    CHANGE_FILE_FORMAT,
+    CHANGE_LOCATION,
+    ALTER_COLUMNS
 }
