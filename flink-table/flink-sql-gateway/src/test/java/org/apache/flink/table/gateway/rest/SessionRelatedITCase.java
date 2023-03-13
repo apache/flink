@@ -154,7 +154,7 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
                         emptyRequestBody);
         Map<String, String> getProperties = future.get().getProperties();
         for (String key : properties.keySet()) {
-            assertThat(properties.get(key)).isEqualTo(getProperties.get(key));
+            assertThat(properties).containsEntry(key, getProperties.get(key));
         }
     }
 
@@ -172,7 +172,7 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
                         sessionMessageParameters,
                         emptyRequestBody);
         future.get();
-        assertThat(session.getLastAccessTime() > lastAccessTime).isTrue();
+        assertThat(session.getLastAccessTime()).isGreaterThan(lastAccessTime);
     }
 
     @Test

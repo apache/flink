@@ -109,12 +109,12 @@ public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewaySta
     private SessionHandle sessionHandle;
 
     @BeforeAll
-    public static void setup() throws Exception {
+    static void setup() throws Exception {
         restClient = getTestingRestClient();
     }
 
     @AfterAll
-    public static void cleanUp() throws Exception {
+    static void cleanUp() throws Exception {
         restClient.shutdown();
     }
 

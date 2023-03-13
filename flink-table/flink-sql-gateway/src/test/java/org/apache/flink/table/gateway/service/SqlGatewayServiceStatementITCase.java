@@ -151,7 +151,7 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testIsQueryResult() throws Exception {
+    void testIsQueryResult() throws Exception {
         SessionHandle sessionHandle = createInitializedSession(service);
 
         BiFunction<SessionHandle, OperationHandle, Boolean> isQueryResultGetter =
@@ -178,7 +178,7 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
     }
 
     @Test
-    public void testHasJobID() throws Exception {
+    void testHasJobID() throws Exception {
         SessionHandle sessionHandle = createInitializedSession(service);
 
         BiFunction<SessionHandle, OperationHandle, Boolean> hasJobIDGetter =
@@ -204,7 +204,7 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
     }
 
     @Test
-    public void testResultKind() throws Exception {
+    void testResultKind() throws Exception {
         SessionHandle sessionHandle = createInitializedSession(service);
 
         BiFunction<SessionHandle, OperationHandle, ResultKind> resultKindGetter =

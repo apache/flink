@@ -26,7 +26,6 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,12 +39,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Test for {@link SessionManagerImpl}. */
-public class SessionManagerImplTest extends TestLogger {
+class SessionManagerImplTest {
 
     private SessionManagerImpl sessionManager;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         Configuration conf = new Configuration();
         conf.set(
                 SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT,
@@ -59,14 +58,14 @@ public class SessionManagerImplTest extends TestLogger {
     }
 
     @AfterEach
-    public void cleanUp() {
+    void cleanUp() {
         if (sessionManager != null) {
             sessionManager.stop();
         }
     }
 
     @Test
-    public void testIdleSessionCleanup() throws Exception {
+    void testIdleSessionCleanup() throws Exception {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -87,7 +86,7 @@ public class SessionManagerImplTest extends TestLogger {
     }
 
     @Test
-    public void testSessionNumberLimit() {
+    void testSessionNumberLimit() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)

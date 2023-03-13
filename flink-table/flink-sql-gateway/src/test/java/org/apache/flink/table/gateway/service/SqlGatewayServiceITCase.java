@@ -148,13 +148,13 @@ public class SqlGatewayServiceITCase {
                     "SqlGatewayService Test Pool", IgnoreExceptionHandler.INSTANCE);
 
     @BeforeAll
-    public static void setUp() {
+    static void setUp() {
         sessionManager = (SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         service = (SqlGatewayServiceImpl) SQL_GATEWAY_SERVICE_EXTENSION.getService();
     }
 
     @Test
-    public void testOpenSessionWithConfig() {
+    void testOpenSessionWithConfig() {
         Map<String, String> options = new HashMap<>();
         options.put("key1", "val1");
         options.put("key2", "val2");
@@ -171,7 +171,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testOpenSessionWithEnvironment() throws Exception {
+    void testOpenSessionWithEnvironment() {
         String catalogName = "default";
         String databaseName = "testDb";
         String moduleName = "testModule";
@@ -196,7 +196,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testConfigureSessionWithLegalStatement(@TempDir java.nio.file.Path tmpDir)
+    void testConfigureSessionWithLegalStatement(@TempDir java.nio.file.Path tmpDir)
             throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
@@ -273,7 +273,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testFetchResultsInRunning() throws Exception {
+    void testFetchResultsInRunning() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         CountDownLatch startRunningLatch = new CountDownLatch(1);
@@ -293,7 +293,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testGetOperationFinishedAndFetchResults() throws Exception {
+    void testGetOperationFinishedAndFetchResults() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         CountDownLatch startRunningLatch = new CountDownLatch(1);
@@ -323,7 +323,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testCancelOperation() throws Exception {
+    void testCancelOperation() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         CountDownLatch startRunningLatch = new CountDownLatch(1);
@@ -350,7 +350,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testOperationGetErrorAndFetchError() throws Exception {
+    void testOperationGetErrorAndFetchError() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         CountDownLatch startRunningLatch = new CountDownLatch(1);
@@ -381,7 +381,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testExecuteSqlWithConfig() {
+    void testExecuteSqlWithConfig() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         String key = "username";
         String value = "Flink";
@@ -402,7 +402,7 @@ public class SqlGatewayServiceITCase {
 
     @ParameterizedTest
     @CsvSource({"WITH SAVEPOINT,true", "WITH SAVEPOINT WITH DRAIN,true", "'',false"})
-    public void testStopJobStatementWithSavepoint(
+    void testStopJobStatementWithSavepoint(
             String option,
             boolean hasSavepoint,
             @InjectClusterClient RestClusterClient<?> restClusterClient,
@@ -444,19 +444,19 @@ public class SqlGatewayServiceITCase {
             Path savepointPath = Paths.get(savepoint);
             assertThat(savepointPath.getFileName().toString()).startsWith("savepoint-");
         } else {
-            assertThat(stopResults.get(0).getString(0).toString()).isEqualTo("OK");
+            assertThat(stopResults.get(0).getString(0)).hasToString("OK");
         }
     }
 
     @Test
-    public void testGetOperationSchemaUntilOperationIsReady() throws Exception {
+    void testGetOperationSchemaUntilOperationIsReady() throws Exception {
         runGetOperationSchemaUntilOperationIsReadyOrError(
                 this::getDefaultResultSet,
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
     }
 
     @Test
-    public void testShowJobsOperation(@InjectClusterClient RestClusterClient<?> restClusterClient)
+    void testShowJobsOperation(@InjectClusterClient RestClusterClient<?> restClusterClient)
             throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
@@ -496,8 +496,8 @@ public class SqlGatewayServiceITCase {
                                 () ->
                                         new IllegalStateException(
                                                 "Test job " + jobId + " not found."));
-        assertThat(jobRow.getString(1).toString()).isEqualTo(pipelineName);
-        assertThat(jobRow.getString(2).toString()).isEqualTo("RUNNING");
+        assertThat(jobRow.getString(1)).hasToString(pipelineName);
+        assertThat(jobRow.getString(2)).hasToString("RUNNING");
         assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
                 .isBetween(timeOpStart, timeOpSucceed);
     }
@@ -507,7 +507,7 @@ public class SqlGatewayServiceITCase {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testGetCurrentCatalog() {
+    void testGetCurrentCatalog() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -520,7 +520,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testListCatalogs() {
+    void testListCatalogs() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -532,7 +532,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testListDatabases() throws Exception {
+    void testListDatabases() throws Exception {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -552,7 +552,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testListTables() {
+    void testListTables() {
         SessionHandle sessionHandle = createInitializedSession(service);
         assertThat(
                         service.listTables(
@@ -560,43 +560,30 @@ public class SqlGatewayServiceITCase {
                                 "cat1",
                                 "db1",
                                 new HashSet<>(Arrays.asList(TableKind.TABLE, TableKind.VIEW))))
-                .isEqualTo(
-                        new HashSet<>(
-                                Arrays.asList(
-                                        new TableInfo(
-                                                ObjectIdentifier.of("cat1", "db1", "tbl1"),
-                                                TableKind.TABLE),
-                                        new TableInfo(
-                                                ObjectIdentifier.of("cat1", "db1", "tbl2"),
-                                                TableKind.TABLE),
-                                        new TableInfo(
-                                                ObjectIdentifier.of("cat1", "db1", "tbl3"),
-                                                TableKind.VIEW),
-                                        new TableInfo(
-                                                ObjectIdentifier.of("cat1", "db1", "tbl4"),
-                                                TableKind.VIEW))));
+                .containsExactlyInAnyOrder(
+                        new TableInfo(ObjectIdentifier.of("cat1", "db1", "tbl1"), TableKind.TABLE),
+                        new TableInfo(ObjectIdentifier.of("cat1", "db1", "tbl2"), TableKind.TABLE),
+                        new TableInfo(ObjectIdentifier.of("cat1", "db1", "tbl3"), TableKind.VIEW),
+                        new TableInfo(ObjectIdentifier.of("cat1", "db1", "tbl4"), TableKind.VIEW));
         assertThat(
                         service.listTables(
                                 sessionHandle,
                                 "cat1",
                                 "db2",
                                 Collections.singleton(TableKind.TABLE)))
-                .isEqualTo(
-                        Collections.singleton(
-                                new TableInfo(
-                                        ObjectIdentifier.of("cat1", "db2", "tbl1"),
-                                        TableKind.TABLE)));
+                .containsExactly(
+                        new TableInfo(ObjectIdentifier.of("cat1", "db2", "tbl1"), TableKind.TABLE));
         assertThat(
                         service.listTables(
                                 sessionHandle,
                                 "cat2",
                                 "db0",
                                 Collections.singleton(TableKind.VIEW)))
-                .isEqualTo(Collections.emptySet());
+                .isEmpty();
     }
 
     @Test
-    public void testListSystemFunctions() {
+    void testListSystemFunctions() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -613,7 +600,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testListUserDefinedFunctions() {
+    void testListUserDefinedFunctions() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -650,7 +637,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testCompleteStatement() throws Exception {
+    void testCompleteStatement() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         String createTable1 =
@@ -696,7 +683,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testGetTable() {
+    void testGetTable() {
         SessionHandle sessionHandle = createInitializedSession(service);
         ResolvedCatalogTable actualTable =
                 (ResolvedCatalogTable)
@@ -716,7 +703,7 @@ public class SqlGatewayServiceITCase {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testCancelOperationAndFetchResultInParallel() {
+    void testCancelOperationAndFetchResultInParallel() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         CountDownLatch latch = new CountDownLatch(1);
         // Make sure cancel the Operation before finish.
@@ -736,7 +723,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testCloseOperationAndFetchResultInParallel() {
+    void testCloseOperationAndFetchResultInParallel() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         OperationHandle operationHandle =
                 submitDefaultOperation(
@@ -765,7 +752,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testCancelAndCloseOperationInParallel() throws Exception {
+    void testCancelAndCloseOperationInParallel() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         int operationNum = 200;
         List<OperationManager.Operation> operations = new ArrayList<>(operationNum);
@@ -807,7 +794,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testSubmitOperationAndCloseOperationManagerInParallel1() throws Exception {
+    void testSubmitOperationAndCloseOperationManagerInParallel1() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         OperationManager manager = service.getSession(sessionHandle).getOperationManager();
         int submitThreadsNum = 100;
@@ -830,7 +817,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testSubmitOperationAndCloseOperationManagerInParallel2() throws Exception {
+    void testSubmitOperationAndCloseOperationManagerInParallel2() throws Exception {
         int count = 3;
         CountDownLatch startRunning = new CountDownLatch(1);
         CountDownLatch terminateRunning = new CountDownLatch(1);
@@ -854,7 +841,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testExecuteOperationInSequence() throws Exception {
+    void testExecuteOperationInSequence() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         AtomicReference<Integer> v = new AtomicReference<>(0);
 
@@ -881,7 +868,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testReleaseLockWhenFailedToSubmitOperation() throws Exception {
+    void testReleaseLockWhenFailedToSubmitOperation() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         int maximumThreads = 500;
         List<SessionHandle> sessions = new ArrayList<>();
@@ -945,7 +932,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testFetchResultsFromCanceledOperation() {
+    void testFetchResultsFromCanceledOperation() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -962,7 +949,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testRequestNonExistOperation() {
+    void testRequestNonExistOperation() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         OperationHandle operationHandle = OperationHandle.create();
@@ -983,7 +970,7 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
-    public void testGetOperationSchemaWhenOperationGetError() throws Exception {
+    void testGetOperationSchemaWhenOperationGetError() throws Exception {
         String msg = "Artificial Exception.";
         runGetOperationSchemaUntilOperationIsReadyOrError(
                 () -> {

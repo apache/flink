@@ -145,6 +145,12 @@
                     <goals>
                         <goal>test-jar</goal>
                     </goals>
+					<configuration>
+						<excludes>
+							<!-- test-jar is still used by JUnit4 modules -->
+							<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
+						</excludes>
+					</configuration>
                 </execution>
             </executions>
         </plugin>
