@@ -25,10 +25,11 @@ under the License.
 # 窗口 Top-N
 {{< label Batch >}} {{< label Streaming >}}
 
-窗口 Top-N 是特殊的 [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})，它返回每个窗口和其他分区键的N个最小或最大值。
+窗口 Top-N 是特殊的 [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})，它返回每个分区键的每个窗口的N个最小或最大值。
 
-对于流式查询，与持续查询的普通Top-N不同，它只在窗口最后返回汇总的Top-N数据，不会产生中间结果。窗口 Top-N 会清除不需要的中间状态。
-因此，窗口 Top-N 查询在用户不需要更新结果时，性能较好。通常，窗口 Top-N 直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})上，另外，窗口 Top-N 可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作。比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
+与普通Top-N不同，窗口Top-N只在窗口最后返回汇总的Top-N数据，不会产生中间结果。窗口 Top-N 会在窗口结束后清除不需要的中间状态。
+因此，窗口 Top-N 适用于用户不需要每条数据都更新Top-N结果的场景，相对普通Top-N来说性能更好。通常，窗口 Top-N 直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})上。
+另外，窗口 Top-N 可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作之上，比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
 窗口 Top-N 的语法和普通的 Top-N 相同，更多信息参见：[Top-N 文档]({{< ref "docs/dev/table/sql/queries/topn" >}})。
 除此之外，窗口 Top-N 需要 `PARTITION BY` 子句包含 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 或 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) 产生的 `window_start` 和 `window_end`。
@@ -131,7 +132,7 @@ Flink SQL> SELECT *
 
 ## 限制
 
-目前，Flink只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口 Top-N。会话窗口不久之后就会支持。
+目前，Flink只支持在滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口 Top-N。基于会话窗口的Top-N将在将来版本中支持。
 
 
 {{< top >}}
