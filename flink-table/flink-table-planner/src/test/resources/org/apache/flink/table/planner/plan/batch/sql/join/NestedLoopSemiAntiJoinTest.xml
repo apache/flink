@@ -226,11 +226,11 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a + 10) AS EXPR$0, c])
-+- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], build=[right], singleRowJoin=[true])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, c], build=[right], singleRowJoin=[true])
    :- Calc(select=[a, c], where=[((b > 10) AND NOT(LIKE(c, 'abc')))])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
-      +- Calc(select=[m IS NOT NULL AS $f0])
+      +- Calc(select=[], where=[m IS NOT NULL])
          +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -258,11 +258,11 @@ LogicalJoin(condition=[=($1, $3)], joinType=[full])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[c], build=[right], singleRowJoin=[true])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[c], build=[right], singleRowJoin=[true])
 :- Calc(select=[c])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[m IS NOT NULL AS $f0])
+   +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -297,20 +297,20 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[m IS NOT NULL AS $f0])
+   +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                +- Calc(select=[true AS i])
-                  +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d], build=[right], singleRowJoin=[true])
+                  +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[d], build=[right], singleRowJoin=[true])
                      :- Calc(select=[d])
                      :  +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
                      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
                      +- Exchange(distribution=[broadcast])
-                        +- Calc(select=[m IS NOT NULL AS $f0])
+                        +- Calc(select=[], where=[m IS NOT NULL])
                            +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
                               +- Exchange(distribution=[single])
                                  +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -334,10 +334,10 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[m IS NOT NULL AS $f0])
+   +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -361,11 +361,11 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- Calc(select=[a, b, c], where=[(b > 10)])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[m IS NOT NULL AS $f0])
+   +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -395,11 +395,11 @@ LogicalUnion(all=[false])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a], build=[right], singleRowJoin=[true])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a], build=[right], singleRowJoin=[true])
 :- Calc(select=[a])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[m IS NOT NULL AS $f0])
+   +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -504,7 +504,7 @@ LogicalFilter(condition=[<>($cor0.b, $1)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,0,0,1,0], members=[\nNestedLoopJoin(joinType=[LeftAntiJoin], where=[(b <> e)], select=[a, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[((b IS NULL OR i IS NULL OR (b = i)) AND (c = k))], select=[a, b, c], build=[right])\n:  :- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])\n:  :  :- NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])\n:  :  :  :- [#4] LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])\n:  :  :  +- [#5] Exchange(distribution=[broadcast])\n:  :  +- [#3] Exchange(distribution=[broadcast])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,0,0,1,0], members=[\nNestedLoopJoin(joinType=[LeftAntiJoin], where=[(b <> e)], select=[a, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[((b IS NULL OR i IS NULL OR (b = i)) AND (c = k))], select=[a, b, c], build=[right])\n:  :- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])\n:  :  :- NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])\n:  :  :  :- [#4] LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])\n:  :  :  +- [#5] Exchange(distribution=[broadcast])\n:  :  +- [#3] Exchange(distribution=[broadcast])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[e])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])(reuse_id=[1])
@@ -512,7 +512,7 @@ MultipleInput(readOrder=[0,0,0,1,0], members=[\nNestedLoopJoin(joinType=[LeftAnt
 :  +- Calc(select=[i, k], where=[(i > 10)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[m IS NOT NULL AS $f0])
+:  +- Calc(select=[true AS $f0], where=[m IS NOT NULL])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1577,9 +1577,9 @@ LogicalFilter(condition=[<($1, 100)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a <> d)], select=[a, b, c], build=[right])\n:  :- [#2] LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a <> d)], select=[a, b, c], build=[right])\n:  :- [#2] LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[m IS NOT NULL AS $f0])
+:  +- Calc(select=[], where=[m IS NOT NULL])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1613,11 +1613,11 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d], build=[right], singleRowJoin=[true])
+   +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[d], build=[right], singleRowJoin=[true])
       :- Calc(select=[d])
       :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
       +- Exchange(distribution=[broadcast])
-         +- Calc(select=[m IS NOT NULL AS $f0])
+         +- Calc(select=[], where=[m IS NOT NULL])
             +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
                +- Exchange(distribution=[single])
                   +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1647,16 +1647,16 @@ LogicalFilter(condition=[<($1, 100)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:  :- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])\n:  :  :- [#3] Exchange(distribution=[broadcast])\n:  :  +- [#4] LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:  :- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])\n:  :  :- [#3] Exchange(distribution=[broadcast])\n:  :  +- [#4] LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[m IS NOT NULL AS $f0])
+:  +- Calc(select=[], where=[m IS NOT NULL])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
 :              +- Calc(select=[true AS i], where=[(j < 100)])
 :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[m IS NOT NULL AS $f0])
+:  +- Calc(select=[true AS $f0], where=[m IS NOT NULL])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -2031,11 +2031,11 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a + 10) AS EXPR$0, c])
-+- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], build=[right], singleRowJoin=[true])
++- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, c], build=[right], singleRowJoin=[true])
    :- Calc(select=[a, c], where=[((b <= 10) AND NOT(LIKE(c, 'abc')))])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
-      +- Calc(select=[m IS NOT NULL AS $f0])
+      +- Calc(select=[], where=[m IS NOT NULL])
          +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
