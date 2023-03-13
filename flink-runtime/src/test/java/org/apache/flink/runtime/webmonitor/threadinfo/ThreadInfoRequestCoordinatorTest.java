@@ -182,7 +182,9 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
-                                CompletionType.SUCCESSFULLY, CompletionType.TIMEOUT);
+                                // request future will only be completed after all gateways
+                                // successfully return thread infos.
+                                CompletionType.SUCCESSFULLY, CompletionType.NEVER_COMPLETE);
 
         List<CompletableFuture<VertexThreadInfoStats>> requestFutures = new ArrayList<>();
 
