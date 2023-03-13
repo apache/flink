@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # To clean EVERYTHING:
-# mvn clean
+# ./mvnw clean
 # git clean -fdx
 
 set -ex
@@ -13,7 +13,7 @@ LIB_DIR="$FLINK_DIR/lib/"
 OPT_DIR="$FLINK_DIR/opt/"
 GIT_SHA=$(git log -n 1 --format="%H" .)
 
-MVN_INSTALL="mvn install -DskipTests -Dfast -s maven-unblock-http-repos.xml"
+MVN_INSTALL="./mvnw install -DskipTests -Dfast -s maven-unblock-http-repos.xml"
 $MVN_INSTALL -f fentik-udf
 $MVN_INSTALL -f fentik-flink-sql-runner
 $MVN_INSTALL -f fentik-rescale-savepoint
