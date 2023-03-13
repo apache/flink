@@ -28,33 +28,33 @@ under the License.
 
 窗口是处理无限流的核心。窗口把流分割为有限大小的 “桶”，这样就可以在其之上进行计算。本文档聚焦于窗口在 Flink SQL 中是如何工作的，编程人员如何最大化地利用好它。
 
-Apache Flink 提供了如下 `窗口表值函数`（TVF）把表的数据划分到窗口中：
+Apache Flink 提供了如下 `窗口表值函数`（table-valued function, 缩写TVF）把表的数据划分到窗口中：
 
 - [滚动窗口](#tumble)
 - [滑动窗口](#hop)
-- [累计窗口](#cumulate)
-- 会话窗口 (很快就能支持了)
+- [累积窗口](#cumulate)
+- 会话窗口 (即将支持)
 
 注意：逻辑上，每个元素可以应用于一个或多个窗口，这取决于所使用的 `窗口表值函数`。例如：滑动窗口可以把单个元素分配给多个窗口。
 
-`窗口表值函数` 是 Flink 定义的多态表函数（小型 PTF ：Polymorphic Table Function），PTF 是 `SQL:2016标准` 中的一种特殊的表函数，它可以把表作为一个参数。PTF 在重塑表这一点上很强大。因为它们的调用出现在 `SELECT` 的 `FROM` 从句里。
+`窗口表值函数` 是 Flink 定义的多态表函数（Polymorphic Table Function，缩写PTF），PTF 是 SQL 2016 标准中的一种特殊的表函数，它可以把表作为一个参数。PTF 在对表的重塑上很强大。因为它们的调用出现在 `SELECT` 的 `FROM` 从句里。
 
-`窗口表值函数` 是 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated) （已经过时）的替代方案。`窗口表值函数` 更符合 SQL 标准，在支持基于窗口的复杂计算上也更强大。例如：窗口 TopN,窗口 Join.而 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation) 只支持窗口聚合。
+`窗口表值函数` 是 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated) （已经过时）的替代方案。`窗口表值函数` 更符合 SQL 标准，在支持基于窗口的复杂计算上也更强大。例如：窗口 TopN、窗口 Join。而[分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation)只支持窗口聚合。
 
 更多基于 `窗口表值函数` 的进阶用法:
 - [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
 - [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}})
-- [窗口 join]({{< ref "docs/dev/table/sql/queries/window-join">}})
+- [窗口 Join]({{< ref "docs/dev/table/sql/queries/window-join">}})
 - [窗口去重]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
 
 ## 窗口函数
 
-Apache Flink 提供3个内置的 `窗口表值函数`：`滚动`，`滑动` 和 `累计`。`窗口表值函数` 的返回值包括原生列和附加的三个指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。
+Apache Flink 提供3个内置的窗口表值函数：`TUMBLE`，`HOP` 和 `CUMULATE`。`窗口表值函数` 的返回值包括原生列和附加的三个指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。
 在流计算模式，`window_time` 是 `TIMESTAMP` 或者 `TIMESTAMP_LTZ` 类型（具体哪种类型取决于输入的时间字段类型）的字段。
-`window_time` 字段用于后续基于时间的操作，例如：其他的 `窗口表值函数`，或者<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>，<a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>。
+`window_time` 字段用于后续基于时间的操作，例如：其他的窗口表值函数，或者<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>，<a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>。
 它的值总是等于 `window_end - 1ms`。
 
-### 滚动窗口
+### 滚动窗口（TUMBLE）
 
 `TUMBLE` 函数指定每个元素到一个指定大小的窗口中。滚动窗口的大小固定且不重复。例如：假设指定了一个 5 分钟的滚动窗口。Flink 将每 5 分钟生成一个新的窗口，如下图所示：
 
@@ -62,8 +62,8 @@ Apache Flink 提供3个内置的 `窗口表值函数`：`滚动`，`滑动` 和 
 
 `TUMBLE` 函数通过时间属性字段为每行数据分配一个窗口。
 在流计算模式，时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
-在批计算模式，窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
-`TUMBLE` 的返回值包括原生列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol”（Watermark 列）将转换为一个常规的 timestamp 列。
+在批计算模式，窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
+`TUMBLE` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
 `TUMBLE` 函数有三个必传参数，一个可选参数：
 
@@ -137,9 +137,9 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 *注意：为了更好地理解窗口行为，这里把 timestamp 值得后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`*
 
 
-### 滑动窗口
+### 滑动窗口（HOP）
 
-`滑动窗口函数` 指定元素到一个定长的窗口中。和滚动窗口很像，有窗口大小参数，另外增加了一个窗口滑动步长参数。如果滑动步长小于窗口大小，就能产生数据重叠的效果。在这个例子里，数据可以被分配在多个窗口。
+滑动窗口函数指定元素到一个定长的窗口中。和滚动窗口很像，有窗口大小参数，另外增加了一个窗口滑动步长参数。如果滑动步长小于窗口大小，就能产生数据重叠的效果。在这个例子里，数据可以被分配在多个窗口。
 
 例如：可以定义一个每5分钟滑动一次。大小为10分钟的窗口。每5分钟获得最近10分钟到达的数据的窗口,如下图所示：
 
@@ -147,8 +147,8 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 
 `HOP` 函数通过时间属性字段为每一行数据分配了一个窗口。
 在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
-在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
-`HOP` 的返回值包括原有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
+在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
+`HOP` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
 `HOP` 有四个必填参数和一个可选参数：
 
@@ -207,7 +207,7 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 +------------------+------------------+-------+
 ```
 
-### 累计窗口
+### 累积窗口（CUMULATE）
 
 累积窗口在某些场景中非常有用，比如说提前触发的滚动窗口。例如：每日仪表盘从 00:00 开始每分钟绘制累积 UV，10:00 时 UV 就是从 00:00 到 10:00 的UV 总数。累积窗口可以简单且有效地实现它。
 
@@ -220,8 +220,8 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 
 `CUMULATE`　函数通过时间属性字段为每一行数据分配了一个窗口。
 在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
-在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
-`CUMULATE` 的返回值包括原有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
+在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
+`CUMULATE` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
 `CUMULATE` 有四个必填参数和一个可选参数：
 
@@ -231,8 +231,8 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 
 - `data`：拥有时间属性列的表。
 - `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
-- `step`：窗口的步长。
-- `size`：窗口的大小（时长）。
+- `step`：指定连续的累积窗口之间增加的窗口大小。
+- `size`：指定累积窗口的最大宽度的窗口时间。`size`必须是`step`的整数倍。
 - `offset`：窗口的偏移量 [非必填]。
 
 下面是 `Bid` 表的调用示例：
