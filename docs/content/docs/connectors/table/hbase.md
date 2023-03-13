@@ -228,7 +228,8 @@ Connector Options
       <td>yes</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>Whether to store an empty value into the cache if the lookup key doesn't match any rows in the table.</td>
+      <td>Whether to store an empty value into the cache if the lookup key doesn't match any rows in the table. 
+        "lookup.cache" must be set to "PARTIAL" to use this option.</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
