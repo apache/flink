@@ -198,12 +198,11 @@ ON myTopic.key = hTable.rowkey;
       使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
     </tr>
     <tr>
-      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.cache-missing-key</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>是否缓存维表中不存在的键，默认为true。
-        使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
+      <td>是否缓存维表中不存在的键，默认为true。</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
