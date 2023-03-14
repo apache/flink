@@ -245,7 +245,7 @@ Connector Options
       "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
     <tr>
-      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.cache-missing-key</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">true</td>
@@ -332,7 +332,7 @@ These deprecated options has been replaced by new options listed above and will 
           <td>yes</td>
           <td style="word-wrap: break-word;">true</td>
           <td>Boolean</td>
-          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.caching-missing-key" instead.</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.cache-missing-key" instead.</td>
         </tr>
     </tbody>
 <table>
@@ -371,7 +371,7 @@ When lookup cache is enabled, each process (i.e. TaskManager) will hold a cache.
 The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.partial-cache.max-rows` or when the row exceeds the max time to live specified by `lookup.partial-cache.expire-after-write` or `lookup.partial-cache.expire-after-access`.
 The cached rows might not be the latest, users can tune expiration options to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
 
-By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.partial-cache.caching-missing-key` to false.
+By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.partial-cache.cache-missing-key` to false.
 
 ### Idempotent Writes
 

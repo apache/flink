@@ -233,7 +233,7 @@ ON myTopic.key = MyUserTable.id;
       使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
     </tr>
     <tr>
-      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.cache-missing-key</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
@@ -314,7 +314,7 @@ ON myTopic.key = MyUserTable.id;
           <td>yes</td>
           <td style="word-wrap: break-word;">true</td>
           <td>Boolean</td>
-          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.caching-missing-key" 代替</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.cache-missing-key" 代替</td>
         </tr>
     </tbody>
 <table>
@@ -361,7 +361,7 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
 当缓存命中最大缓存行 `lookup.partial-cache.max-rows` 或当行超过 `lookup.partial-cache.expire-after-write` 或 `lookup.partial-cache.expire-after-access` 指定的最大存活时间时，缓存中的行将被设置为已过期。
 缓存中的记录可能不是最新的，用户可以将缓存记录超时设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
 
-默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.partial-cache.caching-missing-key` 设置为 false 来切换行为。
+默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.partial-cache.cache-missing-key` 设置为 false 来切换行为。
 
 <a name="idempotent-writes"></a>
 
