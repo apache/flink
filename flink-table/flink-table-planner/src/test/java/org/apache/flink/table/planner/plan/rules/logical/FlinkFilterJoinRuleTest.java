@@ -217,6 +217,43 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testInnerJoinWithNullFilter() {
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL");
+    }
+
+    @Test
+    public void testInnerJoinWithNullFilter2() {
+        util.verifyRelPlan(
+                "SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter1() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 < 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter2() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 <> 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter3() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 > 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter4() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 >= 1");
+    }
+
+    @Test
+    public void testInnerJoinWithFilter5() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
+    }
+
+    @Test
     public void testLeftJoinWithSomeFiltersFromLeftSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a1 = 2");
     }
@@ -249,10 +286,34 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
 
     @Test
     public void testLeftJoinWithNullFilterInRightSide2() {
-        // 'a2 IS NULL' cannot infer that 'a1 IS NULL'. However, 'a1 < 10' can infer that 'a2 < 10',
-        // and both of them can be pushed down.
+        // 'a2 IS NULL' cannot infer that 'a1 IS NULL'.
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter1() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 < 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter2() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <> 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter3() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 > 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter4() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 >= 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter5() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
     }
 
     @Test

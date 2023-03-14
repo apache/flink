@@ -1144,7 +1144,27 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row(null, null, null, 4, 1.0, 1))
     )
 
+    checkResult(
+      """
+        |select * from
+        | l inner join r on a = c where c IS NULL
+        |""".stripMargin,
+      Seq()
+    )
+
     if (expectedJoinType == NestedLoopJoin) {
+      // For inner join, we will push c = 3 into left side l by
+      // derived from a = c and c = 3.
+      checkResult(
+        """
+          |select * from
+          | l inner join r on a = c where c = 3
+          |""".stripMargin,
+        Seq(
+          row(3, 3.0, 3, 2.0)
+        )
+      )
+
       // For left join, we will push c = 3 into left side l by
       // derived from a = c and c = 3.
       checkResult(

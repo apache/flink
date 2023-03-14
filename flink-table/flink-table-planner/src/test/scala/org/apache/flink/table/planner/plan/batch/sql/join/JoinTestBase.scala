@@ -52,6 +52,14 @@ abstract class JoinTestBase extends TableTestBase {
       "SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d < 10 AND a < 12")
   }
 
+  @Test
+  def testLeftOuterJoinWithFilter4(): Unit = {
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // d = null cannot be push into left side.
+    util.verifyExecPlan("SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d = null")
+  }
+
   @Test(expected = classOf[TableException])
   def testJoinNonMatchingKeyTypes(): Unit = {
     // INTEGER and VARCHAR(65536) does not have common type now
