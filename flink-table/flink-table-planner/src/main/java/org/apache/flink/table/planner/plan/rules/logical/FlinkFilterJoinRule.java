@@ -36,6 +36,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
@@ -415,9 +416,13 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         // the join left side and the left side have any other filter on this column, which will
         // conflict and generate wrong plan.
         if ((joinType == JoinRelType.LEFT || joinType == JoinRelType.RIGHT)
-                && (filter instanceof RexCall
-                        && SUITABLE_FILTER_TO_PUSH.contains(((RexCall) filter).op.kind))) {
-            return true;
+                && filter instanceof RexCall) {
+            RexCall rexCall = (RexCall) filter;
+            if (SUITABLE_FILTER_TO_PUSH.contains(rexCall.op.kind)
+                    && (rexCall.getOperands().get(0) instanceof RexLiteral
+                            || rexCall.getOperands().get(1) instanceof RexLiteral)) {
+                return true;
+            }
         }
         return false;
     }
