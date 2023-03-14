@@ -1502,6 +1502,21 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         row(null, null, null, 4, 1.0, 1))
     )
 
+    // For left join, we will push c = 3 into left side l by
+    // derived from a = c and c = 3.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c = 3
+        |""".stripMargin,
+      Seq(
+        row(3, 3.0, 3, 2.0)
+      )
+    )
+
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // c IS NULL cannot be push into left side.
     checkResult(
       """
         |select * from
@@ -1523,6 +1538,36 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
       Seq(
         row(1, 2.0, null, null),
         row(1, 2.0, null, null)
+      )
+    )
+
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // c < 3 cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c < 3 AND a <= 3
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0)
+      )
+    )
+
+    // C <> 3 cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c <> 3 AND a <= 3
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0)
       )
     )
   }

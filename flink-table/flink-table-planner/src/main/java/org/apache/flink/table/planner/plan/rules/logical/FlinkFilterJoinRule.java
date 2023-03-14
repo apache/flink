@@ -391,15 +391,18 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         if (filter.isAlwaysTrue()) {
             return false;
         }
-        // For left/right outer join, we cannot push down IS_NULL filter to other side. Take left
-        // outer join as an example, If the join right side contains an IS_NULL filter, while we try
-        // to push it to the join left side and the left side have any other filter on this column,
-        // which will conflict and generate wrong plan.
-        if ((joinType == JoinRelType.LEFT || joinType == JoinRelType.RIGHT)
-                && filter.isA(SqlKind.IS_NULL)) {
-            return false;
+        if (joinType == JoinRelType.INNER) {
+            return true;
         }
-        return true;
+        // For left/right outer join, now, we only support to push equal condition to other side.
+        // Take left outer join and IS_NULL condition as an example, If the join right side contains
+        // an IS_NULL filter, while we try to push it to the join left side and the left side have
+        // any other filter on this column, which will conflict and generate wrong plan.
+        if ((joinType == JoinRelType.LEFT || joinType == JoinRelType.RIGHT)
+                && (filter instanceof RexCall && ((RexCall) filter).op.kind == SqlKind.EQUALS)) {
+            return true;
+        }
+        return false;
     }
 
     private RexNode remapFilter(

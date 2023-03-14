@@ -35,9 +35,21 @@ abstract class JoinTestBase extends TableTestBase {
   }
 
   @Test
-  def testLeftOuterJoinWithFilter1(): Unit = {
+  def testLeftOuterJoinWithFilter2(): Unit = {
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // d IS NULL cannot be push into left side.
     util.verifyExecPlan(
       "SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d IS NULL AND a < 12")
+  }
+
+  @Test
+  def testLeftOuterJoinWithFilter3(): Unit = {
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // d < 10 cannot be push into left side.
+    util.verifyExecPlan(
+      "SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d < 10 AND a < 12")
   }
 
   @Test(expected = classOf[TableException])
