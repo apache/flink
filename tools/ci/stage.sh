@@ -136,7 +136,6 @@ MODULES_CONNECTORS_2="\
 flink-connectors/flink-connector-base,\
 flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,\
-flink-connectors/flink-connector-aws-base,\
 "
 
 MODULES_TESTS="\

@@ -1516,7 +1516,6 @@ under the License.
 						<exclude>flink-connectors/flink-file-sink-common/src/test/resources/recoverable-serializer-migration/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
-						<exclude>flink-connectors/flink-connector-aws-base/src/test/resources/profile</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 
 						<!-- ArchUnit violation stores  -->
