@@ -91,6 +91,7 @@ import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -203,6 +204,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected final FunctionCatalog functionCatalog;
     protected final Planner planner;
     private final boolean isStreamingMode;
+    private final ExecutableOperation.Context operationCtx;
 
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
@@ -262,6 +264,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         isStreamingMode);
         catalogManager.initSchemaResolver(
                 isStreamingMode, operationTreeBuilder.getResolverBuilder());
+        this.operationCtx = new ExecutableOperationContextImpl(catalogManager, moduleManager);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -984,6 +987,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         if (tableResult.isPresent()) {
             return tableResult.get();
         }
+
+        // delegate execution to Operation if it implements ExecutableOperation
+        if (operation instanceof ExecutableOperation) {
+            return ((ExecutableOperation) operation).execute(operationCtx);
+        }
+
         // otherwise, fall back to internal implementation
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
