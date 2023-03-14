@@ -115,8 +115,6 @@ import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
-import org.apache.flink.table.operations.UseCatalogOperation;
-import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
@@ -1233,17 +1231,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
             return unloadModule((UnloadModuleOperation) operation);
-        } else if (operation instanceof UseModulesOperation) {
-            return useModules((UseModulesOperation) operation);
-        } else if (operation instanceof UseCatalogOperation) {
-            UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
-            catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
-            return TableResultImpl.TABLE_RESULT_OK;
-        } else if (operation instanceof UseDatabaseOperation) {
-            UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
-            catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
-            catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof ShowCatalogsOperation) {
             return buildShowResult("catalog name", listCatalogs());
         } else if (operation instanceof ShowCreateTableOperation) {
