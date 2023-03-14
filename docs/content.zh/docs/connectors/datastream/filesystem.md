@@ -392,7 +392,7 @@ Flink 内置了为 Avro Format 数据创建 Parquet 写入工厂的快捷方法�
 
 如果在程序中使用 Parquet 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
-{{< artifact flink-parquet >}}
+{{< artifact flink-parquet withScalaVersion >}}
 
 类似这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
 
@@ -640,7 +640,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 如果在程序中使用 ORC 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
-{{< artifact flink-orc >}}
+{{< artifact flink-orc withScalaVersion >}}
 
 
 然后，类似这样使用 `FileSink` 以 ORC Format 输出数据：
