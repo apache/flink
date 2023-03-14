@@ -24,6 +24,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.metrics.Counter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,7 +114,8 @@ public class DeduplicateFunctionHelper {
             ValueState<RowData> state,
             Collector<RowData> out,
             boolean isStateTtlEnabled,
-            RecordEqualiser equaliser)
+            RecordEqualiser equaliser,
+            Counter deduplicateSafeDropChangelogCount)
             throws Exception {
         RowData preRow = state.value();
         RowKind currentKind = currentRow.getRowKind();
@@ -128,6 +130,7 @@ public class DeduplicateFunctionHelper {
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
                     // state eviction of downstream operators.
+                    deduplicateSafeDropChangelogCount.inc();
                     return;
                 } else {
                     if (generateUpdateBefore) {

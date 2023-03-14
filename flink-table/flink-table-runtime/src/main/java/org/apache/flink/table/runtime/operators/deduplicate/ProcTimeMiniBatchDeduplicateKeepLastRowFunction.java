@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.table.runtime.util.RowDataStringSerializer;
+import org.apache.flink.metrics.Counter;
 
 import javax.annotation.Nullable;
 
@@ -51,6 +52,9 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     private transient RecordEqualiser equaliser;
     private final RowDataStringSerializer inputStringSerializer;
 
+    /**  The counter used to track safely dropped changelogs */
+    private transient Counter deduplicateSafeDropChangelogCount;
+
     public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
             TypeSerializer<RowData> serializer,
@@ -72,8 +76,8 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     @Override
     public void open(ExecutionContext ctx) throws Exception {
         super.open(ctx);
-        equaliser =
-                genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
+        equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
+        deduplicateSafeDropChangelogCount = ctx.getRuntimeContext().getMetricGroup().counter("deduplicate.safeDropChangelog");
     }
 
     @Override
@@ -103,7 +107,13 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
                         equaliser);
             } else {
                 processLastRowOnChangelog(
-                        currentRow, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
+                    currentRow,
+                    generateUpdateBefore,
+                    state,
+                    out,
+                    isStateTtlEnabled,
+                    equaliser,
+                    deduplicateSafeDropChangelogCount);
             }
         }
     }

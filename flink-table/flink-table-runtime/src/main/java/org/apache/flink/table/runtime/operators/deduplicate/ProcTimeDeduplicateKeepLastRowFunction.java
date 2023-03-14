@@ -24,6 +24,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
+import org.apache.flink.metrics.Counter;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnProcTime;
@@ -43,6 +44,9 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     /** The record equaliser used to equal RowData. */
     private transient RecordEqualiser equaliser;
 
+    /**  The counter used to track safely dropped changelogs */
+    private transient Counter deduplicateSafeDropChangelogCount;
+
     public ProcTimeDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
             long stateRetentionTime,
@@ -56,12 +60,14 @@ public class ProcTimeDeduplicateKeepLastRowFunction
         this.inputIsInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
         this.isStateTtlEnabled = stateRetentionTime > 0;
+        
     }
 
     @Override
     public void open(Configuration configure) throws Exception {
         super.open(configure);
         equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        deduplicateSafeDropChangelogCount = getRuntimeContext().getMetricGroup().counter("deduplicate.safeDropChangelog");
     }
 
     @Override
@@ -78,7 +84,13 @@ public class ProcTimeDeduplicateKeepLastRowFunction
                     equaliser);
         } else {
             processLastRowOnChangelog(
-                    input, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
+                input,
+                generateUpdateBefore,
+                state,
+                out,
+                isStateTtlEnabled,
+                equaliser,
+                deduplicateSafeDropChangelogCount);
         }
     }
 }
