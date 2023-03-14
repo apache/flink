@@ -1089,7 +1089,8 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalFilter(condition=[<($0, 10)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+      +- LogicalFilter(condition=[<($2, 10)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
   </TestCase>
@@ -1159,7 +1160,8 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], b2=[$3], c2=[$4], a2=[$5])
 +- LogicalFilter(condition=[IS NULL($0)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
-      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      :- LogicalFilter(condition=[<($0, 10)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalFilter(condition=[<($2, 10)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>

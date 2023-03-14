@@ -433,7 +433,7 @@ Calc(select=[null:INTEGER AS d, e, f], where=[d IS NULL])
    :- Calc(select=[a], where=[(a < 12)])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
-      +- Calc(select=[d, e, f])
+      +- Calc(select=[d, e, f], where=[(d < 12)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
@@ -460,6 +460,25 @@ Calc(select=[d, e, f])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Calc(select=[d, e, f], where=[(d < 10)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithFilter4">
+    <Resource name="sql">
+      <![CDATA[SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d = null]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[=($3, null)])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

@@ -54,9 +54,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.plan.RelOptUtil.conjunctions;
@@ -80,6 +82,19 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
             FlinkFilterIntoJoinRule.FlinkFilterIntoJoinRuleConfig.DEFAULT.toRule();
     public static final FlinkJoinConditionPushRule JOIN_CONDITION_PUSH =
             FlinkJoinConditionPushRule.FlinkFilterJoinRuleConfig.DEFAULT.toRule();
+
+    // For left/right join, not all filter conditions support push to another side after deduction.
+    // This set specifies the supported filter conditions.
+    public static final Set<SqlKind> SUITABLE_FILTER_TO_PUSH =
+            new HashSet() {
+                {
+                    add(SqlKind.EQUALS);
+                    add(SqlKind.GREATER_THAN);
+                    add(SqlKind.GREATER_THAN_OR_EQUAL);
+                    add(SqlKind.LESS_THAN);
+                    add(SqlKind.LESS_THAN_OR_EQUAL);
+                }
+            };
 
     /** Creates a FilterJoinRule. */
     protected FlinkFilterJoinRule(C config) {
@@ -394,12 +409,14 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         if (joinType == JoinRelType.INNER) {
             return true;
         }
-        // For left/right outer join, now, we only support to push equal condition to other side.
-        // Take left outer join and IS_NULL condition as an example, If the join right side contains
-        // an IS_NULL filter, while we try to push it to the join left side and the left side have
-        // any other filter on this column, which will conflict and generate wrong plan.
+        // For left/right outer join, now, we only support to push special condition in set
+        // SUITABLE_FILTER_TO_PUSH to other side. Take left outer join and IS_NULL condition as an
+        // example, If the join right side contains an IS_NULL filter, while we try to push it to
+        // the join left side and the left side have any other filter on this column, which will
+        // conflict and generate wrong plan.
         if ((joinType == JoinRelType.LEFT || joinType == JoinRelType.RIGHT)
-                && (filter instanceof RexCall && ((RexCall) filter).op.kind == SqlKind.EQUALS)) {
+                && (filter instanceof RexCall
+                        && SUITABLE_FILTER_TO_PUSH.contains(((RexCall) filter).op.kind))) {
             return true;
         }
         return false;
