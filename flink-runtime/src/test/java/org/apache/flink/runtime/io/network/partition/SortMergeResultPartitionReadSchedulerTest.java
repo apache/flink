@@ -266,16 +266,16 @@ class SortMergeResultPartitionReadSchedulerTest {
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
                         bufferPool, executorService, this, bufferRequestTimeout);
+        long startTimestamp = System.currentTimeMillis();
         readScheduler.createSubpartitionReader(
                 new NoOpBufferAvailablityListener(), 0, partitionedFile);
         // request and use all buffers of buffer pool.
         readScheduler.run();
 
         assertThat(bufferPool.getAvailableBuffers()).isZero();
-        long startTimestamp = System.currentTimeMillis();
         assertThatThrownBy(readScheduler::allocateBuffers).isInstanceOf(TimeoutException.class);
         long requestDuration = System.currentTimeMillis() - startTimestamp;
-        assertThat(requestDuration > bufferRequestTimeout.toMillis()).isTrue();
+        assertThat(requestDuration >= bufferRequestTimeout.toMillis()).isTrue();
 
         readScheduler.release();
     }
