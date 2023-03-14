@@ -122,7 +122,7 @@ of use. More details can be found in the
 The default value of `taskmanager.memory.network.max` has changed from `1g` to `Long#MAX_VALUE`, 
 to reduce the number of config options user needs to tune when trying to increase the network 
 memory size. This may affect the performance when this option is not explicitly configured, due to 
-potential changes of network memory size, and heap and managed memory sizes when the total memory 
+potential changes of network memory size, heap and managed memory size when the total memory 
 size is fixed. To go back to the previous behavior, user can explicitly configure this option to 
 the previous default value `1g`.
 
