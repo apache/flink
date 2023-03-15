@@ -499,7 +499,24 @@ temporal:
     description: Gets current Unix timestamp in seconds. This function is not deterministic which means the value would be recalculated for each record.
   - sql: UNIX_TIMESTAMP(string1[, string2])
     table: unixTimestamp(STRING1[, STRING2])
-    description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
+    description: |
+      Converts a date time string string1 with format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+    
+      If a time zone is specified in the date time string and parsed by UTC+X format such as "yyyy-MM-dd HH:mm:ss.SSS X", this function will use the specified timezone in the date time string instead of the timezone in table config.
+      If the date time string can not be parsed, the default value Long.MIN_VALUE(-9223372036854775808) will be returned.
+      
+      ```sql
+      Flink SQL> SET 'table.local-time-zone' = 'Europe/Berlin';
+      
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns 1
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns -9223372036854775808
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      ```
   - sql: TO_DATE(string1[, string2])
     table: toDate(STRING1[, STRING2])
     description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
@@ -516,7 +533,7 @@ temporal:
 
       Note that this function can return `NULL`, and you may have to consider this case. For example, if you want to filter out late data you can use:
 
-      ```
+      ```sql
       WHERE
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
@@ -547,7 +564,7 @@ conditional:
       If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
       The return type is nullable if all arguments are nullable as well.
 
-      ```
+      ```sql
       -- Returns 'default'
       COALESCE(NULL, 'default')
 
@@ -625,7 +642,7 @@ json:
       allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
       `VALUE`.
 
-      ```
+      ```sql
       -- TRUE
       '1' IS JSON
       '[]' IS JSON
@@ -658,7 +675,7 @@ json:
 
       If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
 
-      ```
+      ```sql
       -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
       -- FALSE
@@ -682,7 +699,7 @@ json:
       This function returns a JSON string containing the serialized value. If the value is `NULL`,
       the function returns `NULL`.
 
-      ```
+      ```sql
       -- NULL
       JSON_STRING(CAST(NULL AS INT))
 
@@ -721,7 +738,7 @@ json:
       When using JSON_VALUE in SQL, the path is a character parameter which is already single quoted, 
       so you have to escape the single quotes around property name, such as `JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`.
 
-      ```
+      ```sql
       -- "true"
       JSON_VALUE('{"a": true}', '$.a')
 
@@ -757,7 +774,7 @@ json:
       case an error was raised, respectively. By default, in both cases `null` is returned. Other
       choices are to use an empty array, an empty object, or to raise an error.
 
-      ```
+      ```sql
       -- '{ "b": 1 }'
       JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
       -- '[1, 2]'
@@ -802,7 +819,7 @@ json:
       `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
       structures.
 
-      ```
+      ```sql
       -- '{}'
       JSON_OBJECT()
 
@@ -838,7 +855,7 @@ json:
 
       This function is currently not supported in `OVER` windows.
 
-      ```
+      ```sql
       -- '{"Apple":2,"Banana":17,"Orange":0}'
       SELECT
         JSON_OBJECTAGG(KEY product VALUE cnt)
@@ -857,7 +874,7 @@ json:
       `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
       structures.
 
-      ```
+      ```sql
       -- '[]'
       JSON_ARRAY()
       -- '[1,"2"]'
@@ -884,7 +901,7 @@ json:
       This function is currently not supported in `OVER` windows, unbounded session windows, or hop
       windows.
 
-      ```
+      ```sql
       -- '["Apple","Banana","Orange"]'
       SELECT
         JSON_ARRAYAGG(product)
