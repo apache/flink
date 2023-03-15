@@ -505,17 +505,17 @@ temporal:
       If a time zone is specified in the date time string and parsed by UTC+X format such as "yyyy-MM-dd HH:mm:ss.SSS X", this function will use the specified timezone in the date time string instead of the timezone in table config.
       If the date time string can not be parsed, the default value Long.MIN_VALUE(-9223372036854775808) will be returned.
       
-      ```
-      SET 'table.local-time-zone' = 'Europe/Berlin';
-      
-      -- 1641020400
-      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001', 'yyyy-MM-dd HH:mm:ss.SSS');
-      -- 1640995200
-      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
-      -- 1641020400
-      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
-      -- -9223372036854775808
-      SELECT UNIX_TIMESTAMP('2022-01-01 08:00:00.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      ```sql
+      Flink SQL> SET 'table.local-time-zone' = 'Europe/Berlin';
+
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns 1
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns -9223372036854775808
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
       ```
   - sql: TO_DATE(string1[, string2])
     table: toDate(STRING1[, STRING2])
