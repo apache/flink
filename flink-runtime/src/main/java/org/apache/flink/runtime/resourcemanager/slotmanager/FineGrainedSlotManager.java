@@ -283,11 +283,21 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public void clearResourceRequirements(JobID jobId) {
+        maybeReclaimInactiveSlots(jobId);
         jobMasterTargetAddresses.remove(jobId);
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
         if (resourceAllocator.isSupported()) {
             taskManagerTracker.clearPendingAllocationsOfJob(jobId);
             declareNeededResourcesWithDelay();
+        }
+    }
+
+    private void maybeReclaimInactiveSlots(JobID jobId) {
+        // We don't notify the task manager tracker and resource tracker about the freeing of these
+        // slots early, and rely on task managers to report the slots becoming available later to
+        // keep the states consistent.
+        if (!resourceTracker.getAcquiredResources(jobId).isEmpty()) {
+            slotStatusSyncer.freeInactiveSlots(jobId);
         }
     }
 

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -148,7 +149,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final AllocationID allocationId = new AllocationID();
         final SlotReport slotReport =
                 new SlotReport(
-                        createAllocatedSlotStatus(allocationId, DEFAULT_SLOT_RESOURCE_PROFILE));
+                        createAllocatedSlotStatus(
+                                new JobID(), allocationId, DEFAULT_SLOT_RESOURCE_PROFILE));
         new Context() {
             {
                 runTest(
@@ -206,7 +208,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final SlotReport slotReportWithAllocatedSlot =
                 new SlotReport(
                         createAllocatedSlotStatus(
-                                new AllocationID(), DEFAULT_SLOT_RESOURCE_PROFILE));
+                                new JobID(), new AllocationID(), DEFAULT_SLOT_RESOURCE_PROFILE));
         new Context() {
             {
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
@@ -692,6 +694,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                                     taskExecutionConnection,
                                                                     new SlotReport(
                                                                             createAllocatedSlotStatus(
+                                                                                    new JobID(),
                                                                                     allocationId,
                                                                                     DEFAULT_SLOT_RESOURCE_PROFILE)),
                                                                     DEFAULT_TOTAL_RESOURCE_PROFILE,
@@ -996,5 +999,68 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             });
                     assertThat(registeredMetrics.get()).isEqualTo(0);
                 });
+    }
+
+    @Test
+    void testReclaimInactiveSlotsOnClearRequirements() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final CompletableFuture<JobID> freeInactiveSlotsJobIdFuture =
+                                    new CompletableFuture<>();
+
+                            final JobID jobId = new JobID();
+                            final TestingTaskExecutorGateway taskExecutorGateway =
+                                    new TestingTaskExecutorGatewayBuilder()
+                                            .setFreeInactiveSlotsConsumer(
+                                                    freeInactiveSlotsJobIdFuture::complete)
+                                            .createTestingTaskExecutorGateway();
+                            final TaskExecutorConnection taskExecutionConnection =
+                                    createTaskExecutorConnection(taskExecutorGateway);
+
+                            final CompletableFuture<SlotManager.RegistrationResult>
+                                    registerTaskManagerFuture = new CompletableFuture<>();
+                            runInMainThread(
+                                    () ->
+                                            registerTaskManagerFuture.complete(
+                                                    getSlotManager()
+                                                            .registerTaskManager(
+                                                                    taskExecutionConnection,
+                                                                    new SlotReport(
+                                                                            createAllocatedSlotStatus(
+                                                                                    jobId,
+                                                                                    new AllocationID(),
+                                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)),
+                                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            assertThat(assertFutureCompleteAndReturn(registerTaskManagerFuture))
+                                    .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+
+                            // setup initial requirements, which should not trigger slots being
+                            // reclaimed
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(jobId, 2)));
+                            assertFutureNotComplete(freeInactiveSlotsJobIdFuture);
+
+                            // set requirements to 0, which should not trigger slots being reclaimed
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            ResourceRequirements.empty(
+                                                                    jobId, "foobar")));
+                            assertFutureNotComplete(freeInactiveSlotsJobIdFuture);
+
+                            // clear requirements, which should trigger slots being reclaimed
+                            runInMainThreadAndWait(
+                                    () -> getSlotManager().clearResourceRequirements(jobId));
+                            assertThat(freeInactiveSlotsJobIdFuture.get()).isEqualTo(jobId);
+                        });
+            }
+        };
     }
 }
