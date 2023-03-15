@@ -28,12 +28,14 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Configurable;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -83,6 +85,16 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
                                 KafkaRecordSerializationSchema.builder()
                                         .setTopic(DEFAULT_TOPIC)
                                         .setTopicSelector(e -> DEFAULT_TOPIC))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void testDoNotAllowMultipleHeaderProducers() {
+        assertThatThrownBy(
+                        () ->
+                                KafkaRecordSerializationSchema.builder()
+                                        .setHeaderProducer(new HeaderProducer<Object>() {})
+                                        .setHeaderProducer(new HeaderProducer<Object>() {}))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -143,6 +155,39 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
         final ProducerRecord<byte[], byte[]> record = schema.serialize("a", sinkContext, null);
         assertThat(record.partition()).isEqualTo(partition);
         assertThat(opened.get()).isTrue();
+    }
+
+    @Test
+    public void testSerializeRecordWithHeaderProducer() throws Exception {
+        final HeaderProducer<String> headerProducer =
+                new HeaderProducer<String>() {
+                    @Override
+                    public Iterable<Header> produceHeaders(String input) {
+                        return ImmutableList.of(
+                                new Header() {
+                                    @Override
+                                    public String key() {
+                                        return input;
+                                    }
+
+                                    @Override
+                                    public byte[] value() {
+                                        return input.getBytes(StandardCharsets.UTF_8);
+                                    }
+                                });
+                    }
+                };
+        final KafkaRecordSerializationSchema<String> schema =
+                KafkaRecordSerializationSchema.builder()
+                        .setTopic(DEFAULT_TOPIC)
+                        .setValueSerializationSchema(new SimpleStringSchema())
+                        .setHeaderProducer(headerProducer)
+                        .build();
+        final ProducerRecord<byte[], byte[]> record = schema.serialize("a", null, null);
+        assertThat(record.headers())
+                .singleElement()
+                .extracting(e -> e.key(), e -> e.value())
+                .containsExactly("a", "a".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
