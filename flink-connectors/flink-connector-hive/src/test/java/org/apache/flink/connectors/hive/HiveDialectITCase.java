@@ -43,6 +43,10 @@ import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStr
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveOperationExecutor;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
@@ -148,6 +152,19 @@ public class HiveDialectITCase {
                                 .getClass()
                                 .getName())
                 .isNotEqualTo(operationExecutor.getClass().getName());
+    }
+
+    @Test
+    public void testParseCommand() {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        Parser parser = tableEnvInternal.getParser();
+
+        // hive dialect should use HiveParser
+        assertThat(parser).isInstanceOf(HiveParser.class);
+        assertThat(parser.parse("HELP").get(0)).isInstanceOf(HelpOperation.class);
+        assertThat(parser.parse("clear;").get(0)).isInstanceOf(ClearOperation.class);
+        assertThat(parser.parse("ResET").get(0)).isInstanceOf(ResetOperation.class);
+        assertThat(parser.parse("Exit").get(0)).isInstanceOf(QuitOperation.class);
     }
 
     @Test

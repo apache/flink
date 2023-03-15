@@ -191,18 +191,32 @@ public class HiveParser implements Parser {
         LOG.info("current catalog: " + currentCatalog.getClass().getClassLoader());
         LOG.info("current catalog: " + HiveCatalog.class.getClassLoader());
 
+        Optional<Operation> flinkExtendedOperation =
+                FlinkExtendedParser.parseFlinkExtendedCommand(statement);
+        if (flinkExtendedOperation.isPresent()) {
+            return Collections.singletonList(flinkExtendedOperation.get());
+        }
+
         // we can't compare currentCatalog instanceof HiveCatalog directly
         // The classloader of currentCatalog is FlinkUserClassloader as it's create via sql api.
         // but the classloader of HiveCatalog is ComponentClassLoader, see PlannerModule.
         // although currentCatalog is the instance of HiveCatalog, but currentCatalog instanceof
         // HiveCatalog
         // will return false since they actually belong to different classloaders
-
         if (!(currentCatalog.getClass().getName().equals(HiveCatalog.class.getName()))) {
-            throw new TableException(
-                    String.format(
-                            "Current catalog is %s, which not a HiveCatalog, but Hive dialect is only supported when the current catalog is HiveCatalog.",
-                            catalogRegistry.getCurrentCatalog()));
+            // current, if it's not a hive catalog, we can't use hive dialect;
+            // but we try to parse it to set command, if it's a set command, we can return
+            // the SetOperation directly which enables users to switch dialect when hive dialect
+            // is not available in the case of current catalog is not a HiveCatalog
+            Optional<Operation> optionalOperation = FlinkExtendedParser.parseSet(statement);
+            if (optionalOperation.isPresent()) {
+                return Collections.singletonList(optionalOperation.get());
+            } else {
+                throw new TableException(
+                        String.format(
+                                "Current catalog is %s, which not a HiveCatalog, but Hive dialect is only supported when the current catalog is HiveCatalog.",
+                                catalogRegistry.getCurrentCatalog()));
+            }
         }
 
         Optional<Operation> nonSqlOperation =
@@ -272,10 +286,6 @@ public class HiveParser implements Parser {
             String cmdArgs = statement.substring(commandTokens[0].length()).trim();
             if (hiveCommand == HiveCommand.SET) {
                 return Optional.of(processSetCmd(statement, cmdArgs));
-            } else if (hiveCommand == HiveCommand.RESET) {
-                // for reset command, we should delegate to Flink's own behavior
-                // as reset a key will create an execution environment in Flink's implementation
-                return Optional.of(FlinkExtendedParser.parseReset(statement));
             } else if (hiveCommand == HiveCommand.ADD) {
                 return Optional.of(processAddCmd(substituteVariables(hiveConf, cmdArgs)));
             } else {
