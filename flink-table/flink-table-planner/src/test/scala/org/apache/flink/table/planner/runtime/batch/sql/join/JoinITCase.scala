@@ -1152,6 +1152,14 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq()
     )
 
+    checkResult(
+      """
+        |select * from
+        | l inner join r on a = c where c = NULL
+        |""".stripMargin,
+      Seq()
+    )
+
     if (expectedJoinType == NestedLoopJoin) {
       // For inner join, we will push c = 3 into left side l by
       // derived from a = c and c = 3.
@@ -1203,6 +1211,15 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row(1, 2.0, null, null),
         row(1, 2.0, null, null)
       )
+    )
+
+    // For 'c = NULL', all data cannot match this condition.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c = NULL
+        |""".stripMargin,
+      Seq()
     )
 
     // For left/right join, we will only push equal filter condition into

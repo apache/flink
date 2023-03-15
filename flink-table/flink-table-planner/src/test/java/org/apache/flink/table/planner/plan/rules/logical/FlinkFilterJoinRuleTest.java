@@ -254,6 +254,11 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testInnerJoinWithFilter6() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 = null");
+    }
+
+    @Test
     public void testLeftJoinWithSomeFiltersFromLeftSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a1 = 2");
     }
@@ -314,6 +319,11 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     @Test
     public void testLeftJoinWithFilter5() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
+    }
+
+    @Test
+    public void testLeftJoinWithFilter6() {
+        util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 = null");
     }
 
     @Test
