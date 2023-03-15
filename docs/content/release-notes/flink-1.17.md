@@ -200,4 +200,5 @@ The minimum Hadoop version supported by Apache Flink has been updated to version
 ##### [FLINK-21239](https://issues.apache.org/jira/browse/FLINK-21239)
 ##### [FLINK-29932](https://issues.apache.org/jira/browse/FLINK-29932)
 Calcite upgrade brings optimization changing logical plans for some queries involving `Sarg` and 
-queries with `count` of non-distinct values.
+queries with `count` of non-distinct values. Please note that the execution plan changes for 
+certain SQL queries after the upgrade, so savepoints are not backward compatible in these cases. 
