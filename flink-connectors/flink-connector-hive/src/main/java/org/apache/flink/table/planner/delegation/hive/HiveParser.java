@@ -25,6 +25,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.calcite.bridge.CalciteContext;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogRegistry;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -50,7 +51,8 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserLoadSemanticAnalyzer;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.CalcitePlannerQueryOperation;
+import org.apache.flink.table.planner.utils.FlinkTypeUtils;
 import org.apache.flink.table.planner.utils.HiveCatalogUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -202,13 +204,6 @@ public class HiveParser implements Parser {
                             "Current catalog is %s, which not a HiveCatalog, but Hive dialect is only supported when the current catalog is HiveCatalog.",
                             catalogRegistry.getCurrentCatalog()));
         }
-        //        if (!(currentCatalog instanceof HiveCatalog)) {
-        //            throw new TableException(
-        //                    String.format(
-        //                            "Current catalog is %s, which not a HiveCatalog, but Hive
-        // dialect is only supported when the current catalog is HiveCatalog.",
-        //                            catalogRegistry.getCurrentCatalog()));
-        //        }
 
         Optional<Operation> nonSqlOperation =
                 tryProcessHiveNonSqlStatement(
@@ -537,7 +532,8 @@ public class HiveParser implements Parser {
         if (!analyzer.getQB().getIsQuery()) {
             return dmlHelper.createInsertOperation(analyzer, relNode);
         } else {
-            return new PlannerQueryOperation(relNode);
+            ResolvedSchema resolvedSchema = FlinkTypeUtils.resolvedSchema(relNode);
+            return new CalcitePlannerQueryOperation(relNode, resolvedSchema);
         }
     }
 }

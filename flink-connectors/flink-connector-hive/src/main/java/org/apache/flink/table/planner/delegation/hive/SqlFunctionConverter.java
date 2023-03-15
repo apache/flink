@@ -22,7 +22,6 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBetween;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
-import org.apache.flink.table.planner.functions.sql.FlinkTimestampWithPrecisionDynamicFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -95,7 +94,7 @@ public class SqlFunctionConverter extends RexShuttle {
             RelDataType type = call.getType();
             return builder.makeCall(type, convertedOp, visitList(operands, update));
         } else {
-            if (convertedOp instanceof FlinkTimestampWithPrecisionDynamicFunction
+            if (HiveParserUtils.isFlinkSqlTimestampFunction(convertedOp)
                     && convertedOp
                             .getName()
                             .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_TIMESTAMP.getName())) {

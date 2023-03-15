@@ -48,9 +48,10 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.CalcitePlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalScriptTransform;
+import org.apache.flink.table.planner.utils.FlinkTypeUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -250,7 +251,8 @@ public class HiveParserDMLHelper {
 
         return Tuple4.of(
                 destTableIdentifier,
-                new PlannerQueryOperation(queryRelNode),
+                new CalcitePlannerQueryOperation(
+                        queryRelNode, FlinkTypeUtils.resolvedSchema(queryRelNode)),
                 staticPartSpec,
                 overwrite);
     }
@@ -417,7 +419,9 @@ public class HiveParserDMLHelper {
         props.put("columns", colNames);
         props.put("columns.types", colTypes);
 
-        PlannerQueryOperation plannerQueryOperation = new PlannerQueryOperation(queryRelNode);
+        CalcitePlannerQueryOperation plannerQueryOperation =
+                new CalcitePlannerQueryOperation(
+                        queryRelNode, FlinkTypeUtils.resolvedSchema(queryRelNode));
         return new SinkModifyOperation(
                 createDummyTableForInsertDirectory(
                         plannerQueryOperation.getResolvedSchema(), props),

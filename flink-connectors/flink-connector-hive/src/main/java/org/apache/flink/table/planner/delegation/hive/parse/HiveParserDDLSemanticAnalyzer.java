@@ -108,7 +108,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserRowResolver
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.TableSchemaUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 
@@ -1948,8 +1948,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         newName,
                         HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(newType)));
         TableSchema newSchema =
-                OperationConverterUtils.changeColumn(
-                        oldSchema, oldName, newTableColumn, first, flagCol);
+                TableSchemaUtils.changeColumn(oldSchema, oldName, newTableColumn, first, flagCol);
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
         props.put(ALTER_TABLE_OP, ALTER_COLUMNS.name());
         if (isCascade) {
@@ -1957,7 +1956,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         List<TableChange> tableChanges =
-                OperationConverterUtils.buildModifyColumnChange(
+                TableSchemaUtils.buildModifyColumnChange(
                         oldTable.getResolvedSchema()
                                 .getColumn(oldName)
                                 .orElseThrow(
