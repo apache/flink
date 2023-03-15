@@ -20,11 +20,10 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -32,15 +31,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link LeastUtilizationSlotMatchingStrategy}. */
-public class LeastUtilizationSlotMatchingStrategyTest extends TestLogger {
+class LeastUtilizationSlotMatchingStrategyTest {
 
     @Test
-    public void findMatchingSlot_multipleMatchingSlots_returnsSlotWithLeastUtilization() {
+    void findMatchingSlot_multipleMatchingSlots_returnsSlotWithLeastUtilization() {
         final ResourceProfile requestedResourceProfile = ResourceProfile.fromResources(2.0, 2);
 
         final TestingTaskManagerSlotInformation leastUtilizedSlot =
@@ -71,8 +68,11 @@ public class LeastUtilizationSlotMatchingStrategyTest extends TestLogger {
                         freeSlots,
                         createRegisteredSlotsLookupFunction(registeredSlotPerTaskExecutor));
 
-        assertTrue(matchingSlot.isPresent());
-        assertThat(matchingSlot.get().getSlotId(), is(leastUtilizedSlot.getSlotId()));
+        assertThat(matchingSlot)
+                .hasValueSatisfying(
+                        slot ->
+                                assertThat(slot.getSlotId())
+                                        .isEqualTo(leastUtilizedSlot.getSlotId()));
     }
 
     private Function<InstanceID, Integer> createRegisteredSlotsLookupFunction(
