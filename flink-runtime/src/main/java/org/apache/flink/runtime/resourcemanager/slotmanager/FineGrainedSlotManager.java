@@ -283,11 +283,21 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public void clearResourceRequirements(JobID jobId) {
+        maybeReclaimInactiveSlots(jobId);
         jobMasterTargetAddresses.remove(jobId);
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
         if (resourceAllocator.isSupported()) {
             taskManagerTracker.clearPendingAllocationsOfJob(jobId);
             declareNeededResourcesWithDelay();
+        }
+    }
+
+    private void maybeReclaimInactiveSlots(JobID jobId) {
+        if (!resourceTracker.getAcquiredResources(jobId).isEmpty()) {
+            for (TaskExecutorConnection taskExecutorConnection :
+                    taskManagerTracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId)) {
+                slotStatusSyncer.freeInactiveSlots(jobId, taskExecutorConnection);
+            }
         }
     }
 

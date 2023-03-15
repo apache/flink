@@ -777,6 +777,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                                                             taskExecutionConnection.getInstanceID(),
                                                             new SlotReport(
                                                                     createAllocatedSlotStatus(
+                                                                            new JobID(),
                                                                             allocationId,
                                                                             DEFAULT_SLOT_RESOURCE_PROFILE))));
 

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.util.ResourceCounter;
 
+import java.util.Collection;
 import java.util.Map;
 
 /** Tracks TaskManager's resource and slot status. */
@@ -78,6 +79,15 @@ interface TaskManagerTracker
 
     /** Get unwanted task managers. */
     Map<InstanceID, WorkerResourceSpec> getUnWantedTaskManager();
+
+    /**
+     * Returns all task executors that have at least 1 pending/completed allocation for the given
+     * job.
+     *
+     * @param jobId the job for which the task executors must have a slot
+     * @return task executors with at least 1 slot for the job
+     */
+    Collection<TaskExecutorConnection> getTaskExecutorsWithAllocatedSlotsForJob(JobID jobId);
 
     // ---------------------------------------------------------------------------------------------
     // Slot status updates
