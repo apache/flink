@@ -335,11 +335,126 @@ $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edi
 
 If you do not want to use the `default` service account, use the following command to create a new `flink-service-account` service account and set the role binding.
 Then use the config option `-Dkubernetes.service-account=flink-service-account` to make the JobManager pod use the `flink-service-account` service account to create/delete TaskManager pods and leader ConfigMaps. 
-Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager.
+Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager. The following "flink-rbac.yaml" is the access with RBAC settings.
 
 ```bash
-$ kubectl create serviceaccount flink-service-account
-$ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit --serviceaccount=default:flink-service-account
+kubectl apply -f flink-rbac.yaml
+```
+
+flink-rbac.yaml
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    system: flink-service-account
+  name: flink-service-account
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flink-service-account
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods","configmaps" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    verbs: [ "get", "list", "create", "update", "patch", "delete" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flink-service-account
+subjects:
+  - kind: ServiceAccount
+    name: flink-service-account
+roleRef:
+  kind: Role
+  name: flink-service-account
+  apiGroup: rbac.authorization.k8s.io
+```
+
+In addition, Can also be set "-Dkubernetes.jobmanager.service-account=jobmanager-service-account" and "-Dkubernetes. taskmanager.service-account=taskmanager-service-account" to config jobmanager and taskmanager's 
+service acount, respectively. This allows the taskmanager to the least access with RBAC.
+
+```bash
+kubectl apply -f jobmanager-service-account.yaml
+kubectl apply -f taskmanager-service-account.yaml
+```
+
+jobmanager-service-account.yaml
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    system: jobmanager-service-account
+  name: jobmanager-service-account
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jobmanager-service-account
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods","configmaps" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    verbs: [ "get", "list", "create", "update", "patch", "delete" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jobmanager-service-account
+subjects:
+  - kind: ServiceAccount
+    name: jobmanager-service-account
+roleRef:
+  kind: Role
+  name: jobmanager-service-account
+  apiGroup: rbac.authorization.k8s.io
+```
+
+taskmanager-service-account.yaml
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    system: taskmanager-serviceaccount
+  name: taskmanager-serviceaccount
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: taskmanager-servic-eaccount
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "get", "list", "watch" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: taskmanager-service-account
+subjects:
+  - kind: ServiceAccount
+    name: taskmanager-service-account
+roleRef:
+  kind: Role
+  name: taskmanager-service-account
+  apiGroup: rbac.authorization.k8s.io
 ```
 
 Please refer to the official Kubernetes documentation on [RBAC Authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) for more information.
