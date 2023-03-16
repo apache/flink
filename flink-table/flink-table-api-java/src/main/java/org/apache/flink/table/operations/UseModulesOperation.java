@@ -30,11 +30,11 @@ public class UseModulesOperation implements UseOperation {
     private final List<String> moduleNames;
 
     public UseModulesOperation(List<String> moduleNames) {
-        this.moduleNames = moduleNames;
+        this.moduleNames = Collections.unmodifiableList(moduleNames);
     }
 
     public List<String> getModuleNames() {
-        return Collections.unmodifiableList(moduleNames);
+        return moduleNames;
     }
 
     @Override
