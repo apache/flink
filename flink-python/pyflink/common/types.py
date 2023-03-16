@@ -251,7 +251,7 @@ class Row(object):
             return "Row(%s)" % ", ".join("%s=%r" % (k, v)
                                          for k, v in zip(self._fields, tuple(self)))
         else:
-            return "<Row(%s)>" % ", ".join("%r" % field for field in self)
+            return "<Row(%s)>" % ", ".join(repr(field) for field in self)
 
     def __eq__(self, other):
         if not isinstance(other, Row):
