@@ -63,6 +63,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.operators.source.TestingSourceOperator.createTestOperator;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -334,6 +336,55 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         assertThat(output.watermarks).hasSize(3);
         assertThat(output.watermarks).containsExactly(150L, 250L, 300L);
+    }
+
+    @Test
+    void testMultipleSplitsAndFinishedByRecordEvaluator() throws Exception {
+        int split0End = 7;
+        int split1End = 15;
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(2)
+                        .setSeparatedFinishedRecord(false)
+                        .setBlockingFetch(false)
+                        .build();
+        MockSourceReader reader =
+                new MockSourceReader(
+                        elementsQueue,
+                        new SingleThreadFetcherManager<>(
+                                elementsQueue, () -> mockSplitReader, getConfig()),
+                        getConfig(),
+                        new TestingReaderContext(),
+                        i -> i == split0End || i == split1End);
+        reader.start();
+
+        List<MockSourceSplit> splits =
+                Arrays.asList(
+                        getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED),
+                        getSplit(1, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
+        reader.addSplits(splits);
+        reader.notifyNoMoreSplits();
+
+        TestingReaderOutput<Integer> output = new TestingReaderOutput<>();
+        while (true) {
+            InputStatus status = reader.pollNext(output);
+            if (status == InputStatus.END_OF_INPUT) {
+                break;
+            }
+            if (status == InputStatus.NOTHING_AVAILABLE) {
+                reader.isAvailable().get();
+            }
+        }
+        List<Integer> excepted =
+                IntStream.concat(
+                                IntStream.range(0, split0End),
+                                IntStream.range(NUM_RECORDS_PER_SPLIT, split1End))
+                        .boxed()
+                        .collect(Collectors.toList());
+        assertThat(output.getEmittedRecords())
+                .containsExactlyInAnyOrder(excepted.toArray(new Integer[excepted.size()]));
     }
 
     // ---------------- helper methods -----------------
