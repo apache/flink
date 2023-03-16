@@ -33,7 +33,7 @@ public class LocalChangelogRegistryTest extends TestLogger {
     @Test
     public void testRegistryNormal() {
         LocalChangelogRegistry localStateRegistry =
-                new LocalChangelogRegistryImpl(Executors.directExecutor());
+                new LocalChangelogRegistryImpl(Executors.newDirectExecutorService());
         TestingStreamStateHandle handle1 = new TestingStreamStateHandle();
         TestingStreamStateHandle handle2 = new TestingStreamStateHandle();
         // checkpoint 1: handle1, handle2
@@ -45,11 +45,11 @@ public class LocalChangelogRegistryTest extends TestLogger {
         localStateRegistry.register(handle2, 2);
         localStateRegistry.register(handle3, 2);
 
-        localStateRegistry.discardUpToCheckpoint(2);
+        localStateRegistry.discardUpToCheckpoint(1);
         assertTrue(handle1.isDisposed());
         assertFalse(handle2.isDisposed());
 
-        localStateRegistry.discardUpToCheckpoint(3);
+        localStateRegistry.discardUpToCheckpoint(2);
         assertTrue(handle2.isDisposed());
         assertTrue(handle3.isDisposed());
     }

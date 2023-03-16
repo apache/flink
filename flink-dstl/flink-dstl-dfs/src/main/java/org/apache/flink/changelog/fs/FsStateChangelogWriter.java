@@ -63,9 +63,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * thread synchronization); {@link SequenceNumber} is not changed.
  *
  * <p>However, if they exceed {@link #preEmptivePersistThresholdInBytes} then {@link
- * #persistInternal(SequenceNumber) persist} is called.
+ * #persistInternal(SequenceNumber, long) persist} is called.
  *
- * <p>On {@link #persist(SequenceNumber) persist}, accumulated changes are sent to the {@link
+ * <p>On {@link #persist(SequenceNumber, long) persist}, accumulated changes are sent to the {@link
  * StateChangeUploadScheduler} as an immutable {@link StateChangeUploadScheduler.UploadTask task}.
  * An {@link FsStateChangelogWriter.UploadCompletionListener upload listener} is also registered.
  * Upon notification it updates the Writer local state (for future persist calls) and completes the
@@ -90,6 +90,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @NotThreadSafe
 class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandleStreamImpl> {
     private static final Logger LOG = LoggerFactory.getLogger(FsStateChangelogWriter.class);
+    private static final long DUMMY_PERSIST_CHECKPOINT = -1L;
     private static final SequenceNumber INITIAL_SQN = SequenceNumber.of(0L);
 
     private final UUID logId;
@@ -205,15 +206,21 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         return activeSequenceNumber;
     }
 
+    @VisibleForTesting
+    CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> persist(SequenceNumber from)
+            throws IOException {
+        return persist(from, DUMMY_PERSIST_CHECKPOINT);
+    }
+
     @Override
     public CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> persist(
-            SequenceNumber from) throws IOException {
+            SequenceNumber from, long checkpointId) throws IOException {
         LOG.debug(
                 "persist {} starting from sqn {} (incl.), active sqn: {}",
                 logId,
                 from,
                 activeSequenceNumber);
-        return persistInternal(from);
+        return persistInternal(from, checkpointId);
     }
 
     private void preEmptiveFlushIfNeeded(byte[] value) throws IOException {
@@ -222,17 +229,27 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             LOG.debug(
                     "pre-emptively flush {}MB of appended changes to the common store",
                     activeChangeSetSize / 1024 / 1024);
-            persistInternal(notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey());
+            persistInternal(
+                    notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey(),
+                    DUMMY_PERSIST_CHECKPOINT);
         }
     }
 
     private CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> persistInternal(
-            SequenceNumber from) throws IOException {
+            SequenceNumber from, long checkpointId) throws IOException {
         ensureCanPersist(from);
         rollover();
         Map<SequenceNumber, StateChangeSet> toUpload = drainTailMap(notUploaded, from);
         NavigableMap<SequenceNumber, UploadResult> readyToReturn = uploaded.tailMap(from, true);
         LOG.debug("collected readyToReturn: {}, toUpload: {}", readyToReturn, toUpload);
+
+        if (checkpointId != DUMMY_PERSIST_CHECKPOINT) {
+            for (UploadResult uploadResult : readyToReturn.values()) {
+                if (uploadResult.localStreamHandle != null) {
+                    localChangelogRegistry.register(uploadResult.localStreamHandle, checkpointId);
+                }
+            }
+        }
 
         SequenceNumberRange range = SequenceNumberRange.generic(from, activeSequenceNumber);
         if (range.size() == readyToReturn.size()) {
@@ -248,7 +265,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 UploadTask uploadTask =
                         new UploadTask(
                                 toUpload.values(),
-                                this::handleUploadSuccess,
+                                uploadResults -> handleUploadSuccess(uploadResults, checkpointId),
                                 this::handleUploadFailure);
                 uploader.upload(uploadTask);
             }
@@ -276,7 +293,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 "handleUploadFailure");
     }
 
-    private void handleUploadSuccess(List<UploadResult> results) {
+    private void handleUploadSuccess(List<UploadResult> results, long checkpointId) {
         mailboxExecutor.execute(
                 () -> {
                     if (closed) {
@@ -287,6 +304,10 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                     } else {
                         uploadCompletionListeners.removeIf(listener -> listener.onSuccess(results));
                         for (UploadResult result : results) {
+                            if (checkpointId != DUMMY_PERSIST_CHECKPOINT) {
+                                localChangelogRegistry.register(
+                                        result.localStreamHandle, checkpointId);
+                            }
                             SequenceNumber resultSqn = result.sequenceNumber;
                             if (resultSqn.compareTo(lowestSequenceNumber) >= 0
                                     && resultSqn.compareTo(highestSequenceNumber) < 0) {
@@ -375,7 +396,6 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                             changelogRegistry.stopTracking(localHandle);
                             localChangelogRegistry.register(localHandle, checkpointId);
                         });
-        localChangelogRegistry.discardUpToCheckpoint(checkpointId);
     }
 
     @Override

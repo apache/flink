@@ -137,7 +137,7 @@ class FsStateChangelogWriterTest {
 
             // checkpoint 1 trigger
             SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
-            writer.persist(initialSqn);
+            writer.persist(initialSqn, 1L);
             uploadScheduler.scheduleAll(); // checkpoint 1 completed
             writer.confirm(initialSqn, checkpoint1sqn, 1);
 
@@ -151,7 +151,7 @@ class FsStateChangelogWriterTest {
             // materialization 1 completed
             // checkpoint 2 trigger
             SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
-            writer.persist(materializationSqn);
+            writer.persist(materializationSqn, 2L);
             uploadScheduler.scheduleAll(); // checkpoint 2 completed
             writer.confirm(materializationSqn, checkpoint2sqn, 2);
 
@@ -165,7 +165,7 @@ class FsStateChangelogWriterTest {
 
             // checkpoint 3 trigger
             SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
-            writer.persist(materializationSqn);
+            writer.persist(materializationSqn, 3L);
             uploadScheduler.scheduleAll(); // checkpoint 3 completed
             writer.confirm(materializationSqn, checkpoint3sqn, 3);
 
@@ -182,7 +182,7 @@ class FsStateChangelogWriterTest {
             // checkpoint 4 trigger
             SequenceNumber checkpoint4sqn = writer.nextSequenceNumber();
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
-                    writer.persist(materializationSqn);
+                    writer.persist(materializationSqn, 4L);
             uploadScheduler.scheduleAll(); // checkpoint 4 completed
             writer.confirm(materializationSqn, checkpoint4sqn, 4);
 
@@ -226,7 +226,7 @@ class FsStateChangelogWriterTest {
             // checkpoint 1 trigger
             SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
-                    writer.persist(initialSqn);
+                    writer.persist(initialSqn, 1L);
 
             // trigger pre-emptive upload
             writer.append(KEY_GROUP, getBytes(100)); // sqn: 1
@@ -266,14 +266,15 @@ class FsStateChangelogWriterTest {
                                 new SyncMailboxExecutor(),
                                 taskChangelogRegistry,
                                 TestLocalRecoveryConfig.enabledForTest(),
-                                new LocalChangelogRegistryImpl(Executors.directExecutor()))) {
+                                new LocalChangelogRegistryImpl(
+                                        Executors.newDirectExecutorService()))) {
             SequenceNumber initialSqn = writer.initialSequenceNumber();
 
             writer.append(KEY_GROUP, getBytes(10));
 
             // checkpoint 1 trigger
             SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
-            writer.persist(initialSqn);
+            writer.persist(initialSqn, 1L);
             uploadScheduler.scheduleAll(); // checkpoint 1 completed
             writer.confirm(initialSqn, checkpoint1sqn, 1);
 
@@ -284,7 +285,7 @@ class FsStateChangelogWriterTest {
             // checkpoint 2 trigger
             SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future2 =
-                    writer.persist(initialSqn);
+                    writer.persist(initialSqn, 2L);
             uploadScheduler.scheduleAll(); // checkpoint 2 completed
             writer.confirm(initialSqn, checkpoint2sqn, 2);
             // checkpoint 1 subsumed
@@ -302,7 +303,7 @@ class FsStateChangelogWriterTest {
             // materialization 1 completed
             // checkpoint 3 trigger
             SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
-            writer.persist(materializationSqn);
+            writer.persist(materializationSqn, 3L);
             uploadScheduler.scheduleAll(); // checkpoint 3 completed
             writer.confirm(materializationSqn, checkpoint3sqn, 3);
             // checkpoint 2 subsumed
@@ -316,17 +317,19 @@ class FsStateChangelogWriterTest {
 
     @Test
     void testLocalFileAfterMaterialize() throws Exception {
+        // If register local files when confirm(), the following case will fail:
         // cp1 trigger: file1,file1'(local)
         // JM: register [file1] to sharedRegistry
         // cp1 complete: stopTracking [file1], register [file1'] to localRegistry
         // cp2 trigger: file1,file1',file2,file2'
         // JM: register [file1,file2] to sharedRegistry
-        // cp2 complete: stopTracking [file1, file2],register [file1',file2'] to localRegistry
+        // cp2 complete: stopTracking [file1,file1',file2,file2'], register [file1',file2'] to
+        // localRegistry
         // cp1 subsume
         // cp3 trigger:  file1,file1',file2,file2',file3,file3'
         // materialization: uploaded.clear()
         // JM: register [file1,file2,file3] to sharedRegistry
-        // cp3 complete: stopTracking [file3], register [file3] to localRegistry
+        // cp3 complete: stopTracking [], register [] to localRegistry
         // cp2 subsume: [file1', file2'] are discarded
         // if restore from cp3: local file1',file2' are not found
         long appendPersistThreshold = 100;
@@ -346,21 +349,22 @@ class FsStateChangelogWriterTest {
                                 new SyncMailboxExecutor(),
                                 taskChangelogRegistry,
                                 TestLocalRecoveryConfig.enabledForTest(),
-                                new LocalChangelogRegistryImpl(Executors.directExecutor()))) {
+                                new LocalChangelogRegistryImpl(
+                                        Executors.newDirectExecutorService()))) {
             SequenceNumber initialSqn = writer.initialSequenceNumber();
 
             writer.append(KEY_GROUP, getBytes(10));
 
             // checkpoint 1 trigger
             SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
-            writer.persist(initialSqn);
+            writer.persist(initialSqn, 1L);
             uploadScheduler.scheduleAll(); // checkpoint 1 completed
             writer.confirm(initialSqn, checkpoint1sqn, 1);
 
             writer.append(KEY_GROUP, getBytes(10));
             // checkpoint 2 trigger
             SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
-            writer.persist(initialSqn);
+            writer.persist(initialSqn, 2L);
             uploadScheduler.scheduleAll(); // checkpoint 2 completed
             writer.confirm(initialSqn, checkpoint2sqn, 2);
             writer.truncate(initialSqn);
@@ -370,15 +374,15 @@ class FsStateChangelogWriterTest {
             // checkpoint 3 trigger
             SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future3 =
-                    writer.persist(initialSqn);
+                    writer.persist(initialSqn, 3L);
             uploadScheduler.scheduleAll(); // checkpoint 3 completed
 
             // materialization 1 trigger
             SequenceNumber materializationSqn = writer.nextSequenceNumber();
             writer.truncate(
-                    materializationSqn.compareTo(checkpoint2sqn) < 0
+                    materializationSqn.compareTo(checkpoint1sqn) < 0
                             ? materializationSqn
-                            : checkpoint2sqn);
+                            : checkpoint1sqn);
             // materialization 1 completed
             // checkpoint 3 confirm
             writer.confirm(materializationSqn, checkpoint3sqn, 3);

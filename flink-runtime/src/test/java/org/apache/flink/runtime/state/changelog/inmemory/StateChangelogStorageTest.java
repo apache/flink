@@ -100,7 +100,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
                 writer.nextSequenceNumber();
             }
 
-            SnapshotResult<T> res = writer.persist(prev).get();
+            SnapshotResult<T> res = writer.persist(prev, 1).get();
             T jmHandle = res.getJobManagerOwnedSnapshot();
             StateChangelogHandleReader<T> reader = client.createReader();
             assertByteMapsEqual(appendsByKeyGroup, extract(jmHandle, reader));

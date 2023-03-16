@@ -51,7 +51,8 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
      *
      * @param from inclusive
      */
-    CompletableFuture<SnapshotResult<Handle>> persist(SequenceNumber from) throws IOException;
+    CompletableFuture<SnapshotResult<Handle>> persist(SequenceNumber from, long checkpointId)
+            throws IOException;
 
     /**
      * Truncate this state changelog to free up the resources and collect any garbage. That means:

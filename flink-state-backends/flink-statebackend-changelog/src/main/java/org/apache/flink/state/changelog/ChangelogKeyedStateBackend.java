@@ -399,7 +399,7 @@ public class ChangelogKeyedStateBackend<K>
 
         return toRunnableFuture(
                 stateChangelogWriter
-                        .persist(lastUploadedFrom)
+                        .persist(lastUploadedFrom, checkpointId)
                         .thenApply(
                                 delta ->
                                         buildSnapshotResult(

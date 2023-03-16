@@ -167,6 +167,7 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
     @Override
     public void close() throws Exception {
         uploader.close();
+        localChangelogRegistry.close();
     }
 
     @Override

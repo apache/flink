@@ -26,13 +26,14 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Collectors;
 
@@ -47,9 +48,9 @@ public class LocalChangelogRegistryImpl implements LocalChangelogRegistry {
             handleToLastUsedCheckpointID = new ConcurrentHashMap<>();
 
     /** Executor for async state deletion. */
-    private final Executor asyncDisposalExecutor;
+    private final ExecutorService asyncDisposalExecutor;
 
-    public LocalChangelogRegistryImpl(Executor ioExecutor) {
+    public LocalChangelogRegistryImpl(ExecutorService ioExecutor) {
         this.asyncDisposalExecutor = ioExecutor;
     }
 
@@ -66,14 +67,14 @@ public class LocalChangelogRegistryImpl implements LocalChangelogRegistry {
                 });
     }
 
-    public void discardUpToCheckpoint(long upTo) {
+    public void discardUpToCheckpoint(long latestSubsumedId) {
         List<StreamStateHandle> handles = new ArrayList<>();
         synchronized (handleToLastUsedCheckpointID) {
             Iterator<Tuple2<StreamStateHandle, Long>> iterator =
                     handleToLastUsedCheckpointID.values().iterator();
             while (iterator.hasNext()) {
                 Tuple2<StreamStateHandle, Long> entry = iterator.next();
-                if (entry.f1 < upTo) {
+                if (entry.f1 <= latestSubsumedId) {
                     handles.add(entry.f0);
                     iterator.remove();
                 }
@@ -114,5 +115,11 @@ public class LocalChangelogRegistryImpl implements LocalChangelogRegistry {
                 discardRunner.run();
             }
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        asyncDisposalExecutor.shutdown();
+        handleToLastUsedCheckpointID.clear();
     }
 }
