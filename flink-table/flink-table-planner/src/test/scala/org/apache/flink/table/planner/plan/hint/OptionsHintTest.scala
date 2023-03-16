@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.hint
 
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
+import org.apache.flink.table.api.{DataTypes, Schema, ValidationException}
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.StatementSetImpl
-import org.apache.flink.table.catalog.{CatalogViewImpl, ObjectPath}
+import org.apache.flink.table.catalog.{CatalogView, Column, ObjectPath, ResolvedSchema}
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
@@ -155,21 +155,23 @@ class OptionsHintTest(param: Param) extends TableTestBase {
     props.put("k2", "v2")
     props.put("k3", "v3")
     props.put("k4", "v4")
-    val view1 = new CatalogViewImpl(
-      "select * from t1 join t2 on t1.a = t2.d",
-      "select * from t1 join t2 on t1.a = t2.d",
-      TableSchema
-        .builder()
-        .field("a", DataTypes.INT())
-        .field("b", DataTypes.STRING())
-        .field("c", DataTypes.INT())
-        .field("d", DataTypes.INT())
-        .field("e", DataTypes.STRING())
-        .field("f", DataTypes.BIGINT())
-        .build(),
-      props,
-      "a view table"
-    )
+    val view1 =
+      CatalogView.of(
+        Schema.newBuilder
+          .fromResolvedSchema(ResolvedSchema.of(
+            Column.physical("a", DataTypes.INT()),
+            Column.physical("b", DataTypes.STRING()),
+            Column.physical("c", DataTypes.INT()),
+            Column.physical("d", DataTypes.INT()),
+            Column.physical("e", DataTypes.STRING()),
+            Column.physical("f", DataTypes.BIGINT())
+          ))
+          .build(),
+        "a view table",
+        "select * from t1 join t2 on t1.a = t2.d",
+        "select * from t1 join t2 on t1.a = t2.d",
+        props
+      )
     val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
     catalog.createTable(new ObjectPath(util.tableEnv.getCurrentDatabase, "view1"), view1, false)
     // The table hints on view expect to be prohibited

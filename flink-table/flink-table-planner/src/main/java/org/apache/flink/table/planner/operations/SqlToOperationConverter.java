@@ -104,7 +104,6 @@ import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
@@ -466,12 +465,12 @@ public class SqlToOperationConverter {
                     OperationConverterUtils.extractProperties(
                             alterViewProperties.getPropertyList()));
             CatalogView newView =
-                    new CatalogViewImpl(
+                    CatalogView.of(
+                            oldView.getUnresolvedSchema(),
+                            oldView.getComment(),
                             oldView.getOriginalQuery(),
                             oldView.getExpandedQuery(),
-                            oldView.getSchema(),
-                            newProperties,
-                            oldView.getComment());
+                            newProperties);
             return new AlterViewPropertiesOperation(viewIdentifier, newView);
         } else if (alterView instanceof SqlAlterViewAs) {
             SqlAlterViewAs alterViewAs = (SqlAlterViewAs) alterView;

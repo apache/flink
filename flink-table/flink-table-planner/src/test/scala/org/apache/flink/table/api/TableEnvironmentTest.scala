@@ -2805,12 +2805,12 @@ class TableEnvironmentTest {
         new CatalogTableImpl(table.getSchema, table.getOptions, tableComment)
       } else {
         val view = table.asInstanceOf[CatalogView]
-        new CatalogViewImpl(
+        CatalogView.of(
+          view.getUnresolvedSchema,
+          tableComment,
           view.getOriginalQuery,
           view.getExpandedQuery,
-          view.getSchema,
-          view.getOptions,
-          tableComment)
+          view.getOptions)
       }
     }
 
