@@ -1549,7 +1549,7 @@ class CommonDataStreamTests(PyFlinkTestCase):
         expected = test_data[:3]
         actual = []
         for result in ds.execute_and_collect(limit=3):
-             actual.append(result)
+            actual.append(result)
         self.assertEqual(expected, actual)
 
         # test collect KeyedStream
