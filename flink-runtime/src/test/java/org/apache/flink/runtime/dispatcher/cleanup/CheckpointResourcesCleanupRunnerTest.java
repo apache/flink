@@ -61,7 +61,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@code CheckpointResourcesCleanupRunnerTest} tests the {@link CheckpointResourcesCleanupRunner}
  * implementation.
  */
-public class CheckpointResourcesCleanupRunnerTest {
+class CheckpointResourcesCleanupRunnerTest {
 
     private static final Time TIMEOUT_FOR_REQUESTS = Time.milliseconds(0);
     private static final Duration TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY = Duration.ofMinutes(60);
@@ -78,17 +78,17 @@ public class CheckpointResourcesCleanupRunnerTest {
                     };
 
     @Test
-    public void testIsInitializedBeforeStart() throws Exception {
+    void testIsInitializedBeforeStart() throws Exception {
         testIsInitialized(BEFORE_START);
     }
 
     @Test
-    public void testIsInitializedAfterStart() throws Exception {
+    void testIsInitializedAfterStart() throws Exception {
         testIsInitialized(AFTER_START);
     }
 
     @Test
-    public void testIsInitializedAfterClose() throws Exception {
+    void testIsInitializedAfterClose() throws Exception {
         testIsInitialized(AFTER_CLOSE);
     }
 
@@ -103,13 +103,13 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testCloseAsyncBeforeStart() {
+    void testCloseAsyncBeforeStart() {
         final CheckpointResourcesCleanupRunner testInstance = new TestInstanceBuilder().build();
         assertThat(testInstance.closeAsync()).isNotCompleted();
     }
 
     @Test
-    public void testSuccessfulCloseAsyncAfterStart() throws Exception {
+    void testSuccessfulCloseAsyncAfterStart() throws Exception {
         final CompletableFuture<JobStatus> completedCheckpointStoreShutdownFuture =
                 new CompletableFuture<>();
         final CompletableFuture<JobStatus> checkpointIdCounterShutdownFuture =
@@ -152,8 +152,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testCloseAsyncAfterStartAndErrorInCompletedCheckpointStoreShutdown()
-            throws Exception {
+    void testCloseAsyncAfterStartAndErrorInCompletedCheckpointStoreShutdown() throws Exception {
         final CompletableFuture<JobStatus> checkpointIdCounterShutdownFuture =
                 new CompletableFuture<>();
 
@@ -198,7 +197,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testCloseAsyncAfterStartAndErrorInCheckpointIDCounterShutdown() throws Exception {
+    void testCloseAsyncAfterStartAndErrorInCheckpointIDCounterShutdown() throws Exception {
         final CompletableFuture<JobStatus> completedCheckpointStoreShutdownFuture =
                 new CompletableFuture<>();
 
@@ -244,7 +243,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testCancellationBeforeStart() throws Exception {
+    void testCancellationBeforeStart() throws Exception {
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder().withExecutor(ForkJoinPool.commonPool()).build();
 
@@ -260,7 +259,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testCancellationAfterStart() throws Exception {
+    void testCancellationAfterStart() throws Exception {
         final HaltingCheckpointRecoveryFactory checkpointRecoveryFactory =
                 new HaltingCheckpointRecoveryFactory(
                         new CompletableFuture<>(), new CompletableFuture<>());
@@ -282,7 +281,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testCancellationAfterClose() throws Exception {
+    void testCancellationAfterClose() throws Exception {
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder().withExecutor(ForkJoinPool.commonPool()).build();
         AFTER_CLOSE.accept(testInstance);
@@ -298,18 +297,18 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testResultFutureWithSuccessBeforeStart() throws Exception {
+    void testResultFutureWithSuccessBeforeStart() throws Exception {
         assertThat(getResultFutureFromTestInstance(createDummySuccessJobResult(), BEFORE_START))
                 .isNotCompleted();
     }
 
     @Test
-    public void testResultFutureWithSuccessAfterStart() throws Exception {
+    void testResultFutureWithSuccessAfterStart() throws Exception {
         testResultFutureWithSuccessfulResultAfterStart(AFTER_START);
     }
 
     @Test
-    public void testResultFutureWithSuccessAfterClose() throws Exception {
+    void testResultFutureWithSuccessAfterClose() throws Exception {
         testResultFutureWithSuccessfulResultAfterStart(AFTER_CLOSE);
     }
 
@@ -328,7 +327,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testResultFutureWithErrorBeforeStart() throws Exception {
+    void testResultFutureWithErrorBeforeStart() throws Exception {
         final CompletableFuture<JobManagerRunnerResult> resultFuture =
                 getResultFutureFromTestInstance(
                         createJobResultWithFailure(
@@ -338,12 +337,12 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testResultFutureWithErrorAfterStart() throws Exception {
+    void testResultFutureWithErrorAfterStart() throws Exception {
         testResultFutureWithErrorAfterStart(AFTER_START);
     }
 
     @Test
-    public void testResultFutureWithErrorAfterClose() throws Exception {
+    void testResultFutureWithErrorAfterClose() throws Exception {
         testResultFutureWithErrorAfterStart(AFTER_CLOSE);
     }
 
@@ -383,7 +382,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testGetJobID() {
+    void testGetJobID() {
         final JobID jobId = new JobID();
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder()
@@ -393,17 +392,17 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testGetJobMasterGatewayBeforeStart() throws Exception {
+    void testGetJobMasterGatewayBeforeStart() throws Exception {
         testGetJobMasterGateway(BEFORE_START);
     }
 
     @Test
-    public void testGetJobMasterGatewayAfterStart() throws Exception {
+    void testGetJobMasterGatewayAfterStart() throws Exception {
         testGetJobMasterGateway(AFTER_START);
     }
 
     @Test
-    public void testGetJobMasterGatewayAfterClose() throws Exception {
+    void testGetJobMasterGatewayAfterClose() throws Exception {
         testGetJobMasterGateway(AFTER_CLOSE);
     }
 
@@ -420,7 +419,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testRequestJob_ExceptionHistory() {
+    void testRequestJob_ExceptionHistory() {
         testRequestJob(
                 createDummySuccessJobResult(),
                 System.currentTimeMillis(),
@@ -429,7 +428,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testRequestJob_JobName() {
+    void testRequestJob_JobName() {
         testRequestJobExecutionGraph(
                 createDummySuccessJobResult(),
                 System.currentTimeMillis(),
@@ -437,7 +436,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testRequestJob_JobId() {
+    void testRequestJob_JobId() {
         final JobResult jobResult = createDummySuccessJobResult();
         testRequestJobExecutionGraph(
                 jobResult,
@@ -447,7 +446,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testRequestJob_JobState() {
+    void testRequestJob_JobState() {
         final JobResult jobResult = createDummySuccessJobResult();
         testRequestJobExecutionGraph(
                 jobResult,
@@ -459,7 +458,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testRequestJob_InitiatizationTimestamp() {
+    void testRequestJob_InitiatizationTimestamp() {
         final long initializationTimestamp = System.currentTimeMillis();
         testRequestJobExecutionGraph(
                 createDummySuccessJobResult(),
@@ -470,7 +469,7 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
-    public void testRequestJobWithFailure() {
+    void testRequestJobWithFailure() {
         final SerializedThrowable expectedError =
                 new SerializedThrowable(new Exception("Expected exception"));
         final JobResult jobResult = createJobResultWithFailure(expectedError);

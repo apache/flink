@@ -329,7 +329,7 @@ class ZooKeeperLeaderElectionTest {
 
     /** Tests that the leader update information will not be notified repeatedly. */
     @Test
-    public void testLeaderChangeWriteLeaderInformationOnlyOnce() throws Exception {
+    void testLeaderChangeWriteLeaderInformationOnlyOnce() throws Exception {
         final LeaderInformationConsumer leaderInformationConsumer = new LeaderInformationConsumer();
         final TestingLeaderElectionEventHandler electionEventHandler =
                 new TestingLeaderElectionEventHandler(LEADER_ADDRESS, leaderInformationConsumer);

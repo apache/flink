@@ -31,7 +31,6 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
@@ -46,7 +45,7 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultJobMasterServiceProcess}. */
-public class DefaultJobMasterServiceProcessTest extends TestLogger {
+class DefaultJobMasterServiceProcessTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final JobID jobId = new JobID();
     private static final Function<Throwable, ArchivedExecutionGraph>
@@ -56,7 +55,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
                                     jobId, "test", JobStatus.FAILED, throwable, null, 1337));
 
     @Test
-    public void testInitializationFailureCompletesResultFuture() {
+    void testInitializationFailureCompletesResultFuture() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -74,7 +73,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testInitializationFailureSetsFailureInfoProperly()
+    void testInitializationFailureSetsFailureInfoProperly()
             throws ExecutionException, InterruptedException {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
@@ -99,7 +98,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testInitializationFailureSetsExceptionHistoryProperly()
+    void testInitializationFailureSetsExceptionHistoryProperly()
             throws ExecutionException, InterruptedException {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
@@ -146,7 +145,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testCloseAfterInitializationFailure() throws Exception {
+    void testCloseAfterInitializationFailure() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -159,7 +158,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testCloseAfterInitializationSuccess() throws Exception {
+    void testCloseAfterInitializationSuccess() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -176,7 +175,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testJobMasterTerminationIsHandled() {
+    void testJobMasterTerminationIsHandled() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -196,7 +195,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testJobMasterGatewayGetsForwarded() {
+    void testJobMasterGatewayGetsForwarded() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -209,7 +208,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testLeaderAddressGetsForwarded() throws Exception {
+    void testLeaderAddressGetsForwarded() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -222,14 +221,14 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testIsNotInitialized() {
+    void testIsNotInitialized() {
         DefaultJobMasterServiceProcess serviceProcess =
                 createTestInstance(new CompletableFuture<>());
         assertThat(serviceProcess.isInitializedAndRunning()).isFalse();
     }
 
     @Test
-    public void testIsInitialized() {
+    void testIsInitialized() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -240,7 +239,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testIsNotInitializedAfterClosing() {
+    void testIsNotInitializedAfterClosing() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -253,7 +252,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testSuccessOnTerminalState() throws Exception {
+    void testSuccessOnTerminalState() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
