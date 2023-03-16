@@ -59,6 +59,10 @@ public interface SplitReader<E, SplitT extends SourceSplit> extends AutoCloseabl
      * RecordsWithSplitIds} as finished splits so that SourceReaderBase could be able to clean up
      * resources created for it.
      *
+     * <p>For the consistency of internal state in SourceReaderBase, if a split is removed, it
+     * should be put back into {@link RecordsWithSplitIds} as finished splits so that
+     * SourceReaderBase could be able to clean up resources created for it.
+     *
      * @param splitsChanges the split changes that the SplitReader needs to handle.
      */
     void handleSplitsChanges(SplitsChange<SplitT> splitsChanges);
