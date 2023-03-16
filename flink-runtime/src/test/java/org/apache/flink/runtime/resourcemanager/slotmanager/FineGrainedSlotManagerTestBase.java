@@ -148,7 +148,10 @@ abstract class FineGrainedSlotManagerTestBase {
     protected class Context {
         private final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
         private final ResourceTracker resourceTracker = new DefaultResourceTracker();
-        private final TaskManagerTracker taskManagerTracker = new FineGrainedTaskManagerTracker();
+        private TaskManagerTracker taskManagerTracker;
+        private final FineGrainedTaskManagerTrackerBuilder taskManagerTrackerBuilder =
+                new FineGrainedTaskManagerTrackerBuilder(
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
         private final SlotStatusSyncer slotStatusSyncer =
                 new DefaultSlotStatusSyncer(Time.seconds(10L));
         private SlotManagerMetricGroup slotManagerMetricGroup =
@@ -211,6 +214,9 @@ abstract class FineGrainedSlotManagerTestBase {
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
+            taskManagerTracker =
+                    taskManagerTrackerBuilder.updateConfiguration(configuration).build();
+
             slotManager =
                     new FineGrainedSlotManager(
                             scheduledExecutor,

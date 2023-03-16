@@ -25,11 +25,16 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,18 +46,20 @@ class FineGrainedTaskManagerTrackerTest {
                     ResourceID.generate(),
                     new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
 
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
+
     @Test
     void testInitState() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         assertThat(taskManagerTracker.getPendingTaskManagers()).isEmpty();
         assertThat(taskManagerTracker.getRegisteredTaskManagers()).isEmpty();
     }
 
     @Test
     void testAddAndRemoveTaskManager() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
 
         // Add task manager
         taskManagerTracker.addTaskManager(
@@ -73,7 +80,7 @@ class FineGrainedTaskManagerTrackerTest {
         assertThatThrownBy(
                         () -> {
                             final FineGrainedTaskManagerTracker taskManagerTracker =
-                                    new FineGrainedTaskManagerTracker();
+                                    createAndStartTaskManagerTracker();
                             taskManagerTracker.removeTaskManager(new InstanceID());
                         })
                 .isInstanceOf(NullPointerException.class);
@@ -83,8 +90,7 @@ class FineGrainedTaskManagerTrackerTest {
     void testAddAndRemovePendingTaskManager() {
         final PendingTaskManager pendingTaskManager =
                 new PendingTaskManager(ResourceProfile.ANY, 1);
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final JobID jobId = new JobID();
         final ResourceCounter resourceCounter =
                 ResourceCounter.withResource(ResourceProfile.ANY, 1);
@@ -125,7 +131,7 @@ class FineGrainedTaskManagerTrackerTest {
         assertThatThrownBy(
                         () -> {
                             final FineGrainedTaskManagerTracker taskManagerTracker =
-                                    new FineGrainedTaskManagerTracker();
+                                    createAndStartTaskManagerTracker();
 
                             taskManagerTracker.removePendingTaskManager(
                                     PendingTaskManagerId.generate());
@@ -135,8 +141,7 @@ class FineGrainedTaskManagerTrackerTest {
 
     @Test
     void testSlotAllocation() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
@@ -193,8 +198,7 @@ class FineGrainedTaskManagerTrackerTest {
 
     @Test
     void testFreeSlot() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
@@ -250,7 +254,7 @@ class FineGrainedTaskManagerTrackerTest {
         assertThatThrownBy(
                         () -> {
                             final FineGrainedTaskManagerTracker taskManagerTracker =
-                                    new FineGrainedTaskManagerTracker();
+                                    createAndStartTaskManagerTracker();
 
                             taskManagerTracker.notifySlotStatus(
                                     new AllocationID(),
@@ -264,8 +268,7 @@ class FineGrainedTaskManagerTrackerTest {
 
     @Test
     void testRecordPendingAllocations() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final PendingTaskManager pendingTaskManager1 =
                 new PendingTaskManager(ResourceProfile.ANY, 1);
         final PendingTaskManager pendingTaskManager2 =
@@ -304,8 +307,7 @@ class FineGrainedTaskManagerTrackerTest {
 
     @Test
     void testGetStatistics() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
         final ResourceProfile defaultSlotResource = ResourceProfile.fromResources(1, 100);
         final AllocationID allocationId1 = new AllocationID();
@@ -335,5 +337,16 @@ class FineGrainedTaskManagerTrackerTest {
         assertThat(taskManagerTracker.getNumberFreeSlots()).isEqualTo(8);
         assertThat(taskManagerTracker.getPendingResource())
                 .isEqualTo(ResourceProfile.fromResources(4, 200));
+    }
+
+    private FineGrainedTaskManagerTracker createAndStartTaskManagerTracker() {
+        FineGrainedTaskManagerTracker taskManagerTracker =
+                new FineGrainedTaskManagerTrackerBuilder(
+                                new ScheduledExecutorServiceAdapter(
+                                        EXECUTOR_RESOURCE.getExecutor()))
+                        .build();
+        taskManagerTracker.initialize(
+                new TestingResourceAllocatorBuilder().build(), EXECUTOR_RESOURCE.getExecutor());
+        return taskManagerTracker;
     }
 }

@@ -27,13 +27,38 @@ import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
-/** Tracks TaskManager's resource and slot status. */
+/**
+ * Allocates/Releases/Tracks TaskManager's resource and slot status.
+ *
+ * <ul>
+ *   <li>tracks TaskManager's resource and slot status
+ *   <li>allocating new task executors
+ *   <li>releasing idle task executors
+ *   <li>tracking pending task executors
+ * </ul>
+ */
 interface TaskManagerTracker
         extends TaskManagerResourceInfoProvider, ClusterResourceStatisticsProvider {
 
     // ---------------------------------------------------------------------------------------------
-    // Add / Remove (pending) Resource
+    // initialize / close
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Initialize the TaskManagerTracker.
+     *
+     * @param resourceAllocator to use for resource (de-)allocations
+     * @param mainThreadExecutor to use to run code in the ResourceManager's main thread
+     */
+    void initialize(ResourceAllocator resourceAllocator, Executor mainThreadExecutor);
+
+    /** Removes all state from the tracker. */
+    void close();
+
+    // ---------------------------------------------------------------------------------------------
+    // Add / Remove Resource
     // ---------------------------------------------------------------------------------------------
 
     /**
@@ -123,7 +148,4 @@ interface TaskManagerTracker
      * @param jobId of the given job
      */
     void clearPendingAllocationsOfJob(JobID jobId);
-
-    /** Removes all state from the tracker. */
-    void clear();
 }

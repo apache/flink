@@ -18,7 +18,10 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -26,10 +29,12 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,6 +42,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /** Implementation of {@link TaskManagerTracker} supporting fine-grained resource management. */
@@ -59,6 +65,22 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
 
     private ResourceProfile totalRegisteredResource = ResourceProfile.ZERO;
     private ResourceProfile totalPendingResource = ResourceProfile.ZERO;
+    private final ScheduledExecutor scheduledExecutor;
+    /** Timeout after which an unused TaskManager is released. */
+    private final Time taskManagerTimeout;
+    /** Delay of the resource declare in the slot manager. */
+    private final Duration declareNeededResourceDelay;
+    /**
+     * Release task executor only when each produced result partition is either consumed or failed.
+     */
+    private final boolean waitResultConsumedBeforeRelease;
+
+    private final CPUResource maxTotalCpu;
+    private final MemorySize maxTotalMem;
+
+    private boolean started;
+    private ResourceAllocator resourceAllocator;
+    private Executor mainThreadExecutor;
 
     /**
      * Pending task manager indexed by the tuple of total resource profile and default slot resource
@@ -67,13 +89,47 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     private final Map<Tuple2<ResourceProfile, ResourceProfile>, Set<PendingTaskManager>>
             totalAndDefaultSlotProfilesToPendingTaskManagers;
 
-    public FineGrainedTaskManagerTracker() {
+    public FineGrainedTaskManagerTracker(
+            CPUResource maxTotalCpu,
+            MemorySize maxTotalMem,
+            boolean waitResultConsumedBeforeRelease,
+            Time taskManagerTimeout,
+            Duration declareNeededResourceDelay,
+            ScheduledExecutor scheduledExecutor) {
+        this.maxTotalCpu = maxTotalCpu;
+        this.maxTotalMem = maxTotalMem;
+        this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
+        this.taskManagerTimeout = taskManagerTimeout;
+        this.declareNeededResourceDelay = declareNeededResourceDelay;
+        this.scheduledExecutor = scheduledExecutor;
+
         slots = new HashMap<>();
         taskManagerRegistrations = new HashMap<>();
         unWantedTaskManagers = new HashMap<>();
         pendingTaskManagers = new HashMap<>();
         pendingSlotAllocationRecords = new HashMap<>();
         totalAndDefaultSlotProfilesToPendingTaskManagers = new HashMap<>();
+    }
+
+    @Override
+    public void initialize(ResourceAllocator resourceAllocator, Executor mainThreadExecutor) {
+        this.resourceAllocator = resourceAllocator;
+        this.mainThreadExecutor = mainThreadExecutor;
+        this.started = true;
+    }
+
+    @Override
+    public void close() {
+        slots.clear();
+        taskManagerRegistrations.clear();
+        totalRegisteredResource = ResourceProfile.ZERO;
+        pendingTaskManagers.clear();
+        totalPendingResource = ResourceProfile.ZERO;
+        pendingSlotAllocationRecords.clear();
+        unWantedTaskManagers.clear();
+        mainThreadExecutor = null;
+        resourceAllocator = null;
+        started = false;
     }
 
     @Override
@@ -397,14 +453,9 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         return totalPendingResource;
     }
 
-    @Override
-    public void clear() {
-        slots.clear();
-        taskManagerRegistrations.clear();
-        totalRegisteredResource = ResourceProfile.ZERO;
-        pendingTaskManagers.clear();
-        totalPendingResource = ResourceProfile.ZERO;
-        pendingSlotAllocationRecords.clear();
-        unWantedTaskManagers.clear();
+    private void checkInit() {
+        Preconditions.checkState(started);
+        Preconditions.checkNotNull(mainThreadExecutor);
+        Preconditions.checkNotNull(resourceAllocator);
     }
 }

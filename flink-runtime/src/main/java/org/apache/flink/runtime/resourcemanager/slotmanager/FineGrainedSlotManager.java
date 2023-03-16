@@ -217,6 +217,8 @@ public class FineGrainedSlotManager implements SlotManager {
         slotStatusSyncer.initialize(
                 taskManagerTracker, resourceTracker, resourceManagerId, mainThreadExecutor);
         blockedTaskManagerChecker = Preconditions.checkNotNull(newBlockedTaskManagerChecker);
+        taskManagerTracker.initialize(
+                Preconditions.checkNotNull(newResourceAllocator), mainThreadExecutor);
 
         started = true;
 
@@ -255,7 +257,7 @@ public class FineGrainedSlotManager implements SlotManager {
         }
 
         slotStatusSyncer.close();
-        taskManagerTracker.clear();
+        taskManagerTracker.close();
         resourceTracker.clear();
 
         unfulfillableJobs.clear();

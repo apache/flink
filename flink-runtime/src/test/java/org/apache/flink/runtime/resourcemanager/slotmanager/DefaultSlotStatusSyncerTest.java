@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -61,8 +62,7 @@ class DefaultSlotStatusSyncerTest {
 
     @Test
     void testAllocateSlot() throws Exception {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final CompletableFuture<
                         Tuple6<
                                 SlotID,
@@ -116,8 +116,7 @@ class DefaultSlotStatusSyncerTest {
 
     @Test
     void testAllocateSlotFailsWithException() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
@@ -158,8 +157,7 @@ class DefaultSlotStatusSyncerTest {
 
     @Test
     void testFreeSlot() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
         final JobID jobId = new JobID();
         final AllocationID allocationId = new AllocationID();
@@ -192,8 +190,7 @@ class DefaultSlotStatusSyncerTest {
 
     @Test
     void testSlotStatusProcessing() {
-        final FineGrainedTaskManagerTracker taskManagerTracker =
-                new FineGrainedTaskManagerTracker();
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
         final SlotStatusSyncer slotStatusSyncer =
                 new DefaultSlotStatusSyncer(TASK_MANAGER_REQUEST_TIMEOUT);
@@ -282,5 +279,16 @@ class DefaultSlotStatusSyncerTest {
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId3))
                 .hasValueSatisfying(
                         slot -> assertThat(slot.getState()).isEqualTo(SlotState.PENDING));
+    }
+
+    private FineGrainedTaskManagerTracker createAndStartTaskManagerTracker() {
+        FineGrainedTaskManagerTracker taskManagerTracker =
+                new FineGrainedTaskManagerTrackerBuilder(
+                                new ScheduledExecutorServiceAdapter(
+                                        EXECUTOR_RESOURCE.getExecutor()))
+                        .build();
+        taskManagerTracker.initialize(
+                new TestingResourceAllocatorBuilder().build(), EXECUTOR_RESOURCE.getExecutor());
+        return taskManagerTracker;
     }
 }

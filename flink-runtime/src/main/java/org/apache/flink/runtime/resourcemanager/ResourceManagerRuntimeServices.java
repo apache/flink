@@ -83,7 +83,13 @@ public class ResourceManagerRuntimeServices {
                     slotManagerConfiguration,
                     slotManagerMetricGroup,
                     new DefaultResourceTracker(),
-                    new FineGrainedTaskManagerTracker(),
+                    new FineGrainedTaskManagerTracker(
+                            slotManagerConfiguration.getMaxTotalCpu(),
+                            slotManagerConfiguration.getMaxTotalMem(),
+                            slotManagerConfiguration.isWaitResultConsumedBeforeRelease(),
+                            slotManagerConfiguration.getTaskManagerTimeout(),
+                            slotManagerConfiguration.getDeclareNeededResourceDelay(),
+                            scheduledExecutor),
                     new DefaultSlotStatusSyncer(
                             slotManagerConfiguration.getTaskManagerRequestTimeout()),
                     new DefaultResourceAllocationStrategy(
