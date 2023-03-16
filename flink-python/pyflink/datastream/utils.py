@@ -68,16 +68,18 @@ def pickled_bytes_to_python_obj(data, type_info):
         field_data_with_types = zip(list(data[1:]), type_info.get_field_types())
         fields = []
         for field_data, field_type in field_data_with_types:
-            if len(data) == 0:
+            if len(field_data) == 0:
                 fields.append(None)
             else:
                 fields.append(pickled_bytes_to_python_obj(field_data, field_type))
-        return Row.of_kind(row_kind, *fields)
+        row = Row.of_kind(row_kind, *fields)
+        row.set_field_names(type_info.get_field_names())
+        return row
     elif isinstance(type_info, TupleTypeInfo):
         field_data_with_types = zip(data, type_info.get_field_types())
         fields = []
         for field_data, field_type in field_data_with_types:
-            if len(data) == 0:
+            if len(field_data) == 0:
                 fields.append(None)
             else:
                 fields.append(pickled_bytes_to_python_obj(field_data, field_type))
