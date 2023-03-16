@@ -80,6 +80,8 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
     private final boolean allowUnalignedSourceSplits;
 
+    private final Consumer<Collection<String>> splitFinishedHook;
+
     SplitFetcher(
             int id,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -94,6 +96,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         this.errorHandler = checkNotNull(errorHandler);
         this.shutdownHook = checkNotNull(shutdownHook);
         this.allowUnalignedSourceSplits = allowUnalignedSourceSplits;
+        this.splitFinishedHook = splitFinishedHook;
 
         this.fetchTask =
                 new FetchTask<>(
@@ -233,6 +236,23 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         lock.lock();
         try {
             enqueueTaskUnsafe(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
+            wakeUpUnsafe(true);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Notice the split fetcher that some splits finished. This operation is asynchronous.
+     *
+     * @param splitsToRemove the splits need to be removed.
+     */
+    public void removeSplits(List<SplitT> splitsToRemove) {
+        lock.lock();
+        try {
+            enqueueTaskUnsafe(
+                    new RemoveSplitsTask<>(
+                            splitReader, splitsToRemove, assignedSplits, splitFinishedHook));
             wakeUpUnsafe(true);
         } finally {
             lock.unlock();
