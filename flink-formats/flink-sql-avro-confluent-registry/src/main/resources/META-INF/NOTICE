@@ -16,6 +16,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.confluent:common-config:7.2.2
 - io.confluent:common-utils:7.2.2
 - org.glassfish.jersey.core:jersey-common:2.30
+- com.google.guava:guava:30.1.1-jre
+- org.xerial.snappy:snappy-java:1.1.8.3
 
 The binary distribution of this product bundles these dependencies under the Eclipse Public License - v 2.0 (https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt)
 
@@ -23,3 +25,8 @@ The binary distribution of this product bundles these dependencies under the Ecl
 - jakarta.ws.rs:jakarta.ws.rs-api:2.1.6
 - org.glassfish.hk2.external:jakarta.inject:2.6.1
 - org.glassfish.hk2:osgi-resource-locator:1.0.3
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- com.github.luben:zstd-jni:1.5.2-1

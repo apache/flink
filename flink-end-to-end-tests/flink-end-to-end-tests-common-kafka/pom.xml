@@ -156,12 +156,6 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>
-		<!-- Needed by Schema Registry -->
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>30.1.1-jre</version>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -242,14 +236,6 @@ under the License.
 							<artifactId>kafka-clients</artifactId>
 							<version>3.2.3</version>
 							<destFileName>kafka-clients.jar</destFileName>
-							<type>jar</type>
-							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>com.google.guava</groupId>
-							<artifactId>guava</artifactId>
-							<version>30.1.1-jre</version>
-							<destFileName>guava.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>
