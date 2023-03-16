@@ -21,9 +21,9 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 /** ResourceDeclaration for {@link ResourceAllocator}. */
 public class ResourceDeclaration {
@@ -34,13 +34,13 @@ public class ResourceDeclaration {
      * workers that {@link SlotManager} does not wanted. This is just a hint for {@link
      * ResourceAllocator} to decide which worker should be release.
      */
-    private final Collection<InstanceID> unwantedWorkers;
+    private final Set<InstanceID> unwantedWorkers;
 
     public ResourceDeclaration(
-            WorkerResourceSpec spec, int numNeeded, Collection<InstanceID> unwantedWorkers) {
+            WorkerResourceSpec spec, int numNeeded, Set<InstanceID> unwantedWorkers) {
         this.spec = spec;
         this.numNeeded = numNeeded;
-        this.unwantedWorkers = Collections.unmodifiableCollection(unwantedWorkers);
+        this.unwantedWorkers = Collections.unmodifiableSet(unwantedWorkers);
     }
 
     public WorkerResourceSpec getSpec() {
@@ -51,7 +51,7 @@ public class ResourceDeclaration {
         return numNeeded;
     }
 
-    public Collection<InstanceID> getUnwantedWorkers() {
+    public Set<InstanceID> getUnwantedWorkers() {
         return unwantedWorkers;
     }
 
