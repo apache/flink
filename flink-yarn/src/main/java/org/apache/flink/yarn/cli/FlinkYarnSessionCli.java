@@ -856,9 +856,11 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                             ""); // no prefix for the YARN session
 
             final CommandLine commandLine = CliFrontendParser.parse(cli.allOptions, args, true);
-            DynamicPropertiesUtil.encodeDynamicProperties(commandLine, flinkConfiguration);
 
-            SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+            final Configuration securityFlinkConfiguration = flinkConfiguration.clone();
+            DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityFlinkConfiguration);
+
+            SecurityUtils.install(new SecurityConfiguration(securityFlinkConfiguration));
 
             retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
         } catch (CliArgsException e) {
