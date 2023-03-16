@@ -45,11 +45,11 @@ public class LocalChangelogRegistryTest extends TestLogger {
         localStateRegistry.register(handle2, 2);
         localStateRegistry.register(handle3, 2);
 
-        localStateRegistry.discardUpToCheckpoint(1);
+        localStateRegistry.discardUpToCheckpoint(2);
         assertTrue(handle1.isDisposed());
         assertFalse(handle2.isDisposed());
 
-        localStateRegistry.discardUpToCheckpoint(2);
+        localStateRegistry.discardUpToCheckpoint(3);
         assertTrue(handle2.isDisposed());
         assertTrue(handle3.isDisposed());
     }

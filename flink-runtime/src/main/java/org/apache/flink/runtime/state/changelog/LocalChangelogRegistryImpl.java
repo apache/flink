@@ -31,11 +31,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.stream.Collectors;
 
 @Internal
 public class LocalChangelogRegistryImpl implements LocalChangelogRegistry {
@@ -67,30 +65,19 @@ public class LocalChangelogRegistryImpl implements LocalChangelogRegistry {
                 });
     }
 
-    public void discardUpToCheckpoint(long latestSubsumedId) {
+    public void discardUpToCheckpoint(long upTo) {
         List<StreamStateHandle> handles = new ArrayList<>();
         synchronized (handleToLastUsedCheckpointID) {
             Iterator<Tuple2<StreamStateHandle, Long>> iterator =
                     handleToLastUsedCheckpointID.values().iterator();
             while (iterator.hasNext()) {
                 Tuple2<StreamStateHandle, Long> entry = iterator.next();
-                if (entry.f1 <= latestSubsumedId) {
+                if (entry.f1 < upTo) {
                     handles.add(entry.f0);
                     iterator.remove();
                 }
             }
         }
-        for (StreamStateHandle handle : handles) {
-            scheduleAsyncDelete(handle);
-        }
-    }
-
-    public void prune(long checkpointID) {
-        Set<StreamStateHandle> handles =
-                handleToLastUsedCheckpointID.values().stream()
-                        .filter(tuple -> tuple.f1 == checkpointID)
-                        .map(tuple -> tuple.f0)
-                        .collect(Collectors.toSet());
         for (StreamStateHandle handle : handles) {
             scheduleAsyncDelete(handle);
         }

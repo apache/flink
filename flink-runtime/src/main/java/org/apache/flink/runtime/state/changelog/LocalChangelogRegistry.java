@@ -34,10 +34,7 @@ public interface LocalChangelogRegistry extends Closeable {
                 public void register(StreamStateHandle handle, long checkpointID) {}
 
                 @Override
-                public void discardUpToCheckpoint(long latestSubsumedId) {}
-
-                @Override
-                public void prune(long checkpointID) {}
+                public void discardUpToCheckpoint(long upTo) {}
 
                 @Override
                 public void close() throws IOException {}
@@ -58,14 +55,7 @@ public interface LocalChangelogRegistry extends Closeable {
      * are unregistered when the checkpoint completes, because only one checkpoint is kept for local
      * recovery.
      *
-     * @param latestSubsumedId latest subsumed checkpointId.
+     * @param upTo lowest CheckpointID which is still valid.
      */
-    void discardUpToCheckpoint(long latestSubsumedId);
-
-    /**
-     * Called upon ChangelogKeyedStateBackend#notifyCheckpointAborted.
-     *
-     * @param checkpointID to abort
-     */
-    void prune(long checkpointID);
+    void discardUpToCheckpoint(long upTo);
 }

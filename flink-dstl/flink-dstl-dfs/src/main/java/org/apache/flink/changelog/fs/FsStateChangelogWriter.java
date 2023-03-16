@@ -206,12 +206,6 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         return activeSequenceNumber;
     }
 
-    @VisibleForTesting
-    CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> persist(SequenceNumber from)
-            throws IOException {
-        return persist(from, DUMMY_PERSIST_CHECKPOINT);
-    }
-
     @Override
     public CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> persist(
             SequenceNumber from, long checkpointId) throws IOException {
@@ -241,7 +235,11 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         rollover();
         Map<SequenceNumber, StateChangeSet> toUpload = drainTailMap(notUploaded, from);
         NavigableMap<SequenceNumber, UploadResult> readyToReturn = uploaded.tailMap(from, true);
-        LOG.debug("collected readyToReturn: {}, toUpload: {}", readyToReturn, toUpload);
+        LOG.debug(
+                "collected readyToReturn: {}, toUpload: {}, checkpointId: {}.",
+                readyToReturn,
+                toUpload,
+                checkpointId);
 
         if (checkpointId != DUMMY_PERSIST_CHECKPOINT) {
             for (UploadResult uploadResult : readyToReturn.values()) {
@@ -305,8 +303,10 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                         uploadCompletionListeners.removeIf(listener -> listener.onSuccess(results));
                         for (UploadResult result : results) {
                             if (checkpointId != DUMMY_PERSIST_CHECKPOINT) {
-                                localChangelogRegistry.register(
-                                        result.localStreamHandle, checkpointId);
+                                if (result.localStreamHandle != null) {
+                                    localChangelogRegistry.register(
+                                            result.localStreamHandle, checkpointId);
+                                }
                             }
                             SequenceNumber resultSqn = result.sequenceNumber;
                             if (resultSqn.compareTo(lowestSequenceNumber) >= 0
@@ -394,18 +394,14 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 .forEach(
                         localHandle -> {
                             changelogRegistry.stopTracking(localHandle);
-                            localChangelogRegistry.register(localHandle, checkpointId);
                         });
-    }
-
-    @Override
-    public void subsume(long checkpointId) {
         localChangelogRegistry.discardUpToCheckpoint(checkpointId);
     }
 
     @Override
     public void reset(SequenceNumber from, SequenceNumber to, long checkpointId) {
-        localChangelogRegistry.prune(checkpointId);
+        // delete all accumulated local dstl files when abort
+        localChangelogRegistry.discardUpToCheckpoint(checkpointId + 1);
     }
 
     private SnapshotResult<ChangelogStateHandleStreamImpl> buildSnapshotResult(
