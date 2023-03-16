@@ -56,6 +56,8 @@ class DefaultSlotStatusSyncerTest {
                     ResourceID.generate(),
                     new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
 
+    private static final ResourceProfile DEFAULT_PROFILE = ResourceProfile.fromResources(1, 1024);
+
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
@@ -83,8 +85,8 @@ class DefaultSlotStatusSyncerTest {
                         .createTestingTaskExecutorGateway();
         final TaskExecutorConnection taskExecutorConnection =
                 new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
-        taskManagerTracker.addTaskManager(
-                taskExecutorConnection, ResourceProfile.ANY, ResourceProfile.ANY);
+        taskManagerTracker.registerTaskManager(
+                taskExecutorConnection, DEFAULT_PROFILE, DEFAULT_PROFILE, null);
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
         final JobID jobId = new JobID();
         final SlotStatusSyncer slotStatusSyncer =
@@ -97,13 +99,10 @@ class DefaultSlotStatusSyncerTest {
 
         final CompletableFuture<Void> allocatedFuture =
                 slotStatusSyncer.allocateSlot(
-                        taskExecutorConnection.getInstanceID(),
-                        jobId,
-                        "address",
-                        ResourceProfile.ANY);
+                        taskExecutorConnection.getInstanceID(), jobId, "address", DEFAULT_PROFILE);
         final AllocationID allocationId = requestFuture.get().f2;
         assertThat(resourceTracker.getAcquiredResources(jobId))
-                .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));
+                .contains(ResourceRequirement.create(DEFAULT_PROFILE, 1));
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId))
                 .hasValueSatisfying(slot -> assertThat(slot.getJobId()).isEqualTo(jobId));
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId))
@@ -126,8 +125,8 @@ class DefaultSlotStatusSyncerTest {
                         .createTestingTaskExecutorGateway();
         final TaskExecutorConnection taskExecutorConnection =
                 new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
-        taskManagerTracker.addTaskManager(
-                taskExecutorConnection, ResourceProfile.ANY, ResourceProfile.ANY);
+        taskManagerTracker.registerTaskManager(
+                taskExecutorConnection, DEFAULT_PROFILE, DEFAULT_PROFILE, null);
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
         final JobID jobId = new JobID();
         final SlotStatusSyncer slotStatusSyncer =
@@ -140,10 +139,7 @@ class DefaultSlotStatusSyncerTest {
 
         final CompletableFuture<Void> allocatedFuture =
                 slotStatusSyncer.allocateSlot(
-                        taskExecutorConnection.getInstanceID(),
-                        jobId,
-                        "address",
-                        ResourceProfile.ANY);
+                        taskExecutorConnection.getInstanceID(), jobId, "address", DEFAULT_PROFILE);
 
         assertThatThrownBy(allocatedFuture::get).hasCauseInstanceOf(TimeoutException.class);
         assertThat(resourceTracker.getAcquiredResources(jobId)).isEmpty();
@@ -168,8 +164,8 @@ class DefaultSlotStatusSyncerTest {
                 resourceTracker,
                 ResourceManagerId.generate(),
                 EXECUTOR_RESOURCE.getExecutor());
-        taskManagerTracker.addTaskManager(
-                TASK_EXECUTOR_CONNECTION, ResourceProfile.ANY, ResourceProfile.ANY);
+        taskManagerTracker.registerTaskManager(
+                TASK_EXECUTOR_CONNECTION, DEFAULT_PROFILE, DEFAULT_PROFILE, null);
         taskManagerTracker.notifySlotStatus(
                 allocationId,
                 jobId,
@@ -224,7 +220,8 @@ class DefaultSlotStatusSyncerTest {
                         Arrays.asList(
                                 new SlotStatus(slotId3, resource),
                                 new SlotStatus(slotId2, resource, jobId, allocationId1)));
-        taskManagerTracker.addTaskManager(taskExecutorConnection, totalResource, totalResource);
+        taskManagerTracker.registerTaskManager(
+                taskExecutorConnection, totalResource, totalResource, null);
 
         slotStatusSyncer.reportSlotStatus(taskExecutorConnection.getInstanceID(), slotReport1);
         assertThat(resourceTracker.getAcquiredResources(jobId))

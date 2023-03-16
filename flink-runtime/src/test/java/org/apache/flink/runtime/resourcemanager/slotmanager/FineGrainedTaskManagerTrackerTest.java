@@ -18,10 +18,12 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -32,10 +34,14 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -45,6 +51,21 @@ class FineGrainedTaskManagerTrackerTest {
             new TaskExecutorConnection(
                     ResourceID.generate(),
                     new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
+
+    static final WorkerResourceSpec DEFAULT_WORKER_RESOURCE_SPEC =
+            new WorkerResourceSpec.Builder()
+                    .setCpuCores(10.0)
+                    .setTaskHeapMemoryMB(1000)
+                    .setTaskOffHeapMemoryMB(1000)
+                    .setNetworkMemoryMB(1000)
+                    .setManagedMemoryMB(1000)
+                    .build();
+    static final int DEFAULT_NUM_SLOTS_PER_WORKER = 2;
+    static final ResourceProfile DEFAULT_TOTAL_RESOURCE_PROFILE =
+            SlotManagerUtils.generateTaskManagerTotalResourceProfile(DEFAULT_WORKER_RESOURCE_SPEC);
+    static final ResourceProfile DEFAULT_SLOT_RESOURCE_PROFILE =
+            SlotManagerUtils.generateDefaultSlotResourceProfile(
+                    DEFAULT_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -58,12 +79,83 @@ class FineGrainedTaskManagerTrackerTest {
     }
 
     @Test
-    void testAddAndRemoveTaskManager() {
+    void testAllocateTaskManagersAccordingToResultWithNoResourceAllocator() {
+        final FineGrainedTaskManagerTracker taskManagerTracker = createTaskManagerTracker();
+
+        taskManagerTracker.initialize(
+                NonSupportedResourceAllocatorImpl.INSTANCE, EXECUTOR_RESOURCE.getExecutor());
+
+        PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(DEFAULT_TOTAL_RESOURCE_PROFILE, 1);
+        ResourceAllocationResult result =
+                new ResourceAllocationResult.Builder()
+                        .addPendingTaskManagerAllocate(pendingTaskManager)
+                        .addAllocationOnPendingResource(
+                                new JobID(),
+                                pendingTaskManager.getPendingTaskManagerId(),
+                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                        .build();
+
+        Set<PendingTaskManagerId> failedAllocations =
+                taskManagerTracker.allocateTaskManagersAccordingTo(result);
+        assertThat(failedAllocations).containsExactly(pendingTaskManager.getPendingTaskManagerId());
+    }
+
+    @Test
+    void testAllocateTaskManagersAccordingToResult() {
+        final FineGrainedTaskManagerTracker taskManagerTracker = createTaskManagerTracker();
+        CompletableFuture<ResourceDeclaration> declarationFuture = new CompletableFuture<>();
+        Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer =
+                resourceDeclarations -> {
+                    assertThat(resourceDeclarations).hasSize(1);
+                    declarationFuture.complete(resourceDeclarations.stream().findFirst().get());
+                };
+
+        PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(DEFAULT_TOTAL_RESOURCE_PROFILE, 1);
+        taskManagerTracker.initialize(
+                new TestingResourceAllocatorBuilder()
+                        .setDeclareResourceNeededConsumer(declareResourceNeededConsumer)
+                        .build(),
+                EXECUTOR_RESOURCE.getExecutor());
+        ResourceAllocationResult result =
+                new ResourceAllocationResult.Builder()
+                        .addPendingTaskManagerAllocate(pendingTaskManager)
+                        .addAllocationOnPendingResource(
+                                new JobID(),
+                                pendingTaskManager.getPendingTaskManagerId(),
+                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                        .build();
+
+        Set<PendingTaskManagerId> failedAllocations =
+                taskManagerTracker.allocateTaskManagersAccordingTo(result);
+        assertThat(failedAllocations).isEmpty();
+        assertThat(declarationFuture)
+                .isCompletedWithValue(
+                        new ResourceDeclaration(
+                                DEFAULT_WORKER_RESOURCE_SPEC, 1, Collections.emptySet()));
+        assertThat(taskManagerTracker.getPendingTaskManagers()).hasSize(1);
+
+        boolean registered =
+                taskManagerTracker.registerTaskManager(
+                        TASK_EXECUTOR_CONNECTION,
+                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                        DEFAULT_SLOT_RESOURCE_PROFILE,
+                        pendingTaskManager.getPendingTaskManagerId());
+        assertThat(registered).isTrue();
+        assertThat(taskManagerTracker.getPendingTaskManagers()).hasSize(0);
+    }
+
+    @Test
+    void testRegisterAndUnregisterTaskManager() {
         final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
 
         // Add task manager
-        taskManagerTracker.addTaskManager(
-                TASK_EXECUTOR_CONNECTION, ResourceProfile.ANY, ResourceProfile.ANY);
+        taskManagerTracker.registerTaskManager(
+                TASK_EXECUTOR_CONNECTION,
+                DEFAULT_TOTAL_RESOURCE_PROFILE,
+                DEFAULT_SLOT_RESOURCE_PROFILE,
+                null);
         assertThat(taskManagerTracker.getRegisteredTaskManagers()).hasSize(1);
         assertThat(
                         taskManagerTracker.getRegisteredTaskManager(
@@ -71,70 +163,17 @@ class FineGrainedTaskManagerTrackerTest {
                 .isPresent();
 
         // Remove task manager
-        taskManagerTracker.removeTaskManager(TASK_EXECUTOR_CONNECTION.getInstanceID());
+        taskManagerTracker.unregisterTaskManager(TASK_EXECUTOR_CONNECTION.getInstanceID());
         assertThat(taskManagerTracker.getRegisteredTaskManagers()).isEmpty();
     }
 
     @Test
-    void testRemoveUnknownTaskManager() {
+    void testUnregisterUnknownTaskManager() {
         assertThatThrownBy(
                         () -> {
                             final FineGrainedTaskManagerTracker taskManagerTracker =
                                     createAndStartTaskManagerTracker();
-                            taskManagerTracker.removeTaskManager(new InstanceID());
-                        })
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void testAddAndRemovePendingTaskManager() {
-        final PendingTaskManager pendingTaskManager =
-                new PendingTaskManager(ResourceProfile.ANY, 1);
-        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
-        final JobID jobId = new JobID();
-        final ResourceCounter resourceCounter =
-                ResourceCounter.withResource(ResourceProfile.ANY, 1);
-
-        // Add pending task manager
-        taskManagerTracker.addPendingTaskManager(pendingTaskManager);
-        taskManagerTracker.replaceAllPendingAllocations(
-                Collections.singletonMap(
-                        pendingTaskManager.getPendingTaskManagerId(),
-                        Collections.singletonMap(jobId, resourceCounter)));
-        assertThat(taskManagerTracker.getPendingTaskManagers()).hasSize(1);
-        assertThat(
-                        taskManagerTracker
-                                .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
-                                        ResourceProfile.ANY, ResourceProfile.ANY))
-                .hasSize(1);
-
-        // Remove pending task manager
-        final Map<JobID, ResourceCounter> records =
-                taskManagerTracker.removePendingTaskManager(
-                        pendingTaskManager.getPendingTaskManagerId());
-        assertThat(taskManagerTracker.getPendingTaskManagers()).isEmpty();
-        assertThat(
-                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
-                                pendingTaskManager.getPendingTaskManagerId()))
-                .isEmpty();
-        assertThat(
-                        taskManagerTracker
-                                .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
-                                        ResourceProfile.ANY, ResourceProfile.ANY))
-                .isEmpty();
-        assertThat(records).containsKey(jobId);
-        assertThat(records.get(jobId).getResourceCount(ResourceProfile.ANY)).isEqualTo(1);
-    }
-
-    @Test
-    void testRemoveUnknownPendingTaskManager() {
-        assertThatThrownBy(
-                        () -> {
-                            final FineGrainedTaskManagerTracker taskManagerTracker =
-                                    createAndStartTaskManagerTracker();
-
-                            taskManagerTracker.removePendingTaskManager(
-                                    PendingTaskManagerId.generate());
+                            taskManagerTracker.unregisterTaskManager(new InstanceID());
                         })
                 .isInstanceOf(NullPointerException.class);
     }
@@ -146,7 +185,8 @@ class FineGrainedTaskManagerTrackerTest {
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
         final JobID jobId = new JobID();
-        taskManagerTracker.addTaskManager(TASK_EXECUTOR_CONNECTION, totalResource, totalResource);
+        taskManagerTracker.registerTaskManager(
+                TASK_EXECUTOR_CONNECTION, totalResource, totalResource, null);
         // Notify free slot is now pending
         taskManagerTracker.notifySlotStatus(
                 allocationId1,
@@ -203,7 +243,8 @@ class FineGrainedTaskManagerTrackerTest {
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
         final JobID jobId = new JobID();
-        taskManagerTracker.addTaskManager(TASK_EXECUTOR_CONNECTION, totalResource, totalResource);
+        taskManagerTracker.registerTaskManager(
+                TASK_EXECUTOR_CONNECTION, totalResource, totalResource, null);
         taskManagerTracker.notifySlotStatus(
                 allocationId1,
                 jobId,
@@ -267,42 +308,109 @@ class FineGrainedTaskManagerTrackerTest {
     }
 
     @Test
-    void testRecordPendingAllocations() {
+    void testClearPendingAllocations() {
         final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
-        final PendingTaskManager pendingTaskManager1 =
-                new PendingTaskManager(ResourceProfile.ANY, 1);
-        final PendingTaskManager pendingTaskManager2 =
-                new PendingTaskManager(ResourceProfile.ANY, 1);
-        final JobID jobId = new JobID();
-        final ResourceCounter resourceCounter =
-                ResourceCounter.withResource(ResourceProfile.ANY, 1);
-        taskManagerTracker.addPendingTaskManager(pendingTaskManager1);
-        taskManagerTracker.addPendingTaskManager(pendingTaskManager2);
 
-        taskManagerTracker.replaceAllPendingAllocations(
-                Collections.singletonMap(
-                        pendingTaskManager1.getPendingTaskManagerId(),
-                        Collections.singletonMap(jobId, resourceCounter)));
-        // Only the last time is recorded
-        taskManagerTracker.replaceAllPendingAllocations(
-                Collections.singletonMap(
-                        pendingTaskManager2.getPendingTaskManagerId(),
-                        Collections.singletonMap(jobId, resourceCounter)));
+        JobID job1 = new JobID();
+        JobID job2 = new JobID();
+        PendingTaskManager pendingTaskManagerJob1 =
+                new PendingTaskManager(DEFAULT_TOTAL_RESOURCE_PROFILE, 1);
+        PendingTaskManager pendingTaskManagerJob2 =
+                new PendingTaskManager(DEFAULT_TOTAL_RESOURCE_PROFILE, 1);
+        ResourceAllocationResult result =
+                new ResourceAllocationResult.Builder()
+                        .addPendingTaskManagerAllocate(pendingTaskManagerJob1)
+                        .addAllocationOnPendingResource(
+                                job1,
+                                pendingTaskManagerJob1.getPendingTaskManagerId(),
+                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                        .addPendingTaskManagerAllocate(pendingTaskManagerJob2)
+                        .addAllocationOnPendingResource(
+                                job2,
+                                pendingTaskManagerJob2.getPendingTaskManagerId(),
+                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                        .build();
+
+        Set<PendingTaskManagerId> failedAllocations =
+                taskManagerTracker.allocateTaskManagersAccordingTo(result);
+        assertThat(failedAllocations).isEmpty();
+        assertThat(taskManagerTracker.getPendingTaskManagers())
+                .containsExactlyInAnyOrder(pendingTaskManagerJob1, pendingTaskManagerJob2);
         assertThat(
                         taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
-                                pendingTaskManager1.getPendingTaskManagerId()))
+                                pendingTaskManagerJob1.getPendingTaskManagerId()))
+                .containsEntry(
+                        job1, ResourceCounter.withResource(DEFAULT_SLOT_RESOURCE_PROFILE, 1));
+        assertThat(
+                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManagerJob2.getPendingTaskManagerId()))
+                .containsEntry(
+                        job2, ResourceCounter.withResource(DEFAULT_SLOT_RESOURCE_PROFILE, 1));
+
+        taskManagerTracker.clearAllPendingAllocations();
+        assertThat(taskManagerTracker.getPendingTaskManagers()).isEmpty();
+        assertThat(
+                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManagerJob1.getPendingTaskManagerId()))
                 .isEmpty();
         assertThat(
                         taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
-                                pendingTaskManager2.getPendingTaskManagerId()))
-                .containsKey(jobId);
+                                pendingTaskManagerJob2.getPendingTaskManagerId()))
+                .isEmpty();
+    }
+
+    @Test
+    void testClearPendingAllocationsForJob() {
+        final FineGrainedTaskManagerTracker taskManagerTracker = createAndStartTaskManagerTracker();
+
+        JobID job1 = new JobID();
+        JobID job2 = new JobID();
+        PendingTaskManager pendingTaskManagerJob1 =
+                new PendingTaskManager(DEFAULT_TOTAL_RESOURCE_PROFILE, 1);
+        PendingTaskManager pendingTaskManagerJob2 =
+                new PendingTaskManager(DEFAULT_TOTAL_RESOURCE_PROFILE, 1);
+        ResourceAllocationResult result =
+                new ResourceAllocationResult.Builder()
+                        .addPendingTaskManagerAllocate(pendingTaskManagerJob1)
+                        .addAllocationOnPendingResource(
+                                job1,
+                                pendingTaskManagerJob1.getPendingTaskManagerId(),
+                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                        .addPendingTaskManagerAllocate(pendingTaskManagerJob2)
+                        .addAllocationOnPendingResource(
+                                job2,
+                                pendingTaskManagerJob2.getPendingTaskManagerId(),
+                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                        .build();
+
+        Set<PendingTaskManagerId> failedAllocations =
+                taskManagerTracker.allocateTaskManagersAccordingTo(result);
+        assertThat(failedAllocations).isEmpty();
+        assertThat(taskManagerTracker.getPendingTaskManagers())
+                .containsExactlyInAnyOrder(pendingTaskManagerJob1, pendingTaskManagerJob2);
         assertThat(
-                        taskManagerTracker
-                                .getPendingAllocationsOfPendingTaskManager(
-                                        pendingTaskManager2.getPendingTaskManagerId())
-                                .get(jobId)
-                                .getResourceCount(ResourceProfile.ANY))
-                .isEqualTo(1);
+                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManagerJob1.getPendingTaskManagerId()))
+                .containsEntry(
+                        job1, ResourceCounter.withResource(DEFAULT_SLOT_RESOURCE_PROFILE, 1));
+        assertThat(
+                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManagerJob2.getPendingTaskManagerId()))
+                .containsEntry(
+                        job2, ResourceCounter.withResource(DEFAULT_SLOT_RESOURCE_PROFILE, 1));
+
+        taskManagerTracker.clearPendingAllocationsOfJob(job1);
+        assertThat(taskManagerTracker.getPendingTaskManagers())
+                .containsExactly(pendingTaskManagerJob2);
+        assertThat(
+                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManagerJob1.getPendingTaskManagerId()))
+                .isEmpty();
+        assertThat(
+                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
+                                pendingTaskManagerJob2.getPendingTaskManagerId()))
+                .containsEntry(
+                        job2, ResourceCounter.withResource(DEFAULT_SLOT_RESOURCE_PROFILE, 1));
     }
 
     @Test
@@ -313,8 +421,8 @@ class FineGrainedTaskManagerTrackerTest {
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
         final JobID jobId = new JobID();
-        taskManagerTracker.addTaskManager(
-                TASK_EXECUTOR_CONNECTION, totalResource, defaultSlotResource);
+        taskManagerTracker.registerTaskManager(
+                TASK_EXECUTOR_CONNECTION, totalResource, defaultSlotResource, null);
         taskManagerTracker.notifySlotStatus(
                 allocationId1,
                 jobId,
@@ -327,8 +435,17 @@ class FineGrainedTaskManagerTrackerTest {
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 defaultSlotResource,
                 SlotState.ALLOCATED);
-        taskManagerTracker.addPendingTaskManager(
-                new PendingTaskManager(ResourceProfile.fromResources(4, 200), 1));
+
+        PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(ResourceProfile.fromResources(4, 200), 1);
+        taskManagerTracker.allocateTaskManagersAccordingTo(
+                new ResourceAllocationResult.Builder()
+                        .addPendingTaskManagerAllocate(pendingTaskManager)
+                        .addAllocationOnPendingResource(
+                                jobId,
+                                pendingTaskManager.getPendingTaskManagerId(),
+                                ResourceProfile.fromResources(4, 200))
+                        .build());
 
         assertThat(taskManagerTracker.getFreeResource())
                 .isEqualTo(ResourceProfile.fromResources(6, 700));
@@ -337,6 +454,88 @@ class FineGrainedTaskManagerTrackerTest {
         assertThat(taskManagerTracker.getNumberFreeSlots()).isEqualTo(8);
         assertThat(taskManagerTracker.getPendingResource())
                 .isEqualTo(ResourceProfile.fromResources(4, 200));
+    }
+
+    @Test
+    void testTimeoutForUnusedTaskManager() throws Exception {
+        final Time taskManagerTimeout = Time.milliseconds(50L);
+
+        final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
+
+        ResourceAllocator resourceAllocator =
+                new TestingResourceAllocatorBuilder()
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> {
+                                    assertThat(resourceDeclarations.size()).isEqualTo(1);
+                                    ResourceDeclaration resourceDeclaration =
+                                            resourceDeclarations.iterator().next();
+                                    assertThat(resourceDeclaration.getNumNeeded()).isEqualTo(0);
+                                    assertThat(resourceDeclaration.getUnwantedWorkers().size())
+                                            .isEqualTo(1);
+
+                                    releaseResourceFuture.complete(
+                                            resourceDeclaration
+                                                    .getUnwantedWorkers()
+                                                    .iterator()
+                                                    .next());
+                                })
+                        .build();
+
+        FineGrainedTaskManagerTracker taskManagerTracker =
+                new FineGrainedTaskManagerTrackerBuilder(
+                                new ScheduledExecutorServiceAdapter(
+                                        EXECUTOR_RESOURCE.getExecutor()))
+                        .setTaskManagerTimeout(taskManagerTimeout)
+                        .build();
+        taskManagerTracker.initialize(resourceAllocator, EXECUTOR_RESOURCE.getExecutor());
+
+        taskManagerTracker.registerTaskManager(
+                TASK_EXECUTOR_CONNECTION,
+                DEFAULT_TOTAL_RESOURCE_PROFILE,
+                DEFAULT_SLOT_RESOURCE_PROFILE,
+                null);
+
+        AllocationID allocationID = new AllocationID();
+        JobID jobID = new JobID();
+        taskManagerTracker.notifySlotStatus(
+                allocationID,
+                jobID,
+                TASK_EXECUTOR_CONNECTION.getInstanceID(),
+                ResourceProfile.fromResources(3, 200),
+                SlotState.ALLOCATED);
+
+        assertThat(
+                        taskManagerTracker.getRegisteredTaskManager(
+                                TASK_EXECUTOR_CONNECTION.getInstanceID()))
+                .hasValueSatisfying(
+                        taskManagerInfo ->
+                                assertThat(taskManagerInfo.getIdleSince())
+                                        .isEqualTo(Long.MAX_VALUE));
+
+        taskManagerTracker.notifySlotStatus(
+                allocationID,
+                jobID,
+                TASK_EXECUTOR_CONNECTION.getInstanceID(),
+                ResourceProfile.fromResources(3, 200),
+                SlotState.FREE);
+
+        assertThat(
+                        taskManagerTracker.getRegisteredTaskManager(
+                                TASK_EXECUTOR_CONNECTION.getInstanceID()))
+                .hasValueSatisfying(
+                        taskManagerInfo ->
+                                assertThat(taskManagerInfo.getIdleSince())
+                                        .isNotEqualTo(Long.MAX_VALUE));
+
+        assertThatFuture(releaseResourceFuture)
+                .eventuallySucceeds()
+                .isEqualTo(TASK_EXECUTOR_CONNECTION.getInstanceID());
+    }
+
+    private FineGrainedTaskManagerTracker createTaskManagerTracker() {
+        return new FineGrainedTaskManagerTrackerBuilder(
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
+                .build();
     }
 
     private FineGrainedTaskManagerTracker createAndStartTaskManagerTracker() {

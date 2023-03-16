@@ -34,16 +34,25 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Implementation of {@link TaskManagerTracker} supporting fine-grained resource management. */
 public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
@@ -79,8 +88,11 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     private final MemorySize maxTotalMem;
 
     private boolean started;
-    private ResourceAllocator resourceAllocator;
-    private Executor mainThreadExecutor;
+    @Nullable private ResourceAllocator resourceAllocator;
+    @Nullable private Executor mainThreadExecutor;
+
+    @Nullable private CompletableFuture<Void> declareNeededResourceFuture;
+    @Nullable private ScheduledFuture<?> taskManagerTimeoutsCheck;
 
     /**
      * Pending task manager indexed by the tuple of total resource profile and default slot resource
@@ -103,6 +115,11 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         this.declareNeededResourceDelay = declareNeededResourceDelay;
         this.scheduledExecutor = scheduledExecutor;
 
+        this.resourceAllocator = null;
+        this.mainThreadExecutor = null;
+        this.declareNeededResourceFuture = null;
+        this.taskManagerTimeoutsCheck = null;
+
         slots = new HashMap<>();
         taskManagerRegistrations = new HashMap<>();
         unWantedTaskManagers = new HashMap<>();
@@ -116,10 +133,23 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         this.resourceAllocator = resourceAllocator;
         this.mainThreadExecutor = mainThreadExecutor;
         this.started = true;
+
+        taskManagerTimeoutsCheck =
+                scheduledExecutor.scheduleWithFixedDelay(
+                        () -> mainThreadExecutor.execute(this::checkTaskManagerTimeouts),
+                        0L,
+                        taskManagerTimeout.toMilliseconds(),
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void close() {
+        // stop the timeout checks for the TaskManagers
+        if (taskManagerTimeoutsCheck != null) {
+            taskManagerTimeoutsCheck.cancel(false);
+            taskManagerTimeoutsCheck = null;
+        }
+
         slots.clear();
         taskManagerRegistrations.clear();
         totalRegisteredResource = ResourceProfile.ZERO;
@@ -132,31 +162,95 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         started = false;
     }
 
-    @Override
-    public void replaceAllPendingAllocations(
+    private void replaceAllPendingAllocations(
             Map<PendingTaskManagerId, Map<JobID, ResourceCounter>> pendingSlotAllocations) {
         Preconditions.checkNotNull(pendingSlotAllocations);
+        Preconditions.checkState(resourceAllocator.isSupported());
         LOG.trace("Record the pending allocations {}.", pendingSlotAllocations);
         pendingSlotAllocationRecords.clear();
         pendingSlotAllocationRecords.putAll(pendingSlotAllocations);
         removeUnusedPendingTaskManagers();
+        declareNeededResourcesWithDelay();
+    }
+
+    @Override
+    public void clearAllPendingAllocations() {
+        checkInit();
+        if (pendingSlotAllocationRecords.isEmpty()) {
+            return;
+        }
+        Preconditions.checkState(resourceAllocator.isSupported());
+        LOG.trace("clear all pending allocations.");
+        pendingSlotAllocationRecords.clear();
+        removeUnusedPendingTaskManagers();
+        declareNeededResourcesWithDelay();
     }
 
     @Override
     public void clearPendingAllocationsOfJob(JobID jobId) {
+        checkInit();
+        if (pendingSlotAllocationRecords.isEmpty()) {
+            return;
+        }
+        Preconditions.checkState(resourceAllocator.isSupported());
         LOG.info("Clear all pending allocations for job {}.", jobId);
         pendingSlotAllocationRecords.values().forEach(allocation -> allocation.remove(jobId));
+        pendingSlotAllocationRecords
+                .entrySet()
+                .removeIf(
+                        pendingTaskManagerAllocationRecord ->
+                                pendingTaskManagerAllocationRecord.getValue().isEmpty());
         removeUnusedPendingTaskManagers();
+        declareNeededResourcesWithDelay();
     }
 
     @Override
-    public void addTaskManager(
+    public Set<PendingTaskManagerId> allocateTaskManagersAccordingTo(
+            ResourceAllocationResult result) {
+        checkInit();
+        final Set<PendingTaskManagerId> failAllocations;
+        if (resourceAllocator.isSupported()) {
+            // Allocate task managers according to the result
+            failAllocations =
+                    allocateTaskManagersAccordingTo(result.getPendingTaskManagersToAllocate());
+
+            // Record slot allocation of pending task managers
+            final Map<PendingTaskManagerId, Map<JobID, ResourceCounter>>
+                    pendingResourceAllocationResult =
+                            new HashMap<>(result.getAllocationsOnPendingResources());
+            pendingResourceAllocationResult.keySet().removeAll(failAllocations);
+            replaceAllPendingAllocations(pendingResourceAllocationResult);
+        } else {
+            failAllocations =
+                    result.getPendingTaskManagersToAllocate().stream()
+                            .map(PendingTaskManager::getPendingTaskManagerId)
+                            .collect(Collectors.toSet());
+        }
+        return failAllocations;
+    }
+
+    @Override
+    public boolean registerTaskManager(
             TaskExecutorConnection taskExecutorConnection,
             ResourceProfile totalResourceProfile,
-            ResourceProfile defaultSlotResourceProfile) {
+            ResourceProfile defaultSlotResourceProfile,
+            PendingTaskManagerId matchedPendingTaskManagerId) {
+        checkInit();
         Preconditions.checkNotNull(taskExecutorConnection);
         Preconditions.checkNotNull(totalResourceProfile);
         Preconditions.checkNotNull(defaultSlotResourceProfile);
+
+        if (matchedPendingTaskManagerId == null
+                && isMaxTotalResourceExceededAfterAdding(totalResourceProfile)) {
+
+            LOG.info(
+                    "Can not register task manager {}. The max total resource limitation <{}, {}> is reached.",
+                    taskExecutorConnection.getResourceID(),
+                    maxTotalCpu,
+                    maxTotalMem.toHumanReadableString());
+            return false;
+        }
+
         LOG.debug(
                 "Add task manager {} with total resource {} and default slot resource {}.",
                 taskExecutorConnection.getInstanceID(),
@@ -168,10 +262,17 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         taskManagerRegistrations.put(
                 taskExecutorConnection.getInstanceID(), taskManagerRegistration);
         totalRegisteredResource = totalRegisteredResource.merge(totalResourceProfile);
+
+        if (matchedPendingTaskManagerId != null) {
+            removePendingTaskManager(matchedPendingTaskManagerId);
+        }
+
+        return true;
     }
 
     @Override
-    public void removeTaskManager(InstanceID instanceId) {
+    public void unregisterTaskManager(InstanceID instanceId) {
+        checkInit();
         Preconditions.checkNotNull(instanceId);
         unWantedTaskManagers.remove(instanceId);
         final FineGrainedTaskManagerRegistration taskManager =
@@ -183,30 +284,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         }
     }
 
-    @Override
-    public void addUnWantedTaskManager(InstanceID instanceId) {
-        final FineGrainedTaskManagerRegistration taskManager =
-                taskManagerRegistrations.get(instanceId);
-        if (taskManager != null) {
-            unWantedTaskManagers.put(
-                    instanceId,
-                    WorkerResourceSpec.fromTotalResourceProfile(
-                            taskManager.getTotalResource(),
-                            SlotManagerUtils.calculateDefaultNumSlots(
-                                    taskManager.getTotalResource(),
-                                    taskManager.getDefaultSlotResourceProfile())));
-        } else {
-            LOG.debug("Unwanted task manager {} does not exists.", instanceId);
-        }
-    }
-
-    @Override
-    public Map<InstanceID, WorkerResourceSpec> getUnWantedTaskManager() {
-        return unWantedTaskManagers;
-    }
-
-    @Override
-    public void addPendingTaskManager(PendingTaskManager pendingTaskManager) {
+    private void addPendingTaskManager(PendingTaskManager pendingTaskManager) {
         Preconditions.checkNotNull(pendingTaskManager);
         LOG.debug("Add pending task manager {}.", pendingTaskManager);
         pendingTaskManagers.put(pendingTaskManager.getPendingTaskManagerId(), pendingTaskManager);
@@ -221,9 +299,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 .add(pendingTaskManager);
     }
 
-    @Override
-    public Map<JobID, ResourceCounter> removePendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId) {
+    private void removePendingTaskManager(PendingTaskManagerId pendingTaskManagerId) {
         Preconditions.checkNotNull(pendingTaskManagerId);
         final PendingTaskManager pendingTaskManager =
                 Preconditions.checkNotNull(pendingTaskManagers.remove(pendingTaskManagerId));
@@ -238,8 +314,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                     Preconditions.checkNotNull(pendingTMSet).remove(pendingTaskManager);
                     return pendingTMSet.isEmpty() ? null : pendingTMSet;
                 });
-        return Optional.ofNullable(pendingSlotAllocationRecords.remove(pendingTaskManagerId))
-                .orElse(Collections.emptyMap());
+        pendingSlotAllocationRecords.remove(pendingTaskManagerId);
     }
 
     @Override
@@ -451,6 +526,181 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     @Override
     public ResourceProfile getPendingResource() {
         return totalPendingResource;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Resource allocations.
+    // ---------------------------------------------------------------------------------------------
+
+    private Set<PendingTaskManagerId> allocateTaskManagersAccordingTo(
+            List<PendingTaskManager> pendingTaskManagers) {
+        final Set<PendingTaskManagerId> failedAllocations = new HashSet<>();
+        for (PendingTaskManager pendingTaskManager : pendingTaskManagers) {
+            if (!allocateResource(pendingTaskManager)) {
+                failedAllocations.add(pendingTaskManager.getPendingTaskManagerId());
+            }
+        }
+        return failedAllocations;
+    }
+
+    private boolean allocateResource(PendingTaskManager pendingTaskManager) {
+        checkInit();
+        Preconditions.checkState(resourceAllocator.isSupported());
+        if (isMaxTotalResourceExceededAfterAdding(pendingTaskManager.getTotalResourceProfile())) {
+            LOG.info(
+                    "Could not allocate {}. Max total resource limitation <{}, {}> is reached.",
+                    pendingTaskManager,
+                    maxTotalCpu,
+                    maxTotalMem.toHumanReadableString());
+            return false;
+        }
+
+        addPendingTaskManager(pendingTaskManager);
+        return true;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Internal periodic check methods
+    // ---------------------------------------------------------------------------------------------
+
+    private void checkTaskManagerTimeouts() {
+        for (TaskManagerInfo timeoutTaskManager : getTimeOutTaskManagers()) {
+            if (waitResultConsumedBeforeRelease) {
+                releaseIdleTaskExecutorIfPossible(timeoutTaskManager);
+            } else {
+                releaseIdleTaskExecutor(timeoutTaskManager.getInstanceId());
+            }
+        }
+    }
+
+    private Collection<TaskManagerInfo> getTimeOutTaskManagers() {
+        long currentTime = System.currentTimeMillis();
+        return getRegisteredTaskManagers().stream()
+                .filter(
+                        taskManager ->
+                                taskManager.isIdle()
+                                        && currentTime - taskManager.getIdleSince()
+                                                >= taskManagerTimeout.toMilliseconds())
+                .collect(Collectors.toList());
+    }
+
+    private void releaseIdleTaskExecutorIfPossible(TaskManagerInfo taskManagerInfo) {
+        final long idleSince = taskManagerInfo.getIdleSince();
+        taskManagerInfo
+                .getTaskExecutorConnection()
+                .getTaskExecutorGateway()
+                .canBeReleased()
+                .thenAcceptAsync(
+                        canBeReleased -> {
+                            boolean stillIdle = idleSince == taskManagerInfo.getIdleSince();
+                            if (stillIdle && canBeReleased) {
+                                releaseIdleTaskExecutor(taskManagerInfo.getInstanceId());
+                            }
+                        },
+                        mainThreadExecutor);
+    }
+
+    private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
+        checkInit();
+        if (resourceAllocator.isSupported()) {
+            addUnWantedTaskManager(timedOutTaskManagerId);
+            declareNeededResourcesWithDelay();
+        }
+    }
+
+    private void addUnWantedTaskManager(InstanceID instanceId) {
+        final FineGrainedTaskManagerRegistration taskManager =
+                taskManagerRegistrations.get(instanceId);
+        if (taskManager != null) {
+            unWantedTaskManagers.put(
+                    instanceId,
+                    WorkerResourceSpec.fromTotalResourceProfile(
+                            taskManager.getTotalResource(),
+                            SlotManagerUtils.calculateDefaultNumSlots(
+                                    taskManager.getTotalResource(),
+                                    taskManager.getDefaultSlotResourceProfile())));
+        } else {
+            LOG.debug("Unwanted task manager {} does not exists.", instanceId);
+        }
+    }
+
+    void declareNeededResourcesWithDelay() {
+        checkInit();
+        Preconditions.checkState(resourceAllocator.isSupported());
+
+        if (declareNeededResourceDelay.toMillis() <= 0) {
+            declareNeededResources();
+        } else {
+            if (declareNeededResourceFuture == null || declareNeededResourceFuture.isDone()) {
+                declareNeededResourceFuture = new CompletableFuture<>();
+                scheduledExecutor.schedule(
+                        () ->
+                                mainThreadExecutor.execute(
+                                        () -> {
+                                            declareNeededResources();
+                                            Preconditions.checkNotNull(declareNeededResourceFuture)
+                                                    .complete(null);
+                                        }),
+                        declareNeededResourceDelay.toMillis(),
+                        TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
+    /** DO NOT call this method directly. Use {@link #declareNeededResourcesWithDelay()} instead. */
+    private void declareNeededResources() {
+        checkInit();
+        Preconditions.checkState(resourceAllocator.isSupported());
+        Map<WorkerResourceSpec, Set<InstanceID>> unWantedTaskManagerBySpec =
+                unWantedTaskManagers.entrySet().stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        Map.Entry::getValue,
+                                        Collectors.mapping(Map.Entry::getKey, Collectors.toSet())));
+
+        // registered TaskManagers except unwanted worker.
+        Stream<WorkerResourceSpec> registeredTaskManagerStream =
+                getRegisteredTaskManagers().stream()
+                        .filter(t -> !unWantedTaskManagers.containsKey(t.getInstanceId()))
+                        .map(
+                                t ->
+                                        WorkerResourceSpec.fromTotalResourceProfile(
+                                                t.getTotalResource(), t.getDefaultNumSlots()));
+        // pending TaskManagers.
+        Stream<WorkerResourceSpec> pendingTaskManagerStream =
+                getPendingTaskManagers().stream()
+                        .map(
+                                t ->
+                                        WorkerResourceSpec.fromTotalResourceProfile(
+                                                t.getTotalResourceProfile(), t.getNumSlots()));
+
+        Map<WorkerResourceSpec, Integer> requiredWorkers =
+                Stream.concat(registeredTaskManagerStream, pendingTaskManagerStream)
+                        .collect(
+                                Collectors.groupingBy(
+                                        Function.identity(), Collectors.summingInt(e -> 1)));
+
+        Set<WorkerResourceSpec> workerResourceSpecs = new HashSet<>(requiredWorkers.keySet());
+        workerResourceSpecs.addAll(unWantedTaskManagerBySpec.keySet());
+
+        List<ResourceDeclaration> resourceDeclarations = new ArrayList<>();
+        workerResourceSpecs.forEach(
+                spec ->
+                        resourceDeclarations.add(
+                                new ResourceDeclaration(
+                                        spec,
+                                        requiredWorkers.getOrDefault(spec, 0),
+                                        unWantedTaskManagerBySpec.getOrDefault(
+                                                spec, Collections.emptySet()))));
+
+        resourceAllocator.declareResourceNeeded(resourceDeclarations);
+    }
+
+    private boolean isMaxTotalResourceExceededAfterAdding(ResourceProfile newResource) {
+        final ResourceProfile totalResourceAfterAdding =
+                newResource.merge(getRegisteredResource()).merge(getPendingResource());
+        return totalResourceAfterAdding.getCpuCores().compareTo(maxTotalCpu) > 0
+                || totalResourceAfterAdding.getTotalMemory().compareTo(maxTotalMem) > 0;
     }
 
     private void checkInit() {
