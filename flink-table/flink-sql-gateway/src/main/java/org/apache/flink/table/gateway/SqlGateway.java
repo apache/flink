@@ -125,10 +125,9 @@ public class SqlGateway {
         flinkConfiguration.addAll(dynamicConfiguration);
 
         try {
+            Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
             SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
             SecurityUtils.getInstalledContext().runSecured(gateway::start);
-            Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
-            gateway.start();
             gateway.waitUntilStop();
         } catch (Throwable t) {
             // User uses ctrl + c to cancel the Gateway manually
