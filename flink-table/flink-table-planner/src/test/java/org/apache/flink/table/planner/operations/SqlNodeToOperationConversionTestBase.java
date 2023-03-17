@@ -58,7 +58,7 @@ import java.util.function.Supplier;
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
 /** Test base for testing convert sql statement to operation. */
-public class SqlToOperationConverterTestBase {
+public class SqlNodeToOperationConversionTestBase {
     private final boolean isStreamingMode = false;
     private final TableConfig tableConfig = TableConfig.getDefault();
     protected final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
@@ -126,14 +126,14 @@ public class SqlToOperationConverterTestBase {
 
     protected Operation parse(String sql, FlinkPlannerImpl planner, CalciteParser parser) {
         SqlNode node = parser.parse(sql);
-        return SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        return SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
     }
 
     protected Operation parse(String sql) {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
-        return SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        return SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
     }
 
     protected FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
