@@ -186,7 +186,7 @@ class OperationManagerTest {
     }
 
     @Test
-    void testCloseOperation() throws Exception {
+    void testCloseOperation() {
         CountDownLatch endRunningLatch = new CountDownLatch(1);
         OperationHandle operationHandle =
                 operationManager.submitOperation(
@@ -196,9 +196,12 @@ class OperationManagerTest {
                         });
 
         threadFactory.newThread(() -> operationManager.closeOperation(operationHandle)).start();
-        operationManager.awaitOperationTermination(operationHandle);
 
-        assertThatThrownBy(() -> operationManager.getOperation(operationHandle))
+        assertThatThrownBy(
+                        () -> {
+                            operationManager.awaitOperationTermination(operationHandle);
+                            operationManager.getOperation(operationHandle);
+                        })
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 SqlGatewayException.class,
