@@ -56,6 +56,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -1359,6 +1360,16 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayDistinct() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_DISTINCT, toExpr()));
+    }
+
+    /**
+     * Removes all elements that equal to element from array.
+     *
+     * <p>If the array itself is null, the function will return null. Keeps ordering of elements.
+     */
+    public OutType arrayRemove(InType needle) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_REMOVE, toExpr(), objectToExpression(needle)));
     }
 
     /** Returns the keys of the map as an array. */

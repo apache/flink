@@ -21,13 +21,16 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
 class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
@@ -178,6 +181,125 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_REMOVE)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2},
+                                null,
+                                new String[] {"Hello", "World"},
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Integer[] {null, null, 1},
+                                new Integer[][] {
+                                    new Integer[] {1, null, 3}, new Integer[] {0}, new Integer[] {1}
+                                },
+                                new Map[] {
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                    null
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull(),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())))
+                        // ARRAY<INT>
+                        .testResult(
+                                $("f0").arrayRemove(2),
+                                "ARRAY_REMOVE(f0, 2)",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f0").arrayRemove(42),
+                                "ARRAY_REMOVE(f0, 42)",
+                                new Integer[] {1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f0").arrayRemove(
+                                                lit(null, DataTypes.SMALLINT())
+                                                        .cast(DataTypes.INT())),
+                                "ARRAY_REMOVE(f0, cast(NULL AS INT))",
+                                new Integer[] {1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // ARRAY<INT> of null value
+                        .testResult(
+                                $("f1").arrayRemove(12),
+                                "ARRAY_REMOVE(f1, 12)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f1").arrayRemove(null),
+                                "ARRAY_REMOVE(f1, NULL)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // ARRAY<STRING> NOT NULL
+                        .testResult(
+                                $("f2").arrayRemove("Hello"),
+                                "ARRAY_REMOVE(f2, 'Hello')",
+                                new String[] {"World"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        .testResult(
+                                $("f2").arrayRemove(
+                                                lit(null, DataTypes.STRING())
+                                                        .cast(DataTypes.STRING())),
+                                "ARRAY_REMOVE(f2, cast(NULL AS VARCHAR))",
+                                new String[] {"Hello", "World"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f3").arrayRemove(row(true, LocalDate.of(1990, 10, 14))),
+                                "ARRAY_REMOVE(f3, (TRUE, DATE '1990-10-14'))",
+                                new Row[] {Row.of(true, LocalDate.of(2022, 4, 20)), null},
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.DATE()))
+                                        .nullable())
+                        .testResult(
+                                $("f3").arrayRemove(null),
+                                "ARRAY_REMOVE(f3, null)",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                },
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.DATE()))
+                                        .nullable())
+                        // ARRAY<INT> with null elements
+                        .testResult(
+                                $("f4").arrayRemove(null),
+                                "ARRAY_REMOVE(f4, NULL)",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // ARRAY<ARRAY<INT>>
+                        .testResult(
+                                $("f5").arrayRemove(new Integer[] {0}),
+                                "ARRAY_REMOVE(f5, array[0])",
+                                new Integer[][] {new Integer[] {1, null, 3}, new Integer[] {1}},
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()).nullable()))
+                        // ARRAY<Map<INT, STRING>> with null elements
+                        .testResult(
+                                $("f6").arrayRemove(
+                                                CollectionUtil.map(entry(3, "c"), entry(4, "d"))),
+                                "ARRAY_REMOVE(f6, MAP[3, 'c', 4, 'd'])",
+                                new Map[] {CollectionUtil.map(entry(1, "a"), entry(2, "b")), null},
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                                        .nullable())
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_REMOVE(f0, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_REMOVE(haystack <ARRAY>, needle <ARRAY ELEMENT>)")
+                        .testTableApiValidationError(
+                                $("f0").arrayRemove(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_REMOVE(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
     }
 }

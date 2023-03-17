@@ -1487,6 +1487,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayDistinct")(self)
 
+    def array_remove(self, needle) -> 'Expression':
+        """
+        Removes all elements that equal to element from array.
+        If the array itself is null, the function will return null. Keeps ordering of elements.
+        """
+        return _binary_op("arrayRemove")(self, needle)
+
     @property
     def map_keys(self) -> 'Expression':
         """
