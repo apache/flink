@@ -630,6 +630,23 @@ temporal:
     description: |
       使用表配置中指定的时区将格式为 string2 的日期时间字符串 string1（如果未指定默认情况下：yyyy-MM-dd HH:mm:ss）
       转换为 Unix 时间戳（以秒为单位）。
+      
+      如果日期时间字符串指定了时区并使用UTC+X的格式解析（例如："yyyy-MM-dd HH:mm:ss.SSS X"），此函数将会使用日期
+      时间字符串中的时区来转换，而不是表配置的时区。
+      如果日期时间字符串无法正常解析，此函数将会默认返回Long.MIN_VALUE（即-9223372036854775808）作为结果。
+
+      ```sql
+      Flink SQL> SET 'table.local-time-zone' = 'Europe/Berlin';
+
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns 1
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns -9223372036854775808
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      ```
   - sql: TO_DATE(string1[, string2])
     table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
