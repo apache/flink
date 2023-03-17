@@ -598,7 +598,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
     .build();
 ```
 {{< /tab >}}
@@ -608,7 +608,7 @@ import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
     .build
 ```
 {{< /tab >}}
@@ -633,6 +633,15 @@ Updating the timestamp more often can improve cleanup speed
 but it decreases compaction performance because it uses JNI call from native code.
 The default background cleanup for RocksDB backend queries the current timestamp each time 1000 entries have been processed.
 
+Periodic compaction could speed up expired state entries cleanup, especially for state entries rarely accessed. 
+Files older than this value will be picked up for compaction, and re-written to the same level as they were before. 
+It makes sure a file goes through compaction filters periodically.
+You can change it and pass a custom value to
+`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Time periodicCompactionTime)` method.
+The default value of Periodic compaction seconds is 30 days.
+You could set it to 0 to turn off periodic compaction or set a small value to speed up expired state entries cleanup, but it
+would trigger more compactions.
+
 You can activate debug logs from the native code of RocksDB filter 
 by activating debug level for `FlinkCompactionFilter`:
 
@@ -648,6 +657,7 @@ the native TTL filter has to call additionally a Flink java type serializer of t
 where at least the first element has expired to determine the offset of the next unexpired element. 
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
+- Periodic compaction could only work when TTL is enabled.
 
 ### State in the Scala DataStream API
 

@@ -74,6 +74,7 @@ public class StateTtlConfigTest {
         assertThat(incrementalCleanupStrategy.getCleanupSize(), is(5));
         assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord(), is(false));
         assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
+        assertThat(rocksdbCleanupStrategy.getPeriodicCompactionTime(), is(Time.days(30)));
     }
 
     @Test

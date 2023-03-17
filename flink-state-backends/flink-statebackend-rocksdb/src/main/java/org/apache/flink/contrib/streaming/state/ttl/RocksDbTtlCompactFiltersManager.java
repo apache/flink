@@ -57,9 +57,13 @@ public class RocksDbTtlCompactFiltersManager {
     /** Registered compaction filter factories. */
     private final LinkedHashMap<String, FlinkCompactionFilterFactory> compactionFilterFactories;
 
+    /** Created column family options. */
+    private final LinkedHashMap<String, ColumnFamilyOptions> columnFamilyOptionsMap;
+
     public RocksDbTtlCompactFiltersManager(TtlTimeProvider ttlTimeProvider) {
         this.ttlTimeProvider = ttlTimeProvider;
         this.compactionFilterFactories = new LinkedHashMap<>();
+        this.columnFamilyOptionsMap = new LinkedHashMap<>();
     }
 
     public void setAndRegisterCompactFilterIfStateTtl(
@@ -85,6 +89,7 @@ public class RocksDbTtlCompactFiltersManager {
         //noinspection resource
         options.setCompactionFilterFactory(compactionFilterFactory);
         compactionFilterFactories.put(stateName, compactionFilterFactory);
+        columnFamilyOptionsMap.put(stateName, options);
     }
 
     private static org.rocksdb.Logger createRocksDbNativeLogger() {
@@ -116,6 +121,13 @@ public class RocksDbTtlCompactFiltersManager {
             StateTtlConfig.RocksdbCompactFilterCleanupStrategy rocksdbCompactFilterCleanupStrategy =
                     ttlConfig.getCleanupStrategies().getRocksdbCompactFilterCleanupStrategy();
             Preconditions.checkNotNull(rocksdbCompactFilterCleanupStrategy);
+
+            ColumnFamilyOptions columnFamilyOptions =
+                    columnFamilyOptionsMap.get(stateDesc.getName());
+            Preconditions.checkNotNull(columnFamilyOptions);
+            columnFamilyOptions.setPeriodicCompactionSeconds(
+                    rocksdbCompactFilterCleanupStrategy.getPeriodicCompactionTime().toSeconds());
+
             long queryTimeAfterNumEntries =
                     rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries();
 
@@ -215,5 +227,6 @@ public class RocksDbTtlCompactFiltersManager {
             IOUtils.closeQuietly(factory);
         }
         compactionFilterFactories.clear();
+        columnFamilyOptionsMap.clear();
     }
 }
