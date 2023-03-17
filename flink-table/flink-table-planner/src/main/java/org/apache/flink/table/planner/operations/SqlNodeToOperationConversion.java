@@ -707,7 +707,7 @@ public class SqlNodeToOperationConversion {
                     contextResolvedTable,
                     child,
                     partitionSpec.getPartitionSpec(),
-                    new int[0][],
+                    null, // targetColumns
                     false,
                     compactOptions);
         }
@@ -1563,7 +1563,7 @@ public class SqlNodeToOperationConversion {
         return new SinkModifyOperation(
                 contextResolvedTable,
                 queryOperation,
-                new int[0][],
+                null, // targetColumns
                 SinkModifyOperation.ModifyType.DELETE);
     }
 
@@ -1589,7 +1589,7 @@ public class SqlNodeToOperationConversion {
         return new SinkModifyOperation(
                 contextResolvedTable,
                 queryOperation,
-                new int[0][],
+                null, // targetColumns
                 SinkModifyOperation.ModifyType.UPDATE);
     }
 

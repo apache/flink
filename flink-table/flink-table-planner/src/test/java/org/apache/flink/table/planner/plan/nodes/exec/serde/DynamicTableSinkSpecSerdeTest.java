@@ -263,7 +263,7 @@ class DynamicTableSinkSpecSerdeTest {
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 planResolvedCatalogTable),
                         Collections.emptyList(),
-                        new int[0][]);
+                        null);
 
         String actualJson = toJson(serdeCtx, planSpec);
         DynamicTableSinkSpec actual = toObject(serdeCtx, actualJson, DynamicTableSinkSpec.class);

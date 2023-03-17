@@ -157,7 +157,7 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(), // dynamicOptions
                 contextResolvedTable,
                 Collections.emptyMap(), // staticPartitions
-                new int[0][],
+                null, // targetColumns
                 false,
                 tableSink);
     }
@@ -180,7 +180,7 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(),
                 externalModifyOperation.getContextResolvedTable(),
                 Collections.emptyMap(),
-                new int[0][],
+                null, // targetColumns
                 false,
                 tableSink);
     }

@@ -467,7 +467,7 @@ public class TableImpl implements Table {
                         contextResolvedTable,
                         getQueryOperation(),
                         Collections.emptyMap(),
-                        new int[0][],
+                        null, // targetColumns
                         overwrite,
                         Collections.emptyMap()));
     }

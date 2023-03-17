@@ -52,7 +52,7 @@ public class SinkModifyOperation implements ModifyOperation {
                 contextResolvedTable,
                 child,
                 Collections.emptyMap(),
-                new int[0][],
+                null,
                 false,
                 Collections.emptyMap());
     }
@@ -165,9 +165,6 @@ public class SinkModifyOperation implements ModifyOperation {
     /** The type of sink modification. */
     public enum ModifyType {
         INSERT,
-
-        // TODO should we introduce this? not necessary?
-        //        UPSERT,
 
         UPDATE,
 
