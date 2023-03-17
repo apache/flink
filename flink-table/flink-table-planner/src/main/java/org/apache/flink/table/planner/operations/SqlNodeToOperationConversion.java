@@ -191,6 +191,7 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
@@ -286,11 +287,18 @@ public class SqlNodeToOperationConversion {
     private static Optional<Operation> convertValidatedSqlNode(
             FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
         beforeConversion();
+
+        // delegate conversion to the registered converters first
+        SqlNodeConvertContext context = new SqlNodeConvertContext(flinkPlanner, catalogManager);
+        Optional<Operation> operation = SqlNodeConverters.convertSqlNode(validated, context);
+        if (operation.isPresent()) {
+            return operation;
+        }
+
+        // TODO: all the below conversion logic should be migrated to SqlNodeConverters
         SqlNodeToOperationConversion converter =
                 new SqlNodeToOperationConversion(flinkPlanner, catalogManager);
-        if (validated instanceof SqlCreateCatalog) {
-            return Optional.of(converter.convertCreateCatalog((SqlCreateCatalog) validated));
-        } else if (validated instanceof SqlDropCatalog) {
+        if (validated instanceof SqlDropCatalog) {
             return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
         } else if (validated instanceof SqlLoadModule) {
             return Optional.of(converter.convertLoadModule((SqlLoadModule) validated));
