@@ -656,11 +656,11 @@ LogicalProject(d=[$3], e=[$4], f=[$5])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(10 AS INTEGER) AS d, e, f])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, e, f], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d, e, f], build=[left])
    :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[a], where=[(a = 10)])
+   :  +- Calc(select=[a], where=[SEARCH(a, Sarg[10])])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Calc(select=[e, f], where=[(d = 10)])
+   +- Calc(select=[d, e, f], where=[SEARCH(d, Sarg[10])])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
