@@ -202,6 +202,14 @@ under the License.
 									<pattern>org.apache.commons.lang3</pattern>
 									<shadedPattern>org.apache.flink.hive.shaded.org.apache.commons.lang3</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.joda.time</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.org.joda.time</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.hive.com.fasterxml.jackson</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
