@@ -93,7 +93,7 @@ class SqlCreateTableConverter {
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
-                        SqlToOperationConverter.convert(
+                        SqlNodeToOperationConversion.convert(
                                         flinkPlanner, catalogManager, sqlCreateTableAs.getAsQuery())
                                 .orElseThrow(
                                         () ->
