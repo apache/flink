@@ -317,7 +317,7 @@ CREATE TABLE MyTable (
   `user_id` BIGINT,
   `price` DOUBLE,
   `quantity` DOUBLE,
-  `cost` AS price * quanitity,  -- evaluate expression and supply the result to queries
+  `cost` AS price * quantity  -- evaluate expression and supply the result to queries
 ) WITH (
   'connector' = 'kafka'
   ...
