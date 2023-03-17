@@ -626,6 +626,23 @@ temporal:
     description: |
       使用表配置中指定的时区将格式为 string2 的日期时间字符串 string1（如果未指定默认情况下：yyyy-MM-dd HH:mm:ss）
       转换为 Unix 时间戳（以秒为单位）。
+      
+      如果日期时间字符串指定了时区并使用UTC+X的格式解析（例如："yyyy-MM-dd HH:mm:ss.SSS X"），此函数将会使用日期
+      时间字符串中的时区来转换，而不是表配置的时区。
+      如果日期时间字符串无法正常解析，此函数将会默认返回Long.MIN_VALUE（即-9223372036854775808）作为结果。
+      
+      ```sql
+      Flink SQL> SET 'table.local-time-zone' = 'Europe/Berlin';
+      
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns 1
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      -- Returns 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- Returns -9223372036854775808
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      ```
   - sql: TO_DATE(string1[, string2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
   - sql: TO_TIMESTAMP_LTZ(numeric, precision)
@@ -642,7 +659,7 @@ temporal:
       TIMESTAMP_LTZ(3)。
 
       请注意，此函数可以返回 `NULL`，您可能必须考虑这种情况。例如，如果您想过滤掉后期数据，您可以使用：
-      ```
+      ```sql
       WHERE
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
@@ -731,7 +748,7 @@ json:
       指定可选类型参数将会限制 JSON 对象所允许的类型。
       如果字符串是有效的 JSON，但不是指定的类型，则返回 `false`。默认值为 `VALUE`。
 
-      ```
+      ```sql
       -- TRUE
       '1' IS JSON
       '[]' IS JSON
@@ -764,7 +781,7 @@ json:
 
       如果要忽略错误行为，那么将 `FALSE ON ERROR` 设为默认值。
 
-      ```
+      ```sql
       -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
       -- FALSE
@@ -787,7 +804,7 @@ json:
 
       此函数返回一个包含序列化值的 JSON 字符串。如果值为 `NULL`，函数返回 `NULL`。
 
-      ```
+      ```sql
       -- NULL
       JSON_STRING(CAST(NULL AS INT))
 
@@ -819,7 +836,7 @@ json:
       对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 获 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
       当在 SQL 使用 JSON_VALUE 时，路径作为一个字符串参数已经被单引号引用了，因此你必须将属性名上的单引号转义，如`JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`。
       
-      ```
+      ```sql
       -- "true"
       JSON_VALUE('{"a": true}', '$.a')
 
@@ -853,7 +870,7 @@ json:
       `onEmpty` 和 `onError` 分别决定路径表达式为空或引发错误时的行为。默认情况下，这两种情况都会返回 `null`。其他选择是
       使用空数组、空对象或引发错误。
 
-      ```
+      ```sql
       -- '{ "b": 1 }'
       JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
       -- '[1, 2]'
@@ -895,7 +912,7 @@ json:
 
       值是由另一个 JSON 构造函数调用 (`JSON_OBJECT`，`JSON_ARRAY`) 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
 
-      ```
+      ```sql
       -- '{}'
       JSON_OBJECT()
 
@@ -930,7 +947,7 @@ json:
 
       目前在 `OVER` windows 中不支持此函数。
 
-      ```
+      ```sql
       -- '{"Apple":2,"Banana":17,"Orange":0}'
       SELECT
         JSON_OBJECTAGG(KEY product VALUE cnt)
@@ -945,7 +962,7 @@ json:
 
       元素是由另一个 JSON 构造函数调用 (`JSON_OBJECT`，`JSON_ARRAY`) 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
 
-      ```
+      ```sql
       -- '[]'
       JSON_ARRAY()
       -- '[1,"2"]'
@@ -970,7 +987,7 @@ json:
 
       此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。
 
-      ```
+      ```sql
       -- '["Apple","Banana","Orange"]'
       SELECT
         JSON_ARRAYAGG(product)
