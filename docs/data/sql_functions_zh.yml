@@ -42,11 +42,11 @@ comparison:
     description: 如果值不为 `NULL` 返回 `TRUE`。
   - sql: value1 IS DISTINCT FROM value2
     description: |
-      A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。将 `NULL` 视为相同。
+      A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。`NULL` 视为与任何其他值相同。
       例如 `1 IS DISTINCT FROM NULL` 返回 `TRUE`；`NULL IS DISTINCT FROM NULL` 返回 `FALSE`。
   - sql: value1 IS NOT DISTINCT FROM value2
     description: |
-      A 和 B 的数据类型和值都相同返回 `TRUE`。A 和 B 的数据类型和值不完全相同则返回 `FALSE`。将 `NULL` 视为相同。
+      A 和 B 的数据类型和值都相同返回 `TRUE`。A 和 B 的数据类型和值不完全相同则返回 `FALSE`。`NULL` 视为与任何其他值相同。
       例如 `1 IS NOT DISTINCT FROM NULL` 返回 `FALSE`；`NULL IS NOT DISTINCT FROM NULL` 返回 `TRUE`。
   - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
     description: |
@@ -87,7 +87,7 @@ comparison:
       如果 string1 与 SQL 正则表达式 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回
       `UNKNOWN`。如果需要可以定义转义字符。尚不支持转义字符。
   - sql: value1 IN (value2 [, value3]* )
-    table: value1.in(valu2)
+    table: value1.in(value2)
     description: |
       在给定列表 (value2, value3, ...) 中存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则返回
       `TRUE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL` 则始终返回 `UNKNOWN`。例如 `4 IN (1, 2, 3)` 返回
@@ -100,7 +100,7 @@ comparison:
   - sql: EXISTS (sub-query)
     description: |
       如果子查询至少返回一行则返回 `TRUE`。 仅支持可以在 join 和分组操作中可以被重写的操作。对于流式查询，该操作在 join
-      和分组操作中被重写。根据输入行的数量计算查询结果所需的状态可能会无限增长。请提供具有有效保留间隔的查询配置，以防止状态过大。
+      和分组操作中被重写。计算查询结果所需的状态大小取决于输入行的数量，状态可能会无限增长。请在查询配置中合理配置状态保留时间，以防止状态过大。
   - sql: value IN (sub-query)
     table: value1.in(TABLE)
     description: 如果 value 等于子查询结果集中的一行则返回 `TRUE`。
@@ -127,13 +127,13 @@ logical:
       如果 boolean1 和 boolean2 都为 `TRUE` 返回 `TRUE`。支持三值逻辑。
       例如 `true && Null(BOOLEAN)` 返回 `UNKNOWN`。
   - sql: NOT boolean
-    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
+    table: BOOLEAN.not(), not(BOOLEAN), 或者 '!BOOLEAN' (仅适用于Scala)
     description: |
-      如果布尔值为 `FALSE` 返回 `TRUE`；如果布尔值为 `TRUE` 返回 `FALSE`；如果布尔值为 `UNKNOWN`
+      如果 boolean 为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 返回 `FALSE`；如果 boolean 为 `UNKNOWN`
       返回 `UNKNOWN`。
   - sql: boolean IS FALSE
     table: BOOLEAN.isFalse
-    description: 如果布尔值为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `FALSE`。
+    description: 如果 boolean 为 `FALSE` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `FALSE`。
   - sql: boolean IS NOT FALSE
     table: BOOLEAN.isNotFalse
     description: 如果 boolean 为 `TRUE` 或 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `FALSE` 返回 `FALSE`。
@@ -142,11 +142,11 @@ logical:
     description: 如果 boolean 为 `TRUE` 返回 `TRUE`；如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `FALSE`。
   - sql: boolean IS NOT TRUE
     table: BOOLEAN.isNotTrue
-    description: 如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `TRUE`；如果布尔值为 `TRUE` 返回 `FALSE`。
+    description: 如果 boolean 为 `FALSE` 或 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 返回 `FALSE`。
   - sql: boolean IS UNKNOWN
-    description: 如果布尔值为 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `FALSE` 返回 `FALSE`。
+    description: 如果 boolean 为 `UNKNOWN` 返回 `TRUE`；如果 boolean 为 `TRUE` 或 `FALSE` 返回 `FALSE`。
   - sql: boolean IS NOT UNKNOWN
-    description: 如果 boolean 为 `TRUE` 或 `FALSE` 返回 `TRUE`；如果布尔值为 `UNKNOWN` 返回 `FALSE`。
+    description: 如果 boolean 为 `TRUE` 或 `FALSE` 返回 `TRUE`；如果 boolean 为 `UNKNOWN` 返回 `FALSE`。
 
 arithmetic:
   - sql: + numeric
@@ -196,7 +196,7 @@ arithmetic:
       NUMERIC1.log(NUMERIC2)
     description: |
       当用一个参数调用时，返回 numeric2 的自然对数。当使用两个参数调用时，此函数返回 numeric2 以 numeric1
-      为底的对数。numeric2 必须大于 0，numeric1 必须大于 1。
+      为底的对数，此时 numeric2 必须大于 0，numeric1 必须大于 1。
   - sql: EXP(numeric)
     table: NUMERIC.exp()
     description: 返回 e 的 numeric 次幂。
@@ -292,16 +292,16 @@ arithmetic:
       HEX(string)
     table: |
       NUMERIC.hex()
-      string.hex()
+      STRING.hex()
     description: |
-      以十六进制格式返回整数 numeric 值或 STRING 的字符串表示形式。如果参数为 `NULL`，则返回 `NULL`。
+      以十六进制格式返回整数 numeric 或字符串 string 的字符串表示。如果参数为 `NULL`，则返回 `NULL`。
       例如数字 20 返回“14”，数字 100 返回“64”，字符串“hello,world” 返回“68656C6C6F2C776F726C64”。
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: |
       返回截取 integer2 位小数的数字。如果 numeric1 或 integer2 为 `NULL`，则返回 `NULL`。
       如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
-      此函数也可以传入只有一个 numeric1 参数且不设置 Integer2 以使用。如果未设置 Integer2 则 Integer2 为 0。
+      此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
       例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。
 
 string:
@@ -329,7 +329,7 @@ string:
       STRING1.trim(BOTH, STRING2)
       STRING1.trim(BOTH)
       STRING1.trim()
-    description: 返回从 STRING1 中删除以字符串 STRING2 开头/结尾/开头且结尾的字符串的结果。默认情况下，两边的空格都会被删除。
+    description: 删除字符串 STRING1 开头和结尾可能存在的字符串 STRING2 并返回。默认情况下，会删除 STRING1 开头和结尾的空格。
   - sql: LTRIM(string)
     table: STRING.ltrim()
     description: |
@@ -355,7 +355,7 @@ string:
       STRING1.overlay(STRING2, INT1)
       STRING1.overlay(STRING2, INT1, INT2)
     description: |
-      返回一个字符串，该字符串从位置 INT1 用 STRING2 替换 STRING1 的 INT2（默认为 STRING2 的长度）字符。
+      将字符串 STRING1 从位置 INT1 开始替换 INT2（默认为 STRING2 的长度）个来自字符串 STRING2 的字符并返回。
       例如 `'xxxxxtest'.overlay('xxxx', 6)` 返回 `"xxxxxxxxx"`；
       `'xxxxxtest'.overlay('xxxx', 6, 2)` 返回 `"xxxxxxxxxst"`。
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
@@ -366,7 +366,7 @@ string:
   - sql: REPLACE(string1, string2, string3)
     table: STRING1.replace(STRING2, STRING3)
     description: |
-      返回一个新字符串，它用 STRING1 中的 STRING3（非重叠）替换所有出现的 STRING2。
+      返回一个新字符串，它用 STRING3（非重叠）替换 STRING1 中所有出现的 STRING2。
       例如 `'hello world'.replace('world', 'flink')` 返回 `'hello flink'`；
       `'ababab'.replace('abab', 'z')` 返回 `'zab'`。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
@@ -393,22 +393,22 @@ string:
   - sql: LPAD(string1, integer, string2)
     table: STRING1.lpad(INT, STRING2)
     description: |
-      返回从 string1 靠左填充 string2 到 INT 长度的新字符串。如果 string1 的长度小于 INT 值，则返回 string1 缩
-      短为整数字符。例如 `LPAD('hi', 4, '??')` 返回 `"??hi"`；`LPAD('hi', 1, '??')` 返回 `"h"。
+      返回从 string1 靠左填充 string2 到 integer 长度的新字符串。如果 string1 的长度小于 INT 值，则返回 string1 缩
+      短到 integer 长度的字符串。例如 `LPAD('hi', 4, '??')` 返回 `"??hi"`；`LPAD('hi', 1, '??')` 返回 `"h"。
   - sql: RPAD(string1, integer, string2)
     table: STRING1.rpad(INT, STRING2)
     description: |
-      返回从 string1 靠右边填充 string2 到 INT 长度的新字符串。如果 string1 的长度小于 INT 值，则返回 string1 缩
-      短为长度为 INT 的新字符串。例如 `RPAD('hi', 4, '??')` 返回 `"hi??"`, `RPAD('hi', 1, '??')` 返回 `"h"`。
+      返回从 string1 靠右边填充 string2 到 integer 长度的新字符串。如果 string1 的长度小于 integer 值，则返回 string1 缩
+      短到 integer 长度的新字符串。例如 `RPAD('hi', 4, '??')` 返回 `"hi??"`, `RPAD('hi', 1, '??')` 返回 `"h"`。
   - sql: FROM_BASE64(string)
     table: STRING.fromBase64()
     description: |
-      返回字符串 string1 的 base64 解码的结果；如果字符串为 `NULL`，则返回 `NULL`。
+      返回字符串 string 的 base64 解码的结果；如果字符串 string 为 `NULL`，则返回 `NULL`。
       例如 `FROM_BASE64('aGVsbG8gd29ybGQ=')` 返回 `"hello world"`。
   - sql: TO_BASE64(string)
     table: STRING.toBase64()
     description: |
-      返回字符串 string 的 base64 编码的结果；如果字符串为 `NULL`，则返回 `NULL`。
+      返回字符串 string 的 base64 编码的结果；如果字符串 string 为 `NULL`，则返回 `NULL`。
       例如 `TO_BASE64('hello world')` 返回 `"aGVsbG8gd29ybGQ="`。
   - sql: ASCII(string)
     table: STRING.ascii()
@@ -418,18 +418,18 @@ string:
   - sql: CHR(integer)
     table: INT.chr()
     description: |
-      返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将得到整数对 255 取模数，
+      返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将整数 integer 对 255 取模数，
       并返回模数的 CHR。如果整数为 `NULL`，则返回 `NULL`。例如 `chr(97)` 返回 `a`，`chr(353)` 返回 `a`，
       `ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: DECODE(binary, string)
     table: BINARY.decode(STRING)
     description: |
-      使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）解码。
+      使用提供的字符集 string（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）解码第一个参数 binary 为字符串。
       如果任一参数为空，则结果也将为空。
   - sql: ENCODE(string1, string2)
     table: STRING1.encode(STRING2)
     description: |
-      使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）编码。
+      使用提供的字符集 string2（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）将字符串 string1 编码。
       如果任一参数为空，则结果也将为空。
   - sql: INSTR(string1, string2)
     table: STRING1.instr(STRING2)
@@ -467,7 +467,7 @@ string:
   - sql: SPLIT_INDEX(string1, string2, integer1)
     table: STRING1.splitIndex(STRING2, INTEGER1)
     description: |
-      通过分隔符 string2 拆分 string1，返回分隔后这组字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
+      通过分隔符 string2 拆分 string1，返回分隔后这组字符串的第 integer（从0开始）个字符串。如果 integer 为负，则返回 `NULL`。
       如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: STR_TO_MAP(string1[, string2, string3])
     table: STRING1.strToMap([STRING2, STRING3])
@@ -494,24 +494,24 @@ temporal:
       是 DAY，MINUTE，DAY TO HOUR 或 DAY TO SECOND，以毫秒为间隔；YEAR 或 YEAR TO MONTH 表示几个月的间隔。例
       如 `INTERVAL '10 00:00:00.004' DAY TO SECOND，INTERVAL '10' DAY` 或 `INTERVAL '2-10' YEAR TO
       MONTH` 返回间隔。
-  - table: numeric.year | numeric.years
-    description: 创建 numeric 年的月间隔。
-  - table: numeric.quarter | numeric.quarters
-    description: 为 numeric 季度创建月间隔。例如 `2.quarters` 返回 `6`。
-  - table: numeric.month | numeric.months
-    description: 创建 numeric 个月的间隔。
-  - table: numeric.week | numeric.weeks
-    description: 为 numeric 周创建毫秒间隔。例如 2.weeks 返回 1209600000。
-  - table: numeric.day | numeric.days
-    description: 创建 numeric 天的毫秒间隔。
-  - table: numeric.hour | numeric.hours
-    description: 创建 numeric 小时的毫秒间隔。
-  - table: numeric.minute | numeric.minutes
-    description: 创建 numeric 分钟的毫秒间隔。
-  - table: numeric.second | numeric.seconds
-    description: 创建 numeric 秒的毫秒间隔。
-  - table: numeric.milli | numeric.millis
-    description: 创建 numeric 毫秒的毫秒间隔。
+  - table: NUMERIC.year | NUMERIC.years
+    description: 创建 NUMERIC 年的月间隔。
+  - table: NUMERIC.quarter | NUMERIC.quarters
+    description: 为 NUMERIC 季度创建月间隔。例如 `2.quarters` 返回 `6`。
+  - table: NUMERIC.month | NUMERIC.months
+    description: 创建 NUMERIC 个月的间隔。
+  - table: NUMERIC.week | NUMERIC.weeks
+    description: 为 NUMERIC 周创建毫秒间隔。例如 2.weeks 返回 1209600000。
+  - table: NUMERIC.day | NUMERIC.days
+    description: 创建 NUMERIC 天的毫秒间隔。
+  - table: NUMERIC.hour | NUMERIC.hours
+    description: 创建 NUMERIC 小时的毫秒间隔。
+  - table: NUMERIC.minute | NUMERIC.minutes
+    description: 创建 NUMERIC 分钟的毫秒间隔。
+  - table: NUMERIC.second | NUMERIC.seconds
+    description: 创建 NUMERIC 秒的毫秒间隔。
+  - table: NUMERIC.milli | NUMERIC.millis
+    description: 创建 NUMERIC 毫秒的毫秒间隔。
   - sql: LOCALTIME
     table: localTime()
     description: |
@@ -520,7 +520,7 @@ temporal:
   - sql: LOCALTIMESTAMP
     table: localTimestamp()
     description: |
-      返回本地时区的当前 SQL 时间，返回类型为 TIMESTAMP(3)。在流模式下为每条记录进行取值。
+      返回本地时区的当前 SQL 时间戳，返回类型为 TIMESTAMP(3)。在流模式下为每条记录进行取值。
       但在批处理模式下，它在查询开始时计算一次，并对每一行使用相同的结果。
   - sql: CURRENT_TIME
     table: currentTime()
@@ -542,7 +542,7 @@ temporal:
       返回本地时区的当前 SQL 时间戳，返回类型为 TIMESTAMP_LTZ(3)。无论是在批处理模式还是流模式下，都会为每条记录进行取值。
   - sql: EXTRACT(timeinteravlunit FROM temporal)
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
-    description: 返回从时间的时间间隔单位部分提取的 long 值。例如 `EXTRACT(DAY FROM DATE '2006-06-05')` 返回 5。
+    description: 返回从时间 temporal 的时间间隔单位部分 timeinteravlunit 提取的 long 值。例如 `EXTRACT(DAY FROM DATE '2006-06-05')` 返回 5。
   - sql: YEAR(date)
     description: |
       从 SQL 日期 date 返回年份。相当于 EXTRACT(YEAR FROM date)。例如 `YEAR(DATE '1994-09-27')` 返回 1994。
@@ -590,13 +590,13 @@ temporal:
   - sql: CEIL(timespoint TO timeintervaluntit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: |
-      返回将时间点 timespoint 向上取值到时间单位 TIMEINTERVALUNIT 的值。例如 `CEIL(TIME '12:44:31' TO MINUTE)`
+      返回将时间点 timespoint 向上取值到时间单位 timeintervaluntit 的值。例如 `CEIL(TIME '12:44:31' TO MINUTE)`
       返回 12:45:00。
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
     table: temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
     description: |
       如果由 (timepoint1, temporal1) 和 (timepoint2, temporal2) 定义的两个时间间隔重叠，则返回 TRUE。
-      时间值可以是时间点或时间间隔。例如
+      时间值 temporal1 可以是时间点或时间间隔。例如
       `(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)` 返回 TRUE；
       `(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)` 返回 FALSE。
   - sql: DATE_FORMAT(timestamp, string)
@@ -618,7 +618,7 @@ temporal:
   - sql: FROM_UNIXTIME(numeric[, string])
     table: fromUnixtime(NUMERIC[, STRING])
     description: |
-      以字符串格式 string 返回数字参数 numberic 的表示形式（默认为 'yyyy-MM-dd HH:mm:ss'）。numeric 是一个内部
+      以格式 string（默认为 'yyyy-MM-dd HH:mm:ss'）表示数字参数 numberic 的值。numeric 是一个内部
       时间戳值，表示自'1970-01-01 00:00:00' UTC 以来的秒数，由 UNIX_TIMESTAMP() 函数生成。返回值以会话时区表示
       （在 TableConfig 中指定）。例如，如果在 UTC 时区，FROM_UNIXTIME(44) 返回 '1970-01-01 00:00:44'，如果在
       'Asia/Tokyo' 时区，则返回 '1970-01-01 09:00:44'。
@@ -630,6 +630,22 @@ temporal:
     description: |
       使用表配置中指定的时区将格式为 string2 的日期时间字符串 string1（如果未指定默认情况下：yyyy-MM-dd HH:mm:ss）
       转换为 Unix 时间戳（以秒为单位）。
+      
+      如果时间戳字符串指定了时区并使用 UTC+X 的格式解析（例如："yyyy-MM-dd HH:mm:ss.SSS X"），此函数将会使用时间戳字符串中的时区来转换，而不是 Flink 会话中所配置的时区。
+      如果时间戳字符串无法正常解析，此函数将会默认返回 Long.MIN_VALUE（即: -9223372036854775808）作为结果。
+
+      ```sql
+      Flink SQL> SET 'table.local-time-zone' = 'Europe/Berlin';
+
+      -- 返回 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- 返回 1
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      -- 返回 25201
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001 +0800', 'yyyy-MM-dd HH:mm:ss.SSS');
+      -- 返回 -9223372036854775808
+      Flink SQL> SELECT UNIX_TIMESTAMP('1970-01-01 08:00:01.001', 'yyyy-MM-dd HH:mm:ss.SSS X');
+      ```
   - sql: TO_DATE(string1[, string2])
     table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
@@ -647,7 +663,7 @@ temporal:
       函数的返回类型被推断为与提供的时间列属性匹配，但调整后的精度为 3。例如时间列属性为 TIMESTAMP_LTZ(9)，则函数将返回
       TIMESTAMP_LTZ(3)。
 
-      请注意，此函数可以返回 `NULL`，您可能必须考虑这种情况。例如，如果您想过滤掉后期数据，您可以使用：
+      请注意，此函数可以返回 `NULL`，您可能必须考虑这种情况。例如，如果您想过滤掉迟到数据，您可以使用：
       ```sql
       WHERE
         CURRENT_WATERMARK(ts) IS NULL
@@ -662,7 +678,7 @@ conditional:
         (ELSE result_z)
       END
     description: |
-      当第一个时间值包含在 (valueX_1, valueX_2, ...) 中时，返回 resultX。当没有值匹配时，如果提供则返回 result_z，
+      当值 value 第一次满足在 (valueX_1, valueX_2, ...) 中时，返回对应的结果 resultX。当没有匹配到时，如果提供了 result_z 则返回 result_z，
       否则返回 `NULL`。
   - sql: |
       CASE
@@ -670,20 +686,33 @@ conditional:
         (WHEN condition2 THEN result2)*
         (ELSE result_z)
       END
-    description: 满足第一个条件 X 时返回 resultX。当不满足任何条件时，如果提供则返回 result_z，否则返回 `NULL`。
+    description: 满足第一个条件 X 时返回 resultX。当不满足任何条件时，如果提供了 result_z 则返回 result_z，否则返回 `NULL`。
   - sql: NULLIF(value1, value2)
     description: |
       如果 value1 等于 value2 返回 `NULL`；否则返回 value1。例如 `NULLIF(5, 5)` 返回 `NULL`；`NULLIF(5, 0)` 返回 5。
   - sql: COALESCE(value1, value2 [, value3]*)
-    description: 从 value1, value2, ... 返回第一个不为 `NULL` 的值。例如 `COALESCE(3, 5, 3)` 返回 3。
+    description: ｜
+      从 value1, value2, ... 返回第一个不为 `NULL` 的值。例如 `COALESCE(3, 5, 3)` 返回 3。
+      如果所有参数为 `NULL`，返回 `NULL`。返回类型是所有参数的限制最最少的通用类型，如果所有参数是可空的类型，返回类型也是可空的类型。
+    
+      ```sql
+      -- 返回 'default'
+      COALESCE(NULL, 'default')
+      
+      -- 返回 f0，f1中第一个非空的值，如果 f0 和 f1 都是 NULL，则返回 'default'
+      COALESCE(f0, f1, 'default')
+      ```
   - sql: IF(condition, true_value, false_value)
-    description: 如果满足条件，则返回 true_value，否则返回 false_value。例如 `IF(5 > 3, 5, 3)` 返回 5。
+    description: 如果满足条件，返回 true_value，否则返回 false_value。例如 `IF(5 > 3, 5, 3)` 返回 5。
   - sql: IFNULL(input, null_replacement)
     table: input.ifNull(nullReplacement)
     description: |
-      如果输入为 `NULL`，则返回 null_replacement；否则返回输入。与 COALESCE 或 CASE WHEN 相比，此函数返回的数据类型
-      在是否为空方面非常明确。。返回的类型是两个参数的公共类型，但只有在 null_replacement 可为空时才能为空。该函数允许将可
-      为空的列传递到使用 NOT NULL 约束声明的函数或表中。例如 `IFNULL(nullable_column, 5)` 一定不返回 `NULL`。
+      如果输入为 `NULL`，则返回 null_replacement；否则返回 input。
+      
+      与 COALESCE 或 CASE WHEN 相比，此函数返回的数据类型在是否为空方面非常明确。返回的类型是两个参数的公共类型，但只有在 null_replacement 可为空时才能为可空类型。
+      该函数允许将可空的列传递到使用 NOT NULL 约束声明的函数或表中。
+      
+      例如 `IFNULL(nullable_column, 5)` 一定不返回 `NULL`。
   - sql: IS_ALPHA(string)
     description: 如果字符串中的所有字符都是字母，则返回 `true`，否则返回 `false`。
   - sql: IS_DECIMAL(string)
@@ -702,14 +731,21 @@ conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
     description: |
-      返回被强制转换为类型 type 的新值。例如 `CAST('42' AS INT)` 返回 42；
-      `CAST(NULL AS VARCHAR)` 返回 VARCHAR 类型的 `NULL`。
+      返回 value 被转换为类型 type 的新值。CAST错误会抛出异常并导致作业失败。为了处理错误，在使用可能失败的 CAST 操作时，例如 STRING 转换为 INT，建议使用 TRY_CAST 替代。
+      如果开启了 "table.exec.legacy-cast-behaviour"，CAST 行为将变得与 TRY_CAST 一致。
+      
+      例如, CAST('42' AS INT) 返回 42; CAST(NULL AS STRING) 返回字符串类型的 `NULL`; CAST('non-number' AS INT) 抛出异常且作业失败。
+  - sql: TRY_CAST(value AS type)
+    table: ANY.tryCast(TYPE)
+    description: |
+      TRY_CAST 行为与 CAST 相似, 但在遇到错误时 TRY_CAST 会返回 NULL 而不是使作业失败。
+      例如：TRY_CAST('42' AS INT) 返回 42; TRY_CAST(NULL AS STRING) 返回字符串类型的 `NULL`; TRY_CAST('non-number' AS INT) 返回 INT 类型的 `NULL`; COALESCE(TRY_CAST('non-number' AS INT), 0) 返回 INT 类型的 0。
   - sql: TYPEOF(input) | TYPEOF(input, force_serializable)
     table: call("TYPEOF", input) | call("TYPEOF", input, force_serializable)
     description: |
-      返回输入表达式的数据类型的字符串表示形式。默认情况下返回的字符串是一个摘要字符串，可能会为了可读性而省略某些细节。
-      如果 force_serializable 设置为 TRUE，则字符串表示可以保留在目录中的完整数据类型。请注意，
-      特别是匿名的内联数据类型没有可序列化的字符串表示。在这种情况下返回 `NULL`。
+      返回输入表达式的数据类型的字符串表示。默认情况下返回的字符串是一个摘要字符串，可能会为了可读性而省略某些细节。
+      如果 force_serializable 设置为 TRUE，则字符串表示可以持久化保存在 catalog 中的完整数据类型。
+      请注意，特别是匿名的内联数据类型没有可序列化的字符串表示。在这种情况下返回 `NULL`。
 
 collection:
   - sql: CARDINALITY(array)
@@ -724,27 +760,24 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: 返回 map 中的 entries 数量。
-  - sql: ARRAY_CONCAT(array1, ...)
-    table: array1.arrayConcat(...)
-    description: 返回一个数组，该数组是连接至少一个数组的结果。该数组包含第一个数组中的所有元素，然后是第二个数组中的所有元素，依此类推，直到第 N 个数组。如果任何输入数组为 NULL，则函数返回 NULL。
   - sql: map ‘[’ value ‘]’
     table: MAP.at(ANY)
     description: 返回 map 中指定 key 对应的值。
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
-    description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
+    description: 返回是否数组 haystack 中包含指定元素 needle。支持检查数组中是否存在 null。 如果数组本身是null，函数会返回 null。如果需要，指定元素会隐式转换为数组的元素类型。
   - sql: ARRAY_DISTINCT(haystack)
     table: haystack.arrayDistinct()
-    description: Returns an array with unique elements. If the array itself is null, the function will return null. Keeps ordering of elements.
+    description: 返回没有重复元素的新数组。如果数组本身是null，函数会返回 null。函数会保留数组中元素的顺序。
   - sql: ARRAY_POSITION(haystack, needle)
     table: haystack.arrayPosition(needle)
-    description: Returns the position of the first occurrence of element in the given array as int. Returns 0 if the given value could not be found in the array. Returns null if either of the arguments are null. And this is not zero based, but 1-based index. The first element in the array has index 1.
+    description: 返回数组中第一次出现 needle 元素的位置，返回类型为 int。如果数组中不存在该元素则返回 0。如果两个参数中任何一个参数为 null，则返回 null。序号不是从 0 开始，而是从 1 开始，第一个元素的序号为 1。
   - sql: ARRAY_REMOVE(haystack, needle)
     table: haystack.arrayRemove(needle)
-    description: Removes all elements that equal to element from array. If the array itself is null, the function will return null. Keeps ordering of elements.
+    description: 删除数组中所有和元素 needle 相等的元素。如果数组是 null，则返回 null。函数会保留数组中元素的顺序。
   - sql: ARRAY_REVERSE(haystack)
     table: haystack.arrayReverse()
-    description: Returns an array in reverse order. If the array itself is null, the function will return null.
+    description: 翻转并返回数组 haystack。 如果数组是 null，则返回 null。
   - sql: ARRAY_SLICE(array, start_offset[, end_offset])
     table: array.arraySlice(start_offset[, end_offset])
     description: 返回输入数组的子数组，位于“start_offset”和“end_offset”之间
@@ -753,19 +786,28 @@ collection:
       “end_offset”之后或者两者都超出数组范围，则将返回空数组。如果任何输入为 null，则返回 null。
   - sql: ARRAY_UNION(array1, array2)
     table: haystack.arrayUnion(array)
-    description: Returns an array of the elements in the union of array1 and array2, without duplicates. If any of the array is null, the function will return null.
+    description: 返回由 array1 和 array2 的全部元素构成的数组，不包含重复元素。如果任意一个数组是 null，该函数返回 null。
+  - sql: ARRAY_CONCAT(array1, ...)
+    table: array1.arrayConcat(...)
+    description: 返回一个数组，该数组是连接至少一个数组的结果。该数组包含第一个数组中的所有元素，然后是第二个数组中的所有元素，依此类推，直到第 N 个数组。如果任何输入数组为 NULL，则函数返回 NULL。
+  - sql: ARRAY_MAX(array)
+    table: array.arrayMax()
+    description: 返回数组中的最大值，如果数组是 null，则返回 null。
+  - sql: ARRAY_JOIN(array, delimiter[, nullReplacement])
+    table: array.arrayJoin(delimiter[, nullReplacement])
+    description: 返回一个字符串，表示给定数组中元素的串联，并且给定数组中元素的数据类型为字符串。 分隔符 delimiter 是一个字符串，用于分隔数组的每对连续元素。 可选的参数 nullReplacement 是一个字符串，用于替换数组中的 null 元素。 如果未指定 nullReplacement，则结果字符串中将从数组中省略 null 元素。 如果输入数组或分隔符或 nullReplacement 为 null，则返回 null。
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
-    description: Returns the keys of the map as array. No order guaranteed.
+    description: 以数组形式返回 map 中的所有 key，不保证顺序。
   - sql: MAP_VALUES(map)
     table: MAP.mapValues()
-    description: Returns the values of the map as array. No order guaranteed.
+    description: 以数组形式返回 map 中的所有 value，不保证顺序。
   - sql: MAP_ENTRIES(map)
     table: MAP.mapEntries()
-    description: Returns an array of all entries in the given map. No order guaranteed.
+    description: 以数组形式返回 map 中的所有 entry，不保证顺序。
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
-    description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.
+    description: 返回由 key 的数组 keys 和 value 的数组 values 创建的 map。请注意两个数组的长度应该相等。
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
@@ -773,7 +815,7 @@ json:
     description: |
       判定给定字符串是否为有效的 JSON。
 
-      指定可选类型参数将会限制 JSON 对象所允许的类型。
+      指定可选参数 type 将会限制 JSON 对象所允许的类型。
       如果字符串是有效的 JSON，但不是指定的类型，则返回 `false`。默认值为 `VALUE`。
 
       ```sql
@@ -851,7 +893,7 @@ json:
       从 JSON 字符串中提取标量。
 
       此方法搜索给定路径表达式的 JSON 字符串，如果该路径上的值是标量则返回该值。不能返回非标量值。默认情况下返回值类型为 `STRING`。
-      可以使用 `returnsType` 设置不同的类型，如下所示:
+      可以将 `dataType` 设置不同的类型，支持的类型如下所示:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
@@ -859,9 +901,9 @@ json:
       * `DOUBLE`
 
       对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
-      `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，通过错误就会造成 `ON EMPTY` 的行为，并引发 `ON ERROR` 的错误。
+      `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，就会造成 `ON EMPTY` 的错误行为，并引发 `ON ERROR` 的错误。
  
-      对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 获 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
+      对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 或 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
       当在 SQL 使用 JSON_VALUE 时，路径作为一个字符串参数已经被单引号引用了，因此你必须将属性名上的单引号转义，如`JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`。
       
       ```sql
@@ -934,7 +976,7 @@ json:
     description: |
       将键值对列表构建为 JSON 对象字符串。
 
-      注意，键必须是非 `NULL` 字符串自变量，而值可以是任意表达式。
+      注意，键必须是非 `NULL` 字符串字面值，而值可以是任意表达式。
 
       这个函数返回一个 JSON 字符串。`ON NULL` 行为定义了如何处理 `NULL` 值。如果省略，则默认为 `NULL ON NULL`。
 
@@ -1008,12 +1050,14 @@ valueconstruction:
   - sql: MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: 返回从键值对列表 ((value1, value2), (value3, value4), ...) 创建的 map。
-  - table: numeric.rows
-    description: 创建一个 numeric 行间隔（通常用于窗口创建）。
+  - table: NUMERIC.rows
+    description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。
 
 valueaccess:
   - sql: tableName.compositeType.field
-    table: COMPOSITE.get(STRING) | COMPOSITE.get(INT)
+    table: |
+      COMPOSITE.get(STRING) 
+      COMPOSITE.get(INT)
     description: 按名称从 Flink 复合类型（例如，Tuple，POJO）返回字段的值。
   - sql: tableName.compositeType.*
     table: ANY.flatten()
@@ -1024,42 +1068,46 @@ valueaccess:
 grouping:
   - sql: GROUP_ID()
     description: 返回唯一标识分组键组合的整数。
-  - sql: GROUPING(expression1 [, expression2]* ) | GROUPING_ID(expression1 [, expression2]* )
+  - sql: |
+      GROUPING(expression1 [, expression2]* )
+      GROUPING_ID(expression1 [, expression2]* )
     description: 返回给定分组表达式的位向量。
 
 hashfunctions:
   - sql: MD5(string)
     table: STRING.md5()
-    description: 以 32 个十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 32 位十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: 以 40 个十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 40 位十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA224(string)
     table: STRING.sha224()
-    description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 56 位十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA256(string)
     table: STRING.sha256()
-    description: 以 64 个十六进制数字的字符串形式返回 string 的 SHA-256 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 64 位十六进制数字的字符串形式返回 string 的 SHA-256 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA384(string)
     table: STRING.sha384()
-    description: 以 96 个十六进制数字的字符串形式返回 string 的 SHA-384 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 96 位十六进制数字的字符串形式返回 string 的 SHA-384 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA512(string)
     table: STRING.sha512()
-    description: 以 128 个十六进制数字的字符串形式返回 string 的 SHA-512 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 128 位十六进制数字的字符串形式返回 string 的 SHA-512 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA2(string, hashLength)
     table: STRING.sha2(INT)
     description: |
-      使用 SHA-2 系列散列函数（SHA-224，SHA-256，SHA-384 或 SHA-512）返回散列值。第一个参数字符串是要散列的字符串，
-      第二个参数 hashLength 是结果的位长（224，256，384 或 512）。如果 string 或 hashLength 为 `NULL`，则返回 `NULL`。
+      使用 SHA-2 系列散列函数（SHA-224，SHA-256，SHA-384 或 SHA-512）返回散列值。第一个参数 string 是要散列的字符串，
+      第二个参数 hashLength 是结果的位数（224，256，384 或 512）。如果 string 或 hashLength 为 `NULL`，则返回 `NULL`。
 
 auxilary:
   - table: callSql(STRING)
     description: |
-      对 SQL 表达式的调用。给定的字符串在规划期间被解析并转换为 Table API 表达式。在运行时只计算翻译后的表达式。
+      对 SQL 表达式的调用。
+      
+      给定的字符串在规划期间被解析并转换为 Table API 表达式。只在运行时计算翻译后的表达式。
       目前，调用仅限于简单的标量表达式。不支持调用聚合函数或表值函数。子查询也是不允许的。
       例如 `table.select(callSql("UPPER(myColumn)").substring(3))`
   - table: ANY.as(NAME1, NAME2, ...)
-    description: 指定 ANY（字段）的名称。如果表达式扩展为多个字段，则可以指定其他名称。
+    description: 指定 ANY（字段）的名称。如果表达式扩展为多个字段，则可以指定额外的名称。
 
 aggregate:
   - sql: COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
@@ -1075,7 +1123,7 @@ aggregate:
     table: FIELD.sum
     description: 默认情况下或使用关键字 `ALL`，返回所有输入行的表达式总和。使用 `DISTINCT` 则对所有值去重后计算。
   - table: FIELD.sum0
-    description: 返回所有输入行的数字字段的总和。如果所有值都为 `NULL`，则返回 0。
+    description: 返回所有输入行的数字字段 FIELD 的总和。如果所有值都为 `NULL`，则返回 0。
   - sql: MAX([ ALL | DISTINCT ] expression)
     table: FIELD.max
     description: 默认情况下或使用关键字 `ALL`，返回所有输入行中表达式的最大值。使用 `DISTINCT` 则对所有值去重后计算。
@@ -1109,7 +1157,7 @@ aggregate:
       返回值在一组值中的排名。结果是一加先前分配的等级值。与函数 rank 不同，dense_rank 不会在排名序列中产生间隙。
   - sql: ROW_NUMBER()
     description: |
-      在窗口分区内根据 rows 的排序为每一行分配一个唯一的序列号，从一开始。ROW_NUMBER 和 RANK 相似。ROW_NUMBER 按
+      在窗口分区内根据 rows 的排序为每一行分配一个唯一的序列号，从 1 开始。ROW_NUMBER 和 RANK 相似。ROW_NUMBER 按
       顺序对所有行进行编号（例如 1，2，3，4，5）。RANK 为等值 row 提供相同的序列值（例如 1，2，2，4，5）。
   - sql: LEAD(expression [, offset] [, default])
     description: 返回窗口中当前行之后第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
@@ -1123,15 +1171,15 @@ aggregate:
     description: 返回一组有序值中的最后一个值。
   - sql: LISTAGG(expression [, separator])
     table: FIELD.listagg
-    description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
+    description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符。分隔符的默认值为“,”。
   - sql: CUME_DIST()
     description: 返回值在一组值的累积分布。结果是小于或等于当前行的值的行数除以窗口分区的总行数。
   - sql: PERCENT_RANK()
     description: 返回值在一组值的百分比排名。结果是当前行在窗口分区中的排名减 1，然后除以窗口分区的总行数减 1。如果窗口分区的总行数为 1，则该函数返回 0。
   - sql: NTILE(n)
     description: |
-      将窗口分区中的所有数据按照顺序划分为 n 个分组，返回分配给各行数据的分组编号（从 1 开始）。
-      如果不能均匀划分为 n 个分组，则从第 1 个分组开始，为每一分组分配一个剩余值。
+      将窗口分区中的所有数据按照顺序划分为 n 个分组，返回分配给各行数据的分组编号（从 1 开始，最大为 n）。
+      如果不能均匀划分为 n 个分组，则剩余值从第 1 个分组开始，为每一分组分配一个。
       比如某个窗口分区有 6 行数据，划分为 4 个分组，则各行的分组编号为：1，1，2，2，3，4。
   - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
     table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
