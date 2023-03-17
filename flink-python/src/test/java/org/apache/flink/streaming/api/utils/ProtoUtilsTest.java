@@ -117,5 +117,7 @@ class ProtoUtilsTest {
         assertThat(rocksdbCompactFilterCleanupStrategy).isNotNull();
         assertThat(rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries())
                 .isEqualTo(1000);
+        assertThat(rocksdbCompactFilterCleanupStrategy.getPeriodicCompactionTime())
+                .isEqualTo(Time.days(30));
     }
 }
