@@ -1554,8 +1554,10 @@ class CommonDataStreamTests(PyFlinkTestCase):
 
         # test collect KeyedStream
         test_data = [('pyflink', 1), ('datastream', 2), ('pyflink', 1), ('collect', 2)]
-        expected = [Row('pyflink', ('pyflink', 1)), Row('datastream', ('datastream', 2)),
-                    Row('pyflink', ('pyflink', 1)), Row('collect', ('collect', 2))]
+        expected = [Row(f0='pyflink', f1=('pyflink', 1)),
+                    Row(f0='datastream', f1=('datastream', 2)),
+                    Row(f0='pyflink', f1=('pyflink', 1)),
+                    Row(f0='collect', f1=('collect', 2))]
         ds = self.env.from_collection(collection=test_data,
                                       type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         with ds.key_by(lambda i: i[0], Types.STRING()).execute_and_collect() as results:
