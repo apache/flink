@@ -115,6 +115,10 @@ under the License.
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.hive.shaded.com.google</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.lang3</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.org.apache.commons.lang3</shadedPattern>
+								</relocation>
 							</relocations>
 							<!-- Table planner also contains calcite dependency. Exclude to prevent class conflicts. -->
 							<filters>
