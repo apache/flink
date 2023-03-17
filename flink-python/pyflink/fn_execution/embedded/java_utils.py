@@ -174,7 +174,8 @@ def to_java_state_ttl_config(ttl_config: StateTtlConfig):
 
     if rocksdb_compact_filter_cleanup_strategy:
         j_ttl_config_builder.cleanupInRocksdbCompactFilter(
-            rocksdb_compact_filter_cleanup_strategy.get_query_time_after_num_entries())
+            rocksdb_compact_filter_cleanup_strategy.get_query_time_after_num_entries(),
+            rocksdb_compact_filter_cleanup_strategy.get_periodic_compaction_time())
 
     return j_ttl_config_builder.build()
 

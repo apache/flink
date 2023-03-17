@@ -619,7 +619,7 @@ from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
   .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000) \
+  .cleanup_in_rocksdb_compact_filter(1000, Time.hours(1)) \
   .build()
 ```
 {{< /tab >}}
