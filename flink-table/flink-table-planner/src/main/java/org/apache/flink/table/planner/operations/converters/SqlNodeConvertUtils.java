@@ -18,10 +18,16 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.sql.parser.ddl.SqlAlterView;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
@@ -30,6 +36,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Utilities for SqlNode conversions. */
@@ -89,5 +96,28 @@ class SqlNodeConvertUtils {
                 originalQuery,
                 expandedQuery,
                 viewOptions);
+    }
+
+    /**
+     * Validate the view to alter is valid and existed and return the {@link CatalogView} to alter.
+     */
+    static CatalogView validateAlterView(SqlAlterView alterView, ConvertContext context) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(alterView.fullViewName());
+        ObjectIdentifier viewIdentifier =
+                context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        Optional<ContextResolvedTable> optionalCatalogTable =
+                context.getCatalogManager().getTable(viewIdentifier);
+        // check the view exist and is not a temporary view
+        if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+            throw new ValidationException(
+                    String.format("View %s doesn't exist or is a temporary view.", viewIdentifier));
+        }
+        // check the view is exactly a view
+        CatalogBaseTable baseTable = optionalCatalogTable.get().getResolvedTable();
+        if (baseTable instanceof CatalogTable) {
+            throw new ValidationException("ALTER VIEW for a table is not allowed");
+        }
+        return (CatalogView) baseTable;
     }
 }
