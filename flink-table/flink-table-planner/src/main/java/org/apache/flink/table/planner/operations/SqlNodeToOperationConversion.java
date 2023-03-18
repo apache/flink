@@ -44,7 +44,6 @@ import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
-import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
@@ -179,7 +178,6 @@ import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
-import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -208,7 +206,6 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
@@ -345,8 +342,6 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertShowTables((SqlShowTables) validated));
         } else if (validated instanceof SqlShowColumns) {
             return Optional.of(converter.convertShowColumns((SqlShowColumns) validated));
-        } else if (validated instanceof SqlCreateView) {
-            return Optional.of(converter.convertCreateView((SqlCreateView) validated));
         } else if (validated instanceof SqlDropView) {
             return Optional.of(converter.convertDropView((SqlDropView) validated));
         } else if (validated instanceof SqlAlterView) {
@@ -1108,34 +1103,6 @@ public class SqlNodeToOperationConversion {
             return new ShowPartitionsOperation(tableIdentifier, partitionSpec);
         }
         return new ShowPartitionsOperation(tableIdentifier, null);
-    }
-
-    /** Convert CREATE VIEW statement. */
-    private Operation convertCreateView(SqlCreateView sqlCreateView) {
-        final SqlNode query = sqlCreateView.getQuery();
-        final SqlNodeList fieldList = sqlCreateView.getFieldList();
-
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateView.fullViewName());
-        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-        String comment =
-                sqlCreateView
-                        .getComment()
-                        .map(c -> c.getValueAs(NlsString.class).getValue())
-                        .orElse(null);
-        CatalogView catalogView =
-                convertViewQuery(
-                        query,
-                        fieldList.getList(),
-                        OperationConverterUtils.extractProperties(
-                                sqlCreateView.getProperties().orElse(null)),
-                        comment);
-        return new CreateViewOperation(
-                identifier,
-                catalogView,
-                sqlCreateView.isIfNotExists(),
-                sqlCreateView.isTemporary());
     }
 
     /** Convert the query part of a VIEW statement. */
