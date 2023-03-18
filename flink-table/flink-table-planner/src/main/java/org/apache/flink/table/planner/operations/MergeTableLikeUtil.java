@@ -39,6 +39,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -65,25 +66,25 @@ import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalT
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause. */
-class MergeTableLikeUtil {
+public class MergeTableLikeUtil {
     /** Default merging strategy if given option was not provided explicitly by the user. */
-    private static final HashMap<FeatureOption, MergingStrategy> defaultMergingStrategies =
+    private static final HashMap<FeatureOption, MergingStrategy> DEFAULT_MERGING_STRATEGIES =
             new HashMap<>();
 
     static {
-        defaultMergingStrategies.put(FeatureOption.OPTIONS, MergingStrategy.OVERWRITING);
-        defaultMergingStrategies.put(FeatureOption.WATERMARKS, MergingStrategy.INCLUDING);
-        defaultMergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.INCLUDING);
-        defaultMergingStrategies.put(FeatureOption.METADATA, MergingStrategy.INCLUDING);
-        defaultMergingStrategies.put(FeatureOption.CONSTRAINTS, MergingStrategy.INCLUDING);
-        defaultMergingStrategies.put(FeatureOption.PARTITIONS, MergingStrategy.INCLUDING);
+        DEFAULT_MERGING_STRATEGIES.put(FeatureOption.OPTIONS, MergingStrategy.OVERWRITING);
+        DEFAULT_MERGING_STRATEGIES.put(FeatureOption.WATERMARKS, MergingStrategy.INCLUDING);
+        DEFAULT_MERGING_STRATEGIES.put(FeatureOption.GENERATED, MergingStrategy.INCLUDING);
+        DEFAULT_MERGING_STRATEGIES.put(FeatureOption.METADATA, MergingStrategy.INCLUDING);
+        DEFAULT_MERGING_STRATEGIES.put(FeatureOption.CONSTRAINTS, MergingStrategy.INCLUDING);
+        DEFAULT_MERGING_STRATEGIES.put(FeatureOption.PARTITIONS, MergingStrategy.INCLUDING);
     }
 
     private final SqlValidator validator;
     private final Function<SqlNode, String> escapeExpression;
     private final DataTypeFactory dataTypeFactory;
 
-    MergeTableLikeUtil(
+    public MergeTableLikeUtil(
             SqlValidator validator,
             Function<SqlNode, String> escapeExpression,
             DataTypeFactory dataTypeFactory) {
@@ -92,16 +93,23 @@ class MergeTableLikeUtil {
         this.dataTypeFactory = dataTypeFactory;
     }
 
+    public static MergeTableLikeUtil of(SqlNodeConverter.ConvertContext context) {
+        return new MergeTableLikeUtil(
+                context.getSqlValidator(),
+                context::toQuotedSqlString,
+                context.getCatalogManager().getDataTypeFactory());
+    }
+
     /**
      * Calculates merging strategies for all options. It applies options given by a user to the
-     * {@link #defaultMergingStrategies}. The {@link MergingStrategy} specified for {@link
+     * {@link #DEFAULT_MERGING_STRATEGIES}. The {@link MergingStrategy} specified for {@link
      * FeatureOption#ALL} overwrites all the default options. Those can be further changed with a
      * specific {@link FeatureOption}.
      */
     public Map<FeatureOption, MergingStrategy> computeMergingStrategies(
             List<SqlTableLike.SqlTableLikeOption> mergingOptions) {
 
-        Map<FeatureOption, MergingStrategy> result = new HashMap<>(defaultMergingStrategies);
+        Map<FeatureOption, MergingStrategy> result = new HashMap<>(DEFAULT_MERGING_STRATEGIES);
 
         Optional<SqlTableLike.SqlTableLikeOption> maybeAllOption =
                 mergingOptions.stream()

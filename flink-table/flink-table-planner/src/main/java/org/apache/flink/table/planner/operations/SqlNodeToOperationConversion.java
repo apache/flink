@@ -39,6 +39,7 @@ import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
+import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
@@ -234,7 +235,6 @@ import java.util.stream.Collectors;
 public class SqlNodeToOperationConversion {
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
-    private final SqlCreateTableConverter createTableConverter;
     private final AlterSchemaConverter alterSchemaConverter;
 
     // ~ Constructors -----------------------------------------------------------
@@ -243,11 +243,6 @@ public class SqlNodeToOperationConversion {
             FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager) {
         this.flinkPlanner = flinkPlanner;
         this.catalogManager = catalogManager;
-        this.createTableConverter =
-                new SqlCreateTableConverter(
-                        flinkPlanner.getOrCreateSqlValidator(),
-                        catalogManager,
-                        this::getQuotedSqlString);
         this.alterSchemaConverter =
                 new AlterSchemaConverter(
                         flinkPlanner.getOrCreateSqlValidator(),
@@ -316,14 +311,6 @@ public class SqlNodeToOperationConversion {
                     converter.convertShowCurrentDatabase((SqlShowCurrentDatabase) validated));
         } else if (validated instanceof SqlUseDatabase) {
             return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
-        } else if (validated instanceof SqlCreateTable) {
-            if (validated instanceof SqlCreateTableAs) {
-                return Optional.of(
-                        converter.createTableConverter.convertCreateTableAS(
-                                flinkPlanner, (SqlCreateTableAs) validated));
-            }
-            return Optional.of(
-                    converter.createTableConverter.convertCreateTable((SqlCreateTable) validated));
         } else if (validated instanceof SqlDropTable) {
             return Optional.of(converter.convertDropTable((SqlDropTable) validated));
         } else if (validated instanceof SqlAlterTable) {
