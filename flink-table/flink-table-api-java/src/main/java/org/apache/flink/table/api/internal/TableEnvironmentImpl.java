@@ -63,7 +63,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
@@ -115,7 +114,6 @@ import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
-import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
@@ -140,13 +138,7 @@ import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
-import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
-import org.apache.flink.table.operations.ddl.DropCatalogOperation;
-import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
-import org.apache.flink.table.operations.ddl.DropTableOperation;
-import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
-import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
@@ -262,7 +254,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         isStreamingMode);
         catalogManager.initSchemaResolver(
                 isStreamingMode, operationTreeBuilder.getResolverBuilder());
-        this.operationCtx = new ExecutableOperationContextImpl(catalogManager, moduleManager);
+        this.operationCtx =
+                new ExecutableOperationContextImpl(catalogManager, functionCatalog, moduleManager);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -1010,16 +1003,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         createTableOperation.isIgnoreIfExists());
             }
             return TableResultImpl.TABLE_RESULT_OK;
-        } else if (operation instanceof DropTableOperation) {
-            DropTableOperation dropTableOperation = (DropTableOperation) operation;
-            if (dropTableOperation.isTemporary()) {
-                catalogManager.dropTemporaryTable(
-                        dropTableOperation.getTableIdentifier(), dropTableOperation.isIfExists());
-            } else {
-                catalogManager.dropTable(
-                        dropTableOperation.getTableIdentifier(), dropTableOperation.isIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof AlterTableOperation) {
             AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
             Catalog catalog =
@@ -1111,16 +1094,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         createViewOperation.isIgnoreIfExists());
             }
             return TableResultImpl.TABLE_RESULT_OK;
-        } else if (operation instanceof DropViewOperation) {
-            DropViewOperation dropViewOperation = (DropViewOperation) operation;
-            if (dropViewOperation.isTemporary()) {
-                catalogManager.dropTemporaryView(
-                        dropViewOperation.getViewIdentifier(), dropViewOperation.isIfExists());
-            } else {
-                catalogManager.dropView(
-                        dropViewOperation.getViewIdentifier(), dropViewOperation.isIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof AlterViewOperation) {
             AlterViewOperation alterViewOperation = (AlterViewOperation) operation;
             Catalog catalog =
@@ -1171,21 +1144,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException(exMsg, e);
             }
-        } else if (operation instanceof DropDatabaseOperation) {
-            DropDatabaseOperation dropDatabaseOperation = (DropDatabaseOperation) operation;
-            Catalog catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName());
-            String exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString());
-            try {
-                catalog.dropDatabase(
-                        dropDatabaseOperation.getDatabaseName(),
-                        dropDatabaseOperation.isIfExists(),
-                        dropDatabaseOperation.isCascade());
-                return TableResultImpl.TABLE_RESULT_OK;
-            } catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
-                throw new ValidationException(exMsg, e);
-            } catch (Exception e) {
-                throw new TableException(exMsg, e);
-            }
         } else if (operation instanceof AlterDatabaseOperation) {
             AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
             Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
@@ -1205,10 +1163,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return createCatalogFunction((CreateCatalogFunctionOperation) operation);
         } else if (operation instanceof CreateTempSystemFunctionOperation) {
             return createSystemFunction((CreateTempSystemFunctionOperation) operation);
-        } else if (operation instanceof DropCatalogFunctionOperation) {
-            return dropCatalogFunction((DropCatalogFunctionOperation) operation);
-        } else if (operation instanceof DropTempSystemFunctionOperation) {
-            return dropSystemFunction((DropTempSystemFunctionOperation) operation);
         } else if (operation instanceof AlterCatalogFunctionOperation) {
             return alterCatalogFunction((AlterCatalogFunctionOperation) operation);
         } else if (operation instanceof AddJarOperation) {
@@ -1217,16 +1171,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return buildShowResult("jars", listJars());
         } else if (operation instanceof CreateCatalogOperation) {
             return createCatalog((CreateCatalogOperation) operation);
-        } else if (operation instanceof DropCatalogOperation) {
-            DropCatalogOperation dropCatalogOperation = (DropCatalogOperation) operation;
-            String exMsg = getDDLOpExecuteErrorMsg(dropCatalogOperation.asSummaryString());
-            try {
-                catalogManager.unregisterCatalog(
-                        dropCatalogOperation.getCatalogName(), dropCatalogOperation.isIfExists());
-                return TableResultImpl.TABLE_RESULT_OK;
-            } catch (CatalogException e) {
-                throw new ValidationException(exMsg, e);
-            }
         } else if (operation instanceof LoadModuleOperation) {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
@@ -1494,16 +1438,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
         try {
             moduleManager.unloadModule(operation.getModuleName());
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
-        }
-    }
-
-    private TableResultInternal useModules(UseModulesOperation operation) {
-        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
-        try {
-            moduleManager.useModules(operation.getModuleNames().toArray(new String[0]));
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (ValidationException e) {
             throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
@@ -1941,35 +1875,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    private TableResultInternal dropCatalogFunction(
-            DropCatalogFunctionOperation dropCatalogFunctionOperation) {
-        String exMsg = getDDLOpExecuteErrorMsg(dropCatalogFunctionOperation.asSummaryString());
-        try {
-            if (dropCatalogFunctionOperation.isTemporary()) {
-                functionCatalog.dropTempCatalogFunction(
-                        dropCatalogFunctionOperation.getFunctionIdentifier(),
-                        dropCatalogFunctionOperation.isIfExists());
-            } else {
-                Catalog catalog =
-                        getCatalogOrThrowException(
-                                dropCatalogFunctionOperation
-                                        .getFunctionIdentifier()
-                                        .getCatalogName());
-
-                catalog.dropFunction(
-                        dropCatalogFunctionOperation.getFunctionIdentifier().toObjectPath(),
-                        dropCatalogFunctionOperation.isIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
-        } catch (FunctionNotExistException e) {
-            throw new ValidationException(e.getMessage(), e);
-        } catch (Exception e) {
-            throw new TableException(exMsg, e);
-        }
-    }
-
     private TableResultInternal createSystemFunction(CreateTempSystemFunctionOperation operation) {
         String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
 
@@ -1983,18 +1888,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw e;
         } catch (Exception e) {
             throw new TableException(exMsg, e);
-        }
-    }
-
-    private TableResultInternal dropSystemFunction(DropTempSystemFunctionOperation operation) {
-        try {
-            functionCatalog.dropTemporarySystemFunction(
-                    operation.getFunctionName(), operation.isIfExists());
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new TableException(getDDLOpExecuteErrorMsg(operation.asSummaryString()), e);
         }
     }
 
