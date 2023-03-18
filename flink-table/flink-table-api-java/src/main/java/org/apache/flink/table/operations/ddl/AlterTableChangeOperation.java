@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.TableChange;
@@ -137,5 +139,16 @@ public class AlterTableChangeOperation extends AlterTableOperation {
             throw new UnsupportedOperationException(
                     String.format("Unknown table change: %s.", tableChange));
         }
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager()
+                .alterTable(
+                        getNewTable(),
+                        getTableChanges(),
+                        getTableIdentifier(),
+                        ignoreIfTableNotExists());
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }
