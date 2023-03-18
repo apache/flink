@@ -217,6 +217,9 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.util.NlsString;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
@@ -867,13 +870,8 @@ public class SqlNodeToOperationConversion {
                                 flinkPlanner, catalogManager, insert.getSource());
         // TODO calc target column list to index array, currently only simple SqlIdentifiers are
         // available, this should be updated after FLINK-31301 fixed
-
-        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
         int[][] columnIndices =
-                Optional.ofNullable(insert.getTargetColumnList()).orElse(SqlNodeList.EMPTY).stream()
-                        .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
-                        .mapToObj(idx -> new int[] {idx})
-                        .toArray(int[][]::new);
+                getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
         return new SinkModifyOperation(
                 contextResolvedTable,
@@ -1581,16 +1579,27 @@ public class SqlNodeToOperationConversion {
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
-        // TODO
-        List<String> updateColumnList =
-                sqlUpdate.getTargetColumnList().stream()
-                        .map(c -> ((SqlIdentifier) c).getSimple())
-                        .collect(Collectors.toList());
+
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31344 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
+
         return new SinkModifyOperation(
                 contextResolvedTable,
                 queryOperation,
-                null, // targetColumns
+                columnIndices,
                 SinkModifyOperation.ModifyType.UPDATE);
+    }
+
+    private int[][] getTargetColumnIndices(
+            @Nonnull ContextResolvedTable contextResolvedTable,
+            @Nullable SqlNodeList targetColumns) {
+        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
+                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
+                .mapToObj(idx -> new int[] {idx})
+                .toArray(int[][]::new);
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {

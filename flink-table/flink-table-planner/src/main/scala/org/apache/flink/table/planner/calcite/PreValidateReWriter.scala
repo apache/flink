@@ -408,7 +408,8 @@ object PreValidateReWriter {
     assert(id != null)
     if (!id.isSimple) {
       val pos = id.getParserPosition
-      // TODO add accurate msg s"column name must be a simple identifier, composite column name '${id.toString}' is not supported yet"
+      // TODO no suitable error message from current CalciteResource, just use this one temporarily,
+      // we will remove this after composite column name is supported.
       throw SqlUtil.newContextException(pos, RESOURCE.unknownTargetColumn(id.toString))
     }
   }

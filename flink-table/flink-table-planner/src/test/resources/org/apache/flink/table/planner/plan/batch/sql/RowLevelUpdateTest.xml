@@ -19,17 +19,17 @@ limitations under the License.
   <TestCase name="testUpdateAllColsWithOnlyRequireUpdatedCols[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
 +- LogicalProject(a=[IF(>($2, 123), 123, $0)], b=[IF(>($2, 123), _UTF-16LE'v2', $1)], c=[IF(>($2, 123), +($2, 1), $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
 +- Calc(select=[IF(>(c, 123), 123, a) AS a, IF(>(c, 123), 'v2', b) AS b, IF(>(c, 123), +(c, 1), c) AS c])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
 +- Calc(select=[IF((c > 123), 123, a) AS a, IF((c > 123), 'v2', b) AS b, IF((c > 123), (c + 1), c) AS c])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
@@ -70,18 +70,18 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
   <TestCase name="testUpdateAllColsWithOnlyRequireUpdatedCols[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
 +- LogicalProject(a=[123], b=[_UTF-16LE'v2'], c=[+($2, 1)])
    +- LogicalFilter(condition=[>($2, 123)])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
 +- Calc(select=[123 AS a, 'v2' AS b, +(c, 1) AS c], where=[>(c, 123)])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
 +- Calc(select=[123 AS a, 'v2' AS b, (c + 1) AS c], where=[(c > 123)])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
@@ -133,17 +133,17 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
   <TestCase name="testUpdatePartColsWithOnlyRequireUpdatedCols[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
 +- LogicalProject(a=[IF(>($4, 123), 123, $2)], b=[IF(>($4, 123), _UTF-16LE'v2', $3)], c=[IF(>($4, 123), +($4, 1), $4)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
 +- Calc(select=[IF(>(c, 123), 123, a) AS a, IF(>(c, 123), 'v2', b) AS b, IF(>(c, 123), +(c, 1), c) AS c])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
 +- Calc(select=[IF((c > 123), 123, a) AS a, IF((c > 123), 'v2', b) AS b, IF((c > 123), (c + 1), c) AS c])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
 
@@ -184,18 +184,18 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
   <TestCase name="testUpdatePartColsWithOnlyRequireUpdatedCols[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
 +- LogicalProject(a=[123], b=[_UTF-16LE'v2'], c=[+($4, 1)])
    +- LogicalFilter(condition=[>($4, 123)])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
 +- Calc(select=[123 AS a, 'v2' AS b, +(c, 1) AS c], where=[>(c, 123)])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
 +- Calc(select=[123 AS a, 'v2' AS b, (c + 1) AS c], where=[(c > 123)])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
 
@@ -247,17 +247,17 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b, c])
   <TestCase name="testUpdateWithCustomColumns[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[b, c])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
 +- LogicalProject(b=[IF(=($1, _UTF-16LE'123'), _UTF-16LE'v2', $1)], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
 +- Calc(select=[IF(=(b, '123'), 'v2', b) AS b, c])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
 +- Calc(select=[IF((b = '123'), 'v2', b) AS b, c])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
@@ -298,18 +298,18 @@ Sink(table=[default_catalog.default_database.t], fields=[b, c])
   <TestCase name="testUpdateWithCustomColumns[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[b, c])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
 +- LogicalProject(b=[_UTF-16LE'v2'], c=[$2])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
 +- Calc(select=['v2' AS b, c], where=[=(b, '123')])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[b, c])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
 +- Calc(select=['v2' AS b, c], where=[(b = '123')])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 
@@ -361,17 +361,17 @@ Sink(table=[default_catalog.default_database.t], fields=[b, c])
   <TestCase name="testUpdateWithFilter[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- LogicalProject(a=[$0], b=[IF(AND(=($0, 123), =($1, _UTF-16LE'v1')), _UTF-16LE'v2', $1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[a, IF(AND(=(a, 123), =(b, 'v1')), 'v2', b) AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[a, IF(((a = 123) AND (b = 'v1')), 'v2', b) AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
@@ -412,17 +412,17 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
   <TestCase name="testUpdateWithoutFilter[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
 +- LogicalProject(a=[*(CHAR_LENGTH($1), $0)], b=[_UTF-16LE'n1'])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
 +- Calc(select=[*(CHAR_LENGTH(b), a) AS a, 'n1' AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
 +- Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
@@ -474,18 +474,18 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
   <TestCase name="testUpdateWithFilter[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- LogicalProject(a=[$0], b=[_UTF-16LE'v2'])
    +- LogicalFilter(condition=[AND(=($0, 123), =($1, _UTF-16LE'v1'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[CAST(123 AS INTEGER) AS a, 'v2' AS b], where=[AND(=(a, 123), =(b, 'v1'))])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[CAST(123 AS INTEGER) AS a, 'v2' AS b], where=[((a = 123) AND (b = 'v1'))])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
@@ -537,17 +537,17 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
   <TestCase name="testUpdateWithMetaColumns[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
 +- LogicalProject(meta_f1=[$3], meta_f2=[$4], a=[$0], b=[IF(=($1, _UTF-16LE'123'), _UTF-16LE'v2', $1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
 +- Calc(select=[meta_f1, meta_f2, a, IF(=(b, '123'), 'v2', b) AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
 +- Calc(select=[meta_f1, meta_f2, a, IF((b = '123'), 'v2', b) AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
 
@@ -588,18 +588,18 @@ Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b]
   <TestCase name="testUpdateWithMetaColumns[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
 +- LogicalProject(meta_f1=[$3], meta_f2=[$4], a=[$0], b=[_UTF-16LE'v2'])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
 +- Calc(select=[meta_f1, meta_f2, a, 'v2' AS b], where=[=(b, '123')])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
 +- Calc(select=[meta_f1, meta_f2, a, 'v2' AS b], where=[(b = '123')])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
 
@@ -651,7 +651,7 @@ Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, a, b]
   <TestCase name="testUpdateWithSubQuery[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- LogicalProject(a=[$0], b=[_UTF-16LE'v2'])
    +- LogicalFilter(condition=[=(CAST($0):BIGINT, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
@@ -661,7 +661,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[a, 'v2' AS b])
    +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a0, EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])
       :- Calc(select=[a, CAST(a AS BIGINT) AS a0])
@@ -674,7 +674,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
                      +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[a, 'v2' AS b])
    +- NestedLoopJoin(joinType=[InnerJoin], where=[(a0 = EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])
       :- Calc(select=[a, CAST(a AS BIGINT) AS a0])
@@ -799,17 +799,17 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
   <TestCase name="testUpdateWithoutFilter[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
 +- LogicalProject(a=[*(CHAR_LENGTH($1), $0)], b=[_UTF-16LE'n1'])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
 +- Calc(select=[*(CHAR_LENGTH(b), a) AS a, 'n1' AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
 +- Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
@@ -850,7 +850,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
   <TestCase name="testUpdateWithSubQuery[updateMode = ALL_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- LogicalProject(a=[$0], b=[IF(=(CAST($0):BIGINT, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalProject($f0=[0])
@@ -859,7 +859,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[a, IF(=(CAST(a AS BIGINT), EXPR$0), 'v2', b) AS b])
    +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
       :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
@@ -871,7 +871,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
                      +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
 +- Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])
    +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
       :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])

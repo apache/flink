@@ -194,7 +194,7 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
   }
 
   @Test
-  def testPartialInsert(): Unit = {
+  def testPartialInsertWithGroupBy(): Unit = {
     util.verifyExplainInsert(
       "INSERT INTO partitioned_sink (e,a,d) " +
         "SELECT e,a,d FROM MyTable GROUP BY a,b,c,d,e")

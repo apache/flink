@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testPartialInsert[isBatch: false]">
+  <TestCase name="testPartialInsertWithGroupBy[isBatch: false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
@@ -75,7 +75,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPartialInsert[isBatch: true]">
+  <TestCase name="testPartialInsertWithGroupBy[isBatch: true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])

@@ -179,10 +179,10 @@ public interface DynamicTableSink {
          *
          * <ul>
          *   <li>insert: 'insert into t1(a, b.b2) ...', the column list will be 'a, b.b2', and will
-         *       return {@code [[0], [1, 1]]}. The statement 'insert into target select ...' without
+         *       return {@code [[0], [1, 1]]}. The statement 'insert into t1 select ...' without
          *       specifying a column list will return {@link Optional#empty()}.
-         *   <li>update: 'update target set a=1, b.b1=2 where ...', the column list will be 'a,
-         *       b.b1', will return {@code [[0], [1, 0]]}.
+         *   <li>update: 'update t1 set a=1, b.b1=2 where ...', the column list will be 'a, b.b1',
+         *       and will return {@code [[0], [1, 0]]}.
          * </ul>
          *
          * <p>Note: will always return empty for the delete statement because it has no column list.

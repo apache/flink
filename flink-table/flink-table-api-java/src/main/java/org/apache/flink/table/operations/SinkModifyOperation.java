@@ -23,6 +23,8 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,8 +46,7 @@ public class SinkModifyOperation implements ModifyOperation {
     private final boolean overwrite;
     private final Map<String, String> dynamicOptions;
     private final ModifyType modifyType;
-
-    private final int[][] targetColumns;
+    @Nullable private final int[][] targetColumns;
 
     public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
         this(
@@ -93,7 +94,7 @@ public class SinkModifyOperation implements ModifyOperation {
             ContextResolvedTable contextResolvedTable,
             QueryOperation child,
             Map<String, String> staticPartitions,
-            int[][] targetColumns,
+            @Nullable int[][] targetColumns,
             boolean overwrite,
             Map<String, String> dynamicOptions,
             ModifyType modifyType) {
@@ -135,7 +136,8 @@ public class SinkModifyOperation implements ModifyOperation {
         return child;
     }
 
-    /** return an empty array when no column list specified. */
+    /** return null when no column list specified. */
+    @Nullable
     public int[][] getTargetColumns() {
         return targetColumns;
     }

@@ -1959,15 +1959,6 @@ public final class TestValuesTableFactory
             }
         }
 
-        private static int[] getIndexArray(List<String> targetColumns, String[] allColumns) {
-            Map<String, Integer> stringToIndexMap = new HashMap<>();
-            for (int i = 0; i < allColumns.length; i++) {
-                stringToIndexMap.put(allColumns[i], i);
-            }
-
-            return targetColumns.stream().mapToInt(str -> stringToIndexMap.get(str)).toArray();
-        }
-
         @Override
         public DynamicTableSink copy() {
             return new TestValuesTableSink(
