@@ -401,8 +401,6 @@ public class SqlNodeToOperationConversion {
         } else if (validated instanceof SqlCompileAndExecutePlan) {
             return Optional.of(
                     converter.convertCompileAndExecutePlan((SqlCompileAndExecutePlan) validated));
-        } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
-            return Optional.of(converter.convertSqlQuery(validated));
         } else if (validated instanceof SqlAnalyzeTable) {
             return Optional.of(converter.convertAnalyzeTable((SqlAnalyzeTable) validated));
         } else if (validated instanceof SqlStopJob) {
