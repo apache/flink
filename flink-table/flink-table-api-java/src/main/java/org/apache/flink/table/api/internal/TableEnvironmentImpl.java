@@ -46,7 +46,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
@@ -62,9 +61,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
@@ -115,24 +111,9 @@ import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
-import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
-import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
-import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
-import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
-import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
-import org.apache.flink.table.operations.ddl.AlterTableOperation;
-import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
-import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
-import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
-import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
-import org.apache.flink.table.operations.ddl.AlterViewOperation;
-import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
-import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
-import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
-import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
@@ -988,135 +969,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof StatementSetOperation) {
             return executeInternal(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof AlterTableOperation) {
-            AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
-            Catalog catalog =
-                    getCatalogOrThrowException(
-                            alterTableOperation.getTableIdentifier().getCatalogName());
-            String exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString());
-            try {
-                if (alterTableOperation instanceof AlterTableRenameOperation) {
-                    AlterTableRenameOperation alterTableRenameOp =
-                            (AlterTableRenameOperation) operation;
-                    catalog.renameTable(
-                            alterTableRenameOp.getTableIdentifier().toObjectPath(),
-                            alterTableRenameOp.getNewTableIdentifier().getObjectName(),
-                            alterTableRenameOp.ignoreIfTableNotExists());
-                } else if (alterTableOperation instanceof AlterTableOptionsOperation) {
-                    AlterTableOptionsOperation alterTablePropertiesOp =
-                            (AlterTableOptionsOperation) operation;
-                    catalogManager.alterTable(
-                            alterTablePropertiesOp.getCatalogTable(),
-                            alterTablePropertiesOp.getTableIdentifier(),
-                            alterTablePropertiesOp.ignoreIfTableNotExists());
-                } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
-                    AlterPartitionPropertiesOperation alterPartPropsOp =
-                            (AlterPartitionPropertiesOperation) operation;
-                    catalog.alterPartition(
-                            alterPartPropsOp.getTableIdentifier().toObjectPath(),
-                            alterPartPropsOp.getPartitionSpec(),
-                            alterPartPropsOp.getCatalogPartition(),
-                            alterPartPropsOp.ignoreIfTableNotExists());
-                } else if (alterTableOperation instanceof AlterTableSchemaOperation) {
-                    AlterTableSchemaOperation alterTableSchemaOperation =
-                            (AlterTableSchemaOperation) alterTableOperation;
-                    catalogManager.alterTable(
-                            alterTableSchemaOperation.getCatalogTable(),
-                            alterTableSchemaOperation.getTableIdentifier(),
-                            alterTableSchemaOperation.ignoreIfTableNotExists());
-                } else if (alterTableOperation instanceof AddPartitionsOperation) {
-                    AddPartitionsOperation addPartitionsOperation =
-                            (AddPartitionsOperation) alterTableOperation;
-                    List<CatalogPartitionSpec> specs = addPartitionsOperation.getPartitionSpecs();
-                    List<CatalogPartition> partitions =
-                            addPartitionsOperation.getCatalogPartitions();
-                    ObjectPath tablePath =
-                            addPartitionsOperation.getTableIdentifier().toObjectPath();
-                    for (int i = 0; i < specs.size(); i++) {
-                        catalog.createPartition(
-                                tablePath,
-                                specs.get(i),
-                                partitions.get(i),
-                                addPartitionsOperation.ignoreIfPartitionExists());
-                    }
-                } else if (alterTableOperation instanceof DropPartitionsOperation) {
-                    DropPartitionsOperation dropPartitionsOperation =
-                            (DropPartitionsOperation) alterTableOperation;
-                    ObjectPath tablePath =
-                            dropPartitionsOperation.getTableIdentifier().toObjectPath();
-                    for (CatalogPartitionSpec spec : dropPartitionsOperation.getPartitionSpecs()) {
-                        catalog.dropPartition(
-                                tablePath,
-                                spec,
-                                dropPartitionsOperation.ignoreIfPartitionNotExists());
-                    }
-                } else if (alterTableOperation instanceof AlterTableChangeOperation) {
-                    AlterTableChangeOperation alterTableChangeOperation =
-                            (AlterTableChangeOperation) alterTableOperation;
-                    catalogManager.alterTable(
-                            alterTableChangeOperation.getNewTable(),
-                            alterTableChangeOperation.getTableChanges(),
-                            alterTableChangeOperation.getTableIdentifier(),
-                            alterTableChangeOperation.ignoreIfTableNotExists());
-                }
-                return TableResultImpl.TABLE_RESULT_OK;
-            } catch (TableAlreadyExistException | TableNotExistException e) {
-                throw new ValidationException(exMsg, e);
-            } catch (Exception e) {
-                throw new TableException(exMsg, e);
-            }
-        } else if (operation instanceof AlterViewOperation) {
-            AlterViewOperation alterViewOperation = (AlterViewOperation) operation;
-            Catalog catalog =
-                    getCatalogOrThrowException(
-                            alterViewOperation.getViewIdentifier().getCatalogName());
-            String exMsg = getDDLOpExecuteErrorMsg(alterViewOperation.asSummaryString());
-            try {
-                if (alterViewOperation instanceof AlterViewRenameOperation) {
-                    AlterViewRenameOperation alterTableRenameOp =
-                            (AlterViewRenameOperation) operation;
-                    catalog.renameTable(
-                            alterTableRenameOp.getViewIdentifier().toObjectPath(),
-                            alterTableRenameOp.getNewViewIdentifier().getObjectName(),
-                            false);
-                } else if (alterViewOperation instanceof AlterViewPropertiesOperation) {
-                    AlterViewPropertiesOperation alterTablePropertiesOp =
-                            (AlterViewPropertiesOperation) operation;
-                    catalogManager.alterTable(
-                            alterTablePropertiesOp.getCatalogView(),
-                            alterTablePropertiesOp.getViewIdentifier(),
-                            false);
-                } else if (alterViewOperation instanceof AlterViewAsOperation) {
-                    AlterViewAsOperation alterViewAsOperation =
-                            (AlterViewAsOperation) alterViewOperation;
-                    catalogManager.alterTable(
-                            alterViewAsOperation.getNewView(),
-                            alterViewAsOperation.getViewIdentifier(),
-                            false);
-                }
-                return TableResultImpl.TABLE_RESULT_OK;
-            } catch (TableAlreadyExistException | TableNotExistException e) {
-                throw new ValidationException(exMsg, e);
-            } catch (Exception e) {
-                throw new TableException(exMsg, e);
-            }
-        } else if (operation instanceof AlterDatabaseOperation) {
-            AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
-            Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
-            String exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString());
-            try {
-                catalog.alterDatabase(
-                        alterDatabaseOperation.getDatabaseName(),
-                        alterDatabaseOperation.getCatalogDatabase(),
-                        false);
-                return TableResultImpl.TABLE_RESULT_OK;
-            } catch (DatabaseNotExistException e) {
-                throw new ValidationException(exMsg, e);
-            } catch (Exception e) {
-                throw new TableException(exMsg, e);
-            }
-        } else if (operation instanceof AlterCatalogFunctionOperation) {
-            return alterCatalogFunction((AlterCatalogFunctionOperation) operation);
         } else if (operation instanceof AddJarOperation) {
             return addJar((AddJarOperation) operation);
         } else if (operation instanceof ShowJarsOperation) {
@@ -1764,50 +1616,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .getTable(identifier)
                 .filter(ContextResolvedTable::isTemporary)
                 .map(ContextResolvedTable::getResolvedTable);
-    }
-
-    private TableResultInternal alterCatalogFunction(
-            AlterCatalogFunctionOperation alterCatalogFunctionOperation) {
-        String exMsg = getDDLOpExecuteErrorMsg(alterCatalogFunctionOperation.asSummaryString());
-        try {
-            CatalogFunction function = alterCatalogFunctionOperation.getCatalogFunction();
-            if (alterCatalogFunctionOperation.isTemporary()) {
-                throw new ValidationException("Alter temporary catalog function is not supported");
-            } else {
-                Catalog catalog =
-                        getCatalogOrThrowException(
-                                alterCatalogFunctionOperation
-                                        .getFunctionIdentifier()
-                                        .getCatalogName());
-                catalog.alterFunction(
-                        alterCatalogFunctionOperation.getFunctionIdentifier().toObjectPath(),
-                        function,
-                        alterCatalogFunctionOperation.isIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
-        } catch (FunctionNotExistException e) {
-            throw new ValidationException(e.getMessage(), e);
-        } catch (Exception e) {
-            throw new TableException(exMsg, e);
-        }
-    }
-
-    private TableResultInternal createSystemFunction(CreateTempSystemFunctionOperation operation) {
-        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
-
-        try {
-            functionCatalog.registerTemporarySystemFunction(
-                    operation.getFunctionName(),
-                    operation.getCatalogFunction(),
-                    operation.isIgnoreIfExists());
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new TableException(exMsg, e);
-        }
     }
 
     @VisibleForTesting

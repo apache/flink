@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.List;
@@ -60,5 +65,21 @@ public class DropPartitionsOperation extends AlterTableOperation {
                     String.format(" PARTITION (%s)", OperationUtils.formatPartitionSpec(spec)));
         }
         return builder.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ObjectPath tablePath = getTableIdentifier().toObjectPath();
+        Catalog catalog =
+                ctx.getCatalogManager()
+                        .getCatalogOrThrowException(getTableIdentifier().getCatalogName());
+        try {
+            for (CatalogPartitionSpec spec : getPartitionSpecs()) {
+                catalog.dropPartition(tablePath, spec, ignoreIfPartitionNotExists());
+            }
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.OperationUtils;
@@ -49,5 +51,11 @@ public class AlterViewPropertiesOperation extends AlterViewOperation {
                         .collect(Collectors.joining(", "));
         return String.format(
                 "ALTER VIEW %s SET (%s)", viewIdentifier.asSummaryString(), description);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager().alterTable(getCatalogView(), getViewIdentifier(), false);
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }
