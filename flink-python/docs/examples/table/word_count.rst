@@ -20,4 +20,12 @@
 Word Count
 ==========
 
+Word Count
+==========
+
 .. literalinclude:: ../../../pyflink/examples/table/word_count.py
+
+Streaming Word Count
+====================
+
+.. literalinclude:: ../../../pyflink/examples/table/streaming_word_count.py
