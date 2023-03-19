@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 
 /**
@@ -52,6 +53,8 @@ public interface ExecutableOperation extends Operation {
     interface Context {
 
         CatalogManager getCatalogManager();
+
+        FunctionCatalog getFunctionCatalog();
 
         ModuleManager getModuleManager();
     }

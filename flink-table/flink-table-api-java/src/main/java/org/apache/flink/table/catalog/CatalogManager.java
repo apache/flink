@@ -246,6 +246,14 @@ public final class CatalogManager {
         return Optional.ofNullable(catalogs.get(catalogName));
     }
 
+    public Catalog getCatalogOrThrowException(String catalogName) {
+        return getCatalog(catalogName)
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        String.format("Catalog %s does not exist", catalogName)));
+    }
+
     /**
      * Gets the current catalog that will be used when resolving table path.
      *

@@ -18,6 +18,14 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+
 /** Operation to describe a DROP DATABASE statement. */
 public class DropDatabaseOperation implements DropOperation {
     private final String catalogName;
@@ -56,5 +64,19 @@ public class DropDatabaseOperation implements DropOperation {
         summaryString.append(" " + catalogName + "." + databaseName);
         summaryString.append(cascade ? " CASCADE" : " RESTRICT");
         return summaryString.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        Catalog catalog = ctx.getCatalogManager().getCatalogOrThrowException(getCatalogName());
+        try {
+            catalog.dropDatabase(getDatabaseName(), isIfExists(), isCascade());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }
