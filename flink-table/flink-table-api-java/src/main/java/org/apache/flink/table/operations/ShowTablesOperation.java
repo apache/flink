@@ -18,6 +18,14 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.functions.SqlLikeUtils;
+
+import java.util.Set;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a SHOW TABLES statement. */
@@ -103,5 +111,34 @@ public class ShowTablesOperation implements ShowOperation {
             }
         }
         return builder.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        final Set<String> tables;
+        if (preposition == null) {
+            tables = ctx.getCatalogManager().listTables();
+        } else {
+            Catalog catalog = ctx.getCatalogManager().getCatalogOrThrowException(catalogName);
+            if (catalog.databaseExists(databaseName)) {
+                tables = ctx.getCatalogManager().listTables(catalogName, databaseName);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+            }
+        }
+
+        final String[] rows;
+        if (useLike) {
+            rows =
+                    tables.stream()
+                            .filter(row -> notLike != SqlLikeUtils.like(row, likePattern, "\\"))
+                            .sorted()
+                            .toArray(String[]::new);
+        } else {
+            rows = tables.stream().sorted().toArray(String[]::new);
+        }
+        return buildStringArrayResult("table name", rows);
     }
 }
