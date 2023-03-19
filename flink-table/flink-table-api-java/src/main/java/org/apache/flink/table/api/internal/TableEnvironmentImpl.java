@@ -46,7 +46,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -54,14 +53,12 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
@@ -73,7 +70,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.SqlLikeUtils;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
@@ -91,18 +87,6 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.ShowCatalogsOperation;
-import org.apache.flink.table.operations.ShowColumnsOperation;
-import org.apache.flink.table.operations.ShowCreateTableOperation;
-import org.apache.flink.table.operations.ShowCreateViewOperation;
-import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
-import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
-import org.apache.flink.table.operations.ShowDatabasesOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation;
-import org.apache.flink.table.operations.ShowModulesOperation;
-import org.apache.flink.table.operations.ShowPartitionsOperation;
-import org.apache.flink.table.operations.ShowTablesOperation;
-import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -110,7 +94,6 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
-import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
@@ -477,13 +460,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     String.format("Could not register the specified resource [%s].", resourceUri),
                     e);
         }
-    }
-
-    // TODO: Maybe we should expose listJars as tEnv's API later.
-    private String[] listJars() {
-        return resourceManager.getResources().keySet().stream()
-                .map(ResourceUri::getUri)
-                .toArray(String[]::new);
     }
 
     @Override
@@ -971,164 +947,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(((StatementSetOperation) operation).getOperations());
         } else if (operation instanceof AddJarOperation) {
             return addJar((AddJarOperation) operation);
-        } else if (operation instanceof ShowJarsOperation) {
-            return buildShowResult("jars", listJars());
         } else if (operation instanceof LoadModuleOperation) {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
             return unloadModule((UnloadModuleOperation) operation);
-        } else if (operation instanceof ShowCatalogsOperation) {
-            return buildShowResult("catalog name", listCatalogs());
-        } else if (operation instanceof ShowCreateTableOperation) {
-            ShowCreateTableOperation showCreateTableOperation =
-                    (ShowCreateTableOperation) operation;
-            ContextResolvedTable table =
-                    catalogManager
-                            .getTable(showCreateTableOperation.getTableIdentifier())
-                            .orElseThrow(
-                                    () ->
-                                            new ValidationException(
-                                                    String.format(
-                                                            "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
-                                                            showCreateTableOperation
-                                                                    .getTableIdentifier()
-                                                                    .asSerializableString())));
-
-            return TableResultImpl.builder()
-                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(
-                            Collections.singletonList(
-                                    Row.of(
-                                            ShowCreateUtil.buildShowCreateTableRow(
-                                                    table.getResolvedTable(),
-                                                    showCreateTableOperation.getTableIdentifier(),
-                                                    table.isTemporary()))))
-                    .build();
-
-        } else if (operation instanceof ShowCreateViewOperation) {
-            ShowCreateViewOperation showCreateViewOperation = (ShowCreateViewOperation) operation;
-            final ContextResolvedTable table =
-                    catalogManager
-                            .getTable(showCreateViewOperation.getViewIdentifier())
-                            .orElseThrow(
-                                    () ->
-                                            new ValidationException(
-                                                    String.format(
-                                                            "Could not execute SHOW CREATE VIEW. View with identifier %s does not exist.",
-                                                            showCreateViewOperation
-                                                                    .getViewIdentifier()
-                                                                    .asSerializableString())));
-
-            return TableResultImpl.builder()
-                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(
-                            Collections.singletonList(
-                                    Row.of(
-                                            ShowCreateUtil.buildShowCreateViewRow(
-                                                    table.getResolvedTable(),
-                                                    showCreateViewOperation.getViewIdentifier(),
-                                                    table.isTemporary()))))
-                    .build();
-        } else if (operation instanceof ShowCurrentCatalogOperation) {
-            return buildShowResult(
-                    "current catalog name", new String[] {catalogManager.getCurrentCatalog()});
-        } else if (operation instanceof ShowDatabasesOperation) {
-            return buildShowResult("database name", listDatabases());
-        } else if (operation instanceof ShowCurrentDatabaseOperation) {
-            return buildShowResult(
-                    "current database name", new String[] {catalogManager.getCurrentDatabase()});
-        } else if (operation instanceof ShowModulesOperation) {
-            ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
-            if (showModulesOperation.requireFull()) {
-                return buildShowFullModulesResult(listFullModules());
-            } else {
-                return buildShowResult("module name", listModules());
-            }
-        } else if (operation instanceof ShowTablesOperation) {
-            ShowTablesOperation showTablesOperation = (ShowTablesOperation) operation;
-            if (showTablesOperation.getPreposition() == null) {
-                return buildShowTablesResult(listTables(), showTablesOperation);
-            }
-            final String catalogName = showTablesOperation.getCatalogName();
-            final String databaseName = showTablesOperation.getDatabaseName();
-            Catalog catalog = getCatalogOrThrowException(catalogName);
-            if (catalog.databaseExists(databaseName)) {
-                return buildShowTablesResult(
-                        listTables(catalogName, databaseName), showTablesOperation);
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
-            }
-        } else if (operation instanceof ShowFunctionsOperation) {
-            ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
-            String[] functionNames = null;
-            ShowFunctionsOperation.FunctionScope functionScope =
-                    showFunctionsOperation.getFunctionScope();
-            switch (functionScope) {
-                case USER:
-                    functionNames = listUserDefinedFunctions();
-                    break;
-                case ALL:
-                    functionNames = listFunctions();
-                    break;
-                default:
-                    throw new UnsupportedOperationException(
-                            String.format(
-                                    "SHOW FUNCTIONS with %s scope is not supported.",
-                                    functionScope));
-            }
-            return buildShowResult("function name", functionNames);
-        } else if (operation instanceof ShowViewsOperation) {
-            return buildShowResult("view name", listViews());
-        } else if (operation instanceof ShowColumnsOperation) {
-            ShowColumnsOperation showColumnsOperation = (ShowColumnsOperation) operation;
-            Optional<ContextResolvedTable> result =
-                    catalogManager.getTable(showColumnsOperation.getTableIdentifier());
-            if (result.isPresent()) {
-                return buildShowColumnsResult(
-                        result.get().getResolvedSchema(), showColumnsOperation);
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "Tables or views with the identifier '%s' doesn't exist.",
-                                showColumnsOperation.getTableIdentifier().asSummaryString()));
-            }
-        } else if (operation instanceof ShowPartitionsOperation) {
-            String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
-            try {
-                ShowPartitionsOperation showPartitionsOperation =
-                        (ShowPartitionsOperation) operation;
-                Catalog catalog =
-                        getCatalogOrThrowException(
-                                showPartitionsOperation.getTableIdentifier().getCatalogName());
-                ObjectPath tablePath = showPartitionsOperation.getTableIdentifier().toObjectPath();
-                CatalogPartitionSpec partitionSpec = showPartitionsOperation.getPartitionSpec();
-                List<CatalogPartitionSpec> partitionSpecs =
-                        partitionSpec == null
-                                ? catalog.listPartitions(tablePath)
-                                : catalog.listPartitions(tablePath, partitionSpec);
-                List<String> partitionNames = new ArrayList<>(partitionSpecs.size());
-                for (CatalogPartitionSpec spec : partitionSpecs) {
-                    List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
-                    for (Map.Entry<String, String> partitionKV :
-                            spec.getPartitionSpec().entrySet()) {
-                        String partitionValue =
-                                partitionKV.getValue() == null
-                                        ? showPartitionsOperation.getDefaultPartitionName()
-                                        : partitionKV.getValue();
-                        partitionKVs.add(partitionKV.getKey() + "=" + partitionValue);
-                    }
-                    partitionNames.add(String.join("/", partitionKVs));
-                }
-                return buildShowResult("partition name", partitionNames.toArray(new String[0]));
-            } catch (TableNotExistException e) {
-                throw new ValidationException(exMsg, e);
-            } catch (Exception e) {
-                throw new TableException(exMsg, e);
-            }
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
             ExplainDetail[] explainDetails =
@@ -1246,13 +1068,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    private TableResultInternal buildShowResult(String columnName, String[] objects) {
-        return buildResult(
-                new String[] {columnName},
-                new DataType[] {DataTypes.STRING()},
-                Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new));
-    }
-
     private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
         Object[][] rows = buildTableColumns(schema);
         boolean nonComments = isSchemaNonColumnComments(schema);
@@ -1286,57 +1101,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             result.add("comment");
         }
         return result.toArray(new String[0]);
-    }
-
-    private TableResultInternal buildShowTablesResult(
-            String[] tableList, ShowTablesOperation showTablesOp) {
-        String[] rows = tableList.clone();
-        if (showTablesOp.isUseLike()) {
-            rows =
-                    Arrays.stream(tableList)
-                            .filter(
-                                    row ->
-                                            showTablesOp.isNotLike()
-                                                    != SqlLikeUtils.like(
-                                                            row,
-                                                            showTablesOp.getLikePattern(),
-                                                            "\\"))
-                            .toArray(String[]::new);
-        }
-        return buildShowResult("table name", rows);
-    }
-
-    private TableResultInternal buildShowColumnsResult(
-            ResolvedSchema schema, ShowColumnsOperation showColumnsOp) {
-        Object[][] rows = buildTableColumns(schema);
-        if (showColumnsOp.isUseLike()) {
-            rows =
-                    Arrays.stream(rows)
-                            .filter(
-                                    row ->
-                                            showColumnsOp.isNotLike()
-                                                    != SqlLikeUtils.like(
-                                                            row[0].toString(),
-                                                            showColumnsOp.getLikePattern(),
-                                                            "\\"))
-                            .toArray(Object[][]::new);
-        }
-        boolean nonComments = isSchemaNonColumnComments(schema);
-        return buildResult(
-                generateTableColumnsNames(nonComments),
-                generateTableColumnsDataTypes(nonComments),
-                rows);
-    }
-
-    private TableResultInternal buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
-        Object[][] rows =
-                Arrays.stream(moduleEntries)
-                        .map(entry -> new Object[] {entry.name(), entry.used()})
-                        .toArray(Object[][]::new);
-        return buildResult(
-                new String[] {"module name", "used"},
-                new DataType[] {DataTypes.STRING(), DataTypes.BOOLEAN()},
-                rows);
     }
 
     private Object[][] buildTableColumns(ResolvedSchema schema) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.operations.ShowOperation;
 
 /** Operation to describe a SHOW JOBS statement. */
@@ -26,5 +27,13 @@ public class ShowJobsOperation implements ShowOperation {
     @Override
     public String asSummaryString() {
         return "SHOW JOBS";
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        // TODO: We may need to migrate the execution for ShowJobsOperation from SQL Gateway
+        //  OperationExecutor to here.
+        throw new UnsupportedOperationException(
+                "ShowJobsOperation doesn't support ExecutableOperation yet.");
     }
 }
