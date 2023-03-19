@@ -18,6 +18,12 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -34,7 +40,7 @@ public class CreateCatalogOperation implements CreateOperation {
 
     public CreateCatalogOperation(String catalogName, Map<String, String> properties) {
         this.catalogName = checkNotNull(catalogName);
-        this.properties = checkNotNull(properties);
+        this.properties = Collections.unmodifiableMap(checkNotNull(properties));
     }
 
     public String getCatalogName() {
@@ -42,7 +48,7 @@ public class CreateCatalogOperation implements CreateOperation {
     }
 
     public Map<String, String> getProperties() {
-        return Collections.unmodifiableMap(properties);
+        return properties;
     }
 
     @Override
@@ -53,5 +59,24 @@ public class CreateCatalogOperation implements CreateOperation {
 
         return OperationUtils.formatWithChildren(
                 "CREATE CATALOG", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+
+            Catalog catalog =
+                    FactoryUtil.createCatalog(
+                            catalogName,
+                            properties,
+                            ctx.getTableConfig(),
+                            ctx.getResourceManager().getUserClassLoader());
+            ctx.getCatalogManager().registerCatalog(catalogName, catalog);
+
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (CatalogException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

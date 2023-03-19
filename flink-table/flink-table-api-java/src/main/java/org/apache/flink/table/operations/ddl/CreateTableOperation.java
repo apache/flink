@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
@@ -30,9 +32,9 @@ import java.util.Map;
 /** Operation to describe a CREATE TABLE statement. */
 public class CreateTableOperation implements CreateOperation {
     private final ObjectIdentifier tableIdentifier;
-    private CatalogTable catalogTable;
-    private boolean ignoreIfExists;
-    private boolean isTemporary;
+    private final CatalogTable catalogTable;
+    private final boolean ignoreIfExists;
+    private final boolean isTemporary;
 
     public CreateTableOperation(
             ObjectIdentifier tableIdentifier,
@@ -71,5 +73,16 @@ public class CreateTableOperation implements CreateOperation {
 
         return OperationUtils.formatWithChildren(
                 "CREATE TABLE", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        if (isTemporary) {
+            ctx.getCatalogManager()
+                    .createTemporaryTable(catalogTable, tableIdentifier, ignoreIfExists);
+        } else {
+            ctx.getCatalogManager().createTable(catalogTable, tableIdentifier, ignoreIfExists);
+        }
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }
