@@ -41,7 +41,7 @@ GROUP BY window_start, window_end, ...
 ### 窗口表值函数
 
 Flink 支持在 `TUMBLE`， `HOP` 和 `CUMULATE` 上进行窗口聚合。
-在流模式下，窗口表值函数的时间属性字段必须是 [时间或处理时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})。关于窗口函数更多信息，参见 [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})。
+在流模式下，窗口表值函数的时间属性字段必须是 [事件时间或处理时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})。关于窗口函数更多信息，参见 [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})。
 在批模式下，窗口表值函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 
 这里有关于 `TUMBLE`，`HOP` 和 `CUMULATE` 窗口聚合的几个例子：
@@ -119,7 +119,7 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 
 ### GROUPING SETS
 
-窗口聚合也支持 `GROUPING SETS` 语法。Grouping Sets 可以通过一个标准的 `GROUP BY` 语句来描述更复杂的分组操作。数据按每个指定的 Grouping Sets 分别分组，并像简单的 `group by` 子句一样为每个组进行聚合。
+窗口聚合也支持 `GROUPING SETS` 语法。Grouping Sets 可以通过一个标准的 `GROUP BY` 语句来描述更复杂的分组操作。数据按每个指定的 Grouping Sets 分别分组，并像简单的 `GROUP BY` 子句一样为每个组进行聚合。
 
 `GROUPING SETS` 窗口聚合中 `GROUP BY` 子句必须包含 `window_start` 和 `window_end` 列，但 `GROUPING SETS` 子句中不能包含这两个字段。
 
@@ -142,11 +142,11 @@ Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) as price
 
 `GROUPING SETS` 的每个子列表可以是：空的，多列或表达式，它们的解释方式和直接使用 `GROUP BY` 子句是一样的。一个空的 Grouping Sets 表示所有行都聚合在一个分组下，即使没有数据，也会输出结果。
 
-对于 Grouping Sets 中的空子列表，结果数据中的分组或表达式列会用 NULL 代替。（译者注：上例中的 "GROUPING SETS ((supplier_id), ())" 结果集中的 "()" 就是空子列表，与其对应的结果数据中的 supplier_id 列使用 NULL 填充）
+对于 Grouping Sets 中的空子列表，结果数据中的分组或表达式列会用`NULL`代替。例如，上例中的 `GROUPING SETS ((supplier_id), ())` 里的 `()` 就是空子列表，与其对应的结果数据中的 `supplier_id` 列使用 `NULL` 填充。
 
 #### ROLLUP
 
-`ROLLUP` 是一种特定通用类型 Grouping Sets 的简写。代表着指定表达式和所有前缀的列表，包括空列表。例如：ROLLUP (one,two) 等效于 GROUPING SET((one,two),(one),())
+`ROLLUP` 是一种特定通用类型 Grouping Sets 的简写。代表着指定表达式和所有前缀的列表，包括空列表。例如：`ROLLUP (one,two)` 等效于 `GROUPING SET((one,two),(one),())`.
 
 `ROLLUP` 窗口聚合中 `GROUP BY` 子句必须包含 `window_start` 和 `window_end` 列，但 `ROLLUP` 子句中不能包含这两个字段。
 
@@ -217,9 +217,9 @@ SELECT window_start, window_end, SUM(partial_price) as total_price
 {{< label Batch >}} {{< label Streaming >}}
 
 {{< hint warning >}}
-警告：分组窗口聚合已经过时。推荐使用更加强大和有效的窗口标志函数聚合。
+警告：分组窗口聚合已经过时。推荐使用更加强大和有效的[窗口表值函数聚合](#窗口表值函数tvf聚合)。
 
-`窗口表值函数聚合` 相对于 `分组窗口聚合` 有如下优点：
+"窗口表值函数聚合"相对于"分组窗口聚合"有如下优点：
 - 包含 [性能调优]({{< ref "docs/dev/table/tuning" >}}) 中提到的所有性能优化。
 - 支持标准的 `GROUPING SETS` 语法。 
 - 可以在窗口聚合结果上使用 [窗口 TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})。
@@ -256,7 +256,7 @@ SELECT window_start, window_end, SUM(partial_price) as total_price
 
 ### 时间属性
 
-在流处理模式，分组窗口函数的 `time_attr` 属性必须是一个有效的处理或事件时间。更多关于定义时间属性参见：[时间属性文档]({{< ref "docs/dev/table/concepts/time\_attributes" >}})
+在流处理模式，分组窗口函数的 `time_attr` 属性必须是一个有效的处理或事件时间。更多关于定义时间属性参见：[时间属性文档]({{< ref "docs/dev/table/concepts/time_attributes" >}})
 
 在批处理模式，分组窗口函数的 `time_attr` 参数必须是一个 `TIMESTAMP` 类型的属性。
 
@@ -279,7 +279,7 @@ SELECT window_start, window_end, SUM(partial_price) as total_price
         <code>HOP_START(time_attr, interval, interval)</code><br/>
         <code>SESSION_START(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回相应的滚动，滑动或会话窗口的下限的时间戳（inclusive）。</p></td>
+      <td><p>返回相应的滚动，滑动或会话窗口的下限的时间戳（inclusive），即窗口开始时间。</p></td>
     </tr>
     <tr>
       <td>
@@ -287,7 +287,7 @@ SELECT window_start, window_end, SUM(partial_price) as total_price
         <code>HOP_END(time_attr, interval, interval)</code><br/>
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（exclusive）。</p>
+      <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（exclusive），即窗口结束时间。</p>
         <p><b>注意:</b> 上限时间戳（exlusive）<i>不能</i>作为 <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a> 用于后续基于时间的操作，例如：<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>。</p></td>
     </tr>
     <tr>
@@ -296,7 +296,7 @@ SELECT window_start, window_end, SUM(partial_price) as total_price
         <code>HOP_ROWTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（inclusive）。</p>
+      <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（inclusive），即窗口事件时间，或窗口处理时间。</p>
       <p>返回的值是 <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a>，可以用于后续基于时间的操作，比如：<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>。</p></td>
     </tr>
     <tr>
