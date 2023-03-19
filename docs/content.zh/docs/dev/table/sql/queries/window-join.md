@@ -31,9 +31,9 @@ under the License.
 
 通常，窗口关联和 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 一起使用。而且，窗口关联可以在其他基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作后使用，例如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
-目前，窗口关联需要 join on 条件中包含输入表的窗口开始和结束相等。
+目前，窗口关联需要在 join on 条件中包含两个输入表的 `window_start` 等值条件和 `window_end` 等值条件。
 
-窗口关联支持 INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI join。
+窗口关联支持 INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN。
 
 ## INNER/LEFT/RIGHT/FULL OUTER 
 
@@ -45,9 +45,9 @@ FROM L [LEFT|RIGHT|FULL OUTER] JOIN R -- L and R are relations applied windowing
 ON L.window_start = R.window_start AND L.window_end = R.window_end AND ...
 ```
 
-INNER/LEFT/RIGHT/FULL OUTER 这几种窗口关联的语法看起来很相似，这里只提供 FULL OUTER JOIN 的实例。
-当执行窗口关联时，所有元素与公共键和共同的滚动窗口一起关联。这里只提供滚动窗口表值函数的实例。
-通过将 join 的时间区域限定为固定的 5 分钟，数据集被分成两个不同的时间窗口：[12:00,12:05) 和 [12:05,12:10)。L2 和 R2 不能 join 在一起是因为它们不在一个窗口中。
+INNER/LEFT/RIGHT/FULL OUTER 这几种窗口关联的语法非常相似，我们在这里只举一个 FULL OUTER JOIN 的例子。
+当执行窗口关联时，所有具有相同 key 和相同滚动窗口的数据会被关联在一起。这里给出一个基于 TUMBLE Window TVF 的窗口连接的例子。
+在下面的例子中，通过将 join 的时间区域限定为固定的 5 分钟，数据集被分成两个不同的时间窗口：[12:00,12:05) 和 [12:05,12:10)。L2 和 R2 不能 join 在一起是因为它们不在一个窗口中。
 
 ```sql
 Flink SQL> desc LeftTable;
@@ -111,7 +111,7 @@ Flink SQL> SELECT L.num as L_Num, L.id as L_Id, R.num as R_Num, R.id as R_Id,
 
 
 ## SEMI
-Semi 窗口关联：如果在同一个窗口中，左侧记录在右侧至少有一个匹配的记录才能输出。
+如果在同一个窗口中，左侧记录在右侧至少有一个匹配的记录时，半窗口连接（Semi Window Join）就会输出左侧的记录。
 
 ```sql
 Flink SQL> SELECT *
@@ -145,7 +145,7 @@ Flink SQL> SELECT *
 
 
 ## ANTI
-Anti 窗口关联和 inner 窗口关联相反：它包含每个共同窗口内未 join 的行。
+反窗口连接（Anti Window Join）是内窗口连接（Inner Window Join）的相反操作：它包含了每个公共窗口内所有未关联上的行。
 
 ```sql
 Flink SQL> SELECT *
@@ -183,12 +183,12 @@ Flink SQL> SELECT *
 ## 限制
 
 ### Join 子句的限制
-目前，窗口关联需要 join on 条件中包含输入表的窗口开始和结束相等。未来，如果是滚动或滑动窗口，只需要在 join on 条件中包含窗口开始相等即可。
+目前，窗口关联需要在 join on 条件中包含两个输入表的 `window_start` 等值条件和 `window_end` 等值条件。未来，如果是滚动或滑动窗口，只需要在 join on 条件中包含窗口开始相等即可。
 
-### 输入窗口表值函数的限制
+### 输入的窗口表值函数的限制
 目前，关联的左右两边必须使用相同的窗口表值函数。这个规则在未来可以扩展，比如：滚动和滑动窗口在窗口大小相同的情况下 join。
 
 ### 窗口表值函数之后直接使用窗口关联的限制
-目前滚动，滑动和累计 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 支持在其后直接进行窗口关联，会话窗口不支持。
+目前窗口关联支持作用在滚动（TUMBLE）、滑动（HOP）和累积（CUMULATE）[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 之上，但是还不支持会话窗口（SESSION）。
 
 {{< top >}}
