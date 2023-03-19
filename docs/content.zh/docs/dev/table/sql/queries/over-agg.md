@@ -52,7 +52,7 @@ SELECT
 FROM ...
 ```
 
-一个 `SELECT` 子句可以定义多重 `OVER` 窗口聚合。但是，流式查询目前有个限制：所有聚合的 `OVER` 口必须相同。
+你可以在一个 `SELECT` 子句中定义多个 `OVER` 窗口聚合。然而，对于流式查询，由于目前的限制，所有聚合的 `OVER` 窗口必须是相同的。
 
 ### ORDER BY
 
@@ -62,23 +62,23 @@ FROM ...
 
 `OVER` 窗口可以定义在一个分区表上。`PARTITION BY` 子句代表着每行数据只在其所属的数据分区进行聚合。
 
-### 范围定义(Range Definitions)
+### 范围（RANGE）定义
 
-范围定义指定了聚合中包含了多少行数据。范围通过 `BETWEEN` 子句定义上下边界，其内的所有行都会聚合。Flink 只支持 `CURRENT ROW` 作为上边界。
+范围（RANGE）定义指定了聚合中包含了多少行数据。范围通过 `BETWEEN` 子句定义上下边界，其内的所有行都会聚合。Flink 只支持 `CURRENT ROW` 作为上边界。
 
-有两种方法可以定义范围：`ROWS` intervals 和 `RANGE` intervals
+有两种方法可以定义范围：`ROWS` 间隔 和 `RANGE` 间隔
 
-#### RANGE intervals
+#### RANGE 间隔
 
-`RANGE` interval 是定义在排序列值上的，在 Flink 里，排序列总是一个时间属性。下面的 `RANG` interval 定义了聚合会在比当前行的时间属性小 30 分钟的所有行上进行。
+`RANGE` 间隔是定义在排序列值上的，在 Flink 里，排序列总是一个时间属性。下面的 `RANG` 间隔定义了聚合会在比当前行的时间属性小 30 分钟的所有行上进行。
 
 ```sql
 RANGE BETWEEN INTERVAL '30' MINUTE PRECEDING AND CURRENT ROW
 ```
 
-#### ROW intervals
+#### ROW 间隔
 
-`ROWS` interval 基于计数。它定义了聚合操作包含的精确行数。下面的 `ROWS` interval定义了当前行 + 之前的 10 行（也就是11行）都会被聚合。
+`ROWS` 间隔基于计数。它定义了聚合操作包含的精确行数。下面的 `ROWS` 间隔定义了当前行 + 之前的 10 行（也就是11行）都会被聚合。
 
 ```sql
 ROWS BETWEEN 10 PRECEDING AND CURRENT ROW
