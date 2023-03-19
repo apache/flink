@@ -57,7 +57,6 @@ import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
@@ -79,7 +78,6 @@ import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
-import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -106,7 +104,6 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
@@ -970,18 +967,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of(explanation)))
                     .build();
-        } else if (operation instanceof DescribeTableOperation) {
-            DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
-            Optional<ContextResolvedTable> result =
-                    catalogManager.getTable(describeTableOperation.getSqlIdentifier());
-            if (result.isPresent()) {
-                return buildDescribeResult(result.get().getResolvedSchema());
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "Tables or views with the identifier '%s' doesn't exist",
-                                describeTableOperation.getSqlIdentifier().asSummaryString()));
-            }
         } else if (operation instanceof QueryOperation) {
             return executeQueryOperation((QueryOperation) operation);
         } else if (operation instanceof ExecutePlanOperation) {
@@ -1066,109 +1051,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } catch (ValidationException e) {
             throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
         }
-    }
-
-    private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
-        Object[][] rows = buildTableColumns(schema);
-        boolean nonComments = isSchemaNonColumnComments(schema);
-        return buildResult(
-                generateTableColumnsNames(nonComments),
-                generateTableColumnsDataTypes(nonComments),
-                rows);
-    }
-
-    private DataType[] generateTableColumnsDataTypes(boolean nonComments) {
-        final ArrayList<DataType> result =
-                new ArrayList<>(
-                        Arrays.asList(
-                                DataTypes.STRING(),
-                                DataTypes.STRING(),
-                                DataTypes.BOOLEAN(),
-                                DataTypes.STRING(),
-                                DataTypes.STRING(),
-                                DataTypes.STRING()));
-        if (!nonComments) {
-            result.add(DataTypes.STRING());
-        }
-        return result.toArray(new DataType[0]);
-    }
-
-    private String[] generateTableColumnsNames(boolean nonComments) {
-        final ArrayList<String> result =
-                new ArrayList<>(
-                        Arrays.asList("name", "type", "null", "key", "extras", "watermark"));
-        if (!nonComments) {
-            result.add("comment");
-        }
-        return result.toArray(new String[0]);
-    }
-
-    private Object[][] buildTableColumns(ResolvedSchema schema) {
-        Map<String, String> fieldToWatermark =
-                schema.getWatermarkSpecs().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        WatermarkSpec::getRowtimeAttribute,
-                                        spec -> spec.getWatermarkExpression().asSummaryString()));
-
-        Map<String, String> fieldToPrimaryKey = new HashMap<>();
-        schema.getPrimaryKey()
-                .ifPresent(
-                        (p) -> {
-                            List<String> columns = p.getColumns();
-                            columns.forEach(
-                                    (c) ->
-                                            fieldToPrimaryKey.put(
-                                                    c,
-                                                    String.format(
-                                                            "PRI(%s)",
-                                                            String.join(", ", columns))));
-                        });
-        boolean nonComments = isSchemaNonColumnComments(schema);
-        return schema.getColumns().stream()
-                .map(
-                        (c) -> {
-                            final LogicalType logicalType = c.getDataType().getLogicalType();
-                            final ArrayList<Object> result =
-                                    new ArrayList<>(
-                                            Arrays.asList(
-                                                    c.getName(),
-                                                    logicalType.copy(true).asSummaryString(),
-                                                    logicalType.isNullable(),
-                                                    fieldToPrimaryKey.getOrDefault(
-                                                            c.getName(), null),
-                                                    c.explainExtras().orElse(null),
-                                                    fieldToWatermark.getOrDefault(
-                                                            c.getName(), null)));
-                            if (!nonComments) {
-                                result.add(c.getComment().orElse(null));
-                            }
-                            return result.toArray();
-                        })
-                .toArray(Object[][]::new);
-    }
-
-    private boolean isSchemaNonColumnComments(ResolvedSchema schema) {
-        return schema.getColumns().stream().map(Column::getComment).noneMatch(Optional::isPresent);
-    }
-
-    private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
-        ResolvedSchema schema = ResolvedSchema.physical(headers, types);
-        ResultProvider provider =
-                new StaticResultProvider(
-                        Arrays.stream(rows).map(Row::of).collect(Collectors.toList()));
-        return TableResultImpl.builder()
-                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                .schema(ResolvedSchema.physical(headers, types))
-                .resultProvider(provider)
-                .setPrintStyle(
-                        PrintStyle.tableauWithDataInferredColumnWidths(
-                                schema,
-                                provider.getRowDataStringConverter(),
-                                Integer.MAX_VALUE,
-                                true,
-                                false))
-                .build();
     }
 
     /**
