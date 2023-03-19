@@ -88,7 +88,7 @@ Flink SQL> (SELECT s FROM t1) INTERSECT ALL (SELECT s FROM t2);
 
 ## EXCEPT
 
-`EXCEPT` 和 `EXCEPT ALL` 返回在一个表中存在，但在其他表中不存在数据。
+`EXCEPT` 和 `EXCEPT ALL` 返回在一个表中存在，但在另一个表中不存在数据。
 `EXCEPT` 会去重，`EXCEPT ALL`不会去重。
 
 ```sql
@@ -110,8 +110,7 @@ Flink SQL> (SELECT s FROM t1) EXCEPT ALL (SELECT s FROM t2);
 
 ## IN
 
-如果表达式（可以是列，也可以是函数等）存在于子查询的结果中，则返回 true。
-子查询的表结果必须由一列组成。此列必须与表达式具有相同的数据类型。
+如果表达式（可以是列，也可以是函数等）存在于子查询的结果中，则返回 true。子查询的表结果必须由一列组成。此列必须与表达式具有相同的数据类型。
 
 ```sql
 SELECT user, amount
@@ -121,7 +120,7 @@ WHERE product IN (
 )
 ```
 
-优化器会把 `IN` 条件重写为 join 和 group 操作。对于流式查询，用于计算查询结果的状态可能无限膨胀。状态的大小取决于分组的数量以及聚合函数的数量和类型。例如：`MIN`/`MAX` 的状态是重量级的，`COUNT` 是轻量级的。可以提供一个合适的状态time-to-live（TTL）置来防止状态过大。注意：这可能会影响查询结果的正确性。详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
+优化器会把 `IN` 条件重写为 join 和 group 操作。对于流式查询，计算查询结果所需的状态可能会根据输入行数而无限增长。你可以设置一个合适的状态 time-to-live（TTL）来淘汰过期数据以防止状态过大。注意：这可能会影响查询结果的正确性。详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
 
 ## EXISTS
 
@@ -135,6 +134,6 @@ WHERE product EXISTS (
 
 如果子查询返回至少一行，则为 true。只支持能被重写为 join 和 group 的操作。
 
-优化器会把 `EXIST` 重写为 join 和 group 操作。对于流式查询，用于计算查询结果的状态可能无限膨胀。状态的大小取决于分组的数量以及聚合函数的数量和类型。例如：`MIN`/`MAX` 的状态是重量级的，`COUNT` 是轻量级的。可以提供一个合适的状态time-to-live（TTL）配置来防止状态过大。注意：这可能会影响查询结果的正确性。详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
+优化器会把 `EXIST` 重写为 join 和 group 操作.对于流式查询，计算查询结果所需的状态可能会根据输入行数而无限增长。你可以设置一个合适的状态 time-to-live（TTL）来淘汰过期数据以防止状态过大。注意：这可能会影响查询结果的正确性。详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
 
 {{< top >}}
