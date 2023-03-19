@@ -156,12 +156,7 @@ Users that purely use the Java APIs and libraries can *ignore* this section.
 
 Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version of their projects (because Scala is not strictly backwards compatible).
 
-Since version 1.7 Flink builds with Scala version 2.11 (default) and 2.12.
-
-To build Flink against Scala 2.12, issue the following command:
-```bash
-mvn clean install -DskipTests -Dscala-2.12
-```
+Since version 1.15 Flink dropped the support of Scala 2.11 and it will use Scala 2.12 to build by default.
 
 To build against a specific binary Scala version you can use:
 ```bash

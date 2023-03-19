@@ -418,7 +418,7 @@ For writing to other Parquet compatible data formats, users need to create the P
 
 To use the Parquet bulk encoder in your application you need to add the following dependency:
 
-{{< artifact flink-parquet withScalaVersion >}}
+{{< artifact flink-parquet >}}
 
 {{< py_download_link "parquet" >}}
 
@@ -725,7 +725,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the ORC bulk encoder in an application, users need to add the following dependency:
 
-{{< artifact flink-orc withScalaVersion >}}
+{{< artifact flink-orc >}}
 
 
 And then a `FileSink` that writes data in ORC format can be created like this:

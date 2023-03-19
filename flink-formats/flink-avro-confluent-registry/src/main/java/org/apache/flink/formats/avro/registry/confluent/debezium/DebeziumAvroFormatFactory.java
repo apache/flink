@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -38,19 +39,24 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
+
+import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static java.lang.String.format;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SCHEMA;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
@@ -75,6 +81,7 @@ public class DebeziumAvroFormatFactory
 
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
+        String schema = formatOptions.getOptional(SCHEMA).orElse(null);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -88,7 +95,11 @@ public class DebeziumAvroFormatFactory
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new DebeziumAvroDeserializationSchema(
-                        rowType, producedTypeInfo, schemaRegistryURL, optionalPropertiesMap);
+                        rowType,
+                        producedTypeInfo,
+                        schemaRegistryURL,
+                        schema,
+                        optionalPropertiesMap);
             }
 
             @Override
@@ -110,6 +121,7 @@ public class DebeziumAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
+        String schema = formatOptions.getOptional(SCHEMA).orElse(null);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         if (!subject.isPresent()) {
@@ -135,7 +147,7 @@ public class DebeziumAvroFormatFactory
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new DebeziumAvroSerializationSchema(
-                        rowType, schemaRegistryURL, subject.get(), optionalPropertiesMap);
+                        rowType, schemaRegistryURL, subject.get(), schema, optionalPropertiesMap);
             }
         };
     }
@@ -157,6 +169,7 @@ public class DebeziumAvroFormatFactory
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(SUBJECT);
         options.add(PROPERTIES);
+        options.add(SCHEMA);
         options.add(SSL_KEYSTORE_LOCATION);
         options.add(SSL_KEYSTORE_PASSWORD);
         options.add(SSL_TRUSTSTORE_LOCATION);
@@ -166,5 +179,20 @@ public class DebeziumAvroFormatFactory
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
         return options;
+    }
+
+    static void validateSchemaString(@Nullable String schemaString, RowType rowType) {
+        if (schemaString != null) {
+            LogicalType convertedDataType =
+                    AvroSchemaConverter.convertToDataType(schemaString).getLogicalType();
+
+            if (!convertedDataType.equals(rowType)) {
+                throw new IllegalArgumentException(
+                        format(
+                                "Schema provided for '%s' format must be a nullable record type with fields 'before', 'after', 'op'"
+                                        + " and schema of fields 'before' and 'after' must match the table schema: %s",
+                                IDENTIFIER, schemaString));
+            }
+        }
     }
 }

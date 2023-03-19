@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
@@ -71,7 +69,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
+import static org.apache.flink.table.catalog.hive.util.AlterTableOp.CHANGE_TBL_PROPS;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -299,10 +299,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         CatalogPartition another = createPartition();
         another.getProperties().put("k", "v");
-        another.getProperties()
-                .put(
-                        SqlAlterHiveTable.ALTER_TABLE_OP,
-                        SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS.name());
+        another.getProperties().put(ALTER_TABLE_OP, CHANGE_TBL_PROPS.name());
 
         catalog.alterPartition(path1, createPartitionSpec(), another, false);
 
@@ -318,7 +315,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        properties.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));

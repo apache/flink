@@ -91,6 +91,7 @@ import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -114,8 +115,6 @@ import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
-import org.apache.flink.table.operations.UseCatalogOperation;
-import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
@@ -203,6 +202,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected final FunctionCatalog functionCatalog;
     protected final Planner planner;
     private final boolean isStreamingMode;
+    private final ExecutableOperation.Context operationCtx;
 
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
@@ -262,6 +262,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         isStreamingMode);
         catalogManager.initSchemaResolver(
                 isStreamingMode, operationTreeBuilder.getResolverBuilder());
+        this.operationCtx = new ExecutableOperationContextImpl(catalogManager, moduleManager);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -984,6 +985,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         if (tableResult.isPresent()) {
             return tableResult.get();
         }
+
+        // delegate execution to Operation if it implements ExecutableOperation
+        if (operation instanceof ExecutableOperation) {
+            return ((ExecutableOperation) operation).execute(operationCtx);
+        }
+
         // otherwise, fall back to internal implementation
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
@@ -1224,17 +1231,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
             return unloadModule((UnloadModuleOperation) operation);
-        } else if (operation instanceof UseModulesOperation) {
-            return useModules((UseModulesOperation) operation);
-        } else if (operation instanceof UseCatalogOperation) {
-            UseCatalogOperation useCatalogOperation = (UseCatalogOperation) operation;
-            catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName());
-            return TableResultImpl.TABLE_RESULT_OK;
-        } else if (operation instanceof UseDatabaseOperation) {
-            UseDatabaseOperation useDatabaseOperation = (UseDatabaseOperation) operation;
-            catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName());
-            catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName());
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof ShowCatalogsOperation) {
             return buildShowResult("catalog name", listCatalogs());
         } else if (operation instanceof ShowCreateTableOperation) {

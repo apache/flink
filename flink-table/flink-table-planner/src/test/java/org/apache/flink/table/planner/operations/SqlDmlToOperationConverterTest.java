@@ -52,8 +52,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-/** Test cases for the DML statements for {@link SqlToOperationConverter}. */
-public class SqlDmlToOperationConverterTest extends SqlToOperationConverterTestBase {
+/** Test cases for the DML statements for {@link SqlNodeToOperationConversion}. */
+public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
     public void testExplainWithSelect() {
@@ -313,7 +313,8 @@ public class SqlDmlToOperationConverterTest extends SqlToOperationConverterTestB
         CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlRichExplain.class);
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         assertThat(operation).isInstanceOf(ExplainOperation.class);
     }
 

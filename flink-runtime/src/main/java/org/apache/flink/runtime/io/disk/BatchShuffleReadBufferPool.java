@@ -54,7 +54,7 @@ public class BatchShuffleReadBufferPool {
      * Memory size in bytes can be allocated from this buffer pool for a single request (4M is for
      * better sequential read).
      */
-    private static final int NUM_BYTES_PER_REQUEST = 4 * 1024 * 1024;
+    public static final int NUM_BYTES_PER_REQUEST = 4 * 1024 * 1024;
 
     /**
      * Wait for at most 2 seconds before return if there is no enough available buffers currently.
@@ -82,7 +82,7 @@ public class BatchShuffleReadBufferPool {
 
     /** The timestamp when the last buffer is recycled or allocated. */
     @GuardedBy("buffers")
-    private long lastBufferOperationTimestamp = System.nanoTime();
+    private long lastBufferOperationTimestamp = System.currentTimeMillis();
 
     /** Whether this buffer pool has been destroyed or not. */
     @GuardedBy("buffers")
@@ -224,7 +224,7 @@ public class BatchShuffleReadBufferPool {
             while (allocated.size() < numBuffersPerRequest) {
                 allocated.add(buffers.poll());
             }
-            lastBufferOperationTimestamp = System.nanoTime();
+            lastBufferOperationTimestamp = System.currentTimeMillis();
         }
         return allocated;
     }
@@ -261,7 +261,7 @@ public class BatchShuffleReadBufferPool {
                     buffers.size() < numBuffersPerRequest
                             && buffers.size() + segments.size() >= numBuffersPerRequest;
             buffers.addAll(segments);
-            lastBufferOperationTimestamp = System.nanoTime();
+            lastBufferOperationTimestamp = System.currentTimeMillis();
             if (shouldNotify) {
                 buffers.notifyAll();
             }

@@ -352,7 +352,8 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
                          result._j_table_result.getResolvedSchema().toString())
         with result.collect() as result:
             collected_result = [str(item) for item in result]
-            expected_result = [item for item in map(str, [Row(1), Row(2), Row(3), Row(4), Row(5)])]
+            expected_result = [item for item
+                               in map(str, [Row((1,)), Row((2,)), Row((3,)), Row((4,)), Row((5,))])]
             expected_result.sort()
             collected_result.sort()
             self.assertEqual(expected_result, collected_result)

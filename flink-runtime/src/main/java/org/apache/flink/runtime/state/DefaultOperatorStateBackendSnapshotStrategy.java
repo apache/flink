@@ -31,24 +31,32 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-/** Snapshot strategy for this backend. */
+/**
+ * Snapshot strategy for this backend. This strategy compresses the regular and broadcast operator
+ * states if enabled by configuration.
+ */
 class DefaultOperatorStateBackendSnapshotStrategy
         implements SnapshotStrategy<
                 OperatorStateHandle,
                 DefaultOperatorStateBackendSnapshotStrategy
                         .DefaultOperatorStateBackendSnapshotResources> {
+
     private final ClassLoader userClassLoader;
     private final Map<String, PartitionableListState<?>> registeredOperatorStates;
     private final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates;
+    private final StreamCompressionDecorator compressionDecorator;
 
     protected DefaultOperatorStateBackendSnapshotStrategy(
             ClassLoader userClassLoader,
             Map<String, PartitionableListState<?>> registeredOperatorStates,
-            Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates) {
+            Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
+            StreamCompressionDecorator compressionDecorator) {
         this.userClassLoader = userClassLoader;
         this.registeredOperatorStates = registeredOperatorStates;
         this.registeredBroadcastStates = registeredBroadcastStates;
+        this.compressionDecorator = compressionDecorator;
     }
 
     @Override
@@ -145,7 +153,11 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
             OperatorBackendSerializationProxy backendSerializationProxy =
                     new OperatorBackendSerializationProxy(
-                            operatorMetaInfoSnapshots, broadcastMetaInfoSnapshots);
+                            operatorMetaInfoSnapshots,
+                            broadcastMetaInfoSnapshots,
+                            !Objects.equals(
+                                    UncompressedStreamCompressionDecorator.INSTANCE,
+                                    compressionDecorator));
 
             backendSerializationProxy.write(dov);
 
@@ -162,11 +174,18 @@ class DefaultOperatorStateBackendSnapshotStrategy
                     registeredOperatorStatesDeepCopies.entrySet()) {
 
                 PartitionableListState<?> value = entry.getValue();
-                long[] partitionOffsets = value.write(localOut);
-                OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
-                writtenStatesMetaData.put(
-                        entry.getKey(),
-                        new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                // create the compressed stream for each state to have the compression header for
+                // each
+                try (final CompressibleFSDataOutputStream compressedLocalOut =
+                        new CompressibleFSDataOutputStream(
+                                localOut,
+                                compressionDecorator)) { // closes only the outer compression stream
+                    long[] partitionOffsets = value.write(compressedLocalOut);
+                    OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
+                    writtenStatesMetaData.put(
+                            entry.getKey(),
+                            new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                }
             }
 
             // ... and the broadcast states themselves ...
@@ -174,24 +193,28 @@ class DefaultOperatorStateBackendSnapshotStrategy
                     registeredBroadcastStatesDeepCopies.entrySet()) {
 
                 BackendWritableBroadcastState<?, ?> value = entry.getValue();
-                long[] partitionOffsets = {value.write(localOut)};
-                OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
-                writtenStatesMetaData.put(
-                        entry.getKey(),
-                        new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                // create the compressed stream for each state to have the compression header for
+                // each
+                try (final CompressibleFSDataOutputStream compressedLocalOut =
+                        new CompressibleFSDataOutputStream(
+                                localOut,
+                                compressionDecorator)) { // closes only the outer compression stream
+                    long[] partitionOffsets = {value.write(compressedLocalOut)};
+                    OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
+                    writtenStatesMetaData.put(
+                            entry.getKey(),
+                            new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                }
             }
 
             // ... and, finally, create the state handle.
             OperatorStateHandle retValue = null;
 
             if (snapshotCloseableRegistry.unregisterCloseable(localOut)) {
-
                 StreamStateHandle stateHandle = localOut.closeAndGetHandle();
-
                 if (stateHandle != null) {
                     retValue = new OperatorStreamStateHandle(writtenStatesMetaData, stateHandle);
                 }
-
                 return SnapshotResult.of(retValue);
             } else {
                 throw new IOException("Stream was already unregistered.");

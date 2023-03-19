@@ -624,7 +624,19 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                         InputTypeStrategies.COMMON_ARG))
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
                         .expectSignature("f(<COMMON>, <COMMON>)")
-                        .expectArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT()));
+                        .expectArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT()),
+                TestSpec.forStrategy(
+                                "ArrayElement argument type strategy",
+                                sequence(
+                                        logical(LogicalTypeRoot.ARRAY),
+                                        SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG))
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.INT())
+                        .expectSignature("f(<ARRAY>, <ARRAY ELEMENT>)")
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.INT()));
     }
 
     /** Simple pojo that should be converted to a Structured type. */

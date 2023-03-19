@@ -89,8 +89,8 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test cases for the DDL statements for {@link SqlToOperationConverter}. */
-public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestBase {
+/** Test cases for the DDL statements for {@link SqlNodeToOperationConversion}. */
+public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
     public void testCreateDatabase() {
@@ -305,7 +305,8 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
@@ -341,7 +342,8 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
 
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
@@ -753,7 +755,8 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
         Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
         assertThat(schema.getFieldDataTypes()).isEqualTo(expectedDataTypes);
@@ -2340,6 +2343,6 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 
         SqlNode node = parser.parse(sql);
-        return SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        return SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
     }
 }

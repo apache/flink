@@ -46,7 +46,9 @@ public interface CastRule<IN, OUT> {
             Context context, LogicalType inputLogicalType, LogicalType targetLogicalType);
 
     /** Returns true if the {@link CastExecutor} can fail at runtime. */
-    boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType);
+    default boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        return false;
+    }
 
     /** Casting context. */
     interface Context {

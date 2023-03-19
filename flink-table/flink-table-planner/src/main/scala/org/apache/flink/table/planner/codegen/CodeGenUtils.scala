@@ -434,6 +434,18 @@ object CodeGenUtils {
       throw new CodeGenException("Integer expression type expected.")
     }
 
+  def requireNumericAndTimeInterval(left: GeneratedExpression, right: GeneratedExpression): Unit = {
+    val numericAndTimeInterval = TypeCheckUtils.isNumeric(left.resultType) &&
+      TypeCheckUtils.isTimeInterval(right.resultType)
+    val timeIntervalAndTimeNumeric = TypeCheckUtils.isTimeInterval(left.resultType) &&
+      TypeCheckUtils.isNumeric(right.resultType)
+    if (!(numericAndTimeInterval || timeIntervalAndTimeNumeric)) {
+      throw new CodeGenException(
+        "Numeric and Temporal expression type, or Temporal and Numeric expression type expected. " +
+          " But were " + s"'${left.resultType}' and '${right.resultType}'.")
+    }
+  }
+
   def udfFieldName(udf: UserDefinedFunction): String = {
     s"function_${udf.functionIdentifier.replace('.', '$')}"
   }

@@ -936,7 +936,7 @@ public class KafkaDynamicTableFactoryTest {
 
     private SerializationSchema<RowData> createDebeziumAvroSerSchema(
             RowType rowType, String subject) {
-        return new DebeziumAvroSerializationSchema(rowType, TEST_REGISTRY_URL, subject, null);
+        return new DebeziumAvroSerializationSchema(rowType, TEST_REGISTRY_URL, subject, null, null);
     }
 
     // --------------------------------------------------------------------------------------------

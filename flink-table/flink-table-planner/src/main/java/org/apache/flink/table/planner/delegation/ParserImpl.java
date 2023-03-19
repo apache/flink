@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.calcite.SqlToRexConverter;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
-import org.apache.flink.table.planner.operations.SqlToOperationConverter;
+import org.apache.flink.table.planner.operations.SqlNodeToOperationConversion;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -103,7 +103,7 @@ public class ParserImpl implements Parser {
         List<SqlNode> parsed = sqlNodeList.getList();
         Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
         return Collections.singletonList(
-                SqlToOperationConverter.convert(planner, catalogManager, parsed.get(0))
+                SqlNodeToOperationConversion.convert(planner, catalogManager, parsed.get(0))
                         .orElseThrow(() -> new TableException("Unsupported query: " + statement)));
     }
 

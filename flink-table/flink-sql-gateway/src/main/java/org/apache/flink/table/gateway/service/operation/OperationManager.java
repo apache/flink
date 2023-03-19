@@ -30,7 +30,11 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.result.NotReadyResult;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
+import org.apache.flink.table.gateway.service.utils.SqlCancelException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.util.IOUtils;
+
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +48,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -183,13 +188,14 @@ public class OperationManager {
     /** Closes the {@link OperationManager} and all operations. */
     public void close() {
         stateLock.writeLock().lock();
+        Exception closeException = null;
         try {
             isRunning = false;
-            for (Operation operation : submittedOperations.values()) {
-                operation.close();
-            }
-            submittedOperations.clear();
+            IOUtils.closeAll(submittedOperations.values(), Throwable.class);
+        } catch (Exception e) {
+            closeException = e;
         } finally {
+            submittedOperations.clear();
             stateLock.writeLock().unlock();
         }
         // wait all operations closed
@@ -201,13 +207,19 @@ public class OperationManager {
             operationLock.release();
         }
         LOG.debug("Closes the Operation Manager.");
+        if (closeException != null) {
+            throw new SqlExecutionException(
+                    "Failed to close the OperationManager.", closeException);
+        }
     }
 
     // -------------------------------------------------------------------------------------------
 
     /** Operation to manage the execution, results and so on. */
     @VisibleForTesting
-    public class Operation {
+    public class Operation implements AutoCloseable {
+
+        private static final long WAIT_CLEAN_UP_MILLISECONDS = 5_000;
 
         private final OperationHandle operationHandle;
 
@@ -387,7 +399,7 @@ public class OperationManager {
         private void closeResources() {
             if (invocation != null && !invocation.isDone()) {
                 invocation.cancel(true);
-                stopExecutionByForce(invocation);
+                waitTaskCleanup(invocation);
                 LOG.debug(String.format("Cancel the operation %s.", operationHandle));
             }
 
@@ -405,32 +417,23 @@ public class OperationManager {
             updateState(OperationStatus.ERROR);
         }
 
-        private void stopExecutionByForce(FutureTask<?> invocation) {
+        private void waitTaskCleanup(FutureTask<?> invocation) {
             // thread is cleaned async, waiting for a while
-            Deadline deadline = Deadline.fromNow(Duration.ofSeconds(1));
+            Deadline deadline = Deadline.fromNow(Duration.ofMillis(WAIT_CLEAN_UP_MILLISECONDS));
             while (deadline.hasTimeLeft()) {
                 Optional<Thread> threadOptional = getThreadInFuture(invocation);
                 if (!threadOptional.isPresent()) {
                     // thread has been cleaned up
                     return;
                 }
+                // try to release the use of the processor to let the task finish its cleanup.
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
             }
             Optional<Thread> threadOptional = getThreadInFuture(invocation);
-            if (threadOptional.isPresent()) {
-                // we have to use Thread.stop() here, because this can
-                // guarantee thread to be stopped, even there is some
-                // potential consistent problem, we are fine with it.
-                Thread thread = threadOptional.get();
-                LOG.info(
-                        "\"Future.cancel(true)\" can't cleanup current thread {}, using \"Thread.stop()\" instead.",
-                        thread.getName());
-                try {
-                    thread.stop();
-                } catch (Throwable e) {
-                    // catch all errors to project the sqlserver
-                    LOG.error("Failed to stop thread: " + thread.getName(), e);
-                }
-            }
+            // Currently, SQL Gateway still doesn't have health reporter to notify the users the
+            // resource leak or HA to restart the running process. So we just dump the thread and
+            // throw an exception to notify the users.
+            threadOptional.ifPresent(this::throwExceptionWithThreadStackTrace);
         }
 
         private Optional<Thread> getThreadInFuture(FutureTask<?> invocation) {
@@ -444,6 +447,26 @@ public class OperationManager {
                 // can't get thread
                 return Optional.empty();
             }
+        }
+
+        private void throwExceptionWithThreadStackTrace(Thread thread) {
+            StackTraceElement[] stack = thread.getStackTrace();
+            StringBuilder stackTraceStr = new StringBuilder();
+            for (StackTraceElement e : stack) {
+                stackTraceStr.append("\tat ").append(e).append("\n");
+            }
+
+            String msg =
+                    String.format(
+                            "Operation '%s' did not react to \"Future.cancel(true)\" and "
+                                    + "is stuck for %s seconds in method.\n"
+                                    + "Thread name: %s, thread state: %s, thread stacktrace:\n%s",
+                            operationHandle,
+                            WAIT_CLEAN_UP_MILLISECONDS / 1000,
+                            thread.getName(),
+                            thread.getState(),
+                            stackTraceStr);
+            throw new SqlCancelException(msg);
         }
     }
 

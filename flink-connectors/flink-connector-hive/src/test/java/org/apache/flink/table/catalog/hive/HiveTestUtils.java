@@ -22,24 +22,22 @@ import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.sql.parser.SqlPartitionUtils;
-import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
-import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.calcite.config.Lex;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -253,16 +251,15 @@ public class HiveTestUtils {
                         String.format(
                                 "alter table `%s`.`%s` add if not exists partition (%s)",
                                 dbName, tableName, partitionSpec);
-                // we need parser to parse the partition spec
-                SqlParser parser =
-                        SqlParser.create(
-                                addPartDDL,
-                                SqlParser.config()
-                                        .withParserFactory(FlinkHiveSqlParserImpl.FACTORY)
-                                        .withLex(Lex.JAVA));
-                SqlAddHivePartitions sqlAddPart = (SqlAddHivePartitions) parser.parseStmt();
+                Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
+                AddPartitionsOperation addPartitionsOperation =
+                        (AddPartitionsOperation) parser.parse(addPartDDL).get(0);
                 LinkedHashMap<String, String> spec =
-                        SqlPartitionUtils.getPartitionKVs(sqlAddPart.getPartSpecs().get(0));
+                        new LinkedHashMap<>(
+                                addPartitionsOperation
+                                        .getPartitionSpecs()
+                                        .get(0)
+                                        .getPartitionSpec());
                 Path partLocation =
                         new Path(
                                 hiveTable.getSd().getLocation(),

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 
 import java.io.Serializable;
 
@@ -76,7 +77,8 @@ public interface InternalTimeServiceManager<K> {
                 ClassLoader userClassloader,
                 KeyContext keyContext,
                 ProcessingTimeService processingTimeService,
-                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+                StreamTaskCancellationContext cancellationContext)
                 throws Exception;
     }
 }

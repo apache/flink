@@ -21,7 +21,7 @@
   [nzLoading]="isLoading"
   [nzData]="listOfSubTaskBackpressure"
   [nzScroll]="{ y: 'calc( 100% - 90px )' }"
-  [nzWidthConfig]="['24%', '28%', '24%', '24%']"
+  [nzWidthConfig]="['16%', '16%', '16%', '16%', '16%', '20%']"
   [nzFrontPagination]="false"
   [nzShowPagination]="false"
   [nzVirtualItemSize]="36"
@@ -31,7 +31,7 @@
 >
   <thead>
     <tr>
-      <th colspan="4" class="title">
+      <th colspan="6" class="title">
         <span *ngIf="selectedVertex?.detail?.status === 'RUNNING'">
           Measurement:
           <span *ngIf="backpressure['end-timestamp']">
@@ -57,7 +57,9 @@
     </tr>
     <tr>
       <th>SubTask</th>
-      <th [nzSortFn]="sortByBusyRatio" [nzSortOrder]="'descend'">Backpressured / Idle / Busy</th>
+      <th [nzSortFn]="sortByBackpressureRatio" [nzSortOrder]="'descend'">Backpressure</th>
+      <th [nzSortFn]="sortByIdleRatio" [nzSortOrder]="'descend'">Idle</th>
+      <th [nzSortFn]="sortByBusyRatio" [nzSortOrder]="'descend'">Busy</th>
       <th>Backpressure Status</th>
       <th>Thread Dump</th>
     </tr>
@@ -76,11 +78,9 @@
               [attempt-{{ subtask['attempt-number'] + 1 }}]
             </span>
           </td>
-          <td>
-            {{ this.prettyPrint(subtask['ratio']) }} /
-            {{ this.prettyPrint(subtask['idleRatio']) }} /
-            {{ this.prettyPrint(subtask['busyRatio']) }}
-          </td>
+          <td>{{ this.prettyPrint(subtask['ratio']) }}</td>
+          <td>{{ this.prettyPrint(subtask['idleRatio']) }}</td>
+          <td>{{ this.prettyPrint(subtask['busyRatio']) }}</td>
           <td>
             <flink-dynamic-host
               [data]="{ state: subtask['backpressure-level'] }"
@@ -114,11 +114,9 @@
                   &nbsp;[attempt-{{ attempt['attempt-number'] + 1 }}]
                 </ng-container>
               </td>
-              <td>
-                {{ this.prettyPrint(attempt['ratio']) }} /
-                {{ this.prettyPrint(attempt['idleRatio']) }} /
-                {{ this.prettyPrint(attempt['busyRatio']) }}
-              </td>
+              <td>{{ this.prettyPrint(attempt['ratio']) }}</td>
+              <td>{{ this.prettyPrint(attempt['idleRatio']) }}</td>
+              <td>{{ this.prettyPrint(attempt['busyRatio']) }}</td>
               <td>
                 <flink-dynamic-host
                   [data]="{ state: attempt['backpressure-level'] }"

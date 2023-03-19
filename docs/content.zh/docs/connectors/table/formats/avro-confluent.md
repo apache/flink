@@ -260,6 +260,13 @@ Format 参数
             <td>Password for SSL truststore</td>
         </tr>
         <tr>
+            <td><h5>avro-confluent.schema</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The schema registered or to be registered in the Confluent Schema Registry. If no schema is provided Flink converts the table schema to avro schema. The schema provided must match the table schema.</td>
+        </tr>
+        <tr>
             <td><h5>avro-confluent.subject</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">(none)</td>

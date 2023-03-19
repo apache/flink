@@ -534,6 +534,26 @@ public final class Expressions {
     }
 
     /**
+     * Creates a map from an array of keys and an array of values.
+     *
+     * <pre>{@code
+     * table.select(
+     *     mapFromArrays(
+     *         array("key1", "key2", "key3"),
+     *         array(1, 2, 3)
+     *     ))
+     * }</pre>
+     *
+     * <p>Note both arrays should have the same length.
+     */
+    public static ApiExpression mapFromArrays(Object key, Object value) {
+        return apiCall(
+                BuiltInFunctionDefinitions.MAP_FROM_ARRAYS,
+                objectToExpression(key),
+                objectToExpression(value));
+    }
+
+    /**
      * Creates an interval of rows.
      *
      * @see Table#window(GroupWindow)

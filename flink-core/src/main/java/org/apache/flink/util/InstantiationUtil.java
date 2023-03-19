@@ -30,6 +30,8 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -466,6 +468,7 @@ public final class InstantiationUtil {
         }
     }
 
+    @Nullable
     public static <T> T readObjectFromConfig(Configuration config, String key, ClassLoader cl)
             throws IOException, ClassNotFoundException {
         byte[] bytes = config.getBytes(key, null);

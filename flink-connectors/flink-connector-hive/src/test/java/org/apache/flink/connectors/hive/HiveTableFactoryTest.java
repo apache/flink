@@ -19,7 +19,6 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -56,6 +55,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveTableFactory}. */
@@ -123,8 +123,7 @@ class HiveTableFactoryTest {
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 
         final Map<String, String> options =
-                Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+                Collections.singletonMap(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         final CatalogTable table =
                 new CatalogTableImpl(TableSchema.fromResolvedSchema(schema), options, "hive table");
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);

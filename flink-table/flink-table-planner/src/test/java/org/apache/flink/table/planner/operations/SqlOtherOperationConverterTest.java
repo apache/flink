@@ -53,9 +53,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Test cases for the statements that neither belong to DDL nor DML for {@link
- * SqlToOperationConverter}.
+ * SqlNodeToOperationConversion}.
  */
-public class SqlOtherOperationConverterTest extends SqlToOperationConverterTestBase {
+public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
     public void testUseCatalog() {

@@ -24,7 +24,7 @@ import java.time.Duration;
 public class HybridShuffleConfiguration {
     private static final int DEFAULT_MAX_BUFFERS_READ_AHEAD = 5;
 
-    private static final Duration DEFAULT_BUFFER_REQUEST_TIMEOUT = Duration.ofMillis(5);
+    private static final Duration DEFAULT_BUFFER_REQUEST_TIMEOUT = Duration.ofMinutes(5);
 
     private static final float DEFAULT_SELECTIVE_STRATEGY_SPILL_THRESHOLD = 0.7f;
 
