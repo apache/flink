@@ -249,7 +249,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         catalogManager.initSchemaResolver(
                 isStreamingMode, operationTreeBuilder.getResolverBuilder());
         this.operationCtx =
-                new ExecutableOperationContextImpl(catalogManager, functionCatalog, moduleManager);
+                new ExecutableOperationContextImpl(
+                        catalogManager,
+                        functionCatalog,
+                        moduleManager,
+                        resourceManager,
+                        tableConfig);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
