@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ExecutableOperation;
+import org.apache.flink.table.resource.ResourceManager;
 
 /** A simple implementation of {@link ExecutableOperation.Context}. */
 public class ExecutableOperationContextImpl implements ExecutableOperation.Context {
@@ -29,14 +31,20 @@ public class ExecutableOperationContextImpl implements ExecutableOperation.Conte
     private final CatalogManager catalogManager;
     private final FunctionCatalog functionCatalog;
     private final ModuleManager moduleManager;
+    private final ResourceManager resourceManager;
+    private final TableConfig tableConfig;
 
     public ExecutableOperationContextImpl(
             CatalogManager catalogManager,
             FunctionCatalog functionCatalog,
-            ModuleManager moduleManager) {
+            ModuleManager moduleManager,
+            ResourceManager resourceManager,
+            TableConfig tableConfig) {
         this.catalogManager = catalogManager;
         this.functionCatalog = functionCatalog;
         this.moduleManager = moduleManager;
+        this.resourceManager = resourceManager;
+        this.tableConfig = tableConfig;
     }
 
     @Override
@@ -52,5 +60,15 @@ public class ExecutableOperationContextImpl implements ExecutableOperation.Conte
     @Override
     public ModuleManager getModuleManager() {
         return moduleManager;
+    }
+
+    @Override
+    public ResourceManager getResourceManager() {
+        return resourceManager;
+    }
+
+    @Override
+    public TableConfig getTableConfig() {
+        return tableConfig;
     }
 }

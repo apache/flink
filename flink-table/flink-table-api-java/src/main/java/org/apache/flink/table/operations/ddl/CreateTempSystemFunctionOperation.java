@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -82,5 +85,16 @@ public class CreateTempSystemFunctionOperation implements CreateOperation {
                 params,
                 Collections.emptyList(),
                 Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            ctx.getFunctionCatalog()
+                    .registerTemporarySystemFunction(functionName, catalogFunction, ignoreIfExists);
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

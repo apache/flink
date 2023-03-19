@@ -62,9 +62,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -132,12 +130,8 @@ import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
-import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
-import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
-import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
-import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
@@ -255,7 +249,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         catalogManager.initSchemaResolver(
                 isStreamingMode, operationTreeBuilder.getResolverBuilder());
         this.operationCtx =
-                new ExecutableOperationContextImpl(catalogManager, functionCatalog, moduleManager);
+                new ExecutableOperationContextImpl(
+                        catalogManager,
+                        functionCatalog,
+                        moduleManager,
+                        resourceManager,
+                        tableConfig);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -989,20 +988,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof StatementSetOperation) {
             return executeInternal(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof CreateTableOperation) {
-            CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-            if (createTableOperation.isTemporary()) {
-                catalogManager.createTemporaryTable(
-                        createTableOperation.getCatalogTable(),
-                        createTableOperation.getTableIdentifier(),
-                        createTableOperation.isIgnoreIfExists());
-            } else {
-                catalogManager.createTable(
-                        createTableOperation.getCatalogTable(),
-                        createTableOperation.getTableIdentifier(),
-                        createTableOperation.isIgnoreIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof AlterTableOperation) {
             AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
             Catalog catalog =
@@ -1080,20 +1065,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException(exMsg, e);
             }
-        } else if (operation instanceof CreateViewOperation) {
-            CreateViewOperation createViewOperation = (CreateViewOperation) operation;
-            if (createViewOperation.isTemporary()) {
-                catalogManager.createTemporaryTable(
-                        createViewOperation.getCatalogView(),
-                        createViewOperation.getViewIdentifier(),
-                        createViewOperation.isIgnoreIfExists());
-            } else {
-                catalogManager.createTable(
-                        createViewOperation.getCatalogView(),
-                        createViewOperation.getViewIdentifier(),
-                        createViewOperation.isIgnoreIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof AlterViewOperation) {
             AlterViewOperation alterViewOperation = (AlterViewOperation) operation;
             Catalog catalog =
@@ -1129,21 +1100,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException(exMsg, e);
             }
-        } else if (operation instanceof CreateDatabaseOperation) {
-            CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
-            Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());
-            String exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString());
-            try {
-                catalog.createDatabase(
-                        createDatabaseOperation.getDatabaseName(),
-                        createDatabaseOperation.getCatalogDatabase(),
-                        createDatabaseOperation.isIgnoreIfExists());
-                return TableResultImpl.TABLE_RESULT_OK;
-            } catch (DatabaseAlreadyExistException e) {
-                throw new ValidationException(exMsg, e);
-            } catch (Exception e) {
-                throw new TableException(exMsg, e);
-            }
         } else if (operation instanceof AlterDatabaseOperation) {
             AlterDatabaseOperation alterDatabaseOperation = (AlterDatabaseOperation) operation;
             Catalog catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName());
@@ -1159,18 +1115,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException(exMsg, e);
             }
-        } else if (operation instanceof CreateCatalogFunctionOperation) {
-            return createCatalogFunction((CreateCatalogFunctionOperation) operation);
-        } else if (operation instanceof CreateTempSystemFunctionOperation) {
-            return createSystemFunction((CreateTempSystemFunctionOperation) operation);
         } else if (operation instanceof AlterCatalogFunctionOperation) {
             return alterCatalogFunction((AlterCatalogFunctionOperation) operation);
         } else if (operation instanceof AddJarOperation) {
             return addJar((AddJarOperation) operation);
         } else if (operation instanceof ShowJarsOperation) {
             return buildShowResult("jars", listJars());
-        } else if (operation instanceof CreateCatalogOperation) {
-            return createCatalog((CreateCatalogOperation) operation);
         } else if (operation instanceof LoadModuleOperation) {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
@@ -1814,37 +1764,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .getTable(identifier)
                 .filter(ContextResolvedTable::isTemporary)
                 .map(ContextResolvedTable::getResolvedTable);
-    }
-
-    private TableResultInternal createCatalogFunction(
-            CreateCatalogFunctionOperation createCatalogFunctionOperation) {
-        String exMsg = getDDLOpExecuteErrorMsg(createCatalogFunctionOperation.asSummaryString());
-        try {
-            if (createCatalogFunctionOperation.isTemporary()) {
-                functionCatalog.registerTemporaryCatalogFunction(
-                        UnresolvedIdentifier.of(
-                                createCatalogFunctionOperation.getFunctionIdentifier().toList()),
-                        createCatalogFunctionOperation.getCatalogFunction(),
-                        createCatalogFunctionOperation.isIgnoreIfExists());
-            } else {
-                Catalog catalog =
-                        getCatalogOrThrowException(
-                                createCatalogFunctionOperation
-                                        .getFunctionIdentifier()
-                                        .getCatalogName());
-                catalog.createFunction(
-                        createCatalogFunctionOperation.getFunctionIdentifier().toObjectPath(),
-                        createCatalogFunctionOperation.getCatalogFunction(),
-                        createCatalogFunctionOperation.isIgnoreIfExists());
-            }
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
-        } catch (FunctionAlreadyExistException e) {
-            throw new ValidationException(e.getMessage(), e);
-        } catch (Exception e) {
-            throw new TableException(exMsg, e);
-        }
     }
 
     private TableResultInternal alterCatalogFunction(
