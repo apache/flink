@@ -25,9 +25,9 @@ under the License.
 # Top-N
 {{< label Batch >}} {{< label Streaming >}}
 
-Top-N 查询可以获取多个排序列的 N 个的最大或最小的值。最大和最小值都被视为 Top-N 查询。 当需要在某个条件下仅显示 `批处理` / `流处理` 表中的 N 个底部或 N 个顶部记录时，Top-N 查询非常有用。其结果集可以用于进一步分析。
+Top-N 查询可以根据指定列排序后获得前 N 个最小或最大值。最小值和最大值集都被认为是Top-N查询。在需要从批表或流表中仅显示 N 个底部或 N 个顶部记录时，Top-N 查询是非常有用的。并且该结果集还可用于进一步分析。
 
-Flink 使用 `OVER` 窗口子句和过滤条件来表示 Top-N 查询。 借助 `OVER` 窗口 `PARTITION BY` 子句的能力，FLink 也支持分组 Top-N。例如：实时显示每个分类下销售额最高的五个产品。Top-N 查询 `批处理` 和 `流处理` 表。
+Flink 使用 `OVER` 窗口子句和过滤条件的组合来表达一个 Top-N 查询。借助 `OVER` 窗口的 `PARTITION BY` 子句能力，Flink 也能支持分组 Top-N。例如：实时显示每个分类下销售额最高的五个产品。对于批处理和流处理模式的SQL，都支持 Top-N 查询。
 
 下面展示了 Top-N 的语法：
 
@@ -45,7 +45,7 @@ WHERE rownum <= N [AND conditions]
 - `ROW_NUMBER()`：根据分区数据的排序，为每一行分配一个唯一且连续的序号，从 1 开始。目前，只支持 `ROW_NUMBER` 作为 `OVER` 窗口函数。未来会支持 `RANK()` 和 `DENSE_RANK()`。
 - `PARTITION BY col1[, col2...]`：指定分区字段。每个分区都会有一个 Top-N 的结果。
 - `ORDER BY col1 [asc|desc][, col2 [asc|desc]...]`： 指定排序列。 每个列的排序类型（ASC/DESC）可以不同。
-- `WHERE rownum <= N`: Flink 需要 `rownum<=N` 才能识别此查询是 Top-N 查询。 N 表示将要保留 N 个最大或最小数据。
+- `WHERE rownum <= N`: Flink 需要 `rownum <= N` 才能识别此查询是 Top-N 查询。 N 表示将要保留 N 个最大或最小数据。
 - `[AND conditions]`: 可以在 `WHERE` 子句中添加其他条件，但是这些其他条件和 `rownum <= N` 需要使用 `AND` 结合。
 
 {{< hint info >}}
@@ -56,8 +56,8 @@ WHERE rownum <= N [AND conditions]
 
 {{< hint info >}}
 
-Top-N 查询是<span class="label label-info">变更结果</span>的. Flink SQL 会根据指定的规则排序输入数据流，如果 Top-N 的记录变更了，每个变更都会发送一个 撤回/更新 记录到下游。
-推荐使用支持更新的存储作为 Top-N 查询的 sink。另外，如果 Top-N 的结果需要存储在外部存储中，结果表应该和 Top-N 查询的唯一键保持一致。
+Top-N 查询是<span class="label label-info">结果更新</span>的. Flink SQL会根据`ORDER BY`的字段对输入的数据流进行排序，所以如果前 N 条记录发生了变化，那么变化后的记录将作为回撤/更新记录发送到下游。
+建议使用一个支持更新的存储作为 Top-N 查询的结果表。此外，如果 Top-N 条记录需要存储在外部存储中，结果表应该与Top-N查询的唯一键保持一致。
 
 {{< /hint >}}
 
