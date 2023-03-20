@@ -1317,6 +1317,9 @@ public class DataStream<T> {
      * thread through Flink's REST API.
      *
      * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+     *
+     * <p><b>NOTE</b> This method is not supported when submitting jobs through web UI as
+     * WebSubmissionJobClient cannot query for job results.
      */
     public CloseableIterator<T> executeAndCollect() throws Exception {
         return executeAndCollect("DataStream Collect");
@@ -1331,6 +1334,9 @@ public class DataStream<T> {
      * thread through Flink's REST API.
      *
      * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+     *
+     * <p><b>NOTE</b> This method is not supported when submitting jobs through web UI as
+     * WebSubmissionJobClient cannot query for job results.
      */
     public CloseableIterator<T> executeAndCollect(String jobExecutionName) throws Exception {
         return executeAndCollectWithClient(jobExecutionName).iterator;
@@ -1343,6 +1349,9 @@ public class DataStream<T> {
      * <p>The DataStream application is executed in the regular distributed manner on the target
      * environment, and the events from the stream are polled back to this application process and
      * thread through Flink's REST API.
+     *
+     * <p><b>NOTE</b> This method is not supported when submitting jobs through web UI as
+     * WebSubmissionJobClient cannot query for job results.
      */
     public List<T> executeAndCollect(int limit) throws Exception {
         return executeAndCollect("DataStream Collect", limit);
@@ -1355,6 +1364,9 @@ public class DataStream<T> {
      * <p>The DataStream application is executed in the regular distributed manner on the target
      * environment, and the events from the stream are polled back to this application process and
      * thread through Flink's REST API.
+     *
+     * <p><b>NOTE</b> This method is not supported when submitting jobs through web UI as *
+     * WebSubmissionJobClient cannot query for job results.
      */
     public List<T> executeAndCollect(String jobExecutionName, int limit) throws Exception {
         Preconditions.checkState(limit > 0, "Limit must be greater than 0");

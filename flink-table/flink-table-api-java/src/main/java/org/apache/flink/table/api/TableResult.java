@@ -157,7 +157,8 @@ public interface TableResult {
      *   <li>For SELECT operation, the job will not be finished unless all result data has been
      *       collected. So we should actively close the job to avoid resource leak through
      *       CloseableIterator#close method. Calling CloseableIterator#close method will cancel the
-     *       job and release related resources.
+     *       job and release related resources. This method is not supported when submitting jobs
+     *       through web UI as WebSubmissionJobClient cannot query for job results.
      *   <li>For DML operation, Flink does not support getting the real affected row count now. So
      *       the affected row count is always -1 (unknown) for every sink, and them will be returned
      *       until the job is finished. Calling CloseableIterator#close method will cancel the job.
