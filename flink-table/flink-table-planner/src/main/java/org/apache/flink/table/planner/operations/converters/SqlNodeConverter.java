@@ -34,8 +34,10 @@ import java.util.Optional;
  * A converter to convert {@link SqlNode} instance into {@link Operation}.
  *
  * <p>By default, a {@link SqlNodeConverter} only matches a specific SqlNode class to convert which
- * is defined by the parameter type {@code S}. But a {@link SqlNodeConverter} can also matches a set
+ * is defined by the parameter type {@code S}. But a {@link SqlNodeConverter} can also match a set
  * of SqlNodes with the {@link SqlKind} if it defines the {@link #supportedSqlKinds()}.
+ *
+ * @see SqlNodeConverters
  */
 public interface SqlNodeConverter<S extends SqlNode> {
 
@@ -51,8 +53,9 @@ public interface SqlNodeConverter<S extends SqlNode> {
      * Returns the {@link SqlKind SqlKinds} of {@link SqlNode SqlNodes} that the {@link
      * SqlNodeConverter} supports to convert.
      *
-     * <p>If a {@link SqlNodeConverter} return s a non-empty SqlKinds, the conversion framework
-     * prefer to match SqlKind of SqlNode instead of matching class of SqlNode.
+     * <p>If a {@link SqlNodeConverter} returns a non-empty SqlKinds, The conversion framework will
+     * find the corresponding converter by matching the SqlKind of SqlNode instead of the class of
+     * SqlNode
      *
      * @see SqlQueryConverter
      */

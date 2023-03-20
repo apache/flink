@@ -55,7 +55,7 @@ public class SqlNodeConverters {
             return Optional.of(classConverter.convertSqlNode(validatedSqlNode, context));
         }
 
-        // match by kind
+        // match by kind if no matching items in class converters
         SqlNodeConverter sqlKindConverter = SQLKIND_CONVERTERS.get(validatedSqlNode.getKind());
         if (sqlKindConverter != null) {
             return Optional.of(sqlKindConverter.convertSqlNode(validatedSqlNode, context));
