@@ -48,6 +48,17 @@ public class SqlGatewayOptionsParser {
                     .desc("Use value for given property")
                     .build();
 
+    public static final Option OPTION_INIT_FILE =
+            Option.builder("i")
+                    .required(false)
+                    .longOpt("init")
+                    .numberOfArgs(1)
+                    .argName("catalog initialization file")
+                    .desc(
+                            "Script file that used to init the session in gateway. "
+                                    + "If get error in execution, the gateway will exit. Notice it's only allowed to add create catalog into the init file.")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     //  Line Parsing
     // --------------------------------------------------------------------------------------------
@@ -58,7 +69,8 @@ public class SqlGatewayOptionsParser {
             CommandLine line = parser.parse(getSqlGatewayOptions(), args, true);
             return new SqlGatewayOptions(
                     line.hasOption(SqlGatewayOptionsParser.OPTION_HELP.getOpt()),
-                    line.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt()));
+                    line.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt()),
+                    line.getOptionValue(OPTION_INIT_FILE.getOpt()));
         } catch (ParseException e) {
             throw new SqlGatewayException(e.getMessage());
         }
@@ -101,6 +113,7 @@ public class SqlGatewayOptionsParser {
         Options options = new Options();
         options.addOption(OPTION_HELP);
         options.addOption(DYNAMIC_PROPERTY_OPTION);
+        options.addOption(OPTION_INIT_FILE);
         return options;
     }
 }

@@ -36,6 +36,8 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
@@ -45,16 +47,27 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.gateway.service.utils.FileUtils.localFileToURL;
+import static org.apache.flink.table.gateway.service.utils.FileUtils.parseCatalogSqls;
+import static org.apache.flink.table.gateway.service.utils.FileUtils.readFromURL;
+
 /** The context memorized initial configuration. */
 public class DefaultContext {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultContext.class);
 
     private final Configuration flinkConfig;
     private final List<URL> dependencies;
+    private final List<String> catalogSqlList;
 
     public DefaultContext(Configuration flinkConfig, List<URL> dependencies) {
+        this(flinkConfig, dependencies, Collections.emptyList());
+    }
+
+    public DefaultContext(
+            Configuration flinkConfig, List<URL> dependencies, List<String> catalogSqlList) {
         this.flinkConfig = flinkConfig;
         this.dependencies = dependencies;
+        this.catalogSqlList = catalogSqlList;
     }
 
     public Configuration getFlinkConfig() {
@@ -63,6 +76,10 @@ public class DefaultContext {
 
     public List<URL> getDependencies() {
         return dependencies;
+    }
+
+    public List<String> getCatalogSqlList() {
+        return catalogSqlList;
     }
 
     private static Options collectCommandLineOptions(List<CustomCommandLine> commandLines) {
@@ -139,6 +156,26 @@ public class DefaultContext {
             List<URL> dependencies,
             boolean discoverExecutionConfig,
             boolean discoverPythonJar) {
+        return load(dynamicConfig, dependencies, discoverExecutionConfig, discoverPythonJar, null);
+    }
+
+    /**
+     * Build the {@link DefaultContext} from flink-conf.yaml, dynamic configuration and users
+     * specified jars.
+     *
+     * @param dynamicConfig user specified configuration.
+     * @param dependencies user specified jars
+     * @param discoverExecutionConfig flag whether to load the execution configuration
+     * @param discoverPythonJar flag whetehr to load the python jar
+     * @param initFilePath the initial file to create catalog
+     */
+    public static DefaultContext load(
+            Configuration dynamicConfig,
+            List<URL> dependencies,
+            boolean discoverExecutionConfig,
+            boolean discoverPythonJar,
+            @Nullable String initFilePath) {
+
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
@@ -177,7 +214,18 @@ public class DefaultContext {
             }
         }
 
-        return new DefaultContext(configuration, dependencies);
+        List<String> catalogSqlList = new ArrayList<>();
+        if (initFilePath != null) {
+            try {
+                URL fileURL = localFileToURL(initFilePath);
+                String initFileContent = readFromURL(fileURL);
+                catalogSqlList = parseCatalogSqls(initFileContent);
+            } catch (Exception e) {
+                throw new SqlGatewayException("Could not load init file content.", e);
+            }
+        }
+
+        return new DefaultContext(configuration, dependencies, catalogSqlList);
     }
 
     private static List<URL> discoverPythonDependencies() {

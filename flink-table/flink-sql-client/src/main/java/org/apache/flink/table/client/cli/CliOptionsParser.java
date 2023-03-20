@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.util.NetUtils;
 
@@ -30,7 +29,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -44,6 +42,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.table.gateway.service.utils.FileUtils.localFileToURL;
 
 /** Parser for command line options. */
 public class CliOptionsParser {
@@ -313,11 +312,8 @@ public class CliOptionsParser {
                     .distinct()
                     .map(
                             (url) -> {
-                                checkFilePath(url);
                                 try {
-                                    return Path.fromLocalFile(new File(url).getAbsoluteFile())
-                                            .toUri()
-                                            .toURL();
+                                    return localFileToURL(url);
                                 } catch (Exception e) {
                                     throw new SqlClientException(
                                             "Invalid path for option '"
@@ -330,14 +326,6 @@ public class CliOptionsParser {
                     .collect(Collectors.toList());
         }
         return null;
-    }
-
-    public static void checkFilePath(String filePath) {
-        Path path = new Path(filePath);
-        String scheme = path.toUri().getScheme();
-        if (scheme != null && !scheme.equals("file")) {
-            throw new SqlClientException("SQL Client only supports to load files in local.");
-        }
     }
 
     private static String checkSessionId(CommandLine line) {

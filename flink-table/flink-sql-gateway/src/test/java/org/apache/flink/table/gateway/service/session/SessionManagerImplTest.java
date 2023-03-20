@@ -32,8 +32,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -42,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SessionManagerImplTest {
 
     private SessionManagerImpl sessionManager;
+    private List<String> catalogSqlList;
 
     @BeforeEach
     void setup() {
@@ -53,7 +58,10 @@ class SessionManagerImplTest {
                 SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL,
                 Duration.ofMillis(100));
         conf.set(SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_MAX_NUM, 3);
-        sessionManager = new SessionManagerImpl(new DefaultContext(conf, Collections.emptyList()));
+        catalogSqlList = new ArrayList<>();
+        sessionManager =
+                new SessionManagerImpl(
+                        new DefaultContext(conf, Collections.emptyList(), catalogSqlList));
         sessionManager.start();
     }
 
@@ -101,5 +109,40 @@ class SessionManagerImplTest {
                 SqlGatewayException.class,
                 () -> sessionManager.openSession(environment),
                 "Failed to create session, the count of active sessions exceeds the max count: 3");
+    }
+
+    @Test
+    void testInitCatalogFile() {
+        // Invalid create catalog sql
+        catalogSqlList.add("SHOW TABLES;");
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+        assertThatThrownBy(() -> sessionManager.openSession(environment))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessage(
+                        "Only support CreateCatalogOperation and the actual operation ShowTablesOperation");
+        assertEquals(0, sessionManager.currentSessionCount());
+
+        // Duplicate catalog names
+        catalogSqlList.clear();
+        catalogSqlList.add("create catalog catalog1 with ('type'='generic_in_memory');");
+        catalogSqlList.add("create catalog catalog1 with ('type'='generic_in_memory');");
+        assertThatThrownBy(() -> sessionManager.openSession(environment))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessage(
+                        "Register catalog[catalog1]"
+                                + "[CREATE CATALOG: (catalogName: [catalog1], properties: [{type=generic_in_memory}])] failed");
+        assertEquals(0, sessionManager.currentSessionCount());
+
+        // Create two catalogs
+        catalogSqlList.clear();
+        catalogSqlList.add("create catalog catalog1 with ('type'='generic_in_memory');");
+        catalogSqlList.add("create catalog catalog2 with ('type'='generic_in_memory');");
+        Session session = sessionManager.openSession(environment);
+        assertEquals(1, sessionManager.currentSessionCount());
+        assertThat(session.catalogManager().listCatalogs())
+                .containsExactlyInAnyOrder("default_catalog", "catalog1", "catalog2");
     }
 }

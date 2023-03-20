@@ -81,9 +81,15 @@ class SqlGatewayTest {
                         "Start the Flink SQL Gateway as a daemon to submit Flink SQL.\n"
                                 + "\n"
                                 + "  Syntax: start [OPTIONS]\n"
-                                + "     -D <property=value>   Use value for given property\n"
-                                + "     -h,--help             Show the help message with descriptions of all\n"
-                                + "                           options.\n\n");
+                                + "     -D <property=value>                       Use value for given property\n"
+                                + "     -h,--help                                 Show the help message with\n"
+                                + "                                               descriptions of all options.\n"
+                                + "     -i,--init <catalog initialization file>   Script file that used to init the\n"
+                                + "                                               session in gateway. If get error\n"
+                                + "                                               in execution, the gateway will\n"
+                                + "                                               exit. Notice it's only allowed to\n"
+                                + "                                               add create catalog into the init\n"
+                                + "                                               file.");
     }
 
     @Test

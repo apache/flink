@@ -19,19 +19,26 @@
 package org.apache.flink.table.gateway.service.session;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.context.SessionContext;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -153,6 +160,7 @@ public class SessionManagerImpl implements SessionManager {
         SessionContext sessionContext =
                 SessionContext.create(
                         defaultContext, sessionId, environment, operationExecutorService);
+        initializeCatalogFromFile(sessionContext);
 
         session = new Session(sessionContext);
         sessions.put(sessionId, session);
@@ -163,6 +171,58 @@ public class SessionManagerImpl implements SessionManager {
                 sessions.size());
 
         return session;
+    }
+
+    private void initializeCatalogFromFile(SessionContext sessionContext) {
+        if (defaultContext.getCatalogSqlList().isEmpty()) {
+            return;
+        }
+
+        TableEnvironmentInternal env =
+                sessionContext.createOperationExecutor(new Configuration()).getTableEnvironment();
+        for (String catalogSql : defaultContext.getCatalogSqlList()) {
+            List<Operation> operations;
+            try {
+                operations = env.getParser().parse(catalogSql);
+            } catch (Exception e) {
+                throw new SqlGatewayException(
+                        String.format("Parse catalog sql[%s] failed", catalogSql), e);
+            }
+            if (operations.size() != 1) {
+                throw new SqlGatewayException(
+                        String.format(
+                                "Only support CreateCatalogOperation and the actual operations %s",
+                                operations));
+            }
+            Operation operation = operations.get(0);
+            if (operation instanceof CreateCatalogOperation) {
+                CreateCatalogOperation createCatalogOperation = (CreateCatalogOperation) operation;
+                try {
+                    Catalog catalog =
+                            FactoryUtil.createCatalog(
+                                    createCatalogOperation.getCatalogName(),
+                                    createCatalogOperation.getProperties(),
+                                    env.getConfig(),
+                                    sessionContext.getUserClassloader());
+                    sessionContext
+                            .getSessionState()
+                            .catalogManager
+                            .registerCatalog(createCatalogOperation.getCatalogName(), catalog);
+                } catch (Exception e) {
+                    throw new SqlGatewayException(
+                            String.format(
+                                    "Register catalog[%s][%s] failed",
+                                    createCatalogOperation.getCatalogName(),
+                                    createCatalogOperation.asSummaryString()),
+                            e);
+                }
+            } else {
+                throw new SqlGatewayException(
+                        String.format(
+                                "Only support CreateCatalogOperation and the actual operation %s",
+                                operation.getClass().getSimpleName()));
+            }
+        }
     }
 
     public void closeSession(SessionHandle sessionHandle) throws SqlGatewayException {

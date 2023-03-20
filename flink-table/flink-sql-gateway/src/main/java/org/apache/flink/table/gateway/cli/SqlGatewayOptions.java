@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.gateway.cli;
 
+import javax.annotation.Nullable;
+
 import java.util.Properties;
 
 /** Options to configure the {@code SqlGateway}. */
@@ -25,10 +27,12 @@ public class SqlGatewayOptions {
 
     private final boolean isPrintHelp;
     private final Properties dynamicConfigs;
+    @Nullable private final String initFilePath;
 
-    public SqlGatewayOptions(boolean isPrintHelp, Properties dynamicConfigs) {
+    public SqlGatewayOptions(boolean isPrintHelp, Properties dynamicConfigs, String initFilePath) {
         this.isPrintHelp = isPrintHelp;
         this.dynamicConfigs = dynamicConfigs;
+        this.initFilePath = initFilePath;
     }
 
     public boolean isPrintHelp() {
@@ -37,5 +41,10 @@ public class SqlGatewayOptions {
 
     public Properties getDynamicConfigs() {
         return dynamicConfigs;
+    }
+
+    @Nullable
+    public String getInitFilePath() {
+        return initFilePath;
     }
 }

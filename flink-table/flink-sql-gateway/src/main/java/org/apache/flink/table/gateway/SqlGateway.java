@@ -114,7 +114,8 @@ public class SqlGateway {
                         ConfigurationUtils.createConfiguration(cliOptions.getDynamicConfigs()),
                         Collections.emptyList(),
                         true,
-                        true);
+                        true,
+                        cliOptions.getInitFilePath());
         SqlGateway gateway =
                 new SqlGateway(
                         defaultContext.getFlinkConfig(), SessionManager.create(defaultContext));
