@@ -66,14 +66,14 @@ comparison:
   - sql: EXISTS (sub-query)
     description: Returns TRUE if sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation. For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size.
   - sql: value IN (sub-query)
-    table: value1.in(TABLE)
+    table: value.in(TABLE)
     description: Returns TRUE if value is equal to a row returned by sub-query.
   - sql: value NOT IN (sub-query)
     description: Returns TRUE if value is not equal to a row returned by sub-query.
   - table: value1.between(value2, value3)
-    description: Returns TRUE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
+    description: Returns TRUE if value1 is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
   - table: value1.notBetween(value2, value3)
-    description: Returns FALSE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
+    description: Returns FALSE if value1 is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
 
 logical:
   - sql: boolean1 OR boolean2
@@ -239,8 +239,8 @@ arithmetic:
       STRING.hex()
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
   - sql: TRUNCATE(numeric1, integer2)
-    table: numeric1.truncate(INTEGER2)
-    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set Integer2 to use. If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
+    table: NUMERIC1.truncate(INTEGER2)
+    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
 
 string:
   - sql: string1 || string2
@@ -761,7 +761,7 @@ json:
 
       This method searches a JSON string for a given path expression and returns the value if the
       value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
-      returned as `STRING`. Using `returningType` a different type can be chosen, with the following
+      returned as `STRING`. Using `dataType` a different type can be chosen, with the following
       types being supported:
 
       * `VARCHAR` / `STRING`
