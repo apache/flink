@@ -212,15 +212,17 @@ abstract class FineGrainedSlotManagerTestBase {
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
             slotManager =
-                    new FineGrainedSlotManager(
-                            scheduledExecutor,
-                            configuration,
-                            slotManagerMetricGroup,
-                            resourceTracker,
-                            taskManagerTracker,
-                            slotStatusSyncer,
-                            getResourceAllocationStrategy(configuration)
-                                    .orElse(resourceAllocationStrategyBuilder.build()));
+                    FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
+                            .setSlotManagerConfiguration(configuration)
+                            .setSlotManagerMetricGroup(slotManagerMetricGroup)
+                            .setResourceTracker(resourceTracker)
+                            .setTaskManagerTracker(taskManagerTracker)
+                            .setSlotStatusSyncer(slotStatusSyncer)
+                            .setResourceAllocationStrategy(
+                                    getResourceAllocationStrategy(configuration)
+                                            .orElse(resourceAllocationStrategyBuilder.build()))
+                            .build();
+
             runInMainThreadAndWait(
                     () ->
                             slotManager.start(
