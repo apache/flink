@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.sql;
 
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
@@ -152,6 +153,24 @@ public class RowLevelUpdateTest extends TableTestBase {
                                         + ") ",
                                 updateMode));
         util.verifyExplainInsert("UPDATE t SET b = 'v2' WHERE b = '123'", explainDetails);
+    }
+
+    @Test(expected = SqlParserException.class)
+    public void testUpdateWithCompositeType() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE t ("
+                                        + "a int,"
+                                        + "b ROW<b1 STRING, b2 INT>,"
+                                        + "c ROW<c1 BIGINT, c2 STRING>"
+                                        + ") WITH ("
+                                        + "'connector' = 'test-update-delete', "
+                                        + "'update-mode' = '%s'"
+                                        + ") ",
+                                updateMode));
+        util.verifyExplainInsert(
+                "UPDATE t SET b.b1 = 'v2', c.c1 = 1000 WHERE b = '123'", explainDetails);
     }
 
     private void createTableForUpdate() {

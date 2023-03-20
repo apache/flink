@@ -409,7 +409,7 @@ from cdc t1, lateral table(ndTableFunc(a)) as T(a1)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]], fields=[a, EXPR$1, EXPR$2])
 +- LogicalProject(a=[CAST($4):INTEGER], EXPR$1=[null:BIGINT], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
@@ -418,7 +418,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EX
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, EXPR$2], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]], fields=[a, EXPR$1, EXPR$2], upsertMaterialize=[true])
 +- Calc(select=[CAST(EXPR$0 AS INTEGER) AS a, null:BIGINT AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2])
    +- Correlate(invocation=[ndTableFunc($cor0.a)], correlate=[table(ndTableFunc($cor0.a))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])

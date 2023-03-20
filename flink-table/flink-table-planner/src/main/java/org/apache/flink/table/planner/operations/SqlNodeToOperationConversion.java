@@ -215,6 +215,9 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.util.NlsString;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
@@ -693,6 +696,7 @@ public class SqlNodeToOperationConversion {
                     contextResolvedTable,
                     child,
                     partitionSpec.getPartitionSpec(),
+                    null, // targetColumns
                     false,
                     compactOptions);
         }
@@ -850,11 +854,16 @@ public class SqlNodeToOperationConversion {
                 (PlannerQueryOperation)
                         convertValidatedSqlNodeOrFail(
                                 flinkPlanner, catalogManager, insert.getSource());
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31301 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
         return new SinkModifyOperation(
                 contextResolvedTable,
                 query,
                 insert.getStaticPartitionKVs(),
+                columnIndices,
                 insert.isOverwrite(),
                 dynamicOptions);
     }
@@ -1536,7 +1545,10 @@ public class SqlNodeToOperationConversion {
         // delete push down is not applicable, use row-level delete
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
         return new SinkModifyOperation(
-                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.DELETE);
+                contextResolvedTable,
+                queryOperation,
+                null, // targetColumns
+                SinkModifyOperation.ModifyType.DELETE);
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
@@ -1553,8 +1565,27 @@ public class SqlNodeToOperationConversion {
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31344 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
+
         return new SinkModifyOperation(
-                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.UPDATE);
+                contextResolvedTable,
+                queryOperation,
+                columnIndices,
+                SinkModifyOperation.ModifyType.UPDATE);
+    }
+
+    private int[][] getTargetColumnIndices(
+            @Nonnull ContextResolvedTable contextResolvedTable,
+            @Nullable SqlNodeList targetColumns) {
+        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
+                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
+                .mapToObj(idx -> new int[] {idx})
+                .toArray(int[][]::new);
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {

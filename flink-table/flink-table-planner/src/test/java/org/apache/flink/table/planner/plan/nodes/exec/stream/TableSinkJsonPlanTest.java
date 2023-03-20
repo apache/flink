@@ -127,4 +127,23 @@ public class TableSinkJsonPlanTest extends TableTestBase {
         util.verifyJsonPlan(
                 "insert into sink select user_id, ndFunc(user_name), email, balance from users");
     }
+
+    @Test
+    public void testPartialInsert() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a bigint,\n"
+                        + "  b int,\n"
+                        + "  c varchar,\n"
+                        + "  d int,\n"
+                        + "  e double,\n"
+                        + "  f varchar\n"
+                        + ") partitioned by (c) with (\n"
+                        + "  'connector' = 'filesystem',\n"
+                        + "  'format' = 'testcsv',\n"
+                        + "  'path' = '/tmp')";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink partition (c='A') (f,a,b) select c, a, b from MyTable");
+    }
 }

@@ -37,14 +37,14 @@ import scala.collection.JavaConversions._
  *   cluster that this relational expression belongs to
  * @param traitSet
  *   the traits of this rel
- * @param hints
- *   the hints
  * @param input
  *   input relational expression
+ * @param hints
+ *   the hints
+ * @param targetColumns
+ *   the specified target columns.
  * @param contextResolvedTable
  *   the table definition.
- * @param catalogTable
- *   Resolved catalog table where this table source table comes from
  * @param tableSink
  *   the [[DynamicTableSink]] for which to write into
  */
@@ -53,6 +53,7 @@ abstract class Sink(
     traitSet: RelTraitSet,
     input: RelNode,
     val hints: util.List[RelHint],
+    val targetColumns: Array[Array[Int]],
     val contextResolvedTable: ContextResolvedTable,
     val tableSink: DynamicTableSink)
   extends SingleRel(cluster, traitSet, input) {
@@ -65,6 +66,15 @@ abstract class Sink(
     super
       .explainTerms(pw)
       .item("table", contextResolvedTable.getIdentifier.asSummaryString())
+      .itemIf(
+        "targetColumns",
+        Option
+          .apply(targetColumns)
+          .getOrElse(Array.empty[Array[Int]])
+          .map(_.mkString("[", ",", "]"))
+          .mkString(","),
+        targetColumns != null && targetColumns.length > 0
+      )
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
   }

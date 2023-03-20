@@ -16,6 +16,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testManagedTableSinkWithEnableCheckpointing">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDynamicPartWithOrderBy">
     <Resource name="ast">
       <![CDATA[
@@ -32,6 +41,15 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, b])
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testManagedTableSinkWithDisableCheckpointing">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
   </TestCase>
