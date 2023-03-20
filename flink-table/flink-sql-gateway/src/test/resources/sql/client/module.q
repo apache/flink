@@ -17,6 +17,7 @@
 
 # set tableau result mode
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -26,6 +27,7 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 
 # list default loaded and enabled module
 SHOW MODULES;
+!output
 +-------------+
 | module name |
 +-------------+
@@ -35,6 +37,7 @@ SHOW MODULES;
 !ok
 
 SHOW FULL MODULES;
+!output
 +-------------+------+
 | module name | used |
 +-------------+------+
@@ -45,18 +48,21 @@ SHOW FULL MODULES;
 
 # load core module twice
 LOAD MODULE core;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: A module with name 'core' already exists
 !error
 
 # use hive built-in function without loading hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
 !error
 
 # load hive module with module name as string literal
 LOAD MODULE 'hive';
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "\'hive\'" at line 1, column 13.
 Was expecting one of:
@@ -71,6 +77,7 @@ Was expecting one of:
 
 # load hive module with module name capitalized
 LOAD MODULE Hive;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'Hive' that implements 'org.apache.flink.table.factories.ModuleFactory' in the classpath.
 
@@ -82,16 +89,19 @@ hive
 
 # load hive module with specifying type
 LOAD MODULE myhive WITH ('type' = 'hive');
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Option 'type' = 'hive' is not supported since module name is used to find module
 !error
 
 LOAD MODULE hive;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # show enabled modules
 SHOW MODULES;
+!output
 +-------------+
 | module name |
 +-------------+
@@ -103,6 +113,7 @@ SHOW MODULES;
 
 # show all loaded modules
 SHOW FULL MODULES;
+!output
 +-------------+------+
 | module name | used |
 +-------------+------+
@@ -114,6 +125,7 @@ SHOW FULL MODULES;
 
 # use hive built-in function after loading hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
+!output
 +----+--------------------------------+
 | op |                         EXPR$0 |
 +----+--------------------------------+
@@ -128,16 +140,19 @@ Received a total of 1 row
 
 # use duplicate modules
 USE MODULES hive, core, hive;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Module 'hive' appears more than once
 !error
 
 # change module resolution order
 USE MODULES hive, core;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW MODULES;
+!output
 +-------------+
 | module name |
 +-------------+
@@ -148,6 +163,7 @@ SHOW MODULES;
 !ok
 
 SHOW FULL MODULES;
+!output
 +-------------+------+
 | module name | used |
 +-------------+------+
@@ -159,10 +175,12 @@ SHOW FULL MODULES;
 
 # disable hive module
 USE MODULES core;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW MODULES;
+!output
 +-------------+
 | module name |
 +-------------+
@@ -172,6 +190,7 @@ SHOW MODULES;
 !ok
 
 SHOW FULL MODULES;
+!output
 +-------------+-------+
 | module name |  used |
 +-------------+-------+
@@ -183,6 +202,7 @@ SHOW FULL MODULES;
 
 # use hive built-in function without using hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
 !error
@@ -192,14 +212,17 @@ org.apache.calcite.sql.validate.SqlValidatorException: No match found for functi
 # ==========================================================================
 
 UNLOAD MODULE core;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW MODULES;
+!output
 Empty set
 !ok
 
 SHOW FULL MODULES;
+!output
 +-------------+-------+
 | module name |  used |
 +-------------+-------+
@@ -210,6 +233,7 @@ SHOW FULL MODULES;
 
 # unload core module twice
 UNLOAD MODULE core;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: No module with name 'core' exists
 !error

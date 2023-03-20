@@ -16,10 +16,12 @@
 # limitations under the License.
 
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SET 'table.dml-sync' = 'true';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -29,6 +31,7 @@ create table src (
 ) with (
   'connector' = 'values'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -37,6 +40,7 @@ create table src (
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'streaming';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -48,14 +52,17 @@ create table StreamingTable (
   'path' = '$VAR_STREAMING_PATH',
   'format' = 'csv'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 BEGIN STATEMENT SET;
+!output
 [INFO] Execute statement succeed.
 !info
 
 BEGIN STATEMENT SET;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
@@ -66,29 +73,35 @@ create table src (
 ) with (
   'connector' = 'values'
 );
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 SELECT id, str FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+!output
 [INFO] Execute statement succeed.
 !info
 
 END;
+!output
 [INFO] Complete execution of the SQL update statement.
 !info
 
 END;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.gateway.service.utils.SqlExecutionException: No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.
 !error
 
 SELECT * FROM StreamingTable;
+!output
 +----+-------------+--------------------------------+
 | op |          id |                            str |
 +----+-------------+--------------------------------+
@@ -108,6 +121,7 @@ Received a total of 7 rows
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -119,27 +133,33 @@ str string
 'path' = '$VAR_BATCH_PATH',
 'format' = 'csv'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 BEGIN STATEMENT SET;
+!output
 [INFO] Execute statement succeed.
 !info
 
 BEGIN STATEMENT SET;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+!output
 [INFO] Execute statement succeed.
 !info
 
 END;
+!output
 [INFO] Complete execution of the SQL update statement.
 !info
 
 SELECT * FROM BatchTable;
+!output
 +----+-------------+
 | id |         str |
 +----+-------------+
@@ -155,9 +175,11 @@ SELECT * FROM BatchTable;
 !ok
 
 BEGIN STATEMENT SET;
+!output
 [INFO] Execute statement succeed.
 !info
 
 END;
+!output
 [INFO] Execute statement succeed.
 !info

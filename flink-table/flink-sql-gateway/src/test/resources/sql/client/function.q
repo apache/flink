@@ -16,10 +16,12 @@
 # limitations under the License.
 
 ADD JAR '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 +-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH_SPACEjars |
 +-$VAR_UDF_JAR_PATH_DASH-----+
@@ -30,10 +32,12 @@ SHOW JARS;
 
 # this also tests user classloader because the LowerUDF is in user jar
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
+!output
 [INFO] Execute statement succeed.
 !info
 
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -43,11 +47,13 @@ show user functions;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
 # run a query to verify the registered UDF works
 SELECT id, func1(str) FROM (VALUES (1, 'Hello World'), (2, 'Hi')) as T(id, str);
+!output
 +----+-------------+--------------------------------+
 | op |          id |                         EXPR$1 |
 +----+-------------+--------------------------------+
@@ -60,10 +66,12 @@ Received a total of 2 rows
 # ====== test temporary function ======
 
 create temporary function if not exists func2 as 'LowerUDF' LANGUAGE JAVA;
+!output
 [INFO] Execute statement succeed.
 !info
 
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -76,31 +84,38 @@ show user functions;
 # ====== test function with full qualified name ======
 
 create catalog c1 with ('type'='generic_in_memory');
+!output
 [INFO] Execute statement succeed.
 !info
 
 use catalog c1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 create database db;
+!output
 [INFO] Execute statement succeed.
 !info
 
 use catalog default_catalog;
+!output
 [INFO] Execute statement succeed.
 !info
 
 create function c1.db.func3 as 'LowerUDF' LANGUAGE JAVA;
+!output
 [INFO] Execute statement succeed.
 !info
 
 create temporary function if not exists c1.db.func4 as 'LowerUDF' LANGUAGE JAVA;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # no func3 and func4 because we are not under catalog c1
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -111,15 +126,18 @@ show user functions;
 !ok
 
 use catalog c1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 use db;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # should show func3 and func4 now
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -131,19 +149,23 @@ show user functions;
 
 # test create function with database name
 create function `default`.func5 as 'LowerUDF';
+!output
 [INFO] Execute statement succeed.
 !info
 
 create function `default`.func6 as 'LowerUDF';
+!output
 [INFO] Execute statement succeed.
 !info
 
 use `default`;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # should show func5 and func6
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -158,31 +180,38 @@ show user functions;
 # ==========================================================================
 
 create function c1.db.func10 as 'LowerUDF';
+!output
 [INFO] Execute statement succeed.
 !info
 
 create function c1.db.func11 as 'LowerUDF';
+!output
 [INFO] Execute statement succeed.
 !info
 
 drop function if exists c1.db.func10;
+!output
 [INFO] Execute statement succeed.
 !info
 
 use catalog c1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 use db;
+!output
 [INFO] Execute statement succeed.
 !info
 
 drop function if exists non_func;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # should contain func11, not contain func10
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -198,17 +227,20 @@ show user functions;
 # ==========================================================================
 
 alter function func11 as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
+!output
 [INFO] Execute statement succeed.
 !info
 
 # TODO: show func11 when we support DESCRIBE FUNCTION
 
 create temporary function tmp_func as 'LowerUDF';
+!output
 [INFO] Execute statement succeed.
 !info
 
 # should throw unsupported error
 alter temporary function tmp_func as 'org.apache.flink.table.client.gateway.local.ExecutorImplITCase$TestScalaFunction';
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Alter temporary catalog function is not supported
 !error
@@ -219,19 +251,23 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 # ==========================================================================
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 Empty set
 !ok
 
 create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 # run a query to verify the registered UDF works
 SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, str);
+!output
 +----+-------------+--------------------------------+
 | op |          id |                         EXPR$1 |
 +----+-------------+--------------------------------+
@@ -242,6 +278,7 @@ Received a total of 2 rows
 !ok
 
 SHOW JARS;
+!output
 +-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH_SPACEjars |
 +-$VAR_UDF_JAR_PATH_DASH-----+
@@ -255,18 +292,22 @@ SHOW JARS;
 # ==========================================================================
 
 create catalog hivecatalog with ('type'='hive-test', 'hive-version'='2.3.4');
+!output
 [INFO] Execute statement succeed.
 !info
 
 use catalog hivecatalog;
+!output
 [INFO] Execute statement succeed.
 !info
 
 create function lowerudf AS 'LowerUDF';
+!output
 [INFO] Execute statement succeed.
 !info
 
 show user functions;
+!output
 +---------------+
 | function name |
 +---------------+
@@ -276,9 +317,11 @@ show user functions;
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 Empty set
 !ok

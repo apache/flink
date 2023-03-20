@@ -87,7 +87,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
-    private static final String RESOURCE_DIR = "sql/";
+    private static final String RESOURCE_DIR = "sql/gateway";
     private static final Pattern PATTERN = Pattern.compile(".*\\.q$");
 
     protected static SqlGatewayService service;

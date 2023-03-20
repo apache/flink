@@ -21,13 +21,13 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.client.cli.utils.SqlScriptReader;
-import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.gateway.utils.SqlScriptReader;
+import org.apache.flink.table.gateway.utils.TestSqlStatement;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -76,6 +76,7 @@ import java.util.stream.Stream;
 import static org.apache.commons.lang3.StringUtils.repeat;
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
 import static org.apache.flink.configuration.RestOptions.PORT;
+import static org.apache.flink.table.gateway.utils.SqlScriptReader.HINT_START_OF_OUTPUT;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
@@ -121,7 +122,7 @@ class CliClientITCase {
             new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     static Stream<String> sqlPaths() throws Exception {
-        String first = "sql/table.q";
+        String first = "sql/client/table.q";
         URL url = CliClientITCase.class.getResource("/" + first);
         File firstFile = Paths.get(url.toURI()).toFile();
         final int commonPrefixLength = firstFile.getAbsolutePath().length() - first.length();
@@ -192,7 +193,9 @@ class CliClientITCase {
         String in = getInputFromPath(sqlPath);
         List<TestSqlStatement> testSqlStatements = parseSqlScript(in);
         List<String> sqlStatements =
-                testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
+                testSqlStatements.stream()
+                        .map(TestSqlStatement::getSql)
+                        .collect(Collectors.toList());
         List<Result> actualResults = runSqlStatements(sqlStatements, configuration);
         String out = transformOutput(testSqlStatements, actualResults);
         assertThat(out).isEqualTo(in);
@@ -373,7 +376,10 @@ class CliClientITCase {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < testSqlStatements.size(); i++) {
             TestSqlStatement sqlScript = testSqlStatements.get(i);
-            out.append(sqlScript.comment).append(sqlScript.sql);
+            out.append(sqlScript.getComment())
+                    .append(sqlScript.getSql())
+                    .append(HINT_START_OF_OUTPUT)
+                    .append("\n");
             if (i < results.size()) {
                 Result result = results.get(i);
                 String content =

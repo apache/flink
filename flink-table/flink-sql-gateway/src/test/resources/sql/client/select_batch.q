@@ -18,16 +18,19 @@
 # set default streaming mode and tableau result mode
 
 SET 'execution.runtime-mode' = 'batch';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT id, COUNT(*) as cnt, COUNT(DISTINCT str) as uv
 FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str)
 GROUP BY id;
+!output
 +----+-----+----+
 | id | cnt | uv |
 +----+-----+----+
@@ -38,6 +41,7 @@ GROUP BY id;
 !ok
 
 SET 'table.local-time-zone' = 'UTC';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -50,6 +54,7 @@ FROM (VALUES
   (1, TIMESTAMP '2021-04-13 20:12:11', TIMESTAMP '2021-04-13 20:12:11.123', TIMESTAMP '2021-04-13 20:12:11.123456789'),
   (2, TIMESTAMP '2021-04-13 21:12:11', TIMESTAMP '2021-04-13 21:12:11.001', TIMESTAMP '2021-04-13 21:12:11.1'))
    as T(id, ts0, ts3, ts9);
+!output
 +----------+---------------------+-------------------------+-------------------------------+-------------------------+-------------------------+-------------------------------+
 |    time0 |                 ts0 |                     ts3 |                           ts9 |                 ts_ltz0 |                 ts_ltz3 |                       ts_ltz9 |
 +----------+---------------------+-------------------------+-------------------------------+-------------------------+-------------------------+-------------------------------+
@@ -72,10 +77,12 @@ AS (VALUES
   ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
   ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT * from testUserData;
+!output
 +--------------------------------+-------------------------+---------+
 |                           name |                     dob | isHappy |
 +--------------------------------+-------------------------+---------+
@@ -88,10 +95,12 @@ SELECT * from testUserData;
 !ok
 
 SET 'sql-client.display.max-column-width' = '10';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT * from testUserData;
+!output
 +------------+------------+---------+
 |       name |        dob | isHappy |
 +------------+------------+---------+
@@ -104,10 +113,12 @@ SELECT * from testUserData;
 !ok
 
 SET 'sql-client.display.max-column-width' = '40';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT * from testUserData;
+!output
 +--------------------------------------+-------------------------+---------+
 |                                 name |                     dob | isHappy |
 +--------------------------------------+-------------------------+---------+
@@ -121,14 +132,17 @@ SELECT * from testUserData;
 
 -- post-test cleanup + setting back default max width value
 DROP TEMPORARY VIEW testUserData;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SET 'sql-client.display.max-column-width' = '30';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;
+!output
 +-----------------+--------------+
 |     dayInterval | yearInterval |
 +-----------------+--------------+

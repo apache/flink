@@ -17,6 +17,7 @@
 
 # === test help ===
 help;
+!output
 The following commands are available:
 
 HELP               		Prints the available commands.

@@ -17,10 +17,12 @@
 
 # test set a configuration
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SET 'table.sql-dialect' = 'hive';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -28,15 +30,18 @@ create catalog hivecatalog with (
  'type' = 'hive-test',
  'hive-version' = '2.3.4'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 use catalog hivecatalog;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test SET command
 set table.sql-dialect;
+!output
 +------------------------+
 |              variables |
 +------------------------+
@@ -46,10 +51,12 @@ set table.sql-dialect;
 !ok
 
 set k1=v1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 set k1;
+!output
 +-----------+
 | variables |
 +-----------+
@@ -71,23 +78,28 @@ CREATE TABLE hive_table (
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 SET table.dml-sync = true;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test "ctas" in Hive Dialect
 CREATE TABLE foo as select 1;
+!output
 [INFO] Complete execution of the SQL update statement.
 !info
 
 RESET table.dml-sync;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT * from foo;
+!output
 +----+-------------+
 | op |      _o__c0 |
 +----+-------------+
@@ -98,10 +110,12 @@ Received a total of 1 row
 
 # test add jar
 ADD JAR $VAR_UDF_JAR_PATH;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 +-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH_SPACEjars |
 +-$VAR_UDF_JAR_PATH_DASH-----+
@@ -111,10 +125,12 @@ SHOW JARS;
 !ok
 
 CREATE FUNCTION hive_add_one as 'HiveAddOneFunc';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT hive_add_one(1);
+!output
 +----+-------------+
 | op |      _o__c0 |
 +----+-------------+
@@ -124,19 +140,23 @@ Received a total of 1 row
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 Empty set
 !ok
 
 reset table.resources.download-dir;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # list the configured configuration
 set;
+!output
 +--------------------------------------------+-----------+
 |                                        key |     value |
 +--------------------------------------------+-----------+
@@ -159,10 +179,12 @@ set;
 
 # reset the configuration
 reset;
+!output
 [INFO] Execute statement succeed.
 !info
 
 set;
+!output
 +--------------------------------------------+-----------+
 |                                        key |     value |
 +--------------------------------------------+-----------+
@@ -192,6 +214,7 @@ CREATE TABLE hive_table2 (
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
 );
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "STRING" at line 10, column 27.
 Was expecting one of:
@@ -200,10 +223,12 @@ Was expecting one of:
 !error
 
 set 'sql-client.verbose' = 'true';
+!output
 [INFO] Execute statement succeed.
 !info
 
 set;
+!output
 +--------------------------------------------+-----------+
 |                                        key |     value |
 +--------------------------------------------+-----------+
@@ -222,14 +247,17 @@ set;
 !ok
 
 set 'execution.attached' = 'false';
+!output
 [INFO] Execute statement succeed.
 !info
 
 reset 'execution.attached';
+!output
 [INFO] Execute statement succeed.
 !info
 
 set;
+!output
 +--------------------------------------------+-----------+
 |                                        key |     value |
 +--------------------------------------------+-----------+
@@ -249,10 +277,12 @@ set;
 
 # test reset can work with add jar
 ADD JAR '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 +-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH_SPACEjars |
 +-$VAR_UDF_JAR_PATH_DASH-----+
@@ -262,6 +292,7 @@ SHOW JARS;
 !ok
 
 set;
+!output
 +--------------------------------------------+-----------+
 |                                        key |     value |
 +--------------------------------------------+-----------+
@@ -280,10 +311,12 @@ set;
 !ok
 
 reset;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 +-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH_SPACEjars |
 +-$VAR_UDF_JAR_PATH_DASH-----+
@@ -293,14 +326,17 @@ SHOW JARS;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
+!output
 [INFO] Execute statement succeed.
 !info
 
 SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
+!output
 +----+-------------+--------------------------------+
 | op |          id |                         EXPR$1 |
 +----+-------------+--------------------------------+
@@ -310,9 +346,11 @@ Received a total of 1 row
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
+!output
 Empty set
 !ok

@@ -16,10 +16,12 @@
 # limitations under the License.
 
 SET 'sql-client.execution.result-mode' = 'tableau';
+!output
 [INFO] Execute statement succeed.
 !info
 
 SET 'table.dml-sync' = 'true';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -28,6 +30,7 @@ SET 'table.dml-sync' = 'true';
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'streaming';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -39,14 +42,17 @@ create table StreamingTable (
   'path' = '$VAR_STREAMING_PATH',
   'format' = 'csv'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+!output
 [INFO] Complete execution of the SQL update statement.
 !info
 
 SELECT * FROM StreamingTable;
+!output
 +----+-------------+--------------------------------+
 | op |          id |                            str |
 +----+-------------+--------------------------------+
@@ -66,6 +72,7 @@ Received a total of 7 rows
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
+!output
 [INFO] Execute statement succeed.
 !info
 
@@ -77,14 +84,17 @@ create table BatchTable (
   'path' = '$VAR_BATCH_PATH',
   'format' = 'csv'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+!output
 [INFO] Complete execution of the SQL update statement.
 !info
 
 SELECT * FROM BatchTable;
+!output
 +----+-------------+
 | id |         str |
 +----+-------------+

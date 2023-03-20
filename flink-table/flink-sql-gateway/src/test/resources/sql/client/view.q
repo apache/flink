@@ -27,38 +27,45 @@ CREATE TABLE orders (
 ) with (
  'connector' = 'datagen'
 );
+!output
 [INFO] Execute statement succeed.
 !info
 
 # ==== test temporary view =====
 
 create temporary view v1 as select * from orders;
+!output
 [INFO] Execute statement succeed.
 !info
 
 create temporary view v1 as select * from orders;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Temporary table '`default_catalog`.`default_database`.`v1`' already exists
 !error
 
 # TODO: warning users the view already exists
 create temporary view if not exists v1 as select * from orders;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test query a view with hint
 select * from v1 /*+ OPTIONS('number-of-rows' = '1') */;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: View '`default_catalog`.`default_database`.`v1`' cannot be enriched with new options. Hints can only be applied to tables.
 !error
 
 # test create a view reference another view
 create temporary view if not exists v2 as select * from v1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test show create a temporary view
 show create view v1;
+!output
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                                                                     result |
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -71,6 +78,7 @@ FROM `default_catalog`.`default_database`.`orders` |
 
 # test show create a temporary view reference another view
 show create view v2;
+!output
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                                                                 result |
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -82,6 +90,7 @@ FROM `default_catalog`.`default_database`.`v1` |
 !ok
 
 show tables;
+!output
 +------------+
 | table name |
 +------------+
@@ -93,6 +102,7 @@ show tables;
 !ok
 
 show views;
+!output
 +-----------+
 | view name |
 +-----------+
@@ -104,6 +114,7 @@ show views;
 
 # test SHOW CREATE TABLE for views
 show create table v1;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.TableException: SHOW CREATE TABLE is only supported for tables, but `default_catalog`.`default_database`.`v1` is a view. Please use SHOW CREATE VIEW instead.
 !error
@@ -112,22 +123,26 @@ org.apache.flink.table.api.TableException: SHOW CREATE TABLE is only supported f
 
 # register a permanent view with the duplicate name with temporary view
 create view v1 as select * from orders;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test create duplicate view
 create view v1 as select * from orders;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.catalog.exceptions.TableAlreadyExistException: Table (or view) default_database.v1 already exists in Catalog default_catalog.
 !error
 
 # test show create a permanent view
 create view permanent_v1 as select * from orders;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test show create a permanent view
 show create view permanent_v1;
+!output
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                                                                     result |
 +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -140,11 +155,13 @@ FROM `default_catalog`.`default_database`.`orders` |
 
 # remove permanent_v1 view
 drop view permanent_v1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # we didn't distinguish the temporary v1 and permanent v1 for now
 show views;
+!output
 +-----------+
 | view name |
 +-----------+
@@ -156,6 +173,7 @@ show views;
 
 # test describe view
 describe v1;
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -170,6 +188,7 @@ describe v1;
 
 # test SHOW COLUMNS
 show columns from v1;
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -183,6 +202,7 @@ show columns from v1;
 !ok
 
 show columns in v1;
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -196,14 +216,17 @@ show columns in v1;
 !ok
 
 show columns from v1 like '%u';
+!output
 Empty set
 !ok
 
 show columns in v1 like '%u';
+!output
 Empty set
 !ok
 
 show columns from v1 not like '%u';
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -217,6 +240,7 @@ show columns from v1 not like '%u';
 !ok
 
 show columns in v1 not like '%u';
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -230,6 +254,7 @@ show columns in v1 not like '%u';
 !ok
 
 show columns from v1 like '%r';
+!output
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
@@ -239,6 +264,7 @@ show columns from v1 like '%r';
 !ok
 
 show columns in v1 like '%r';
+!output
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
@@ -248,6 +274,7 @@ show columns in v1 like '%r';
 !ok
 
 show columns from v1 not like  '%r';
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -260,6 +287,7 @@ show columns from v1 not like  '%r';
 !ok
 
 show columns in v1 not like  '%r';
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -272,6 +300,7 @@ show columns in v1 not like  '%r';
 !ok
 
 show columns from v1 like '%u%';
+!output
 +---------+-------------+-------+-----+--------+-----------+
 |    name |        type |  null | key | extras | watermark |
 +---------+-------------+-------+-----+--------+-----------+
@@ -283,6 +312,7 @@ show columns from v1 like '%u%';
 !ok
 
 show columns in v1 like '%u%';
+!output
 +---------+-------------+-------+-----+--------+-----------+
 |    name |        type |  null | key | extras | watermark |
 +---------+-------------+-------+-----+--------+-----------+
@@ -294,6 +324,7 @@ show columns in v1 like '%u%';
 !ok
 
 show columns from v1 not like '%u%';
+!output
 +-------+-----------------------------+-------+-----+--------+-----------+
 |  name |                        type |  null | key | extras | watermark |
 +-------+-----------------------------+-------+-----+--------+-----------+
@@ -304,6 +335,7 @@ show columns from v1 not like '%u%';
 !ok
 
 show columns in v1 not like '%u%';
+!output
 +-------+-----------------------------+-------+-----+--------+-----------+
 |  name |                        type |  null | key | extras | watermark |
 +-------+-----------------------------+-------+-----+--------+-----------+
@@ -314,6 +346,7 @@ show columns in v1 not like '%u%';
 !ok
 
 show columns from v1 like 'use_';
+!output
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
@@ -323,6 +356,7 @@ show columns from v1 like 'use_';
 !ok
 
 show columns in v1 like 'use_';
+!output
 +------+--------+-------+-----+--------+-----------+
 | name |   type |  null | key | extras | watermark |
 +------+--------+-------+-----+--------+-----------+
@@ -332,6 +366,7 @@ show columns in v1 like 'use_';
 !ok
 
 show columns from v1 not like 'use_';
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -344,6 +379,7 @@ show columns from v1 not like 'use_';
 !ok
 
 show columns in v1 not like 'use_';
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -357,22 +393,26 @@ show columns in v1 not like 'use_';
 
 # we can't drop permanent view if there is temporary view with the same name
 drop view v1;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Temporary view with identifier '`default_catalog`.`default_database`.`v1`' exists. Drop it first before removing the permanent view.
 !error
 
 # although temporary v2 needs temporary v1, dropping v1 first does not throw exception
 drop temporary view v1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # now we can drop permanent view v1
 drop view v1;
+!output
 [INFO] Execute statement succeed.
 !info
 
 # test drop invalid table
 drop view non_exist;
+!output
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: View with identifier 'default_catalog.default_database.non_exist' does not exist.
 !error
@@ -380,10 +420,12 @@ org.apache.flink.table.api.ValidationException: View with identifier 'default_ca
 # ===== test playing with keyword identifiers =====
 
 create view `mod` as select * from orders;
+!output
 [INFO] Execute statement succeed.
 !info
 
 describe `mod`;
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -397,6 +439,7 @@ describe `mod`;
 !ok
 
 desc `mod`;
+!output
 +---------+-----------------------------+-------+-----+--------+-----------+
 |    name |                        type |  null | key | extras | watermark |
 +---------+-----------------------------+-------+-----+--------+-----------+
@@ -410,10 +453,12 @@ desc `mod`;
 !ok
 
 drop view `mod`;
+!output
 [INFO] Execute statement succeed.
 !info
 
 show tables;
+!output
 +------------+
 | table name |
 +------------+
