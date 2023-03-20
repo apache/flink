@@ -24,6 +24,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -34,6 +35,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -324,5 +326,10 @@ public class HiveTestUtils {
             }
             return builder.toString();
         }
+    }
+
+    /** Derive the dataType from the {@link Schema.UnresolvedColumn}. */
+    public static DataType getType(Schema.UnresolvedColumn column) {
+        return (DataType) ((Schema.UnresolvedPhysicalColumn) column).getDataType();
     }
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.planner.delegation.hive.HiveParserQBMetaData;
 
 import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
@@ -56,7 +56,7 @@ public class HiveParserQB {
     private boolean insideView;
     private Set<String> aliasInsideView;
     // tableName -> <catalogTable, valuesData>
-    private final Map<String, Tuple2<CatalogTable, List<List<String>>>> valuesTableToData =
+    private final Map<String, Tuple2<ResolvedCatalogTable, List<List<String>>>> valuesTableToData =
             new HashMap<>();
 
     // used by PTFs
@@ -331,7 +331,7 @@ public class HiveParserQB {
         return false;
     }
 
-    public Map<String, Tuple2<CatalogTable, List<List<String>>>> getValuesTableToData() {
+    public Map<String, Tuple2<ResolvedCatalogTable, List<List<String>>>> getValuesTableToData() {
         return valuesTableToData;
     }
 }

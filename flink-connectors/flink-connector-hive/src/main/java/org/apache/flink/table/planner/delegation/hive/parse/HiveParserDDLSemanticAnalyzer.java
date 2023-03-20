@@ -20,10 +20,8 @@ package org.apache.flink.table.planner.delegation.hive.parse;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -36,9 +34,7 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -47,6 +43,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogView;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -740,7 +738,7 @@ public class HiveParserDDLSemanticAnalyzer {
         String[] qualified =
                 new String[] {tableIdentifier.getDatabaseName(), tableIdentifier.getObjectName()};
         String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
-        CatalogBaseTable alteredTable = getAlteredTable(tableName, true);
+        ResolvedCatalogBaseTable<?> alteredTable = getAlteredTable(tableName, true);
         if (ast.getChild(1).getType() == HiveASTParser.TOK_QUERY) {
             // alter view as
             operation = convertCreateView(ast);
@@ -850,15 +848,15 @@ public class HiveParserDDLSemanticAnalyzer {
         hiveParser.analyzeCreateView(createViewInfo, context, queryState);
 
         ObjectIdentifier viewIdentifier = parseObjectIdentifier(createViewInfo.getCompoundName());
-        TableSchema schema =
-                HiveTableUtil.createTableSchema(
+        Schema schema =
+                HiveTableUtil.createSchema(
                         createViewInfo.getSchema(),
                         Collections.emptyList(),
                         Collections.emptySet(),
                         null);
         Map<String, String> props = new HashMap<>();
         if (isAlterViewAs) {
-            CatalogBaseTable baseTable = getCatalogBaseTable(viewIdentifier);
+            ResolvedCatalogBaseTable<?> baseTable = getCatalogBaseTable(viewIdentifier);
             props.putAll(baseTable.getOptions());
             comment = baseTable.getComment();
         } else {
@@ -867,12 +865,12 @@ public class HiveParserDDLSemanticAnalyzer {
             }
         }
         CatalogView catalogView =
-                new CatalogViewImpl(
+                CatalogView.of(
+                        schema,
+                        comment,
                         createViewInfo.getOriginalText(),
                         createViewInfo.getExpandedText(),
-                        schema,
-                        props,
-                        comment);
+                        props);
         if (isAlterViewAs) {
             return new AlterViewAsOperation(viewIdentifier, catalogView);
         } else {
@@ -1066,15 +1064,17 @@ public class HiveParserDDLSemanticAnalyzer {
                         hiveParser.createCalcitePlanner(context, queryState);
                 calcitePlanner.setCtasCols(cols);
                 RelNode queryRelNode = calcitePlanner.genLogicalPlan(selectStmt);
-                TableSchema tableSchema =
-                        HiveTableUtil.createTableSchema(
+                ResolvedSchema schema =
+                        HiveTableUtil.createResolvedSchema(
                                 cols, partCols, Collections.emptySet(), null);
-                CatalogTable destTable =
-                        new CatalogTableImpl(
-                                tableSchema,
-                                HiveCatalog.getFieldNames(partCols),
-                                tblProps,
-                                comment);
+                ResolvedCatalogTable destTable =
+                        new ResolvedCatalogTable(
+                                CatalogTable.of(
+                                        Schema.newBuilder().fromResolvedSchema(schema).build(),
+                                        comment,
+                                        HiveCatalog.getFieldNames(partCols),
+                                        tblProps),
+                                schema);
 
                 Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean>
                         insertOperationInfo =
@@ -1196,12 +1196,10 @@ public class HiveParserDDLSemanticAnalyzer {
         if (uniqueConstraint != null) {
             notNullColSet.addAll(uniqueConstraint.getColumns());
         }
-        TableSchema tableSchema =
-                HiveTableUtil.createTableSchema(cols, partCols, notNullColSet, uniqueConstraint);
+        Schema schema = HiveTableUtil.createSchema(cols, partCols, notNullColSet, uniqueConstraint);
         return new CreateTableOperation(
                 identifier,
-                new CatalogTableImpl(
-                        tableSchema, HiveCatalog.getFieldNames(partCols), props, comment),
+                CatalogTable.of(schema, comment, HiveCatalog.getFieldNames(partCols), props),
                 ifNotExists,
                 isTemporary);
     }
@@ -1414,7 +1412,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableProps(
-            CatalogBaseTable alteredTable,
+            ResolvedCatalogBaseTable alteredTable,
             String tableName,
             HashMap<String, String> partSpec,
             HiveParserASTNode ast,
@@ -1463,7 +1461,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         if (expectView) {
-            return convertAlterViewProps(alteredTable, tableName, mapProp);
+            return convertAlterViewProps((ResolvedCatalogView) alteredTable, tableName, mapProp);
         } else {
             Map<String, String> newProps = new HashMap<>();
             newProps.put(ALTER_TABLE_OP, CHANGE_TBL_PROPS.name());
@@ -1944,12 +1942,12 @@ public class HiveParserDDLSemanticAnalyzer {
             // disallow changing partition columns
             throw new ValidationException("CHANGE COLUMN cannot be applied to partition columns");
         }
-        TableSchema oldSchema = oldTable.getSchema();
-        TableColumn newTableColumn =
-                TableColumn.physical(
+        ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+        Column newTableColumn =
+                Column.physical(
                         newName,
                         HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(newType)));
-        TableSchema newSchema =
+        ResolvedSchema newSchema =
                 OperationConverterUtils.changeColumn(
                         oldSchema, oldName, newTableColumn, first, flagCol);
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
@@ -1967,7 +1965,7 @@ public class HiveParserDDLSemanticAnalyzer {
                                                 new ValidationException(
                                                         "Can not find the old column: "
                                                                 + oldColName)),
-                        Column.physical(newTableColumn.getName(), newTableColumn.getType())
+                        Column.physical(newTableColumn.getName(), newTableColumn.getDataType())
                                 .withComment(newComment),
                         first
                                 ? TableChange.ColumnPosition.first()
@@ -1978,13 +1976,21 @@ public class HiveParserDDLSemanticAnalyzer {
         return new AlterTableChangeOperation(
                 tableIdentifier,
                 tableChanges,
-                new CatalogTableImpl(
-                        newSchema, oldTable.getPartitionKeys(), props, oldTable.getComment()),
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(newSchema).build(),
+                                oldTable.getComment(),
+                                oldTable.getPartitionKeys(),
+                                props),
+                        newSchema),
                 false);
     }
 
     private Operation convertAlterTableModifyCols(
-            CatalogBaseTable alteredTable, String tblName, HiveParserASTNode ast, boolean replace)
+            ResolvedCatalogBaseTable alteredTable,
+            String tblName,
+            HiveParserASTNode ast,
+            boolean replace)
             throws SemanticException {
 
         List<FieldSchema> newCols =
@@ -1995,7 +2001,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tblName);
-        CatalogTable oldTable = (CatalogTable) alteredTable;
+        ResolvedCatalogTable oldTable = (ResolvedCatalogTable) alteredTable;
 
         // prepare properties
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
@@ -2003,51 +2009,52 @@ public class HiveParserDDLSemanticAnalyzer {
         if (isCascade) {
             props.put(ALTER_COL_CASCADE, "true");
         }
-        TableSchema oldSchema = oldTable.getSchema();
+        ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         final int numPartCol = oldTable.getPartitionKeys().size();
-        TableSchema.Builder builder = TableSchema.builder();
         // add existing non-part col if we're not replacing
+        List<Column> newColumns = new ArrayList<>();
         if (!replace) {
-            List<TableColumn> nonPartCols =
-                    oldSchema.getTableColumns().subList(0, oldSchema.getFieldCount() - numPartCol);
-            for (TableColumn column : nonPartCols) {
-                builder.add(column);
-            }
-            setWatermarkAndPK(builder, oldSchema);
+            List<Column> nonPartCols =
+                    oldSchema.getColumns().subList(0, oldSchema.getColumnCount() - numPartCol);
+
+            newColumns.addAll(nonPartCols);
         }
         // add new cols
         for (FieldSchema col : newCols) {
-            builder.add(
-                    TableColumn.physical(
+            newColumns.add(
+                    Column.physical(
                             col.getName(),
                             HiveTypeUtil.toFlinkType(
                                     TypeInfoUtils.getTypeInfoFromTypeString(col.getType()))));
         }
         // add part cols
-        List<TableColumn> partCols =
+        List<Column> partCols =
                 oldSchema
-                        .getTableColumns()
-                        .subList(oldSchema.getFieldCount() - numPartCol, oldSchema.getFieldCount());
-        for (TableColumn column : partCols) {
-            builder.add(column);
+                        .getColumns()
+                        .subList(
+                                oldSchema.getColumnCount() - numPartCol,
+                                oldSchema.getColumnCount());
+        newColumns.addAll(partCols);
+        ResolvedSchema newSchema;
+        if (!replace) {
+            newSchema =
+                    new ResolvedSchema(
+                            newColumns,
+                            oldSchema.getWatermarkSpecs(),
+                            oldSchema.getPrimaryKey().orElse(null));
+        } else {
+            newSchema = ResolvedSchema.of(newColumns);
         }
         return new AlterTableSchemaOperation(
                 tableIdentifier,
-                new CatalogTableImpl(
-                        builder.build(), oldTable.getPartitionKeys(), props, oldTable.getComment()),
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(newSchema).build(),
+                                oldTable.getComment(),
+                                oldTable.getPartitionKeys(),
+                                props),
+                        newSchema),
                 false);
-    }
-
-    private static void setWatermarkAndPK(TableSchema.Builder builder, TableSchema schema) {
-        for (WatermarkSpec watermarkSpec : schema.getWatermarkSpecs()) {
-            builder.watermark(watermarkSpec);
-        }
-        schema.getPrimaryKey()
-                .ifPresent(
-                        pk -> {
-                            builder.primaryKey(
-                                    pk.getName(), pk.getColumns().toArray(new String[0]));
-                        });
     }
 
     private Operation convertAlterTableDropParts(String[] qualified, HiveParserASTNode ast) {
@@ -2152,18 +2159,20 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterViewProps(
-            CatalogBaseTable oldBaseTable, String tableName, Map<String, String> newProps) {
+            ResolvedCatalogView oldView, String tableName, Map<String, String> newProps) {
         ObjectIdentifier viewIdentifier = parseObjectIdentifier(tableName);
-        CatalogView oldView = (CatalogView) oldBaseTable;
         Map<String, String> props = new HashMap<>(oldView.getOptions());
         props.putAll(newProps);
+        ResolvedSchema schema = oldView.getResolvedSchema();
         CatalogView newView =
-                new CatalogViewImpl(
-                        oldView.getOriginalQuery(),
-                        oldView.getExpandedQuery(),
-                        oldView.getSchema(),
-                        props,
-                        oldView.getComment());
+                new ResolvedCatalogView(
+                        CatalogView.of(
+                                Schema.newBuilder().fromResolvedSchema(schema).build(),
+                                oldView.getComment(),
+                                oldView.getOriginalQuery(),
+                                oldView.getExpandedQuery(),
+                                props),
+                        schema);
         return new AlterViewPropertiesOperation(viewIdentifier, newView);
     }
 

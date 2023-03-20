@@ -422,7 +422,7 @@ public abstract class CatalogTest {
         CatalogTable table = createTable();
         catalog.createTable(path1, table, false);
 
-        assertThatThrownBy(() -> catalog.alterTable(path1, new TestTable(), false))
+        assertThatThrownBy(() -> catalog.alterTable(path1, new TestView(), false))
                 .isInstanceOf(CatalogException.class)
                 .hasMessage(
                         "Table types don't match. Existing table is 'TABLE' and new table is 'VIEW'.");
@@ -1447,10 +1447,25 @@ public abstract class CatalogTest {
     }
 
     /** Test table used to assert on a different table. */
-    public static class TestTable implements CatalogView {
+    public static class TestView implements ResolvedCatalogBaseTable<CatalogView> {
+
+        @Override
+        public TableKind getTableKind() {
+            return TableKind.VIEW;
+        }
 
         @Override
         public Map<String, String> getOptions() {
+            return null;
+        }
+
+        @Override
+        public CatalogView getOrigin() {
+            return null;
+        }
+
+        @Override
+        public ResolvedSchema getResolvedSchema() {
             return null;
         }
 
@@ -1477,16 +1492,6 @@ public abstract class CatalogTest {
         @Override
         public Optional<String> getDetailedDescription() {
             return Optional.empty();
-        }
-
-        @Override
-        public String getOriginalQuery() {
-            return "";
-        }
-
-        @Override
-        public String getExpandedQuery() {
-            return "";
         }
     }
 

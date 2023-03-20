@@ -43,7 +43,8 @@ import static org.assertj.core.api.Assertions.within;
 public class CatalogTestUtil {
     public static void checkEquals(CatalogTable t1, CatalogTable t2) {
         assertThat(t2.getTableKind()).isEqualTo(t1.getTableKind());
-        assertThat(t2.getSchema()).isEqualTo(t1.getSchema());
+
+        assertThat(getResolvedSchema(t2)).isEqualTo(getResolvedSchema(t1));
         assertThat(t2.getComment()).isEqualTo(t1.getComment());
         assertThat(t2.getPartitionKeys()).isEqualTo(t1.getPartitionKeys());
         assertThat(t2.isPartitioned()).isEqualTo(t1.isPartitioned());
@@ -63,7 +64,8 @@ public class CatalogTestUtil {
 
     public static void checkEquals(CatalogView v1, CatalogView v2) {
         assertThat(v2.getTableKind()).isEqualTo(v1.getTableKind());
-        assertThat(v1.getSchema()).isEqualTo(v1.getSchema());
+
+        assertThat(getResolvedSchema(v2)).isEqualTo(getResolvedSchema(v1));
         assertThat(v2.getComment()).isEqualTo(v1.getComment());
         assertThat(v2.getOriginalQuery()).isEqualTo(v1.getOriginalQuery());
         assertThat(v2.getExpandedQuery()).isEqualTo(v1.getExpandedQuery());
@@ -213,5 +215,19 @@ public class CatalogTestUtil {
 
     private static boolean isHiveTable(Map<String, String> properties) {
         return "hive".equalsIgnoreCase(properties.get(FactoryUtil.CONNECTOR.key()));
+    }
+
+    /**
+     * We unify it to ResolvedSchema for comparing.
+     *
+     * @param catalogBaseTable The target catalog base table.
+     * @return The resolved schema.
+     */
+    private static ResolvedSchema getResolvedSchema(CatalogBaseTable catalogBaseTable) {
+        if (catalogBaseTable instanceof ResolvedCatalogBaseTable) {
+            return ((ResolvedCatalogBaseTable<?>) catalogBaseTable).getResolvedSchema();
+        } else {
+            return catalogBaseTable.getUnresolvedSchema().resolve(new TestSchemaResolver());
+        }
     }
 }

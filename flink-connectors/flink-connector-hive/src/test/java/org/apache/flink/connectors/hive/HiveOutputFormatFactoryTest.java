@@ -21,7 +21,8 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -50,7 +51,6 @@ public class HiveOutputFormatFactoryTest {
 
     @Test
     public void testCreateOutputFormat() {
-        TableSchema schema = TableSchema.builder().field("x", DataTypes.INT()).build();
         SerDeInfo serDeInfo =
                 new SerDeInfo("name", LazySimpleSerDe.class.getName(), Collections.emptyMap());
         HiveWriterFactory writerFactory =
@@ -58,7 +58,7 @@ public class HiveOutputFormatFactoryTest {
                         new JobConf(),
                         VerifyURIOutputFormat.class,
                         serDeInfo,
-                        schema,
+                        ResolvedSchema.of(Column.physical("x", DataTypes.INT())),
                         new String[0],
                         new Properties(),
                         HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
