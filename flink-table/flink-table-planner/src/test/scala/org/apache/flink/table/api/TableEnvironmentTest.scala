@@ -2802,7 +2802,11 @@ class TableEnvironmentTest {
         table: CatalogBaseTable): CatalogBaseTable = {
       numTempTable += 1
       if (table.isInstanceOf[CatalogTable]) {
-        new CatalogTableImpl(table.getSchema, table.getOptions, tableComment)
+        CatalogTable.of(
+          table.getUnresolvedSchema,
+          tableComment,
+          Collections.emptyList(),
+          table.getOptions)
       } else {
         val view = table.asInstanceOf[CatalogView]
         CatalogView.of(

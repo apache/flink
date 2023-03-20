@@ -24,9 +24,9 @@ import org.apache.flink.configuration.{BatchExecutionOptions, Configuration}
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.api.{Schema, TableEnvironment, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.catalog.{CatalogTableImpl, ObjectPath}
+import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedSchema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
@@ -318,11 +319,19 @@ object PartitionableSinkITCase {
         properties.putString("partition-column." + i, part)
     }
 
-    val table = new CatalogTableImpl(
-      new TableSchema(Array("a", "b", "c"), rowType.getFieldTypes),
+    val table = CatalogTable.of(
+      Schema
+        .newBuilder()
+        .fromResolvedSchema(
+          ResolvedSchema.physical(
+            Array("a", "b", "c"),
+            TypeConversions.fromLegacyInfoToDataType(rowType.getFieldTypes)
+          )
+        )
+        .build(),
+      "",
       util.Arrays.asList[String](partitionColumns: _*),
-      properties.asMap(),
-      ""
+      properties.asMap()
     )
     tEnv
       .getCatalog(tEnv.getCurrentCatalog)

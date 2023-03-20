@@ -22,16 +22,17 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -102,16 +103,19 @@ public class SqlNodeToOperationConversionTestBase {
 
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
-        final TableSchema tableSchema =
-                TableSchema.builder()
-                        .field("a", DataTypes.BIGINT())
-                        .field("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
-                        .field("c", DataTypes.INT())
-                        .field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
+        final Schema tableSchema =
+                Schema.newBuilder()
+                        .fromResolvedSchema(
+                                ResolvedSchema.of(
+                                        Column.physical("a", DataTypes.BIGINT()),
+                                        Column.physical("b", DataTypes.VARCHAR(Integer.MAX_VALUE)),
+                                        Column.physical("c", DataTypes.INT()),
+                                        Column.physical("d", DataTypes.VARCHAR(Integer.MAX_VALUE))))
                         .build();
         Map<String, String> options = new HashMap<>();
         options.put("connector", "COLLECTION");
-        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, options, "");
+        final CatalogTable catalogTable =
+                CatalogTable.of(tableSchema, "", Collections.emptyList(), options);
         catalog.createTable(path1, catalogTable, true);
         catalog.createTable(path2, catalogTable, true);
     }

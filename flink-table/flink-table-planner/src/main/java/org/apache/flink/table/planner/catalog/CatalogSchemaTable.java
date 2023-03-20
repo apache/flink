@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -172,12 +172,19 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                 TableSourceFactory.Context context =
                         new TableSourceFactoryContextImpl(
                                 contextResolvedTable.getIdentifier(),
-                                new CatalogTableImpl(
-                                        TableSchemaUtils.removeTimeAttributeFromResolvedSchema(
-                                                originTable.getResolvedSchema()),
-                                        originTable.getPartitionKeys(),
-                                        originTable.getOptions(),
-                                        originTable.getComment()),
+                                new ResolvedCatalogTable(
+                                        CatalogTable.of(
+                                                Schema.newBuilder()
+                                                        .fromResolvedSchema(
+                                                                TableSchemaUtils
+                                                                        .removeTimeAttributeFromResolvedSchema(
+                                                                                originTable
+                                                                                        .getResolvedSchema()))
+                                                        .build(),
+                                                originTable.getComment(),
+                                                originTable.getPartitionKeys(),
+                                                originTable.getOptions()),
+                                        originTable.getResolvedSchema()),
                                 config,
                                 contextResolvedTable.isTemporary());
                 TableSource<?> source = TableFactoryUtil.findAndCreateTableSource(context);
