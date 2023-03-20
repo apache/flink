@@ -64,7 +64,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
     @Override
     protected Configuration getEffectiveConfigurationForResourceManager(
             Configuration configuration) {
-        if (ClusterOptions.isFineGrainedResourceManagementEnabled(configuration)) {
+        if (configuration.getBoolean(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)) {
             final Configuration copiedConfig = new Configuration(configuration);
 
             if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
