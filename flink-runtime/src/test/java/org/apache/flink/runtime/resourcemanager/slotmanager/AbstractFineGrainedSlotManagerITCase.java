@@ -46,6 +46,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +85,40 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                                                             resourceRequirements));
 
                             assertFutureCompleteAndReturn(allocateResourceFuture);
+                        });
+            }
+        };
+    }
+
+    /**
+     * Tests that resources continue to be considered missing if we cannot allocate more resources.
+     */
+    @Test
+    void testRequirementDeclarationWithResourceAllocationFailure() throws Exception {
+        final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
+
+        final CompletableFuture<Void> allocateResourceFuture = new CompletableFuture<>();
+        new Context() {
+            {
+                resourceAllocatorBuilder
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> allocateResourceFuture.complete(null))
+                        .setIsSupportedSupplier(() -> false);
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            resourceRequirements));
+
+                            assertFutureNotComplete(allocateResourceFuture);
+                            assertThat(
+                                            getTotalResourceCount(
+                                                    getResourceTracker()
+                                                            .getMissingResources()
+                                                            .get(resourceRequirements.getJobId())))
+                                    .isEqualTo(1);
                         });
             }
         };
@@ -453,11 +488,17 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                                                     .processResourceRequirements(
                                                             resourceRequirements));
                             assertFutureCompleteAndReturn(allocateResourceFutures);
+                            assertThat(getResourceTracker().getMissingResources()).hasSize(1);
+
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .clearResourceRequirements(
+                                                            resourceRequirements.getJobId()));
+                            assertThat(getResourceTracker().getMissingResources()).isEmpty();
+
                             runInMainThread(
                                     () -> {
-                                        getSlotManager()
-                                                .clearResourceRequirements(
-                                                        resourceRequirements.getJobId());
                                         getSlotManager()
                                                 .registerTaskManager(
                                                         taskManagerConnection,
@@ -583,12 +624,22 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
     // Slot allocation failure handling
     // ---------------------------------------------------------------------------------------------
 
+    /** Tests that if a slot allocation times out we try to allocate another slot. */
+    @Test
+    void testSlotRequestTimeout() throws Exception {
+        testSlotRequestFailureWithException(new TimeoutException("timeout"));
+    }
+
     /**
      * Tests that the SlotManager retries allocating a slot if the TaskExecutor#requestSlot call
      * fails.
      */
     @Test
     void testSlotRequestFailure() throws Exception {
+        testSlotRequestFailureWithException(new SlotAllocationException("Test exception."));
+    }
+
+    void testSlotRequestFailureWithException(Exception exception) throws Exception {
         final JobID jobId = new JobID();
         final ResourceRequirements resourceRequirements =
                 createResourceRequirementsForSingleSlot(jobId);
@@ -635,10 +686,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
 
                             // let the first attempt fail --> this should trigger a second attempt
                             runInMainThread(
-                                    () ->
-                                            slotRequestFuture1.completeExceptionally(
-                                                    new SlotAllocationException(
-                                                            "Test exception.")));
+                                    () -> slotRequestFuture1.completeExceptionally(exception));
 
                             final AllocationID secondAllocationId = allocationIds.take();
                             assertThat(allocationIds).isEmpty();

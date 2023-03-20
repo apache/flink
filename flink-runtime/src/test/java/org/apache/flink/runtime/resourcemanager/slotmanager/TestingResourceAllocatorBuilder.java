@@ -20,11 +20,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import java.util.Collection;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Builder for the {@link TestingResourceAllocator}. */
 public class TestingResourceAllocatorBuilder {
     private Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer =
             (ignored) -> {};
+    private Supplier<Boolean> isSupportedSupplier = () -> true;
 
     public TestingResourceAllocatorBuilder setDeclareResourceNeededConsumer(
             Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer) {
@@ -32,7 +34,11 @@ public class TestingResourceAllocatorBuilder {
         return this;
     }
 
+    public void setIsSupportedSupplier(Supplier<Boolean> isSupportedSupplier) {
+        this.isSupportedSupplier = isSupportedSupplier;
+    }
+
     public TestingResourceAllocator build() {
-        return new TestingResourceAllocator(declareResourceNeededConsumer);
+        return new TestingResourceAllocator(declareResourceNeededConsumer, isSupportedSupplier);
     }
 }
