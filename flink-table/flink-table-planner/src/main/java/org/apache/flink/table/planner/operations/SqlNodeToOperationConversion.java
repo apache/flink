@@ -300,21 +300,13 @@ public class SqlNodeToOperationConversion {
                 new SqlNodeToOperationConversion(flinkPlanner, catalogManager);
         if (validated instanceof SqlDropCatalog) {
             return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
-        } else if (validated instanceof SqlLoadModule) {
-            return Optional.of(converter.convertLoadModule((SqlLoadModule) validated));
         } else if (validated instanceof SqlShowCatalogs) {
             return Optional.of(converter.convertShowCatalogs((SqlShowCatalogs) validated));
         } else if (validated instanceof SqlShowCurrentCatalog) {
             return Optional.of(
                     converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
-        } else if (validated instanceof SqlShowModules) {
-            return Optional.of(converter.convertShowModules((SqlShowModules) validated));
-        } else if (validated instanceof SqlUnloadModule) {
-            return Optional.of(converter.convertUnloadModule((SqlUnloadModule) validated));
         } else if (validated instanceof SqlUseCatalog) {
             return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
-        } else if (validated instanceof SqlUseModules) {
-            return Optional.of(converter.convertUseModules((SqlUseModules) validated));
         } else if (validated instanceof SqlCreateDatabase) {
             return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
         } else if (validated instanceof SqlDropDatabase) {
@@ -1235,17 +1227,6 @@ public class SqlNodeToOperationConversion {
         return new DescribeTableOperation(identifier, sqlRichDescribeTable.isExtended());
     }
 
-    /** Convert LOAD MODULE statement. */
-    private Operation convertLoadModule(SqlLoadModule sqlLoadModule) {
-        String moduleName = sqlLoadModule.moduleName();
-        Map<String, String> properties = new HashMap<>();
-        for (SqlNode node : sqlLoadModule.getPropertyList().getList()) {
-            SqlTableOption option = (SqlTableOption) node;
-            properties.put(option.getKeyString(), option.getValueString());
-        }
-        return new LoadModuleOperation(moduleName, properties);
-    }
-
     private Operation convertAddJar(SqlAddJar sqlAddJar) {
         return new AddJarOperation(sqlAddJar.getPath());
     }
@@ -1256,22 +1237,6 @@ public class SqlNodeToOperationConversion {
 
     private Operation convertShowJars(SqlShowJars sqlShowJars) {
         return new ShowJarsOperation();
-    }
-
-    /** Convert UNLOAD MODULE statement. */
-    private Operation convertUnloadModule(SqlUnloadModule sqlUnloadModule) {
-        String moduleName = sqlUnloadModule.moduleName();
-        return new UnloadModuleOperation(moduleName);
-    }
-
-    /** Convert USE MODULES statement. */
-    private Operation convertUseModules(SqlUseModules sqlUseModules) {
-        return new UseModulesOperation(sqlUseModules.moduleNames());
-    }
-
-    /** Convert SHOW [FULL] MODULES statement. */
-    private Operation convertShowModules(SqlShowModules sqlShowModules) {
-        return new ShowModulesOperation(sqlShowModules.requireFull());
     }
 
     /** Convert SET ['key' = 'value']. */
