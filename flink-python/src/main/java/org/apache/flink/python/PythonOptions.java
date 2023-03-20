@@ -131,7 +131,8 @@ public class PythonOptions {
                             Description.builder()
                                     .text(
                                             "Specify the path on the Worker Node where the Flink Python Dependencies are installed, which "
-                                                    + "gets added into the PYTHONPATH of the Python Worker. ")
+                                                    + "gets added into the PYTHONPATH of the Python Worker."
+                                                    + " The option is equivalent to the command line option \"-pypath\".")
                                     .build());
 
     public static final ConfigOption<String> PYTHON_ARCHIVES =

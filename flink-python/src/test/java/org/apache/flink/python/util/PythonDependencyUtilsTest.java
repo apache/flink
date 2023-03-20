@@ -234,6 +234,18 @@ class PythonDependencyUtilsTest {
         verifyConfiguration(expectedConfiguration, config);
     }
 
+    @Test
+    void testPythonPath() {
+        String pyPath =
+                "venv/bin/python3/lib64/python3.7/site-packages/:venv/bin/python3/lib/python3.7/site-packages/";
+        Configuration config = new Configuration();
+        config.set(PythonOptions.PYTHON_PATH, pyPath);
+        Configuration actual = configurePythonDependencies(cachedFiles, config);
+        Configuration expectedConfiguration = new Configuration();
+        expectedConfiguration.set(PythonOptions.PYTHON_PATH, pyPath);
+        verifyConfiguration(expectedConfiguration, actual);
+    }
+
     private void verifyCachedFiles(Map<String, String> expected) {
         Map<String, String> actual =
                 cachedFiles.stream().collect(Collectors.toMap(t -> t.f0, t -> t.f1.filePath));

@@ -188,4 +188,18 @@ class PythonOptionsTest {
                 configuration.getBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
         assertThat(actualIsSystemEnvEnabled).isEqualTo(expectedIsSystemEnvEnabled);
     }
+
+    @Test
+    void testPythonPath() {
+        final Configuration configuration = new Configuration();
+        final Optional<String> defaultPythonPath =
+                configuration.getOptional(PythonOptions.PYTHON_PATH);
+        assertThat(defaultPythonPath).isEmpty();
+
+        final String expectedPythonPath = "venv/py37/bin/python";
+        configuration.set(PythonOptions.PYTHON_PATH, expectedPythonPath);
+
+        final String actualPythonPath = configuration.get(PythonOptions.PYTHON_PATH);
+        assertThat(actualPythonPath).isEqualTo(expectedPythonPath);
+    }
 }

@@ -44,6 +44,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
@@ -109,6 +110,9 @@ public class PythonDependencyUtils {
             config.set(
                     PythonOptions.PYTHON_CLIENT_EXECUTABLE,
                     commandLine.getOptionValue(PYCLIENTEXEC_OPTION.getOpt()));
+        }
+        if (commandLine.hasOption(PYTHON_PATH.getOpt())) {
+            config.set(PythonOptions.PYTHON_PATH, commandLine.getOptionValue(PYTHON_PATH.getOpt()));
         }
 
         return config;
@@ -312,6 +316,11 @@ public class PythonDependencyUtils {
 
             config.getOptional(PYTHON_CLIENT_EXECUTABLE)
                     .ifPresent(e -> pythonDependencyConfig.set(PYTHON_CLIENT_EXECUTABLE, e));
+
+            config.getOptional(PythonOptions.PYTHON_PATH)
+                    .ifPresent(
+                            pyPath ->
+                                    pythonDependencyConfig.set(PythonOptions.PYTHON_PATH, pyPath));
         }
 
         private String generateUniqueFileKey(String prefix, String hashString) {
