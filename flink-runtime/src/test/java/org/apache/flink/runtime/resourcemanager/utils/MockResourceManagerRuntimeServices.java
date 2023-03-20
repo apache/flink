@@ -25,13 +25,10 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.DefaultJobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
-import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,18 +42,6 @@ public class MockResourceManagerRuntimeServices {
     public final TestingLeaderElectionService rmLeaderElectionService;
     public final JobLeaderIdService jobLeaderIdService;
     public final SlotManager slotManager;
-
-    public MockResourceManagerRuntimeServices(RpcService rpcService) {
-        this(
-                rpcService,
-                DeclarativeSlotManagerBuilder.newBuilder(
-                                new ScheduledExecutorServiceAdapter(
-                                        new DirectScheduledExecutorService()))
-                        .setTaskManagerRequestTimeout(Time.seconds(10))
-                        .setSlotRequestTimeout(Time.seconds(10))
-                        .setTaskManagerTimeout(Time.minutes(1))
-                        .build());
-    }
 
     public MockResourceManagerRuntimeServices(RpcService rpcService, SlotManager slotManager) {
         this.rpcService = checkNotNull(rpcService);
