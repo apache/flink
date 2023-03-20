@@ -37,6 +37,10 @@ public class SqlNodeConverters {
     static {
         // register all the converters here
         register(new SqlCreateCatalogConverter());
+        register(new SqlUseCatalogConverter());
+        register(new SqlShowCatalogsConverter());
+        register(new SqlShowCatalogsConverter());
+        register(new SqlDropCatalogConverter());
     }
 
     /**
