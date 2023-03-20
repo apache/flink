@@ -84,6 +84,15 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         };
     }
 
+    @Test
+    void testCloseAfterSuspendDoesNotThrowException() throws Exception {
+        new Context() {
+            {
+                runTest(() -> getSlotManager().suspend());
+            }
+        };
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Register / unregister TaskManager and and slot status reconciliation
     // ---------------------------------------------------------------------------------------------
@@ -672,12 +681,11 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
             {
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
-                            assertThat(resourceDeclarations.size()).isEqualTo(1);
+                            assertThat(resourceDeclarations).hasSize(1);
                             ResourceDeclaration resourceDeclaration =
                                     resourceDeclarations.iterator().next();
                             assertThat(resourceDeclaration.getNumNeeded()).isEqualTo(0);
-                            assertThat(resourceDeclaration.getUnwantedWorkers().size())
-                                    .isEqualTo(1);
+                            assertThat(resourceDeclaration.getUnwantedWorkers()).hasSize(1);
                             releaseResourceFuture.complete(
                                     resourceDeclaration.getUnwantedWorkers().iterator().next());
                         });

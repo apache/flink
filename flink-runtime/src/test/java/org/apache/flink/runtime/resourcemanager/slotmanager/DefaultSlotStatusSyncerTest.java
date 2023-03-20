@@ -116,6 +116,65 @@ class DefaultSlotStatusSyncerTest {
     }
 
     @Test
+    void testAllocationUpdatesIgnoredIfSlotFreed() throws Exception {
+        final FineGrainedTaskManagerTracker taskManagerTracker =
+                new FineGrainedTaskManagerTracker();
+        final CompletableFuture<
+                        Tuple6<
+                                SlotID,
+                                JobID,
+                                AllocationID,
+                                ResourceProfile,
+                                String,
+                                ResourceManagerId>>
+                requestFuture = new CompletableFuture<>();
+        final CompletableFuture<Acknowledge> responseFuture = new CompletableFuture<>();
+        final TestingTaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setRequestSlotFunction(
+                                tuple6 -> {
+                                    requestFuture.complete(tuple6);
+                                    return responseFuture;
+                                })
+                        .createTestingTaskExecutorGateway();
+        final TaskExecutorConnection taskExecutorConnection =
+                new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
+        taskManagerTracker.addTaskManager(
+                taskExecutorConnection, ResourceProfile.ANY, ResourceProfile.ANY);
+        final ResourceTracker resourceTracker = new DefaultResourceTracker();
+        final JobID jobId = new JobID();
+        final SlotStatusSyncer slotStatusSyncer =
+                new DefaultSlotStatusSyncer(TASK_MANAGER_REQUEST_TIMEOUT);
+        slotStatusSyncer.initialize(
+                taskManagerTracker,
+                resourceTracker,
+                ResourceManagerId.generate(),
+                EXECUTOR_RESOURCE.getExecutor());
+
+        final CompletableFuture<Void> allocatedFuture =
+                slotStatusSyncer.allocateSlot(
+                        taskExecutorConnection.getInstanceID(),
+                        jobId,
+                        "address",
+                        ResourceProfile.ANY);
+        final AllocationID allocationId = requestFuture.get().f2;
+        assertThat(resourceTracker.getAcquiredResources(jobId))
+                .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));
+        assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId))
+                .hasValueSatisfying(
+                        slot -> {
+                            assertThat(slot.getJobId()).isEqualTo(jobId);
+                            assertThat(slot.getState()).isEqualTo(SlotState.PENDING);
+                        });
+
+        slotStatusSyncer.freeSlot(allocationId);
+        assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId)).isEmpty();
+
+        responseFuture.complete(Acknowledge.get());
+        assertThat(allocatedFuture).isNotCompletedExceptionally();
+    }
+
+    @Test
     void testAllocateSlotFailsWithException() {
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
@@ -180,6 +239,12 @@ class DefaultSlotStatusSyncerTest {
                 ResourceProfile.ANY,
                 SlotState.ALLOCATED);
         resourceTracker.notifyAcquiredResource(jobId, ResourceProfile.ANY);
+
+        // unknown slot will be ignored.
+        slotStatusSyncer.freeSlot(new AllocationID());
+        assertThat(resourceTracker.getAcquiredResources(jobId))
+                .containsExactly(ResourceRequirement.create(ResourceProfile.ANY, 1));
+        assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId)).isPresent();
 
         slotStatusSyncer.freeSlot(allocationId);
         assertThat(resourceTracker.getAcquiredResources(jobId)).isEmpty();
