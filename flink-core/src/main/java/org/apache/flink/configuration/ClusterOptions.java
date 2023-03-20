@@ -137,10 +137,12 @@ public class ClusterOptions {
                             "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Deprecated
     public static final ConfigOption<Boolean> ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT =
             ConfigOptions.key("cluster.fine-grained-resource-management.enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Defines whether the cluster uses fine-grained resource management.");
 
@@ -224,14 +226,6 @@ public class ClusterOptions {
                     == JobManagerOptions.SchedulerType.Adaptive;
         } else {
             return System.getProperties().containsKey("flink.tests.enable-adaptive-scheduler");
-        }
-    }
-
-    public static boolean isFineGrainedResourceManagementEnabled(Configuration configuration) {
-        if (configuration.contains(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)) {
-            return configuration.get(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT);
-        } else {
-            return System.getProperties().containsKey("flink.tests.enable-fine-grained");
         }
     }
 

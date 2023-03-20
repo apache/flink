@@ -84,7 +84,7 @@ public class ResourceManagerRuntimeServicesConfiguration {
                         configuration, defaultWorkerResourceSpec);
 
         final boolean enableFineGrainedResourceManagement =
-                ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
+                configuration.getBoolean(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT);
 
         return new ResourceManagerRuntimeServicesConfiguration(
                 jobTimeout, slotManagerConfiguration, enableFineGrainedResourceManagement);
