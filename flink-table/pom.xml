@@ -46,6 +46,8 @@ under the License.
 		<module>flink-sql-gateway-api</module>
 		<module>flink-sql-gateway</module>
 		<module>flink-sql-client</module>
+		<module>flink-sql-jdbc-driver</module>
+		<module>flink-sql-jdbc-driver-bundle</module>
 		<module>flink-sql-parser</module>
 		<module>flink-table-code-splitter</module>
 		<module>flink-table-test-utils</module>
