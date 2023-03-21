@@ -266,7 +266,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                         Arrays.asList(
                                 Column.physical("x", DataTypes.INT().notNull()),
                                 Column.physical("y", DataTypes.TIMESTAMP(9).notNull()),
-                                Column.physical("z", DataTypes.BIGINT().notNull())),
+                                Column.physical("z", DataTypes.BIGINT())),
                         new ArrayList<>(),
                         org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
                                 "pk_name", Collections.singletonList("x")));
