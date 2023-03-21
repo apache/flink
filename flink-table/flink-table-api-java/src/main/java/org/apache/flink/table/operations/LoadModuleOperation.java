@@ -78,7 +78,7 @@ public class LoadModuleOperation implements Operation, ExecutableOperation {
         return sb.toString();
     }
 
-    // @Override
+    @Override
     public TableResultInternal execute(Context ctx) {
         try {
             final Module module =
