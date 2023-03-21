@@ -120,7 +120,7 @@ public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewaySta
 
     @Parameters(name = "parameters={0}")
     public static List<TestParameters> parameters() throws Exception {
-        return listFlinkSqlTests().stream()
+        return listFlinkSqlTests(RESOURCE_DIR).stream()
                 .flatMap(
                         path ->
                                 Stream.of(

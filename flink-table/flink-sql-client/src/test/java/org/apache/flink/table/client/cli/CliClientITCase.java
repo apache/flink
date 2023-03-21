@@ -33,9 +33,6 @@ import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
-
-import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.MaskingCallback;
@@ -53,7 +50,6 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
@@ -62,7 +58,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -71,11 +66,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.StringUtils.repeat;
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
 import static org.apache.flink.configuration.RestOptions.PORT;
+import static org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase.listFlinkSqlTests;
 import static org.apache.flink.table.gateway.utils.SqlScriptReader.HINT_START_OF_OUTPUT;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
@@ -95,6 +90,8 @@ class CliClientITCase {
                     + "    return content + 1;\n"
                     + " }"
                     + "}\n";
+
+    private static final String RESOURCE_DIR = "sql/client";
 
     private static Path historyPath;
     private static Map<String, String> replaceVars;
@@ -121,18 +118,8 @@ class CliClientITCase {
     private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
             new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
-    static Stream<String> sqlPaths() throws Exception {
-        String first = "sql/client/table.q";
-        URL url = CliClientITCase.class.getResource("/" + first);
-        File firstFile = Paths.get(url.toURI()).toFile();
-        final int commonPrefixLength = firstFile.getAbsolutePath().length() - first.length();
-        File dir = firstFile.getParentFile();
-        final List<String> paths = new ArrayList<>();
-        final FilenameFilter filter = new PatternFilenameFilter(".*\\.q$");
-        for (File f : Util.first(dir.listFiles(filter), new File[0])) {
-            paths.add(f.getAbsolutePath().substring(commonPrefixLength));
-        }
-        return paths.stream();
+    protected static List<String> sqlPaths() throws Exception {
+        return listFlinkSqlTests(RESOURCE_DIR);
     }
 
     @BeforeAll

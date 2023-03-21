@@ -87,7 +87,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
     public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
-    private static final String RESOURCE_DIR = "sql/gateway";
+    protected static final String RESOURCE_DIR = "sql/gateway";
     private static final Pattern PATTERN = Pattern.compile(".*\\.q$");
 
     protected static SqlGatewayService service;
@@ -98,7 +98,9 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
 
     @Parameters(name = "parameters={0}")
     public static List<TestParameters> parameters() throws Exception {
-        return listFlinkSqlTests().stream().map(TestParameters::new).collect(Collectors.toList());
+        return listFlinkSqlTests(RESOURCE_DIR).stream()
+                .map(TestParameters::new)
+                .collect(Collectors.toList());
     }
 
     @BeforeAll
@@ -252,7 +254,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 values);
     }
 
-    protected static List<String> listFlinkSqlTests() throws Exception {
+    public static List<String> listFlinkSqlTests(String resourceDir) throws Exception {
         final File jarFile =
                 new File(
                         AbstractSqlGatewayStatementITCase.class
@@ -269,14 +271,14 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 while (entries.hasMoreElements()) {
                     final String name = entries.nextElement().getName();
                     // filter according to the path
-                    if (name.startsWith(RESOURCE_DIR) && PATTERN.matcher(name).matches()) {
+                    if (name.startsWith(resourceDir) && PATTERN.matcher(name).matches()) {
                         files.add(name);
                     }
                 }
             }
             return files;
         } else {
-            return listTestSpecInTheSameModule(RESOURCE_DIR);
+            return listTestSpecInTheSameModule(resourceDir);
         }
     }
 
@@ -289,6 +291,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                         StandardCharsets.UTF_8)
                 .stream()
                 .map(name -> Paths.get(resourceDir, name).toString())
+                .filter(p -> PATTERN.matcher(p).find())
                 .collect(Collectors.toList());
     }
 

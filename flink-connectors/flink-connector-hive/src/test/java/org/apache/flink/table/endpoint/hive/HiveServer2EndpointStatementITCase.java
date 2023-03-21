@@ -71,7 +71,7 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
     @Parameters(name = "parameters={0}")
     public static List<TestParameters> parameters() throws Exception {
         return Stream.concat(
-                        listFlinkSqlTests().stream()
+                        listFlinkSqlTests(RESOURCE_DIR).stream()
                                 .map(path -> new HiveTestParameters(path, true)),
                         listTestSpecInTheSameModule("endpoint").stream()
                                 .map(path -> new HiveTestParameters(path, false)))
