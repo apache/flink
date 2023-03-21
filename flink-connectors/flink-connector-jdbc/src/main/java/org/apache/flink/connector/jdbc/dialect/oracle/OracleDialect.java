@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.dialect.oracle;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.OracleRowConverter;
@@ -31,7 +32,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** JDBC dialect for Oracle. */
-class OracleDialect extends AbstractDialect {
+@Internal
+public class OracleDialect extends AbstractDialect {
 
     private static final long serialVersionUID = 1L;
 
@@ -52,7 +54,7 @@ class OracleDialect extends AbstractDialect {
 
     @Override
     public String getLimitClause(long limit) {
-        return "FETCH FIRST " + limit + " ROWS ONLY";
+        return "WHERE ROWNUM <= " + limit;
     }
 
     @Override
