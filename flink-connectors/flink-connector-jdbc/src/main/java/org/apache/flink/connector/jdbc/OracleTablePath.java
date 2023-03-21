@@ -39,7 +39,7 @@ public class OracleTablePath {
     }
 
     public static String toFlinkTableName(String schema, String table) {
-        return new org.apache.flink.connector.jdbc.catalog.PostgresTablePath(schema, table).getFullPath();
+        return new OracleTablePath(schema, table).getFullPath();
     }
 
     public String getFullPath() {
