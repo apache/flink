@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.HashMap;
@@ -32,11 +33,13 @@ import java.util.Optional;
 /** Registry of SqlNode converters. */
 public class SqlNodeConverters {
 
-    private static final Map<Class<?>, SqlNodeConverter<?>> CONVERTERS = new HashMap<>();
+    private static final Map<Class<?>, SqlNodeConverter<?>> CLASS_CONVERTERS = new HashMap<>();
+    private static final Map<SqlKind, SqlNodeConverter<?>> SQLKIND_CONVERTERS = new HashMap<>();
 
     static {
         // register all the converters here
         register(new SqlCreateCatalogConverter());
+        register(new SqlQueryConverter());
     }
 
     /**
@@ -46,19 +49,51 @@ public class SqlNodeConverters {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static Optional<Operation> convertSqlNode(
             SqlNode validatedSqlNode, ConvertContext context) {
-        SqlNodeConverter converter = CONVERTERS.get(validatedSqlNode.getClass());
-        if (converter != null) {
-            return Optional.of(converter.convertSqlNode(validatedSqlNode, context));
+        // match by class first
+        SqlNodeConverter classConverter = CLASS_CONVERTERS.get(validatedSqlNode.getClass());
+        if (classConverter != null) {
+            return Optional.of(classConverter.convertSqlNode(validatedSqlNode, context));
+        }
+
+        // match by kind if no matching items in class converters
+        SqlNodeConverter sqlKindConverter = SQLKIND_CONVERTERS.get(validatedSqlNode.getKind());
+        if (sqlKindConverter != null) {
+            return Optional.of(sqlKindConverter.convertSqlNode(validatedSqlNode, context));
         } else {
             return Optional.empty();
         }
     }
 
     private static void register(SqlNodeConverter<?> converter) {
+        // register by SqlKind if it is defined
+        if (converter.supportedSqlKinds().isPresent()) {
+            for (SqlKind sqlKind : converter.supportedSqlKinds().get()) {
+                if (SQLKIND_CONVERTERS.containsKey(sqlKind)) {
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Failed to register converter for '%s', because there is a "
+                                            + "registered converter for the SqlKind '%s'",
+                                    converter.getClass().getCanonicalName(), sqlKind));
+                } else {
+                    SQLKIND_CONVERTERS.put(sqlKind, converter);
+                }
+            }
+            return;
+        }
+
         // extract the parameter type of the converter class
         TypeInformation<?> typeInfo =
                 TypeExtractor.createTypeInfo(
                         converter, SqlNodeConverter.class, converter.getClass(), 0);
-        CONVERTERS.put(typeInfo.getTypeClass(), converter);
+        Class<?> nodeClass = typeInfo.getTypeClass();
+        if (CLASS_CONVERTERS.containsKey(nodeClass)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Failed to register converter for '%s', because there is a "
+                                    + "registered converter for the SqlNode '%s'",
+                            converter.getClass().getCanonicalName(), nodeClass.getCanonicalName()));
+        } else {
+            CLASS_CONVERTERS.put(nodeClass, converter);
+        }
     }
 }
