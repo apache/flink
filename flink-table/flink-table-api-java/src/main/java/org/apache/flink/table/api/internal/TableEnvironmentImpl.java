@@ -57,7 +57,6 @@ import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
@@ -90,14 +89,11 @@ import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
-import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
-import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -444,19 +440,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public boolean dropTemporaryFunction(String path) {
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         return functionCatalog.dropTemporaryCatalogFunction(unresolvedIdentifier, true);
-    }
-
-    // TODO: Maybe we should expose addJar as tEnv's API later.
-    private TableResultInternal addJar(AddJarOperation addJarOperation) {
-        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, addJarOperation.getPath());
-        try {
-            resourceManager.registerJarResources(Collections.singletonList(resourceUri));
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (IOException e) {
-            throw new TableException(
-                    String.format("Could not register the specified resource [%s].", resourceUri),
-                    e);
-        }
     }
 
     @Override
@@ -942,8 +925,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof StatementSetOperation) {
             return executeInternal(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof AddJarOperation) {
-            return addJar((AddJarOperation) operation);
         } else if (operation instanceof LoadModuleOperation) {
             return loadModule((LoadModuleOperation) operation);
         } else if (operation instanceof UnloadModuleOperation) {
@@ -1002,26 +983,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
-        }
-    }
-
-    private TableResultInternal createCatalog(CreateCatalogOperation operation) {
-        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
-        try {
-            String catalogName = operation.getCatalogName();
-            Map<String, String> properties = operation.getProperties();
-
-            Catalog catalog =
-                    FactoryUtil.createCatalog(
-                            catalogName,
-                            properties,
-                            tableConfig,
-                            resourceManager.getUserClassLoader());
-            catalogManager.registerCatalog(catalogName, catalog);
-
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (CatalogException e) {
-            throw new ValidationException(exMsg, e);
         }
     }
 
@@ -1097,15 +1058,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             }
                         })
                 .collect(Collectors.toList());
-    }
-
-    /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
-    private Catalog getCatalogOrThrowException(String catalogName) {
-        return getCatalog(catalogName)
-                .orElseThrow(
-                        () ->
-                                new ValidationException(
-                                        String.format("Catalog %s does not exist", catalogName)));
     }
 
     private String getDDLOpExecuteErrorMsg(String action) {
