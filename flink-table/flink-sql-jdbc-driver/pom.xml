@@ -47,4 +47,23 @@
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes>
+					<include>org/apache/flink/table/jdbc/driver.properties</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+				<excludes>
+					<exclude>org/apache/flink/table/jdbc/driver.properties</exclude>
+				</excludes>
+			</resource>
+		</resources>
+	</build>
 </project>
