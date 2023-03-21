@@ -9,7 +9,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class OracleTablePath {
 
 
-    private static final String DEFAULT_POSTGRES_SCHEMA_NAME = "public";
+    private static final String DEFAULT_ORACLE_SCHEMA_NAME = "public";
 
     private final String oracleSchemaName;
     private final String oracleTableName;
@@ -22,7 +22,7 @@ public class OracleTablePath {
         this.oracleTableName = pgTableName;
     }
 
-    public static org.apache.flink.connector.jdbc.catalog.PostgresTablePath fromFlinkTableName(String flinkTableName) {
+    public static OracleTablePath fromFlinkTableName(String flinkTableName) {
         if (flinkTableName.contains(".")) {
             String[] path = flinkTableName.split("\\.");
 
@@ -32,9 +32,9 @@ public class OracleTablePath {
                             "Table name '%s' is not valid. The parsed length is %d",
                             flinkTableName, path.length));
 
-            return new org.apache.flink.connector.jdbc.catalog.PostgresTablePath(path[0], path[1]);
+            return new OracleTablePath(path[0], path[1]);
         } else {
-            return new org.apache.flink.connector.jdbc.catalog.PostgresTablePath(DEFAULT_POSTGRES_SCHEMA_NAME, flinkTableName);
+            return new OracleTablePath(DEFAULT_ORACLE_SCHEMA_NAME, flinkTableName);
         }
     }
 

@@ -2,6 +2,7 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.flink.connector.jdbc.OracleTablePath;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectTypeMapper;
 
 import org.apache.flink.connector.jdbc.dialect.oracle.OracleTypeMapper;
@@ -145,17 +146,17 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     @Override
 
     protected String getTableName(ObjectPath tablePath) {
-        return PostgresTablePath.fromFlinkTableName(tablePath.getObjectName()).getPgTableName();
+        return OracleTablePath.fromFlinkTableName(tablePath.getObjectName()).getPgTableName();
     }
 
     @Override
     protected String getSchemaName(ObjectPath tablePath) {
-        return PostgresTablePath.fromFlinkTableName(tablePath.getObjectName()).getPgSchemaName();
+        return OracleTablePath.fromFlinkTableName(tablePath.getObjectName()).getPgSchemaName();
     }
 
     @Override
     protected String getSchemaTableName(ObjectPath tablePath) {
-        return PostgresTablePath.fromFlinkTableName(tablePath.getObjectName()).getFullPath();
+        return OracleTablePath.fromFlinkTableName(tablePath.getObjectName()).getFullPath();
     }
 
 }
