@@ -48,14 +48,24 @@ public class FlinkDriver implements Driver {
         return new DriverPropertyInfo[0];
     }
 
+    /**
+     * Major version of flink.
+     *
+     * @return the major version
+     */
     @Override
     public int getMajorVersion() {
-        return 0;
+        throw new RuntimeException("Not implemented yet, will use major version of flink.");
     }
 
+    /**
+     * Minor version of flink.
+     *
+     * @return the minor version
+     */
     @Override
     public int getMinorVersion() {
-        return 0;
+        throw new RuntimeException("Not implemented yet, will use minor version of flink.");
     }
 
     @Override

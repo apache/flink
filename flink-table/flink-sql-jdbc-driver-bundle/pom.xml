@@ -29,22 +29,49 @@
 		<version>1.18-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-sql-jdbc-driver</artifactId>
-	<name>Flink : Table : SQL Jdbc Driver</name>
+	<artifactId>flink-sql-jdbc-driver-bundle</artifactId>
+	<name>Flink : Table : SQL Jdbc Driver Bundle</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
-		<!-- Table ecosystem -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-jdbc-driver</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-gateway-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- Build flink-sql-gateway jar -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<!-- Exclude all flink-dist files and only contain sql-gateway files -->
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.flink:flink-sql-jdbc-driver</include>
+									<include>org.apache.flink:flink-sql-gateway-api</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
