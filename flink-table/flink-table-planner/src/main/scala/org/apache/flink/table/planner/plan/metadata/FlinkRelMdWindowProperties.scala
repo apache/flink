@@ -254,29 +254,25 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   }
 
   def getWindowProperties(
-      rel: StreamPhysicalWindowAggregateBase,
+      rel: StreamPhysicalWindowAggregate,
       mq: RelMetadataQuery): RelWindowProperties = {
-    rel match {
-      case _: StreamPhysicalWindowAggregate =>
-        val aggregate = rel.asInstanceOf[StreamPhysicalWindowAggregate]
-        getWindowAggregateWindowProperties(
-          aggregate.grouping.length + aggregate.aggCalls.size(),
-          aggregate.namedWindowProperties,
-          aggregate.windowing.getWindow,
-          aggregate.windowing.getTimeAttributeType
-        )
-      case _: StreamPhysicalGlobalWindowAggregate =>
-        val aggregate = rel.asInstanceOf[StreamPhysicalGlobalWindowAggregate]
-        getWindowAggregateWindowProperties(
-          aggregate.grouping.length + aggregate.aggCalls.size(),
-          aggregate.namedWindowProperties,
-          aggregate.windowing.getWindow,
-          aggregate.windowing.getTimeAttributeType
-        )
-      case _ =>
-        val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
-        fmq.getRelWindowProperties(rel.getInput)
-    }
+    getWindowAggregateWindowProperties(
+      rel.grouping.length + rel.aggCalls.size(),
+      rel.namedWindowProperties,
+      rel.windowing.getWindow,
+      rel.windowing.getTimeAttributeType
+    )
+  }
+
+  def getWindowProperties(
+      rel: StreamPhysicalGlobalWindowAggregate,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    getWindowAggregateWindowProperties(
+      rel.grouping.length + rel.aggCalls.size(),
+      rel.namedWindowProperties,
+      rel.windowing.getWindow,
+      rel.windowing.getTimeAttributeType
+    )
   }
 
   private def getWindowAggregateWindowProperties(
@@ -307,6 +303,13 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       windowSpec,
       timeAttributeType
     )
+  }
+
+  def getWindowProperties(
+      rel: StreamPhysicalLocalWindowAggregate,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    fmq.getRelWindowProperties(rel.getInput)
   }
 
   def getWindowProperties(
