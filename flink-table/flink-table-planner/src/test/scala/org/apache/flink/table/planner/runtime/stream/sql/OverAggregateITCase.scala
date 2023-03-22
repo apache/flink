@@ -87,7 +87,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
@@ -128,7 +128,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
     env.execute()
@@ -138,7 +138,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testRowNumberOnOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     val sqlQuery = "SELECT a, ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime()) FROM MyTable"
 
     val sink = new TestingAppendSink
@@ -168,7 +168,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
@@ -203,7 +203,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBulitinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
@@ -238,7 +238,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
@@ -274,7 +274,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeBoundedNonPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       " first_value(d) OVER (" +
@@ -315,7 +315,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeUnboundedPartitionedRangeOver(): Unit = {
     val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sqlQuery = "SELECT " +
       "c, " +
@@ -347,7 +347,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeUnboundedPartitionedRowsOver(): Unit = {
     val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sql =
       """
@@ -387,7 +387,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sqlQuery = "SELECT " +
       "c, " +
@@ -416,7 +416,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sqlQuery = "SELECT " +
       "listagg(distinct c, '|') " +
@@ -483,7 +483,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
 
     val sqlQuery = "SELECT " +
@@ -555,7 +555,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
 
     val sqlQuery = "SELECT " +
@@ -634,7 +634,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sqlQuery = "SELECT " +
       "  c, b, " +
@@ -703,7 +703,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sqlQuery = "SELECT " +
       "c, a, " +
@@ -776,7 +776,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
 
     val sink = new TestingAppendSink
@@ -844,7 +844,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
 
     val sink = new TestingAppendSink
@@ -904,7 +904,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink).setParallelism(1)
@@ -961,7 +961,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink).setParallelism(1)
@@ -1030,7 +1030,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
@@ -1059,7 +1059,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeDistinctUnboundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  COUNT(e) OVER (" +
@@ -1226,7 +1226,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   def testProcTimeDistinctBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(DISTINCT e) OVER (" +
@@ -1281,7 +1281,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     env.setParallelism(1)
 
     val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
-    tEnv.registerTable("MyTable", table)
+    tEnv.createTemporaryView("MyTable", table)
     tEnv.registerFunction("PairCount", new CountPairs)
 
     val sqlQuery = "SELECT a, b, " +
@@ -1320,7 +1320,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     env.setParallelism(1)
     val rowType = new RowTypeInfo(BigDecimalTypeInfo.of(38, 18))
     val t = failingDataSource(data)(rowType).toTable(tEnv, 'd, 'proctime.proctime)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "select sum(d) over (ORDER BY proctime rows between unbounded preceding " +
       "and current row) from T"

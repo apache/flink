@@ -148,7 +148,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       // second to millisecond
       .assignAscendingTimestamps(_._1 * 1000L)
     val table = ds1.toTable(tEnv, 'ts, 'a, 'rowtime.rowtime)
-    tEnv.registerTable("t1", table)
+    tEnv.createTemporaryView("t1", table)
 
     val ds2 = tEnv
       .sqlQuery(
@@ -293,7 +293,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       // second to millisecond
       .assignAscendingTimestamps(_._1 * 1000L)
     val table = ds1.toTable(tEnv, 'ts, 'a, 'proctime.proctime())
-    tEnv.registerTable("t1", table)
+    tEnv.createTemporaryView("t1", table)
 
     val ds2 = tEnv
       .sqlQuery(

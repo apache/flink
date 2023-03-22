@@ -49,7 +49,7 @@ class LegacySinkTest extends TableTestBase {
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS sum_a, c FROM MyTable GROUP BY c")
-    util.tableEnv.registerTable("table1", table1)
+    util.tableEnv.createTemporaryView("table1", table1)
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(sum_a) AS total_sum FROM table1")
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 

@@ -47,7 +47,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, Array(18, 42), Array(Array(1), Array(45)))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, s FROM T, UNNEST(T.b) AS A (s)"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -73,7 +73,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, Array(18, 42), Array(Array(1), Array(45)))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -93,7 +93,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, Array((18, "42.6")))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -114,7 +114,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (4, 3, (14, "45.2136")),
       (5, 3, (18, "42.6")))
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery =
       """
@@ -146,7 +146,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     )
 
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery =
       """
@@ -174,7 +174,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val t = stream.toTable(tEnv, 'b, 'a, 'c, 'rowtime.rowtime)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery =
       """
@@ -206,7 +206,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     )
 
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -251,7 +251,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, v FROM T CROSS JOIN UNNEST(c) as f (k, v)"
     val result = tEnv.sqlQuery(sqlQuery)
@@ -274,7 +274,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     )
 
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, x, y " +
       "FROM " +
@@ -301,7 +301,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, Array((18, "42.6")))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, A._1, A._2 FROM T, UNNEST(T.b) AS A where A._1 > 13"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -321,7 +321,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, Array((18, "42.6")))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       """
