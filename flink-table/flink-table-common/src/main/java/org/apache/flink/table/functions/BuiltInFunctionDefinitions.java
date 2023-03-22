@@ -1695,7 +1695,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition MULTISET =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("multiset")
+                    .name("MULTISET")
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.MULTISET)
                     .outputTypeStrategy(SpecificTypeStrategies.MULTISET)

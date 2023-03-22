@@ -716,7 +716,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         generateArray(ctx, resultType, operands)
 
       // maps and multisets
-      case MAP_VALUE_CONSTRUCTOR | MULTISET_VALUE =>
+      case MAP_VALUE_CONSTRUCTOR | MULTISET_VALUE_CONSTRUCTOR =>
         generateMapOrMultiset(ctx, resultType, operands)
 
       case ITEM =>

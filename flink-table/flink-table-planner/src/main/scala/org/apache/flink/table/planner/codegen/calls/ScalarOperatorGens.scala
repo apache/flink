@@ -1437,7 +1437,7 @@ object ScalarOperatorGens {
       .toSeq
     val valueType = resultType match {
       case mapType1: MapType => mapType1.getValueType
-      case _ => DataTypes.INT().getLogicalType
+      case _ => new IntType()
     }
     val valueExpr = generateArray(ctx, new ArrayType(valueType), valueElements)
     val isValueFixLength = isPrimitive(valueType)

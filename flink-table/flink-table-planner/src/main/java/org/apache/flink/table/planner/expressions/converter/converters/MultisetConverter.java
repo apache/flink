@@ -44,6 +44,9 @@ class MultisetConverter extends CustomizedConverter {
                         .createFieldTypeFromLogicalType(call.getOutputDataType().getLogicalType());
         return context.getRelBuilder()
                 .getRexBuilder()
-                .makeCall(multisetType, FlinkSqlOperatorTable.MULTISET_VALUE, childrenRexNode);
+                .makeCall(
+                        multisetType,
+                        FlinkSqlOperatorTable.MULTISET_VALUE_CONSTRUCTOR,
+                        childrenRexNode);
     }
 }
