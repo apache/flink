@@ -26,28 +26,25 @@ under the License.
 
 # REST Endpoint
 
-The REST endpoint allows user to connect to SQL Gateway with REST API.
+REST endpoint 允许用户通过 REST API 连接 SQL Gateway。
 
 Overview of SQL Processing
 ----------------
 
 ### Open Session
 
-When the client connects to the SQL Gateway, the SQL Gateway creates a `Session` as the context to store the users-specified information
-during the interactions between the client and SQL Gateway. After the creation of the `Session`, the SQL Gateway server returns an identifier named
-`SessionHandle` for later interactions.
+当客户端连接到 SQL Gateway 时，SQL Gateway 会创建一个 `Session`，存储客户端和 SQL Gateway 交互期间的用户相关信息。
+创建 `Session` 后，SQL Gateway 会返回 `SessionHandle` 标识，用于后续的交互。
 
 ### Submit SQL
 
-After the registration of the `Session`, the client can submit the SQL to the SQL Gateway server. When submitting the SQL,
-the SQL is translated to an `Operation` and an identifier named `OperationHandle` is returned for fetch results later. The Operation has
-its lifecycle, the client is able to cancel the execution of the `Operation` or close the `Operation` to release the resources used by the `Operation`.
+注册 `Session` 后，客户端能够提交 SQL 到 SQL Gateway。提交 SQL 后，SQL 会被转换成 `Operation`，并且返回 `OperationHandle` 标识，用于用户后续获取结果。
+Operation 有它的生命周期，客户端可以取消正在执行的 `Operation`，或者关闭 `Operation` 并释放它使用的资源。
 
 ### Fetch Results
 
-With the `OperationHandle`, the client can fetch the results from the `Operation`. If the `Operation` is ready, the SQL Gateway will return a batch
-of the data with the corresponding schema and a URI that is used to fetch the next batch of the data. When all results have been fetched, the
-SQL Gateway will fill the `resultType` in the response with value `EOS` and the URI to the next batch of the data is null.
+客户端可以通过 `OperationHandle` 从 `Operation` 获取结果。当一个 `Operation` 已经就绪，SQL Gateway 将返回一个包含对应 schema 和 URI 的批式数据，
+URI 可以被用来获取下一个批式数据。当所有结果已经获取完成，SQL Gateway 会将结果中的 `resultType` 设置为 `EOS`，并且将获取下一个批式数据的 URI 设置为 null。
 
 {{< img width="100%" src="/fig/sql-gateway-interactions.png" alt="SQL Gateway Interactions" >}}
 
@@ -94,7 +91,7 @@ Endpoint Options
 REST API
 ----------------
 
-The available OpenAPI specification is as follows. The default version is v2.
+OpenAPI 规范如下，默认版本是 v2。
 
 | Version                       | Description |
 | ----------- | ------- |
@@ -102,7 +99,7 @@ The available OpenAPI specification is as follows. The default version is v2.
 | [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | Supports SQL Client to connect to the gateway |
 
 {{< hint warning >}}
-The OpenAPI specification is still experimental.
+OpenAPI 规范目前仍处于实验阶段。
 {{< /hint >}}
 
 #### API reference
@@ -123,9 +120,9 @@ The OpenAPI specification is still experimental.
 Data Type Mapping
 ----------------
 
-Currently, REST endpoint supports to serialize the `RowData` with query parameter `rowFormat`. REST endpoint uses JSON format to serialize
-the Table Objects. Please refer [JSON format]({{< ref "docs/connectors/table/formats/json#data-type-mapping" >}}) to the mappings.
+目前 REST endpoint 支持使用查询参数 `rowFormat` 序列化 `RowData`。REST endpoint 使用 JSON 序列化 Table Objects。
+请参考 [JSON format]({{< ref "docs/connectors/table/formats/json#data-type-mapping" >}}) 查看映射关系。
 
-REST endpoint also supports to serialize the `RowData` with `PLAIN_TEXT` format that automatically cast all columns to the `String`.
+REST endpoint 也支持 `PLAIN_TEXT` 序列化 `RowData`，将所有列自动转换成 `String`。
 
 {{< top >}}
