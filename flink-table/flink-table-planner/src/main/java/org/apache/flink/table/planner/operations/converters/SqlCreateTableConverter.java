@@ -28,10 +28,10 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 
 import org.apache.calcite.sql.SqlKind;
 
-import static org.apache.flink.table.planner.operations.CreateTableConverterUtils.createCatalogTable;
 import java.util.EnumSet;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.operations.CreateTableConverterUtils.createCatalogTable;
 
 /** A converter for {@link SqlCreateTable}. */
 public class SqlCreateTableConverter implements SqlNodeConverter<SqlCreateTable> {
@@ -40,7 +40,6 @@ public class SqlCreateTableConverter implements SqlNodeConverter<SqlCreateTable>
     public Operation convertSqlNode(SqlCreateTable node, ConvertContext context) {
         return convertCreateTable(context, node);
     }
-
 
     @Override
     public Optional<EnumSet<SqlKind>> supportedSqlKinds() {

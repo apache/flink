@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.utils.Expander;
 
 import org.apache.calcite.rel.RelRoot;
@@ -66,9 +65,6 @@ public interface SqlNodeConverter<S extends SqlNode> {
 
     /** Context of {@link SqlNodeConverter}. */
     interface ConvertContext {
-
-        /** Returns the {@link FlinkPlannerImpl} in the convert context. */
-        FlinkPlannerImpl getFlinkPlannerImpl();
 
         /** Returns the {@link SqlValidator} in the convert context. */
         SqlValidator getSqlValidator();

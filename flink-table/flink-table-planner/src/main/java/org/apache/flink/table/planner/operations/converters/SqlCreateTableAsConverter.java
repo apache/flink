@@ -56,9 +56,9 @@ public class SqlCreateTableAsConverter implements SqlNodeConverter<SqlCreateTabl
                                                 new TableException(
                                                         "CTAS unsupported node type "
                                                                 + sqlCreateTableAs
-                                                                .getAsQuery()
-                                                                .getClass()
-                                                                .getSimpleName()));
+                                                                        .getAsQuery()
+                                                                        .getClass()
+                                                                        .getSimpleName()));
         CatalogTable catalogTable = createCatalogTable(context, sqlCreateTableAs);
 
         CreateTableOperation createTableOperation =

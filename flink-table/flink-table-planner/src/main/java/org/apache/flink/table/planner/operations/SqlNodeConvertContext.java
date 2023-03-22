@@ -42,11 +42,6 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     }
 
     @Override
-    public FlinkPlannerImpl getFlinkPlannerImpl() {
-        return flinkPlanner;
-    }
-
-    @Override
     public SqlValidator getSqlValidator() {
         return flinkPlanner.getOrCreateSqlValidator();
     }
