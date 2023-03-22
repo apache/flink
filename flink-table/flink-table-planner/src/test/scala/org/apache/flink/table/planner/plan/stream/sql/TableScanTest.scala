@@ -63,7 +63,7 @@ class TableScanTest extends TableTestBase {
   @Test
   def testDDLWithComputedColumn(): Unit = {
     // Create table with field as atom expression.
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.tableEnv.createTemporaryFunction("my_udf", Func0)
     util.addTable(s"""
                      |create table t1(
                      |  a int,
@@ -142,7 +142,7 @@ class TableScanTest extends TableTestBase {
   @Test
   def testDDLWithWatermarkComputedColumn(): Unit = {
     // Create table with field as atom expression.
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.tableEnv.createTemporaryFunction("my_udf", Func0)
     util.addTable(s"""
                      |create table t1(
                      |  a int,
@@ -226,7 +226,7 @@ class TableScanTest extends TableTestBase {
   @Test
   def testKeywordsWithWatermarkComputedColumn(): Unit = {
     // Create table with field as atom expression.
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.tableEnv.createTemporaryFunction("my_udf", Func0)
     util.addTable(s"""
                      |create table t1(
                      |  a int,

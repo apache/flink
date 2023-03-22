@@ -93,7 +93,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testEventTimeSlidingWindow(): Unit = {
-    tEnv.registerFunction("concat_distinct_agg", new ConcatDistinctAggFunction())
+    tEnv.createTemporaryFunction("concat_distinct_agg", new ConcatDistinctAggFunction())
     val sql =
       """
         |SELECT

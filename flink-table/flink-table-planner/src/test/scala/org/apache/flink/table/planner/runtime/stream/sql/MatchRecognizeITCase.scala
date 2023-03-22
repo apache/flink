@@ -727,7 +727,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
           BasicTypeInfo.INT_TYPE_INFO))
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+    tEnv.createTemporaryFunction("weightedAvg", new WeightedAvg)
 
     val sqlQuery =
       s"""
@@ -819,8 +819,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("prefix", new PrefixingScalarFunc)
-    tEnv.registerFunction("countFrom", new RichAggFunc)
+    tEnv.createTemporaryFunction("prefix", new PrefixingScalarFunc)
+    tEnv.createTemporaryFunction("countFrom", new RichAggFunc)
     val prefix = "PREF"
     val startFrom = 4
     UserDefinedFunctionTestUtils

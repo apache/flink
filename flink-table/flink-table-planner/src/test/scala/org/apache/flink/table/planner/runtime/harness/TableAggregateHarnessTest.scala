@@ -56,7 +56,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   @Test
   def testTableAggregate(): Unit = {
     val top3 = new Top3WithMapView
-    tEnv.registerFunction("top3", top3)
+    tEnv.createTemporaryFunction("top3", top3)
     val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
     val resultTable = source
       .groupBy('a)
@@ -161,7 +161,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   private def createTableAggregateWithRetract()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val top3 = new Top3WithRetractInput
-    tEnv.registerFunction("top3", top3)
+    tEnv.createTemporaryFunction("top3", top3)
     val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
     val resultTable = source
       .groupBy('a)

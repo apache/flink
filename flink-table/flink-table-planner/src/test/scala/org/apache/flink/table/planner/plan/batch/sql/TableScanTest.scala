@@ -31,7 +31,7 @@ class TableScanTest extends TableTestBase {
 
   @Before
   def before(): Unit = {
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.tableEnv.createTemporaryFunction("my_udf", Func0)
 
     util.addTable(s"""
                      |create table computed_column_t(

@@ -200,8 +200,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                         + getZookeeperQuorum()
                         + "'"
                         + ")");
-        tEnv.registerFunction("toUTF8", new ToUTF8());
-        tEnv.registerFunction("toLong", new ToLong());
+        tEnv.createTemporaryFunction("toUTF8", new ToUTF8());
+        tEnv.createTemporaryFunction("toLong", new ToLong());
 
         Table table =
                 tEnv.sqlQuery(

@@ -263,8 +263,8 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testAsyncJoinTemporalTableOnMultiFieldsWithUdf(): Unit = {
-    tEnv.registerFunction("mod1", TestMod)
-    tEnv.registerFunction("wrapper1", TestWrapperUdf)
+    tEnv.createTemporaryFunction("mod1", TestMod)
+    tEnv.createTemporaryFunction("wrapper1", TestWrapperUdf)
 
     val sql = "SELECT T.id, T.len, wrapper1(D.name) as name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D " +
@@ -280,7 +280,7 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testAsyncJoinTemporalTableWithUdfFilter(): Unit = {
-    tEnv.registerFunction("add", new TestAddWithOpen)
+    tEnv.createTemporaryFunction("add", new TestAddWithOpen)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -355,7 +355,7 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testExceptionThrownFromAsyncJoinTemporalTable(): Unit = {
-    tEnv.registerFunction("errorFunc", TestExceptionThrown)
+    tEnv.createTemporaryFunction("errorFunc", TestExceptionThrown)
 
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +

@@ -109,7 +109,7 @@ abstract class ExpressionTestBase {
     if (containsLegacyTypes) {
       val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
       tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)
-      functions.foreach(f => tEnv.registerFunction(f._1, f._2))
+      functions.foreach(f => tEnv.createTemporaryFunction(f._1, f._2))
     } else {
       tEnv.createTemporaryView(tableName, tEnv.fromValues(resolvedDataType))
       testSystemFunctions.asScala.foreach(e => tEnv.createTemporarySystemFunction(e._1, e._2))

@@ -247,7 +247,7 @@ class DagOptimizationTest extends TableTestBase {
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     // test with non-deterministic udf
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
+    util.tableEnv.createTemporaryFunction("random_udf", new NonDeterministicUdf())
     val table1 = util.tableEnv.sqlQuery("SELECT random_udf(a) AS a, c FROM MyTable")
     util.tableEnv.registerTable("table1", table1)
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM table1")

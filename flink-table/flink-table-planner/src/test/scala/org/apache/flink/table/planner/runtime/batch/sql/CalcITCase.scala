@@ -591,13 +591,13 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(LOCAL_DATE, DATE, LOCAL_TIME, TIME, LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
       "a, b, c, d, e, f, g")
 
-    tEnv.registerFunction("dateFunc", DateFunction)
-    tEnv.registerFunction("localDateFunc", LocalDateFunction)
-    tEnv.registerFunction("timeFunc", TimeFunction)
-    tEnv.registerFunction("localTimeFunc", LocalTimeFunction)
-    tEnv.registerFunction("timestampFunc", TimestampFunction)
-    tEnv.registerFunction("datetimeFunc", DateTimeFunction)
-    tEnv.registerFunction("instantFunc", InstantFunction)
+    tEnv.createTemporaryFunction("dateFunc", DateFunction)
+    tEnv.createTemporaryFunction("localDateFunc", LocalDateFunction)
+    tEnv.createTemporaryFunction("timeFunc", TimeFunction)
+    tEnv.createTemporaryFunction("localTimeFunc", LocalTimeFunction)
+    tEnv.createTemporaryFunction("timestampFunc", TimestampFunction)
+    tEnv.createTemporaryFunction("datetimeFunc", DateTimeFunction)
+    tEnv.createTemporaryFunction("instantFunc", InstantFunction)
 
     val v1 = "1984-07-12"
     val v2 = "08:03:09"

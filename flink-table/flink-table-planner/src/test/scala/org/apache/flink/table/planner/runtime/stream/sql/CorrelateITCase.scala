@@ -39,7 +39,7 @@ class CorrelateITCase extends StreamingTestBase {
   @Before
   override def before(): Unit = {
     super.before()
-    tEnv.registerFunction("STRING_SPLIT", new StringSplit())
+    tEnv.createTemporaryFunction("STRING_SPLIT", new StringSplit())
   }
 
   @Test
@@ -79,7 +79,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testConstantTableFunc(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporaryFunction("str_split", new StringSplit())
     val query = "SELECT * FROM LATERAL TABLE(str_split()) as T0(d)"
     val sink = new TestingAppendSink
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
@@ -91,7 +91,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testConstantTableFunc2(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporaryFunction("str_split", new StringSplit())
     val query = "SELECT * FROM LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
     val sink = new TestingAppendSink
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
@@ -108,7 +108,7 @@ class CorrelateITCase extends StreamingTestBase {
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
 
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporaryFunction("str_split", new StringSplit())
     val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
     val sink = new TestingAppendSink
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
@@ -126,7 +126,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testConstantNonDeterministicTableFunc(): Unit = {
-    tEnv.registerFunction("str_split", new NonDeterministicTableFunc())
+    tEnv.createTemporaryFunction("str_split", new NonDeterministicTableFunc())
     val query = "SELECT * FROM LATERAL TABLE(str_split('Jack#John')) as T0(d)"
     val sink = new TestingAppendSink
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
@@ -144,7 +144,7 @@ class CorrelateITCase extends StreamingTestBase {
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
 
-    tEnv.registerFunction("str_split", new NonDeterministicTableFunc())
+    tEnv.createTemporaryFunction("str_split", new NonDeterministicTableFunc())
     val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack#John')) as T0(d)"
     val sink = new TestingAppendSink
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
@@ -162,7 +162,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.registerTable("T1", t1)
 
     // UdfWithOpen checks open method is opened, and add a '$' prefix to the given string
-    tEnv.registerFunction("func", new UdfWithOpen)
+    tEnv.createTemporaryFunction("func", new UdfWithOpen)
 
     val query1 =
       """
@@ -187,7 +187,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t)
-    tEnv.registerFunction("str_split", new StringSplit())
+    tEnv.createTemporaryFunction("str_split", new StringSplit())
     val sink1 = new TestingAppendSink
     val sink2 = new TestingAppendSink
 
@@ -226,8 +226,8 @@ class CorrelateITCase extends StreamingTestBase {
     val sink = new TestingAppendSink
 
     tEnv.registerTable("MyTable", in)
-    tEnv.registerFunction("rfFunc", new RF)
-    tEnv.registerFunction("tfFunc", new TableFunc7)
+    tEnv.createTemporaryFunction("rfFunc", new RF)
+    tEnv.createTemporaryFunction("tfFunc", new TableFunc7)
     tEnv
       .sqlQuery("SELECT rfFunc(a) as d, e FROM MyTable, LATERAL TABLE(tfFunc(rfFunc(a))) as T(e)")
       .toAppendStream[Row]

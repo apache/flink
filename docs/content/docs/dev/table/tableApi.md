@@ -824,7 +824,7 @@ User-defined aggregation function can also be used with `DISTINCT` modifiers. To
 Table orders = tEnv.from("Orders");
 
 // Use distinct aggregation for user-defined aggregate functions
-tEnv.registerFunction("myUdagg", new MyUdagg());
+tEnv.createTemporaryFunction("myUdagg", new MyUdagg());
 orders.groupBy("users")
     .select(
         $("users"),
@@ -1026,7 +1026,7 @@ A row of the left (outer) table is dropped, if its table function call returns a
 ```java
 // register User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporaryFunction("split", split);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1075,7 +1075,7 @@ Currently, the predicate of a table function left outer join can only be empty o
 ```java
 // register User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporaryFunction("split", split);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1127,7 +1127,7 @@ Table ratesHistory = tableEnv.from("RatesHistory");
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
     "r_proctime",
     "r_currency");
-tableEnv.registerFunction("rates", rates);
+tableEnv.createTemporaryFunction("rates", rates);
 
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
@@ -2186,7 +2186,7 @@ public class MyMapFunction extends ScalarFunction {
 }
 
 ScalarFunction func = new MyMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporaryFunction("func", func);
 
 Table table = input
   .map(call("func", $("c"))).as("a", "b");
@@ -2269,7 +2269,7 @@ public class MyFlatMapFunction extends TableFunction<Row> {
 }
 
 TableFunction func = new MyFlatMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporaryFunction("func", func);
 
 Table table = input
   .flatMap(call("func", $("c"))).as("a", "b");
@@ -2369,7 +2369,7 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
 }
 
 AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporaryFunction("myAggFunc", myAggFunc);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
@@ -2491,7 +2491,7 @@ Groups and aggregates a table on a [group window](#group-window) and possibly on
 {{< tab "Java" >}}
 ```java
 AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporaryFunction("myAggFunc", myAggFunc);
 
 Table table = input
     .window(Tumble.over(lit(5).minutes())
@@ -2596,7 +2596,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 }
 
-tEnv.registerFunction("top2", new Top2());
+tEnv.createTemporaryFunction("top2", new Top2());
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .groupBy($("key"))

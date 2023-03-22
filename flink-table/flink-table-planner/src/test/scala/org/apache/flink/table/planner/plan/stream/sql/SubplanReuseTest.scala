@@ -107,7 +107,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCalcWithNonDeterministicProject(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
+    util.tableEnv.createTemporaryFunction("random_udf", new NonDeterministicUdf())
 
     val sqlQuery =
       """
@@ -120,7 +120,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCalcWithNonDeterministicUdf(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
+    util.tableEnv.createTemporaryFunction("random_udf", new NonDeterministicUdf())
 
     val sqlQuery =
       """
@@ -225,7 +225,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnJoinNonDeterministicJoinCondition(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf)
+    util.tableEnv.createTemporaryFunction("random_udf", new NonDeterministicUdf)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f

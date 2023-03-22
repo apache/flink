@@ -280,7 +280,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   @deprecated
   @Deprecated
   def addFunction(name: String, function: ScalarFunction): Unit = {
-    getTableEnv.registerFunction(name, function)
+    getTableEnv.createTemporarySystemFunction(name, function)
   }
 
   /** Registers a [[UserDefinedFunction]] according to FLIP-65. */
@@ -1225,21 +1225,22 @@ abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
+    tableEnv.createTemporaryFunction(name, function)
 
   /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+      function: AggregateFunction[T, ACC]): Unit = tableEnv.createTemporaryFunction(name, function)
 
   /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+      function: TableAggregateFunction[T, ACC]): Unit =
+    tableEnv.createTemporaryFunction(name, function)
 }
 
 abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
@@ -1255,21 +1256,22 @@ abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
+    tableEnv.createTemporaryFunction(name, function)
 
   /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+      function: AggregateFunction[T, ACC]): Unit = tableEnv.createTemporaryFunction(name, function)
 
   /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+      function: TableAggregateFunction[T, ACC]): Unit =
+    tableEnv.createTemporaryFunction(name, function)
 }
 
 /** Utility for stream table test. */

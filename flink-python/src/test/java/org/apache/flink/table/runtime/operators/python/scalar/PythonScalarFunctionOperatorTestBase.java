@@ -220,7 +220,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
         env.setParallelism(1);
         StreamTableEnvironment tEnv = createTableEnvironment(env);
         tEnv.getConfig().set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.parse("80mb"));
-        tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
+        tEnv.createTemporaryFunction("pyFunc", new PythonScalarFunction("pyFunc"));
         DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
         Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select(call("pyFunc", $("a"), $("b")));
         // force generating the physical plan for the given table

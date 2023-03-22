@@ -415,7 +415,7 @@ class BatchTestBase extends BatchAbstractTestBase {
   /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
   @deprecated
   def registerFunction(name: String, function: ScalarFunction): Unit = {
-    testingTableEnv.registerFunction(name, function)
+    testingTableEnv.createTemporarySystemFunction(name, function)
   }
 
   /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */

@@ -100,7 +100,7 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
 
-    util.tableEnv.registerFunction("hashCode", MyHashCode)
+    util.tableEnv.createTemporaryFunction("hashCode", MyHashCode)
 
     val resultTable = sourceTable.select(call("hashCode", $"c"), $"b")
 

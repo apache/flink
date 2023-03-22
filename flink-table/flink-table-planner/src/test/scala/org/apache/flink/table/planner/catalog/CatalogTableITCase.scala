@@ -473,7 +473,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       toRow(2, "2019-09-10 9:23:44", 2, "2019-09-10 9:23:44")
     )
     TestCollectionTableFactory.initData(sourceData)
-    tableEnv.registerFunction("my_udf", Func0)
+    tableEnv.createTemporaryFunction("my_udf", Func0)
     val sourceDDL =
       """
         |create table t1(
