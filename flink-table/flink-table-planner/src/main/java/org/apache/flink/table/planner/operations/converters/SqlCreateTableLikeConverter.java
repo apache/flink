@@ -21,13 +21,11 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.table.operations.Operation;
 
-import static org.apache.flink.table.planner.operations.CreateTableConverterUtils.convertCreateTable;
-
 /** A converter for {@link SqlCreateTableLike}. */
 public class SqlCreateTableLikeConverter implements SqlNodeConverter<SqlCreateTableLike> {
 
     @Override
     public Operation convertSqlNode(SqlCreateTableLike node, ConvertContext context) {
-        return convertCreateTable(context, node);
+        return new SqlCreateTableConverter().convertSqlNode(node, context);
     }
 }

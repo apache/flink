@@ -19,14 +19,62 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 
-import static org.apache.flink.table.planner.operations.CreateTableConverterUtils.convertCreateTableAs;
+import java.util.Collections;
+
+import static org.apache.flink.table.planner.operations.CreateTableConverterUtils.createCatalogTable;
 
 /** A converter for {@link SqlCreateTableAs}. */
 public class SqlCreateTableAsConverter implements SqlNodeConverter<SqlCreateTableAs> {
     @Override
     public Operation convertSqlNode(SqlCreateTableAs node, ConvertContext context) {
         return convertCreateTableAs(context, node);
+    }
+
+    public Operation convertCreateTableAs(
+            SqlNodeConverter.ConvertContext context, SqlCreateTableAs sqlCreateTableAs) {
+        CatalogManager catalogManager = context.getCatalogManager();
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        PlannerQueryOperation query =
+                (PlannerQueryOperation)
+                        SqlNodeConverters.convertSqlNode(sqlCreateTableAs.getAsQuery(), context)
+                                .orElseThrow(
+                                        () ->
+                                                new TableException(
+                                                        "CTAS unsupported node type "
+                                                                + sqlCreateTableAs
+                                                                .getAsQuery()
+                                                                .getClass()
+                                                                .getSimpleName()));
+        CatalogTable catalogTable = createCatalogTable(context, sqlCreateTableAs);
+
+        CreateTableOperation createTableOperation =
+                new CreateTableOperation(
+                        identifier,
+                        CatalogTable.of(
+                                Schema.newBuilder()
+                                        .fromResolvedSchema(query.getResolvedSchema())
+                                        .build(),
+                                catalogTable.getComment(),
+                                catalogTable.getPartitionKeys(),
+                                catalogTable.getOptions()),
+                        sqlCreateTableAs.isIfNotExists(),
+                        sqlCreateTableAs.isTemporary());
+
+        return new CreateTableASOperation(
+                createTableOperation, Collections.emptyMap(), query, false);
     }
 }

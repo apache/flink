@@ -44,9 +44,9 @@ public class SqlNodeConverters {
         register(new SqlAlterViewPropertiesConverter());
         register(new SqlAlterViewAsConverter());
         register(new SqlQueryConverter());
+        register(new SqlCreateTableConverter());
         register(new SqlCreateTableAsConverter());
         register(new SqlCreateTableLikeConverter());
-        register(new SqlCreateTableConverter());
     }
 
     /**

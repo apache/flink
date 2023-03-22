@@ -19,23 +19,17 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.operations.CreateTableASOperation;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.ddl.CreateTableOperation;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -56,64 +50,7 @@ public class CreateTableConverterUtils {
 
     private CreateTableConverterUtils() {}
 
-    /** Convert {@link SqlCreateTable} or {@link SqlCreateTableAs} node. */
-    public static Operation convertCreateTable(
-            SqlNodeConverter.ConvertContext context, SqlCreateTable sqlCreateTable) {
-        CatalogTable catalogTable = createCatalogTable(context, sqlCreateTable);
-
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
-        ObjectIdentifier identifier =
-                context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-
-        return new CreateTableOperation(
-                identifier,
-                catalogTable,
-                sqlCreateTable.isIfNotExists(),
-                sqlCreateTable.isTemporary());
-    }
-
-    /** Convert the {@link SqlCreateTableAs} node. */
-    public static Operation convertCreateTableAs(
-            SqlNodeConverter.ConvertContext context, SqlCreateTableAs sqlCreateTableAs) {
-        CatalogManager catalogManager = context.getCatalogManager();
-        FlinkPlannerImpl flinkPlanner = context.getFlinkPlannerImpl();
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
-        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-        PlannerQueryOperation query =
-                (PlannerQueryOperation)
-                        SqlNodeToOperationConversion.convert(
-                                        flinkPlanner, catalogManager, sqlCreateTableAs.getAsQuery())
-                                .orElseThrow(
-                                        () ->
-                                                new TableException(
-                                                        "CTAS unsupported node type "
-                                                                + sqlCreateTableAs
-                                                                        .getAsQuery()
-                                                                        .getClass()
-                                                                        .getSimpleName()));
-        CatalogTable catalogTable = createCatalogTable(context, sqlCreateTableAs);
-
-        CreateTableOperation createTableOperation =
-                new CreateTableOperation(
-                        identifier,
-                        CatalogTable.of(
-                                Schema.newBuilder()
-                                        .fromResolvedSchema(query.getResolvedSchema())
-                                        .build(),
-                                catalogTable.getComment(),
-                                catalogTable.getPartitionKeys(),
-                                catalogTable.getOptions()),
-                        sqlCreateTableAs.isIfNotExists(),
-                        sqlCreateTableAs.isTemporary());
-
-        return new CreateTableASOperation(
-                createTableOperation, Collections.emptyMap(), query, false);
-    }
-
-    private static CatalogTable createCatalogTable(
+    public static CatalogTable createCatalogTable(
             SqlNodeConverter.ConvertContext context, SqlCreateTable sqlCreateTable) {
 
         CatalogManager catalogManager = context.getCatalogManager();
