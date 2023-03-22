@@ -244,7 +244,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
                     log.info("Starting testQueryCluster()");
                     runWithArgs(
                             new String[] {"-q"},
-                            "Summary: totalMemory 8192 totalCores 1332",
+                            "Summary: totalMemory 8.000gb (8589934592 bytes) totalCores 1332",
                             null,
                             RunTypes.YARN_SESSION,
                             0); // we have 666*2 cores.
