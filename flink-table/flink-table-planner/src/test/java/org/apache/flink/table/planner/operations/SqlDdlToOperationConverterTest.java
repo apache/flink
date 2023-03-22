@@ -32,11 +32,13 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
@@ -76,6 +78,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -185,7 +188,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
+                        + "  a bigint comment 'column a',\n"
                         + "  b varchar, \n"
                         + "  c int, \n"
                         + "  d varchar"
@@ -211,6 +214,15 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                             DataTypes.VARCHAR(Integer.MAX_VALUE),
                             DataTypes.INT(),
                             DataTypes.VARCHAR(Integer.MAX_VALUE)
+                        });
+        assertThat(catalogTable).isInstanceOf(ResolvedCatalogTable.class);
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) catalogTable;
+        resolvedCatalogTable
+                .getResolvedSchema()
+                .getColumn(0)
+                .ifPresent(
+                        (Column column) -> {
+                            assertThat(column.getComment()).isEqualTo(Optional.of("column a"));
                         });
     }
 

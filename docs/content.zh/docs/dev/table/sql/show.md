@@ -540,7 +540,7 @@ SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_lik
 * dim
 
 在会话的当前库下有如下表：
-* fights
+* items
 * orders
 
 - 显示指定库的所有表。
@@ -609,6 +609,46 @@ SHOW CREATE TABLE [catalog_name.][db_name.]table_name
 ```
 
 展示创建指定表的 create 语句。
+
+该语句的输出内容包括表名、列名、数据类型、约束、注释和配置。
+
+当您需要了解现有表的结构、配置和约束，或在另一个数据库中重新创建表时，这个语句非常有用。
+
+假设表 `orders` 是按如下方式创建的：
+```sql
+CREATE TABLE orders (
+  order_id BIGINT NOT NULL comment 'this is the primary key, named ''order_id''.',
+  product VARCHAR(32),
+  amount INT,
+  ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
+  ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
+  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+);
+```
+展示表创建语句。
+```sql
+show create table orders;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE TABLE `default_catalog`.`default_database`.`orders` (
+  `order_id` BIGINT NOT NULL COMMENT 'this is the primary key, named ''order_id''.',
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
+  `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+ |
++---------------------------------------------------------------------------------------------+
+1 row in set
+```
 
 <span class="label label-danger">Attention</span> 目前 `SHOW CREATE TABLE` 只支持通过 Flink SQL DDL 创建的表。
 
