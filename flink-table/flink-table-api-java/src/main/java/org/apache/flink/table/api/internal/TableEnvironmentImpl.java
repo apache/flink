@@ -79,7 +79,6 @@ import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
-import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
@@ -88,7 +87,6 @@ import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
-import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
@@ -925,10 +923,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof StatementSetOperation) {
             return executeInternal(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof LoadModuleOperation) {
-            return loadModule((LoadModuleOperation) operation);
-        } else if (operation instanceof UnloadModuleOperation) {
-            return unloadModule((UnloadModuleOperation) operation);
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
             ExplainDetail[] explainDetails =
@@ -986,34 +980,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    private TableResultInternal loadModule(LoadModuleOperation operation) {
-        final String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
-        try {
-            final Module module =
-                    FactoryUtil.createModule(
-                            operation.getModuleName(),
-                            operation.getOptions(),
-                            tableConfig,
-                            resourceManager.getUserClassLoader());
-            moduleManager.loadModule(operation.getModuleName(), module);
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
-        } catch (Exception e) {
-            throw new TableException(String.format("%s. %s", exMsg, e.getMessage()), e);
-        }
-    }
-
-    private TableResultInternal unloadModule(UnloadModuleOperation operation) {
-        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
-        try {
-            moduleManager.unloadModule(operation.getModuleName());
-            return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
-        }
-    }
-
     /**
      * extract sink identifier names from {@link ModifyOperation}s and deduplicate them with {@link
      * #deduplicateSinkIdentifierNames(List)}.
@@ -1058,10 +1024,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             }
                         })
                 .collect(Collectors.toList());
-    }
-
-    private String getDDLOpExecuteErrorMsg(String action) {
-        return String.format("Could not execute %s", action);
     }
 
     @Override
