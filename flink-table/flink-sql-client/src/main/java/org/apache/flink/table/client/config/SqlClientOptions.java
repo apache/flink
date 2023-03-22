@@ -71,11 +71,9 @@ public class SqlClientOptions {
                                     + "Fixed-length types and all types in batch mode are printed using a deterministic column width.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<SyntaxHighlightStyle.BuiltInStyle>
-            DISPLAY_DEFAULT_COLOR_SCHEMA =
-                    ConfigOptions.key("sql-client.display.default-color-schema")
-                            .enumType(SyntaxHighlightStyle.BuiltInStyle.class)
-                            .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT)
-                            .withDescription(
-                                    "SQL highlight color scheme to be used at SQL client start.");
+    public static final ConfigOption<String> DISPLAY_DEFAULT_COLOR_SCHEMA =
+            ConfigOptions.key("sql-client.display.default-color-schema")
+                    .stringType()
+                    .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
+                    .withDescription("SQL highlight color scheme to be used at SQL client start.");
 }

@@ -83,14 +83,13 @@ public class SyntaxHighlightStyle {
             return style;
         }
 
-        public static SyntaxHighlightStyle.BuiltInStyle fromOrdinal(int ord) {
-            ord = ord % values().length;
+        public static SyntaxHighlightStyle.BuiltInStyle fromString(String styleName) {
             for (SyntaxHighlightStyle.BuiltInStyle style : values()) {
-                if (style.ordinal() == ord) {
+                if (style.name().equalsIgnoreCase(styleName)) {
                     return style;
                 }
             }
-            // should never happen
+            // in case of wrong name fallback to default
             return DEFAULT;
         }
     }

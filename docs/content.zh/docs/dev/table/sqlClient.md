@@ -177,7 +177,6 @@ There is a list of available key-strokes in SQL Client
 | `alt-l`                          | `Esc-l`          | Lowercase word                                                                         |
 | `alt-u`                          | `Esc-u`          | Uppercase word                                                                         |
 | `alt-d`                          | `Esc-d`          | Kill word                                                                              |
-| `alt-h`                          | `Esc-h`          | Switch color scheme                                                                    |
 | `alt-n`                          | `Esc-n`          | History search forward (behaves same as down line from history in case of empty input) |
 | `alt-p`                          | `Esc-p`          | History search backward (behaves same as up line from history in case of empty input)  |
 | `alt-t`                          | `Esc-t`          | Transpose words                                                                        |
@@ -916,7 +915,8 @@ For more details about stopping jobs, please refer to [Job Statements]({{< ref "
 ### SQL Syntax highlighting
 
 SQL Client can highlight SQL syntax with several color schemes.
-With `sql-client.display.default-color-schema` it could be set a color scheme used after start of SQL Client.
-Then with help of `Alt-h` (`Esc-h` in case of Mac) it is possible to switch to the next color scheme and pick more suitable.
+With `sql-client.display.default-color-schema` it could be set a color scheme.
+Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `default` (no highlighting).
+In case of wrong name the fallback is to `default`.
 
 {{< top >}}

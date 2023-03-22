@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 
 import org.jline.reader.LineReader;
@@ -41,8 +42,6 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.client.cli.CliClient.COLOR_SCHEMA_VAR;
 
 /** Sql Client syntax highlighter. */
 public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
@@ -77,10 +76,11 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
     @Override
     public AttributedString highlight(LineReader reader, String buffer) {
-        final Object colorSchemeOrdinal = reader.getVariable(COLOR_SCHEMA_VAR);
-        SyntaxHighlightStyle.BuiltInStyle style =
-                SyntaxHighlightStyle.BuiltInStyle.fromOrdinal(
-                        colorSchemeOrdinal == null ? 0 : (Integer) colorSchemeOrdinal);
+        final SyntaxHighlightStyle.BuiltInStyle style =
+                SyntaxHighlightStyle.BuiltInStyle.fromString(
+                        executor.getSessionConfig()
+                                .get(SqlClientOptions.DISPLAY_DEFAULT_COLOR_SCHEMA));
+
         if (style == SyntaxHighlightStyle.BuiltInStyle.DEFAULT) {
             return super.highlight(reader, buffer);
         }
