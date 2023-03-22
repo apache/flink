@@ -31,7 +31,7 @@ import static org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle.Buil
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SqlClientSyntaxHighlighter}. */
-public class SqlClientHighlighterTest {
+class SqlClientHighlighterTest {
     @ParameterizedTest
     @MethodSource("specProvider")
     void test(SqlClientHighlighterTestSpec spec) {

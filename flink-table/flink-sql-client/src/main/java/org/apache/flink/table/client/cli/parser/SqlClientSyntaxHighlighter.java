@@ -26,6 +26,8 @@ import org.jline.reader.LineReader;
 import org.jline.reader.impl.DefaultHighlighter;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,8 +46,9 @@ import static org.apache.flink.table.client.cli.CliClient.COLOR_SCHEMA_VAR;
 
 /** Sql Client syntax highlighter. */
 public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
-    private static final Set<String> FLINK_KEYWORD_SET;
-    private static final Set<String> HIVE_KEYWORD_SET;
+    private static final Logger LOG = LoggerFactory.getLogger(SqlClientSyntaxHighlighter.class);
+    private static Set<String> FLINK_KEYWORD_SET;
+    private static Set<Character> FLINK_KEYWORD_CHARACTER_SET;
 
     static {
         try (InputStream is =
@@ -56,12 +59,13 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                     Collections.unmodifiableSet(
                             Arrays.stream(props.get("default").toString().split(";"))
                                     .collect(Collectors.toSet()));
-            HIVE_KEYWORD_SET =
-                    Collections.unmodifiableSet(
-                            Arrays.stream(props.get("hive").toString().split(";"))
-                                    .collect(Collectors.toSet()));
+            FLINK_KEYWORD_CHARACTER_SET =
+                    FLINK_KEYWORD_SET.stream()
+                            .flatMap(t -> t.chars().mapToObj(c -> (char) c))
+                            .collect(Collectors.toSet());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            LOG.error("Exception: ", e);
+            FLINK_KEYWORD_SET = Collections.emptySet();
         }
     }
 
@@ -73,7 +77,6 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
     @Override
     public AttributedString highlight(LineReader reader, String buffer) {
-
         final Object colorSchemeOrdinal = reader.getVariable(COLOR_SCHEMA_VAR);
         SyntaxHighlightStyle.BuiltInStyle style =
                 SyntaxHighlightStyle.BuiltInStyle.fromOrdinal(
@@ -81,10 +84,10 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
         if (style == SyntaxHighlightStyle.BuiltInStyle.DEFAULT) {
             return super.highlight(reader, buffer);
         }
+        final String dialectName =
+                executor.getSessionConfig().get(TableConfigOptions.TABLE_SQL_DIALECT);
         final SqlDialect dialect =
-                executor.getSessionConfig()
-                                .get(TableConfigOptions.TABLE_SQL_DIALECT)
-                                .equalsIgnoreCase(SqlDialect.HIVE.toString())
+                SqlDialect.HIVE.name().equalsIgnoreCase(dialectName)
                         ? SqlDialect.HIVE
                         : SqlDialect.DEFAULT;
         return getHighlightedOutput(buffer, style.getHighlightStyle(), dialect);
@@ -114,7 +117,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                                     style,
                                     true,
                                     dialect);
-                            s.getConsumer().accept(highlightedOutput, style);
+                            s.getStyleSetter().accept(highlightedOutput, style);
                             highlightedOutput.append(stateStart);
                             counter++;
                             currentParseState = s;
@@ -124,7 +127,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                     }
                 }
                 if (currentParseState == null) {
-                    if (!Character.isLetter(c) && !Character.isDigit(c) && c != '_') {
+                    if (!FLINK_KEYWORD_CHARACTER_SET.contains(Character.toUpperCase(c))) {
                         handleWord(
                                 word, highlightedOutput, currentParseState, style, true, dialect);
                         highlightedOutput.append(c);
@@ -159,9 +162,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
             SqlDialect dialect) {
         final String wordStr = word.toString();
         if (currentState == null) {
-            final Set<String> keyWordSet =
-                    dialect == SqlDialect.HIVE ? HIVE_KEYWORD_SET : FLINK_KEYWORD_SET;
-            if (keyWordSet.contains(wordStr.toUpperCase(Locale.ROOT))) {
+            if (FLINK_KEYWORD_SET.contains(wordStr.toUpperCase(Locale.ROOT))) {
                 sb.style(style.getKeywordStyle());
             } else {
                 sb.style(style.getDefaultStyle());
@@ -213,7 +214,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
         private final int order;
 
-        private final BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> consumer;
+        private final BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> styleSetter;
 
         private static final List<State> STATE_LIST =
                 Arrays.stream(State.values())
@@ -224,15 +225,15 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                 int order,
                 Function<SqlDialect, String> start,
                 Function<SqlDialect, String> end,
-                BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> consumer) {
+                BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> styleSetter) {
             this.start = start;
             this.end = end;
             this.order = order;
-            this.consumer = consumer;
+            this.styleSetter = styleSetter;
         }
 
-        public BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> getConsumer() {
-            return consumer;
+        public BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> getStyleSetter() {
+            return styleSetter;
         }
 
         public String getStart(SqlDialect dialect) {
