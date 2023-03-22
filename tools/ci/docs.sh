@@ -24,7 +24,7 @@ source setup_hugo.sh
 source setup_docs.sh
 cd ..
 # Build the docs
-./hugo --source docs
+hugo --source docs
 
 if [ $? -ne 0 ]; then
 	echo "Error building the docs"
