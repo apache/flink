@@ -183,6 +183,9 @@ are not affected by this issue, there are no backward compatibility issues. Howe
 are affected, it may not be possible to restore from savepoints generated from versions 
 1.15.0 ~ 1.15.3 and 1.16.0 ~ 1.16.1.
 
+#### Adds support of Python 3.10 and removes support of Python 3.6
+##### [FLINK-29421](https://issues.apache.org/jira/browse/FLINK-29421)
+PyFlink 1.17 will support Python 3.10 and remove the support of Python 3.6.
 
 ### Dependency upgrades
 
@@ -202,3 +205,10 @@ The minimum Hadoop version supported by Apache Flink has been updated to version
 Calcite upgrade brings optimization changing logical plans for some queries involving `Sarg` and 
 queries with `count` of non-distinct values. Please note that the execution plan changes for 
 certain SQL queries after the upgrade, so savepoints are not backward compatible in these cases. 
+
+#### Update dependency versions for PyFlink
+##### [FLINK-29421](https://issues.apache.org/jira/browse/FLINK-29421)
+For support of Python 3.10, PyFlink updates some dependencies: 
+- apache-beam: 2.43.0
+- pemja: 0.3.0
+- cloudpickle: 2.2.0
