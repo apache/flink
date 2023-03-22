@@ -59,7 +59,8 @@ metrics.reporter.my_other_reporter.port: 10000
  All reporters documented on this page are available by default.
 
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
-If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
+If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well. 
+Be careful that `report()` method must not block for a significant amount of time, and any reporter needing more time should instead run the operation asynchronously.
 By additionally implementing a `MetricReporterFactory` your reporter can also be loaded as a plugin.
 
 ## Identifiers vs. tags

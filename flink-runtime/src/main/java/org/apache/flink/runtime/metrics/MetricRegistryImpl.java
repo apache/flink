@@ -74,7 +74,8 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     private final Object lock = new Object();
 
     private final List<ReporterAndSettings> reporters;
-    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService reporterScheduledExecutor;
+    private final ScheduledExecutorService viewUpdaterScheduledExecutor;
 
     private final ScopeFormats scopeFormats;
     private final char globalDelimiter;
@@ -102,7 +103,9 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
                 config,
                 reporterConfigurations,
                 Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorThreadFactory("Flink-MetricRegistry")));
+                        new ExecutorThreadFactory("Flink-Metric-Reporter")),
+                Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorThreadFactory("Flink-Metric-View-Updater")));
     }
 
     @VisibleForTesting
@@ -110,6 +113,14 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             MetricRegistryConfiguration config,
             Collection<ReporterSetup> reporterConfigurations,
             ScheduledExecutorService scheduledExecutor) {
+        this(config, reporterConfigurations, scheduledExecutor, scheduledExecutor);
+    }
+
+    MetricRegistryImpl(
+            MetricRegistryConfiguration config,
+            Collection<ReporterSetup> reporterConfigurations,
+            ScheduledExecutorService reporterScheduledExecutor,
+            ScheduledExecutorService viewUpdaterScheduledExecutor) {
         this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
         this.scopeFormats = config.getScopeFormats();
         this.globalDelimiter = config.getDelimiter();
@@ -119,7 +130,8 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
         // second, instantiate any custom configured reporters
         this.reporters = new ArrayList<>(4);
 
-        this.executor = scheduledExecutor;
+        this.reporterScheduledExecutor = reporterScheduledExecutor;
+        this.viewUpdaterScheduledExecutor = viewUpdaterScheduledExecutor;
 
         this.queryService = null;
         this.metricQueryServiceRpcService = null;
@@ -145,7 +157,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
                                 namedReporter,
                                 className);
 
-                        executor.scheduleWithFixedDelay(
+                        reporterScheduledExecutor.scheduleWithFixedDelay(
                                 new MetricRegistryImpl.ReporterTask((Scheduled) reporterInstance),
                                 period.toMillis(),
                                 period.toMillis(),
@@ -347,11 +359,20 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
                                             throwable)));
                 }
 
-                final CompletableFuture<Void> executorShutdownFuture =
+                final CompletableFuture<Void> reporterExecutorShutdownFuture =
                         ExecutorUtils.nonBlockingShutdown(
-                                gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS, executor);
+                                gracePeriod.toMilliseconds(),
+                                TimeUnit.MILLISECONDS,
+                                reporterScheduledExecutor);
+                terminationFutures.add(reporterExecutorShutdownFuture);
 
-                terminationFutures.add(executorShutdownFuture);
+                final CompletableFuture<Void> viewUpdaterExecutorShutdownFuture =
+                        ExecutorUtils.nonBlockingShutdown(
+                                gracePeriod.toMilliseconds(),
+                                TimeUnit.MILLISECONDS,
+                                viewUpdaterScheduledExecutor);
+
+                terminationFutures.add(viewUpdaterExecutorShutdownFuture);
 
                 FutureUtils.completeAll(terminationFutures)
                         .whenComplete(
@@ -403,7 +424,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
                 try {
                     if (metric instanceof View) {
                         if (viewUpdater == null) {
-                            viewUpdater = new ViewUpdater(executor);
+                            viewUpdater = new ViewUpdater(viewUpdaterScheduledExecutor);
                         }
                         viewUpdater.notifyOfAddedView((View) metric);
                     }
