@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.{JArrayList, JHashMap, JList}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
+import org.apache.flink.table.planner.plan.logical.WindowSpec
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate, FlinkLogicalJoin, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -27,6 +28,7 @@ import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, groupingContainsWindowStartEnd, isWindowTableFunctionCall}
 import org.apache.flink.table.runtime.groupwindow._
+import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
@@ -254,11 +256,34 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   def getWindowProperties(
       rel: StreamPhysicalWindowAggregate,
       mq: RelMetadataQuery): RelWindowProperties = {
+    getWindowAggregateWindowProperties(
+      rel.grouping.length + rel.aggCalls.size(),
+      rel.namedWindowProperties,
+      rel.windowing.getWindow,
+      rel.windowing.getTimeAttributeType
+    )
+  }
+
+  def getWindowProperties(
+      rel: StreamPhysicalGlobalWindowAggregate,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    getWindowAggregateWindowProperties(
+      rel.grouping.length + rel.aggCalls.size(),
+      rel.namedWindowProperties,
+      rel.windowing.getWindow,
+      rel.windowing.getTimeAttributeType
+    )
+  }
+
+  private def getWindowAggregateWindowProperties(
+      propertyOffset: Int,
+      windowProperties: Seq[NamedWindowProperty],
+      windowSpec: WindowSpec,
+      timeAttributeType: LogicalType): RelWindowProperties = {
     val starts = ArrayBuffer[Int]()
     val ends = ArrayBuffer[Int]()
     val times = ArrayBuffer[Int]()
-    val propertyOffset = rel.grouping.length + rel.aggCalls.size()
-    rel.namedWindowProperties.map(_.getProperty).zipWithIndex.foreach {
+    windowProperties.map(_.getProperty).zipWithIndex.foreach {
       case (p, index) =>
         p match {
           case _: WindowStart =>
@@ -275,9 +300,16 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       ImmutableBitSet.of(starts: _*),
       ImmutableBitSet.of(ends: _*),
       ImmutableBitSet.of(times: _*),
-      rel.windowing.getWindow,
-      rel.windowing.getTimeAttributeType
+      windowSpec,
+      timeAttributeType
     )
+  }
+
+  def getWindowProperties(
+      rel: StreamPhysicalLocalWindowAggregate,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    fmq.getRelWindowProperties(rel.getInput)
   }
 
   def getWindowProperties(
