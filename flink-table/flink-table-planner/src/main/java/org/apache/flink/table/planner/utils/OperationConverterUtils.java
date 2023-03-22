@@ -19,24 +19,14 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.validate.SqlValidator;
 
 import javax.annotation.Nullable;
 
@@ -135,33 +125,6 @@ public class OperationConverterUtils {
                 .map(SqlCharStringLiteral.class::cast)
                 .map(c -> c.getValueAs(String.class))
                 .orElse(null);
-    }
-
-    private static Column.PhysicalColumn toTableColumn(
-            SqlTableColumn tableColumn, SqlValidator sqlValidator) {
-        if (!(tableColumn instanceof SqlRegularColumn)) {
-            throw new TableException("Only regular columns are supported for this operation yet.");
-        }
-        SqlRegularColumn regularColumn = (SqlRegularColumn) tableColumn;
-        String name = regularColumn.getName().getSimple();
-        SqlDataTypeSpec typeSpec = regularColumn.getType();
-        boolean nullable = typeSpec.getNullable() == null || typeSpec.getNullable();
-        LogicalType logicalType =
-                FlinkTypeFactory.toLogicalType(typeSpec.deriveType(sqlValidator, nullable));
-        DataType dataType = TypeConversions.fromLogicalToDataType(logicalType);
-        return Column.physical(name, dataType);
-    }
-
-    private static void setWatermarkAndPK(TableSchema.Builder builder, TableSchema schema) {
-        for (WatermarkSpec watermarkSpec : schema.getWatermarkSpecs()) {
-            builder.watermark(watermarkSpec);
-        }
-        schema.getPrimaryKey()
-                .ifPresent(
-                        pk -> {
-                            builder.primaryKey(
-                                    pk.getName(), pk.getColumns().toArray(new String[0]));
-                        });
     }
 
     public static Map<String, String> extractProperties(SqlNodeList propList) {
