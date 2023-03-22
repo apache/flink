@@ -132,7 +132,7 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |""".stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
-    util.tableEnv.registerTable("T", table)
+    util.tableEnv.createTemporaryView("T", table)
     val sqlQuery1 =
       s"""
          |SELECT *
@@ -162,7 +162,7 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |""".stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
-    util.tableEnv.registerTable("T", table)
+    util.tableEnv.createTemporaryView("T", table)
     val sqlQuery1 =
       """
         |SELECT

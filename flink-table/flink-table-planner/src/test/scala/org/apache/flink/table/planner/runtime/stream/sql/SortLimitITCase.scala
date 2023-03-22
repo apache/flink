@@ -43,7 +43,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql = "SELECT * FROM T ORDER BY num DESC LIMIT 2"
 
@@ -60,7 +60,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val data = List((1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4), (3, 3), (3, 4), (3, 5))
 
     val ds = failingDataSource(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     // We use max here to ensure the usage of update rank
     val sql = "SELECT a, max(b) FROM T GROUP BY a ORDER BY a LIMIT 2"
@@ -78,7 +78,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val data = List((1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4), (3, 3), (3, 4), (3, 5))
 
     val ds = failingDataSource(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     // We use max here to ensure the usage of update rank
     val sql = "SELECT a, max(b) FROM T GROUP BY a ORDER BY a LIMIT 2 OFFSET 1"

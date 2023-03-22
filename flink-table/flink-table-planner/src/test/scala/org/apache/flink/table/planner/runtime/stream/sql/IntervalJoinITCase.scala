@@ -64,16 +64,16 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((2, 2L, "HeHe"))
 
     val tmp1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("TmpT1", tmp1)
+    tEnv.createTemporaryView("TmpT1", tmp1)
     val subquery1 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT1"
     val t1 = tEnv.sqlQuery(subquery1)
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val tmp2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("TmpT2", tmp2)
+    tEnv.createTemporaryView("TmpT2", tmp2)
     val subquery2 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT2"
     val t2 = tEnv.sqlQuery(subquery2)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -107,16 +107,16 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((2, 2L, "HeHe"))
 
     val tmp1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("TmpT1", tmp1)
+    tEnv.createTemporaryView("TmpT1", tmp1)
     val subquery1 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT1"
     val t1 = tEnv.sqlQuery(subquery1)
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
 
     val tmp2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("TmpT2", tmp2)
+    tEnv.createTemporaryView("TmpT2", tmp2)
     val subquery2 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT2"
     val t2 = tEnv.sqlQuery(subquery2)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -158,8 +158,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -209,8 +209,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(sink)
@@ -264,8 +264,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(sink)
@@ -319,8 +319,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(sink)
@@ -387,8 +387,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
     val sink = new TestingRetractSink
     val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     result.addSink(sink)
@@ -512,8 +512,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(sink)
@@ -564,8 +564,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(sink)
@@ -615,8 +615,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val t_r = tEnv.sqlQuery(sqlQuery)
@@ -669,8 +669,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -714,8 +714,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .fromCollection(data2)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -765,8 +765,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -821,8 +821,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -864,8 +864,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -912,8 +912,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -965,8 +965,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -1008,8 +1008,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -1056,8 +1056,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -1111,8 +1111,8 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]

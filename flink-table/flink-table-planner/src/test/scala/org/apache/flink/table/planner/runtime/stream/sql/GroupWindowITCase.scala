@@ -289,7 +289,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string, 'name)
-    tEnv.registerTable("T1", table)
+    tEnv.createTemporaryView("T1", table)
 
     val sql =
       """
@@ -341,7 +341,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
-    tEnv.registerTable("T1", table)
+    tEnv.createTemporaryView("T1", table)
     tEnv.createTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val sql =
@@ -566,7 +566,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     val stream = failingDataSource(sessionWindowTestData)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    tEnv.registerTable("MyTable", table)
+    tEnv.createTemporaryView("MyTable", table)
 
     val sqlQuery =
       """

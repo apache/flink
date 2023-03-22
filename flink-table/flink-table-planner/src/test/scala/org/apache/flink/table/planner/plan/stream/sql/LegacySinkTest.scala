@@ -141,7 +141,7 @@ class LegacySinkTest extends TableTestBase {
   def testRetractAndUpsertSink(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT b, COUNT(a) AS cnt FROM MyTable GROUP BY b")
-    util.tableEnv.registerTable("TempTable", table)
+    util.tableEnv.createTemporaryView("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b < 4")
     val retractSink = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
@@ -164,7 +164,7 @@ class LegacySinkTest extends TableTestBase {
   def testUpsertAndUpsertSink(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT b, COUNT(a) AS cnt FROM MyTable GROUP BY b")
-    util.tableEnv.registerTable("TempTable", table)
+    util.tableEnv.createTemporaryView("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery(
       "SELECT cnt, COUNT(b) AS frequency FROM TempTable WHERE b < 4 GROUP BY cnt")
@@ -192,7 +192,7 @@ class LegacySinkTest extends TableTestBase {
 
     val table =
       util.tableEnv.sqlQuery("SELECT a, b FROM MyTable UNION ALL SELECT d, e FROM MyTable2")
-    util.tableEnv.registerTable("TempTable", table)
+    util.tableEnv.createTemporaryView("TempTable", table)
 
     val appendSink = util.createAppendTableSink(Array("a", "b"), Array(INT, LONG))
     util.tableEnv
@@ -202,7 +202,7 @@ class LegacySinkTest extends TableTestBase {
 
     val table1 =
       util.tableEnv.sqlQuery("SELECT a, b FROM TempTable UNION ALL SELECT i, j FROM MyTable3")
-    util.tableEnv.registerTable("TempTable1", table1)
+    util.tableEnv.createTemporaryView("TempTable1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable1")
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))

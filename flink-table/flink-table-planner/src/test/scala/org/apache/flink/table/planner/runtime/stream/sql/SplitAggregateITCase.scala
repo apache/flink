@@ -82,7 +82,7 @@ class SplitAggregateITCase(
     )
 
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
   }
 
   @Test
@@ -409,7 +409,7 @@ class SplitAggregateITCase(
   def testUvWithRetraction(): Unit = {
     val data = (0 until 1000).map(i => (s"${i % 10}", s"${i % 100}", s"$i")).toList
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("src", t)
+    tEnv.createTemporaryView("src", t)
 
     val sql =
       s"""
@@ -440,7 +440,7 @@ class SplitAggregateITCase(
     val data = (0 until 100).map(i => ("1", "1", s"${i % 50}", "1")).toList
     // use BinaryRowData source here for StringData reuse
     val t = failingBinaryRowSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
-    tEnv.registerTable("src", t)
+    tEnv.createTemporaryView("src", t)
 
     val sql =
       s"""
