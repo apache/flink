@@ -127,8 +127,8 @@ show databases;
 +---------------+
 | database name |
 +---------------+
-|       default |
 |           db1 |
+|       default |
 +---------------+
 2 rows in set
 !ok
@@ -190,9 +190,9 @@ show databases;
 +---------------+
 | database name |
 +---------------+
-|       default |
 |           db1 |
 |           db2 |
+|       default |
 +---------------+
 3 rows in set
 !ok
@@ -212,8 +212,8 @@ show databases;
 +---------------+
 | database name |
 +---------------+
-|       default |
 |           db1 |
+|       default |
 +---------------+
 2 rows in set
 !ok
