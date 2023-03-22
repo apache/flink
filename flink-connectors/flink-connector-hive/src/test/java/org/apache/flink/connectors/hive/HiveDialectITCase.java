@@ -312,7 +312,7 @@ public class HiveDialectITCase {
         Schema schema = catalogTable.getUnresolvedSchema();
         assertThat(schema.getPrimaryKey()).as("PK not present").isPresent();
         assertThat(schema.getPrimaryKey().get().getColumnNames().size()).isEqualTo(1);
-        assertThat(schema.getPrimaryKey().get().getColumnNames().get(0)).isEqualTo("pk_name");
+        assertThat(schema.getPrimaryKey().get().getConstraintName()).isEqualTo("pk_name");
         List<Schema.UnresolvedColumn> columns = schema.getColumns();
         assertThat(HiveTestUtils.getType(columns.get(0)).getLogicalType().isNullable())
                 .as("PK cannot be null")
