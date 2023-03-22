@@ -26,9 +26,8 @@ under the License.
 
 # HiveServer2 Endpoint
 
-HiveServer2 Endpoint is compatible with [HiveServer2](https://cwiki.apache.org/confluence/display/hive/hiveserver2+overview)
-wire protocol and allows users to interact (e.g. submit Hive SQL) with Flink SQL Gateway with existing Hive clients, such as Hive JDBC, Beeline, DBeaver, Apache Superset and so on.
+HiveServer2 Endpoint 兼容 [HiveServer2](https://cwiki.apache.org/confluence/display/hive/hiveserver2+overview)
+协议，允许用户使用 Hive JDBC、Beeline、DBeaver、Apache Superset 等 Hive 客户端和 Flink SQL Gateway 交互（例如提交 Hive SQL）。
 
-It suggests to use HiveServer2 Endpoint with Hive Catalog and Hive dialect to get the same experience
-as HiveServer2. Please refer to the [Hive Compatibility]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}})
-for more details. 
+建议将 HiveServer2 Endpoint 和 Hive Catalog、Hive 方言一起使用，以获得与 HiveServer2 一样的使用体验。
+请参阅 [Hive Compatibility]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}) 了解更多详情。 
