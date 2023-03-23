@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -37,11 +38,16 @@ import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.SECOND;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
+import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.dateSub;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
 
 /** Test time-related built-in functions. */
@@ -53,7 +59,8 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         extractTestCases(),
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
-                        floorTestCases())
+                        floorTestCases(),
+                        dateSubTestCases())
                 .flatMap(s -> s);
     }
 
@@ -733,5 +740,59 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
+    }
+
+    private Stream<TestSetSpec> dateSubTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATE_SUB)
+                        .onFieldsWithData(
+                                LocalDate.of(2019, 1, 1),
+                                LocalDateTime.of(2019, 1, 1, 23, 59, 59),
+                                "2019-1-1",
+                                null)
+                        .andDataTypes(
+                                DATE().notNull(),
+                                TIMESTAMP_LTZ().notNull(),
+                                STRING(),
+                                DATE().nullable())
+                        .testResult(
+                                dateSub($("f0"), lit(1, DataTypes.INT().notNull()).cast(TINYINT())),
+                                "DATE_SUB (f0, CAST(1 AS TINYINT))",
+                                LocalDate.of(2018, 12, 31),
+                                DATE().notNull())
+                        .testResult(
+                                dateSub($("f1"), lit(1, DataTypes.INT().notNull())),
+                                "DATE_SUB (f1, 1)",
+                                LocalDate.of(2018, 12, 31),
+                                DATE().notNull())
+                        .testResult(
+                                dateSub($("f2"), lit(-1, DataTypes.INT().notNull())),
+                                "DATE_SUB (f2, -1)",
+                                LocalDate.of(2019, 1, 2),
+                                DATE())
+                        // arg is null.
+                        .testResult(
+                                dateSub($("f2"), nullOf(INT())),
+                                "DATE_SUB (f2, NULL)",
+                                null,
+                                DATE().nullable())
+                        .testResult(
+                                dateSub($("f3"), lit(1)),
+                                "DATE_SUB (f3, 1)",
+                                null,
+                                DATE().nullable())
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "DATE_SUB(f0, CAST(1 AS BIGINT))",
+                                "Invalid function call:\n"
+                                        + "DATE_SUB(DATE NOT NULL, BIGINT NOT NULL)")
+                        .testTableApiValidationError(
+                                dateSub($("f0"), lit(1).cast(BIGINT())),
+                                "Invalid function call:\n"
+                                        + "DATE_SUB(DATE NOT NULL, BIGINT NOT NULL)")
+                        .testSqlValidationError(
+                                "DATE_SUB(f0, TIMESTAMP '2020-03-10 13:12:11.123')",
+                                "Invalid function call:\n"
+                                        + "DATE_SUB(DATE NOT NULL, TIMESTAMP(3) NOT NULL)"));
     }
 }

@@ -47,6 +47,7 @@ Expressions
     to_timestamp_ltz
     temporal_overlaps
     date_format
+    date_sub
     timestamp_diff
     convert_tz
     from_unixtime

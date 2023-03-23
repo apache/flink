@@ -1626,6 +1626,25 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition DATE_SUB =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATE_SUB")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    or(
+                                            logical(LogicalTypeRoot.DATE),
+                                            logical(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                                            logical(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    or(
+                                            logical(LogicalTypeRoot.TINYINT),
+                                            logical(LogicalTypeRoot.SMALLINT),
+                                            logical(LogicalTypeRoot.INTEGER))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.DATE())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.DateSubFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")

@@ -599,6 +599,9 @@ temporal:
       时间值可以是时间点或时间间隔。例如
       `(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)` 返回 TRUE；
       `(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)` 返回 FALSE。
+  - sql: DATE_SUB(date, integer)
+    table: dateSub(DATE, INTEGER)
+    description: 减去开始日期的天数。
   - sql: DATE_FORMAT(timestamp, string)
     table: dateFormat(TIMESTAMP, STRING)
     description: |

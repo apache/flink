@@ -361,6 +361,20 @@ def date_format(timestamp, format) -> Expression:
     return _binary_op("dateFormat", timestamp, format)
 
 
+def date_sub(startDate, days) -> Expression:
+    """
+    Subtracts a number of days to startdate.
+
+    For example,
+    `date_sub(lit("2019-01-01").to_date, lit(1))` leads to 2018-12-31.
+
+    :param startDate: The start date in time.
+    :param days: The number of days.
+    :return: Subtracts a number of days to startdate.
+    """
+    return _binary_op("dateSub", startDate, days)
+
+
 def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> Expression:
     """
     Returns the (signed) number of :class:`~pyflink.table.expression.TimePointUnit` between

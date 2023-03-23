@@ -414,6 +414,19 @@ public final class Expressions {
     }
 
     /**
+     * Subtracts a number of days to startdate.
+     *
+     * <p>For example, {@code dateSub(lit("2019-01-01").toDate(), lit(1))} leads to 2018-12-31.
+     *
+     * @param startDate The start date in time.
+     * @param days The number of days.
+     * @return Subtracts a number of days to startdate.
+     */
+    public static ApiExpression dateSub(Object startDate, Object days) {
+        return apiCall(BuiltInFunctionDefinitions.DATE_SUB, startDate, days);
+    }
+
+    /**
      * Returns the (signed) number of {@link TimePointUnit} between timePoint1 and timePoint2.
      *
      * <p>For example, {@code timestampDiff(TimePointUnit.DAY, lit("2016-06-15").toDate(),
