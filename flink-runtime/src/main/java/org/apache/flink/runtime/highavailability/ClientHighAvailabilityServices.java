@@ -20,6 +20,8 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
+import java.net.UnknownHostException;
+
 /**
  * {@code ClientHighAvailabilityServices} provides services those are required on client-side. At
  * the moment only the REST endpoint leader retriever is required because all communication between
@@ -32,5 +34,5 @@ public interface ClientHighAvailabilityServices extends AutoCloseable {
      *
      * @return the leader retriever for cluster's rest endpoint.
      */
-    LeaderRetrievalService getClusterRestEndpointLeaderRetriever();
+    LeaderRetrievalService getClusterRestEndpointLeaderRetriever() throws UnknownHostException;
 }
