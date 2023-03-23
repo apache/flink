@@ -64,7 +64,9 @@ public class RowTimeMiniBatchDeduplicateFunction
     }
 
     @Override
-    public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
+    public List<RowData> addInput(
+            RowData key, @Nullable List<RowData> value, RowData input, Collector<RowData> out)
+            throws Exception {
         if (value == null) {
             value = new ArrayList<>();
         }

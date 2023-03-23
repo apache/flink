@@ -63,10 +63,17 @@ public class MiniBatchLocalGroupAggFunction
     }
 
     @Override
-    public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+    public RowData addInput(
+            RowData currentKey,
+            @Nullable RowData previousAcc,
+            RowData input,
+            Collector<RowData> out)
+            throws Exception {
         RowData currentAcc;
+        boolean firstRow = false;
         if (previousAcc == null) {
             currentAcc = function.createAccumulators();
+            firstRow = true;
         } else {
             currentAcc = previousAcc;
         }
@@ -75,6 +82,11 @@ public class MiniBatchLocalGroupAggFunction
             function.accumulate(input);
         } else {
             function.retract(input);
+            if (firstRow) {
+                resultRow.replace(currentKey, function.getAccumulators());
+                out.collect(resultRow);
+                return null;
+            }
         }
         // return the updated accumulators
         return function.getAccumulators();

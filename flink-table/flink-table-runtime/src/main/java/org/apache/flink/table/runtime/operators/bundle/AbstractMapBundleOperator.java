@@ -117,7 +117,11 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT> extends AbstractS
         final V bundleValue = bundle.get(bundleKey);
 
         // get a new value after adding this element to bundle
-        final V newBundleValue = function.addInput(bundleValue, input);
+        final V newBundleValue = function.addInput(bundleKey, bundleValue, input, collector);
+
+        if (newBundleValue == null) {
+            return;
+        }
 
         // update to map bundle
         bundle.put(bundleKey, newBundleValue);
