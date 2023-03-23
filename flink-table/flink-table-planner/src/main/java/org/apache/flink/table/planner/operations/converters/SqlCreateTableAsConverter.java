@@ -30,6 +30,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 
+import org.apache.calcite.sql.SqlNode;
+
 import java.util.Collections;
 
 import static org.apache.flink.table.planner.operations.CreateTableConverterUtils.createCatalogTable;
@@ -48,16 +50,16 @@ public class SqlCreateTableAsConverter implements SqlNodeConverter<SqlCreateTabl
                 UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
+        SqlNode asQuery = sqlCreateTableAs.getAsQuery();
+        SqlNode validate = context.getSqlValidator().validate(asQuery);
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
-                        SqlNodeConverters.convertSqlNode(sqlCreateTableAs.getAsQuery(), context)
+                        SqlNodeConverters.convertSqlNode(validate, context)
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
                                                         "CTAS unsupported node type "
-                                                                + sqlCreateTableAs
-                                                                        .getAsQuery()
-                                                                        .getClass()
+                                                                + asQuery.getClass()
                                                                         .getSimpleName()));
         CatalogTable catalogTable = createCatalogTable(context, sqlCreateTableAs);
 
