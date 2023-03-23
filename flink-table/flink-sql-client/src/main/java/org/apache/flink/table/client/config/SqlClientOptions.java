@@ -75,5 +75,6 @@ public class SqlClientOptions {
             ConfigOptions.key("sql-client.display.default-color-schema")
                     .stringType()
                     .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
-                    .withDescription("SQL highlight color scheme to be used at SQL client start.");
+                    .withDescription(
+                            "SQL highlight color scheme to be used at SQL client start. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
 }
