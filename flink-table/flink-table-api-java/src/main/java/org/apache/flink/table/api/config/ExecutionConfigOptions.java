@@ -548,8 +548,8 @@ public class ExecutionConfigOptions {
                     .longType()
                     .defaultValue(0L)
                     .withDescription(
-                            "Set the waiting time for interval join executing cleanup logic."
-                                    + "Modify this param will cause data disorder, see more detail(FLINK-18996)");
+                            "Set the waiting time for interval join executing cleanup logic. "
+                                    + "Modify this param will cause rows disorder.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types
