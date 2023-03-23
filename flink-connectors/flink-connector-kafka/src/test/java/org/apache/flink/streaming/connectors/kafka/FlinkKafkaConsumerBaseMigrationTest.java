@@ -92,7 +92,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_16);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_17);
     }
 
     public FlinkKafkaConsumerBaseMigrationTest(FlinkVersion testMigrateVersion) {
