@@ -84,7 +84,7 @@ public class WindowOperatorMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_16);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_17);
     }
 
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
