@@ -85,7 +85,17 @@ under the License.
 For some reason Hugo will only allow linking to the 
 release notes if there is a leading '/' and file extension.
 -->
-请参阅 [Flink 1.16]({{< ref "/release-notes/flink-1.16.md" >}}), [Flink 1.15]({{< ref "/release-notes/flink-1.15.md" >}}), [Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}}), [Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}})，[Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}})，[Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}})，[Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}})，[Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}})，或者 [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}) 的发行说明。
+请参阅 [Flink 1.17]({{< ref "/release-notes/flink-1.17.md" >}})，
+[Flink 1.16]({{< ref "/release-notes/flink-1.16.md" >}})，
+[Flink 1.15]({{< ref "/release-notes/flink-1.15.md" >}})，
+[Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}})，
+[Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}})， 
+[Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}})，
+[Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}})，
+[Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}})，
+[Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}})，
+[Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}})，或者 
+[Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}) 的发行说明。
 
 {{< /columns >}}
 
