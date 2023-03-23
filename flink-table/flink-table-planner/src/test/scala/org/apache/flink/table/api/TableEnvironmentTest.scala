@@ -1358,7 +1358,7 @@ class TableEnvironmentTest {
       ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
       tableResult2.getResolvedSchema)
     checkData(
-      util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
+      util.Arrays.asList(Row.of("db1"), Row.of("default_database")).iterator(),
       tableResult2.collect())
   }
 

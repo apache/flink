@@ -35,8 +35,9 @@ public class ShowDatabasesOperation implements ShowOperation {
         String[] databases =
                 ctx.getCatalogManager()
                         .getCatalogOrThrowException(ctx.getCatalogManager().getCurrentCatalog())
-                        .listDatabases()
-                        .toArray(new String[0]);
+                        .listDatabases().stream()
+                        .sorted()
+                        .toArray(String[]::new);
         return buildStringArrayResult("database name", databases);
     }
 }
