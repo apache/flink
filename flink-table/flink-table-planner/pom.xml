@@ -123,6 +123,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-calcite-bridge</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- Test dependencies -->

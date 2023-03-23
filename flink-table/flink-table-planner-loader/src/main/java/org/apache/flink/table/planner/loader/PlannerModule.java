@@ -84,7 +84,8 @@ class PlannerModule {
                                     "org.apache.commons.math3"))
                     .toArray(String[]::new);
 
-    private static final String[] COMPONENT_CLASSPATH = new String[] {"org.apache.flink"};
+    private static final String[] COMPONENT_CLASSPATH =
+            new String[] {"org.apache.flink", "org.apache.calcite"};
 
     private static final Map<String, String> KNOWN_MODULE_ASSOCIATIONS = new HashMap<>();
 
@@ -205,6 +206,28 @@ class PlannerModule {
                             .getCodeSource()
                             .getLocation();
             return Optional.of(url);
+        }
+    }
+
+    /** Planner component class loader. */
+    private static class PlannerComponentClassLoader extends ComponentClassLoader {
+
+        public PlannerComponentClassLoader(
+                URL[] classpath,
+                ClassLoader ownerClassLoader,
+                String[] ownerFirstPackages,
+                String[] componentFirstPackages,
+                Map<String, String> knownPackagePrefixesModuleAssociation) {
+            super(
+                    classpath,
+                    ownerClassLoader,
+                    ownerFirstPackages,
+                    componentFirstPackages,
+                    knownPackagePrefixesModuleAssociation);
+        }
+
+        public void addURL(URL url) {
+            super.addURL(url);
         }
     }
 }

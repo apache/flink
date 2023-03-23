@@ -112,15 +112,21 @@
 					<groupId>org.apiguardian</groupId>
 					<artifactId>apiguardian-api</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
+<!--				<exclusion>-->
+<!--					<groupId>com.google.guava</groupId>-->
+<!--					<artifactId>guava</artifactId>-->
+<!--				</exclusion>-->
 				<exclusion>
 					<groupId>com.google.errorprone</groupId>
 					<artifactId>error_prone_annotations</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<artifactId>apiguardian-api</artifactId>
+			<groupId>org.apiguardian</groupId>
+			<version>1.1.2</version>
 		</dependency>
 
 		<dependency>
@@ -131,6 +137,13 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.immutables</groupId>
+			<artifactId>value</artifactId>
+			<version>2.8.8</version>
+		</dependency>
+
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
@@ -138,5 +151,100 @@
 		</dependency>
 
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- Base config -->
+					<createDependencyReducedPom>true</createDependencyReducedPom>
+					<keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
+					<filters combine.children="append">
+						<filter>
+							<artifact>*:*</artifact>
+							<excludes>
+								<!-- Excluded all these files for a clean flink-table-planner JAR -->
+								<exclude>org-apache-calcite-jdbc.properties</exclude>
+								<exclude>common.proto</exclude>
+								<exclude>requests.proto</exclude>
+								<exclude>responses.proto</exclude>
+								<exclude>codegen/**</exclude>
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+								<exclude>META-INF/services/java.sql.Driver</exclude>
+								<exclude>META-INF/versions/11/module-info.class</exclude>
+								<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
+								<exclude>LICENSE</exclude>
+							</excludes>
+						</filter>
+					</filters>
+					<artifactSet>
+						<includes combine.children="append">
+							<include>org.apache.calcite:*</include>
+							<include>org.apache.calcite.avatica:*</include>
+
+							<!-- Calcite's dependencies -->
+							<include>com.esri.geometry:esri-geometry-api</include>
+<!--							<include>com.google.guava:guava</include>-->
+<!--							<include>com.google.guava:failureaccess</include>-->
+							<include>commons-codec:commons-codec</include>
+							<include>commons-io:commons-io</include>
+							<include>org.checkerframework:checker-qual</include>
+
+							<!-- flink-table-planner dependencies -->
+							<include>org.apache.flink:flink-sql-parser</include>
+							<include>org.apache.flink:flink-table-calcite-bridge</include>
+						</includes>
+					</artifactSet>
+					<relocations>
+						<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
+						<!--<relocation>
+							<pattern>org.apache.calcite</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
+						</relocation>-->
+
+						<!-- Calcite's dependencies -->
+<!--						<relocation>-->
+<!--							<pattern>com.google</pattern>-->
+<!--							<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>-->
+<!--						</relocation>-->
+						<relocation>
+							<pattern>org.apache.commons.codec</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.apache.commons.io</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.checkerframework</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
+						</relocation>
+
+						<!-- These are relocated to match package names, but not included in this jar -->
+						<relocation>
+							<pattern>com.fasterxml</pattern>
+							<!-- From flink-shaded-jackson -->
+							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>com.jayway</pattern>
+							<!-- From flink-table-runtime -->
+							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
+						</relocation>
+
+						<relocation>
+							<!-- icu4j's dependencies -->
+							<pattern>com.ibm.icu</pattern>
+							<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
+						</relocation>
+					</relocations>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>
