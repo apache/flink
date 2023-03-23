@@ -123,36 +123,42 @@ class DefaultResourceAllocationStrategyTest {
         assertThat(result.getAllocationsOnPendingResources()).isEmpty();
         assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
 
-        assertThat(
-                        result.getAllocationsOnRegisteredResources()
-                                .get(jobId)
-                                .get(taskManager1.getInstanceId())
-                                .getResourceCount(largeResource))
-                .isEqualTo(2);
-        assertThat(
-                        result.getAllocationsOnRegisteredResources()
-                                .get(jobId)
-                                .get(taskManager2.getInstanceId())
-                                .getResourceCount(largeResource))
-                .isEqualTo(1);
-        assertThat(
-                        result.getAllocationsOnRegisteredResources()
-                                .get(jobId)
-                                .get(taskManager2.getInstanceId())
-                                .getResourceCount(DEFAULT_SLOT_RESOURCE))
-                .isEqualTo(1);
-        assertThat(
-                        result.getAllocationsOnRegisteredResources()
-                                .get(jobId)
-                                .get(taskManager3.getInstanceId())
-                                .getResourceCount(largeResource))
-                .isEqualTo(1);
-        assertThat(
-                        result.getAllocationsOnRegisteredResources()
-                                .get(jobId)
-                                .get(taskManager3.getInstanceId())
-                                .getResourceCount(DEFAULT_SLOT_RESOURCE))
-                .isEqualTo(1);
+        assertThat(result.getAllocationsOnRegisteredResources().get(jobId).values())
+                .allSatisfy(
+                        resourceCounter ->
+                                assertThat(resourceCounter.getTotalResourceCount()).isEqualTo(2));
+        assertThat(result.getAllocationsOnRegisteredResources().get(jobId).values())
+                .allSatisfy(
+                        resourceCounter ->
+                                assertThat(resourceCounter.containsResource(largeResource))
+                                        .isTrue());
+    }
+
+    @Test
+    void testExcessPendingResourcesCouldReleaseEvenly() {
+        final JobID jobId = new JobID();
+        final List<ResourceRequirement> requirements = new ArrayList<>();
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setPendingTaskManagersSupplier(
+                                () ->
+                                        Arrays.asList(
+                                                new PendingTaskManager(
+                                                        DEFAULT_SLOT_RESOURCE.multiply(2), 2),
+                                                new PendingTaskManager(
+                                                        DEFAULT_SLOT_RESOURCE.multiply(2), 2)))
+                        .build();
+        requirements.add(ResourceRequirement.create(ResourceProfile.UNKNOWN, 2));
+
+        final ResourceAllocationResult result =
+                EVENLY_STRATEGY.tryFulfillRequirements(
+                        Collections.singletonMap(jobId, requirements),
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false);
+
+        assertThat(result.getUnfulfillableJobs()).isEmpty();
+        assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
+        assertThat(result.getAllocationsOnPendingResources()).hasSize(1);
     }
 
     @Test
