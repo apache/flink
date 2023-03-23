@@ -49,7 +49,7 @@ public class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testProcTimeInnerJoinWithCommonBounds() throws Exception {
         ProcTimeIntervalJoin joinProcessFunc =
                 new ProcTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, 20, rowType, rowType, joinFunction);
+                        FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -108,7 +108,7 @@ public class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     public void testProcTimeInnerJoinWithNegativeBounds() throws Exception {
         ProcTimeIntervalJoin joinProcessFunc =
                 new ProcTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, -5, rowType, rowType, joinFunction);
+                        FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);

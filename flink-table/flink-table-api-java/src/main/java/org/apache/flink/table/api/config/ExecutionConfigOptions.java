@@ -542,6 +542,15 @@ public class ExecutionConfigOptions {
                                     + "In Flink 1.15.x the pattern was wrongly defined as '<id>_<type>_<version>_<transformation>' "
                                     + "which would prevent migrations in the future.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS =
+            key("table.exec.join.interval-join-min-cleanup-interval-millis")
+                    .longType()
+                    .defaultValue(0L)
+                    .withDescription(
+                            "Set the waiting time for interval join executing cleanup logic."
+                                    + "Modify this param will cause data disorder, see more detail(FLINK-18996)");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
