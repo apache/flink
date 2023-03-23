@@ -504,8 +504,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     val rTable = List(0, 1)
     val ds1 = failingDataSource(lTable).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = failingDataSource(rTable).toTable(tEnv, 'd)
-    tEnv.registerTable("l", ds1)
-    tEnv.registerTable("r", ds2)
+    tEnv.createTemporaryView("l", ds1)
+    tEnv.createTemporaryView("r", ds2)
     val query =
       "SELECT a + 10, c FROM l WHERE b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))"
     val result = tEnv.sqlQuery(query)
