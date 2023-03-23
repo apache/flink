@@ -20,8 +20,8 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.runtime.jobmaster.JobResourceRequirements;
 
 /** Testing implementation of {@link JobGraphWriter} which does nothing. */
 public enum NoOpJobGraphWriter implements JobGraphWriter {

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 
 import java.util.Collection;
 import java.util.Collections;
