@@ -293,11 +293,11 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void maybeReclaimInactiveSlots(JobID jobId) {
+        // We don't notify the task manager tracker and resource tracker about the freeing of these
+        // slots early, and rely on task managers to report the slots becoming available later to
+        // keep the states consistent.
         if (!resourceTracker.getAcquiredResources(jobId).isEmpty()) {
-            for (TaskExecutorConnection taskExecutorConnection :
-                    taskManagerTracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId)) {
-                slotStatusSyncer.freeInactiveSlots(jobId, taskExecutorConnection);
-            }
+            slotStatusSyncer.freeInactiveSlots(jobId);
         }
     }
 

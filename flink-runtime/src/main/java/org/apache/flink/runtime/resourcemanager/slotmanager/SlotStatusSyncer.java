@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.concurrent.CompletableFuture;
@@ -85,10 +84,9 @@ public interface SlotStatusSyncer {
     boolean reportSlotStatus(InstanceID instanceId, SlotReport slotReport);
 
     /**
-     * Frees all currently inactive slot allocated for the given job and task executor.
+     * Frees all currently inactive slot allocated for the given job.
      *
      * @param jobId of the job
-     * @param taskExecutorConnection of the task manager
      */
-    void freeInactiveSlots(JobID jobId, TaskExecutorConnection taskExecutorConnection);
+    void freeInactiveSlots(JobID jobId);
 }

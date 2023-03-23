@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -310,11 +309,15 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     }
 
     @Override
-    public void freeInactiveSlots(JobID jobId, TaskExecutorConnection taskExecutorConnection) {
+    public void freeInactiveSlots(JobID jobId) {
         checkStarted();
-        taskExecutorConnection
-                .getTaskExecutorGateway()
-                .freeInactiveSlots(jobId, taskManagerRequestTimeout);
+        for (TaskManagerInfo taskManagerInfo :
+                taskManagerTracker.getTaskManagersWithAllocatedSlotsForJob(jobId)) {
+            taskManagerInfo
+                    .getTaskExecutorConnection()
+                    .getTaskExecutorGateway()
+                    .freeInactiveSlots(jobId, taskManagerRequestTimeout);
+        }
     }
 
     private void checkStarted() {

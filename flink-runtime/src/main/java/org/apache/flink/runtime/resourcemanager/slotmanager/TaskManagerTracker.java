@@ -81,13 +81,12 @@ interface TaskManagerTracker
     Map<InstanceID, WorkerResourceSpec> getUnWantedTaskManager();
 
     /**
-     * Returns all task executors that have at least 1 pending/completed allocation for the given
-     * job.
+     * Returns all task managers that have at least 1 allocation for the given job.
      *
      * @param jobId the job for which the task executors must have a slot
-     * @return task executors with at least 1 slot for the job
+     * @return task managers with at least 1 slot for the job
      */
-    Collection<TaskExecutorConnection> getTaskExecutorsWithAllocatedSlotsForJob(JobID jobId);
+    Collection<TaskManagerInfo> getTaskManagersWithAllocatedSlotsForJob(JobID jobId);
 
     // ---------------------------------------------------------------------------------------------
     // Slot status updates
