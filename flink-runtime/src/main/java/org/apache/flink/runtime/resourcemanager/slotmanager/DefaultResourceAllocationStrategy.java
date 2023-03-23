@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -247,6 +248,9 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 ResourceProfile totalProfile,
                 ResourceProfile availableProfile,
                 BiConsumer<JobID, ResourceProfile> allocationConsumer) {
+            Preconditions.checkState(!defaultSlotProfile.equals(ResourceProfile.UNKNOWN));
+            Preconditions.checkState(!totalProfile.equals(ResourceProfile.UNKNOWN));
+            Preconditions.checkState(!availableProfile.equals(ResourceProfile.UNKNOWN));
             this.defaultSlotProfile = defaultSlotProfile;
             this.totalProfile = totalProfile;
             this.availableProfile = availableProfile;
@@ -274,11 +278,6 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         }
 
         private double updateUtilization() {
-            if (totalProfile.equals(ResourceProfile.UNKNOWN)
-                    || availableProfile.equals(ResourceProfile.UNKNOWN)) {
-                return 1;
-            }
-
             double cpuUtilization =
                     totalProfile
                                     .getCpuCores()
