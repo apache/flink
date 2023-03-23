@@ -31,6 +31,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.Test;
@@ -258,6 +259,43 @@ class TaskExecutorManagerTest {
                             (registeredInstance, releasedInstance) ->
                                     assertThat(registeredInstance).isEqualTo(releasedInstance))
                     .get();
+        }
+    }
+
+    @Test
+    void testRequestRedundantTaskManager() {
+        final ResourceProfile resourceProfile = ResourceProfile.newBuilder().setCpuCores(1).build();
+        final AtomicInteger declareResourceCount = new AtomicInteger(0);
+        final ResourceAllocator resourceAllocator =
+                new TestingResourceAllocatorBuilder()
+                        .setDeclareResourceNeededConsumer(
+                                (resourceDeclarations) -> declareResourceCount.getAndIncrement())
+                        .build();
+        ManuallyTriggeredScheduledExecutor taskRestartExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        try (final TaskExecutorManager taskExecutorManager =
+                new TaskExecutorManagerBuilder(taskRestartExecutor)
+                        .setRedundantTaskManagerNum(1)
+                        .setMaxNumSlots(10)
+                        .setResourceAllocator(resourceAllocator)
+                        .createTaskExecutorManager()) {
+
+            // do not check redundant task managers with no registered
+            taskRestartExecutor.triggerScheduledTasks();
+            assertThat(declareResourceCount).hasValue(0);
+
+            InstanceID taskExecutorId =
+                    createAndRegisterTaskExecutor(taskExecutorManager, 1, resourceProfile);
+            taskExecutorManager.occupySlot(taskExecutorId);
+            assertThat(declareResourceCount).hasValue(0);
+
+            // request 1 redundant task manager
+            taskRestartExecutor.triggerScheduledTasks();
+            assertThat(declareResourceCount).hasValue(1);
+
+            // will not trigger new redundant task managers when there are pending slots.
+            taskRestartExecutor.triggerScheduledTasks();
+            assertThat(declareResourceCount).hasValue(1);
         }
     }
 
