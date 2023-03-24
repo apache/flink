@@ -122,8 +122,7 @@ public class AkkaBootstrapTools {
             } catch (Exception e) {
                 // we can continue to try if this contains a netty channel exception
                 Throwable cause = e.getCause();
-                if (!(cause instanceof org.jboss.netty.channel.ChannelException
-                        || cause instanceof java.net.BindException)) {
+                if (!(cause instanceof java.net.BindException)) {
                     throw e;
                 } // else fall through the loop and try the next port
             }

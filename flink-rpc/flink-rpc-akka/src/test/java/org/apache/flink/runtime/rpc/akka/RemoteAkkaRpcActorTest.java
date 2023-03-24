@@ -26,6 +26,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -145,6 +146,7 @@ class RemoteAkkaRpcActorTest {
     }
 
     @Test
+    @Disabled("Not meaningful for Artery")
     void failsRpcResultImmediatelyIfRemoteRpcServiceIsNotAvailable() throws Exception {
         final AkkaRpcService toBeClosedRpcService =
                 AkkaRpcServiceUtils.createRemoteRpcService(

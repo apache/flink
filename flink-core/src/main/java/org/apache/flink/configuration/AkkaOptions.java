@@ -95,14 +95,6 @@ public class AkkaOptions {
                             "Timeout for all outbound connections. If you should experience problems with connecting to a"
                                     + " TaskManager due to a slow network, you should increase this value.");
 
-    /** Timeout for the startup of the actor system. */
-    public static final ConfigOption<String> STARTUP_TIMEOUT =
-            ConfigOptions.key("akka.startup-timeout")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Timeout after which the startup of a remote component is considered being failed.");
-
     /** Override SSL support for the Akka transport. */
     public static final ConfigOption<Boolean> SSL_ENABLED =
             ConfigOptions.key("akka.ssl.enabled")
@@ -120,7 +112,7 @@ public class AkkaOptions {
                     .withDescription(
                             "Maximum size of messages which are sent between the JobManager and the TaskManagers. If Flink"
                                     + " fails because messages exceed this limit, then you should increase it. The message size requires a"
-                                    + " size-unit specifier.");
+                                    + " size-unit specifier. Has to be at least 32 KiB");
 
     /** Maximum number of messages until another actor is executed by the same thread. */
     public static final ConfigOption<Integer> DISPATCHER_THROUGHPUT =
@@ -178,13 +170,12 @@ public class AkkaOptions {
                     .defaultValue(true)
                     .withDescription("Exit JVM on fatal Akka errors.");
 
-    /** Milliseconds a gate should be closed for after a remote connection was disconnected. */
-    public static final ConfigOption<Long> RETRY_GATE_CLOSED_FOR =
-            ConfigOptions.key("akka.retry-gate-closed-for")
-                    .longType()
-                    .defaultValue(50L)
-                    .withDescription(
-                            "Milliseconds a gate should be closed for after a remote connection was disconnected.");
+    /** Retry outbound connection only after this backoff. */
+    public static final ConfigOption<String> OUTBOUND_RESTART_BACKOFF =
+            ConfigOptions.key("akka.outbound-restart-backoff")
+                    .stringType()
+                    .defaultValue("50 ms")
+                    .withDescription("Retry outbound connection only after this backoff.");
 
     // ==================================================
     // Configurations for fork-join-executor.
@@ -223,9 +214,37 @@ public class AkkaOptions {
                                     .build());
 
     // ==================================================
-    // Configurations for client-socket-work-pool.
+    // Deprecated options
     // ==================================================
 
+    /**
+     * Timeout for the startup of the actor system.
+     *
+     * @deprecated Don't use this option anymore. It has no effect on Flink.
+     */
+    @Deprecated
+    public static final ConfigOption<String> STARTUP_TIMEOUT =
+            ConfigOptions.key("akka.startup-timeout")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Timeout after which the startup of a remote component is considered being failed.");
+
+    /**
+     * Milliseconds a gate should be closed for after a remote connection was disconnected.
+     *
+     * @deprecated Don't use this option anymore. It has no effect on Flink.
+     */
+    @Deprecated
+    public static final ConfigOption<Long> RETRY_GATE_CLOSED_FOR =
+            ConfigOptions.key("akka.retry-gate-closed-for")
+                    .longType()
+                    .defaultValue(50L)
+                    .withDescription(
+                            "Milliseconds a gate should be closed for after a remote connection was disconnected.");
+
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     public static final ConfigOption<Integer> CLIENT_SOCKET_WORKER_POOL_SIZE_MIN =
             ConfigOptions.key("akka.client-socket-worker-pool.pool-size-min")
                     .intType()
@@ -235,6 +254,8 @@ public class AkkaOptions {
                                     .text("Min number of threads to cap factor-based number to.")
                                     .build());
 
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     public static final ConfigOption<Integer> CLIENT_SOCKET_WORKER_POOL_SIZE_MAX =
             ConfigOptions.key("akka.client-socket-worker-pool.pool-size-max")
                     .intType()
@@ -244,6 +265,8 @@ public class AkkaOptions {
                                     .text("Max number of threads to cap factor-based number to.")
                                     .build());
 
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     public static final ConfigOption<Double> CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR =
             ConfigOptions.key("akka.client-socket-worker-pool.pool-size-factor")
                     .doubleType()
@@ -257,10 +280,8 @@ public class AkkaOptions {
                                                     + " pool-size-max values.")
                                     .build());
 
-    // ==================================================
-    // Configurations for server-socket-work-pool.
-    // ==================================================
-
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     public static final ConfigOption<Integer> SERVER_SOCKET_WORKER_POOL_SIZE_MIN =
             ConfigOptions.key("akka.server-socket-worker-pool.pool-size-min")
                     .intType()
@@ -270,6 +291,8 @@ public class AkkaOptions {
                                     .text("Min number of threads to cap factor-based number to.")
                                     .build());
 
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     public static final ConfigOption<Integer> SERVER_SOCKET_WORKER_POOL_SIZE_MAX =
             ConfigOptions.key("akka.server-socket-worker-pool.pool-size-max")
                     .intType()
@@ -279,6 +302,8 @@ public class AkkaOptions {
                                     .text("Max number of threads to cap factor-based number to.")
                                     .build());
 
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     public static final ConfigOption<Double> SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR =
             ConfigOptions.key("akka.server-socket-worker-pool.pool-size-factor")
                     .doubleType()
@@ -291,10 +316,6 @@ public class AkkaOptions {
                                                     + " Resulting size is then bounded by the pool-size-min and"
                                                     + " pool-size-max values.")
                                     .build());
-
-    // ==================================================
-    // Deprecated options
-    // ==================================================
 
     /**
      * The Akka death watch heartbeat interval.

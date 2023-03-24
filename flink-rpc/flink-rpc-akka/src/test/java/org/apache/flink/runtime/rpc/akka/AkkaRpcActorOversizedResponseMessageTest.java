@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the over sized response message handling of the {@link AkkaRpcActor}. */
 class AkkaRpcActorOversizedResponseMessageTest {
 
-    private static final int FRAMESIZE = 32000;
+    private static final int FRAMESIZE = 32768;
 
     private static final String OVERSIZED_PAYLOAD = new String(new byte[FRAMESIZE]);
 

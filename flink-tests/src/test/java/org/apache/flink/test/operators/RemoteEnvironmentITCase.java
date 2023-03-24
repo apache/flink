@@ -22,8 +22,6 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -40,14 +38,11 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /** Integration tests for {@link org.apache.flink.api.java.RemoteEnvironment}. */
-@SuppressWarnings("serial")
 public class RemoteEnvironmentITCase extends TestLogger {
 
     private static final int TM_SLOTS = 4;
 
     private static final int USER_DOP = 2;
-
-    private static final String VALID_STARTUP_TIMEOUT = "100 s";
 
     @ClassRule
     public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
@@ -59,15 +54,12 @@ public class RemoteEnvironmentITCase extends TestLogger {
     /** Ensure that the program parallelism can be set even if the configuration is supplied. */
     @Test
     public void testUserSpecificParallelism() throws Exception {
-        Configuration config = new Configuration();
-        config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
-
         final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddress();
         final String hostname = restAddress.getHost();
         final int port = restAddress.getPort();
 
         final ExecutionEnvironment env =
-                ExecutionEnvironment.createRemoteEnvironment(hostname, port, config);
+                ExecutionEnvironment.createRemoteEnvironment(hostname, port);
         env.setParallelism(USER_DOP);
 
         DataSet<Integer> result =

@@ -46,7 +46,7 @@ public class AkkaRpcServiceConfiguration {
             boolean captureAskCallStack,
             boolean forceRpcInvocationSerialization) {
 
-        checkArgument(maximumFramesize > 0L, "Maximum framesize must be positive.");
+        checkArgument(maximumFramesize >= 32768L, "Maximum framesize must be at least 32 KiB.");
         this.configuration = configuration;
         this.timeout = timeout;
         this.maximumFramesize = maximumFramesize;

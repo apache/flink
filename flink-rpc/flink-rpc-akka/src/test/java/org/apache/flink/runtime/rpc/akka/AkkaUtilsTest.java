@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -30,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,11 +45,7 @@ class AkkaUtilsTest {
 
         final String remoteAkkaUrl =
                 AkkaRpcServiceUtils.getRpcUrl(
-                        host,
-                        port,
-                        "actor",
-                        AddressResolution.NO_ADDRESS_RESOLUTION,
-                        AkkaRpcServiceUtils.AkkaProtocol.TCP);
+                        host, port, "actor", AddressResolution.NO_ADDRESS_RESOLUTION);
 
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(remoteAkkaUrl);
 
@@ -59,7 +53,7 @@ class AkkaUtilsTest {
     }
 
     @Test
-    void getHostFromAkkaURLThrowsExceptionIfAddressCannotBeRetrieved() throws Exception {
+    void getHostFromAkkaURLThrowsExceptionIfAddressCannotBeRetrieved() {
         final String localAkkaURL = "akka://flink/user/actor";
 
         assertThatThrownBy(() -> AkkaUtils.getInetSocketAddressFromAkkaURL(localAkkaURL))
@@ -154,7 +148,7 @@ class AkkaUtilsTest {
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort(hostname, port));
 
-        assertThat(akkaConfig.getString("akka.remote.classic.netty.tcp.hostname"))
+        assertThat(akkaConfig.getString("akka.remote.artery.canonical.hostname"))
                 .isEqualTo(NetUtils.unresolvedHostToNormalizedString(hostname));
     }
 
@@ -163,7 +157,7 @@ class AkkaUtilsTest {
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(new Configuration(), new HostAndPort("", 0));
 
-        final String hostname = akkaConfig.getString("akka.remote.classic.netty.tcp.hostname");
+        final String hostname = akkaConfig.getString("akka.remote.artery.canonical.hostname");
 
         assertThat(InetAddress.getByName(hostname).isLoopbackAddress()).isTrue();
     }
@@ -212,19 +206,8 @@ class AkkaUtilsTest {
                 AkkaUtils.getAkkaConfig(
                         new Configuration(), new HostAndPort(ipv6AddressString, 1234));
 
-        assertThat(akkaConfig.getString("akka.remote.classic.netty.tcp.hostname"))
+        assertThat(akkaConfig.getString("akka.remote.artery.canonical.hostname"))
                 .isEqualTo(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString));
-    }
-
-    @Test
-    void getAkkaConfigDefaultsStartupTimeoutTo10TimesOfAskTimeout() {
-        final Configuration configuration = new Configuration();
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMillis(100));
-
-        final Config akkaConfig =
-                AkkaUtils.getAkkaConfig(configuration, new HostAndPort("localhost", 31337));
-
-        assertThat(akkaConfig.getString("akka.remote.startup-timeout")).isEqualTo("1000ms");
     }
 
     @Test
@@ -234,11 +217,11 @@ class AkkaUtilsTest {
 
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort("localhost", 31337));
-        final Config sslConfig = akkaConfig.getConfig("akka.remote.classic.netty.ssl");
+        final Config sslConfig = akkaConfig.getConfig("akka.remote.artery.ssl");
 
         assertThat(sslConfig.getString("ssl-engine-provider"))
                 .isEqualTo("org.apache.flink.runtime.rpc.akka.CustomSSLEngineProvider");
-        assertThat(sslConfig.getStringList("security.cert-fingerprints")).isEmpty();
+        assertThat(sslConfig.getStringList("config-ssl-engine.cert-fingerprints")).isEmpty();
     }
 
     @Test
@@ -251,10 +234,11 @@ class AkkaUtilsTest {
 
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort("localhost", 31337));
-        final Config sslConfig = akkaConfig.getConfig("akka.remote.classic.netty.ssl");
+        final Config sslConfig = akkaConfig.getConfig("akka.remote.artery.ssl");
 
         assertThat(sslConfig.getString("ssl-engine-provider"))
                 .isEqualTo("org.apache.flink.runtime.rpc.akka.CustomSSLEngineProvider");
-        assertThat(sslConfig.getStringList("security.cert-fingerprints")).contains(fingerprint);
+        assertThat(sslConfig.getStringList("config-ssl-engine.cert-fingerprints"))
+                .contains(fingerprint);
     }
 }

@@ -96,11 +96,6 @@ under the License.
 			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 			<version>${akka.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty</artifactId>
-			<version>3.10.6.Final</version>
-		</dependency>
 
 		<dependency>
 			<groupId>org.slf4j</groupId>

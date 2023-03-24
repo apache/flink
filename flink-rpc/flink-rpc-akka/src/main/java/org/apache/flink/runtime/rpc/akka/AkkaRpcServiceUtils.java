@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
@@ -53,9 +52,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class AkkaRpcServiceUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
-
-    private static final String AKKA_TCP = "akka.tcp";
-    private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
 
     static final String SUPERVISOR_NAME = "rpc";
 
@@ -129,16 +125,7 @@ public class AkkaRpcServiceUtils {
 
         checkNotNull(config, "config is null");
 
-        final boolean sslEnabled =
-                config.getBoolean(AkkaOptions.SSL_ENABLED)
-                        && SecurityOptions.isInternalSSLEnabled(config);
-
-        return getRpcUrl(
-                hostname,
-                port,
-                endpointName,
-                addressResolution,
-                sslEnabled ? AkkaProtocol.SSL_TCP : AkkaProtocol.TCP);
+        return getRpcUrl(hostname, port, endpointName, addressResolution);
     }
 
     /**
@@ -147,15 +134,10 @@ public class AkkaRpcServiceUtils {
      * @param endpointName The name of the RPC endpoint.
      * @param addressResolution Whether to try address resolution of the given hostname or not. This
      *     allows to fail fast in case that the hostname cannot be resolved.
-     * @param akkaProtocol True, if security/encryption is enabled, false otherwise.
      * @return The RPC URL of the specified RPC endpoint.
      */
     public static String getRpcUrl(
-            String hostname,
-            int port,
-            String endpointName,
-            AddressResolution addressResolution,
-            AkkaProtocol akkaProtocol)
+            String hostname, int port, String endpointName, AddressResolution addressResolution)
             throws UnknownHostException {
 
         checkNotNull(hostname, "hostname is null");
@@ -170,8 +152,7 @@ public class AkkaRpcServiceUtils {
 
         final String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port);
 
-        return internalRpcUrl(
-                endpointName, Optional.of(new RemoteAddressInformation(hostPort, akkaProtocol)));
+        return internalRpcUrl(endpointName, Optional.of(hostPort));
     }
 
     public static String getLocalRpcUrl(String endpointName) {
@@ -182,50 +163,14 @@ public class AkkaRpcServiceUtils {
         return exception.getMessage().contains("had already been terminated.");
     }
 
-    private static final class RemoteAddressInformation {
-        private final String hostnameAndPort;
-        private final AkkaProtocol akkaProtocol;
-
-        private RemoteAddressInformation(String hostnameAndPort, AkkaProtocol akkaProtocol) {
-            this.hostnameAndPort = hostnameAndPort;
-            this.akkaProtocol = akkaProtocol;
-        }
-
-        private String getHostnameAndPort() {
-            return hostnameAndPort;
-        }
-
-        private AkkaProtocol getAkkaProtocol() {
-            return akkaProtocol;
-        }
-    }
-
-    private static String internalRpcUrl(
-            String endpointName, Optional<RemoteAddressInformation> remoteAddressInformation) {
-        final String protocolPrefix =
-                remoteAddressInformation
-                        .map(rai -> akkaProtocolToString(rai.getAkkaProtocol()))
-                        .orElse("akka");
-        final Optional<String> optionalHostnameAndPort =
-                remoteAddressInformation.map(RemoteAddressInformation::getHostnameAndPort);
-
-        final StringBuilder url = new StringBuilder(String.format("%s://flink", protocolPrefix));
-        optionalHostnameAndPort.ifPresent(hostPort -> url.append("@").append(hostPort));
+    private static String internalRpcUrl(String endpointName, Optional<String> optHostPort) {
+        final StringBuilder url = new StringBuilder("akka://flink");
+        optHostPort.ifPresent(hostPort -> url.append("@").append(hostPort));
 
         url.append("/user/").append(SUPERVISOR_NAME).append("/").append(endpointName);
 
         // protocolPrefix://flink[@hostname:port]/user/rpc/endpointName
         return url.toString();
-    }
-
-    private static String akkaProtocolToString(AkkaProtocol akkaProtocol) {
-        return akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
-    }
-
-    /** Whether to use TCP or encrypted TCP for Akka. */
-    public enum AkkaProtocol {
-        TCP,
-        SSL_TCP
     }
 
     // ------------------------------------------------------------------------

@@ -33,8 +33,6 @@ import akka.actor.Address;
 import akka.actor.AddressFromURIString;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.jboss.netty.logging.InternalLoggerFactory;
-import org.jboss.netty.logging.Slf4JLoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +42,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -89,8 +86,8 @@ class AkkaUtils {
                 .add("  log-dead-letters = " + logLifecycleEvents)
                 .add("  log-dead-letters-during-shutdown = " + logLifecycleEvents)
                 .add("  jvm-exit-on-fatal-error = " + jvmExitOnFatalError)
-                .add("  serialize-messages = off")
                 .add("  actor {")
+                .add("    serialize-messages = off")
                 .add("    guardian-supervisor-strategy = " + supervisorStrategy)
                 .add("    warn-about-java-serializer-usage = off")
                 .add("    allow-java-serialization = on")
@@ -206,79 +203,30 @@ class AkkaUtils {
             Configuration configuration,
             int port,
             int externalPort) {
-        final Duration akkaAskTimeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
-
-        final String startupTimeout =
-                TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(
-                                configuration.getString(
-                                        AkkaOptions.STARTUP_TIMEOUT,
-                                        TimeUtils.getStringInMillis(
-                                                akkaAskTimeout.multipliedBy(10L)))));
-
         final String akkaTCPTimeout =
                 TimeUtils.getStringInMillis(
                         TimeUtils.parseDuration(configuration.getString(AkkaOptions.TCP_TIMEOUT)));
 
         final String akkaFramesize = configuration.getString(AkkaOptions.FRAMESIZE);
 
-        final int clientSocketWorkerPoolPoolSizeMin =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MIN);
-        final int clientSocketWorkerPoolPoolSizeMax =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MAX);
-        final double clientSocketWorkerPoolPoolSizeFactor =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR);
-        final int serverSocketWorkerPoolPoolSizeMin =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MIN);
-        final int serverSocketWorkerPoolPoolSizeMax =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MAX);
-        final double serverSocketWorkerPoolPoolSizeFactor =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
-
-        final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
-
-        final long retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR);
+        final String outboundRestartBackoff =
+                configuration.getString(AkkaOptions.OUTBOUND_RESTART_BACKOFF);
 
         akkaConfigBuilder
                 .add("akka {")
                 .add("  actor {")
-                .add("    provider = \"akka.remote.RemoteActorRefProvider\"")
+                .add("    provider = remote")
                 .add("  }")
-                .add("  remote.artery.enabled = false")
-                .add("  remote.startup-timeout = " + startupTimeout)
                 .add("  remote.warn-about-direct-use = off")
                 .add("  remote.use-unsafe-remote-features-outside-cluster = on")
-                .add("  remote.classic {")
-                .add("    # disable the transport failure detector by setting very high values")
-                .add("    transport-failure-detector{")
-                .add("      acceptable-heartbeat-pause = 6000 s")
-                .add("      heartbeat-interval = 1000 s")
-                .add("      threshold = 300")
+                .add("  remote.artery {")
+                .add("    canonical.port = " + externalPort)
+                .add("    bind.port = " + port)
+                .add("    advanced {")
+                .add("      maximum-frame-size = " + akkaFramesize)
+                .add("      outbound-restart-backoff = " + outboundRestartBackoff)
+                .add("      tcp.connection-timeout = " + akkaTCPTimeout)
                 .add("    }")
-                .add("    enabled-transports = [\"akka.remote.classic.netty.tcp\"]")
-                .add("    netty {")
-                .add("      tcp {")
-                .add("        transport-class = \"akka.remote.transport.netty.NettyTransport\"")
-                .add("        port = " + externalPort)
-                .add("        bind-port = " + port)
-                .add("        connection-timeout = " + akkaTCPTimeout)
-                .add("        maximum-frame-size = " + akkaFramesize)
-                .add("        tcp-nodelay = on")
-                .add("        client-socket-worker-pool {")
-                .add("          pool-size-min = " + clientSocketWorkerPoolPoolSizeMin)
-                .add("          pool-size-max = " + clientSocketWorkerPoolPoolSizeMax)
-                .add("          pool-size-factor = " + clientSocketWorkerPoolPoolSizeFactor)
-                .add("        }")
-                .add("        server-socket-worker-pool {")
-                .add("          pool-size-min = " + serverSocketWorkerPoolPoolSizeMin)
-                .add("          pool-size-max = " + serverSocketWorkerPoolPoolSizeMax)
-                .add("          pool-size-factor = " + serverSocketWorkerPoolPoolSizeFactor)
-                .add("        }")
-                .add("      }")
-                .add("    }")
-                .add("    log-remote-lifecycle-events = " + logLifecycleEvents)
-                .add("    retry-gate-closed-for = " + retryGateClosedFor + " ms")
                 .add("  }")
                 .add("}");
     }
@@ -296,13 +244,9 @@ class AkkaUtils {
 
         akkaConfigBuilder
                 .add("akka {")
-                .add("  remote.classic {")
-                .add("    netty {")
-                .add("      tcp {")
-                .add("        hostname = \"" + effectiveHostname + "\"")
-                .add("        bind-hostname = \"" + bindAddress + "\"")
-                .add("      }")
-                .add("    }")
+                .add("  remote.artery {")
+                .add("    canonical.hostname = \"" + effectiveHostname + "\"")
+                .add("    bind.hostname = \"" + bindAddress + "\"")
                 .add("  }")
                 .add("}");
     }
@@ -314,7 +258,9 @@ class AkkaUtils {
                 configuration.getBoolean(AkkaOptions.SSL_ENABLED)
                         && SecurityOptions.isInternalSSLEnabled(configuration);
 
-        final String akkaEnableSSL = booleanToOnOrOff(akkaEnableSSLConfig);
+        if (!akkaEnableSSLConfig) {
+            return;
+        }
 
         final String akkaSSLKeyStore =
                 configuration.getString(
@@ -362,26 +308,19 @@ class AkkaUtils {
 
         akkaConfigBuilder
                 .add("akka {")
-                .add("  remote.classic {")
-                .add("    enabled-transports = [\"akka.remote.classic.netty.ssl\"]")
-                .add("    netty {")
-                .add("      ssl = ${akka.remote.classic.netty.tcp}")
-                .add("      ssl {")
-                .add("        enable-ssl = " + akkaEnableSSL)
-                .add("        ssl-engine-provider = " + sslEngineProviderName)
-                .add("        security {")
-                .add("          key-store = \"" + akkaSSLKeyStore + "\"")
-                .add("          key-store-password = \"" + akkaSSLKeyStorePassword + "\"")
-                .add("          key-password = \"" + akkaSSLKeyPassword + "\"")
-                .add("          trust-store = \"" + akkaSSLTrustStore + "\"")
-                .add("          trust-store-password = \"" + akkaSSLTrustStorePassword + "\"")
-                .add("          protocol = " + akkaSSLProtocol + "")
-                .add("          enabled-algorithms = " + akkaSSLAlgorithms + "")
-                .add("          random-number-generator = \"\"")
-                .add("          require-mutual-authentication = on")
-                .add("          cert-fingerprints = " + akkaSSLCertFingerprints + "")
-                .add("        }")
-                .add("      }")
+                .add("  remote.artery {")
+                .add("    transport = tls-tcp")
+                .add("    ssl.ssl-engine-provider = " + sslEngineProviderName)
+                .add("    ssl.config-ssl-engine {")
+                .add("      key-store = \"" + akkaSSLKeyStore + "\"")
+                .add("      key-store-password = \"" + akkaSSLKeyStorePassword + "\"")
+                .add("      key-password = \"" + akkaSSLKeyPassword + "\"")
+                .add("      trust-store = \"" + akkaSSLTrustStore + "\"")
+                .add("      trust-store-password = \"" + akkaSSLTrustStorePassword + "\"")
+                .add("      protocol = " + akkaSSLProtocol)
+                .add("      enabled-algorithms = " + akkaSSLAlgorithms)
+                .add("      cert-fingerprints = " + akkaSSLCertFingerprints)
+                .add("      require-mutual-authentication = on")
                 .add("    }")
                 .add("  }")
                 .add("}");
@@ -416,8 +355,6 @@ class AkkaUtils {
      * @return created actor system
      */
     public static ActorSystem createActorSystem(String actorSystemName, Config akkaConfig) {
-        // Initialize slf4j as logger of Akka's Netty instead of java.util.logging (FLINK-1650)
-        InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
         return RobustActorSystem.create(actorSystemName, akkaConfig);
     }
 
@@ -439,7 +376,7 @@ class AkkaUtils {
      * @return Flink's Akka default config
      */
     private static Config getDefaultAkkaConfig() {
-        return getAkkaConfig(new Configuration(), new HostAndPort("", 0));
+        return getAkkaConfig(new Configuration(), new HostAndPort("localhost", 0));
     }
 
     /**
@@ -484,8 +421,9 @@ class AkkaUtils {
                 AkkaUtils.getBasicAkkaConfig(configuration).withFallback(executorConfig);
 
         if (externalAddress != null) {
+            final Config remoteConfig;
             if (bindAddress != null) {
-                final Config remoteConfig =
+                remoteConfig =
                         AkkaUtils.getRemoteAkkaConfig(
                                 configuration,
                                 bindAddress.getHost(),
@@ -493,18 +431,16 @@ class AkkaUtils {
                                 externalAddress.getHost(),
                                 externalAddress.getPort());
 
-                return remoteConfig.withFallback(defaultConfig);
             } else {
-                final Config remoteConfig =
+                remoteConfig =
                         AkkaUtils.getRemoteAkkaConfig(
                                 configuration,
                                 NetUtils.getWildcardIPAddress(),
                                 externalAddress.getPort(),
                                 externalAddress.getHost(),
                                 externalAddress.getPort());
-
-                return remoteConfig.withFallback(defaultConfig);
             }
+            return remoteConfig.withFallback(defaultConfig);
         }
 
         return defaultConfig;

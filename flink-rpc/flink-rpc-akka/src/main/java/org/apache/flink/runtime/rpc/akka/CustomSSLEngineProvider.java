@@ -21,7 +21,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrust
 
 import akka.actor.ActorSystem;
 import akka.remote.RemoteTransportException;
-import akka.remote.transport.netty.ConfigSSLEngineProvider;
+import akka.remote.artery.tcp.ConfigSSLEngineProvider;
 import com.typesafe.config.Config;
 
 import javax.net.ssl.TrustManager;
@@ -33,7 +33,6 @@ import java.util.List;
 /**
  * Extension of the {@link ConfigSSLEngineProvider} to use a {@link FingerprintTrustManagerFactory}.
  */
-@SuppressWarnings("deprecation")
 public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     private final String sslTrustStore;
     private final String sslTrustStorePassword;
@@ -42,7 +41,7 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     public CustomSSLEngineProvider(ActorSystem system) {
         super(system);
         final Config securityConfig =
-                system.settings().config().getConfig("akka.remote.classic.netty.ssl.security");
+                system.settings().config().getConfig("akka.remote.artery.ssl.config-ssl-engine");
         sslTrustStore = securityConfig.getString("trust-store");
         sslTrustStorePassword = securityConfig.getString("trust-store-password");
         sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");

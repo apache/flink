@@ -46,7 +46,7 @@ class MessageSerializationTest {
     private static RpcService akkaRpcService1;
     private static RpcService akkaRpcService2;
 
-    private static final int maxFrameSize = 32000;
+    private static final int maxFrameSize = 32768;
 
     @BeforeAll
     static void setup() throws Exception {
