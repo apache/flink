@@ -65,25 +65,25 @@ Endpoint Options
             <td><h5>sql-gateway.endpoint.rest.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The address that should be used by clients to connect to the sql gateway server.</td>
+            <td>客户端通过该地址连接到 SQL Gateway 服务。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.endpoint.rest.bind-address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The address that the sql gateway server binds itself.</td>
+            <td>SQL Gateway 服务绑定的地址。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.endpoint.rest.bind-port</h5></td>
             <td style="word-wrap: break-word;">"8083"</td>
             <td>String</td>
-            <td>The port that the sql gateway server binds itself. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple sql gateway servers are running on the same machine.</td>
+            <td>SQL Gateway 服务绑定的端口号。接受端口列表 （“50100,50101”）或端口区间（“50100-50200”），也可以两种方式混用。为了避免同一台机器上运行多个 SQL Gateway 服务引起的端口冲突，建议设置为端口区间。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.endpoint.rest.port</h5></td>
             <td style="word-wrap: break-word;">8083</td>
             <td>Integer</td>
-            <td>The port that the client connects to. If bind-port has not been specified, then the sql gateway server will bind to this port.</td>
+            <td>客户端连接的端口号。如果 bind-port 没有被指定，SQL Gateway 服务将会绑定这个端口。</td>
         </tr>
     </tbody>
 </table>
@@ -93,10 +93,10 @@ REST API
 
 OpenAPI 规范如下，默认版本是 v2。
 
-| Version                       | Description |
-| ----------- | ------- |
-| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | Allow users to submit statements to the gateway and execute. |
-| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | Supports SQL Client to connect to the gateway |
+| Version                       | Description                    |
+| ----------- |--------------------------------|
+| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | 允许用户提交 SQL 语句到 Gateway 并执行。 |
+| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | 支持 SQL 客户端连接到 Gateway。         |
 
 {{< hint warning >}}
 OpenAPI 规范目前仍处于实验阶段。
@@ -120,8 +120,8 @@ OpenAPI 规范目前仍处于实验阶段。
 Data Type Mapping
 ----------------
 
-目前 REST endpoint 支持使用查询参数 `rowFormat` 序列化 `RowData`。REST endpoint 使用 JSON 序列化 Table Objects。
-请参考 [JSON format]({{< ref "docs/connectors/table/formats/json#data-type-mapping" >}}) 查看映射关系。
+目前 REST endpoint 支持使用查询参数 `rowFormat` 序列化 `RowData`。REST endpoint 使用 JSON 序列化 Table 对象。
+请参考 [JSON format]({{< ref "docs/connectors/table/formats/json#data-type-mapping" >}}) 查看类型映射关系。
 
 REST endpoint 也支持 `PLAIN_TEXT` 序列化 `RowData`，将所有列自动转换成 `String`。
 
