@@ -1,5 +1,5 @@
 ---
-title: Overview
+title: 概览
 weight: 1
 type: docs
 aliases:
@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Introduction
+介绍
 ----------------
 
 SQL Gateway 服务支持并发执行从多个client提交的 SQL。它提供了一种简单的方法来提交 Flink 作业、查找元数据和在线分析数据。
@@ -34,7 +34,7 @@ SQL Gateway 由插件化的 endpoint 和 `SqlGatewayService` 组成。多个 end
 
 {{< img width="80%" src="/fig/sql-gateway-architecture.png" alt="SQL Gateway Architecture" >}}
 
-Getting Started
+开始
 ---------------
 
 这个章节描述如何通过命令行启动和执行你的第一个 Flink SQL 作业。
@@ -60,7 +60,7 @@ $ curl http://localhost:8083/v1/info
 {"productName":"Apache Flink","version":"{{< version >}}"}
 ```
 
-### Running SQL Queries
+### 执行 SQL 查询
 
 你可以通过以下步骤来验证集群配置和连接。
 
@@ -120,10 +120,10 @@ $ curl --request GET http://localhost:8083/v1/sessions/${sessionHandle}/operatio
 $ curl --request GET ${nextResultUri}
 ```
 
-Configuration
+配置
 ----------------
 
-### SQL Gateway startup options
+### SQL Gateway 启动参数
 
 目前 SQL Gateway 有以下可选命令，它们将在下文详细讨论。
 
@@ -152,7 +152,7 @@ Start the Flink SQL Gateway as a daemon to submit Flink SQL.
                            options.
 ```
 
-### SQL Gateway Configuration
+### SQL Gateway 配置
 
 你可以通过以下方式在启动时配置 SQL Gateway，或者任意合法的 [Flink configuration]({{< ref "docs/dev/table/config" >}}) 配置：
 
@@ -174,42 +174,42 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.check-interval</h5></td>
             <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
-            <td>The check interval for idle session timeout, which can be disabled by setting to zero.</td>
+            <td>定时检查空闲 session 是否超时的间隔时间，设置为 0 时关闭检查。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.idle-timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
-            <td>Timeout interval for closing the session when the session hasn't been accessed during the interval. If setting to zero, the session will not be closed.</td>
+            <td>session 超时时间，在这个时间区间内没有被访问过的 session 会被关闭。如果设置为 0，session 将不会被关闭。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.max-num</h5></td>
             <td style="word-wrap: break-word;">1000000</td>
             <td>Integer</td>
-            <td>The maximum number of the active session for sql gateway service.</td>
+            <td>SQL Gateway 服务中存活 session 的最大数量。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.keepalive-time</h5></td>
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
-            <td>Keepalive time for an idle worker thread. When the number of workers exceeds min workers, excessive threads are killed after this time interval.</td>
+            <td>空闲工作线程的存活时间。当工作线程数量超过了配置的最小值，超过存活时间的多余空闲工作线程会被杀掉。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.threads.max</h5></td>
             <td style="word-wrap: break-word;">500</td>
             <td>Integer</td>
-            <td>The maximum number of worker threads for sql gateway service.</td>
+            <td>SQL Gateway 服务中工作线程的最大数量。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.threads.min</h5></td>
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
-            <td>The minimum number of worker threads for sql gateway service.</td>
+            <td>SQL Gateway 服务中工作线程的最小数量。</td>
         </tr>
     </tbody>
 </table>
 
-Supported Endpoints
+已支持的 Endpoints
 ----------------
 
 Flink 原生支持 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) 和 [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}})。
