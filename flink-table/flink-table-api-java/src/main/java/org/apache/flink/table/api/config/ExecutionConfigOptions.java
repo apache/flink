@@ -551,7 +551,7 @@ public class ExecutionConfigOptions {
                             .withDescription(
                                     "Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. "
                                             + "Before Flink 1.18, the default value of this param was the half of interval duration. "
-                                            + "NOTE: This option greater than 0 will cause records disorder and may cause downstream operator discard these records, e.g. window operator. "
+                                            + "NOTE: This option greater than 0 will cause records disorder and may cause downstream operator discard these records e.g. window operator. "
                                             + "Default value is 0, which means that it will cleanup unmatched records immediately.");
 
     // ------------------------------------------------------------------------------------------
