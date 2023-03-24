@@ -93,6 +93,8 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     static final String FIELD_NAME_BOUND_LOWER = "lower";
     static final String FIELD_NAME_BOUND_UPPER = "upper";
     static final String FIELD_NAME_BOUND_TYPE = "boundType";
+
+    static final String FIELD_NAME_CONTAINS_NULL = "containsNull";
     static final String FIELD_NAME_NULL_AS = "nullAs";
     // Symbol fields
     static final String FIELD_NAME_SYMBOL = "symbol";

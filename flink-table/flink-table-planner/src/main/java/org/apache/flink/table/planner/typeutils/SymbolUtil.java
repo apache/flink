@@ -475,10 +475,10 @@ public final class SymbolUtil {
         addSymbolMapping(null, null, BoundType.OPEN, "BOUND", "OPEN");
         addSymbolMapping(null, null, BoundType.CLOSED, "BOUND", "CLOSED");
 
-        // REX_UNKNOWN_AS
-        addSymbolMapping(null, null, RexUnknownAs.TRUE, "REX_UNKNOWN_AS", "TRUE");
-        addSymbolMapping(null, null, RexUnknownAs.FALSE, "REX_UNKNOWN_AS", "FALSE");
-        addSymbolMapping(null, null, RexUnknownAs.UNKNOWN, "REX_UNKNOWN_AS", "UNKNOWN");
+        // UNKNOWN_AS
+        addSymbolMapping(null, null, RexUnknownAs.TRUE, "UNKNOWN_AS", "TRUE");
+        addSymbolMapping(null, null, RexUnknownAs.FALSE, "UNKNOWN_AS", "FALSE");
+        addSymbolMapping(null, null, RexUnknownAs.UNKNOWN, "UNKNOWN_AS", "UNKNOWN");
     }
 
     /**

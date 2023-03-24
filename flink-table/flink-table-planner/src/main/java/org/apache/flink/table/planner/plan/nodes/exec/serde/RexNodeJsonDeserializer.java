@@ -84,6 +84,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_UPPER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_CATALOG_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_CLASS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_CONTAINS_NULL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_CORREL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_EXPR;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_INPUT_INDEX;
@@ -217,6 +218,14 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             if (range.hasUpperBound() || range.hasLowerBound()) {
                 builder.add(range);
             }
+        }
+        // TODO: Since 1.18.0 nothing is serialized to FIELD_NAME_CONTAINS_NULL.
+        // This if condition (should be removed in future) is required for backward compatibility
+        // with Flink 1.17.x where FIELD_NAME_CONTAINS_NULL is still used.
+        final JsonNode containsNull = sargNode.get(FIELD_NAME_CONTAINS_NULL);
+        if (containsNull != null) {
+            return rexBuilder.makeSearchArgumentLiteral(
+                    Sarg.of(containsNull.booleanValue(), builder.build()), relDataType);
         }
         final RexUnknownAs nullAs =
                 serializableToCalcite(
