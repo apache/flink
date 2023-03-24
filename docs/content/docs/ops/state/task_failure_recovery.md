@@ -252,7 +252,7 @@ env = StreamExecutionEnvironment.get_execution_environment()
 env.set_restart_strategy(RestartStrategies.failure_rate_restart(
     3,  # max failures per interval
     300000,  # interval for measuring failure rate (millisecond)
-    10000  # dela(millisecond)
+    10000  # delay(millisecond)
 ))
 ```
 {{< /tab >}}
