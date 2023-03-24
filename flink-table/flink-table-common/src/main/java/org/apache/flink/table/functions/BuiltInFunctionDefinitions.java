@@ -220,6 +220,20 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayDistinctFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_POSITION =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_POSITION")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("haystack", "needle"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BIGINT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayPositionFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition ARRAY_REMOVE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_REMOVE")
