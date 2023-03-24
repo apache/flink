@@ -34,12 +34,12 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -249,7 +249,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         synchronized (lock) {
             @Nullable final JobGraph jobGraph = recoverJobGraph(jobId);
             if (jobGraph == null) {
-                throw new FileNotFoundException(
+                throw new NoSuchElementException(
                         String.format(
                                 "JobGraph for job [%s] was not found in JobGraphStore and is needed for attaching JobResourceRequirements.",
                                 jobId));

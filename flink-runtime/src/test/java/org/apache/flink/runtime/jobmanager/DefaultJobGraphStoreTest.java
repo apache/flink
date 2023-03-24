@@ -40,12 +40,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.FileNotFoundException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -408,11 +408,28 @@ public class DefaultJobGraphStoreTest extends TestLogger {
         jobGraphStore.putJobResourceRequirements(
                 testingJobGraph.getJobID(), jobResourceRequirements);
 
+        assertStoredRequirementsAre(
+                jobGraphStore, testingJobGraph.getJobID(), jobResourceRequirements);
+
+        final JobResourceRequirements updatedJobResourceRequirements =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(new JobVertexID(), 1, 1)
+                        .build();
+
+        jobGraphStore.putJobResourceRequirements(
+                testingJobGraph.getJobID(), updatedJobResourceRequirements);
+
+        assertStoredRequirementsAre(
+                jobGraphStore, testingJobGraph.getJobID(), updatedJobResourceRequirements);
+    }
+
+    private static void assertStoredRequirementsAre(
+            JobGraphStore jobGraphStore, JobID jobId, JobResourceRequirements expected)
+            throws Exception {
         final Optional<JobResourceRequirements> maybeRecovered =
                 JobResourceRequirements.readFromJobGraph(
-                        Objects.requireNonNull(
-                                jobGraphStore.recoverJobGraph(testingJobGraph.getJobID())));
-        Assertions.assertThat(maybeRecovered).get().isEqualTo(jobResourceRequirements);
+                        Objects.requireNonNull(jobGraphStore.recoverJobGraph(jobId)));
+        Assertions.assertThat(maybeRecovered).get().isEqualTo(expected);
     }
 
     @Test
@@ -425,7 +442,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                         .build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
         assertThrows(
-                FileNotFoundException.class,
+                NoSuchElementException.class,
                 () ->
                         jobGraphStore.putJobResourceRequirements(
                                 new JobID(), JobResourceRequirements.empty()));
