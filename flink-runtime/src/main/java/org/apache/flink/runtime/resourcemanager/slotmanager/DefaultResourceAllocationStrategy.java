@@ -258,16 +258,10 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             this.utilization = updateUtilization();
         }
 
-        boolean availableResourceMatchingRequest(ResourceProfile requirement) {
-            final ResourceProfile effectiveProfile =
-                    getEffectiveResourceProfile(requirement, defaultSlotProfile);
-            return availableProfile.allFieldsNoLessThan(effectiveProfile);
-        }
-
         boolean tryAllocateSlotForJob(JobID jobId, ResourceProfile requirement) {
             final ResourceProfile effectiveProfile =
                     getEffectiveResourceProfile(requirement, defaultSlotProfile);
-            if (availableResourceMatchingRequest(requirement)) {
+            if (availableProfile.allFieldsNoLessThan(effectiveProfile)) {
                 availableProfile = availableProfile.subtract(effectiveProfile);
                 allocationConsumer.accept(jobId, effectiveProfile);
                 utilization = updateUtilization();
@@ -351,18 +345,15 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
 
             while (numUnfulfilled > 0 && !resourceInfoInUtilizationOrder.isEmpty()) {
                 final InternalResourceInfo currentTaskManager =
-                        resourceInfoInUtilizationOrder.peek();
+                        resourceInfoInUtilizationOrder.poll();
 
                 if (currentTaskManager.tryAllocateSlotForJob(jobId, requiredResource)) {
                     numUnfulfilled--;
 
                     // ignore non resource task managers to reduce the overhead of insert.
-                    resourceInfoInUtilizationOrder.poll();
                     if (!currentTaskManager.availableProfile.equals(ResourceProfile.ZERO)) {
                         resourceInfoInUtilizationOrder.add(currentTaskManager);
                     }
-                } else {
-                    break;
                 }
             }
             return numUnfulfilled;

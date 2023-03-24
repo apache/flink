@@ -79,7 +79,8 @@ abstract class FineGrainedSlotManagerTestBase {
             SlotManagerUtils.generateDefaultSlotResourceProfile(
                     DEFAULT_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
 
-    protected abstract Optional<ResourceAllocationStrategy> getResourceAllocationStrategy();
+    protected abstract Optional<ResourceAllocationStrategy> getResourceAllocationStrategy(
+            SlotManagerConfiguration slotManagerConfiguration);
 
     static SlotStatus createAllocatedSlotStatus(
             AllocationID allocationID, ResourceProfile resourceProfile) {
@@ -203,15 +204,16 @@ abstract class FineGrainedSlotManagerTestBase {
         }
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
+            SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
             slotManager =
                     new FineGrainedSlotManager(
                             scheduledExecutor,
-                            slotManagerConfigurationBuilder.build(),
+                            configuration,
                             slotManagerMetricGroup,
                             resourceTracker,
                             taskManagerTracker,
                             slotStatusSyncer,
-                            getResourceAllocationStrategy()
+                            getResourceAllocationStrategy(configuration)
                                     .orElse(resourceAllocationStrategyBuilder.build()));
             runInMainThreadAndWait(
                     () ->

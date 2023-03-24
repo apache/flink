@@ -65,7 +65,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
             LARGE_SLOT_RESOURCE_PROFILE.multiply(2);
 
     @Override
-    protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy() {
+    protected Optional<ResourceAllocationStrategy> getResourceAllocationStrategy(
+            SlotManagerConfiguration slotManagerConfiguration) {
         return Optional.empty();
     }
 

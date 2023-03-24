@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -159,6 +160,60 @@ class DefaultResourceAllocationStrategyTest {
         assertThat(result.getUnfulfillableJobs()).isEmpty();
         assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
         assertThat(result.getAllocationsOnPendingResources()).hasSize(1);
+    }
+
+    @Test
+    void testSpecialResourcesRequirementCouldFulfilledEvenly() {
+        testSpecialResourcesRequirementCouldFulfilled(EVENLY_STRATEGY);
+    }
+
+    @Test
+    void testSpecialResourcesRequirementCouldFulfilledAnyMatching() {
+        testSpecialResourcesRequirementCouldFulfilled(ANY_MATCHING_STRATEGY);
+    }
+
+    void testSpecialResourcesRequirementCouldFulfilled(DefaultResourceAllocationStrategy strategy) {
+        ResourceProfile extendedResourceProfile =
+                ResourceProfile.newBuilder(DEFAULT_SLOT_RESOURCE)
+                        .setExtendedResource(new ExternalResource("customResource", 1))
+                        .build();
+
+        final TaskManagerInfo extendedTaskManager =
+                new TestingTaskManagerInfo(
+                        extendedResourceProfile.multiply(2),
+                        extendedResourceProfile.multiply(1),
+                        extendedResourceProfile);
+
+        final TaskManagerInfo defaultTaskManager =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(2),
+                        DEFAULT_SLOT_RESOURCE.multiply(2),
+                        DEFAULT_SLOT_RESOURCE);
+
+        final JobID jobId = new JobID();
+        final List<ResourceRequirement> requirements = new ArrayList<>();
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Arrays.asList(defaultTaskManager, extendedTaskManager))
+                        .build();
+
+        requirements.add(ResourceRequirement.create(extendedResourceProfile, 1));
+
+        final ResourceAllocationResult result =
+                strategy.tryFulfillRequirements(
+                        Collections.singletonMap(jobId, requirements),
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false);
+
+        assertThat(result.getUnfulfillableJobs()).isEmpty();
+        assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
+        assertThat(result.getAllocationsOnRegisteredResources()).hasSize(1);
+        assertThat(result.getAllocationsOnRegisteredResources().get(jobId).keySet())
+                .satisfiesExactly(
+                        instanceId ->
+                                assertThat(instanceId)
+                                        .isEqualTo(extendedTaskManager.getInstanceId()));
     }
 
     @Test

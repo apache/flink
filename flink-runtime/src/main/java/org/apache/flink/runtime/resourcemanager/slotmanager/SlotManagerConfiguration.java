@@ -63,7 +63,6 @@ public class SlotManagerConfiguration {
             Duration requirementCheckDelay,
             Duration declareNeededResourceDelay,
             boolean waitResultConsumedBeforeRelease,
-            SlotMatchingStrategy slotMatchingStrategy,
             boolean evenlySpreadOutSlots,
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
@@ -78,7 +77,10 @@ public class SlotManagerConfiguration {
         this.requirementCheckDelay = Preconditions.checkNotNull(requirementCheckDelay);
         this.declareNeededResourceDelay = Preconditions.checkNotNull(declareNeededResourceDelay);
         this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
-        this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+        this.slotMatchingStrategy =
+                evenlySpreadOutSlots
+                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
+                        : AnyMatchingSlotMatchingStrategy.INSTANCE;
         this.evenlySpreadOutSlots = evenlySpreadOutSlots;
         this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
         Preconditions.checkState(numSlotsPerWorker > 0);
@@ -171,10 +173,6 @@ public class SlotManagerConfiguration {
 
         boolean evenlySpreadOutSlots =
                 configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
-        final SlotMatchingStrategy slotMatchingStrategy =
-                evenlySpreadOutSlots
-                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
-                        : AnyMatchingSlotMatchingStrategy.INSTANCE;
 
         int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
@@ -190,7 +188,6 @@ public class SlotManagerConfiguration {
                 requirementCheckDelay,
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
-                slotMatchingStrategy,
                 evenlySpreadOutSlots,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
