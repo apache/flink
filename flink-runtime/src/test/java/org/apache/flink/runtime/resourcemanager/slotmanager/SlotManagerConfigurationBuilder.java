@@ -41,6 +41,7 @@ public class SlotManagerConfigurationBuilder {
     private CPUResource maxTotalCpu;
     private MemorySize maxTotalMem;
     private int redundantTaskManagerNum;
+    private boolean evenlySpreadOutSlots;
 
     private SlotManagerConfigurationBuilder() {
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
@@ -57,6 +58,7 @@ public class SlotManagerConfigurationBuilder {
         this.maxTotalMem = MemorySize.MAX_VALUE;
         this.redundantTaskManagerNum =
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
+        this.evenlySpreadOutSlots = false;
     }
 
     public static SlotManagerConfigurationBuilder newBuilder() {
@@ -128,6 +130,11 @@ public class SlotManagerConfigurationBuilder {
         return this;
     }
 
+    public SlotManagerConfigurationBuilder setEvenlySpreadOutSlots(boolean evenlySpreadOutSlots) {
+        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+        return this;
+    }
+
     public SlotManagerConfiguration build() {
         return new SlotManagerConfiguration(
                 taskManagerRequestTimeout,
@@ -136,7 +143,7 @@ public class SlotManagerConfigurationBuilder {
                 requirementCheckDelay,
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
-                AnyMatchingSlotMatchingStrategy.INSTANCE,
+                evenlySpreadOutSlots,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 maxSlotNum,
