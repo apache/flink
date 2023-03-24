@@ -20,7 +20,6 @@ package org.apache.flink.connector.hbase.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
@@ -32,7 +31,6 @@ import org.apache.hadoop.hbase.HConstants;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
@@ -92,16 +90,6 @@ public class HBaseConnectorOptionsUtil {
         builder.setBufferFlushMaxSizeInBytes(
                 tableOptions.get(SINK_BUFFER_FLUSH_MAX_SIZE).getBytes());
         builder.setParallelism(tableOptions.getOptional(SINK_PARALLELISM).orElse(null));
-        return builder.build();
-    }
-
-    public static HBaseLookupOptions getHBaseLookupOptions(ReadableConfig tableOptions) {
-        HBaseLookupOptions.Builder builder = HBaseLookupOptions.builder();
-        builder.setLookupAsync(tableOptions.get(HBaseConnectorOptions.LOOKUP_ASYNC));
-        builder.setMaxRetryTimes(tableOptions.get(HBaseConnectorOptions.LOOKUP_MAX_RETRIES));
-        builder.setCacheExpireMs(
-                tableOptions.get(HBaseConnectorOptions.LOOKUP_CACHE_TTL).toMillis());
-        builder.setCacheMaxSize(tableOptions.get(LOOKUP_CACHE_MAX_ROWS));
         return builder.build();
     }
 

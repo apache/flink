@@ -21,7 +21,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, RexFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -185,16 +185,17 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
         override def getModuleManager: ModuleManager = planner.moduleManager
 
-        override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
-          context.getSqlExprToRexConverterFactory
+        override def getRexFactory: RexFactory = context.getRexFactory
 
-        override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+        override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
         override def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
         def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
         override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
+
+        override def getClassLoader: ClassLoader = context.getClassLoader
       }
     )
   }
@@ -281,7 +282,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       isUpdateBeforeRequired: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
     val fmq = FlinkRelMetadataQuery
-      .reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
+      .reuseOrCreate(planner.createRelBuilder.getCluster.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(relNode)
     val windowProperties = fmq.getRelWindowProperties(relNode)
     val statistic = FlinkStatistic
@@ -301,7 +302,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
   private def getUniqueKeys(relNode: RelNode): util.Set[_ <: util.Set[String]] = {
     val rowType = relNode.getRowType
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
+    val fmq =
+      FlinkRelMetadataQuery.reuseOrCreate(planner.createRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null) {
       uniqueKeys.filter(_.nonEmpty).map {
@@ -315,4 +317,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     }
   }
 
+  override protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = {
+    StreamNonDeterministicPhysicalPlanResolver.resolvePhysicalPlan(expanded, planner.getTableConfig)
+  }
 }

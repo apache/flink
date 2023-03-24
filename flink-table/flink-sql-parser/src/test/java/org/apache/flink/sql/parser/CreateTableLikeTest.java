@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
@@ -113,7 +113,7 @@ class CreateTableLikeTest {
 
         assertThatThrownBy(extendedSqlNode::validate)
                 .isInstanceOf(SqlValidateException.class)
-                .hasMessageContaining("Each like option feature can be declared only once.");
+                .hasMessage("Each like option feature can be declared only once.");
     }
 
     @Test
@@ -131,8 +131,7 @@ class CreateTableLikeTest {
 
         assertThatThrownBy(extendedSqlNode::validate)
                 .isInstanceOf(SqlValidateException.class)
-                .hasMessageContaining(
-                        "Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.");
+                .hasMessage("Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.");
     }
 
     @Test
@@ -150,7 +149,7 @@ class CreateTableLikeTest {
 
         assertThatThrownBy(extendedSqlNode::validate)
                 .isInstanceOf(SqlValidateException.class)
-                .hasMessageContaining("Illegal merging strategy 'OVERWRITING' for 'ALL' option.");
+                .hasMessage("Illegal merging strategy 'OVERWRITING' for 'ALL' option.");
     }
 
     @Test
@@ -174,16 +173,11 @@ class CreateTableLikeTest {
 
     @Test
     void testInvalidNoOptions() {
-        assertThatThrownBy(
-                        () ->
-                                createFlinkParser(
-                                                "CREATE TABLE t (\n"
-                                                        + "   a STRING\n"
-                                                        + ")\n"
-                                                        + "LIKE b ()")
-                                        .parseStmt())
+        SqlParser parser =
+                createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b ()");
+        assertThatThrownBy(parser::parseStmt)
                 .isInstanceOf(SqlParseException.class)
-                .hasMessageContaining(
+                .hasMessageStartingWith(
                         "Encountered \")\" at line 4, column 9.\n"
                                 + "Was expecting one of:\n"
                                 + "    \"EXCLUDING\" ...\n"
@@ -193,23 +187,24 @@ class CreateTableLikeTest {
 
     @Test
     void testInvalidNoSourceTable() {
-        assertThatThrownBy(
-                        () ->
-                                createFlinkParser(
-                                                "CREATE TABLE t (\n"
-                                                        + "   a STRING\n"
-                                                        + ")\n"
-                                                        + "LIKE ("
-                                                        + "   INCLUDING ALL"
-                                                        + ")")
-                                        .parseStmt())
+        SqlParser parser =
+                createFlinkParser(
+                        "CREATE TABLE t (\n"
+                                + "   a STRING\n"
+                                + ")\n"
+                                + "LIKE ("
+                                + "   INCLUDING ALL"
+                                + ")");
+
+        assertThatThrownBy(parser::parseStmt)
                 .isInstanceOf(SqlParseException.class)
-                .hasMessageContaining(
+                .hasMessageStartingWith(
                         "Encountered \"(\" at line 4, column 6.\n"
                                 + "Was expecting one of:\n"
                                 + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
                                 + "    <QUOTED_IDENTIFIER> ...\n"
                                 + "    <BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> ...\n"
                                 + "    <HYPHENATED_IDENTIFIER> ...\n"
                                 + "    <IDENTIFIER> ...\n"
                                 + "    <UNICODE_QUOTED_IDENTIFIER> ...\n");
@@ -257,21 +252,20 @@ class CreateTableLikeTest {
 
             @Override
             protected SqlTableLike featureValueOf(SqlNode actual) {
-                if (!(actual instanceof SqlCreateTable)) {
+                if (!(actual instanceof SqlCreateTableLike)) {
                     throw new AssertionError("Node is not a CREATE TABLE stmt.");
                 }
-                return ((SqlCreateTable) actual).getTableLike().orElse(null);
+                return ((SqlCreateTableLike) actual).getTableLike();
             }
         };
     }
 
     private SqlParser createFlinkParser(String expr) {
         SqlParser.Config parserConfig =
-                SqlParser.configBuilder()
-                        .setParserFactory(FlinkSqlParserImpl.FACTORY)
-                        .setLex(Lex.JAVA)
-                        .setIdentifierMaxLength(256)
-                        .build();
+                SqlParser.config()
+                        .withParserFactory(FlinkSqlParserImpl.FACTORY)
+                        .withLex(Lex.JAVA)
+                        .withIdentifierMaxLength(256);
 
         return SqlParser.create(expr, parserConfig);
     }

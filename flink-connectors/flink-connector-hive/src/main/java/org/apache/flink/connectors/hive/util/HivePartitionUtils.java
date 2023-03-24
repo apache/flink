@@ -20,6 +20,8 @@ package org.apache.flink.connectors.hive.util;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.connectors.hive.HiveTablePartitionSerializer;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
@@ -35,6 +37,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -42,6 +45,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -52,6 +56,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to load hive partitions from HiveMetaStore. */
@@ -120,6 +125,8 @@ public class HivePartitionUtils {
                 return Float.valueOf(valStr);
             case DOUBLE:
                 return Double.valueOf(valStr);
+            case DECIMAL:
+                return new BigDecimal(valStr);
             case DATE:
                 return HiveInspectors.toFlinkObject(
                         HiveInspectors.getObjectInspector(partitionType),
@@ -162,13 +169,13 @@ public class HivePartitionUtils {
             if (partitionColNames != null && partitionColNames.size() > 0) {
                 List<Partition> partitions = new ArrayList<>();
                 if (remainingPartitions != null) {
-                    for (Map<String, String> spec : remainingPartitions) {
-                        partitions.add(
-                                client.getPartition(
-                                        dbName,
-                                        tableName,
-                                        partitionSpecToValues(spec, partitionColNames)));
-                    }
+                    List<String> partitionNames =
+                            getPartitionNames(
+                                    remainingPartitions,
+                                    partitionColNames,
+                                    JobConfUtils.getDefaultPartitionName(jobConf));
+                    partitions.addAll(
+                            client.getPartitionsByNames(dbName, tableName, partitionNames));
                 } else {
                     partitions.addAll(client.listPartitions(dbName, tableName, (short) -1));
                 }
@@ -184,6 +191,50 @@ public class HivePartitionUtils {
             throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
         }
         return allHivePartitions;
+    }
+
+    /**
+     * Get the partitions' name by partitions' spec.
+     *
+     * @param partitionsSpec a list contains the spec of the partitions, one of which is for one
+     *     partition. The map for the spec of partition can be unordered.
+     * @param partitionColNames the partition column's name
+     * @param defaultStr the default value used to make partition name when the key or value for the
+     *     partition's spec partition column in the spec is null or empty string.
+     * @return a list contains the partitions' name like "p1=v1/p2=v2", one of which is for one
+     *     partition.
+     */
+    public static List<String> getPartitionNames(
+            List<Map<String, String>> partitionsSpec,
+            List<String> partitionColNames,
+            String defaultStr) {
+        List<String> partitionNames = new ArrayList<>(partitionsSpec.size());
+        for (Map<String, String> partitionSpec : partitionsSpec) {
+            List<String> pVals = partitionSpecToValues(partitionSpec, partitionColNames);
+            // Construct a pattern of the form: partKey=partVal/partKey2=partVal2/...
+            partitionNames.add(FileUtils.makePartName(partitionColNames, pVals, defaultStr));
+        }
+        return partitionNames;
+    }
+
+    /**
+     * Creates a {@link CatalogPartitionSpec} from a Hive partition name string. Example of Hive
+     * partition name string - "name=bob/year=2019". If the partition name for the given partition
+     * column is equal to {@param defaultPartitionName}, the partition value in returned {@link
+     * CatalogPartitionSpec} will be null.
+     */
+    public static CatalogPartitionSpec createPartitionSpec(
+            String hivePartitionName, String defaultPartitionName) {
+        String[] partKeyVals = hivePartitionName.split("/");
+        Map<String, String> spec = new HashMap<>(partKeyVals.length);
+        for (String keyVal : partKeyVals) {
+            String[] kv = keyVal.split("=");
+            String partitionValue = unescapePathName(kv[1]);
+            spec.put(
+                    unescapePathName(kv[0]),
+                    partitionValue.equals(defaultPartitionName) ? null : partitionValue);
+        }
+        return new CatalogPartitionSpec(spec);
     }
 
     public static List<String> partitionSpecToValues(
@@ -239,5 +290,34 @@ public class HivePartitionUtils {
                 listStatusRecursively(fs, stat, level + 1, expectLevel, results);
             }
         }
+    }
+
+    public static List<byte[]> serializeHiveTablePartition(
+            List<HiveTablePartition> hiveTablePartitions) {
+        List<byte[]> partitionBytes = new ArrayList<>(hiveTablePartitions.size());
+        try {
+            for (HiveTablePartition hiveTablePartition : hiveTablePartitions) {
+                partitionBytes.add(
+                        HiveTablePartitionSerializer.INSTANCE.serialize(hiveTablePartition));
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        return partitionBytes;
+    }
+
+    public static List<HiveTablePartition> deserializeHiveTablePartition(
+            List<byte[]> partitionBytes) {
+        List<HiveTablePartition> hiveTablePartitions = new ArrayList<>(partitionBytes.size());
+        try {
+            for (byte[] bytes : partitionBytes) {
+                hiveTablePartitions.add(
+                        HiveTablePartitionSerializer.INSTANCE.deserialize(
+                                HiveTablePartitionSerializer.INSTANCE.getVersion(), bytes));
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        return hiveTablePartitions;
     }
 }

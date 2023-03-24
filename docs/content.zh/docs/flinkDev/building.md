@@ -35,7 +35,7 @@ under the License.
 
 首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
-还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 11** 或更新的版本来进行构建。
+还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8 (deprecated) 或 Java 11** 来进行构建。
 
 *注意：Maven 3.3.x 可以构建 Flink，但是不能正确地屏蔽掉指定的依赖。Maven 3.2.5 可以正确地构建库文件。
 
@@ -75,11 +75,11 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 
     如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#build-flink) 中所述。
 
-2. Python 的版本为 3.6, 3.7 或者 3.8.
+2. Python 的版本为 3.7, 3.8, 3.9 或者 3.10.
 
     ```shell
     $ python --version
-    # the version printed here must be 3.6, 3.7 or 3.8
+    # the version printed here must be 3.7, 3.8, 3.9 or 3.10
     ```
 
 3. 构建 PyFlink 的 Cython 扩展模块（可选的）
@@ -149,12 +149,7 @@ mvn clean install
 Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时模块。使用 Scala API 和库的同学必须配置 Flink 的 Scala 版本和自己的 Flink 版本（因为 Scala 
 并不严格的向后兼容）。
 
-从 1.7 版本开始，Flink 可以使用 Scala 2.11（默认）和 2.12 来构建。
-
-如果使用 Scala 2.12 来进行构建，执行如下命令：
-```bash
-mvn clean install -DskipTests -Dscala-2.12
-```
+从 1.15 版本开始，Flink 已经不再支持使用Scala 2.11编译，默认使用 2.12 来构建。
 
 要针对特定的二进制 Scala 版本进行构建，可以使用
 ```bash

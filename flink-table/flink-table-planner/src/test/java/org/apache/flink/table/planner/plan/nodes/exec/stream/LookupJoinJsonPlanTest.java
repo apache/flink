@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -68,8 +69,31 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false')";
+        String sinkTable1 =
+                "CREATE TABLE Sink1 (\n"
+                        + "  a int,\n"
+                        + "  name varchar,"
+                        + "  age int"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false')";
+        String sinkTable2 =
+                "CREATE TABLE MySink1 (\n"
+                        + "  a int,\n"
+                        + "  b varchar,"
+                        + "  c bigint,"
+                        + "  proctime timestamp(3),"
+                        + "  rowtime timestamp(3),"
+                        + "  id int,"
+                        + "  name varchar,"
+                        + "  age int"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(srcTableA);
         tEnv.executeSql(srcTableB);
+        tEnv.executeSql(sinkTable1);
+        tEnv.executeSql(sinkTable2);
     }
 
     @Test
@@ -155,5 +179,69 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         anyCauseMatches(
                                 ValidationException.class,
                                 "TemporalTableSourceSpec can not be serialized."));
+    }
+
+    @Test
+    public void testAggAndLeftJoinWithTryResolveMode() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        util.verifyJsonPlan(
+                "INSERT INTO Sink1 "
+                        + "SELECT T.a, D.name, D.age "
+                        + "FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T "
+                        + "LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncHint() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncHint2() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='D', 'async'='true', 'timeout'='600s', 'capacity'='1000') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithRetryHint() {
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncRetryHint() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='D', 'async'='true', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncRetryHint2() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='D', 'async'='true', 'timeout'='600s', 'capacity'='1000', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
     }
 }

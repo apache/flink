@@ -51,7 +51,8 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       opName: String,
-      transformationMeta: TransformationMetadata): Transformation[RowData] = {
+      transformationMeta: TransformationMetadata,
+      parallelismConfigured: Boolean): Transformation[RowData] = {
 
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
@@ -88,7 +89,8 @@ object CorrelateCodeGenerator {
       substituteStreamOperator,
       InternalTypeInfo.of(outputType),
       parallelism,
-      0)
+      0,
+      parallelismConfigured)
   }
 
   /** Generates the flat map operator to run the user-defined table function. */
@@ -191,7 +193,7 @@ object CorrelateCodeGenerator {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val collectorCtx = CodeGeneratorContext(tableConfig)
+    val collectorCtx = new CodeGeneratorContext(tableConfig, ctx.classLoader)
 
     val body = {
       // completely output left input + right

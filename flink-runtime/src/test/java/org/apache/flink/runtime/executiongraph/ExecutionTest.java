@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
@@ -79,7 +80,7 @@ public class ExecutionTest extends TestLogger {
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -123,7 +124,7 @@ public class ExecutionTest extends TestLogger {
         final JobVertexID jobVertexId = jobVertex.getID();
 
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -168,7 +169,7 @@ public class ExecutionTest extends TestLogger {
                                                 .withTaskManagerGateway(taskManagerGateway)
                                                 .build()));
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 testMainThreadUtil.getMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -208,7 +209,7 @@ public class ExecutionTest extends TestLogger {
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 testMainThreadUtil.getMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())

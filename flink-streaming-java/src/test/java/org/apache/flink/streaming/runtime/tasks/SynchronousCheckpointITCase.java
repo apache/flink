@@ -28,13 +28,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -42,12 +42,11 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -75,6 +74,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -224,8 +224,6 @@ public class SynchronousCheckpointITCase {
 
     private Task createTask(Class<? extends TaskInvokable> invokableClass) throws Exception {
 
-        ResultPartitionConsumableNotifier consumableNotifier =
-                new NoOpResultPartitionConsumableNotifier();
         PartitionProducerStateChecker partitionProducerStateChecker =
                 mock(PartitionProducerStateChecker.class);
         Executor executor = mock(Executor.class);
@@ -255,13 +253,12 @@ public class SynchronousCheckpointITCase {
         return new Task(
                 jobInformation,
                 taskInformation,
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(taskInformation.getJobVertexId()),
                 new AllocationID(),
-                0,
-                0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 mock(MemoryManager.class),
+                new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
                 new KvStateService(new KvStateRegistry(), null, null),
@@ -278,9 +275,9 @@ public class SynchronousCheckpointITCase {
                 mock(FileCache.class),
                 new TestingTaskManagerRuntimeInfo(),
                 taskMetricGroup,
-                consumableNotifier,
                 partitionProducerStateChecker,
-                executor);
+                executor,
+                new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()));
     }
 
     private static class TaskCleaner implements AutoCloseable {

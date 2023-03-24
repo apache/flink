@@ -20,14 +20,20 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -35,50 +41,44 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StreamContextEnvironmentTest {
 
     @ParameterizedTest
     @MethodSource("provideExecutors")
-    void testDisallowJobConfigurationChanges(
+    void testDisallowProgramConfigurationChanges(
             ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
-        final Configuration clusterConfiguration = new Configuration();
-        clusterConfiguration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
-        clusterConfiguration.set(DeploymentOptions.TARGET, "local");
-        clusterConfiguration.set(SavepointConfigOptions.SAVEPOINT_PATH, "/flink/savepoints");
-        clusterConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(SavepointConfigOptions.SAVEPOINT_PATH, "/flink/savepoints");
+        clusterConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
 
-        final Configuration jobConfiguration = new Configuration();
-        jobConfiguration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
-        jobConfiguration.set(DeploymentOptions.TARGET, "local");
-        jobConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        jobConfiguration.set(ExecutionOptions.SORT_INPUTS, true);
+        final Configuration programConfig = new Configuration();
+        programConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        programConfig.set(DeploymentOptions.TARGET, "local");
+        programConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        programConfig.set(ExecutionOptions.SORT_INPUTS, true);
 
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final StreamContextEnvironment environment =
-                new StreamContextEnvironment(
-                        new MockExecutorServiceLoader(),
-                        clusterConfiguration,
-                        classLoader,
-                        true,
-                        true,
-                        false,
-                        new ArrayList<>());
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
 
         // Change the CheckpointConfig
         environment.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
         // Change the ExecutionConfig
         environment.setParallelism(25);
+        environment.getConfig().setMaxParallelism(1024);
 
         // Add/mutate values in the configuration
-        environment.configure(jobConfiguration);
+        environment.configure(programConfig);
 
         environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
@@ -87,7 +87,145 @@ class StreamContextEnvironmentTest {
                         ExecutionOptions.RUNTIME_MODE.key(),
                         ExecutionOptions.SORT_INPUTS.key(),
                         CheckpointConfig.class.getSimpleName(),
-                        ExecutionConfig.class.getSimpleName());
+                        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL.key(),
+                        ExecutionConfig.class.getSimpleName(),
+                        PipelineOptions.MAX_PARALLELISM.key());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testDisallowCheckpointStorage(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
+
+        String disallowedPath = "file:///flink/disallowed/modification";
+        // Change the CheckpointConfig
+        environment.getCheckpointConfig().setCheckpointStorage(disallowedPath);
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(MutatedConfigurationException.class)
+                .hasMessageContainingAll(
+                        CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
+
+        environment.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(MutatedConfigurationException.class)
+                .hasMessageContainingAll(
+                        CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testAllowCheckpointStorage(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(
+                        clusterConfig,
+                        Arrays.asList(CheckpointingOptions.CHECKPOINTS_DIRECTORY.key()));
+
+        String allowedPath = "file:///flink/allowed/modification";
+        // Change the CheckpointConfig
+        environment.getCheckpointConfig().setCheckpointStorage(allowedPath);
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testNotModifiedCheckpointStorage(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testForSinkTransformation(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
+
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSinkV2());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testAllowProgramConfigurationWildcards(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        // Changing GLOBAL_JOB_PARAMETERS is always allowed, as it's one of the fields not checked
+        // with PROGRAM_CONFIG_ENABLED set to false
+        clusterConfig.setString(
+                PipelineOptions.GLOBAL_JOB_PARAMETERS.key() + "." + "my-param", "my-value");
+
+        final Configuration jobConfig = new Configuration();
+        jobConfig.set(
+                PipelineOptions.GLOBAL_JOB_PARAMETERS,
+                Collections.singletonMap("my-other-param", "my-other-value"));
+
+        final StreamContextEnvironment environment =
+                constructStreamContextEnvironment(
+                        clusterConfig,
+                        Arrays.asList(
+                                PipelineOptions.GLOBAL_JOB_PARAMETERS.key(),
+                                PipelineOptions.MAX_PARALLELISM.key()));
+
+        // Change ExecutionConfig
+        environment.configure(jobConfig);
+        environment.getConfig().setMaxParallelism(1024);
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+        assertThat(environment.getConfig().getGlobalJobParameters().toMap())
+                .containsOnlyKeys("my-other-param");
+    }
+
+    private static StreamContextEnvironment constructStreamContextEnvironment(
+            Configuration clusterConfig, Collection<String> programConfigWildcards) {
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        return new StreamContextEnvironment(
+                new MockExecutorServiceLoader(),
+                clusterConfig,
+                clusterConfig,
+                classLoader,
+                true,
+                true,
+                false,
+                programConfigWildcards);
     }
 
     private static List<ThrowingConsumer<StreamExecutionEnvironment, Exception>>
@@ -100,12 +238,30 @@ class StreamContextEnvironmentTest {
 
         @Override
         public PipelineExecutorFactory getExecutorFactory(Configuration configuration) {
-            throw new UnsupportedOperationException("Not implemented");
+            throw new ExecutorReachedException();
         }
 
         @Override
         public Stream<String> getExecutorNames() {
-            throw new UnsupportedOperationException("Not implemented");
+            throw new ExecutorReachedException();
+        }
+    }
+
+    private static class ExecutorReachedException extends RuntimeException {}
+
+    private static class DiscardingSinkV2<T> implements Sink<T> {
+        @Override
+        public SinkWriter<T> createWriter(InitContext context) {
+            return new SinkWriter<T>() {
+                @Override
+                public void write(T element, Context context) {}
+
+                @Override
+                public void flush(boolean endOfInput) {}
+
+                @Override
+                public void close() {}
+            };
         }
     }
 }

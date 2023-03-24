@@ -16,16 +16,37 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil } from 'rxjs/operators';
+import { DecimalPipe, NgForOf, NgIf } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
+import { DynamicHostComponent } from '@flink-runtime-web/components/dynamic/dynamic-host.component';
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
+import { TableAggregatedMetricsComponent } from '@flink-runtime-web/components/table-aggregated-metrics/table-aggregated-metrics.component';
+import {
+  JobVertexAggregated,
+  JobVertexStatus,
+  JobVertexStatusDuration,
+  JobVertexSubTask,
+  JobVertexSubTaskData
+} from '@flink-runtime-web/interfaces';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
+import { JobService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
 
-import { JobSubTask } from 'interfaces';
-import { JobService } from 'services';
+import { JobLocalService } from '../../job-local.service';
 
-function createSortFn(selector: (item: JobSubTask) => number | string): NzTableSortFn<JobSubTask> {
+function createSortFn(selector: (item: JobVertexSubTask) => number | string): NzTableSortFn<JobVertexSubTask> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
 }
 
@@ -33,52 +54,108 @@ function createSortFn(selector: (item: JobSubTask) => number | string): NzTableS
   selector: 'flink-job-overview-drawer-subtasks',
   templateUrl: './job-overview-drawer-subtasks.component.html',
   styleUrls: ['./job-overview-drawer-subtasks.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzTabsModule,
+    NzTableModule,
+    NgIf,
+    HumanizeBytesPipe,
+    DecimalPipe,
+    HumanizeDatePipe,
+    HumanizeDurationPipe,
+    DynamicHostComponent,
+    NgForOf,
+    TableAggregatedMetricsComponent
+  ],
+  standalone: true
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
-  public readonly trackBySubtask = (_: number, node: JobSubTask): number => node.subtask;
+  readonly trackBySubtask = (_: number, node: JobVertexSubTask): number => node.subtask;
+  readonly trackBySubtaskAttempt = (_: number, node: JobVertexSubTaskData): string => `${node.subtask}-${node.attempt}`;
 
-  public readonly sortReadBytesFn = createSortFn(item => item.metrics?.['read-bytes']);
-  public readonly sortReadRecordsFn = createSortFn(item => item.metrics?.['read-records']);
-  public readonly sortWriteBytesFn = createSortFn(item => item.metrics?.['write-bytes']);
-  public readonly sortWriteRecordsFn = createSortFn(item => item.metrics?.['write-records']);
-  public readonly sortAttemptFn = createSortFn(item => item.attempt);
-  public readonly sortHostFn = createSortFn(item => item.host);
-  public readonly sortStartTimeFn = createSortFn(item => item['start_time']);
-  public readonly sortDurationFn = createSortFn(item => item.duration);
-  public readonly sortEndTimeFn = createSortFn(item => item['end-time']);
-  public readonly sortStatusFn = createSortFn(item => item.status);
+  readonly sortReadBytesFn = createSortFn(item => item.metrics?.['read-bytes']);
+  readonly sortReadRecordsFn = createSortFn(item => item.metrics?.['read-records']);
+  readonly sortWriteBytesFn = createSortFn(item => item.metrics?.['write-bytes']);
+  readonly sortWriteRecordsFn = createSortFn(item => item.metrics?.['write-records']);
+  readonly sortAttemptFn = createSortFn(item => item.attempt);
+  readonly sortHostFn = createSortFn(item => item.host);
+  readonly sortStartTimeFn = createSortFn(item => item['start_time']);
+  readonly sortDurationFn = createSortFn(item => item.duration);
+  readonly sortEndTimeFn = createSortFn(item => item['end-time']);
+  readonly sortStatusFn = createSortFn(item => item.status);
 
-  public listOfTask: JobSubTask[] = [];
-  public sortName: string;
-  public sortValue: string;
-  public isLoading = true;
-
+  expandSet = new Set<number>();
+  listOfTask: JobVertexSubTask[] = [];
+  aggregated?: JobVertexAggregated;
+  isLoading = true;
+  actionComponent: Type<unknown>;
+  durationBadgeComponent: Type<unknown>;
+  stateBadgeComponent: Type<unknown>;
+  readonly narrowType = typeDefinition<JobVertexSubTask>();
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
-
-  public ngOnInit(): void {
-    this.jobService.jobWithVertex$
-      .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id))
-      )
-      .subscribe(
-        data => {
-          this.listOfTask = data;
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.actionComponent =
+      moduleConfig.customComponents?.subtaskActionComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.subtaskActionComponent;
+    this.durationBadgeComponent =
+      moduleConfig.customComponents?.durationBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.durationBadgeComponent;
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
   }
 
-  public ngOnDestroy(): void {
+  ngOnInit(): void {
+    this.jobLocalService
+      .jobWithVertexChanges()
+      .pipe(
+        mergeMap(data =>
+          this.jobService.loadSubTasks(data.job.jid, data.vertex!.id).pipe(catchError(() => of(undefined)))
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.listOfTask = data?.subtasks || [];
+        this.aggregated = data?.aggregated;
+        this.isLoading = false;
+        this.cdr.markForCheck();
+      });
+  }
+
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  collapseAll(): void {
+    this.expandSet.clear();
+    this.cdr.markForCheck();
+  }
+
+  onExpandChange(subtask: JobVertexSubTask, checked: boolean): void {
+    if (checked) {
+      this.expandSet.add(subtask.subtask);
+    } else {
+      this.expandSet.delete(subtask.subtask);
+    }
+    this.cdr.markForCheck();
+  }
+
+  convertStatusDuration(statusDuration: JobVertexStatusDuration<number>): Array<{ state: string; duration: number }> {
+    const orderedKeys = [
+      JobVertexStatus.CREATED,
+      JobVertexStatus.SCHEDULED,
+      JobVertexStatus.DEPLOYING,
+      JobVertexStatus.INITIALIZING,
+      JobVertexStatus.RUNNING
+    ];
+
+    return orderedKeys.map(key => ({ state: key, duration: statusDuration[key] }));
   }
 }

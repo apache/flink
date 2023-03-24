@@ -52,19 +52,29 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
     private TypeSerializer<NodeId> nodeIdSerializer;
     private TypeSerializer<EventId> eventIdSerializer;
 
+    private final boolean supportsPreviousTimestamp;
+
     public NFAStateSerializer() {
-        this.versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-        this.eventIdSerializer = EventId.EventIdSerializer.INSTANCE;
-        this.nodeIdSerializer = new NodeId.NodeIdSerializer();
+        this(
+                DeweyNumber.DeweyNumberSerializer.INSTANCE,
+                new NodeId.NodeIdSerializer(),
+                EventId.EventIdSerializer.INSTANCE,
+                true);
     }
 
     NFAStateSerializer(
             final TypeSerializer<DeweyNumber> versionSerializer,
             final TypeSerializer<NodeId> nodeIdSerializer,
-            final TypeSerializer<EventId> eventIdSerializer) {
+            final TypeSerializer<EventId> eventIdSerializer,
+            final boolean supportsPreviousTimestamp) {
         this.versionSerializer = checkNotNull(versionSerializer);
         this.nodeIdSerializer = checkNotNull(nodeIdSerializer);
         this.eventIdSerializer = checkNotNull(eventIdSerializer);
+        this.supportsPreviousTimestamp = supportsPreviousTimestamp;
+    }
+
+    public boolean isSupportsPreviousTimestamp() {
+        return supportsPreviousTimestamp;
     }
 
     @Override
@@ -191,6 +201,9 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         nodeIdSerializer.serialize(computationState.getPreviousBufferEntry(), target);
         versionSerializer.serialize(computationState.getVersion(), target);
         target.writeLong(computationState.getStartTimestamp());
+        if (supportsPreviousTimestamp) {
+            target.writeLong(computationState.getPreviousTimestamp());
+        }
         serializeStartEvent(computationState.getStartEventID(), target);
     }
 
@@ -200,11 +213,15 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         NodeId prevState = nodeIdSerializer.deserialize(source);
         DeweyNumber version = versionSerializer.deserialize(source);
         long startTimestamp = source.readLong();
+        long previousTimestamp = -1L;
+        if (supportsPreviousTimestamp) {
+            previousTimestamp = source.readLong();
+        }
 
         EventId startEventId = deserializeStartEvent(source);
 
         return ComputationState.createState(
-                stateName, prevState, version, startTimestamp, startEventId);
+                stateName, prevState, version, startTimestamp, previousTimestamp, startEventId);
     }
 
     private void copySingleComputationState(DataInputView source, DataOutputView target)
@@ -216,6 +233,10 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         versionSerializer.serialize(version, target);
         long startTimestamp = source.readLong();
         target.writeLong(startTimestamp);
+        if (supportsPreviousTimestamp) {
+            long previousTimestamp = source.readLong();
+            target.writeLong(previousTimestamp);
+        }
 
         copyStartEvent(source, target);
     }

@@ -22,83 +22,114 @@ import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsResultPartition;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
-import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.Arrays;
+import java.util.concurrent.Executors;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ResultPartitionFactory}. */
 @SuppressWarnings("StaticVariableUsedBeforeInitialization")
-public class ResultPartitionFactoryTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ResultPartitionFactoryTest {
 
     private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
     private static final int SEGMENT_SIZE = 64;
 
     private static FileChannelManager fileChannelManager;
 
-    @BeforeClass
-    public static void setUp() {
+    @BeforeAll
+    static void setUp() {
         fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
     }
 
-    @AfterClass
-    public static void shutdown() throws Exception {
+    @AfterAll
+    static void shutdown() throws Exception {
         fileChannelManager.close();
     }
 
     @Test
-    public void testBoundedBlockingSubpartitionsCreated() {
+    void testBoundedBlockingSubpartitionsCreated() {
         final BoundedBlockingResultPartition resultPartition =
                 (BoundedBlockingResultPartition)
                         createResultPartition(ResultPartitionType.BLOCKING);
-        Arrays.stream(resultPartition.subpartitions)
-                .forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
+        assertThat(resultPartition.subpartitions)
+                .allSatisfy((sp) -> assertThat(sp).isInstanceOf(BoundedBlockingSubpartition.class));
     }
 
     @Test
-    public void testPipelinedSubpartitionsCreated() {
+    void testPipelinedSubpartitionsCreated() {
         final PipelinedResultPartition resultPartition =
                 (PipelinedResultPartition) createResultPartition(ResultPartitionType.PIPELINED);
-        Arrays.stream(resultPartition.subpartitions)
-                .forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
+        assertThat(resultPartition.subpartitions)
+                .allSatisfy((sp) -> assertThat(sp).isInstanceOf(PipelinedSubpartition.class));
     }
 
     @Test
-    public void testSortMergePartitionCreated() {
+    void testSortMergePartitionCreated() {
         ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING, 1);
-        assertTrue(resultPartition instanceof SortMergeResultPartition);
+        assertThat(resultPartition).isInstanceOf(SortMergeResultPartition.class);
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
+    void testHybridFullResultPartitionCreated() {
+        ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID_FULL);
+        assertThat(resultPartition).isInstanceOf(HsResultPartition.class);
+    }
+
+    @Test
+    void testHybridSelectiveResultPartitionCreated() {
+        ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
+        assertThat(resultPartition).isInstanceOf(HsResultPartition.class);
+    }
+
+    @Test
+    void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
         final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 
         resultPartition.onConsumedSubpartition(0);
 
-        assertFalse(resultPartition.isReleased());
+        assertThat(resultPartition.isReleased()).isFalse();
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForSortMergePartition() {
+    void testNoReleaseOnConsumptionForSortMergePartition() {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.BLOCKING, 1);
 
         resultPartition.onConsumedSubpartition(0);
 
-        assertFalse(resultPartition.isReleased());
+        assertThat(resultPartition.isReleased()).isFalse();
+    }
+
+    @Test
+    void testNoReleaseOnConsumptionForHybridFullPartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_FULL);
+
+        resultPartition.onConsumedSubpartition(0);
+
+        assertThat(resultPartition.isReleased()).isFalse();
+    }
+
+    @Test
+    void testNoReleaseOnConsumptionForHybridSelectivePartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
+
+        resultPartition.onConsumedSubpartition(0);
+
+        assertThat(resultPartition.isReleased()).isFalse();
     }
 
     private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
@@ -107,6 +138,11 @@ public class ResultPartitionFactoryTest extends TestLogger {
 
     private static ResultPartition createResultPartition(
             ResultPartitionType partitionType, int sortShuffleMinParallelism) {
+        return createResultPartition(partitionType, sortShuffleMinParallelism, false);
+    }
+
+    private static ResultPartition createResultPartition(
+            ResultPartitionType partitionType, int sortShuffleMinParallelism, boolean isBroadcast) {
         final ResultPartitionManager manager = new ResultPartitionManager();
 
         final ResultPartitionFactory factory =
@@ -115,7 +151,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         fileChannelManager,
                         new NetworkBufferPool(1, SEGMENT_SIZE),
                         new BatchShuffleReadBufferPool(10 * SEGMENT_SIZE, SEGMENT_SIZE),
-                        Executors.newDirectExecutorService(),
+                        Executors.newSingleThreadScheduledExecutor(),
                         BoundedBlockingSubpartitionType.AUTO,
                         1,
                         1,
@@ -125,19 +161,22 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         Integer.MAX_VALUE,
                         10,
                         sortShuffleMinParallelism,
-                        false);
+                        false,
+                        0,
+                        256,
+                        Long.MAX_VALUE);
 
         final ResultPartitionDeploymentDescriptor descriptor =
                 new ResultPartitionDeploymentDescriptor(
                         PartitionDescriptorBuilder.newBuilder()
                                 .setPartitionType(partitionType)
+                                .setIsBroadcast(isBroadcast)
                                 .build(),
                         NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
-                        1,
-                        true);
+                        1);
 
         // guard our test assumptions
-        assertEquals(1, descriptor.getNumberOfSubpartitions());
+        assertThat(descriptor.getNumberOfSubpartitions()).isEqualTo(1);
 
         final ResultPartition partition = factory.create("test", 0, descriptor);
         manager.registerResultPartition(partition);

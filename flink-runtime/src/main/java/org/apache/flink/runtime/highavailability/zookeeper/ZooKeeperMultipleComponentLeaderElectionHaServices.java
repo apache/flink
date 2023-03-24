@@ -21,9 +21,8 @@ package org.apache.flink.runtime.highavailability.zookeeper;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -88,9 +87,8 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices
     }
 
     @Override
-    protected LeaderElectionService createLeaderElectionService(String leaderName) {
-        return new DefaultLeaderElectionService(
-                getOrInitializeSingleLeaderElectionService().createDriverFactory(leaderName));
+    protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
+        return getOrInitializeSingleLeaderElectionService().createDriverFactory(leaderName);
     }
 
     private MultipleComponentLeaderElectionService getOrInitializeSingleLeaderElectionService() {

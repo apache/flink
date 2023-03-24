@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -127,7 +126,7 @@ public class TaskCancelAsyncProducerConsumerITCase {
 
         FutureUtils.retrySuccessfulWithDelay(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Time.milliseconds(10),
+                        Duration.ofMillis(10),
                         deadline,
                         status -> status == JobStatus.RUNNING,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
@@ -181,7 +180,7 @@ public class TaskCancelAsyncProducerConsumerITCase {
         // wait until the job is canceled
         FutureUtils.retrySuccessfulWithDelay(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Time.milliseconds(10),
+                        Duration.ofMillis(10),
                         deadline,
                         status -> status == JobStatus.CANCELED,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))

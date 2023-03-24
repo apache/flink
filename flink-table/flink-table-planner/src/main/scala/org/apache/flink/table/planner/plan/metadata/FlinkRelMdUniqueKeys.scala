@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.catalog.{CatalogTable, ResolvedCatalogBaseTable, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.{CatalogTable, ResolvedCatalogBaseTable}
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
@@ -488,16 +488,36 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
     val left = join.getInput
     val leftUniqueKeys = mq.getUniqueKeys(left, ignoreNulls)
-    val leftType = left.getRowType
-    getJoinUniqueKeys(
-      join.joinType,
-      leftType,
-      leftUniqueKeys,
-      null,
-      mq.areColumnsUnique(left, join.joinInfo.leftSet, ignoreNulls),
-      // TODO get uniqueKeys from TableSchema of TableSource
+
+    if (leftUniqueKeys != null) {
+      val rightUniqueKeys = getUniqueKeysOfTemporalTable(join)
+
+      getJoinUniqueKeys(
+        join.joinType,
+        left.getRowType,
+        leftUniqueKeys,
+        rightUniqueKeys,
+        mq.areColumnsUnique(left, join.joinInfo.leftSet, ignoreNulls),
+        rightUniqueKeys != null)
+    } else {
       null
-    )
+    }
+  }
+
+  private[flink] def getUniqueKeysOfTemporalTable(
+      join: CommonPhysicalLookupJoin): JSet[ImmutableBitSet] = {
+    val outputPkIdx = join.getOutputIndexesOfTemporalTablePrimaryKey
+    if (outputPkIdx.nonEmpty) {
+      // compare with join key pairs
+      val lookupKeys = join.joinInfo.pairs().map(_.target).toSet
+      if (outputPkIdx.forall(lookupKeys.contains)) {
+        ImmutableSet.of(ImmutableBitSet.of(outputPkIdx: _*))
+      } else {
+        null
+      }
+    } else {
+      null
+    }
   }
 
   private def getJoinUniqueKeys(

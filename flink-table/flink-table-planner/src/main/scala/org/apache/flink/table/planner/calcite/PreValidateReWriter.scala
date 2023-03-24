@@ -30,8 +30,8 @@ import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
-import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlTableRef, SqlUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
@@ -119,7 +119,10 @@ object PreValidateReWriter {
       source: SqlCall,
       partitions: SqlNodeList): SqlCall = {
     val calciteCatalogReader = validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader])
-    val names = sqlInsert.getTargetTable.asInstanceOf[SqlIdentifier].names
+    val names = sqlInsert.getTargetTable match {
+      case si: SqlIdentifier => si.names
+      case st: SqlTableRef => st.getOperandList.get(0).asInstanceOf[SqlIdentifier].names
+    }
     val table = calciteCatalogReader.getTable(names)
     if (table == null) {
       // There is no table exists in current catalog,
@@ -136,6 +139,7 @@ object PreValidateReWriter {
     for (node <- partitions.getList) {
       val sqlProperty = node.asInstanceOf[SqlProperty]
       val id = sqlProperty.getKey
+      validateUnsupportedCompositeColumn(id)
       val targetField = SqlValidatorUtil.getTargetField(
         targetRowType,
         typeFactory,
@@ -160,10 +164,12 @@ object PreValidateReWriter {
         sqlInsert.getTargetColumnList.getList
           .map(
             id => {
+              val identifier = id.asInstanceOf[SqlIdentifier]
+              validateUnsupportedCompositeColumn(identifier)
               val targetField = SqlValidatorUtil.getTargetField(
                 targetRowType,
                 typeFactory,
-                id.asInstanceOf[SqlIdentifier],
+                identifier,
                 calciteCatalogReader,
                 relOptTable)
               validateField(targetFields.add, id.asInstanceOf[SqlIdentifier], targetField)
@@ -368,10 +374,10 @@ object PreValidateReWriter {
     table.unwrap(classOf[FlinkPreparingTableBase]) match {
       case t: CatalogSourceTable =>
         val schema = t.getCatalogTable.getSchema
-        typeFactory.asInstanceOf[FlinkTypeFactory].buildPhysicalRelNodeRowType(schema)
+        typeFactory.asInstanceOf[FlinkTypeFactory].buildPersistedRelNodeRowType(schema)
       case t: LegacyCatalogSourceTable[_] =>
         val schema = t.catalogTable.getSchema
-        typeFactory.asInstanceOf[FlinkTypeFactory].buildPhysicalRelNodeRowType(schema)
+        typeFactory.asInstanceOf[FlinkTypeFactory].buildPersistedRelNodeRowType(schema)
       case _ =>
         table.getRowType
     }
@@ -396,6 +402,16 @@ object PreValidateReWriter {
     assert(node != null)
     val pos = node.getParserPosition
     SqlUtil.newContextException(pos, e)
+  }
+
+  private def validateUnsupportedCompositeColumn(id: SqlIdentifier): Unit = {
+    assert(id != null)
+    if (!id.isSimple) {
+      val pos = id.getParserPosition
+      // TODO no suitable error message from current CalciteResource, just use this one temporarily,
+      // we will remove this after composite column name is supported.
+      throw SqlUtil.newContextException(pos, RESOURCE.unknownTargetColumn(id.toString))
+    }
   }
 
   // This code snippet is copied from the SqlValidatorImpl.

@@ -18,12 +18,14 @@
 
 package org.apache.flink.docs.rest;
 
+import org.apache.flink.annotation.docs.FlinkJsonSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.docs.rest.data.TestEmptyMessageHeaders;
 import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -44,7 +46,7 @@ class RestAPIDocGeneratorTest {
     void testExcludeFromDocumentation() throws Exception {
         File file = File.createTempFile("rest_v0_", ".html");
         RestAPIDocGenerator.createHtmlFile(
-                new TestExcludeDocumentingRestEndpoint(), RestAPIVersion.V0, file.toPath());
+                new TestExcludeDocumentingRestEndpoint(), RuntimeRestAPIVersion.V0, file.toPath());
         String actual = FileUtils.readFile(file, "UTF-8");
 
         assertThat(actual).containsSequence("/test/empty1");
@@ -58,6 +60,22 @@ class RestAPIDocGeneratorTest {
         assertThat(actual)
                 .doesNotContain(
                         "This REST API should also not appear in the generated documentation.");
+    }
+
+    @Test
+    void testAdditionalFields() {
+        final String messageHtmlEntry =
+                RestAPIDocGenerator.createMessageHtmlEntry(
+                        TestAdditionalFields.class, null, EmptyRequestBody.class);
+        assertThat(messageHtmlEntry)
+                .isEqualTo(
+                        "{\n"
+                                + "  \"type\" : \"object\",\n"
+                                + "  \"id\" : \"urn:jsonschema:org:apache:flink:docs:rest:RestAPIDocGeneratorTest:TestAdditionalFields\",\n"
+                                + "  \"additionalProperties\" : {\n"
+                                + "    \"type\" : \"string\"\n"
+                                + "  }\n"
+                                + "}");
     }
 
     private static class TestExcludeDocumentingRestEndpoint implements DocumentingRestEndpoint {
@@ -86,4 +104,7 @@ class RestAPIDocGeneratorTest {
                             null));
         }
     }
+
+    @FlinkJsonSchema.AdditionalFields(type = String.class)
+    private static class TestAdditionalFields {}
 }

@@ -525,7 +525,9 @@ class IntervalJoinTest extends TableTestBase {
       joinNode.getLeft.getRowType.getFieldCount,
       joinNode.getRowType,
       joinNode.getCluster.getRexBuilder,
-      util.tableEnv.getConfig)
+      util.tableEnv.getConfig,
+      Thread.currentThread().getContextClassLoader
+    )
 
     val timeTypeStr = if (windowBounds.get.isEventTime) "rowtime" else "proctime"
     assertEquals(expLeftSize, windowBounds.get.getLeftLowerBound)
@@ -546,7 +548,9 @@ class IntervalJoinTest extends TableTestBase {
         joinNode.getLeft.getRowType.getFieldCount,
         joinNode.getRowType,
         joinNode.getCluster.getRexBuilder,
-        util.tableEnv.getConfig)
+        util.tableEnv.getConfig,
+        Thread.currentThread().getContextClassLoader
+      )
     val actual: String = remainCondition.getOrElse("").toString
     assertEquals(expectConditionStr, actual)
   }

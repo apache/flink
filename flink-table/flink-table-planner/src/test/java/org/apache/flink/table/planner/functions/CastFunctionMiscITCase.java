@@ -19,10 +19,8 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
@@ -32,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -53,14 +52,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
-
-    @Override
-    Configuration getConfiguration() {
-        return new Configuration()
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED);
-    }
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
@@ -278,7 +269,46 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 $("f1").tryCast(ROW(TINYINT(), TIME())),
                                 "TRY_CAST(f1 AS ROW(f0 TINYINT, f1 TIME))",
                                 Row.of((byte) 1, LocalTime.of(12, 34, 56, 0)),
-                                ROW(TINYINT(), TIME()).nullable()));
+                                ROW(TINYINT(), TIME()).nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST, "try cast from ARRAY to ARRAY")
+                        .onFieldsWithData(
+                                new String[] {"a"},
+                                new Object[] {map(entry(new String[] {"b"}, 2))},
+                                new String[][] {{"c"}})
+                        .andDataTypes(
+                                ARRAY(STRING()),
+                                ARRAY(MAP(STRING(), STRING())),
+                                ARRAY(ARRAY(STRING())))
+                        .testResult(
+                                $("f0").tryCast(ARRAY(INT())),
+                                "TRY_CAST(f0 AS ARRAY<INT>)",
+                                null,
+                                ARRAY(INT()).nullable())
+                        .testResult(
+                                $("f1").tryCast(ARRAY(MAP(INT(), INT()))),
+                                "TRY_CAST(f1 AS ARRAY<MAP<INT, INT>>)",
+                                null,
+                                ARRAY(MAP(INT(), INT())).nullable())
+                        .testResult(
+                                $("f2").tryCast(ARRAY(ARRAY(INT()))),
+                                "TRY_CAST(f2 AS ARRAY<ARRAY<INT>>)",
+                                null,
+                                ARRAY(ARRAY(INT())).nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST, "try cast from MAP to MAP")
+                        .onFieldsWithData(map(entry("a", 2)), map(entry(1, new String[] {"a"})))
+                        .andDataTypes(MAP(STRING(), INT()), MAP(INT(), ARRAY(STRING())))
+                        .testResult(
+                                $("f0").tryCast(MAP(INT(), INT())),
+                                "TRY_CAST(f0 AS MAP<INT, INT>)",
+                                null,
+                                MAP(INT(), INT()).nullable())
+                        .testResult(
+                                $("f1").tryCast(MAP(INT(), ARRAY(INT()))),
+                                "TRY_CAST(f1 AS MAP<INT, ARRAY<INT>>)",
+                                null,
+                                MAP(INT(), ARRAY(INT())).nullable()));
     }
 
     // --------------------------------------------------------------------------------------------

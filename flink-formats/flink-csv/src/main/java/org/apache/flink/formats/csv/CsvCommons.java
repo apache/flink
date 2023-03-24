@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -35,6 +35,7 @@ import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION;
 
 /** A class with common CSV format constants and utility methods. */
 class CsvCommons {
@@ -100,6 +101,7 @@ class CsvCommons {
         options.add(ARRAY_ELEMENT_DELIMITER);
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
+        options.add(WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION);
         return options;
     }
 
@@ -112,6 +114,7 @@ class CsvCommons {
         options.add(ARRAY_ELEMENT_DELIMITER);
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
+        options.add(WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION);
         return options;
     }
 }

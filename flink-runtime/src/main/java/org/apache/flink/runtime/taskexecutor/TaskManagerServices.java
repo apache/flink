@@ -30,10 +30,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
+import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
@@ -79,10 +81,12 @@ public class TaskManagerServices {
     private final JobLeaderService jobLeaderService;
     private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
     private final TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager;
+    private final TaskExecutorChannelStateExecutorFactoryManager taskManagerChannelStateManager;
     private final TaskEventDispatcher taskEventDispatcher;
     private final ExecutorService ioExecutor;
     private final LibraryCacheManager libraryCacheManager;
     private final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
+    private final SharedResources sharedResources;
 
     TaskManagerServices(
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
@@ -96,10 +100,12 @@ public class TaskManagerServices {
             JobLeaderService jobLeaderService,
             TaskExecutorLocalStateStoresManager taskManagerStateStore,
             TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager,
+            TaskExecutorChannelStateExecutorFactoryManager taskManagerChannelStateManager,
             TaskEventDispatcher taskEventDispatcher,
             ExecutorService ioExecutor,
             LibraryCacheManager libraryCacheManager,
-            SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService) {
+            SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService,
+            SharedResources sharedResources) {
 
         this.unresolvedTaskManagerLocation =
                 Preconditions.checkNotNull(unresolvedTaskManagerLocation);
@@ -113,10 +119,12 @@ public class TaskManagerServices {
         this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
         this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
         this.taskManagerChangelogManager = Preconditions.checkNotNull(taskManagerChangelogManager);
+        this.taskManagerChannelStateManager = taskManagerChannelStateManager;
         this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
         this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
         this.slotAllocationSnapshotPersistenceService = slotAllocationSnapshotPersistenceService;
+        this.sharedResources = Preconditions.checkNotNull(sharedResources);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -167,6 +175,10 @@ public class TaskManagerServices {
         return taskManagerChangelogManager;
     }
 
+    public TaskExecutorChannelStateExecutorFactoryManager getTaskManagerChannelStateManager() {
+        return taskManagerChannelStateManager;
+    }
+
     public TaskEventDispatcher getTaskEventDispatcher() {
         return taskEventDispatcher;
     }
@@ -177,6 +189,10 @@ public class TaskManagerServices {
 
     public LibraryCacheManager getLibraryCacheManager() {
         return libraryCacheManager;
+    }
+
+    public SharedResources getSharedResources() {
+        return sharedResources;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -304,7 +320,8 @@ public class TaskManagerServices {
                         // iff the external data port is not explicitly defined
                         taskManagerServicesConfiguration.getExternalDataPort() > 0
                                 ? taskManagerServicesConfiguration.getExternalDataPort()
-                                : listeningDataPort);
+                                : listeningDataPort,
+                        taskManagerServicesConfiguration.getNodeId());
 
         final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
@@ -331,6 +348,9 @@ public class TaskManagerServices {
 
         final TaskExecutorStateChangelogStoragesManager changelogStoragesManager =
                 new TaskExecutorStateChangelogStoragesManager();
+
+        final TaskExecutorChannelStateExecutorFactoryManager channelStateExecutorFactoryManager =
+                new TaskExecutorChannelStateExecutorFactoryManager();
 
         final boolean failOnJvmMetaspaceOomError =
                 taskManagerServicesConfiguration
@@ -373,10 +393,12 @@ public class TaskManagerServices {
                 jobLeaderService,
                 taskStateManager,
                 changelogStoragesManager,
+                channelStateExecutorFactoryManager,
                 taskEventDispatcher,
                 ioExecutor,
                 libraryCacheManager,
-                slotAllocationSnapshotPersistenceService);
+                slotAllocationSnapshotPersistenceService,
+                new SharedResources());
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable(
@@ -413,6 +435,8 @@ public class TaskManagerServices {
                         taskManagerServicesConfiguration.getNetworkMemorySize(),
                         taskManagerServicesConfiguration.isLocalCommunicationOnly(),
                         taskManagerServicesConfiguration.getBindAddress(),
+                        taskManagerServicesConfiguration.getNumberOfSlots(),
+                        taskManagerServicesConfiguration.getTmpDirPaths(),
                         taskEventDispatcher,
                         taskManagerMetricGroup,
                         ioExecutor);

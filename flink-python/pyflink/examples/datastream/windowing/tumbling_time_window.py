@@ -20,7 +20,7 @@ import sys
 import argparse
 from typing import Iterable
 
-from pyflink.datastream.connectors import FileSink, OutputFileConfig, RollingPolicy
+from pyflink.datastream.connectors.file_system import FileSink, OutputFileConfig, RollingPolicy
 
 from pyflink.common import Types, WatermarkStrategy, Time, Encoder
 from pyflink.common.watermark_strategy import TimestampAssigner
@@ -39,9 +39,6 @@ class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, TimeWi
                 context: ProcessWindowFunction.Context[TimeWindow],
                 elements: Iterable[tuple]) -> Iterable[tuple]:
         return [(key, context.window().start, context.window().end, len([e for e in elements]))]
-
-    def clear(self, context: ProcessWindowFunction.Context) -> None:
-        pass
 
 
 if __name__ == '__main__':

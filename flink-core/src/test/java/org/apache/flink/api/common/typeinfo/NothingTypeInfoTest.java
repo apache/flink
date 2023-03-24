@@ -21,7 +21,7 @@ package org.apache.flink.api.common.typeinfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link NothingTypeInfo}. */
-public class NothingTypeInfoTest extends TypeInformationTestBase<NothingTypeInfo> {
+class NothingTypeInfoTest extends TypeInformationTestBase<NothingTypeInfo> {
 
     @Override
     protected NothingTypeInfo[] getTestData() {

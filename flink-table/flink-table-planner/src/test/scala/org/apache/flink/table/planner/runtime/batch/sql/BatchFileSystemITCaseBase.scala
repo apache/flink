@@ -22,15 +22,12 @@ import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.types.Row
 
-import org.junit.{Assert, Before}
-
-import java.lang.AssertionError
+import org.junit.Before
 
 import scala.collection.Seq
 
 /** Batch [[FileSystemITCaseBase]]. */
 abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemITCaseBase {
-
   @Before
   override def before(): Unit = {
     super.before()

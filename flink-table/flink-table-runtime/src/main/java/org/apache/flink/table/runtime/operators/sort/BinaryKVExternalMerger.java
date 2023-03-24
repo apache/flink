@@ -48,7 +48,7 @@ public class BinaryKVExternalMerger
             BinaryRowDataSerializer keySerializer,
             BinaryRowDataSerializer valueSerializer,
             RecordComparator comparator,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             BlockCompressionFactory compressionCodecFactory,
             int compressionBlockSize) {
         super(
@@ -56,7 +56,7 @@ public class BinaryKVExternalMerger
                 pageSize,
                 maxFanIn,
                 channelManager,
-                compressionEnable,
+                compressionEnabled,
                 compressionCodecFactory,
                 compressionBlockSize);
         this.keySerializer = keySerializer;

@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcGatewayUtils;
 import org.apache.flink.runtime.rpc.RpcServer;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
@@ -49,12 +48,14 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
@@ -63,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Invocation handler to be used with an {@link AkkaRpcActor}. The invocation handler wraps the rpc
- * in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
+ * in an {@link RpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
 class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, RpcServer {
@@ -87,7 +88,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     protected final boolean forceRpcInvocationSerialization;
 
     // default timeout for asks
-    private final Time timeout;
+    private final Duration timeout;
 
     private final long maximumFramesize;
 
@@ -100,7 +101,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             String address,
             String hostname,
             ActorRef rpcEndpoint,
-            Time timeout,
+            Duration timeout,
             long maximumFramesize,
             boolean forceRpcInvocationSerialization,
             @Nullable CompletableFuture<Void> terminationFuture,
@@ -173,7 +174,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     }
 
     @Override
-    public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
+    public <V> CompletableFuture<V> callAsync(Callable<V> callable, Duration callTimeout) {
         if (isLocal) {
             @SuppressWarnings("unchecked")
             CompletableFuture<V> resultFuture =
@@ -217,7 +218,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
         Class<?>[] parameterTypes = method.getParameterTypes();
         final boolean isLocalRpcInvocation = method.getAnnotation(Local.class) != null;
         Annotation[][] parameterAnnotations = method.getParameterAnnotations();
-        Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
+        Duration futureTimeout =
+                RpcGatewayUtils.extractRpcTimeout(parameterAnnotations, args, timeout);
 
         final RpcInvocation rpcInvocation =
                 createRpcInvocationMessage(
@@ -270,8 +272,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
                 result = completableFuture;
             } else {
                 try {
-                    result =
-                            completableFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
+                    result = completableFuture.get(futureTimeout.toMillis(), TimeUnit.MILLISECONDS);
                 } catch (ExecutionException ee) {
                     throw new RpcException(
                             "Failure while obtaining synchronous RPC result.",
@@ -319,57 +320,6 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     // ------------------------------------------------------------------------
 
     /**
-     * Extracts the {@link RpcTimeout} annotated rpc timeout value from the list of given method
-     * arguments. If no {@link RpcTimeout} annotated parameter could be found, then the default
-     * timeout is returned.
-     *
-     * @param parameterAnnotations Parameter annotations
-     * @param args Array of arguments
-     * @param defaultTimeout Default timeout to return if no {@link RpcTimeout} annotated parameter
-     *     has been found
-     * @return Timeout extracted from the array of arguments or the default timeout
-     */
-    private static Time extractRpcTimeout(
-            Annotation[][] parameterAnnotations, Object[] args, Time defaultTimeout) {
-        if (args != null) {
-            Preconditions.checkArgument(parameterAnnotations.length == args.length);
-
-            for (int i = 0; i < parameterAnnotations.length; i++) {
-                if (isRpcTimeout(parameterAnnotations[i])) {
-                    if (args[i] instanceof Time) {
-                        return (Time) args[i];
-                    } else {
-                        throw new RuntimeException(
-                                "The rpc timeout parameter must be of type "
-                                        + Time.class.getName()
-                                        + ". The type "
-                                        + args[i].getClass().getName()
-                                        + " is not supported.");
-                    }
-                }
-            }
-        }
-
-        return defaultTimeout;
-    }
-
-    /**
-     * Checks whether any of the annotations is of type {@link RpcTimeout}.
-     *
-     * @param annotations Array of annotations
-     * @return True if {@link RpcTimeout} was found; otherwise false
-     */
-    private static boolean isRpcTimeout(Annotation[] annotations) {
-        for (Annotation annotation : annotations) {
-            if (annotation.annotationType().equals(RpcTimeout.class)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Sends the message to the RPC endpoint.
      *
      * @param message to send to the RPC endpoint.
@@ -386,10 +336,9 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      *     TimeoutException}
      * @return Response future
      */
-    protected CompletableFuture<?> ask(Object message, Time timeout) {
+    protected CompletableFuture<?> ask(Object message, Duration timeout) {
         final CompletableFuture<?> response =
-                AkkaFutureUtils.toJava(
-                        Patterns.ask(rpcEndpoint, message, timeout.toMilliseconds()));
+                AkkaFutureUtils.toJava(Patterns.ask(rpcEndpoint, message, timeout.toMillis()));
         return guardCompletionWithContextClassLoader(response, flinkClassLoader);
     }
 

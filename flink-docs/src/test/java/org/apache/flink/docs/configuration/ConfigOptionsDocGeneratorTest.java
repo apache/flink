@@ -30,12 +30,13 @@ import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.docs.configuration.data.TestCommonOptions;
+import org.apache.flink.docs.util.ConfigurationOptionLocator;
+import org.apache.flink.docs.util.OptionsClassLocation;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
@@ -50,7 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SuppressWarnings("unused")
 class ConfigOptionsDocGeneratorTest {
 
-    static class TestConfigGroup {
+    public static class TestConfigGroup {
         public static ConfigOption<Integer> firstOption =
                 ConfigOptions.key("first.option.a")
                         .intType()
@@ -86,7 +87,7 @@ class ConfigOptionsDocGeneratorTest {
         }
     }
 
-    static class TypeTestConfigGroup {
+    public static class TypeTestConfigGroup {
         public static ConfigOption<TestEnum> enumOption =
                 ConfigOptions.key("option.enum")
                         .enumType(TestEnum.class)
@@ -192,7 +193,10 @@ class ConfigOptionsDocGeneratorTest {
                         + "    </tbody>\n"
                         + "</table>\n";
         final String htmlTable =
-                ConfigOptionsDocGenerator.generateTablesForClass(TypeTestConfigGroup.class)
+                ConfigOptionsDocGenerator.generateTablesForClass(
+                                TypeTestConfigGroup.class,
+                                ConfigurationOptionLocator.extractConfigOptions(
+                                        TypeTestConfigGroup.class))
                         .get(0)
                         .f1;
 
@@ -227,7 +231,12 @@ class ConfigOptionsDocGeneratorTest {
                         + "    </tbody>\n"
                         + "</table>\n";
         final String htmlTable =
-                ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroup.class).get(0).f1;
+                ConfigOptionsDocGenerator.generateTablesForClass(
+                                TestConfigGroup.class,
+                                ConfigurationOptionLocator.extractConfigOptions(
+                                        TestConfigGroup.class))
+                        .get(0)
+                        .f1;
 
         assertThat(htmlTable).isEqualTo(expectedTable);
     }
@@ -237,7 +246,7 @@ class ConfigOptionsDocGeneratorTest {
                 @ConfigGroup(name = "group1", keyPrefix = "a.b"),
                 @ConfigGroup(name = "group2", keyPrefix = "a.b.c.d")
             })
-    static class TestConfigPrefix {
+    public static class TestConfigPrefix {
         // should end up in the default group
         public static ConfigOption<Integer> option1 =
                 ConfigOptions.key("a.option").intType().defaultValue(2);
@@ -270,7 +279,9 @@ class ConfigOptionsDocGeneratorTest {
     @Test
     void testLongestPrefixMatching() {
         final List<Tuple2<ConfigGroup, String>> tables =
-                ConfigOptionsDocGenerator.generateTablesForClass(TestConfigPrefix.class);
+                ConfigOptionsDocGenerator.generateTablesForClass(
+                        TestConfigPrefix.class,
+                        ConfigurationOptionLocator.extractConfigOptions(TestConfigPrefix.class));
 
         assertThat(tables).hasSize(3);
         final Map<String, String> tablesConverted = new HashMap<>(tables.size());
@@ -290,7 +301,7 @@ class ConfigOptionsDocGeneratorTest {
                 @ConfigGroup(name = "firstGroup", keyPrefix = "first"),
                 @ConfigGroup(name = "secondGroup", keyPrefix = "second")
             })
-    static class TestConfigMultipleSubGroup {
+    public static class TestConfigMultipleSubGroup {
         public static ConfigOption<Integer> firstOption =
                 ConfigOptions.key("first.option.a")
                         .intType()
@@ -319,7 +330,10 @@ class ConfigOptionsDocGeneratorTest {
     @Test
     void testCreatingMultipleGroups() {
         final List<Tuple2<ConfigGroup, String>> tables =
-                ConfigOptionsDocGenerator.generateTablesForClass(TestConfigMultipleSubGroup.class);
+                ConfigOptionsDocGenerator.generateTablesForClass(
+                        TestConfigMultipleSubGroup.class,
+                        ConfigurationOptionLocator.extractConfigOptions(
+                                TestConfigMultipleSubGroup.class));
 
         assertThat(tables).hasSize(3);
         final HashMap<String, String> tablesConverted = new HashMap<>();
@@ -400,7 +414,7 @@ class ConfigOptionsDocGeneratorTest {
                                 + "</table>\n");
     }
 
-    static class TestConfigGroupWithOverriddenDefault {
+    public static class TestConfigGroupWithOverriddenDefault {
         @Documentation.OverrideDefault("default_1")
         public static ConfigOption<Integer> firstOption =
                 ConfigOptions.key("first.option.a")
@@ -445,7 +459,9 @@ class ConfigOptionsDocGeneratorTest {
                         + "</table>\n";
         final String htmlTable =
                 ConfigOptionsDocGenerator.generateTablesForClass(
-                                TestConfigGroupWithOverriddenDefault.class)
+                                TestConfigGroupWithOverriddenDefault.class,
+                                ConfigurationOptionLocator.extractConfigOptions(
+                                        TestConfigGroupWithOverriddenDefault.class))
                         .get(0)
                         .f1;
 
@@ -453,7 +469,7 @@ class ConfigOptionsDocGeneratorTest {
     }
 
     @Test
-    void testSections(@TempDir File tmpDir) throws IOException, ClassNotFoundException {
+    void testSections(@TempDir File tmpDir) throws Exception {
         final String projectRootDir = getProjectRootDir();
         final String outputDirectory = tmpDir.getAbsolutePath();
 
@@ -464,7 +480,9 @@ class ConfigOptionsDocGeneratorTest {
                 };
 
         ConfigOptionsDocGenerator.generateCommonSection(
-                projectRootDir, outputDirectory, locations, "src/test/java");
+                projectRootDir,
+                new ConfigurationOptionLocator(locations, "src/test/java"),
+                outputDirectory);
         Formatter formatter = new HtmlFormatter();
 
         String expected1 =
@@ -544,7 +562,7 @@ class ConfigOptionsDocGeneratorTest {
                 .isEqualTo(expected2);
     }
 
-    static class TestConfigGroupWithExclusion {
+    public static class TestConfigGroupWithExclusion {
         public static ConfigOption<Integer> firstOption =
                 ConfigOptions.key("first.option.a")
                         .intType()
@@ -585,7 +603,101 @@ class ConfigOptionsDocGeneratorTest {
                         + "    </tbody>\n"
                         + "</table>\n";
         final String htmlTable =
-                ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroupWithExclusion.class)
+                ConfigOptionsDocGenerator.generateTablesForClass(
+                                TestConfigGroupWithExclusion.class,
+                                ConfigurationOptionLocator.extractConfigOptions(
+                                        TestConfigGroupWithExclusion.class))
+                        .get(0)
+                        .f1;
+
+        assertThat(htmlTable).isEqualTo(expectedTable);
+    }
+
+    private enum TestEnumWithExclusion {
+        VALUE_1,
+        @Documentation.ExcludeFromDocumentation
+        VALUE_2,
+        VALUE_3
+    }
+
+    private enum DescribedTestEnumWithExclusion implements DescribedEnum {
+        A(text("First letter of the alphabet")),
+        B(text("Second letter of the alphabet")),
+        @Documentation.ExcludeFromDocumentation
+        C(text("Third letter of the alphabet"));
+
+        private final InlineElement description;
+
+        DescribedTestEnumWithExclusion(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    public static class TestConfigGroupWithEnumConstantExclusion {
+
+        public static ConfigOption<TestEnumWithExclusion> enumWithExclusion =
+                ConfigOptions.key("exclude.enum")
+                        .enumType(TestEnumWithExclusion.class)
+                        .defaultValue(TestEnumWithExclusion.VALUE_1)
+                        .withDescription("Description");
+
+        public static ConfigOption<List<TestEnumWithExclusion>> enumListWithExclusion =
+                ConfigOptions.key("exclude.enum.list")
+                        .enumType(TestEnumWithExclusion.class)
+                        .asList()
+                        .defaultValues(TestEnumWithExclusion.VALUE_1, TestEnumWithExclusion.VALUE_3)
+                        .withDescription("Description");
+
+        public static ConfigOption<DescribedTestEnumWithExclusion> enumDescribedWithExclusion =
+                ConfigOptions.key("exclude.enum.desc")
+                        .enumType(DescribedTestEnumWithExclusion.class)
+                        .noDefaultValue()
+                        .withDescription("Description");
+    }
+
+    @Test
+    void testConfigGroupWithEnumConstantExclusion() {
+        final String expectedTable =
+                "<table class=\"configuration table table-bordered\">\n"
+                        + "    <thead>\n"
+                        + "        <tr>\n"
+                        + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
+                        + "            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n"
+                        + "            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n"
+                        + "            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n"
+                        + "        </tr>\n"
+                        + "    </thead>\n"
+                        + "    <tbody>\n"
+                        + "        <tr>\n"
+                        + "            <td><h5>exclude.enum</h5></td>\n"
+                        + "            <td style=\"word-wrap: break-word;\">VALUE_1</td>\n"
+                        + "            <td><p>Enum</p></td>\n"
+                        + "            <td>Description<br /><br />Possible values:<ul><li>\"VALUE_1\"</li><li>\"VALUE_3\"</li></ul></td>\n"
+                        + "        </tr>\n"
+                        + "        <tr>\n"
+                        + "            <td><h5>exclude.enum.desc</h5></td>\n"
+                        + "            <td style=\"word-wrap: break-word;\">(none)</td>\n"
+                        + "            <td><p>Enum</p></td>\n"
+                        + "            <td>Description<br /><br />Possible values:<ul><li>\"A\": First letter of the alphabet</li><li>\"B\": Second letter of the alphabet</li></ul></td>\n"
+                        + "        </tr>\n"
+                        + "        <tr>\n"
+                        + "            <td><h5>exclude.enum.list</h5></td>\n"
+                        + "            <td style=\"word-wrap: break-word;\">VALUE_1;<wbr>VALUE_3</td>\n"
+                        + "            <td><p>List&lt;Enum&gt;</p></td>\n"
+                        + "            <td>Description<br /><br />Possible values:<ul><li>\"VALUE_1\"</li><li>\"VALUE_3\"</li></ul></td>\n"
+                        + "        </tr>\n"
+                        + "    </tbody>\n"
+                        + "</table>\n";
+        final String htmlTable =
+                ConfigOptionsDocGenerator.generateTablesForClass(
+                                TestConfigGroupWithEnumConstantExclusion.class,
+                                ConfigurationOptionLocator.extractConfigOptions(
+                                        TestConfigGroupWithEnumConstantExclusion.class))
                         .get(0)
                         .f1;
 
@@ -593,11 +705,15 @@ class ConfigOptionsDocGeneratorTest {
     }
 
     @ConfigGroups(groups = {@ConfigGroup(name = "firstGroup", keyPrefix = "first")})
-    static class EmptyConfigOptions {}
+    public static class EmptyConfigOptions {}
 
     @Test
     void testClassWithoutOptionsIsIgnored() {
-        assertThat(ConfigOptionsDocGenerator.generateTablesForClass(EmptyConfigOptions.class))
+        assertThat(
+                        ConfigOptionsDocGenerator.generateTablesForClass(
+                                EmptyConfigOptions.class,
+                                ConfigurationOptionLocator.extractConfigOptions(
+                                        EmptyConfigOptions.class)))
                 .isEmpty();
     }
 

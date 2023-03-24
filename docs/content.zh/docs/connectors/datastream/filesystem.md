@@ -74,6 +74,15 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...);
 FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+# 从文件流中读取文件内容
+FileSource.for_record_stream_format(stream_format, *path)
+
+# 从文件中一次读取一批记录
+FileSource.for_bulk_file_format(bulk_format, *path)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 可以通过创建 `FileSource.FileSourceBuilder` 设置 File Source 的所有参数。
@@ -91,6 +100,13 @@ final FileSource<String> source =
         FileSource.forRecordStreamFormat(...)
         .monitorContinuously(Duration.ofMillis(5))  
         .build();
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(...) \
+    .monitor_continously(Duration.of_millis(5)) \
+    .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -161,8 +177,8 @@ FileSource<SomePojo> source =
 如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更底层的 `forSchema` 静态工厂方法：
 
 ```java
-CsvReaderFormat<T> forSchema(CsvMapper mapper, 
-                             CsvSchema schema, 
+CsvReaderFormat<T> forSchema(Supplier<CsvMapper> mapperFactory, 
+                             Function<CsvMapper, CsvSchema> schemaGenerator, 
                              TypeInformation<T> typeInformation) 
 ```
 
@@ -317,9 +333,9 @@ final FileSink<String> sink = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
 	.build();
 
@@ -343,14 +359,27 @@ val sink: FileSink[String] = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
     .build()
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_rolling_policy(RollingPolicy.default_rolling_policy(
+        part_size=1024 ** 3, rollover_interval=15 * 60 * 1000, inactivity_interval=5 * 60 * 1000)) \
+    .build()
+
+data_stream.sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -392,7 +421,9 @@ Flink 内置了为 Avro Format 数据创建 Parquet 写入工厂的快捷方法�
 
 如果在程序中使用 Parquet 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
-{{< artifact flink-parquet withScalaVersion >}}
+{{< artifact flink-parquet >}}
+
+{{< py_download_link "parquet" >}}
 
 类似这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
 
@@ -430,6 +461,21 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# data_stream 的数据类型可以为符合 schema 的原生 Python 数据结构，其类型为默认的 Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroParquetWriters.for_generic_record(schema)) \
+    .build()
+
+# 必须通过 map 操作来指定其 Avro 类型信息，用于数据的序列化
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -471,6 +517,25 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
+PyFlink 用户可以使用 `ParquetBulkWriters` 来创建一个将 `Row` 数据写入 Parquet 文件的 `BulkWriterFactory` 。
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('string', DataTypes.STRING()),
+    DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR, ParquetBulkWriters.for_row_type(
+        row_type,
+        hadoop_config=Configuration(),
+        utc_timestamp=True,
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
 <a name="avro-format"></a>
 
 ##### Avro Format
@@ -480,6 +545,8 @@ Flink 也支持写入数据到 Avro Format 文件。在 AvroWriters 类中可以
 如果在程序中使用 AvroWriters，需要添加如下依赖到项目中：
 
 {{< artifact flink-avro >}}
+
+{{< py_download_link "avro" >}}
 
 类似这样使用 `FileSink` 写入数据到 Avro Format 文件中：
 
@@ -517,6 +584,21 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# data_stream 的数据类型可以为符合 schema 的原生 Python 数据结构，其类型为默认的 Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroBulkWriters.for_generic_record(schema)) \
+    .build()
+
+# 必须通过 map 操作来指定其 Avro 类型信息，用于数据的序列化
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -640,7 +722,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 如果在程序中使用 ORC 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
-{{< artifact flink-orc withScalaVersion >}}
+{{< artifact flink-orc >}}
 
 
 然后，类似这样使用 `FileSink` 以 ORC Format 输出数据：
@@ -753,6 +835,28 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
+PyFlink 用户可以使用 `OrcBulkWriters` 来创建将数据写入 Orc 文件的 `BulkWriterFactory` 。
+
+{{< py_download_link "orc" >}}
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('name', DataTypes.STRING()),
+    DataTypes.FIELD('age', DataTypes.INT()),
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR,
+    OrcBulkWriters.for_row_type(
+        row_type=row_type,
+        writer_properties=Configuration(),
+        hadoop_config=Configuration(),
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
 <a name="hadoop-sequencefile-format"></a>
 
 ##### Hadoop SequenceFile Format
@@ -827,6 +931,10 @@ Flink 内置了两种 BucketAssigners：
 - `DateTimeBucketAssigner` ：默认的基于时间的分配器
 - `BasePathBucketAssigner` ：分配所有文件存储在基础路径上（单个全局桶）
 
+{{< hint info >}}
+PyFlink 只支持 `DateTimeBucketAssigner` 和 `BasePathBucketAssigner` 。
+{{< /hint >}}
+
 <a name="rolling-policy"></a>
 
 ### 滚动策略
@@ -839,6 +947,10 @@ Flink 内置了两种 RollingPolicies：
 
 - `DefaultRollingPolicy`
 - `OnCheckpointRollingPolicy`
+
+{{< hint info >}}
+PyFlink 只支持 `DefaultRollingPolicy` 和 `OnCheckpointRollingPolicy` 。
+{{< /hint >}}
 
 <a name="part-file-lifecycle"></a>
 
@@ -958,6 +1070,22 @@ val sink = FileSink
 			
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = OutputFileConfig \
+    .builder() \
+    .with_part_prefix("prefix") \
+    .with_part_suffix(".ext") \
+    .build()
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+    .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+    .with_output_file_config(config) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="compaction"></a>
@@ -1003,6 +1131,19 @@ val fileSink: FileSink[Integer] =
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+file_sink = FileSink \
+    .for_row_format(PATH, Encoder.simple_string_encoder()) \
+    .enable_compact(
+        FileCompactStrategy.builder()
+            .set_size_threshold(1024)
+            .enable_compaction_on_checkpoint(5)
+            .build(),
+        FileCompactor.concat_file_compactor()) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 这一功能开启后，在文件转为 `pending` 状态与文件最终提交之间会进行文件合并。这些 `pending` 状态的文件将首先被提交为一个以 `.` 开头的
@@ -1030,6 +1171,10 @@ val fileSink: FileSink[Integer] =
 **注意事项2** 如果启用了文件合并功能，文件可见的时间会被延长。
 {{< /hint >}}
 
+{{< hint info >}}
+PyFlink 只支持 `ConcatFileCompactor` 和 `IdenticalFileCompactor` 。
+{{< /hint >}}
+
 <a name="important-considerations"></a>
 
 ### 重要注意事项
@@ -1049,7 +1194,7 @@ val fileSink: FileSink[Integer] =
 <span class="label label-danger">注意事项 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
 鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
 
-<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
+<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下 5 种文件系统：HDFS、 S3、OSS、ABFS 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 
 <a name="batch-specific"></a>
 

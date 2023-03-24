@@ -25,11 +25,11 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -43,7 +43,6 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -65,7 +64,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             context,
                             new CompletableFuture<>(),
                             log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                            null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -84,7 +84,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             context,
                             new CompletableFuture<>(),
                             log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                            null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -103,7 +104,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             context,
                             new CompletableFuture<>(),
                             log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                            null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -123,7 +125,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     context,
                     executionGraphWithVertexParallelismFuture,
                     log,
-                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                    null);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
@@ -144,15 +147,15 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     context,
                     executionGraphWithVertexParallelismFuture,
                     log,
-                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                    null);
 
             context.setTryToAssignSlotsFunction(
                     ignored -> CreatingExecutionGraph.AssignmentResult.notPossible());
             context.setExpectWaitingForResources();
 
             executionGraphWithVertexParallelismFuture.complete(
-                    CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
-                            new StateTrackingMockExecutionGraph(), new TestingVertexParallelism()));
+                    getGraph(new StateTrackingMockExecutionGraph()));
         }
     }
 
@@ -165,7 +168,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     context,
                     executionGraphWithVertexParallelismFuture,
                     log,
-                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                    null);
 
             final StateTrackingMockExecutionGraph executionGraph =
                     new StateTrackingMockExecutionGraph();
@@ -175,9 +179,7 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     actualExecutionGraph ->
                             assertThat(actualExecutionGraph).isEqualTo(executionGraph));
 
-            executionGraphWithVertexParallelismFuture.complete(
-                    CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
-                            executionGraph, new TestingVertexParallelism()));
+            executionGraphWithVertexParallelismFuture.complete(getGraph(executionGraph));
         }
     }
 
@@ -195,7 +197,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     (executionGraph, errorHandler) -> {
                         operatorCoordinatorGlobalFailureHandlerRef.set(errorHandler);
                         return new TestingOperatorCoordinatorHandler();
-                    });
+                    },
+                    null);
 
             final StateTrackingMockExecutionGraph executionGraph =
                     new StateTrackingMockExecutionGraph();
@@ -205,9 +208,7 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     actualExecutionGraph ->
                             assertThat(actualExecutionGraph).isEqualTo(executionGraph));
 
-            executionGraphWithVertexParallelismFuture.complete(
-                    CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
-                            executionGraph, new TestingVertexParallelism()));
+            executionGraphWithVertexParallelismFuture.complete(getGraph(executionGraph));
 
             assertThat(operatorCoordinatorGlobalFailureHandlerRef.get()).isSameAs(context);
         }
@@ -316,7 +317,7 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        public void goToWaitingForResources() {
+        public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
             waitingForResourcesStateValidator.validateInput(null);
             hadStateTransitionHappened = true;
         }
@@ -332,6 +333,11 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
 
         @Override
+        public JobManagerJobMetricGroup getMetricGroup() {
+            return UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
+        }
+
+        @Override
         public void close() throws Exception {
             finishedStateValidator.close();
             waitingForResourcesStateValidator.close();
@@ -339,16 +345,9 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
     }
 
-    static final class TestingVertexParallelism implements VertexParallelism {
-
-        @Override
-        public Map<JobVertexID, Integer> getMaxParallelismForVertices() {
-            throw new UnsupportedOperationException("Is not supported");
-        }
-
-        @Override
-        public int getParallelism(JobVertexID jobVertexId) {
-            throw new UnsupportedOperationException("Is not supported");
-        }
+    private static CreatingExecutionGraph.ExecutionGraphWithVertexParallelism getGraph(
+            StateTrackingMockExecutionGraph executionGraph) {
+        return CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
+                executionGraph, JobSchedulingPlan.empty());
     }
 }

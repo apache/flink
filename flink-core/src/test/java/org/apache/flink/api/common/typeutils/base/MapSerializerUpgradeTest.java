@@ -25,8 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,19 +34,12 @@ import java.util.Map;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link MapSerializerSnapshot}. */
-@RunWith(Parameterized.class)
-public class MapSerializerUpgradeTest
+class MapSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Map<Integer, String>, Map<Integer, String>> {
 
     private static final String SPEC_NAME = "map-serializer";
 
-    public MapSerializerUpgradeTest(
-            TestSpecification<Map<Integer, String>, Map<Integer, String>> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {

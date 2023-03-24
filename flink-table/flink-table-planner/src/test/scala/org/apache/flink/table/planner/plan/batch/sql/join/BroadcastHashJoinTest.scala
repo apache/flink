@@ -28,7 +28,6 @@ class BroadcastHashJoinTest extends JoinTestBase {
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(Long.MaxValue))
-    Long.box(10)
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
       "SortMergeJoin, NestedLoopJoin, ShuffleHashJoin")

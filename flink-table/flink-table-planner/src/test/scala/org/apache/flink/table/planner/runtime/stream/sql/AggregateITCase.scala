@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
@@ -898,6 +899,15 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
 
     val expected = List("1,1,A", "2,2,B", "3,2,B", "4,3,C", "5,3,C")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
+
+    // test single value for char type
+    val tc = tEnv.fromValues(DataTypes.ROW(DataTypes.FIELD("a", DataTypes.CHAR(3))), Row.of("AA"))
+    tEnv.registerTable("tc", tc)
+    val tr = tEnv.sqlQuery("SELECT * FROM tc WHERE tc.a = (SELECT a FROM tc)")
+    val sink1 = new TestingRetractSink
+    tr.toRetractStream[Row].addSink(sink1).setParallelism(1)
+    env.execute()
+    assertEquals(List("AA "), sink1.getRetractResults.sorted)
   }
 
   @Test
@@ -1674,6 +1684,85 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
       "null,null,false,1",
       "null,null,null,2"
     )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testGroupByArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT b, sum(a) FROM (VALUES (1, array[1, 2]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |GROUP BY b
+         |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "[1, 2],3",
+      "[3, 4],5"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT DISTINCT b FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "[1, 2]",
+      "[2, 3]",
+      "[3, 4]"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testCountDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT a, COUNT(DISTINCT b) FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |GROUP BY a
+         |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "2,2",
+      "5,1"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testCountStar(): Unit = {
+    val data =
+      List(rowOf(2L, 15, "Hello"), rowOf(8L, 11, "Hello world"), rowOf(9L, 12, "Hello world!"))
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` BIGINT,
+                       |  `len` INT,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery("select count(*) from src").toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List("3")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

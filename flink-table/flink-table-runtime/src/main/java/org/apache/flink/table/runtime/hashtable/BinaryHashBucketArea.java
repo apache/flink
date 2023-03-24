@@ -508,7 +508,7 @@ public class BinaryHashBucketArea {
         int posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
         int countInBucket = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
         int numInBucket = 0;
-        RandomAccessInputView view = partition.getBuildStateInputView();
+        RandomAccessInputView view = partition.getBuildStageInputView();
         while (countInBucket != 0) {
             while (numInBucket < countInBucket) {
 

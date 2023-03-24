@@ -26,6 +26,7 @@ under the License.
 
 # Apache Kafka SQL 连接器
 
+{{< label "Scan Source: Bounded" >}}
 {{< label "Scan Source: Unbounded" >}}
 {{< label "Sink: Streaming Append Mode" >}}
 
@@ -290,7 +291,7 @@ CREATE TABLE KafkaTable (
       <td><h5>scan.startup.mode</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">group-offsets</td>
-      <td>String</td>
+      <td>Enum</td>
       <td>Kafka consumer 的启动模式。有效值为：<code>'earliest-offset'</code>，<code>'latest-offset'</code>，<code>'group-offsets'</code>，<code>'timestamp'</code> 和 <code>'specific-offsets'</code>。
        请参阅下方 <a href="#起始消费位点">起始消费位点</a> 以获取更多细节。</td>
     </tr>
@@ -308,6 +309,32 @@ CREATE TABLE KafkaTable (
       <td style="word-wrap: break-word;">（无）</td>
       <td>Long</td>
       <td>在使用 <code>'timestamp'</code> 启动模式时指定启动的时间戳（单位毫秒）。</td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">unbounded</td>
+      <td>Enum</td>
+      <td>Bounded mode for Kafka consumer, valid values are <code>'latest-offset'</code>, <code>'group-offsets'</code>, <code>'timestamp'</code> and <code>'specific-offsets'</code>.
+       See the following <a href="#bounded-ending-position">Bounded Ending Position</a> for more details.</td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.specific-offsets</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify offsets for each partition in case of <code>'specific-offsets'</code> bounded mode, e.g. <code>'partition:0,offset:42;partition:1,offset:300'. If an offset
+       for a partition is not provided it will not consume from that partition.</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>scan.bounded.timestamp-millis</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>End at the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> bounded mode.</td>
     </tr>
     <tr>
       <td><h5>scan.topic-partition-discovery.interval</h5></td>
@@ -471,13 +498,12 @@ ROW<`version` INT, `behavior` STRING>
 ### 起始消费位点
 
 `scan.startup.mode` 配置项决定了 Kafka consumer 的启动模式。有效值为：
-<ul>
-<li><span markdown="span">`group-offsets`</span>：从 Zookeeper/Kafka 中某个指定的消费组已提交的偏移量开始。</li>
-<li><span markdown="span">`earliest-offset`</span>：从可能的最早偏移量开始。</li>
-<li><span markdown="span">`latest-offset`</span>：从最末尾偏移量开始。</li>
-<li><span markdown="span">`timestamp`</span>：从用户为每个 partition 指定的时间戳开始。</li>
-<li><span markdown="span">`specific-offsets`</span>：从用户为每个 partition 指定的偏移量开始。</li>
-</ul>
+
+* `group-offsets`：从 Zookeeper/Kafka 中某个指定的消费组已提交的偏移量开始。
+* `earliest-offset`：从可能的最早偏移量开始。
+* `latest-offset`：从最末尾偏移量开始。
+* `timestamp`：从用户为每个 partition 指定的时间戳开始。
+* `specific-offsets`：从用户为每个 partition 指定的偏移量开始。
 
 默认值 `group-offsets` 表示从 Zookeeper/Kafka 中最近一次已提交的偏移量开始消费。
 
@@ -486,6 +512,22 @@ ROW<`version` INT, `behavior` STRING>
 如果使用了 `specific-offsets`，必须使用另外一个配置项 `scan.startup.specific-offsets` 来为每个 partition 指定起始偏移量，
 例如，选项值 `partition:0,offset:42;partition:1,offset:300` 表示 partition `0` 从偏移量 `42` 开始，partition `1` 从偏移量 `300` 开始。
 
+### Bounded Ending Position
+
+The config option `scan.bounded.mode` specifies the bounded mode for Kafka consumer. The valid enumerations are:
+<ul>
+<li><span markdown="span">`group-offsets`</span>: bounded by committed offsets in ZooKeeper / Kafka brokers of a specific consumer group. This is evaluated at the start of consumption from a given partition.</li>
+<li><span markdown="span">`latest-offset`</span>: bounded by latest offsets. This is evaluated at the start of consumption from a given partition.</li>
+<li><span markdown="span">`timestamp`</span>: bounded by a user-supplied timestamp.</li>
+<li><span markdown="span">`specific-offsets`</span>: bounded by user-supplied specific offsets for each partition.</li>
+</ul>
+
+If config option value `scan.bounded.mode` is not set the default is an unbounded table.
+
+If `timestamp` is specified, another config option `scan.bounded.timestamp-millis` is required to specify a specific bounded timestamp in milliseconds since January 1, 1970 00:00:00.000 GMT.
+
+If `specific-offsets` is specified, another config option `scan.bounded.specific-offsets` is required to specify specific bounded offsets for each partition,
+e.g. an option value `partition:0,offset:42;partition:1,offset:300` indicates offset `42` for partition `0` and offset `300` for partition `1`. If an offset for a partition is not provided it will not consume from that partition.
 
 ### CDC 变更日志（Changelog） Source
 
@@ -529,6 +571,55 @@ Source 输出的 watermark 由读取的分区中最小的 watermark 决定。
 你可以在表配置中设置 [`'table.exec.source.idle-timeout'`]({{< ref "docs/dev/table/config" >}}#table-exec-source-idle-timeout) 选项来避免上述问题。
 
 请参阅 [Kafka watermark 策略]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#watermark-策略和-kafka-连接器) 以获取更多细节。
+
+### 安全
+要启用加密和认证相关的安全配置，只需将安全配置加上 "properties." 前缀配置在 Kafka 表上即可。下面的代码片段展示了如何配置 Kafka 表以使用
+PLAIN 作为 SASL 机制并提供 JAAS 配置：
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_PLAINTEXT',
+  'properties.sasl.mechanism' = 'PLAIN',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";'
+)
+```
+另一个更复杂的例子，使用 SASL_SSL 作为安全协议并使用 SCRAM-SHA-256 作为 SASL 机制：
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_SSL',
+  /* SSL 配置 */
+  /* 配置服务端提供的 truststore (CA 证书) 的路径 */
+  'properties.ssl.truststore.location' = '/path/to/kafka.client.truststore.jks',
+  'properties.ssl.truststore.password' = 'test1234',
+  /* 如果要求客户端认证，则需要配置 keystore (私钥) 的路径 */
+  'properties.ssl.keystore.location' = '/path/to/kafka.client.keystore.jks',
+  'properties.ssl.keystore.password' = 'test1234',
+  /* SASL 配置 */
+  /* 将 SASL 机制配置为 as SCRAM-SHA-256 */
+  'properties.sasl.mechanism' = 'SCRAM-SHA-256',
+  /* 配置 JAAS */
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";'
+)
+```
+
+如果在作业 JAR 中 Kafka 客户端依赖的类路径被重置了（relocate class），登录模块（login module）的类路径可能会不同，因此请根据登录模块在
+JAR 中实际的类路径来改写以上配置。例如在 SQL client JAR 中，Kafka client 依赖被重置在了 `org.apache.flink.kafka.shaded.org.apache.kafka` 路径下，
+因此 plain 登录模块的类路径应写为 `org.apache.flink.kafka.shaded.org.apache.kafka.common.security.plain.PlainLoginModule`。
+
+关于安全配置的详细描述，请参阅 <a href="https://kafka.apache.org/documentation/#security">Apache Kafka 文档中的"安全"一节</a>。
 
 数据类型映射
 ----------------

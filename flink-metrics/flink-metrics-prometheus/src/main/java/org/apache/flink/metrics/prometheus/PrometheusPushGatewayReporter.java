@@ -25,7 +25,6 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.util.Preconditions;
 
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
@@ -59,7 +58,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     @Override
     public void report() {
         try {
-            pushGateway.push(CollectorRegistry.defaultRegistry, jobName, groupingKey);
+            pushGateway.push(registry, jobName, groupingKey);
         } catch (Exception e) {
             log.warn(
                     "Failed to push metrics to PushGateway with jobName {}, groupingKey {}.",

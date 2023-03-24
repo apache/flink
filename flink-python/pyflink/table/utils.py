@@ -52,7 +52,7 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         else:
             arrays.append(create_array(
                 tz_convert_to_internal(s, field_type, timezone), schema_type))
-    return pa.RecordBatch.from_arrays(arrays, schema)
+    return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
 
 def arrow_to_pandas(timezone, field_types, batches):

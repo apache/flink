@@ -142,6 +142,13 @@ public class ClusterClientJobClientAdapter<ClusterID>
                 clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
     }
 
+    @Override
+    public void reportHeartbeat(long expiredTimestamp) {
+        bridgeClientRequest(
+                clusterClientProvider,
+                (clusterClient -> clusterClient.reportHeartbeat(jobID, expiredTimestamp)));
+    }
+
     private static <T> CompletableFuture<T> bridgeClientRequest(
             ClusterClientProvider<?> clusterClientProvider,
             Function<ClusterClient<?>, CompletableFuture<T>> resultRetriever) {

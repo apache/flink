@@ -38,13 +38,15 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.SerializedThrowable;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler for {@link ClusterDataSetDeleteTriggerHeaders}. */
 public class ClusterDataSetDeleteHandlers
-        extends AbstractAsynchronousOperationHandlers<OperationKey, Void> {
+        extends AbstractAsynchronousOperationHandlers<
+                OperationKey, ClusterDataSetDeleteHandlers.SerializableVoid> {
 
     public ClusterDataSetDeleteHandlers(Duration cacheDuration) {
         super(cacheDuration);
@@ -73,7 +75,7 @@ public class ClusterDataSetDeleteHandlers
         }
 
         @Override
-        protected CompletableFuture<Void> triggerOperation(
+        protected CompletableFuture<SerializableVoid> triggerOperation(
                 HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway)
                 throws RestHandlerException {
             final IntermediateDataSetID clusterPartitionId =
@@ -81,7 +83,9 @@ public class ClusterDataSetDeleteHandlers
             ResourceManagerGateway resourceManagerGateway =
                     AbstractResourceManagerHandler.getResourceManagerGateway(
                             resourceManagerGatewayRetriever);
-            return resourceManagerGateway.releaseClusterPartitions(clusterPartitionId);
+            return resourceManagerGateway
+                    .releaseClusterPartitions(clusterPartitionId)
+                    .thenApply(ignored -> new SerializableVoid());
         }
 
         @Override
@@ -122,8 +126,18 @@ public class ClusterDataSetDeleteHandlers
         }
 
         @Override
-        protected AsynchronousOperationInfo operationResultResponse(Void ignored) {
+        protected AsynchronousOperationInfo operationResultResponse(SerializableVoid ignored) {
             return AsynchronousOperationInfo.complete();
         }
+    }
+
+    /**
+     * A {@link Void} alternative that implements {@link Serializable}. Useful in cases where a type
+     * must be serializable but in practice is always null.
+     */
+    public static class SerializableVoid implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private SerializableVoid() {}
     }
 }

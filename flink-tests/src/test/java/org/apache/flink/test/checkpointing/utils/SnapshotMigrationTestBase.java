@@ -38,7 +38,7 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.ClassRule;
@@ -69,7 +69,7 @@ import static org.junit.Assert.fail;
  * Base for testing snapshot migration. The base test supports snapshots types as defined in {@link
  * SnapshotType}.
  */
-public abstract class SnapshotMigrationTestBase extends TestBaseUtils {
+public abstract class SnapshotMigrationTestBase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
@@ -162,7 +162,7 @@ public abstract class SnapshotMigrationTestBase extends TestBaseUtils {
          * @param snapshotType Specifies the snapshot type.
          * @param flinkVersions A collection of {@link FlinkVersion}.
          * @return A collection of {@link SnapshotSpec} that differ only by means of {@link
-         *     FlinkVersion} FlinkVersion}.
+         *     FlinkVersion}.
          */
         public static Collection<SnapshotSpec> withVersions(
                 String stateBackendType,
@@ -268,6 +268,11 @@ public abstract class SnapshotMigrationTestBase extends TestBaseUtils {
         final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
 
         ClusterClient<?> client = miniClusterResource.getClusterClient();
+
+        // TODO [FLINK-29802] Remove this after ChangelogStateBackend supports native savepoint.
+        if (snapshotType == SnapshotType.SAVEPOINT_NATIVE) {
+            env.enableChangelogStateBackend(false);
+        }
 
         // Submit the job
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();

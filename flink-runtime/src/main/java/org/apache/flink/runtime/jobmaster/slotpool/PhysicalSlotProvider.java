@@ -46,4 +46,10 @@ public interface PhysicalSlotProvider {
      * @param cause of the cancellation
      */
     void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause);
+
+    /**
+     * Disables batch slot request timeout check. Invoked when someone else wants to take over the
+     * timeout check responsibility.
+     */
+    void disableBatchSlotRequestTimeoutCheck();
 }

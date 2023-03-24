@@ -28,19 +28,18 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.apache.curator.test.TestingServer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -52,16 +51,20 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the ZooKeeper based leader election and retrieval. */
-public class ZooKeeperLeaderRetrievalTest extends TestLogger {
+class ZooKeeperLeaderRetrievalTest {
 
     private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
+
+    @RegisterExtension
+    private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerExtension();
 
     private TestingServer testingServer;
 
@@ -69,13 +72,9 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     private HighAvailabilityServices highAvailabilityServices;
 
-    @Rule
-    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
-            new TestingFatalErrorHandlerResource();
-
-    @Before
-    public void before() throws Exception {
-        testingServer = new TestingServer();
+    @BeforeEach
+    void before() throws Exception {
+        testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
@@ -85,15 +84,16 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         highAvailabilityServices =
                 new ZooKeeperMultipleComponentLeaderElectionHaServices(
                         ZooKeeperUtils.startCuratorFramework(
-                                config, testingFatalErrorHandlerResource.getFatalErrorHandler()),
+                                config,
+                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler()),
                         config,
                         EXECUTOR_RESOURCE.getExecutor(),
                         new VoidBlobStore(),
-                        testingFatalErrorHandlerResource.getFatalErrorHandler());
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
     }
 
-    @After
-    public void after() throws Exception {
+    @AfterEach
+    void after() throws Exception {
         if (highAvailabilityServices != null) {
             highAvailabilityServices.closeAndCleanupAllData();
 
@@ -101,7 +101,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         }
 
         if (testingServer != null) {
-            testingServer.stop();
+            testingServer.close();
 
             testingServer = null;
         }
@@ -114,7 +114,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
      * been written to ZooKeeper.
      */
     @Test
-    public void testConnectingAddressRetrievalWithDelayedLeaderElection() throws Exception {
+    void testConnectingAddressRetrievalWithDelayedLeaderElection() throws Exception {
         Duration timeout = Duration.ofMinutes(1L);
 
         long sleepingTime = 1000;
@@ -122,12 +122,18 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         LeaderElectionService leaderElectionService = null;
         LeaderElectionService faultyLeaderElectionService;
 
-        ServerSocket serverSocket;
-        InetAddress localHost;
-
         Thread thread;
 
+        final InetAddress localHost;
         try {
+            localHost = InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            // may happen if disconnected. skip test.
+            System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
+            return;
+        }
+
+        try (ServerSocket serverSocket = new ServerSocket(0, 50, localHost)) {
             String wrongAddress =
                     RPC_SYSTEM.getRpcUrl(
                             "1.1.1.1",
@@ -137,78 +143,68 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                             config);
 
             try {
-                localHost = InetAddress.getLocalHost();
-                serverSocket = new ServerSocket(0, 50, localHost);
-            } catch (UnknownHostException e) {
-                // may happen if disconnected. skip test.
-                System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
-                return;
-            } catch (IOException e) {
-                // may happen in certain test setups, skip test.
-                System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
-                return;
-            }
+                InetSocketAddress correctInetSocketAddress =
+                        new InetSocketAddress(localHost, serverSocket.getLocalPort());
 
-            InetSocketAddress correctInetSocketAddress =
-                    new InetSocketAddress(localHost, serverSocket.getLocalPort());
+                String correctAddress =
+                        RPC_SYSTEM.getRpcUrl(
+                                localHost.getHostName(),
+                                correctInetSocketAddress.getPort(),
+                                JobMaster.JOB_MANAGER_NAME,
+                                AddressResolution.NO_ADDRESS_RESOLUTION,
+                                config);
 
-            String correctAddress =
-                    RPC_SYSTEM.getRpcUrl(
-                            localHost.getHostName(),
-                            correctInetSocketAddress.getPort(),
-                            JobMaster.JOB_MANAGER_NAME,
-                            AddressResolution.NO_ADDRESS_RESOLUTION,
-                            config);
+                faultyLeaderElectionService =
+                        highAvailabilityServices.getJobManagerLeaderElectionService(
+                                HighAvailabilityServices.DEFAULT_JOB_ID);
+                TestingContender wrongLeaderAddressContender =
+                        new TestingContender(wrongAddress, faultyLeaderElectionService);
 
-            faultyLeaderElectionService =
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            HighAvailabilityServices.DEFAULT_JOB_ID);
-            TestingContender wrongLeaderAddressContender =
-                    new TestingContender(wrongAddress, faultyLeaderElectionService);
+                faultyLeaderElectionService.start(wrongLeaderAddressContender);
 
-            faultyLeaderElectionService.start(wrongLeaderAddressContender);
+                FindConnectingAddress findConnectingAddress =
+                        new FindConnectingAddress(
+                                timeout,
+                                highAvailabilityServices.getJobManagerLeaderRetriever(
+                                        HighAvailabilityServices.DEFAULT_JOB_ID,
+                                        "unused-default-address"));
 
-            FindConnectingAddress findConnectingAddress =
-                    new FindConnectingAddress(
-                            timeout,
-                            highAvailabilityServices.getJobManagerLeaderRetriever(
-                                    HighAvailabilityServices.DEFAULT_JOB_ID));
+                thread = new Thread(findConnectingAddress);
 
-            thread = new Thread(findConnectingAddress);
+                thread.start();
 
-            thread.start();
+                leaderElectionService =
+                        highAvailabilityServices.getJobManagerLeaderElectionService(
+                                HighAvailabilityServices.DEFAULT_JOB_ID);
+                TestingContender correctLeaderAddressContender =
+                        new TestingContender(correctAddress, leaderElectionService);
 
-            leaderElectionService =
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            HighAvailabilityServices.DEFAULT_JOB_ID);
-            TestingContender correctLeaderAddressContender =
-                    new TestingContender(correctAddress, leaderElectionService);
+                Thread.sleep(sleepingTime);
 
-            Thread.sleep(sleepingTime);
+                faultyLeaderElectionService.stop();
 
-            faultyLeaderElectionService.stop();
+                leaderElectionService.start(correctLeaderAddressContender);
 
-            leaderElectionService.start(correctLeaderAddressContender);
+                thread.join();
 
-            thread.join();
+                InetAddress result = findConnectingAddress.getInetAddress();
 
-            InetAddress result = findConnectingAddress.getInetAddress();
-
-            // check that we can connect to the localHost
-            Socket socket = new Socket();
-            try {
-                // port 0 = let the OS choose the port
-                SocketAddress bindP = new InetSocketAddress(result, 0);
-                // machine
-                socket.bind(bindP);
-                socket.connect(correctInetSocketAddress, 1000);
+                // check that we can connect to the localHost
+                try (Socket socket = new Socket()) {
+                    // port 0 = let the OS choose the port
+                    SocketAddress bindP = new InetSocketAddress(result, 0);
+                    // machine
+                    socket.bind(bindP);
+                    socket.connect(correctInetSocketAddress, 1000);
+                }
             } finally {
-                socket.close();
+                if (leaderElectionService != null) {
+                    leaderElectionService.stop();
+                }
             }
-        } finally {
-            if (leaderElectionService != null) {
-                leaderElectionService.stop();
-            }
+        } catch (IOException e) {
+            // may happen in certain test setups, skip test.
+            System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
         }
     }
 
@@ -218,17 +214,17 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
      * InetAddress.getLocalHost().
      */
     @Test
-    public void testTimeoutOfFindConnectingAddress() throws Exception {
+    void testTimeoutOfFindConnectingAddress() throws Exception {
         Duration timeout = Duration.ofSeconds(1L);
 
         LeaderRetrievalService leaderRetrievalService =
                 highAvailabilityServices.getJobManagerLeaderRetriever(
-                        HighAvailabilityServices.DEFAULT_JOB_ID);
+                        HighAvailabilityServices.DEFAULT_JOB_ID, "unused-default-address");
         InetAddress result =
                 LeaderRetrievalUtils.findConnectingAddress(
                         leaderRetrievalService, timeout, RPC_SYSTEM);
 
-        assertEquals(InetAddress.getLocalHost(), result);
+        assertThat(InetAddress.getLocalHost()).isEqualTo(result);
     }
 
     static class FindConnectingAddress implements Runnable {

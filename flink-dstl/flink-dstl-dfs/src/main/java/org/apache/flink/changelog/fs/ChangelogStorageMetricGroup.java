@@ -21,12 +21,11 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.ThreadSafeSimpleCounter;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.runtime.metrics.groups.ProxyMetricGroup;
 
 import javax.annotation.concurrent.ThreadSafe;
-
-import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Metrics related to the Changelog Storage used by the Changelog State Backend. Thread-safety is
@@ -47,7 +46,7 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
     public ChangelogStorageMetricGroup(MetricGroup parent) {
         super(parent);
         this.uploadsCounter =
-                counter(CHANGELOG_STORAGE_NUM_UPLOAD_REQUESTS, new ThreadSafeCounter());
+                counter(CHANGELOG_STORAGE_NUM_UPLOAD_REQUESTS, new ThreadSafeSimpleCounter());
         this.uploadBatchSizes =
                 histogram(
                         CHANGELOG_STORAGE_UPLOAD_BATCH_SIZES,
@@ -69,7 +68,7 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
                         CHANGELOG_STORAGE_UPLOAD_LATENCIES_NANOS,
                         new DescriptiveStatisticsHistogram(WINDOW_SIZE));
         this.uploadFailuresCounter =
-                counter(CHANGELOG_STORAGE_NUM_UPLOAD_FAILURES, new ThreadSafeCounter());
+                counter(CHANGELOG_STORAGE_NUM_UPLOAD_FAILURES, new ThreadSafeSimpleCounter());
     }
 
     public Counter getUploadsCounter() {
@@ -106,35 +105,6 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
 
     public void registerUploadQueueSizeGauge(Gauge<Integer> gauge) {
         gauge(CHANGELOG_STORAGE_UPLOAD_QUEUE_SIZE, gauge);
-    }
-
-    private static class ThreadSafeCounter implements Counter {
-        private final LongAdder longAdder = new LongAdder();
-
-        @Override
-        public void inc() {
-            longAdder.increment();
-        }
-
-        @Override
-        public void inc(long n) {
-            longAdder.add(n);
-        }
-
-        @Override
-        public void dec() {
-            longAdder.decrement();
-        }
-
-        @Override
-        public void dec(long n) {
-            longAdder.add(-n);
-        }
-
-        @Override
-        public long getCount() {
-            return longAdder.longValue();
-        }
     }
 
     private static final String PREFIX = "ChangelogStorage";

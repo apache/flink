@@ -59,7 +59,8 @@ public class DataStreamSink<T> {
                         inputStream.getTransformation(),
                         "Unnamed",
                         sinkOperator,
-                        executionEnvironment.getParallelism());
+                        executionEnvironment.getParallelism(),
+                        false);
         executionEnvironment.addOperator(transformation);
         return new DataStreamSink<>(transformation);
     }
@@ -78,6 +79,7 @@ public class DataStreamSink<T> {
                         inputStream.getType(),
                         "Sink",
                         executionEnvironment.getParallelism(),
+                        false,
                         customSinkOperatorUidHashes);
         executionEnvironment.addOperator(transformation);
         return new DataStreamSink<>(transformation);

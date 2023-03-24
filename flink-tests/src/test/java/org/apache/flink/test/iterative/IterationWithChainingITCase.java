@@ -30,6 +30,8 @@ import org.apache.flink.test.util.PointFormatter;
 import org.apache.flink.test.util.PointInFormat;
 import org.apache.flink.util.Collector;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** Test iteration with operator chaining. */
 public class IterationWithChainingITCase extends JavaProgramTestBase {
 

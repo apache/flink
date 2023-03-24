@@ -24,8 +24,10 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.{JInt, JLong}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
 
@@ -308,6 +310,59 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
     checkResult(
       "SELECT myNestedMapUdaf(a, b, c)[3]['Co'] FROM Table3",
       Seq(row("null"))
+    )
+  }
+
+  @Test
+  def testApproximateCountDistinct(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(TestData.fullDataTypesData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  `boolean` BOOLEAN,
+         |  `byte` TINYINT,
+         |  `short` SMALLINT,
+         |  `int` INT,
+         |  `long` BIGINT,
+         |  `float` FLOAT,
+         |  `double` DOUBLE,
+         |  `decimal52` DECIMAL(5, 2),
+         |  `decimal3010` DECIMAL(30, 10),
+         |  `string` VARCHAR(5),
+         |  `char` CHAR(5),
+         |  `date` DATE,
+         |  `time` TIME(0),
+         |  `timestamp` TIMESTAMP(9),
+         |  `timestamp_ltz` TIMESTAMP(9) WITH LOCAL TIME ZONE,
+         |  `array` ARRAY<BIGINT>,
+         |  `row` ROW<f1 BIGINT, f2 STRING, f3 DOUBLE>,
+         |  `map` MAP<STRING, INT>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    )
+    checkResult(
+      """
+        |SELECT
+        | APPROX_COUNT_DISTINCT(`byte`),
+        | APPROX_COUNT_DISTINCT(`short`),
+        | APPROX_COUNT_DISTINCT(`int`),
+        | APPROX_COUNT_DISTINCT(`long`),
+        | APPROX_COUNT_DISTINCT(`float`),
+        | APPROX_COUNT_DISTINCT(`double`),
+        | APPROX_COUNT_DISTINCT(`string`),
+        | APPROX_COUNT_DISTINCT(`date`),
+        | APPROX_COUNT_DISTINCT(`time`),
+        | APPROX_COUNT_DISTINCT(`timestamp`),
+        | APPROX_COUNT_DISTINCT(`timestamp_ltz`),
+        | APPROX_COUNT_DISTINCT(`decimal52`),
+        | APPROX_COUNT_DISTINCT(`decimal3010`)
+        | FROM MyTable
+      """.stripMargin,
+      Seq(row(4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L))
     )
   }
 }

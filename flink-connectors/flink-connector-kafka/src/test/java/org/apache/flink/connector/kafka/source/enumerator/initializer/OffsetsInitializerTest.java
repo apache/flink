@@ -26,7 +26,6 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -34,14 +33,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link OffsetsInitializer}. */
 public class OffsetsInitializerTest {
     private static final String TOPIC = "topic";
     private static final String TOPIC2 = "topic2";
+    private static final String EMPTY_TOPIC3 = "topic3";
     private static KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl retriever;
 
     @BeforeClass
@@ -49,6 +49,8 @@ public class OffsetsInitializerTest {
         KafkaSourceTestEnv.setup();
         KafkaSourceTestEnv.setupTopic(TOPIC, true, true, KafkaSourceTestEnv::getRecordsForTopic);
         KafkaSourceTestEnv.setupTopic(TOPIC2, false, false, KafkaSourceTestEnv::getRecordsForTopic);
+        KafkaSourceTestEnv.createTestTopic(EMPTY_TOPIC3);
+
         retriever =
                 new KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl(
                         KafkaSourceTestEnv.getAdminClient(), KafkaSourceTestEnv.GROUP_ID);
@@ -65,12 +67,13 @@ public class OffsetsInitializerTest {
         OffsetsInitializer initializer = OffsetsInitializer.earliest();
         List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
-        assertEquals(partitions.size(), offsets.size());
-        assertTrue(offsets.keySet().containsAll(partitions));
+        assertThat(offsets).hasSameSizeAs(partitions);
+        assertThat(offsets.keySet()).containsAll(partitions);
         for (long offset : offsets.values()) {
-            Assert.assertEquals(KafkaPartitionSplit.EARLIEST_OFFSET, offset);
+            assertThat(offset).isEqualTo(KafkaPartitionSplit.EARLIEST_OFFSET);
         }
-        assertEquals(OffsetResetStrategy.EARLIEST, initializer.getAutoOffsetResetStrategy());
+        assertThat(initializer.getAutoOffsetResetStrategy())
+                .isEqualTo(OffsetResetStrategy.EARLIEST);
     }
 
     @Test
@@ -78,12 +81,12 @@ public class OffsetsInitializerTest {
         OffsetsInitializer initializer = OffsetsInitializer.latest();
         List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
-        assertEquals(partitions.size(), offsets.size());
-        assertTrue(offsets.keySet().containsAll(partitions));
+        assertThat(offsets).hasSameSizeAs(partitions);
+        assertThat(offsets.keySet()).containsAll(partitions);
         for (long offset : offsets.values()) {
-            assertEquals(KafkaPartitionSplit.LATEST_OFFSET, offset);
+            assertThat(offset).isEqualTo(KafkaPartitionSplit.LATEST_OFFSET);
         }
-        assertEquals(OffsetResetStrategy.LATEST, initializer.getAutoOffsetResetStrategy());
+        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.LATEST);
     }
 
     @Test
@@ -91,10 +94,11 @@ public class OffsetsInitializerTest {
         OffsetsInitializer initializer = OffsetsInitializer.committedOffsets();
         List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(TOPIC);
         Map<TopicPartition, Long> offsets = initializer.getPartitionOffsets(partitions, retriever);
-        assertEquals(partitions.size(), offsets.size());
+        assertThat(offsets).hasSameSizeAs(partitions);
         offsets.forEach(
-                (tp, offset) -> assertEquals(KafkaPartitionSplit.COMMITTED_OFFSET, (long) offset));
-        assertEquals(OffsetResetStrategy.NONE, initializer.getAutoOffsetResetStrategy());
+                (tp, offset) ->
+                        assertThat((long) offset).isEqualTo(KafkaPartitionSplit.COMMITTED_OFFSET));
+        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.NONE);
     }
 
     @Test
@@ -105,9 +109,21 @@ public class OffsetsInitializerTest {
         offsets.forEach(
                 (tp, offset) -> {
                     long expectedOffset = tp.partition() > 2 ? tp.partition() : 3L;
-                    assertEquals(expectedOffset, (long) offset);
+                    assertThat((long) offset).isEqualTo(expectedOffset);
                 });
-        assertEquals(OffsetResetStrategy.NONE, initializer.getAutoOffsetResetStrategy());
+        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.LATEST);
+    }
+
+    @Test
+    public void testTimestampOffsetsInitializerForEmptyPartitions() {
+        OffsetsInitializer initializer = OffsetsInitializer.timestamp(2001);
+        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(EMPTY_TOPIC3);
+        Map<TopicPartition, Long> expectedOffsets =
+                partitions.stream().collect(Collectors.toMap(tp -> tp, tp -> 0L));
+        assertThat(initializer.getPartitionOffsets(partitions, retriever))
+                .as("offsets are equal to 0 since the timestamp is out of range.")
+                .isEqualTo(expectedOffsets);
+        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.LATEST);
     }
 
     @Test
@@ -122,7 +138,8 @@ public class OffsetsInitializerTest {
         specifiedOffsets.remove(partitionSetToCommitted);
         OffsetsInitializer initializer = OffsetsInitializer.offsets(specifiedOffsets);
 
-        assertEquals(OffsetResetStrategy.EARLIEST, initializer.getAutoOffsetResetStrategy());
+        assertThat(initializer.getAutoOffsetResetStrategy())
+                .isEqualTo(OffsetResetStrategy.EARLIEST);
         // The partition without committed offset should fallback to offset reset strategy.
         TopicPartition partitionSetToEarliest = new TopicPartition(TOPIC2, 0);
         partitions.add(partitionSetToEarliest);
@@ -138,8 +155,9 @@ public class OffsetsInitializerTest {
             } else {
                 expectedOffset = specifiedOffsets.get(tp);
             }
-            assertEquals(
-                    String.format("%s has incorrect offset.", tp), expectedOffset, (long) offset);
+            assertThat((long) offset)
+                    .as(String.format("%s has incorrect offset.", tp))
+                    .isEqualTo(expectedOffset);
         }
     }
 

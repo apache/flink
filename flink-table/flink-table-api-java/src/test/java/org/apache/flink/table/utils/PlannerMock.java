@@ -20,7 +20,9 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.PlanReference;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
@@ -29,6 +31,7 @@ import org.apache.flink.table.operations.Operation;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /** Mocking {@link Planner} for tests. */
 public class PlannerMock implements Planner {
@@ -39,12 +42,18 @@ public class PlannerMock implements Planner {
     }
 
     @Override
+    public ExtendedOperationExecutor getExtendedOperationExecutor() {
+        return (operation) -> Optional.empty();
+    }
+
+    @Override
     public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
         return null;
     }
 
     @Override
-    public String explain(List<Operation> operations, ExplainDetail... extraDetails) {
+    public String explain(
+            List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails) {
         return null;
     }
 

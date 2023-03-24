@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
@@ -33,6 +34,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /** Base class for {@link RequestBody} for running a jar or querying the plan. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -42,6 +45,7 @@ public abstract class JarRequestBody implements RequestBody {
     static final String FIELD_NAME_PROGRAM_ARGUMENTS = "programArgs";
     static final String FIELD_NAME_PROGRAM_ARGUMENTS_LIST = "programArgsList";
     static final String FIELD_NAME_PARALLELISM = "parallelism";
+    static final String FIELD_NAME_FLINK_CONFIGURATION = "flinkConfiguration";
     static final String FIELD_NAME_JOB_ID = "jobId";
 
     @JsonProperty(FIELD_NAME_ENTRY_CLASS)
@@ -66,8 +70,12 @@ public abstract class JarRequestBody implements RequestBody {
     @Nullable
     private JobID jobId;
 
+    @JsonProperty(FIELD_NAME_FLINK_CONFIGURATION)
+    @Nullable
+    private Map<String, String> flinkConfiguration;
+
     JarRequestBody() {
-        this(null, null, null, null, null);
+        this(null, null, null, null, null, null);
     }
 
     @JsonCreator
@@ -77,12 +85,15 @@ public abstract class JarRequestBody implements RequestBody {
             @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
                     List<String> programArgumentsList,
             @Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
-            @Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId) {
+            @Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId,
+            @Nullable @JsonProperty(FIELD_NAME_FLINK_CONFIGURATION)
+                    Map<String, String> flinkConfiguration) {
         this.entryClassName = entryClassName;
         this.programArguments = programArguments;
         this.programArgumentsList = programArgumentsList;
         this.parallelism = parallelism;
         this.jobId = jobId;
+        this.flinkConfiguration = flinkConfiguration;
     }
 
     @Nullable
@@ -113,5 +124,12 @@ public abstract class JarRequestBody implements RequestBody {
     @JsonIgnore
     public JobID getJobId() {
         return jobId;
+    }
+
+    @JsonIgnore
+    public Configuration getFlinkConfiguration() {
+        return Optional.ofNullable(flinkConfiguration)
+                .map(Configuration::fromMap)
+                .orElse(new Configuration());
     }
 }

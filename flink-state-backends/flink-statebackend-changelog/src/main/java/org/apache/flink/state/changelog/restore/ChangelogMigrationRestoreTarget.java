@@ -21,7 +21,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -51,6 +51,8 @@ import java.util.Collection;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform;
+
 /** A {@link ChangelogRestoreTarget} supports to migrate to the delegated keyed state backend. */
 public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarget<K> {
 
@@ -78,16 +80,24 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
     public <N, S extends State, V> S createKeyedState(
             TypeSerializer<N> namespaceSerializer, StateDescriptor<S, V> stateDescriptor)
             throws Exception {
-        S keyedState =
-                keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
-        functionDelegationHelper.addOrUpdate(stateDescriptor);
-        final InternalKvState<K, N, V> kvState = (InternalKvState<K, N, V>) keyedState;
+        InternalKvState<K, N, V> kvState =
+                keyedStateBackend.createOrUpdateInternalState(
+                        namespaceSerializer, stateDescriptor, noTransform(), true);
         ChangelogState changelogState =
-                changelogStateFactory.create(
-                        stateDescriptor,
-                        kvState,
-                        VoidStateChangeLogger.getInstance(),
-                        keyedStateBackend);
+                changelogStateFactory.getExistingState(
+                        stateDescriptor.getName(),
+                        StateMetaInfoSnapshot.BackendStateType.KEY_VALUE);
+        if (changelogState == null) {
+            changelogState =
+                    changelogStateFactory.create(
+                            stateDescriptor,
+                            kvState,
+                            VoidStateChangeLogger.getInstance(),
+                            keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
+        } else {
+            changelogState.setDelegatedState(kvState);
+        }
+        functionDelegationHelper.addOrUpdate(stateDescriptor);
         return (S) changelogState;
     }
 
@@ -98,19 +108,21 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             KeyGroupedInternalPriorityQueue<T> createPqState(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        KeyGroupedInternalPriorityQueue<T> internalPriorityQueue =
+                keyedStateBackend.create(stateName, byteOrderedElementSerializer, true);
         ChangelogKeyGroupedPriorityQueue<T> queue =
                 (ChangelogKeyGroupedPriorityQueue<T>)
                         changelogStateFactory.getExistingState(
                                 stateName, StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE);
         if (queue == null) {
-            KeyGroupedInternalPriorityQueue<T> internalPriorityQueue =
-                    keyedStateBackend.create(stateName, byteOrderedElementSerializer);
             queue =
                     changelogStateFactory.create(
                             stateName,
                             internalPriorityQueue,
                             VoidStateChangeLogger.getInstance(),
                             byteOrderedElementSerializer);
+        } else {
+            queue.setDelegatedState(internalPriorityQueue);
         }
         return queue;
     }
@@ -123,10 +135,6 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
 
     @Override
     public CheckpointableKeyedStateBackend<K> getRestoredKeyedStateBackend() {
-        // TODO: This inner class make the behaviour of the method of create consistent with
-        //  the method of getOrCreateKeyedState currently which could be removed
-        //  after we support state migration (in FLINK-23143).
-        //  It is also used to maintain FunctionDelegationHelper in the delegated state backend.
         return wrapKeyedStateBackend(
                 keyedStateBackend, changelogStateFactory, functionDelegationHelper);
     }
@@ -162,20 +170,17 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
 
         @Override
         public void valueElementAdded(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Namespace ns)
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Namespace ns)
                 throws IOException {}
 
         @Override
         public void valueElementAddedOrUpdated(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Namespace ns)
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Namespace ns)
                 throws IOException {}
 
         @Override
         public void valueElementRemoved(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Namespace ns)
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Namespace ns)
                 throws IOException {}
 
         @Override
@@ -224,14 +229,14 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
 
             @Nonnull
             @Override
-            public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+            public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
                     @Nonnull TypeSerializer<N> namespaceSerializer,
                     @Nonnull StateDescriptor<S, SV> stateDesc,
                     @Nonnull
                             StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
                                     snapshotTransformFactory)
                     throws Exception {
-                return keyedStateBackend.createInternalState(
+                return keyedStateBackend.createOrUpdateInternalState(
                         namespaceSerializer, stateDesc, snapshotTransformFactory);
             }
 
@@ -242,8 +247,7 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
                     StateDescriptor<S, ?> stateDescriptor)
                     throws Exception {
                 S partitionedState =
-                        keyedStateBackend.getPartitionedState(
-                                namespace, namespaceSerializer, stateDescriptor);
+                        super.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
                 functionDelegationHelper.addOrUpdate(stateDescriptor);
                 return partitionedState;
             }
@@ -252,9 +256,7 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             public <N, S extends State, V> S getOrCreateKeyedState(
                     TypeSerializer<N> namespaceSerializer, StateDescriptor<S, V> stateDescriptor)
                     throws Exception {
-                S keyedState =
-                        keyedStateBackend.getOrCreateKeyedState(
-                                namespaceSerializer, stateDescriptor);
+                S keyedState = super.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
                 functionDelegationHelper.addOrUpdate(stateDescriptor);
                 return keyedState;
             }
@@ -266,14 +268,7 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
                     KeyGroupedInternalPriorityQueue<T> create(
                             @Nonnull String stateName,
                             @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-                ChangelogKeyGroupedPriorityQueue<T> existingState =
-                        (ChangelogKeyGroupedPriorityQueue<T>)
-                                changelogStateFactory.getExistingState(
-                                        stateName,
-                                        StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE);
-                return existingState == null
-                        ? keyedStateBackend.create(stateName, byteOrderedElementSerializer)
-                        : existingState;
+                return keyedStateBackend.create(stateName, byteOrderedElementSerializer);
             }
 
             @Nonnull

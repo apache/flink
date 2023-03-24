@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
@@ -39,15 +39,20 @@ under the License.
 		<reflections.version>0.9.8</reflections.version>
 		<derby.version>10.10.2.0</derby.version>
 		<hive.avro.version>1.8.2</hive.avro.version>
+		<!--
+		Hive requires Hadoop 2 to avoid
+		java.lang.NoClassDefFoundError: org/apache/hadoop/metrics/Updater errors
+		Using this dedicated property avoids CI failures with the Hadoop 3 profile
+		-->
+		<hive.hadoop.version>2.10.2</hive.hadoop.version>
 	</properties>
 
-	<!-- Overwrite hadoop dependency management from flink-parent to use locally defined Hadoop version -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -56,6 +61,18 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.pentaho</groupId>
+						<artifactId>pentaho-aggdesigner-algorithm</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -63,7 +80,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -72,6 +89,14 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -79,7 +104,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -88,6 +113,18 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.pentaho</groupId>
+						<artifactId>pentaho-aggdesigner-algorithm</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -95,7 +132,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -104,6 +141,14 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -111,7 +156,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -120,6 +165,14 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -154,6 +207,21 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- HiveServer2 Endpoint -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway-api</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -231,12 +299,58 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>${hive.hadoop.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Hive -->
@@ -398,6 +512,10 @@ under the License.
 					<groupId>org.apache.derby</groupId>
 					<artifactId>derby</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -506,6 +624,18 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -657,6 +787,14 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -680,6 +818,10 @@ under the License.
 			<version>${hive.version}</version>
 			<scope>test</scope>
 			<exclusions>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
 					<artifactId>hive-exec</artifactId>
@@ -757,6 +899,18 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -766,6 +920,10 @@ under the License.
 			<version>${hive.version}</version>
 			<scope>test</scope>
 			<exclusions>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
 					<artifactId>hive-exec</artifactId>
@@ -810,6 +968,18 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -819,6 +989,10 @@ under the License.
 			<version>${hive.version}</version>
 			<scope>test</scope>
 			<exclusions>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
@@ -834,6 +1008,14 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.pentaho</groupId>
@@ -853,6 +1035,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -882,6 +1071,64 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-architecture-tests-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+
+		<!-- HiveServer2 Endpoint -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway-api</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<type>test-jar</type>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-jdbc</artifactId>
+			<version>${hive.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
@@ -1022,57 +1269,13 @@ under the License.
 	</build>
 
 	<profiles>
-		<!-- Activate these profiles with -Phive-x.x.x to build and test against different Hive versions -->
+		<!-- Activate these profiles with -Phive3 to build and test against Hive 3.x versions -->
 		<profile>
-			<id>hive-2.3.9</id>
+			<id>hive3</id>
 			<properties>
-				<hive.version>2.3.9</hive.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.orc</groupId>
-					<artifactId>orc-core</artifactId>
-					<version>${hive-2.3.9-orc-version}</version>
-					<exclusions>
-						<exclusion>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hive-3.1.1</id>
-			<properties>
-				<hive.version>3.1.1</hive.version>
+				<hive.version>3.1.3</hive.version>
 				<derby.version>10.14.1.0</derby.version>
-				<!-- need a hadoop version that fixes HADOOP-14683 -->
-				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
 			</properties>
-
-			<dependencyManagement>
-				<dependencies>
-					<dependency>
-						<groupId>org.apache.hive</groupId>
-						<artifactId>hive-metastore</artifactId>
-						<version>${hive.version}</version>
-						<scope>provided</scope>
-						<exclusions>
-							<exclusion>
-								<!-- Override arrow netty dependency -->
-								<groupId>io.netty</groupId>
-								<artifactId>netty-buffer</artifactId>
-							</exclusion>
-							<exclusion>
-								<!-- Override arrow netty dependency -->
-								<groupId>io.netty</groupId>
-								<artifactId>netty-common</artifactId>
-							</exclusion>
-						</exclusions>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 
 			<dependencies>
 				<dependency>
@@ -1089,14 +1292,6 @@ under the License.
 					<artifactId>netty-common</artifactId>
 					<version>4.1.46.Final</version>
 					<scope>provided</scope>
-				</dependency>
-
-				<!-- Required by orc tests -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hivemetastore.hadoop.version}</version>
-					<scope>test</scope>
 				</dependency>
 			</dependencies>
 

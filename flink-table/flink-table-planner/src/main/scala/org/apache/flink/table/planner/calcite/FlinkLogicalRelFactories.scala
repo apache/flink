@@ -83,7 +83,7 @@ object FlinkLogicalRelFactories {
         input: RelNode,
         hints: util.List[RelHint],
         childExprs: util.List[_ <: RexNode],
-        fieldNames: util.List[String]): RelNode = {
+        fieldNames: util.List[_ <: String]): RelNode = {
       val rexBuilder = input.getCluster.getRexBuilder
       val inputRowType = input.getRowType
       val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)
@@ -165,7 +165,7 @@ object FlinkLogicalRelFactories {
         variablesSet: util.Set[CorrelationId],
         joinType: JoinRelType,
         semiJoinDone: Boolean): RelNode = {
-      FlinkLogicalJoin.create(left, right, condition, joinType)
+      FlinkLogicalJoin.create(left, right, condition, hints, joinType)
     }
   }
 

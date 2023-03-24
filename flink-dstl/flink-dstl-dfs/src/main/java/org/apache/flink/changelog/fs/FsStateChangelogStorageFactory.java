@@ -18,16 +18,21 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.RETRY_MAX_ATTEMPTS;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.UPLOAD_TIMEOUT;
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 
 /** {@link FsStateChangelogStorage} factory. */
@@ -43,17 +48,28 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
 
     @Override
     public StateChangelogStorage<?> createStorage(
-            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException {
-        return new FsStateChangelogStorage(configuration, metricGroup);
+            JobID jobID,
+            Configuration configuration,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
+            throws IOException {
+        return new FsStateChangelogStorage(jobID, configuration, metricGroup, localRecoveryConfig);
     }
 
     @Override
-    public StateChangelogStorageView<?> createStorageView() {
-        return new FsStateChangelogStorageForRecovery();
+    public StateChangelogStorageView<?> createStorageView(Configuration configuration) {
+        return new FsStateChangelogStorageForRecovery(
+                new ChangelogStreamHandleReaderWithCache(configuration));
     }
 
-    public static void configure(Configuration configuration, File newFolder) {
+    public static void configure(
+            Configuration configuration,
+            File newFolder,
+            Duration uploadTimeout,
+            int maxUploadAttempts) {
         configuration.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
         configuration.setString(BASE_PATH, newFolder.getAbsolutePath());
+        configuration.set(UPLOAD_TIMEOUT, uploadTimeout);
+        configuration.set(RETRY_MAX_ATTEMPTS, maxUploadAttempts);
     }
 }

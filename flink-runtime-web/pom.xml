@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-runtime-web</artifactId>
@@ -93,14 +93,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
 			<scope>test</scope>
 		</dependency>
@@ -162,11 +154,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
 					<execution>
 						<!-- Used for JarHandler tests -->
 						<id>test-program-jar</id>

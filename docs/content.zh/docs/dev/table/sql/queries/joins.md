@@ -28,16 +28,16 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Flink SQL supports complex and flexible join operations over dynamic tables. 
-There are several different types of joins to account for the wide variety of semantics queries may require. 
+Flink SQL支持对动态表进行复杂而灵活的连接操作。
+为了处理不同的场景，需要多种查询语义，因此有几种不同类型的 Join。
 
-By default, the order of joins is not optimized. Tables are joined in the order in which they are specified in the `FROM` clause. You can tweak the performance of your join queries, by listing the tables with the lowest update frequency first and the tables with the highest update frequency last. Make sure to specify tables in an order that does not yield a cross join (Cartesian product), which are not supported and would cause a query to fail.
+默认情况下，joins 的顺序是没有优化的。表的 join 顺序是在 `FROM` 从句指定的。可以通过把更新频率最低的表放在第一个、频率最高的放在最后这种方式来微调 join 查询的性能。需要确保表的顺序不会产生笛卡尔积，因为不支持这样的操作并且会导致查询失败。
 
 Regular Joins
 -------------
 
-Regular joins are the most generic type of join in which any new record, or changes to either side of the join, are visible and affect the entirety of the join result. 
-For example, if there is a new record on the left side, it will be joined with all the previous and future records on the right side when the product id equals. 
+Regular join 是最通用的 join 类型。在这种 join 下，join 两侧表的任何新记录或变更都是可见的，并会影响整个 join 的结果。
+例如：如果左边有一条新纪录，在 `Product.id` 相等的情况下，它将和右边表的之前和之后的所有记录进行 join。
 
 ```sql
 SELECT * FROM Orders
@@ -45,15 +45,13 @@ INNER JOIN Product
 ON Orders.productId = Product.id
 ```
 
-For streaming queries, the grammar of regular joins is the most flexible and allow for any kind of updating (insert, update, delete) input table.
-However, this operation has important operational implications: it requires to keep both sides of the join input in Flink state forever.
-Thus, the required state for computing the query result might grow infinitely depending on the number of distinct input rows of all input tables and intermediate join results. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
-
-{{< query_state_warning >}}
+对于流式查询，regular join 的语法是最灵活的，允许任何类型的更新（插入、更新、删除）输入表。
+然而，这种操作具有重要的操作意义：Flink 需要将 Join 输入的两边数据永远保持在状态中。
+因此，计算查询结果所需的状态可能会无限增长，这取决于所有输入表的输入数据量。你可以提供一个合适的状态 time-to-live (TTL) 配置来防止状态过大。注意：这样做可能会影响查询的正确性。查看 [查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 了解详情。
 
 ### INNER Equi-JOIN
 
-Returns a simple Cartesian product restricted by the join condition. Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.
+根据 join 限制条件返回一个简单的笛卡尔积。目前只支持 equi-joins，即：至少有一个等值条件。不支持任意的 cross join 和 theta join。(cross join 指的是类似 `SELECT * FROM table_a CROSS JOIN table_b`，theta join 指的是类似 `SELECT * FROM table_a, table_b`）
 
 ```sql
 SELECT *
@@ -64,7 +62,7 @@ ON Orders.product_id = Product.id
 
 ### OUTER Equi-JOIN
 
-Returns all rows in the qualified Cartesian product (i.e., all combined rows that pass its join condition), plus one copy of each row in an outer table for which the join condition did not match with any row of the other table. Flink supports LEFT, RIGHT, and FULL outer joins. Currently, only equi-joins are supported, i.e., joins with at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.
+返回所有符合条件的笛卡尔积（即：所有通过 join 条件连接的行），加上所有外表没有匹配到的行。Flink 支持 LEFT、RIGHT 和 FULL outer joins。目前只支持 equi-joins，即：至少有一个等值条件。不支持任意的 cross join 和 theta join。
 
 ```sql
 SELECT *
@@ -86,9 +84,9 @@ ON Orders.product_id = Product.id
 Interval Joins
 --------------
 
-Returns a simple Cartesian product restricted by the join condition and a time constraint. An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Two appropriate range predicates can define such a condition (<, <=, >=, >), a BETWEEN predicate, or a single equality predicate that compares [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the same type (i.e., processing time or event time) of both input tables.
+返回一个符合 join 条件和时间限制的简单笛卡尔积。Interval join 需要至少一个 equi-join 条件和一个 join 两边都包含的时间限定 join 条件。范围判断可以定义成就像一个条件（<, <=, >=, >），也可以是一个 BETWEEN 条件，或者两边表的一个相同类型（即：处理时间 或 事件时间）的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}) 的等式判断。
 
-For example, this query will join all orders with their corresponding shipments if the order was shipped four hours after the order was received.
+例如：如果订单是在被接收到4小时后发货，这个查询会把所有订单和它们相应的 shipments join 起来。
 
 ```sql
 SELECT *
@@ -97,29 +95,29 @@ WHERE o.id = s.order_id
 AND o.order_time BETWEEN s.ship_time - INTERVAL '4' HOUR AND s.ship_time
 ```
 
-The following predicates are examples of valid interval join conditions:
+下面列举了一些有效的 interval join 时间条件：
 
 - `ltime = rtime`
 - `ltime >= rtime AND ltime < rtime + INTERVAL '10' MINUTE`
 - `ltime BETWEEN rtime - INTERVAL '10' SECOND AND rtime + INTERVAL '5' SECOND`
 
-For streaming queries, compared to the regular join, interval join only supports append-only tables with time attributes.
-Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
+对于流式查询，对比 regular join，interval join 只支持有时间属性的非更新表。
+由于时间属性是递增的，Flink 从状态中移除旧值也不会影响结果的正确性。
 
 Temporal Joins
 --------------
 
-A Temporal table is a table that evolves over time - otherwise known in Flink as a [dynamic table]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
-The temporal table contains one or more versioned table snapshots, it can be a changing history table which tracks the changes(e.g. database changelog, contains all snapshots) or a changing dimensioned table which materializes the changes(e.g. database table which contains the latest snapshot). 
+时态表（Temporal table）是一个随时间变化的表：在 Flink 中被称为[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})。时态表中的行与一个或多个时间段相关联，所有 Flink 中的表都是时态的（Temporal）。
+时态表包含一个或多个版本的表快照，它可以是一个变化的历史表，跟踪变化（例如，数据库变化日志，包含所有快照）或一个变化的维度表，也可以是一个将变更物化的维表（例如，存放最终快照的数据表）。
 
-### Event Time Temporal Join
+### 事件时间 Temporal Join
 
-Event Time Temporal joins allow joining against a [versioned table]({{< ref "docs/dev/table/concepts/versioned_tables" >}}).
-This means a table can be enriched with changing metadata and retrieve its value at a certain point in time. 
+基于事件时间的 Temporal join 允许对[版本表]({{< ref "docs/dev/table/concepts/versioned_tables" >}})进行 join。
+这意味着一个表可以使用变化的元数据来丰富，并在某个时间点检索其具体值。
 
-Temporal joins take an arbitrary table (left input/probe site) and correlate each row to the corresponding row's relevant version in the versioned table (right input/build side). 
-Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to perform this operation from the SQL:2011 standard. 
-The syntax of a temporal join is as follows;
+Temporal Joins 使用任意表（左侧输入/探测端）的每一行与版本表中对应的行进行关联（右侧输入/构建端）。
+Flink 使用 `SQL:2011标准` 中的 `FOR SYSTEM_TIME AS OF` 语法去执行操作。
+Temporal join 的语法如下：
 
 ```sql
 SELECT [column_list]
@@ -128,12 +126,12 @@ FROM table1 [AS <alias1>]
 ON table1.column-name1 = table2.column-name1
 ```
 
-With an event-time attribute (i.e., a rowtime attribute), it is possible to retrieve the value of a key as it was at some point in the past. 
-This allows for joining the two tables at a common point in time. 
-The versioned table will store all versions - identified by time - since the last watermark. 
+有了事件时间属性（即：rowtime 属性），就能检索到过去某个时间点的值。
+这允许在一个共同的时间点上连接这两个表。
+版本表将存储自最后一个 watermark 以来的所有版本（按时间标识）。
 
-For example, suppose we have a table of orders, each with prices in different currencies.
-To properly normalize this table to a single currency, such as USD, each order needs to be joined with the proper currency conversion rate from the point-in-time when the order was placed. 
+例如，假设我们有一个订单表，每个订单都有不同货币的价格。
+为了正确地将该表统一为单一货币（如美元）,每个订单都需要与下单时相应的汇率相关联。
 
 ```sql
 -- Create a table of orders. This is a standard
@@ -143,7 +141,7 @@ CREATE TABLE orders (
     price       DECIMAL(32,2),
     currency    STRING,
     order_time  TIMESTAMP(3),
-    WATERMARK FOR order_time AS order_time
+    WATERMARK FOR order_time AS order_time - INTERVAL '15' SECOND
 ) WITH (/* ... */);
 
 -- Define a versioned table of currency rates. 
@@ -154,7 +152,7 @@ CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
     update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
-    WATERMARK FOR update_time AS update_time,
+    WATERMARK FOR update_time AS update_time - INTERVAL '15' SECOND,
     PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
     'connector' = 'kafka',
@@ -165,7 +163,7 @@ CREATE TABLE currency_rates (
 SELECT 
      order_id,
      price,
-     currency,
+     orders.currency,
      conversion_rate,
      order_time
 FROM orders
@@ -179,24 +177,26 @@ o_002     12.51  EUR       1.10             12:06:00
 
 ```
 
-**Note:** The event-time temporal join is triggered by a watermark from the left and right sides; please ensure both sides of the join have set watermark correctly.
+**注意：** 事件时间 temporal join 是通过左和右两侧的 watermark 触发的；
+这里的 `INTERVAL` 时间减法用于等待后续事件，以确保 join 满足预期。
+请确保 join 两边设置了正确的 watermark 。
 
-**Note:** The event-time temporal join requires the primary key contained in the equivalence condition of the temporal join condition, e.g., The primary key `currency_rates.currency` of table `currency_rates` to be constrained in the condition `orders.currency = currency_rates.currency`.
+**注意：** 事件时间 temporal join 需要包含主键相等的条件，即：`currency_rates` 表的主键 `currency_rates.currency` 包含在条件 `orders.currency = currency_rates.currency` 中。
 
-In contrast to [regular joins](#regular-joins), the previous temporal table results will not be affected despite the changes on the build side.
-Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records will be joined.
-Records from the probe side are always joined with the build side's version at the time specified by the time attribute. Thus, rows on the build side might be arbitrarily old.
-As time passes,  no longer needed versions of the record (for the given primary key) will be removed from the state.
+与 [regular joins](#regular-joins) 相比，就算 build side（例子中的 currency_rates 表）发生变更了，之前的 temporal table 的结果也不会被影响。
+与 [interval joins](#interval-joins) 对比，temporal join没有定义join的时间窗口。
+Probe side （例子中的 orders 表）的记录总是在 time 属性指定的时间与 build side 的版本行进行连接。因此，build side 表的行可能已经过时了。
+随着时间的推移，不再被需要的记录版本（对于给定的主键）将从状态中删除。
 
-### Processing Time Temporal Join
+### 处理时间 Temporal Join
 
-A processing time temporal table join uses a processing-time attribute to correlate rows to the latest version of a key in an external versioned table. 
+基于处理时间的 temporal join 使用处理时间属性将数据与外部版本表（例如 mysql、hbase）的最新版本相关联。
 
-By definition, with a processing-time attribute, the join will always return the most up-to-date value for a given key. One can think of a lookup table as a simple HashMap<K, V> that stores all the records from the build side.
-The power of this join is it allows Flink to work directly against external systems when it is not feasible to materialize the table as a dynamic table within Flink. 
+通过定义一个处理时间属性，这个 join 总是返回最新的值。可以将 build side 中被查找的表想象成一个存储所有记录简单的 `HashMap<K,V>`。
+这种 join 的强大之处在于，当无法在 Flink 中将表具体化为动态表时，它允许 Flink 直接针对外部系统工作。
 
-The following processing-time temporal table join example shows an append-only table `orders` that should be joined with the table `LatestRates`.
-`LatestRates` is a dimension table (e.g. HBase table) that is materialized with the latest rate. At time `10:15`, `10:30`, `10:52`, the content of `LatestRates` looks as follows:
+下面这个处理时间 temporal join 示例展示了一个追加表 `orders` 与 `LatestRates` 表进行 join。
+`LatestRates` 是一个最新汇率的维表，比如 HBase 表，在 `10:15`，`10:30`，`10:52`这些时间，`LatestRates` 表的数据看起来是这样的：
 
 ```sql
 10:15> SELECT * FROM LatestRates;
@@ -224,11 +224,11 @@ Euro        116     <==== changed from 114 to 116
 Yen           1
 ```
 
-The content of `LastestRates` at times `10:15` and `10:30` are equal.
-The Euro rate has changed from 114 to 116 at `10:52`.
+`LastestRates` 表的数据在 `10:15` 和 `10:30` 是相同的。
+欧元（Euro）的汇率（rate）在 `10:52` 从 114 变更为 116。
 
-`Orders` is an append-only table representing payments for the given `amount` and the given `currency`.
-For example, at `10:15` there was an order for an amount of `2 Euro`.
+`Orders` 表示支付金额的 `amount` 和`currency`的追加表。
+例如：在 `10:15` ，有一个金额为 `2 Euro` 的 order。
 
 ```sql
 SELECT * FROM Orders;
@@ -240,7 +240,7 @@ amount currency
      2 Euro             <== arrived at time 10:52
 ```
 
-Given these tables, we would like to calculate all `Orders` converted to a common currency.
+给出下面这些表，我们希望所有 `Orders` 表的记录转换为一个统一的货币。
 
 ```text
 amount currency     rate   amount*rate
@@ -250,7 +250,7 @@ amount currency     rate   amount*rate
      2 Euro          116          232    <== arrived at time 10:52
 ```
 
-Currently, the `FOR SYSTEM_TIME AS OF` syntax used in temporal join with latest version of any view/table is not support yet, you can use temporal table function syntax as following:
+目前，temporal join 还不支持与任意 view/table 的最新版本 join 时使用 `FOR SYSTEM_TIME AS OF` 语法。可以像下面这样使用 temporal table function 语法来实现（时态表函数）:
 
 ```sql
 SELECT
@@ -262,21 +262,21 @@ WHERE
   r_currency = o_currency
 ```
 
-**Note** The reason why the `FOR SYSTEM_TIME AS OF` syntax used in temporal join with latest version of any table/view is not support is only the semantic consideration, because the join processing for left stream doesn't wait for the complete snapshot of temporal table, this may mislead users in production environment. The processing-time temporal join by temporal table function also exists same semantic problem, but it has been alive for a long time, thus we support it from the perspective of compatibility.
+**注意** Temporal join 不支持与 table/view 的最新版本进行 join 时使用 `FOR SYSTEM_TIME AS OF` 语法是出于语义考虑，因为左流的连接处理不会等待 temporal table 的完整快照，这可能会误导生产环境中的用户。处理时间 temporal join 使用 temporal table function 也存在相同的语义问题，但它已经存在了很长时间，因此我们从兼容性的角度支持它。
 
-The result is not deterministic for processing-time.
-The processing-time temporal join is most often used to enrich the stream with an external table (i.e., dimension table).
+processing-time 的结果是不确定的。
+processing-time temporal join 常常用在使用外部系统来丰富流的数据。（例如维表）
 
-In contrast to [regular joins](#regular-joins), the previous temporal table results will not be affected despite the changes on the build side.
-Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records join, i.e., old rows are not stored in state.
+与 [regular joins](#regular-joins) 的差异，就算 build side（例子中的 currency_rates 表）发生变更了，之前的 temporal table 结果也不会被影响。
+与 [interval joins](#interval-joins) 的差异，temporal join 没有定义数据连接的时间窗口。即：旧数据没存储在状态中。
 
 ### Temporal Table Function Join
 
-The syntax to join a table with a [temporal table function]({{< ref "docs/dev/table/concepts/temporal_table_function" >}}) is the same as in Join with [Table Function](#table-function).
+使用 [temporal table function]({{< ref "docs/dev/table/concepts/temporal_table_function" >}}) 去 join 表的语法和 [Table Function](#table-function) 相同。
 
-Note: Currently only inner join and left outer join with temporal tables are supported.
+注意：目前只支持 inner join 和 left outer join。
 
-Assuming Rates is a temporal table function, the join can be expressed in SQL as follows:
+假设`Rates`是一个 temporal table function，这个 join 在 SQL 中可以被表达为：
 
 ```sql
 SELECT
@@ -288,19 +288,19 @@ WHERE
   r_currency = o_currency
 ```
 
-The main difference between above Temporal Table DDL and Temporal Table Function are:
+上述 temporal table DDL 和 temporal table function 的主要区别在于：
 
-- The temporal table DDL can be defined in SQL but temporal table function can not;
-- Both temporal table DDL and temporal table function support temporal join versioned table, but only temporal table function can temporal join the latest version of any table/view.
+- SQL 中可以定义 temporal table DDL，但不能定义 temporal table 函数;
+- temporal table DDL 和 temporal table function 都支持 temporal join 版本表，但只有 temporal table function 可以 temporal join 任何表/视图的最新版本（即"处理时间 Temporal Join"）。
 
 Lookup Join
 --------------
 
-A lookup join is typically used to enrich a table with data that is queried from an external system. The join requires one table to have a processing time attribute and the other table to be backed by a lookup source connector.
+lookup join 通常用于使用从外部系统查询的数据来丰富表。join 要求一个表具有处理时间属性，另一个表由查找源连接器（lookup source connnector）支持。
 
-The lookup join uses the above [Processing Time Temporal Join](#processing-time-temporal-join) syntax with the right table to be backed by a lookup source connector.
+lookup join 和上面的 [处理时间 Temporal Join](#processing-time-temporal-join) 语法相同，右表使用查找源连接器支持。
 
-The following example shows the syntax to specify a lookup join.
+下面的例子展示了 lookup join 的语法。
 
 ```sql
 -- Customers is backed by the JDBC connector and can be used for lookup joins
@@ -322,12 +322,12 @@ FROM Orders AS o
     ON o.customer_id = c.id;
 ```
 
-In the example above, the Orders table is enriched with data from the Customers table which resides in a MySQL database. The `FOR SYSTEM_TIME AS OF` clause with the subsequent processing time attribute ensures that each row of the `Orders` table is joined with those Customers rows that match the join predicate at the point in time when the `Orders` row is processed by the join operator. It also prevents that the join result is updated when a joined `Customer` row is updated in the future. The lookup join also requires a mandatory equality join predicate, in the example above `o.customer_id = c.id`.
+在上面的示例中，Orders 表由保存在 MySQL 数据库中的 Customers 表数据来丰富。带有后续 process time 属性的 `FOR SYSTEM_TIME AS OF` 子句确保在联接运算符处理 `Orders` 行时，`Orders` 的每一行都与 join 条件匹配的 Customer 行连接。它还防止连接的 `Customer` 表在未来发生更新时变更连接结果。lookup join 还需要一个强制的相等连接条件，在上面的示例中是 `o.customer_id = c.id`。
 
-Array Expansion
+数组展开
 --------------
 
-Returns a new row for each element in the given array. Unnesting `WITH ORDINALITY` is not yet supported.
+返回给定数组中每个元素的新行。尚不支持 `WITH ORDINALITY`（会额外生成一个标识顺序的整数列）展开。
 
 ```sql
 SELECT order_id, tag
@@ -337,11 +337,11 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
 Table Function
 --------------
 
-Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. [User-defined table functions]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions) must be registered before use.
+将表与表函数的结果联接。左侧（外部）表的每一行都与表函数的相应调用产生的所有行相连接。[用户自定义表函数]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions) 必须在使用前注册。
 
 ### INNER JOIN
 
-The row of the left (outer) table is dropped, if its table function call returns an empty result.
+如果表函数调用返回一个空结果，那么左表的这行数据将不会输出。
 
 ```sql
 SELECT order_id, res
@@ -351,7 +351,7 @@ LATERAL TABLE(table_func(order_id)) t(res)
 
 ### LEFT OUTER JOIN
 
-If a table function call returns an empty result, the corresponding outer row is preserved, and the result padded with null values. Currently, a left outer join against a lateral table requires a TRUE literal in the ON clause.
+如果表函数调用返回了一个空结果，则保留相应的行，并用空值填充未关联到的结果。当前，针对 lateral table 的 left outer join 需要 ON 子句中有一个固定的 TRUE 连接条件。
 
 ```sql
 SELECT order_id, res

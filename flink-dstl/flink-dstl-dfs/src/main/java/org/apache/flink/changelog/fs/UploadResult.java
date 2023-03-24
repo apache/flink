@@ -17,14 +17,21 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 
+import javax.annotation.Nullable;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-final class UploadResult {
+/** Result of uploading state changes. */
+@Internal
+public final class UploadResult {
     public final StreamStateHandle streamStateHandle;
+    @Nullable public final StreamStateHandle localStreamHandle;
     public final long offset;
+    public final long localOffset;
     public final SequenceNumber sequenceNumber;
     public final long size;
 
@@ -33,22 +40,53 @@ final class UploadResult {
             long offset,
             SequenceNumber sequenceNumber,
             long size) {
+        this(streamStateHandle, null, offset, offset, sequenceNumber, size);
+    }
+
+    public UploadResult(
+            StreamStateHandle streamStateHandle,
+            @Nullable StreamStateHandle localStreamHandle,
+            long offset,
+            long localOffset,
+            SequenceNumber sequenceNumber,
+            long size) {
         this.streamStateHandle = checkNotNull(streamStateHandle);
+        this.localStreamHandle = localStreamHandle;
         this.offset = offset;
+        this.localOffset = localOffset;
         this.sequenceNumber = checkNotNull(sequenceNumber);
         this.size = size;
     }
 
-    public static UploadResult of(StreamStateHandle handle, StateChangeSet changeSet, long offset) {
-        return new UploadResult(handle, offset, changeSet.getSequenceNumber(), changeSet.getSize());
+    public static UploadResult of(
+            StreamStateHandle handle,
+            StreamStateHandle localHandle,
+            StateChangeSet changeSet,
+            long offset,
+            long localOffset) {
+        return new UploadResult(
+                handle,
+                localHandle,
+                offset,
+                localOffset,
+                changeSet.getSequenceNumber(),
+                changeSet.getSize());
     }
 
     public StreamStateHandle getStreamStateHandle() {
         return streamStateHandle;
     }
 
+    public StreamStateHandle getLocalStreamHandleStateHandle() {
+        return localStreamHandle;
+    }
+
     public long getOffset() {
         return offset;
+    }
+
+    public long getLocalOffset() {
+        return localOffset;
     }
 
     public SequenceNumber getSequenceNumber() {
@@ -63,6 +101,8 @@ final class UploadResult {
     public String toString() {
         return "streamStateHandle="
                 + streamStateHandle
+                + "localStreamHandle"
+                + localStreamHandle
                 + ", size="
                 + size
                 + ", offset="

@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * }</pre>
  *
  * <p>One can also configure different {@link DeliveryGuarantee} by using {@link
- * #setDeliverGuarantee(DeliveryGuarantee)} but keep in mind when using {@link
+ * #setDeliveryGuarantee(DeliveryGuarantee)} but keep in mind when using {@link
  * DeliveryGuarantee#EXACTLY_ONCE} one must set the transactionalIdPrefix {@link
  * #setTransactionalIdPrefix(String)}.
  *
@@ -74,7 +74,6 @@ public class KafkaSinkBuilder<IN> {
 
     private final Properties kafkaProducerConfig;
     private KafkaRecordSerializationSchema<IN> recordSerializer;
-    private String bootstrapServers;
 
     KafkaSinkBuilder() {
         kafkaProducerConfig = new Properties();
@@ -94,6 +93,20 @@ public class KafkaSinkBuilder<IN> {
      * @param deliveryGuarantee
      * @return {@link KafkaSinkBuilder}
      */
+    public KafkaSinkBuilder<IN> setDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
+        this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
+        return this;
+    }
+
+    /**
+     * Sets the wanted the {@link DeliveryGuarantee}. The default delivery guarantee is {@link
+     * #deliveryGuarantee}.
+     *
+     * @param deliveryGuarantee
+     * @return {@link KafkaSinkBuilder}
+     * @deprecated Will be removed in future versions. Use {@link #setDeliveryGuarantee} instead.
+     */
+    @Deprecated
     public KafkaSinkBuilder<IN> setDeliverGuarantee(DeliveryGuarantee deliveryGuarantee) {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
         return this;
@@ -174,8 +187,19 @@ public class KafkaSinkBuilder<IN> {
      * @return {@link KafkaSinkBuilder}
      */
     public KafkaSinkBuilder<IN> setBootstrapServers(String bootstrapServers) {
-        this.bootstrapServers = checkNotNull(bootstrapServers);
-        return this;
+        return setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    }
+
+    private void sanityCheck() {
+        checkNotNull(
+                kafkaProducerConfig.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
+                "bootstrapServers");
+        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
+            checkState(
+                    transactionalIdPrefix != null,
+                    "EXACTLY_ONCE delivery guarantee requires a transactionIdPrefix to be set to provide unique transaction names across multiple KafkaSinks writing to the same Kafka cluster.");
+        }
+        checkNotNull(recordSerializer, "recordSerializer");
     }
 
     /**
@@ -184,17 +208,8 @@ public class KafkaSinkBuilder<IN> {
      * @return {@link KafkaSink}
      */
     public KafkaSink<IN> build() {
-        checkNotNull(bootstrapServers);
-        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
-            checkState(
-                    transactionalIdPrefix != null,
-                    "EXACTLY_ONCE delivery guarantee requires a transactionIdPrefix to be set to provide unique transaction names across multiple KafkaSinks writing to the same Kafka cluster.");
-        }
-        kafkaProducerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        sanityCheck();
         return new KafkaSink<>(
-                deliveryGuarantee,
-                kafkaProducerConfig,
-                transactionalIdPrefix,
-                checkNotNull(recordSerializer, "recordSerializer"));
+                deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, recordSerializer);
     }
 }

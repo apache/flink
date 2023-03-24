@@ -25,16 +25,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -376,14 +371,15 @@ public class CoGroupedStreams<T1, T2> {
             UnionKeySelector<T1, T2, KEY> unionKeySelector =
                     new UnionKeySelector<>(keySelector1, keySelector2);
 
-            DataStream<TaggedUnion<T1, T2>> taggedInput1 =
-                    input1.map(new Input1Tagger<T1, T2>())
-                            .setParallelism(input1.getParallelism())
-                            .returns(unionType);
-            DataStream<TaggedUnion<T1, T2>> taggedInput2 =
-                    input2.map(new Input2Tagger<T1, T2>())
-                            .setParallelism(input2.getParallelism())
-                            .returns(unionType);
+            SingleOutputStreamOperator<TaggedUnion<T1, T2>> taggedInput1 =
+                    input1.map(new Input1Tagger<T1, T2>());
+            taggedInput1.getTransformation().setParallelism(input1.getParallelism(), false);
+            taggedInput1.returns(unionType);
+
+            SingleOutputStreamOperator<TaggedUnion<T1, T2>> taggedInput2 =
+                    input2.map(new Input2Tagger<T1, T2>());
+            taggedInput2.getTransformation().setParallelism(input2.getParallelism(), false);
+            taggedInput2.returns(unionType);
 
             DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
 
@@ -695,45 +691,6 @@ public class CoGroupedStreams<T1, T2> {
         @Override
         public TypeSerializerSnapshot<TaggedUnion<T1, T2>> snapshotConfiguration() {
             return new UnionSerializerSnapshot<>(this);
-        }
-    }
-
-    /**
-     * The {@link TypeSerializerConfigSnapshot} for the {@link UnionSerializer}.
-     *
-     * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
-     *     compatibility. It is fully replaced by {@link UnionSerializerSnapshot}.
-     */
-    @Deprecated
-    public static class UnionSerializerConfigSnapshot<T1, T2>
-            extends CompositeTypeSerializerConfigSnapshot<TaggedUnion<T1, T2>> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public UnionSerializerConfigSnapshot() {}
-
-        public UnionSerializerConfigSnapshot(
-                TypeSerializer<T1> oneSerializer, TypeSerializer<T2> twoSerializer) {
-            super(oneSerializer, twoSerializer);
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<TaggedUnion<T1, T2>> resolveSchemaCompatibility(
-                TypeSerializer<TaggedUnion<T1, T2>> newSerializer) {
-            List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs =
-                    getNestedSerializersAndConfigs();
-
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer,
-                    new UnionSerializerSnapshot<>(),
-                    nestedSerializersAndConfigs.get(0).f1,
-                    nestedSerializersAndConfigs.get(1).f1);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
         }
     }
 

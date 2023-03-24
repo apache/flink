@@ -26,20 +26,25 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-/** ALTER TABLE [catalog_name.][db_name.]table_name DROP CONSTRAINT constraint_name. */
+/** ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name DROP CONSTRAINT constraint_name. */
 public class SqlAlterTableDropConstraint extends SqlAlterTable {
+
     private final SqlIdentifier constraintName;
 
     /**
      * Creates an alter table drop constraint node.
      *
-     * @param tableID Table ID
-     * @param constraintName Constraint name
      * @param pos Parser position
+     * @param tableName Table name
+     * @param constraintName Constraint name
+     * @param ifTableExists Whether IF EXISTS is specified
      */
     public SqlAlterTableDropConstraint(
-            SqlIdentifier tableID, SqlIdentifier constraintName, SqlParserPos pos) {
-        super(pos, tableID);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlIdentifier constraintName,
+            boolean ifTableExists) {
+        super(pos, tableName, ifTableExists);
         this.constraintName = constraintName;
     }
 

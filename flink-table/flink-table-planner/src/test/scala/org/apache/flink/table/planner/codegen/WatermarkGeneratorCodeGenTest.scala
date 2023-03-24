@@ -151,13 +151,18 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       .getPlanner
       .getContext
       .unwrap(classOf[FlinkContext])
-      .getSqlExprToRexConverterFactory
-      .create(tableRowType, null)
+      .getRexFactory
+      .createSqlToRexConverter(tableRowType, null)
     val rexNode = converter.convertToRexNode(expr)
 
     if (useDefinedConstructor) {
       val generated = WatermarkGeneratorCodeGenerator
-        .generateWatermarkGenerator(new Configuration, rowType, rexNode, Option.apply("context"))
+        .generateWatermarkGenerator(
+          new Configuration,
+          Thread.currentThread().getContextClassLoader,
+          rowType,
+          rexNode,
+          Option.apply("context"))
       val newReferences = generated.getReferences :+
         new WatermarkGeneratorSupplier.Context {
           override def getMetricGroup: MetricGroup = null
@@ -165,7 +170,11 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       generated.newInstance(Thread.currentThread().getContextClassLoader, newReferences)
     } else {
       val generated = WatermarkGeneratorCodeGenerator
-        .generateWatermarkGenerator(new Configuration, rowType, rexNode)
+        .generateWatermarkGenerator(
+          new Configuration,
+          Thread.currentThread().getContextClassLoader,
+          rowType,
+          rexNode)
       generated.newInstance(Thread.currentThread().getContextClassLoader)
     }
   }

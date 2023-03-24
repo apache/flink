@@ -43,12 +43,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.hamcrest.Matchers.everyItem;
@@ -143,41 +146,37 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         File savepointUrl1 = createAndRegisterTempFile(new AbstractID().toHexString());
         String savepointPath1 = savepointUrl1.getPath();
 
-        SavepointWriter.newSavepoint(backend, 128)
+        SavepointWriter.newSavepoint(env, backend, 128)
                 .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD)
-                .withOperator("Operator1", transformation)
+                .withOperator(OperatorIdentifier.forUid("Operator1"), transformation)
                 .write(savepointPath1);
 
         env.execute("bootstrap savepoint1");
 
+        Set<String> stateFiles1 = getFileNamesInDirectory(Paths.get(savepointPath1));
+
         Assert.assertTrue(
                 "Failed to bootstrap savepoint1 with additional state files",
-                Files.list(Paths.get(savepointPath1)).count() > 1);
-
-        Set<String> stateFiles1 =
-                Files.list(Paths.get(savepointPath1))
-                        .map(path -> path.getFileName().toString())
-                        .collect(Collectors.toSet());
+                stateFiles1.size() > 1);
 
         // create savepoint2 from savepoint1 created above
         File savepointUrl2 = createAndRegisterTempFile(new AbstractID().toHexString());
         String savepointPath2 = savepointUrl2.getPath();
 
         SavepointWriter savepoint2 =
-                SavepointWriter.fromExistingSavepoint(savepointPath1, backend)
+                SavepointWriter.fromExistingSavepoint(env, savepointPath1, backend)
                         .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD);
 
-        savepoint2.withOperator("Operator2", transformation).write(savepointPath2);
+        savepoint2
+                .withOperator(OperatorIdentifier.forUid("Operator2"), transformation)
+                .write(savepointPath2);
         env.execute("create savepoint2");
+
+        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
 
         Assert.assertTrue(
                 "Failed to create savepoint2 from savepoint1 with additional state files",
-                Files.list(Paths.get(savepointPath2)).count() > 1);
-
-        Set<String> stateFiles2 =
-                Files.list(Paths.get(savepointPath2))
-                        .map(path -> path.getFileName().toString())
-                        .collect(Collectors.toSet());
+                stateFiles2.size() > 1);
 
         assertThat(
                 "At least one state file in savepoint1 are not in savepoint2",
@@ -191,7 +190,9 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         long actuallyKeyNum =
                 JobResultRetriever.collect(
                                 SavepointReader.read(env, savepointPath2, backend)
-                                        .readKeyedState("Operator1", new ReadFunction()))
+                                        .readKeyedState(
+                                                OperatorIdentifier.forUid("Operator1"),
+                                                new ReadFunction()))
                         .size();
 
         long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();
@@ -199,5 +200,11 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
                 "Unexpected number of keys in the state of Operator1",
                 expectedKeyNum,
                 actuallyKeyNum);
+    }
+
+    private static Set<String> getFileNamesInDirectory(Path path) throws IOException {
+        try (Stream<Path> files = Files.list(path)) {
+            return files.map(file -> file.getFileName().toString()).collect(Collectors.toSet());
+        }
     }
 }

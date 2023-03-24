@@ -29,12 +29,16 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -184,4 +188,33 @@ public interface ClusterClient<T> extends AutoCloseable {
      */
     CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             JobID jobId, OperatorID operatorId, CoordinationRequest request);
+
+    /**
+     * Return a set of ids of the completed cluster datasets.
+     *
+     * @return A set of ids of the completely cached intermediate dataset.
+     */
+    default CompletableFuture<Set<AbstractID>> listCompletedClusterDatasetIds() {
+        return CompletableFuture.completedFuture(Collections.emptySet());
+    }
+
+    /**
+     * Invalidate the cached intermediate dataset with the given id.
+     *
+     * @param clusterDatasetId id of the cluster dataset to be invalidated.
+     * @return Future which will be completed when the cached dataset is invalidated.
+     */
+    default CompletableFuture<Void> invalidateClusterDataset(AbstractID clusterDatasetId) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * The client reports the heartbeat to the dispatcher for aliveness.
+     *
+     * @param jobId The jobId for the client and the job.
+     * @return
+     */
+    default CompletableFuture<Void> reportHeartbeat(JobID jobId, long expiredTimestamp) {
+        return FutureUtils.completedVoidFuture();
+    }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -167,10 +168,6 @@ abstract class StateWithExecutionGraph implements State {
         return logger;
     }
 
-    void notifyPartitionDataAvailable(ResultPartitionID partitionID) {
-        executionGraph.notifyPartitionDataAvailable(partitionID);
-    }
-
     SerializedInputSplit requestNextInputSplit(
             JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException {
         return executionGraphHandler.requestNextInputSplit(vertexID, executionAttempt);
@@ -279,7 +276,7 @@ abstract class StateWithExecutionGraph implements State {
                         context.getMainThreadExecutor());
     }
 
-    CompletableFuture<String> triggerCheckpoint() {
+    CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType) {
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
         final JobID jobID = executionGraph.getJobID();
@@ -290,8 +287,7 @@ abstract class StateWithExecutionGraph implements State {
         logger.info("Triggering a checkpoint for job {}.", jobID);
 
         return checkpointCoordinator
-                .triggerCheckpoint(false)
-                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .triggerCheckpoint(checkpointType)
                 .handleAsync(
                         (path, throwable) -> {
                             if (throwable != null) {

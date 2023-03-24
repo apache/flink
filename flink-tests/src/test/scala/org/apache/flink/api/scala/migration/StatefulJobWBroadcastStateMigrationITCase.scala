@@ -54,7 +54,7 @@ import scala.util.{Failure, Try}
 object StatefulJobWBroadcastStateMigrationITCase {
 
   // TODO increase this to newer version to create and test snapshot migration for newer versions
-  val currentVersion = FlinkVersion.v1_14
+  val currentVersion = FlinkVersion.v1_16
 
   // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
   // TODO Note: You should generate the snapshot based on the release branch instead of the
@@ -155,7 +155,6 @@ class StatefulJobWBroadcastStateMigrationITCase(snapshotSpec: SnapshotSpec)
         env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
-    env.enableChangelogStateBackend(false)
 
     lazy val firstBroadcastStateDesc = new MapStateDescriptor[Long, Long](
       "broadcast-state-1",

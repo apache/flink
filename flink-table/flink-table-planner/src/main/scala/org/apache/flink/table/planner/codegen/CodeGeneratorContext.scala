@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{Function, RuntimeContext}
+import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.{FunctionContext, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.planner.utils.{InternalConfigOptions, TableConfigUtils}
@@ -45,7 +45,7 @@ import scala.collection.mutable
  * The context for code generator, maintaining various reusable statements that could be insert into
  * different code sections in the final generated class.
  */
-class CodeGeneratorContext(val tableConfig: ReadableConfig) {
+class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: ClassLoader) {
 
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
@@ -67,6 +67,11 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableOpenStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
+
+  // set of finish statements for RichFunction that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableFinishStatements: mutable.LinkedHashSet[String] =
     mutable.LinkedHashSet[String]()
 
   // set of close statements for RichFunction that will be added only once
@@ -145,6 +150,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
   /**
    * Add a line comment to [[reusableHeaderComments]] list which will be concatenated into a single
    * class header comment.
+   *
    * @param comment
    *   The comment to add for class header
    */
@@ -158,6 +164,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
 
   /**
    * Starts a new local variable statements for a generated class with the given method name.
+   *
    * @param methodName
    *   the method name which the fields will be placed into if code is not split.
    */
@@ -213,9 +220,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
   /** @return Comment to be added as a header comment on the generated class */
   def getClassHeaderComment: String = {
     s"""
-       |/*
-       | * ${reusableHeaderComments.mkString("\n * ")}
-       | */
+       |// ${reusableHeaderComments.mkString("\n// ")}
     """.stripMargin
   }
 
@@ -271,6 +276,15 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
    */
   def reuseOpenCode(): String = {
     reusableOpenStatements.mkString("\n")
+  }
+
+  /**
+   * @return
+   *   code block of statements that need to be placed in the finish() method (e.g. RichFunction or
+   *   StreamOperator)
+   */
+  def reuseFinishCode(): String = {
+    reusableFinishStatements.mkString("\n")
   }
 
   /**
@@ -359,6 +373,9 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
 
   /** Adds a reusable open statement */
   def addReusableOpenStatement(s: String): Unit = reusableOpenStatements.add(s)
+
+  /** Adds a reusable finish statement */
+  def addReusableFinishStatement(s: String): Unit = reusableFinishStatements.add(s)
 
   /** Adds a reusable close statement */
   def addReusableCloseStatement(s: String): Unit = reusableCloseStatements.add(s)
@@ -545,6 +562,31 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
     fieldTerm
   }
 
+  /**
+   * Adds a reusable query-level current database to the beginning of the SAM of the generated
+   * class.
+   *
+   * <p> The current database value is evaluated once at query-start.
+   */
+  def addReusableQueryLevelCurrentDatabase(): String = {
+    val fieldTerm = s"queryCurrentDatabase"
+
+    val queryStartCurrentDatabase = tableConfig
+      .getOptional(InternalConfigOptions.TABLE_QUERY_CURRENT_DATABASE)
+      .orElseThrow(new JSupplier[Throwable] {
+        override def get() = new CodeGenException(
+          "Try to obtain current database of query-start fail." +
+            " This is a bug, please file an issue.")
+      })
+
+    reusableMemberStatements.add(s"""
+                                    |private static final $BINARY_STRING $fieldTerm =
+                                    |$BINARY_STRING.fromString("$queryStartCurrentDatabase");
+                                    |""".stripMargin)
+
+    fieldTerm
+  }
+
   /** Adds a reusable record-level local time to the beginning of the SAM of the generated class. */
   def addReusableRecordLevelLocalTime(): String = {
     val fieldTerm = s"localTime"
@@ -704,7 +746,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
     // make a deep copy of the object
     val byteArray = InstantiationUtil.serializeObject(obj)
     val objCopy: AnyRef =
-      InstantiationUtil.deserializeObject(byteArray, Thread.currentThread().getContextClassLoader)
+      InstantiationUtil.deserializeObject(byteArray, classLoader)
     references += objCopy
 
     reusableMemberStatements.add(s"private transient $fieldTypeTerm $fieldTerm;")
@@ -718,23 +760,23 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
    *   [[UserDefinedFunction]] object to be instantiated during runtime
    * @param functionContextClass
    *   class of [[FunctionContext]]
-   * @param contextTerm
-   *   [[RuntimeContext]] term to access the [[RuntimeContext]]
+   * @param contextArgs
+   *   additional list of arguments for [[FunctionContext]]
    * @return
    *   member variable term
    */
   def addReusableFunction(
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
-      contextTerm: String = null): String = {
+      contextArgs: Seq[String] = null): String = {
     val classQualifier = function.getClass.getName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)
 
-    val openFunction = if (contextTerm != null) {
+    val openFunction = if (contextArgs != null) {
       s"""
-         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}($contextTerm));
+         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}(${contextArgs.mkString(", ")}));
        """.stripMargin
     } else {
       s"""
@@ -743,10 +785,12 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
     }
     reusableOpenStatements.add(openFunction)
 
-    val closeFunction =
-      s"""
-         |$fieldTerm.close();
-       """.stripMargin
+    if (function.isInstanceOf[TableFunction[_]]) {
+      val finishFunction = s"$fieldTerm.finish();"
+      reusableFinishStatements.add(finishFunction)
+    }
+
+    val closeFunction = s"$fieldTerm.close();"
     reusableCloseStatements.add(closeFunction)
 
     fieldTerm
@@ -958,11 +1002,5 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
     reusableInitStatements.add(nullableInit)
 
     fieldTerm
-  }
-}
-
-object CodeGeneratorContext {
-  def apply(tableConfig: ReadableConfig): CodeGeneratorContext = {
-    new CodeGeneratorContext(tableConfig)
   }
 }

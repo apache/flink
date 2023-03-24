@@ -18,17 +18,16 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.ImperativeAggregateFunction
+import org.apache.flink.table.functions.{DeclarativeAggregateFunction, ImperativeAggregateFunction}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.{DataViewSpec, ListViewSpec, MapViewSpec, StateListView, StateMapView}
@@ -86,6 +85,7 @@ class AggsHandlerCodeGenerator(
   private var isAccumulateNeeded = false
   private var isRetractNeeded = false
   private var isMergeNeeded = false
+  private var isWindowSizeNeeded = false
 
   var valueType: RowType = _
 
@@ -186,6 +186,11 @@ class AggsHandlerCodeGenerator(
     this.mergedAccOnHeap = mergedAccOnHeap
     this.mergedAccExternalTypes = mergedAccExternalTypes
     this.isMergeNeeded = true
+    this
+  }
+
+  def needWindowSize(): AggsHandlerCodeGenerator = {
+    this.isWindowSizeNeeded = true
     this
   }
 
@@ -320,6 +325,7 @@ class AggsHandlerCodeGenerator(
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
+    val setWindowSizeCode = genSetWindowSize()
     val createAccumulatorsCode = genCreateAccumulators()
     val getAccumulatorsCode = genGetAccumulators()
     val setAccumulatorsCode = genSetAccumulators()
@@ -351,6 +357,11 @@ class AggsHandlerCodeGenerator(
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
             this.store = store;
             ${ctx.reuseOpenCode()}
+          }
+
+          @Override
+          public void setWindowSize(int $WINDOWS_SIZE) {
+            $setWindowSizeCode
           }
 
           @Override
@@ -847,6 +858,35 @@ class AggsHandlerCodeGenerator(
       ctx.tableConfig)
   }
 
+  private def genSetWindowSize(): String = {
+    // The generated method 'setWindowSize' in OverWindowFrame#prepare will always be called
+    // no matter window size is needed or not. If window size is not needed,
+    // the method 'setWindowSize' will do nothing.
+    // So, please make sure to set the variable 'isWindowSizeNeeded' = true
+    // if window size is needed.
+    if (isWindowSizeNeeded) {
+      val methodName = "setWindowSize"
+      ctx.startNewLocalVariableStatement(methodName)
+
+      val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        .bindInput(DataTypes.INT().getLogicalType, WINDOWS_SIZE)
+      val body = aggBufferCodeGens
+        // ignore distinct agg codegen
+        .filter(agg => !agg.isInstanceOf[DistinctAggCodeGen])
+        .map(_.setWindowSize(exprGenerator))
+        .mkString("\n")
+
+      s"""
+         |${ctx.reuseLocalVariableCode(methodName)}
+         |${ctx.reuseInputUnboxingCode(WINDOWS_SIZE)}
+         |${ctx.reusePerRecordCode()}
+         |$body
+         |""".stripMargin
+    } else {
+      ""
+    }
+  }
+
   private def genCreateAccumulators(): String = {
     val methodName = "createAccumulators"
     ctx.startNewLocalVariableStatement(methodName)
@@ -1164,7 +1204,7 @@ class AggsHandlerCodeGenerator(
     val resultType = fromDataTypeToLogicalType(aggExternalType)
     val resultRowType = LogicalTypeUtils.toRowType(resultType)
 
-    val newCtx = CodeGeneratorContext(ctx.tableConfig)
+    val newCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
     val resultExpr = exprGenerator.generateConverterResultExpression(
       resultRowType,
@@ -1208,6 +1248,7 @@ object AggsHandlerCodeGenerator {
   val MERGED_ACC_TERM = "otherAcc"
   val ACCUMULATE_INPUT_TERM = "accInput"
   val RETRACT_INPUT_TERM = "retractInput"
+  val WINDOWS_SIZE = "windowSize"
   val DISTINCT_KEY_TERM = "distinctKey"
 
   val NAMESPACE_TERM = "namespace"

@@ -22,4 +22,8 @@
   [ngModel]="logs"
   [nzEditorOption]="editorOptions"
 ></nz-code-editor>
-<flink-refresh-download [compactMode]="true" [downloadHref]="'jobmanager/log'" [downloadName]="'jobmanager_log'" (reload)="reload()"></flink-refresh-download>
+<flink-addon-compact
+  [downloadHref]="downloadUrl"
+  [downloadName]="downloadName"
+  (reload)="reload()"
+></flink-addon-compact>

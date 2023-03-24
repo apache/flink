@@ -19,12 +19,10 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -44,50 +42,58 @@ import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveTableFactory}. */
-public class HiveTableFactoryTest {
+@ExtendWith(TestLoggerExtension.class)
+class HiveTableFactoryTest {
     private static HiveCatalog catalog;
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         catalog = HiveTestUtils.createHiveCatalog();
         catalog.open();
     }
 
-    @AfterClass
-    public static void close() {
+    @AfterAll
+    static void close() {
         catalog.close();
     }
 
     @Test
-    public void testGenericTable() throws Exception {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .field("name", DataTypes.STRING())
-                        .field("age", DataTypes.INT())
-                        .build();
+    void testGenericTable() throws Exception {
+        final ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Column.physical("name", DataTypes.STRING()),
+                        Column.physical("age", DataTypes.INT()));
+        final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 
         final Map<String, String> options =
                 Collections.singletonMap(FactoryUtil.CONNECTOR.key(), "COLLECTION");
-        final CatalogTable table = new CatalogTableImpl(schema, options, "csv table");
+        final CatalogTable table =
+                new ResolvedCatalogTable(
+                        CatalogTable.of(schema, "csv table", new ArrayList<>(), options),
+                        resolvedSchema);
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
         final Optional<TableFactory> tableFactoryOpt = catalog.getTableFactory();
-        assertTrue(tableFactoryOpt.isPresent());
+        assertThat(tableFactoryOpt).isPresent();
         final HiveTableFactory tableFactory = (HiveTableFactory) tableFactoryOpt.get();
 
         final TableSource tableSource =
@@ -97,7 +103,7 @@ public class HiveTableFactoryTest {
                                 table,
                                 new Configuration(),
                                 false));
-        assertTrue(tableSource instanceof StreamTableSource);
+        assertThat(tableSource).isInstanceOf(StreamTableSource.class);
 
         final TableSink tableSink =
                 tableFactory.createTableSink(
@@ -107,11 +113,11 @@ public class HiveTableFactoryTest {
                                 new Configuration(),
                                 true,
                                 false));
-        assertTrue(tableSink instanceof StreamTableSink);
+        assertThat(tableSink).isInstanceOf(StreamTableSink.class);
     }
 
     @Test
-    public void testHiveTable() throws Exception {
+    void testHiveTable() throws Exception {
         final ResolvedSchema schema =
                 ResolvedSchema.of(
                         Column.physical("name", DataTypes.STRING()),
@@ -120,10 +126,15 @@ public class HiveTableFactoryTest {
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 
         final Map<String, String> options =
-                Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+                Collections.singletonMap(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         final CatalogTable table =
-                new CatalogTableImpl(TableSchema.fromResolvedSchema(schema), options, "hive table");
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(schema).build(),
+                                "hive table",
+                                new ArrayList<>(),
+                                options),
+                        schema);
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
         final DynamicTableSource tableSource =
@@ -135,7 +146,7 @@ public class HiveTableFactoryTest {
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
-        assertTrue(tableSource instanceof HiveTableSource);
+        assertThat(tableSource).isInstanceOf(HiveTableSource.class);
 
         final DynamicTableSink tableSink =
                 FactoryUtil.createDynamicTableSink(
@@ -146,6 +157,6 @@ public class HiveTableFactoryTest {
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
-        assertTrue(tableSink instanceof HiveTableSink);
+        assertThat(tableSink).isInstanceOf(HiveTableSink.class);
     }
 }

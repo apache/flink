@@ -141,6 +141,12 @@ public class OperatorState implements CompositeStateHandle {
         return maxParallelism;
     }
 
+    public OperatorState copyWithNewOperatorID(OperatorID newOperatorId) {
+        OperatorState newState = new OperatorState(newOperatorId, parallelism, maxParallelism);
+        operatorSubtaskStates.forEach(newState::putState);
+        return newState;
+    }
+
     public OperatorState copyAndDiscardInFlightData() {
         OperatorState newState = new OperatorState(operatorID, parallelism, maxParallelism);
 

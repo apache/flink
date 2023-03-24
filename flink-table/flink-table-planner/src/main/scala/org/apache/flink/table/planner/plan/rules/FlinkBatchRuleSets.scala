@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.rules.logical.{RemoveUnreachableCoalesceArgumentsRule, _}
+import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
 
@@ -116,6 +116,8 @@ object FlinkBatchRuleSets {
         ConvertToNotInOrInRule.INSTANCE,
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
+        // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
+        CoreRules.FILTER_MERGE,
         // unnest rule
         LogicalUnnestRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
@@ -125,13 +127,13 @@ object FlinkBatchRuleSets {
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
-    CoreRules.FILTER_INTO_JOIN,
+    FlinkFilterJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
-    CoreRules.JOIN_CONDITION_PUSH,
+    FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
-    CoreRules.FILTER_PROJECT_TRANSPOSE,
+    FlinkFilterProjectTransposeRule.INSTANCE,
     CoreRules.FILTER_SET_OP_TRANSPOSE,
     CoreRules.FILTER_MERGE
   )
@@ -214,7 +216,7 @@ object FlinkBatchRuleSets {
 
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
-    CoreRules.JOIN_TO_MULTI_JOIN,
+    FlinkJoinToMultiJoinRule.INSTANCE,
     // merge project to MultiJoin
     CoreRules.PROJECT_MULTI_JOIN_MERGE,
     // merge filter to MultiJoin
@@ -225,7 +227,7 @@ object FlinkBatchRuleSets {
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
     // join reorder
-    CoreRules.MULTI_JOIN_OPTIMIZE
+    FlinkJoinReorderRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
@@ -235,7 +237,8 @@ object FlinkBatchRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
-
+    // transpose project and snapshot for scan optimization
+    ProjectSnapshotTransposeRule.INSTANCE,
     // reorder sort and projection
     CoreRules.SORT_PROJECT_TRANSPOSE,
     // remove unnecessary sort rule
@@ -284,7 +287,7 @@ object FlinkBatchRuleSets {
     ConstantRankNumberColumnRemoveRule.INSTANCE,
 
     // calc rules
-    CoreRules.FILTER_CALC_MERGE,
+    FlinkFilterCalcMergeRule.INSTANCE,
     CoreRules.PROJECT_CALC_MERGE,
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,
@@ -321,9 +324,11 @@ object FlinkBatchRuleSets {
     FlinkLogicalRank.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
+    FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER,
     FlinkLogicalLegacySink.CONVERTER,
-    FlinkLogicalDistribution.BATCH_CONVERTER
+    FlinkLogicalDistribution.BATCH_CONVERTER,
+    FlinkLogicalScriptTransform.BATCH_CONVERTER
   )
 
   /** RuleSet to do logical optimize for batch */
@@ -361,6 +366,7 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE,
     // remove output of rank number when it is not used by successor calc
     RedundantRankNumberColumnRemoveRule.INSTANCE
@@ -410,6 +416,8 @@ object FlinkBatchRuleSets {
     BatchPhysicalSingleRowJoinRule.INSTANCE,
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    // CEP
+    BatchPhysicalMatchRule.INSTANCE,
     // correlate
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,
@@ -418,7 +426,9 @@ object FlinkBatchRuleSets {
     BatchPhysicalSinkRule.INSTANCE,
     BatchPhysicalLegacySinkRule.INSTANCE,
     // hive distribution
-    BatchPhysicalDistributionRule.INSTANCE
+    BatchPhysicalDistributionRule.INSTANCE,
+    // hive transform
+    BatchPhysicalScriptTransformRule.INSTANCE
   )
 
   /** RuleSet to optimize plans after batch exec execution. */

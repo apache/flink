@@ -17,6 +17,7 @@
 ################################################################################
 from typing import Union
 
+from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
@@ -50,6 +51,19 @@ class StatementSet(object):
         """
         self._j_statement_set.addInsertSql(stmt)
         return self
+
+    def attach_as_datastream(self):
+        """
+        Optimizes all statements as one entity and adds them as transformations to the underlying
+        StreamExecutionEnvironment.
+
+        Use :func:`~pyflink.datastream.StreamExecutionEnvironment.execute` to execute them.
+
+        The added statements will be cleared after calling this method.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_statement_set.attachAsDataStream()
 
     def add_insert(self,
                    target_path_or_descriptor: Union[str, TableDescriptor],
@@ -125,8 +139,9 @@ class StatementSet(object):
 
         .. versionadded:: 1.11.0
         """
+        TEXT = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat.TEXT
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_statement_set.explain(j_extra_details)
+        return self._j_statement_set.explain(TEXT, j_extra_details)
 
     def execute(self) -> TableResult:
         """

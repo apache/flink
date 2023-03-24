@@ -26,11 +26,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<properties>
-		<flink.format.parquet.version>1.12.2</flink.format.parquet.version>
+		<flink.format.parquet.version>1.12.3</flink.format.parquet.version>
 	</properties>
 
 	<artifactId>flink-formats</artifactId>
@@ -45,12 +45,11 @@ under the License.
 		<module>flink-sequence-file</module>
 		<module>flink-compress</module>
 		<module>flink-csv</module>
+		<module>flink-protobuf</module>
 		<module>flink-orc</module>
 		<module>flink-orc-nohive</module>
 		<module>flink-hadoop-bulk</module>
 		<module>flink-format-common</module>
-		<module>flink-avro-glue-schema-registry</module>
-		<module>flink-json-glue-schema-registry</module>
     </modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -81,10 +80,13 @@ under the License.
 				</property>
 			</activation>
 			<modules>
+				<module>flink-sql-csv</module>
+				<module>flink-sql-json</module>
 				<module>flink-sql-orc</module>
 				<module>flink-sql-parquet</module>
 				<module>flink-sql-avro</module>
 				<module>flink-sql-avro-confluent-registry</module>
+				<module>flink-sql-protobuf</module>
 			</modules>
 		</profile>
 	</profiles>

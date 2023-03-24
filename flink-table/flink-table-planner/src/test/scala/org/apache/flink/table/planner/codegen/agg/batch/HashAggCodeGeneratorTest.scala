@@ -18,11 +18,12 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.LongAvgAggFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
+import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.junit.Test
@@ -124,7 +125,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
       (inputType, localOutputType)
     }
     val auxGrouping = if (isMerge) Array(1) else Array(4)
-    val generator = new HashAggCodeGenerator(
+    val genOp = HashAggCodeGenerator.genWithKeys(
       ctx,
       relBuilder,
       aggInfoList,
@@ -133,8 +134,12 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
       Array(0),
       auxGrouping,
       isMerge,
-      isFinal)
-    val genOp = generator.genWithKeys()
+      isFinal,
+      false,
+      ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue(),
+      ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue,
+      ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE.defaultValue.getBytes.toInt
+    )
     (new CodeGenOperatorFactory[RowData](genOp), iType, oType)
   }
 

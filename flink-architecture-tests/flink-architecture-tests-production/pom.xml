@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-architecture-tests</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-architecture-tests-production</artifactId>
@@ -112,6 +112,16 @@ under the License.
 			<artifactId>flink-sql-client</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway-api</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+		</dependency>
+
 		<!-- Connectors -->
 
 		<dependency>
@@ -126,32 +136,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-cassandra_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch6</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch7</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch-base</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-files</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-gcp-pubsub</artifactId>
 		</dependency>
 
 		<dependency>
@@ -176,32 +161,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-jdbc</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kinesis</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-pulsar</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-rabbitmq</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -219,6 +179,20 @@ under the License.
 						<configuration>
 							<skip>true</skip>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<execution>
+					<id>default-test</id>
+					<configuration>
+						<!-- Run everything in 1 JVM because we load a lot of classes into memory -->
+						<forkCount>1</forkCount>
+						<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxMax}</argLine>
+					</configuration>
 					</execution>
 				</executions>
 			</plugin>

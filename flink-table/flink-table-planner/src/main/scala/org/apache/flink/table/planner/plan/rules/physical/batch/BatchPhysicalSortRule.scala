@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
@@ -30,6 +29,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import java.lang.{Boolean => JBoolean}
 
@@ -37,12 +37,7 @@ import java.lang.{Boolean => JBoolean}
  * Rule that matches [[FlinkLogicalSort]] which sort fields is non-empty and both `fetch` and
  * `offset` are null, and converts it to [[BatchPhysicalSort]].
  */
-class BatchPhysicalSortRule
-  extends ConverterRule(
-    classOf[FlinkLogicalSort],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalSortRule") {
+class BatchPhysicalSortRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
@@ -73,7 +68,12 @@ class BatchPhysicalSortRule
 }
 
 object BatchPhysicalSortRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalSortRule
+  val INSTANCE: RelOptRule = new BatchPhysicalSortRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalSort],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalSortRule"))
 
   // It is a experimental config, will may be removed later.
   @Experimental

@@ -39,7 +39,6 @@ public class SerdeContext {
     static final String SERDE_CONTEXT_KEY = "serdeCtx";
 
     private final Parser parser;
-    private final ClassLoader classLoader;
     private final FlinkContext flinkContext;
     private final FlinkTypeFactory typeFactory;
     private final SqlOperatorTable operatorTable;
@@ -48,11 +47,9 @@ public class SerdeContext {
     public SerdeContext(
             Parser parser,
             FlinkContext flinkContext,
-            ClassLoader classLoader,
             FlinkTypeFactory typeFactory,
             SqlOperatorTable operatorTable) {
         this.parser = parser;
-        this.classLoader = classLoader;
         this.flinkContext = flinkContext;
         this.typeFactory = typeFactory;
         this.operatorTable = operatorTable;
@@ -76,7 +73,7 @@ public class SerdeContext {
     }
 
     public ClassLoader getClassLoader() {
-        return classLoader;
+        return flinkContext.getClassLoader();
     }
 
     public FlinkContext getFlinkContext() {

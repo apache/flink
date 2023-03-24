@@ -18,11 +18,26 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.api.internal.TableResultInternal;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+
 /** Operation to describe a SHOW DATABASES statement. */
 public class ShowDatabasesOperation implements ShowOperation {
 
     @Override
     public String asSummaryString() {
         return "SHOW DATABASES";
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        String[] databases =
+                ctx.getCatalogManager()
+                        .getCatalogOrThrowException(ctx.getCatalogManager().getCurrentCatalog())
+                        .listDatabases().stream()
+                        .sorted()
+                        .toArray(String[]::new);
+        return buildStringArrayResult("database name", databases);
     }
 }

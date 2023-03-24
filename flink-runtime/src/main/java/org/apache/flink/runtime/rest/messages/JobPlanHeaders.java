@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobPlanHandler}. */
 public class JobPlanHeaders
-        implements MessageHeaders<EmptyRequestBody, JobPlanInfo, JobMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, JobPlanInfo, JobMessageParameters> {
 
     private static final JobPlanHeaders INSTANCE = new JobPlanHeaders();
 

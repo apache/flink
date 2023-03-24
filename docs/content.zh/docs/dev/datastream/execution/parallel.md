@@ -73,6 +73,24 @@ wordCounts.print()
 env.execute("Word Count Example")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+text = [...]
+word_counts = text
+    .flat_map(lambda x: x.split(" ")) \
+    .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    .key_by(lambda i: i[0]) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(lambda i, j: (i[0], i[1] + j[1])) \
+    .set_parallelism(5)
+word_counts.print()
+
+
+env.execute("Word Count Example")
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### 执行环境层次
@@ -106,6 +124,24 @@ val wordCounts = text
     .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
+
+env.execute("Word Count Example")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_parallelism(3)
+
+text = [...]
+word_counts = text
+    .flat_map(lambda x: x.split(" ")) \
+    .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    .key_by(lambda i: i[0]) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(lambda i, j: (i[0], i[1] + j[1]))
+word_counts.print()
+
 
 env.execute("Word Count Example")
 ```
@@ -160,6 +196,11 @@ try {
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -174,7 +215,10 @@ try {
 
 默认的最大并行度等于将 `operatorParallelism + (operatorParallelism / 2)` 值四舍五入到大于等于该值的一个整型值，并且这个整型值是 `2` 的幂次方，注意默认最大并行度下限为 `128`，上限为 `32768`。
 
-<span class="label label-danger">注意</span> 为最大并行度设置一个非常大的值将会降低性能，因为一些 state backends 需要维持内部的数据结构，而这些数据结构将会随着 key-groups 的数目而扩张（key-group 是状态重新分配的最小单元）。
+{{< hint warning >}} 
+为最大并行度设置一个非常大的值将会降低性能，因为一些 state backends 需要维持内部的数据结构，而这些数据结构将会随着 key-groups 的数目而扩张（key-group 是状态重新分配的最小单元）。
 
+从之前的作业恢复时，改变该作业的最大并发度将会导致状态不兼容。
+{{< /hint >}}
 
 {{< top >}}

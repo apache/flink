@@ -49,6 +49,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 

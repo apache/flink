@@ -21,19 +21,30 @@ package org.apache.flink.core.plugin;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** Default implementation of {@link PluginManager}. */
 @Internal
 @ThreadSafe
 public class DefaultPluginManager implements PluginManager {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultPluginManager.class);
 
     /**
      * Parent-classloader to all classloader that are used for plugin loading. We expect that this
@@ -44,6 +55,11 @@ public class DefaultPluginManager implements PluginManager {
     /** A collection of descriptions of all plugins known to this plugin manager. */
     private final Collection<PluginDescriptor> pluginDescriptors;
 
+    private final Lock pluginLoadersLock;
+
+    @GuardedBy("pluginLoadersLock")
+    private final Map<String, PluginLoader> pluginLoaders;
+
     /** List of patterns for classes that should always be resolved from the parent ClassLoader. */
     private final String[] alwaysParentFirstPatterns;
 
@@ -51,6 +67,8 @@ public class DefaultPluginManager implements PluginManager {
     DefaultPluginManager() {
         parentClassLoader = null;
         pluginDescriptors = null;
+        pluginLoadersLock = null;
+        pluginLoaders = null;
         alwaysParentFirstPatterns = null;
     }
 
@@ -67,6 +85,8 @@ public class DefaultPluginManager implements PluginManager {
             ClassLoader parentClassLoader,
             String[] alwaysParentFirstPatterns) {
         this.pluginDescriptors = pluginDescriptors;
+        this.pluginLoadersLock = new ReentrantLock();
+        this.pluginLoaders = new HashMap<>();
         this.parentClassLoader = parentClassLoader;
         this.alwaysParentFirstPatterns = alwaysParentFirstPatterns;
     }
@@ -75,9 +95,23 @@ public class DefaultPluginManager implements PluginManager {
     public <P> Iterator<P> load(Class<P> service) {
         ArrayList<Iterator<P>> combinedIterators = new ArrayList<>(pluginDescriptors.size());
         for (PluginDescriptor pluginDescriptor : pluginDescriptors) {
-            PluginLoader pluginLoader =
-                    PluginLoader.create(
-                            pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns);
+            PluginLoader pluginLoader;
+            String pluginId = pluginDescriptor.getPluginId();
+            pluginLoadersLock.lock();
+            try {
+                if (pluginLoaders.containsKey(pluginId)) {
+                    LOG.info("Plugin loader with ID found, reusing it: {}", pluginId);
+                    pluginLoader = pluginLoaders.get(pluginId);
+                } else {
+                    LOG.info("Plugin loader with ID not found, creating it: {}", pluginId);
+                    pluginLoader =
+                            PluginLoader.create(
+                                    pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns);
+                    pluginLoaders.putIfAbsent(pluginId, pluginLoader);
+                }
+            } finally {
+                pluginLoadersLock.unlock();
+            }
             combinedIterators.add(pluginLoader.load(service));
         }
         return Iterators.concat(combinedIterators.iterator());
@@ -90,6 +124,8 @@ public class DefaultPluginManager implements PluginManager {
                 + parentClassLoader
                 + ", pluginDescriptors="
                 + pluginDescriptors
+                + ", pluginLoaders="
+                + Joiner.on(",").withKeyValueSeparator("=").join(pluginLoaders)
                 + ", alwaysParentFirstPatterns="
                 + Arrays.toString(alwaysParentFirstPatterns)
                 + '}';

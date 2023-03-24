@@ -18,12 +18,15 @@
 
 package org.apache.flink.configuration.description;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.EnumSet;
 
 /**
  * Allows providing multiple formatters for the description. E.g. Html formatter, Markdown formatter
  * etc.
  */
+@PublicEvolving
 public abstract class Formatter {
 
     private final StringBuilder state = new StringBuilder();

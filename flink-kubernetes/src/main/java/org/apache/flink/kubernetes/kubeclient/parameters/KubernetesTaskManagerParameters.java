@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -49,13 +50,16 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
     private final Map<String, String> taskManagerExternalResourceConfigKeys;
 
+    private final Set<String> blockedNodes;
+
     public KubernetesTaskManagerParameters(
             Configuration flinkConfig,
             String podName,
             String dynamicProperties,
             String jvmMemOptsEnv,
             ContaineredTaskManagerParameters containeredTaskManagerParameters,
-            Map<String, String> taskManagerExternalResourceConfigKeys) {
+            Map<String, String> taskManagerExternalResourceConfigKeys,
+            Set<String> blockedNodes) {
         super(flinkConfig);
         this.podName = checkNotNull(podName);
         this.dynamicProperties = checkNotNull(dynamicProperties);
@@ -63,6 +67,7 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
         this.containeredTaskManagerParameters = checkNotNull(containeredTaskManagerParameters);
         this.taskManagerExternalResourceConfigKeys =
                 checkNotNull(taskManagerExternalResourceConfigKeys);
+        this.blockedNodes = checkNotNull(blockedNodes);
     }
 
     @Override
@@ -177,5 +182,18 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
     public ContaineredTaskManagerParameters getContaineredTaskManagerParameters() {
         return containeredTaskManagerParameters;
+    }
+
+    public Set<String> getBlockedNodes() {
+        return Collections.unmodifiableSet(blockedNodes);
+    }
+
+    public String getNodeNameLabel() {
+        return checkNotNull(flinkConfig.get(KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL));
+    }
+
+    public String getEntrypointArgs() {
+        return flinkConfig.getString(
+                KubernetesConfigOptions.KUBERNETES_TASKMANAGER_ENTRYPOINT_ARGS);
     }
 }

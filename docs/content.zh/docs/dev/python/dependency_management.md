@@ -175,7 +175,7 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 `-pyreq` or `--pyRequirements` when submitting the job.
 
 <span class="label label-info">Note</span> It will install the packages specified in the
-`requirements.txt` file using pip, so please make sure that pip (version >= 7.1.0)
+`requirements.txt` file using pip, so please make sure that pip (version >= 20.3)
 and setuptools (version >= 37.0.0) are available.
 
 ### Archives

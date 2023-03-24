@@ -60,7 +60,7 @@ public class FeedbackTransformation<T> extends Transformation<T> {
      *     will close and not receive any more feedback elements.
      */
     public FeedbackTransformation(Transformation<T> input, Long waitTime) {
-        super("Feedback", input.getOutputType(), input.getParallelism());
+        super("Feedback", input.getOutputType(), input.getParallelism(), false);
         this.input = input;
         this.waitTime = waitTime;
         this.feedbackEdges = Lists.newArrayList();

@@ -77,7 +77,7 @@ class MetricRegistryImplTest {
 
         assertThat(metricRegistry.isShutdown()).isFalse();
 
-        metricRegistry.shutdown().get();
+        metricRegistry.closeAsync().get();
 
         assertThat(metricRegistry.isShutdown()).isTrue();
     }
@@ -161,7 +161,7 @@ class MetricRegistryImplTest {
         }
         assertThat(reporter.getReportCount()).as("No report was triggered.").isGreaterThan(0);
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -188,7 +188,7 @@ class MetricRegistryImplTest {
             assertThat(reportTask.getDelay(TimeUnit.SECONDS))
                     .isEqualTo(MetricOptions.REPORTER_INTERVAL.defaultValue().getSeconds());
         } finally {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 
@@ -242,7 +242,7 @@ class MetricRegistryImplTest {
         assertThat(reporter2.getLastRemovedMetric()).containsInstanceOf(Counter.class);
         assertThat(reporter2.getLastRemovedMetricName()).hasValue("rootCounter");
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     /**
@@ -319,7 +319,7 @@ class MetricRegistryImplTest {
                         registry, "host", new ResourceID("id"));
         assertThat(tmGroup.getMetricIdentifier("name")).isEqualTo("A_B_C_D_E_name");
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -348,7 +348,7 @@ class MetricRegistryImplTest {
         assertThat(registry.getDelimiter(3)).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
         assertThat(registry.getDelimiter(-1)).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -384,7 +384,7 @@ class MetricRegistryImplTest {
                         registry, "host", new ResourceID("id"));
         group.counter(name);
         group.close();
-        registry.shutdown().get();
+        registry.closeAsync().get();
 
         for (ReporterSetup cfg : reporterConfigurations) {
             String delimiter =
@@ -421,7 +421,7 @@ class MetricRegistryImplTest {
 
         MetricQueryService queryService = checkNotNull(registry.getQueryService());
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
 
         queryService.getTerminationFuture().get();
     }
@@ -450,7 +450,7 @@ class MetricRegistryImplTest {
         assertThat(reporter1.getLastRemovedMetric()).hasValue(metric);
         assertThat(reporter1.getLastRemovedMetricName()).hasValue("counter");
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     /** Reporter that throws an exception when it is notified of an added or removed metric. */

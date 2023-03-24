@@ -166,7 +166,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 
@@ -238,7 +238,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                             new TaskExecutorMemoryConfiguration(
                                     1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                             DEFAULT_SLOT_PROFILE,
-                            DEFAULT_SLOT_PROFILE);
+                            DEFAULT_SLOT_PROFILE,
+                            taskExecutorGateway.getAddress());
 
             CompletableFuture<RegistrationResponse> firstFuture =
                     rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
@@ -307,7 +308,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         new TaskExecutorMemoryConfiguration(
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         DEFAULT_SLOT_PROFILE,
-                        DEFAULT_SLOT_PROFILE.multiply(numberSlots));
+                        DEFAULT_SLOT_PROFILE.multiply(numberSlots),
+                        taskExecutorGateway.getAddress());
         final RegistrationResponse registrationResponse =
                 rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT).get();
         assertThat(registrationResponse, instanceOf(TaskExecutorRegistrationSuccess.class));
@@ -384,7 +386,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         new TaskExecutorMemoryConfiguration(
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         DEFAULT_SLOT_PROFILE,
-                        DEFAULT_SLOT_PROFILE),
+                        DEFAULT_SLOT_PROFILE,
+                        taskExecutorAddress),
                 TIMEOUT);
     }
 }

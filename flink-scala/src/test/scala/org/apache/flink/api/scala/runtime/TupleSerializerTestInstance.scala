@@ -21,8 +21,8 @@ import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerial
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 
-import org.junit.{Ignore, Test}
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{Disabled, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.util.function.BiFunction
@@ -52,7 +52,7 @@ object TupleSerializerTestInstance {
     }
 }
 
-@Ignore("Prevents this class from being considered a test class by JUnit.")
+@Disabled("Prevents this class from being considered a test class by JUnit.")
 class TupleSerializerTestInstance[T <: Product](
     serializer: TypeSerializer[T],
     typeClass: Class[T],
@@ -70,21 +70,13 @@ class TupleSerializerTestInstance[T <: Product](
 
   @Test
   override def testInstantiate(): Unit = {
-    try {
-      val serializer: TypeSerializer[T] = getSerializer
-      val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
-      val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
-      // We cannot check this because Tuple1 instances are not actually of type Tuple1
-      // but something like Tuple1$mcI$sp
-//      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
-    } catch {
-      case e: Exception => {
-        System.err.println(e.getMessage)
-        e.printStackTrace()
-        fail("Exception in test: " + e.getMessage)
-      }
-    }
+    val serializer: TypeSerializer[T] = getSerializer
+    val instance: T = serializer.createInstance
+    assertThat(instance).isNotNull().withFailMessage("The created instance must not be null.")
+    val tpe: Class[T] = getTypeClass
+    assertThat(tpe).isNotNull().withFailMessage("The test is corrupt: type class is null.")
+    // We cannot check this because Tuple1 instances are not actually of type Tuple1
+    // but something like Tuple1$mcI$sp
+    //      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
   }
 }

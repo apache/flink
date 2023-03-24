@@ -23,19 +23,17 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TumblingWindowAssigner}. */
 public class TumblingWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of("String");
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testWindowAssignment() {
@@ -59,16 +57,11 @@ public class TumblingWindowAssignerTest {
 
     @Test
     public void testInvalidParameters() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size > 0");
-        TumblingWindowAssigner.of(Duration.ofSeconds(-1));
+        assertThatThrownBy(() -> TumblingWindowAssigner.of(Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("TumblingWindowAssigner parameters must satisfy size > 0");
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size > 0");
         TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(20));
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size > 0");
         TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(-1));
     }
 

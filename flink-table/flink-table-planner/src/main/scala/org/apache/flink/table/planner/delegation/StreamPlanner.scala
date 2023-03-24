@@ -22,9 +22,8 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api.{ExplainDetail, ExplainFormat, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
@@ -33,7 +32,7 @@ import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -47,19 +46,23 @@ import org.apache.calcite.sql.SqlExplainLevel
 import java.io.{File, IOException}
 import java.util
 
+import scala.collection.mutable
+
 class StreamPlanner(
     executor: Executor,
     tableConfig: TableConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
-    catalogManager: CatalogManager)
+    catalogManager: CatalogManager,
+    classLoader: ClassLoader)
   extends PlannerBase(
     executor,
     tableConfig,
     moduleManager,
     functionCatalog,
     catalogManager,
-    isStreamingMode = true) {
+    isStreamingMode = true,
+    classLoader) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(
@@ -86,13 +89,20 @@ class StreamPlanner(
             "This is a bug and should not happen. Please file an issue.")
     }
     afterTranslation()
-    transformations
+    transformations ++ planner.extraTransformations
   }
 
-  override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
+  override def explain(
+      operations: util.List[Operation],
+      format: ExplainFormat,
+      extraDetails: ExplainDetail*): String = {
+    if (format != ExplainFormat.TEXT) {
+      throw new UnsupportedOperationException(
+        s"Unsupported explain format [${format.getClass.getCanonicalName}]")
+    }
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
-    val sb = new StringBuilder
+    val sb = new mutable.StringBuilder
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
     sinkRelNodes.foreach {
@@ -103,7 +113,12 @@ class StreamPlanner(
         sb.append(System.lineSeparator)
     }
 
-    sb.append("== Optimized Physical Plan ==")
+    val withAdvice = extraDetails.contains(ExplainDetail.PLAN_ADVICE)
+    if (withAdvice) {
+      sb.append("== Optimized Physical Plan With Advice ==")
+    } else {
+      sb.append("== Optimized Physical Plan ==")
+    }
     sb.append(System.lineSeparator)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -111,11 +126,21 @@ class StreamPlanner(
       SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
-    optimizedRelNodes.foreach {
-      rel =>
-        sb.append(
-          FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
-        sb.append(System.lineSeparator)
+    if (withAdvice) {
+      sb.append(
+        FlinkRelOptUtil
+          .toString(
+            optimizedRelNodes,
+            explainLevel,
+            withChangelogTraits = withChangelogTraits,
+            withAdvice = true))
+    } else {
+      optimizedRelNodes.foreach {
+        rel =>
+          sb.append(
+            FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
+          sb.append(System.lineSeparator)
+      }
     }
 
     sb.append("== Optimized Execution Plan ==")
@@ -135,7 +160,13 @@ class StreamPlanner(
   private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new StreamPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
+    new StreamPlanner(
+      executor,
+      tableConfig,
+      moduleManager,
+      functionCatalog,
+      catalogManager,
+      classLoader)
   }
 
   override def loadPlan(planReference: PlanReference): InternalPlan = {
@@ -170,7 +201,7 @@ class StreamPlanner(
     beforeTranslation()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
     afterTranslation()
 
     new ExecNodeGraphInternalPlan(

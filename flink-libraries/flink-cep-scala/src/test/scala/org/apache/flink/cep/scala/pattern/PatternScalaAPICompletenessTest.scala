@@ -20,7 +20,7 @@ package org.apache.flink.cep.scala.pattern
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.reflect.Method
 

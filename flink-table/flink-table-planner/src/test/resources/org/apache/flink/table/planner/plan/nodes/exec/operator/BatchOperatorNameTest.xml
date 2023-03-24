@@ -837,13 +837,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[
 
 == Optimized Physical Plan ==
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
    +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
    +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
 
@@ -868,9 +868,9 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     } ]
   }, {
     "id" : ,
-    "type" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "type" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
     "pact" : "Operator",
-    "contents" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "contents" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -905,13 +905,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[
 
 == Optimized Physical Plan ==
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
    +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
    +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
 
@@ -938,7 +938,7 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "id" : ,
     "type" : "LookupJoin[]",
     "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -950,6 +950,114 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMatch[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(aid=[$0], bid=[$1], cid=[$2])
++- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])
++- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Optimized Execution Plan ==
+Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])
++- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
+    "pact" : "Operator",
+    "contents" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMatch[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(aid=[$0], bid=[$1], cid=[$2])
++- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])
++- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Optimized Execution Plan ==
+Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])
++- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Match[]",
+    "pact" : "Operator",
+    "contents" : "[]:Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1131,15 +1239,15 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
-    "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
-    "parallelism" : 1
-  }, {
-    "id" : ,
     "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
     "pact" : "Data Source",
     "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1185,15 +1293,15 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: B[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
-    "parallelism" : 1
-  }, {
-    "id" : ,
     "type" : "Source: A[]",
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: B[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1230,9 +1338,10 @@ Calc(select=[b, w0$o0 AS $1])
 == Optimized Execution Plan ==
 Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -1295,9 +1404,10 @@ Calc(select=[b, w0$o0 AS $1])
 == Optimized Execution Plan ==
 Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -1362,9 +1472,10 @@ Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
 == Optimized Execution Plan ==
 Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
 +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
-   +- Sort(orderBy=[b ASC, a ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, a ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -1429,9 +1540,10 @@ Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
 == Optimized Execution Plan ==
 Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
 +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
-   +- Sort(orderBy=[b ASC, a ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, a ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -1500,16 +1612,20 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
 
 == Optimized Execution Plan ==
 SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
-+- Sort(orderBy=[a ASC])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
-         +- Sort(orderBy=[a ASC])
-            +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
-               +- Sort(orderBy=[a ASC, b ASC])
-                  +- Exchange(distribution=[hash[a, b]])
-                     +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC])
+                  +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+                     +- Exchange(distribution=[forward])
                         +- Sort(orderBy=[a ASC, b ASC])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                           +- Exchange(distribution=[hash[a, b]])
+                              +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
+                                 +- Exchange(distribution=[forward])
+                                    +- Sort(orderBy=[a ASC, b ASC])
+                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -1633,16 +1749,20 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
 
 == Optimized Execution Plan ==
 SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
-+- Sort(orderBy=[a ASC])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
-         +- Sort(orderBy=[a ASC])
-            +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
-               +- Sort(orderBy=[a ASC, b ASC])
-                  +- Exchange(distribution=[hash[a, b]])
-                     +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC])
+                  +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+                     +- Exchange(distribution=[forward])
                         +- Sort(orderBy=[a ASC, b ASC])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                           +- Exchange(distribution=[hash[a, b]])
+                              +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
+                                 +- Exchange(distribution=[forward])
+                                    +- Sort(orderBy=[a ASC, b ASC])
+                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -1924,9 +2044,10 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
 +- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
 
 == Physical Execution Plan ==
 {
@@ -2047,9 +2168,10 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
 +- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
 
 == Physical Execution Plan ==
 {

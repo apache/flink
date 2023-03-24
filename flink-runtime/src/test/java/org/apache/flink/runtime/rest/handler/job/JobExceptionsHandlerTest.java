@@ -27,7 +27,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -47,7 +47,6 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
@@ -70,6 +69,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
@@ -180,6 +180,8 @@ public class JobExceptionsHandlerTest extends TestLogger {
                                 otherFailure.getTimestamp(),
                                 otherFailure.getFailingTaskName(),
                                 JobExceptionsHandler.toString(
+                                        otherFailure.getTaskManagerLocation()),
+                                JobExceptionsHandler.toTaskManagerId(
                                         otherFailure.getTaskManagerLocation()))));
         assertFalse(response.getExceptionHistory().isTruncated());
     }
@@ -208,7 +210,9 @@ public class JobExceptionsHandlerTest extends TestLogger {
                                 failure.getException(),
                                 failure.getTimestamp(),
                                 failure.getFailingTaskName(),
-                                JobExceptionsHandler.toString(failure.getTaskManagerLocation()))));
+                                JobExceptionsHandler.toString(failure.getTaskManagerLocation()),
+                                JobExceptionsHandler.toTaskManagerId(
+                                        failure.getTaskManagerLocation()))));
     }
 
     @Test
@@ -330,6 +334,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final StringifiedAccumulatorResult[] emptyAccumulators =
                 new StringifiedAccumulatorResult[0];
         final long[] timestamps = new long[ExecutionState.values().length];
+        final long[] endTimestamps = new long[ExecutionState.values().length];
         final ExecutionState expectedState = ExecutionState.RUNNING;
 
         final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
@@ -345,17 +350,16 @@ public class JobExceptionsHandlerTest extends TestLogger {
                             new ArchivedExecution(
                                     new StringifiedAccumulatorResult[0],
                                     null,
-                                    new ExecutionAttemptID(),
-                                    attempt,
+                                    createExecutionAttemptId(jobVertexID, subtaskIndex, attempt),
                                     expectedState,
                                     new ErrorInfo(
                                             new RuntimeException("error"),
                                             System.currentTimeMillis()),
                                     assignedResourceLocation,
                                     allocationID,
-                                    subtaskIndex,
-                                    timestamps),
-                            new EvictingBoundedList<>(0))
+                                    timestamps,
+                                    endTimestamps),
+                            new ExecutionHistory(0))
                 },
                 jobVertexID,
                 jobVertexID.toString(),
@@ -428,13 +432,15 @@ public class JobExceptionsHandlerTest extends TestLogger {
             long expectedFailureTimestamp,
             String expectedTaskNameWithSubtaskId,
             String expectedTaskManagerLocation,
+            String expectedTaskManagerId,
             Matcher<ExceptionInfo>... concurrentExceptionMatchers) {
         return new RootExceptionInfoMatcher(
                 matchesFailure(
                         expectedFailureCause,
                         expectedFailureTimestamp,
                         expectedTaskNameWithSubtaskId,
-                        expectedTaskManagerLocation),
+                        expectedTaskManagerLocation,
+                        expectedTaskManagerId),
                 concurrentExceptionMatchers);
     }
 
@@ -444,7 +450,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
             long expectedFailureTimestamp,
             Matcher<ExceptionInfo>... concurrentExceptionMatchers) {
         return new RootExceptionInfoMatcher(
-                matchesFailure(expectedFailureCause, expectedFailureTimestamp, null, null),
+                matchesFailure(expectedFailureCause, expectedFailureTimestamp, null, null, null),
                 concurrentExceptionMatchers);
     }
 
@@ -452,12 +458,14 @@ public class JobExceptionsHandlerTest extends TestLogger {
             Throwable expectedFailureCause,
             long expectedFailureTimestamp,
             String expectedTaskNameWithSubtaskId,
-            String expectedTaskManagerLocation) {
+            String expectedTaskManagerLocation,
+            String expectedTaskManagerId) {
         return new ExceptionInfoMatcher(
                 expectedFailureCause,
                 expectedFailureTimestamp,
                 expectedTaskNameWithSubtaskId,
-                expectedTaskManagerLocation);
+                expectedTaskManagerLocation,
+                expectedTaskManagerId);
     }
 
     // -------- Matcher implementations used in this test class --------
@@ -513,16 +521,19 @@ public class JobExceptionsHandlerTest extends TestLogger {
         private final long expectedTimestamp;
         private final String expectedTaskName;
         private final String expectedLocation;
+        private final String expectedTaskManagerId;
 
         private ExceptionInfoMatcher(
                 Throwable expectedException,
                 long expectedTimestamp,
                 String expectedTaskName,
-                String expectedLocation) {
+                String expectedLocation,
+                String expectedTaskManagerId) {
             this.expectedException = deserializeSerializedThrowable(expectedException);
             this.expectedTimestamp = expectedTimestamp;
             this.expectedTaskName = expectedTaskName;
             this.expectedLocation = expectedLocation;
+            this.expectedTaskManagerId = expectedTaskManagerId;
         }
 
         @Override
@@ -537,7 +548,9 @@ public class JobExceptionsHandlerTest extends TestLogger {
                     .appendText(", taskName=")
                     .appendText(expectedTaskName)
                     .appendText(", location=")
-                    .appendText(expectedLocation);
+                    .appendText(expectedLocation)
+                    .appendText(", taskManagerId=")
+                    .appendText(expectedTaskManagerId);
         }
 
         private String getExpectedExceptionName() {
@@ -579,7 +592,13 @@ public class JobExceptionsHandlerTest extends TestLogger {
                             description,
                             ExceptionInfo::getLocation,
                             expectedLocation,
-                            "location");
+                            "location")
+                    && matches(
+                            info,
+                            description,
+                            ExceptionInfo::getTaskManagerId,
+                            expectedTaskManagerId,
+                            "taskManagerId");
         }
 
         private <R> boolean matches(

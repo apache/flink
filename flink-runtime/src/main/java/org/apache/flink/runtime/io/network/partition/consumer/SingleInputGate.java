@@ -24,10 +24,10 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -139,7 +139,7 @@ public class SingleInputGate extends IndexedInputGate {
      * depends on the {@link DistributionPattern} and the subtask indices of the producing and
      * consuming task. The range is inclusive.
      */
-    private final SubpartitionIndexRange subpartitionIndexRange;
+    private final IndexRange subpartitionIndexRange;
 
     /** The number of input channels (equivalent to the number of consumed partitions). */
     private final int numberOfInputChannels;
@@ -218,7 +218,7 @@ public class SingleInputGate extends IndexedInputGate {
             int gateIndex,
             IntermediateDataSetID consumedResultId,
             final ResultPartitionType consumedPartitionType,
-            SubpartitionIndexRange subpartitionIndexRange,
+            IndexRange subpartitionIndexRange,
             int numberOfInputChannels,
             PartitionProducerStateProvider partitionProducerStateProvider,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -576,7 +576,9 @@ public class SingleInputGate extends IndexedInputGate {
                     boolean isLocal = shuffleDescriptor.isLocalTo(localLocation);
                     InputChannel newChannel;
                     if (isLocal) {
-                        newChannel = unknownChannel.toLocalInputChannel();
+                        newChannel =
+                                unknownChannel.toLocalInputChannel(
+                                        shuffleDescriptor.getResultPartitionID());
                     } else {
                         RemoteInputChannel remoteInputChannel =
                                 unknownChannel.toRemoteInputChannel(

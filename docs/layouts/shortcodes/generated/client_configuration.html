@@ -9,6 +9,18 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>client.heartbeat.interval</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>Long</td>
+            <td>Time interval for job client to report its heartbeat when 'execution.attached' and 'execution.shutdown-on-attached-exit' are both true. Cancel the job if timeout configured by 'client.heartbeat.timeout'.</td>
+        </tr>
+        <tr>
+            <td><h5>client.heartbeat.timeout</h5></td>
+            <td style="word-wrap: break-word;">180000</td>
+            <td>Long</td>
+            <td>Cancel the job if the dispatcher hasn't received the client's heartbeat after timeout when 'execution.attached' and 'execution.shutdown-on-attached-exit' are both true.</td>
+        </tr>
+        <tr>
             <td><h5>client.retry-period</h5></td>
             <td style="word-wrap: break-word;">2 s</td>
             <td>Duration</td>

@@ -46,7 +46,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -67,7 +66,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link OrcFileFormatFactory}. */
 @RunWith(Parameterized.class)
@@ -104,15 +103,15 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         File directory = new File(URI.create(resultPath()).getPath());
         File[] files =
                 directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
-        Assert.assertNotNull(files);
+        assertThat(files).isNotNull();
         Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
         try {
             Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
             if (configure) {
-                Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
+                assertThat(reader.getCompressionKind().toString()).isEqualTo("SNAPPY");
             } else {
-                Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
+                assertThat(reader.getCompressionKind().toString()).isEqualTo("ZLIB");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -227,15 +226,15 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 
         TableResult tableResult = super.tableEnv().executeSql("SELECT * FROM orcNestedTypesTable");
         List<Row> rows = CollectionUtil.iteratorToList(tableResult.collect());
-        assertEquals(4, rows.size());
-        assertEquals(
-                "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, "
-                        + new Timestamp(3600000).toLocalDateTime()
-                        + "]}]",
-                rows.get(0).toString());
-        assertEquals("+I[_col_0_string_2, 2, null, null]", rows.get(1).toString());
-        assertEquals("+I[_col_0_string_3, 3, [], {}]", rows.get(2).toString());
-        assertEquals("+I[_col_0_string_4, 4, [], {null=null}]", rows.get(3).toString());
+        assertThat(rows).hasSize(4);
+        assertThat(rows.get(0).toString())
+                .isEqualTo(
+                        "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, "
+                                + new Timestamp(3600000).toLocalDateTime()
+                                + "]}]");
+        assertThat(rows.get(1).toString()).isEqualTo("+I[_col_0_string_2, 2, null, null]");
+        assertThat(rows.get(2).toString()).isEqualTo("+I[_col_0_string_3, 3, [], {}]");
+        assertThat(rows.get(3).toString()).isEqualTo("+I[_col_0_string_4, 4, [], {null=null}]");
     }
 
     private List<RowData> initNestedTypesData() {
@@ -351,7 +350,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         TableResult tableResult1 =
                 super.tableEnv().executeSql("SELECT * FROM orcLimitTable limit 5");
         List<Row> rows1 = CollectionUtil.iteratorToList(tableResult1.collect());
-        assertEquals(5, rows1.size());
+        assertThat(rows1).hasSize(5);
 
         check(
                 "select a from orcLimitTable limit 5",

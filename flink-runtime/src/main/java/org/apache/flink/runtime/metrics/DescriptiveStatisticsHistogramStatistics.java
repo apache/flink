@@ -45,7 +45,11 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
 
     public DescriptiveStatisticsHistogramStatistics(
             DescriptiveStatisticsHistogram.CircularDoubleArray histogramValues) {
-        statisticsSummary.evaluate(histogramValues.toUnsortedArray());
+        this(histogramValues.toUnsortedArray());
+    }
+
+    public DescriptiveStatisticsHistogramStatistics(final double[] values) {
+        statisticsSummary.evaluate(values);
     }
 
     @Override

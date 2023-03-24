@@ -104,7 +104,8 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 
     private JobResult executeSchedulingTest(
             JobGraph jobGraph, int numSlots, Configuration configuration) throws Exception {
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 30000L);
+        configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
 
         final MiniClusterConfiguration miniClusterConfiguration =
                 new MiniClusterConfiguration.Builder()

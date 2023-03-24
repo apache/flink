@@ -338,7 +338,8 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     if (leftNdv != null && rightNdv != null) {
       // selectivity of equi part is 1 / Max(leftNdv, rightNdv)
       val selectivityOfEquiPred = Math.min(1d, 1d / Math.max(leftNdv, rightNdv))
-      return leftRowCount * rightRowCount * selectivityOfEquiPred * selectivityOfNonEquiPred
+      return leftRowCount * rightRowCount * selectivityOfEquiPred *
+        selectivityOfNonEquiPred
     }
 
     val leftKeysAreUnique = fmq.areColumnsUnique(leftChild, leftKeySet)

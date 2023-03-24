@@ -25,17 +25,13 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalS
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /**
  * Rule that matches [[FlinkLogicalSort]] which `fetch` is null or `fetch` is 0, and converts it to
  * [[StreamPhysicalSort]].
  */
-class StreamPhysicalSortRule
-  extends ConverterRule(
-    classOf[FlinkLogicalSort],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalSortRule") {
+class StreamPhysicalSortRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
@@ -59,5 +55,10 @@ class StreamPhysicalSortRule
 }
 
 object StreamPhysicalSortRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalSortRule
+  val INSTANCE: RelOptRule = new StreamPhysicalSortRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalSort],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalSortRule"))
 }

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
@@ -43,7 +43,6 @@ import org.junit.runners.Parameterized
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
@@ -229,6 +228,25 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row("Hello world", "Hallo Welt"),
         row("Hello world, how are you?", "Hallo Welt wie"),
         row("I am fine.", "Hallo Welt wie")
+      )
+    )
+  }
+
+  @Test
+  def testInnerJoinWithBooleanFilterCondition(): Unit = {
+    val data1: Seq[Row] =
+      Seq(row(1, 1L, "Hi", true), row(2, 2L, "Hello", false), row(3, 2L, "Hello world", true))
+    val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, BOOLEAN_TYPE_INFO)
+    registerCollection("table5", data1, type3, "a1, b1, c1, d1")
+    registerCollection("table6", data1, type3, "a2, b2, c2, d2")
+
+    checkResult(
+      "SELECT a1, a1, c2 FROM table5 INNER JOIN table6 ON d1 = d2 where d1 is true",
+      Seq(
+        row("1, 1, Hello world"),
+        row("1, 1, Hi"),
+        row("3, 3, Hello world"),
+        row("3, 3, Hi")
       )
     )
   }
@@ -1062,6 +1080,254 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
       Seq(row("Hi", "Hallo"), row("Hello", "Hallo Welt"), row("Hello world", "Hallo Welt"))
+    )
+  }
+
+  @Test
+  def testJoinWithFilterPushDown(): Unit = {
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where c >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where c >= 2
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l inner join r on a = c where c IS NULL
+        |""".stripMargin,
+      Seq()
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l inner join r on a = c where c = NULL
+        |""".stripMargin,
+      Seq()
+    )
+
+    if (expectedJoinType == NestedLoopJoin) {
+      // For inner join, we will push c = 3 into left side l by
+      // derived from a = c and c = 3.
+      checkResult(
+        """
+          |select * from
+          | l inner join r on a = c where c = 3
+          |""".stripMargin,
+        Seq(
+          row(3, 3.0, 3, 2.0)
+        )
+      )
+
+      // For left join, we will push c = 3 into left side l by
+      // derived from a = c and c = 3.
+      checkResult(
+        """
+          |select * from
+          | l left join r on a = c where c = 3
+          |""".stripMargin,
+        Seq(
+          row(3, 3.0, 3, 2.0)
+        )
+      )
+    }
+
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // c IS NULL cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, null, null),
+        row(1, 2.0, null, null),
+        row(null, 5.0, null, null),
+        row(null, null, null, null)
+      )
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c IS NULL AND a <= 1
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, null, null),
+        row(1, 2.0, null, null)
+      )
+    )
+
+    // For 'c = NULL', all data cannot match this condition.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c = NULL
+        |""".stripMargin,
+      Seq()
+    )
+
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // c < 3 cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c < 3 AND a <= 3
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0)
+      )
+    )
+
+    // C <> 3 cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c <> 3 AND a <= 3
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0)
+      )
+    )
+  }
+
+  @Test
+  def testJoinWithJoinConditionPushDown(): Unit = {
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and a >= 2
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and c >= 2
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and a >= 2
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and c >= 2
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
     )
   }
 }

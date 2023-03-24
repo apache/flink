@@ -18,24 +18,24 @@
 import base64
 import collections
 from abc import ABC, abstractmethod
-from enum import Enum
-from functools import partial
-from io import BytesIO
-
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
 from apache_beam.transforms import userstate
-from typing import List, Tuple, Any, Dict, Collection
+from enum import Enum
+from functools import partial
+from io import BytesIO
+from typing import List, Tuple, Any, Dict, Collection, cast
 
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction
-from pyflink.datastream.state import StateTtlConfig
+from pyflink.datastream.state import StateTtlConfig, MapStateDescriptor, OperatorStateStore
 from pyflink.fn_execution.beam.beam_coders import FlinkCoder
-from pyflink.fn_execution.coders import FieldCoder
+from pyflink.fn_execution.coders import FieldCoder, MapCoder, from_type_info
+from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor as pb2_StateDescriptor
 from pyflink.fn_execution.internal_state import InternalKvState, N, InternalValueState, \
     InternalListState, InternalReducingState, InternalMergingState, InternalAggregatingState, \
-    InternalMapState
+    InternalMapState, InternalReadOnlyBroadcastState, InternalBroadcastState
 
 
 class LRUCache(object):
@@ -302,8 +302,9 @@ class CachedMapState(LRUCache):
         self._cached_keys = set()
 
         def on_evict(key, value):
-            self._cached_keys.remove(key)
-            self._all_data_cached = False
+            if value[0]:
+                self._cached_keys.remove(key)
+                self._all_data_cached = False
 
         self.set_on_evict(on_evict)
 
@@ -398,13 +399,13 @@ class CachingMapStateHandler(object):
 
         # lookup cache first
         cache_state_key = self._convert_to_cache_key(state_key)
-        cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+        cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
         if cached_map_state is None:
             # request from remote
             exists, value = self._get_raw(state_key, map_key, map_key_encoder, map_value_decoder)
             cached_map_state = CachedMapState(self._max_cached_map_key_entries)
             cached_map_state.put(map_key, (exists, value))
-            self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+            self._state_cache.put((cache_state_key, cache_token), cached_map_state)
             return exists, value
         else:
             cached_value = cached_map_state.get(map_key)
@@ -426,7 +427,7 @@ class CachingMapStateHandler(object):
         if cache_token:
             # check if the data in the read cache can be used
             cache_state_key = self._convert_to_cache_key(state_key)
-            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
             if cached_map_state and cached_map_state.is_all_data_cached():
                 return create_cache_iterator(
                     cached_map_state._cache, iterate_type, iterated_keys)
@@ -450,7 +451,7 @@ class CachingMapStateHandler(object):
             for key, value in current_batch.items():
                 cached_map_state.put(key, (True, value))
             cached_map_state.set_all_data_cached()
-            self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+            self._state_cache.put((cache_state_key, cache_token), cached_map_state)
 
         return self._lazy_remote_iterator(
             state_key,
@@ -521,10 +522,10 @@ class CachingMapStateHandler(object):
         if cache_token:
             # Cache lookup
             cache_state_key = self._convert_to_cache_key(state_key)
-            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
             if cached_map_state is None:
                 cached_map_state = CachedMapState(self._max_cached_map_key_entries)
-                self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+                self._state_cache.put((cache_state_key, cache_token), cached_map_state)
             for request_flag, map_key, map_value in items:
                 if request_flag == self.DELETE:
                     cached_map_state.put(map_key, (False, None))
@@ -545,7 +546,7 @@ class CachingMapStateHandler(object):
         if cache_token:
             # Cache lookup
             cache_state_key = self._convert_to_cache_key(state_key)
-            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            cached_map_state = self._state_cache.peek((cache_state_key, cache_token))
             if cached_map_state is not None:
                 if cached_map_state.is_all_data_cached() and \
                         len(cached_map_state.get_cached_keys()) == 0:
@@ -562,7 +563,7 @@ class CachingMapStateHandler(object):
         cache_token = self._get_cache_token()
         if cache_token:
             cache_key = self._convert_to_cache_key(state_key)
-            self._state_cache.evict(cache_key, cache_token)
+            self._state_cache.invalidate((cache_key, cache_token))
 
     def get_cached_iterators_num(self):
         return self._cached_iterator_num
@@ -1094,8 +1095,7 @@ class RemoteKeyedStateBackend(object):
             self, name, encoded_namespace, map_key_coder, map_value_coder, ttl_config, cache_type):
         # Currently the `beam_fn_api.proto` does not support MapState, so we use the
         # the `MultimapSideInput` message to mark the state as a MapState for now.
-        from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-        state_proto = StateDescriptor()
+        state_proto = pb2_StateDescriptor()
         state_proto.state_name = name
         if ttl_config is not None:
             state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
@@ -1216,3 +1216,124 @@ class RemoteKeyedStateBackend(object):
         if isinstance(internal_state, SynchronousBagRuntimeState):
             internal_state._cleared = False
             internal_state._added_elements = []
+
+
+class SynchronousReadOnlyBroadcastRuntimeState(InternalReadOnlyBroadcastState):
+    def __init__(self, name: str, internal_map_state: "InternalSynchronousMapRuntimeState"):
+        self._name = name
+        self._internal_map_state = internal_map_state
+
+    def get(self, key):
+        return self._internal_map_state.get(key)
+
+    def contains(self, key) -> bool:
+        return self._internal_map_state.contains(key)
+
+    def items(self):
+        return self._internal_map_state.items()
+
+    def keys(self):
+        return self._internal_map_state.keys()
+
+    def values(self):
+        return self._internal_map_state.values()
+
+    def is_empty(self):
+        return self._internal_map_state.is_empty()
+
+    def clear(self):
+        return self._internal_map_state.clear()
+
+
+class SynchronousBroadcastRuntimeState(
+    SynchronousReadOnlyBroadcastRuntimeState, InternalBroadcastState
+):
+    def __init__(self, name: str, internal_map_state: "InternalSynchronousMapRuntimeState"):
+        super(SynchronousBroadcastRuntimeState, self).__init__(name, internal_map_state)
+
+    def put(self, key, value):
+        self._internal_map_state.put(key, value)
+
+    def put_all(self, dict_value):
+        self._internal_map_state.put_all(dict_value)
+
+    def remove(self, key):
+        self._internal_map_state.remove(key)
+
+    def commit(self):
+        self._internal_map_state.commit()
+
+    def to_read_only_broadcast_state(self) -> "SynchronousReadOnlyBroadcastRuntimeState":
+        return SynchronousReadOnlyBroadcastRuntimeState(self._name, self._internal_map_state)
+
+
+class OperatorStateBackend(OperatorStateStore, ABC):
+
+    @abstractmethod
+    def commit(self):
+        pass
+
+
+class RemoteOperatorStateBackend(OperatorStateBackend):
+    def __init__(
+        self, state_handler, state_cache_size, map_state_read_cache_size, map_state_write_cache_size
+    ):
+        self._state_handler = state_handler
+        self._state_cache_size = state_cache_size
+        # NOTE: if user stores a state into a class member, that state actually won't be actually
+        # evicted from memory (because its counter > 0)
+        self._state_cache = LRUCache(state_cache_size, None)
+        self._state_cache.set_on_evict(lambda _, state: state.commit())
+        self._map_state_read_cache_size = map_state_read_cache_size
+        self._map_state_write_cache_size = map_state_write_cache_size
+        self._map_state_handler = CachingMapStateHandler(state_handler, map_state_read_cache_size)
+
+    def get_broadcast_state(
+        self, state_descriptor: MapStateDescriptor
+    ) -> 'SynchronousBroadcastRuntimeState':
+        state_name = state_descriptor.name
+        map_coder = cast(MapCoder, from_type_info(state_descriptor.type_info))  # type: MapCoder
+        key_coder = map_coder._key_coder
+        value_coder = map_coder._value_coder
+
+        if state_name in self._state_cache:
+            self._validate_broadcast_state(state_name, key_coder, value_coder)
+            return self._state_cache.get(state_name)
+
+        state_proto = pb2_StateDescriptor()
+        state_proto.state_name = state_name
+        # Currently, MultimapKeysSideInput is used for BroadcastState
+        state_key = beam_fn_api_pb2.StateKey(
+            multimap_keys_side_input=beam_fn_api_pb2.StateKey.MultimapKeysSideInput(
+                transform_id="",
+                window=bytes(),
+                side_input_id=base64.b64encode(state_proto.SerializeToString()),
+            )
+        )
+
+        internal_map_state = InternalSynchronousMapRuntimeState(
+            self._map_state_handler,
+            state_key,
+            key_coder,
+            value_coder,
+            self._map_state_write_cache_size,
+        )
+
+        broadcast_state = SynchronousBroadcastRuntimeState(
+            state_descriptor.name, internal_map_state
+        )
+        self._state_cache.put(state_name, broadcast_state)
+        return broadcast_state
+
+    def commit(self):
+        for state in self._state_cache:
+            cast(SynchronousBroadcastRuntimeState, state).commit()
+
+    def _validate_broadcast_state(self, name, key_coder, value_coder):
+        if name in self._state_cache:
+            state = cast(SynchronousBroadcastRuntimeState, self._state_cache.get(name))
+            if (
+                key_coder != state._internal_map_state._map_key_coder
+                or value_coder != state._internal_map_state._map_value_coder
+            ):
+                raise Exception("State name corrupted: %s" % name)

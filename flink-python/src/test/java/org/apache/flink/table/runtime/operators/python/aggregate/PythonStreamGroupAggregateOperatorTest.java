@@ -37,18 +37,17 @@ import org.apache.flink.table.runtime.utils.PassThroughStreamAggregatePythonFunc
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 
 /** The tests for {@link PythonStreamGroupAggregateOperator}. */
-public class PythonStreamGroupAggregateOperatorTest
-        extends AbstractPythonStreamAggregateOperatorTest {
+class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStreamAggregateOperatorTest {
 
     @Test
-    public void testFlushDataOnClose() throws Exception {
+    void testFlushDataOnClose() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
         long initialTime = 0L;
@@ -67,7 +66,7 @@ public class PythonStreamGroupAggregateOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
+    void testFinishBundleTriggeredOnCheckpoint() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -93,7 +92,7 @@ public class PythonStreamGroupAggregateOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -119,7 +118,7 @@ public class PythonStreamGroupAggregateOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
+    void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
@@ -146,7 +145,7 @@ public class PythonStreamGroupAggregateOperatorTest
     }
 
     @Test
-    public void testWatermarkProcessedOnFinishBundle() throws Exception {
+    void testWatermarkProcessedOnFinishBundle() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -173,7 +172,7 @@ public class PythonStreamGroupAggregateOperatorTest
     }
 
     @Test
-    public void testStateCleanupTimer() throws Exception {
+    void testStateCleanupTimer() throws Exception {
         Configuration conf = new Configuration();
         conf.setString("table.exec.state.ttl", "100");
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);

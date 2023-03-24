@@ -29,7 +29,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,10 +41,10 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalTypeChecks}. */
-public class LogicalTypeChecksTest {
+class LogicalTypeChecksTest {
 
     @Test
-    public void testHasNested() {
+    void testHasNested() {
         final DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
         assertThat(
                         LogicalTypeChecks.hasNested(
@@ -63,14 +63,14 @@ public class LogicalTypeChecksTest {
     }
 
     @Test
-    public void testIsCompositeTypeRowType() {
+    void testIsCompositeTypeRowType() {
         DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
 
         assertThat(LogicalTypeChecks.isCompositeType(dataType.getLogicalType())).isTrue();
     }
 
     @Test
-    public void testIsCompositeTypeDistinctType() {
+    void testIsCompositeTypeDistinctType() {
         DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
         DistinctType distinctType =
                 DistinctType.newBuilder(
@@ -82,7 +82,7 @@ public class LogicalTypeChecksTest {
     }
 
     @Test
-    public void testIsCompositeTypeLegacyCompositeType() {
+    void testIsCompositeTypeLegacyCompositeType() {
         DataType dataType =
                 TypeConversions.fromLegacyInfoToDataType(new RowTypeInfo(Types.STRING, Types.INT));
 
@@ -90,7 +90,7 @@ public class LogicalTypeChecksTest {
     }
 
     @Test
-    public void testIsCompositeTypeStructuredType() {
+    void testIsCompositeTypeStructuredType() {
         StructuredType logicalType =
                 StructuredType.newBuilder(ObjectIdentifier.of("catalog", "database", "type"))
                         .attributes(
@@ -108,28 +108,28 @@ public class LogicalTypeChecksTest {
     }
 
     @Test
-    public void testIsCompositeTypeLegacySimpleType() {
+    void testIsCompositeTypeLegacySimpleType() {
         DataType dataType = TypeConversions.fromLegacyInfoToDataType(Types.STRING);
 
         assertThat(LogicalTypeChecks.isCompositeType(dataType.getLogicalType())).isFalse();
     }
 
     @Test
-    public void testIsCompositeTypeSimpleType() {
+    void testIsCompositeTypeSimpleType() {
         DataType dataType = DataTypes.TIMESTAMP();
 
         assertThat(LogicalTypeChecks.isCompositeType(dataType.getLogicalType())).isFalse();
     }
 
     @Test
-    public void testFieldNameExtraction() {
+    void testFieldNameExtraction() {
         DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
         assertThat(LogicalTypeChecks.getFieldNames(dataType.getLogicalType()))
                 .containsExactly("f0", "f1");
     }
 
     @Test
-    public void testFieldCountExtraction() {
+    void testFieldCountExtraction() {
         DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
         assertThat(LogicalTypeChecks.getFieldCount(dataType.getLogicalType())).isEqualTo(2);
     }

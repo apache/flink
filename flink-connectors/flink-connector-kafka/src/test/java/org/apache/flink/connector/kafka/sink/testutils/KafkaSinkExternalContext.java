@@ -57,7 +57,6 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
 
@@ -67,7 +66,6 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkExternalContext.class);
 
     private static final String TOPIC_NAME_PREFIX = "kafka-single-topic";
-    private static final long DEFAULT_TIMEOUT = 30L;
     private static final int RANDOM_STRING_MAX_LENGTH = 50;
     private static final int NUM_RECORDS_UPPER_BOUND = 500;
     private static final int NUM_RECORDS_LOWER_BOUND = 100;
@@ -100,10 +98,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
                 replicationFactor);
         NewTopic newTopic = new NewTopic(topicName, numPartitions, replicationFactor);
         try {
-            kafkaAdminClient
-                    .createTopics(Collections.singletonList(newTopic))
-                    .all()
-                    .get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+            kafkaAdminClient.createTopics(Collections.singletonList(newTopic)).all().get();
         } catch (Exception e) {
             throw new RuntimeException(String.format("Cannot create topic '%s'", topicName), e);
         }
@@ -112,10 +107,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
     private void deleteTopic(String topicName) {
         LOG.debug("Deleting Kafka topic {}", topicName);
         try {
-            kafkaAdminClient
-                    .deleteTopics(Collections.singletonList(topicName))
-                    .all()
-                    .get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+            kafkaAdminClient.deleteTopics(Collections.singletonList(topicName)).all().get();
         } catch (Exception e) {
             if (ExceptionUtils.getRootCause(e) instanceof UnknownTopicOrPartitionException) {
                 throw new RuntimeException(
@@ -141,7 +133,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
         properties.put(
                 ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, DEFAULT_TRANSACTION_TIMEOUT_IN_MS);
         builder.setBootstrapServers(bootstrapServers)
-                .setDeliverGuarantee(toDeliveryGuarantee(sinkSettings.getCheckpointingMode()))
+                .setDeliveryGuarantee(toDeliveryGuarantee(sinkSettings.getCheckpointingMode()))
                 .setTransactionalIdPrefix("testingFramework")
                 .setKafkaProducerConfig(properties)
                 .setRecordSerializer(
@@ -201,7 +193,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
 
     protected Map<String, TopicDescription> getTopicMetadata(List<String> topics) {
         try {
-            return kafkaAdminClient.describeTopics(topics).all().get();
+            return kafkaAdminClient.describeTopics(topics).allTopicNames().get();
         } catch (Exception e) {
             throw new RuntimeException(
                     String.format("Failed to get metadata for topics %s.", topics), e);
@@ -210,7 +202,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
 
     private boolean topicExists(String topic) {
         try {
-            kafkaAdminClient.describeTopics(Arrays.asList(topic)).all().get();
+            kafkaAdminClient.describeTopics(Arrays.asList(topic)).allTopicNames().get();
             return true;
         } catch (Exception e) {
             return false;

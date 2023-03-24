@@ -125,9 +125,7 @@ public class EnumSerializerTest extends TestLogger {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    serializer.snapshotConfiguration(),
-                    serializer);
+                    new DataOutputViewStreamWrapper(out), serializer.snapshotConfiguration());
             serializedConfig = out.toByteArray();
         }
 
@@ -136,8 +134,7 @@ public class EnumSerializerTest extends TestLogger {
             restoredConfig =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            serializer);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         TypeSerializerSchemaCompatibility<PublicEnum> compatResult =
@@ -282,7 +279,7 @@ public class EnumSerializerTest extends TestLogger {
         final Class<T> clazz = (Class<T>) data.getClass().getComponentType();
 
         SerializerTestInstance<T> tester =
-                new SerializerTestInstance<>(new EnumSerializer<T>(clazz), clazz, 4, data);
+                new SerializerTestInstance<T>(new EnumSerializer<T>(clazz), clazz, 4, data) {};
 
         tester.testAll();
     }

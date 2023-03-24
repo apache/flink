@@ -19,16 +19,11 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.ValidationException;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * Policy for commit a partition.
@@ -81,46 +76,6 @@ public interface PartitionCommitPolicy {
             }
             return res;
         }
-    }
-
-    /** Create a policy chain from config. */
-    static List<PartitionCommitPolicy> createPolicyChain(
-            ClassLoader cl,
-            String policyKind,
-            String customClass,
-            String successFileName,
-            Supplier<FileSystem> fsSupplier) {
-        if (policyKind == null) {
-            return Collections.emptyList();
-        }
-        String[] policyStrings = policyKind.split(",");
-        return Arrays.stream(policyStrings)
-                .map(
-                        name -> {
-                            switch (name.toLowerCase()) {
-                                case METASTORE:
-                                    return new MetastoreCommitPolicy();
-                                case SUCCESS_FILE:
-                                    return new SuccessFileCommitPolicy(
-                                            successFileName, fsSupplier.get());
-                                case CUSTOM:
-                                    try {
-                                        return (PartitionCommitPolicy)
-                                                cl.loadClass(customClass).newInstance();
-                                    } catch (ClassNotFoundException
-                                            | IllegalAccessException
-                                            | InstantiationException e) {
-                                        throw new RuntimeException(
-                                                "Can not create new instance for custom class from "
-                                                        + customClass,
-                                                e);
-                                    }
-                                default:
-                                    throw new UnsupportedOperationException(
-                                            "Unsupported policy: " + name);
-                            }
-                        })
-                .collect(Collectors.toList());
     }
 
     /** Validate commit policy. */

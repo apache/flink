@@ -28,9 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -42,7 +40,7 @@ import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
 /** Test suite for {@link CompositeSerializer}. */
-public class CompositeSerializerTest {
+class CompositeSerializerTest {
     private static final ExecutionConfig execConf = new ExecutionConfig();
 
     private static final List<Tuple2<TypeSerializer<?>, Object[]>> TEST_FIELD_SERIALIZERS =
@@ -58,7 +56,7 @@ public class CompositeSerializerTest {
                             }));
 
     @Test
-    public void testSingleFieldSerializer() {
+    void testSingleFieldSerializer() {
         TEST_FIELD_SERIALIZERS.forEach(
                 t -> {
                     @SuppressWarnings("unchecked")
@@ -72,7 +70,7 @@ public class CompositeSerializerTest {
     }
 
     @Test
-    public void testPairFieldSerializer() {
+    void testPairFieldSerializer() {
         TEST_FIELD_SERIALIZERS.forEach(
                 t1 ->
                         TEST_FIELD_SERIALIZERS.forEach(
@@ -95,7 +93,7 @@ public class CompositeSerializerTest {
     }
 
     @Test
-    public void testAllFieldSerializer() {
+    void testAllFieldSerializer() {
         @SuppressWarnings("unchecked")
         TypeSerializer<Object>[] fieldSerializers =
                 TEST_FIELD_SERIALIZERS.stream()
@@ -123,18 +121,12 @@ public class CompositeSerializerTest {
     @SuppressWarnings("unchecked")
     private void runTests(
             int length, TypeSerializer<Object>[] fieldSerializers, List<Object>... instances) {
-        try {
-            for (boolean immutability : Arrays.asList(true, false)) {
-                TypeSerializer<List<Object>> serializer =
-                        new TestListCompositeSerializer(immutability, fieldSerializers);
-                CompositeSerializerTestInstance test =
-                        new CompositeSerializerTestInstance(serializer, length, instances);
-                test.testAll();
-            }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
+        for (boolean immutability : Arrays.asList(true, false)) {
+            TypeSerializer<List<Object>> serializer =
+                    new TestListCompositeSerializer(immutability, fieldSerializers);
+            CompositeSerializerTestInstance test =
+                    new CompositeSerializerTestInstance(serializer, length, instances);
+            test.testAll();
         }
     }
 
@@ -263,7 +255,6 @@ public class CompositeSerializerTest {
         }
     }
 
-    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private static class CompositeSerializerTestInstance
             extends SerializerTestInstance<List<Object>> {
         @SuppressWarnings("unchecked")

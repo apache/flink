@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen._
-import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.generateFunctionAwareCall
+import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{generateFunctionAwareCall, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -47,6 +47,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
+    val rexFactory = function.getRexFactory
 
     // we could have implemented a dedicated code generation context but the closer we are to
     // Calcite the more consistent is the type inference during the data type enrichment
@@ -62,7 +63,9 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       definition,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      ctx.tableConfig)
+      ctx.tableConfig,
+      new DefaultExpressionEvaluatorFactory(ctx.tableConfig, ctx.classLoader, rexFactory)
+    )
     val inference = udf.getTypeInference(dataTypeFactory)
 
     generateFunctionAwareCall(

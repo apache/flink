@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
@@ -27,7 +26,6 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.HeaderlessChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
@@ -127,7 +125,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
      */
     protected FileIOChannel.Enumerator currentEnumerator;
 
-    protected final boolean compressionEnable;
+    protected final boolean compressionEnabled;
     protected final BlockCompressionFactory compressionCodecFactory;
     protected final int compressionBlockSize;
 
@@ -135,27 +133,22 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
     protected transient long spillInBytes;
 
     public BaseHybridHashTable(
-            Configuration conf,
             Object owner,
+            boolean compressionEnabled,
+            int compressionBlockSize,
             MemoryManager memManager,
             long reservedMemorySize,
             IOManager ioManager,
             int avgRecordLen,
             long buildRowCount,
             boolean tryDistinctBuildRow) {
-
-        // TODO: read compression config from configuration
-        this.compressionEnable =
-                conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
-                this.compressionEnable
+                this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
-        this.compressionBlockSize =
-                (int)
-                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
-                                .getBytes();
+        this.compressionBlockSize = compressionBlockSize;
         this.avgRecordLen = avgRecordLen;
         this.buildRowCount = buildRowCount;
         this.tryDistinctBuildRow = tryDistinctBuildRow;
@@ -264,15 +257,19 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             this.buildSpillRetBufferNumbers--;
 
             // grab as many more buffers as are available directly
-            MemorySegment currBuff;
-            while (this.buildSpillRetBufferNumbers > 0
-                    && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
-                returnPage(currBuff);
-                this.buildSpillRetBufferNumbers--;
-            }
+            returnSpillBuffers();
             return toReturn;
         } else {
             return null;
+        }
+    }
+
+    private void returnSpillBuffers() {
+        MemorySegment currBuff;
+        while (this.buildSpillRetBufferNumbers > 0
+                && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
+            returnPage(currBuff);
+            this.buildSpillRetBufferNumbers--;
         }
     }
 
@@ -387,6 +384,17 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             return;
         }
 
+        // clear the current build side channel, if there exist one
+        if (this.currentSpilledBuildSide != null) {
+            try {
+                this.currentSpilledBuildSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition build side.",
+                        t);
+            }
+        }
+
         // clear the current probe side channel, if there is one
         if (this.currentSpilledProbeSide != null) {
             try {
@@ -426,6 +434,19 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
     /** Free the memory not used. */
     public void freeCurrent() {
         internalPool.cleanCache();
+    }
+
+    /**
+     * Due to adaptive hash join is introduced, the cached memory segments should be released to
+     * {@link MemoryManager} before switch to sort merge join. Otherwise, open sort merge join
+     * operator maybe fail because of insufficient memory.
+     *
+     * <p>Note: this method should only be invoked for sort merge join.
+     */
+    public void releaseMemoryCacheForSMJ() {
+        // return build spill buffer memory first
+        returnSpillBuffers();
+        freeCurrent();
     }
 
     LazyMemorySegmentPool getInternalPool() {
@@ -468,7 +489,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
                         ioManager,
                         id,
                         retSegments,
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize,
                         segmentSize);
@@ -489,7 +510,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
                         ioManager,
                         id,
                         new LinkedBlockingQueue<>(),
-                        compressionEnable,
+                        compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize,
                         segmentSize);

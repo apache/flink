@@ -364,7 +364,7 @@ class BatchingStateChangeUploadSchedulerTest {
                 new StateChangeSet(
                         UUID.randomUUID(),
                         SequenceNumber.of(0),
-                        singletonList(new StateChange(0, change))));
+                        singletonList(StateChange.ofDataChange(0, change))));
     }
 
     private static void withStore(
@@ -462,13 +462,13 @@ class BatchingStateChangeUploadSchedulerTest {
             return uploadsCounter.get();
         }
 
-        private Map<UploadTask, Map<StateChangeSet, Long>> withOffsets(
+        private Map<UploadTask, Map<StateChangeSet, Tuple2<Long, Long>>> withOffsets(
                 Collection<UploadTask> tasks) {
             return tasks.stream().collect(toMap(identity(), this::withOffsets));
         }
 
-        private Map<StateChangeSet, Long> withOffsets(UploadTask task) {
-            return task.changeSets.stream().collect(toMap(identity(), ign -> 0L));
+        private Map<StateChangeSet, Tuple2<Long, Long>> withOffsets(UploadTask task) {
+            return task.changeSets.stream().collect(toMap(identity(), ign -> Tuple2.of(0L, 0L)));
         }
     }
 

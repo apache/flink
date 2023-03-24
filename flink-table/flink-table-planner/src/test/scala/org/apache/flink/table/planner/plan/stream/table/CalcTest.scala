@@ -151,7 +151,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable
       .map(Func23('a, 'b, 'c))
-      .map(Func24('_c0, '_c1, '_c2, '_c3))
+      .map(Func24('f0, 'f1, 'f2, 'f3))
 
     util.verifyExecPlan(resultTable)
   }

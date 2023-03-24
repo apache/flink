@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
@@ -33,13 +35,16 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
-/** ALTER TABLE [[catalogName.] dataBasesName].tableName RESET ( 'key1' [, 'key2']*). */
+/** ALTER TABLE [IF EXISTS] [[catalogName.] dataBasesName].tableName RESET ( 'key1' [, 'key2']*). */
 public class SqlAlterTableReset extends SqlAlterTable {
     private final SqlNodeList propertyKeyList;
 
     public SqlAlterTableReset(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyKeyList) {
-        super(pos, tableName, null);
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList propertyKeyList,
+            boolean ifTableExists) {
+        super(pos, tableName, null, ifTableExists);
         this.propertyKeyList =
                 requireNonNull(propertyKeyList, "propertyKeyList should not be null");
     }
@@ -65,20 +70,10 @@ public class SqlAlterTableReset extends SqlAlterTable {
         writer.keyword("RESET");
         SqlWriter.Frame withFrame = writer.startList("(", ")");
         for (SqlNode property : propertyKeyList) {
-            printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             property.unparse(writer, leftPrec, rightPrec);
         }
         writer.newlineAndIndent();
         writer.endList(withFrame);
-    }
-
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
-    }
-
-    public String[] fullTableName() {
-        return tableIdentifier.names.toArray(new String[0]);
     }
 }

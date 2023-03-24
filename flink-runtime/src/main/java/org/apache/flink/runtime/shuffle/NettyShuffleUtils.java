@@ -20,13 +20,17 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.GateBuffersSpec;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Map;
+import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.createGateBuffersSpec;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utils to calculate network memory requirement of a vertex from network configuration and details
@@ -64,7 +68,9 @@ public class NettyShuffleUtils {
             final int sortShuffleMinBuffers,
             final int numSubpartitions,
             final ResultPartitionType type) {
-        boolean isSortShuffle = type.isBlocking() && numSubpartitions >= sortShuffleMinParallelism;
+        boolean isSortShuffle =
+                type.isBlockingOrBlockingPersistentResultPartition()
+                        && numSubpartitions >= sortShuffleMinParallelism;
         int min = isSortShuffle ? sortShuffleMinBuffers : numSubpartitions + 1;
         int max =
                 type.isBounded()
@@ -84,25 +90,37 @@ public class NettyShuffleUtils {
     public static int computeNetworkBuffersForAnnouncing(
             final int numBuffersPerChannel,
             final int numFloatingBuffersPerGate,
+            final Optional<Integer> maxRequiredBuffersPerGate,
             final int sortShuffleMinParallelism,
             final int sortShuffleMinBuffers,
-            final int numTotalInputChannels,
-            final int numTotalInputGates,
+            final Map<IntermediateDataSetID, Integer> inputChannelNums,
+            final Map<IntermediateDataSetID, Integer> partitionReuseCount,
             final Map<IntermediateDataSetID, Integer> subpartitionNums,
+            final Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes,
             final Map<IntermediateDataSetID, ResultPartitionType> partitionTypes) {
 
-        // Each input channel will retain N exclusive network buffers, N = numBuffersPerChannel.
-        // Each input gate is guaranteed to have a number of floating buffers.
-        int requirementForInputs =
-                getNetworkBuffersPerInputChannel(numBuffersPerChannel) * numTotalInputChannels
-                        + getMinMaxFloatingBuffersPerInputGate(numFloatingBuffersPerGate).getRight()
-                                * numTotalInputGates;
+        int requirementForInputs = 0;
+        for (IntermediateDataSetID dataSetId : inputChannelNums.keySet()) {
+            int numChannels = inputChannelNums.get(dataSetId);
+            ResultPartitionType inputPartitionType = inputPartitionTypes.get(dataSetId);
+            checkNotNull(inputPartitionType);
+
+            int numSingleGateBuffers =
+                    getNumBuffersToAnnounceForInputGate(
+                            inputPartitionType,
+                            numBuffersPerChannel,
+                            numFloatingBuffersPerGate,
+                            maxRequiredBuffersPerGate,
+                            numChannels);
+            checkState(partitionReuseCount.containsKey(dataSetId));
+            requirementForInputs += numSingleGateBuffers * partitionReuseCount.get(dataSetId);
+        }
 
         int requirementForOutputs = 0;
         for (IntermediateDataSetID dataSetId : subpartitionNums.keySet()) {
             int numSubs = subpartitionNums.get(dataSetId);
-            checkArgument(partitionTypes.containsKey(dataSetId));
             ResultPartitionType partitionType = partitionTypes.get(dataSetId);
+            checkNotNull(partitionType);
 
             requirementForOutputs +=
                     getNumBuffersToAnnounceForResultPartition(
@@ -115,6 +133,22 @@ public class NettyShuffleUtils {
         }
 
         return requirementForInputs + requirementForOutputs;
+    }
+
+    private static int getNumBuffersToAnnounceForInputGate(
+            ResultPartitionType type,
+            int configuredNetworkBuffersPerChannel,
+            int floatingNetworkBuffersPerGate,
+            Optional<Integer> maxRequiredBuffersPerGate,
+            int numInputChannels) {
+        GateBuffersSpec gateBuffersSpec =
+                createGateBuffersSpec(
+                        maxRequiredBuffersPerGate,
+                        configuredNetworkBuffersPerChannel,
+                        floatingNetworkBuffersPerGate,
+                        type,
+                        numInputChannels);
+        return gateBuffersSpec.targetTotalBuffersPerGate();
     }
 
     private static int getNumBuffersToAnnounceForResultPartition(
@@ -136,12 +170,12 @@ public class NettyShuffleUtils {
 
         // In order to avoid network buffer request timeout (see FLINK-12852), we announce
         // network buffer requirement by below:
-        // 1. For pipelined shuffle, the floating buffers may not be returned in time due to back
-        // pressure so we need to include all the floating buffers in the announcement, i.e. we
+        // 1. For canBePipelined shuffle, the floating buffers may not be returned in time due to
+        // back pressure so we need to include all the floating buffers in the announcement, i.e. we
         // should take the max value;
         // 2. For blocking shuffle, it is back pressure free and floating buffers can be recycled
         // in time, so that the minimum required buffers would be enough.
-        int ret = type.isPipelined() ? minAndMax.getRight() : minAndMax.getLeft();
+        int ret = type.canBePipelinedConsumed() ? minAndMax.getRight() : minAndMax.getLeft();
 
         if (ret == Integer.MAX_VALUE) {
             // Should never reach this branch. Result partition will allocate an unbounded

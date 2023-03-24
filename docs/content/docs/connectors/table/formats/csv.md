@@ -152,6 +152,14 @@ Format Options
       <td>String</td>
       <td>Null literal string that is interpreted as a null value (disabled by default).</td>
     </tr>
+    <tr>
+      <td><h5>csv.write-bigdecimal-in-scientific-notation</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Enables representation of BigDecimal data type in scientific notation (default is true). For example, 100000 is encoded as 1E+5 by default, and will be written as 100000 if set this option to false. Note: Only when the value is not 0 and a multiple of 10 is converted to scientific notation.</td>
+    </tr>
     </tbody>
 </table>
 

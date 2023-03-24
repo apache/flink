@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
@@ -59,7 +60,7 @@ public class AbstractDispatcherTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
             rpcService = null;
         }
     }
@@ -88,7 +89,7 @@ public class AbstractDispatcherTest extends TestLogger {
 
     @Before
     public void setUp() throws Exception {
-        heartbeatServices = new HeartbeatServices(1000L, 10000L);
+        heartbeatServices = new HeartbeatServicesImpl(1000L, 10000L);
 
         haServices = new TestingHighAvailabilityServices();
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());

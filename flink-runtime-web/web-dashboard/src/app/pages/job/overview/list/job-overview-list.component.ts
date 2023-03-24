@@ -16,11 +16,19 @@
  * limitations under the License.
  */
 
+import { DecimalPipe, NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Output } from '@angular/core';
 
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
+import { JobBadgeComponent } from '@flink-runtime-web/components/job-badge/job-badge.component';
+import { ResizeComponent } from '@flink-runtime-web/components/resize/resize.component';
+import { TaskBadgeComponent } from '@flink-runtime-web/components/task-badge/task-badge.component';
+import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
-
-import { NodesItemCorrect } from 'interfaces';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 function createSortFn(
   selector: (item: NodesItemCorrect) => number | string | undefined
@@ -32,7 +40,21 @@ function createSortFn(
   selector: 'flink-job-overview-list',
   templateUrl: './job-overview-list.component.html',
   styleUrls: ['./job-overview-list.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzTableModule,
+    NgForOf,
+    NzToolTipModule,
+    JobBadgeComponent,
+    NgIf,
+    HumanizeBytesPipe,
+    DecimalPipe,
+    HumanizeDatePipe,
+    HumanizeDurationPipe,
+    TaskBadgeComponent,
+    ResizeComponent
+  ],
+  standalone: true
 })
 export class JobOverviewListComponent {
   public readonly trackById = (_: number, node: NodesItemCorrect): string => node.id;

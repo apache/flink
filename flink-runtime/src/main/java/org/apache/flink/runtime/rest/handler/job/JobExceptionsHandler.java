@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -127,22 +128,25 @@ public class JobExceptionsHandler
         List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();
         boolean truncated = false;
         for (AccessExecutionVertex task : executionGraph.getAllExecutionVertices()) {
-            Optional<ErrorInfo> failure = task.getFailureInfo();
-            if (failure.isPresent()) {
-                if (taskExceptionList.size() >= exceptionToReportMaxSize) {
-                    truncated = true;
-                    break;
-                }
+            for (AccessExecution execution : task.getCurrentExecutions()) {
+                Optional<ErrorInfo> failure = execution.getFailureInfo();
+                if (failure.isPresent()) {
+                    if (taskExceptionList.size() >= exceptionToReportMaxSize) {
+                        truncated = true;
+                        break;
+                    }
 
-                TaskManagerLocation location = task.getCurrentAssignedResourceLocation();
-                String locationString = toString(location);
-                long timestamp = task.getStateTimestamp(ExecutionState.FAILED);
-                taskExceptionList.add(
-                        new JobExceptionsInfo.ExecutionExceptionInfo(
-                                failure.get().getExceptionAsString(),
-                                task.getTaskNameWithSubtaskIndex(),
-                                locationString,
-                                timestamp == 0 ? -1 : timestamp));
+                    TaskManagerLocation location = execution.getAssignedResourceLocation();
+                    String locationString = toString(location);
+                    long timestamp = execution.getStateTimestamp(ExecutionState.FAILED);
+                    taskExceptionList.add(
+                            new JobExceptionsInfo.ExecutionExceptionInfo(
+                                    failure.get().getExceptionAsString(),
+                                    task.getTaskNameWithSubtaskIndex(),
+                                    locationString,
+                                    timestamp == 0 ? -1 : timestamp,
+                                    toTaskManagerId(location)));
+                }
             }
         }
 
@@ -197,6 +201,7 @@ public class JobExceptionsHandler
                 historyEntry.getTimestamp(),
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
+                toTaskManagerId(historyEntry.getTaskManagerLocation()),
                 concurrentExceptions);
     }
 
@@ -209,7 +214,8 @@ public class JobExceptionsHandler
                 exceptionHistoryEntry.getExceptionAsString(),
                 exceptionHistoryEntry.getTimestamp(),
                 exceptionHistoryEntry.getFailingTaskName(),
-                toString(exceptionHistoryEntry.getTaskManagerLocation()));
+                toString(exceptionHistoryEntry.getTaskManagerLocation()),
+                toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()));
     }
 
     private static void assertLocalExceptionInfo(ExceptionHistoryEntry exceptionHistoryEntry) {
@@ -228,11 +234,24 @@ public class JobExceptionsHandler
     }
 
     @VisibleForTesting
+    static String toTaskManagerId(@Nullable TaskManagerLocation location) {
+        // '(unassigned)' being the default value is added to support backward-compatibility for the
+        // deprecated fields
+        return location != null ? String.format("%s", location.getResourceID()) : "(unassigned)";
+    }
+
+    @VisibleForTesting
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null
                 ? taskManagerLocationToString(location.getFQDNHostname(), location.getPort())
                 : null;
+    }
+
+    @VisibleForTesting
+    static String toTaskManagerId(
+            @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
+        return location != null ? String.format("%s", location.getResourceID()) : null;
     }
 
     private static String taskManagerLocationToString(String fqdnHostname, int port) {

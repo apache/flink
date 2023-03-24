@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -60,14 +61,19 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final TimerGauge hardBackPressuredTimePerSecond;
     private final Gauge<Long> maxSoftBackPressuredTime;
     private final Gauge<Long> maxHardBackPressuredTime;
+    private final Gauge<Long> accumulatedBackPressuredTime;
+    private final Gauge<Long> accumulatedIdleTime;
+    private final Gauge<Double> accumulatedBusyTime;
     private final Meter mailboxThroughput;
     private final Histogram mailboxLatency;
     private final SizeGauge mailboxSize;
 
     private volatile boolean busyTimeEnabled;
 
-    private final Map<IntermediateResultPartitionID, Counter> numBytesProducedOfPartitions =
-            new HashMap<>();
+    private long taskStartTime;
+
+    private final Map<IntermediateResultPartitionID, ResultPartitionBytesCounter>
+            resultPartitionBytes = new HashMap<>();
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
@@ -107,6 +113,15 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
 
+        this.accumulatedBusyTime =
+                gauge(MetricNames.ACC_TASK_BUSY_TIME, this::getAccumulatedBusyTime);
+        this.accumulatedBackPressuredTime =
+                gauge(
+                        MetricNames.ACC_TASK_BACK_PRESSURED_TIME,
+                        this::getAccumulatedBackPressuredTimeMs);
+        this.accumulatedIdleTime =
+                gauge(MetricNames.ACC_TASK_IDLE_TIME, idleTimePerSecond::getAccumulatedCount);
+
         this.numMailsProcessed = new SimpleCounter();
         this.mailboxThroughput =
                 meter(MetricNames.MAILBOX_THROUGHPUT, new MeterView(numMailsProcessed));
@@ -121,7 +136,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 numRecordsOutRate,
                 numBytesInRate,
                 numBytesOutRate,
-                numBytesProducedOfPartitions);
+                accumulatedBackPressuredTime,
+                accumulatedIdleTime,
+                accumulatedBusyTime,
+                resultPartitionBytes);
     }
 
     // ============================================================================================
@@ -169,6 +187,15 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 + getHardBackPressuredTimePerSecond().getValue();
     }
 
+    public long getAccumulatedBackPressuredTimeMs() {
+        return getSoftBackPressuredTimePerSecond().getAccumulatedCount()
+                + getHardBackPressuredTimePerSecond().getAccumulatedCount();
+    }
+
+    public void markTaskStart() {
+        this.taskStartTime = System.currentTimeMillis();
+    }
+
     public void setEnableBusyTime(boolean enabled) {
         busyTimeEnabled = enabled;
     }
@@ -176,6 +203,17 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private double getBusyTimePerSecond() {
         double busyTime = idleTimePerSecond.getValue() + getBackPressuredTimeMsPerSecond();
         return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
+    }
+
+    private double getAccumulatedBusyTime() {
+        return busyTimeEnabled
+                ? Math.max(
+                        System.currentTimeMillis()
+                                - taskStartTime
+                                - idleTimePerSecond.getAccumulatedCount()
+                                - getAccumulatedBackPressuredTimeMs(),
+                        0)
+                : Double.NaN;
     }
 
     public Meter getMailboxThroughput() {
@@ -201,12 +239,13 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numRecordsOut.addCounter(numRecordsOutCounter);
     }
 
-    public void registerNumBytesProducedCounterForPartition(
-            IntermediateResultPartitionID resultPartitionId, Counter numBytesProducedCounter) {
-        this.numBytesProducedOfPartitions.put(resultPartitionId, numBytesProducedCounter);
+    public void registerResultPartitionBytesCounter(
+            IntermediateResultPartitionID resultPartitionId,
+            ResultPartitionBytesCounter resultPartitionBytesCounter) {
+        this.resultPartitionBytes.put(resultPartitionId, resultPartitionBytesCounter);
     }
 
-    public void registerMailboxSizeSupplier(SizeGauge.SizeSupplier<Integer> supplier) {
+    public void registerMailboxSizeSupplier(SizeSupplier<Integer> supplier) {
         this.mailboxSize.registerSupplier(supplier);
     }
 
@@ -236,11 +275,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private static class SizeGauge implements Gauge<Integer> {
         private SizeSupplier<Integer> supplier;
 
-        @FunctionalInterface
-        public interface SizeSupplier<R> {
-            R get();
-        }
-
         public void registerSupplier(SizeSupplier<Integer> supplier) {
             this.supplier = supplier;
         }
@@ -253,5 +287,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 return 0; // return "assumed" empty queue size
             }
         }
+    }
+
+    /** Supplier for sizes. */
+    @FunctionalInterface
+    public interface SizeSupplier<R> {
+        R get();
     }
 }

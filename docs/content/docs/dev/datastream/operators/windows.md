@@ -37,6 +37,9 @@ for the rest of the page.
 
 **Keyed Windows**
 
+{{< tabs "Keyed Windows" >}}
+
+{{< tab "Java/Scala" >}}
     stream
            .keyBy(...)               <-  keyed versus non-keyed windows
            .window(...)              <-  required: "assigner"
@@ -47,8 +50,26 @@ for the rest of the page.
            .reduce/aggregate/apply()      <-  required: "function"
           [.getSideOutput(...)]      <-  optional: "output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .key_by(...)
+           .window(...)                 <-  required: "assigner"
+          [.trigger(...)]               <-  optional: "trigger" (else default trigger)
+          [.allowed_lateness(...)]      <-  optional: "lateness" (else zero)
+          [.side_output_late_data(...)] <-  optional: "output tag" (else no side output for late data)
+           .reduce/aggregate/apply()    <-  required: "function"
+          [.get_side_output(...)]       <-  optional: "output tag"
+
+{{< /tab >}}
+{{< /tabs >}}
+
 **Non-Keyed Windows**
 
+{{< tabs "Non-Keyed Windows" >}}
+
+{{< tab "Java/Scala" >}}
     stream
            .windowAll(...)           <-  required: "assigner"
           [.trigger(...)]            <-  optional: "trigger" (else default trigger)
@@ -58,10 +79,24 @@ for the rest of the page.
            .reduce/aggregate/apply()      <-  required: "function"
           [.getSideOutput(...)]      <-  optional: "output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .window_all(...)             <-  required: "assigner"
+          [.trigger(...)]               <-  optional: "trigger" (else default trigger)
+          [.allowed_lateness(...)]      <-  optional: "lateness" (else zero)
+          [.side_output_late_data(...)] <-  optional: "output tag" (else no side output for late data)
+           .reduce/aggregate/apply()    <-  required: "function"
+          [.get_side_output(...)]       <-  optional: "output tag"
+
+{{< /tab >}}
+
+{{< /tabs >}}
+
 In the above, the commands in square brackets ([...]) are optional. This reveals that Flink allows you to customize your
 windowing logic in many different ways so that it best fits your needs.
-{{< hint info >}} Note: Non-Keyed windows is still not supported in Python DataStream API. {{< /hint >}}
-
+{{< hint info >}} Note: `Evictor` is still not supported in Python DataStream API. {{< /hint >}}
 
 
 ## Window Lifecycle
@@ -490,6 +525,16 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(GlobalWindows.create()) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## Window Functions
@@ -831,51 +876,51 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         """
         pass
 
-class Context(ABC, Generic[W2]):
-    """
-    The context holding window metadata.
-    """
-
-    @abstractmethod
-    def window(self) -> W2:
+    class Context(ABC, Generic[W2]):
         """
-        :return: The window that is being evaluated.
+        The context holding window metadata.
         """
-        pass
-
-    @abstractmethod
-    def current_processing_time(self) -> int:
-        """
-        :return: The current processing time.
-        """
-        pass
-
-    @abstractmethod
-    def current_watermark(self) -> int:
-        """
-        :return: The current event-time watermark.
-        """
-        pass
-
-    @abstractmethod
-    def window_state(self) -> KeyedStateStore:
-        """
-        State accessor for per-key and per-window state.
-  
-        .. note::
-            If you use per-window state you have to ensure that you clean it up by implementing
-            :func:`~ProcessWindowFunction.clear`.
-  
-        :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
-        """
-        pass
-
-    @abstractmethod
-    def global_state(self) -> KeyedStateStore:
-        """
-        State accessor for per-key global state.
-        """
-        pass
+    
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+    
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            """
+            :return: The current processing time.
+            """
+            pass
+    
+        @abstractmethod
+        def current_watermark(self) -> int:
+            """
+            :return: The current event-time watermark.
+            """
+            pass
+    
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+      
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessWindowFunction.clear`.
+      
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+    
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1445,6 +1490,8 @@ elements of a window have to be passed to the evictor before applying the comput
 This means windows with evictors will create significantly more state.
 {{< /hint >}}
 
+{{< hint info >}} Note: `Evictor` is still not supported in Python DataStream API. {{< /hint >}}
+
 Flink provides no guarantees about the order of the elements within
 a window. This implies that although an evictor may remove elements from the beginning of the window, these are not
 necessarily the ones that arrive first or last.
@@ -1647,6 +1694,20 @@ val resultsPerKey = input
 val globalResults = resultsPerKey
     .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
     .process(new TopKWindowFunction())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+results_per_key = input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(Summer())
+
+global_results = results_per_key \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .process(TopKWindowFunction())
 ```
 {{< /tab >}}
 {{< /tabs >}}

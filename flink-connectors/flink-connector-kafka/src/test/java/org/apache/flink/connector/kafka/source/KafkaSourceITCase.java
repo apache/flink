@@ -81,7 +81,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.PARTITION;
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.TOPIC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unite test class for {@link KafkaSource}. */
 public class KafkaSourceITCase {
@@ -142,10 +141,9 @@ public class KafkaSourceITCase {
             stream.addSink(new DiscardingSink<>());
             JobExecutionResult result = env.execute();
 
-            assertEquals(
-                    Arrays.asList(
-                            currentTimestamp + 1L, currentTimestamp + 2L, currentTimestamp + 3L),
-                    result.getAccumulatorResult("timestamp"));
+            assertThat(result.<List<Long>>getAccumulatorResult("timestamp"))
+                    .containsExactly(
+                            currentTimestamp + 1L, currentTimestamp + 2L, currentTimestamp + 3L);
         }
 
         @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
@@ -185,33 +183,36 @@ public class KafkaSourceITCase {
 
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(1);
-            final CloseableIterator<Integer> resultIterator =
+
+            try (CloseableIterator<Integer> resultIterator =
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
                                     "testValueOnlyDeserializer")
-                            .executeAndCollect();
+                            .executeAndCollect()) {
+                AtomicInteger actualSum = new AtomicInteger();
+                resultIterator.forEachRemaining(actualSum::addAndGet);
 
-            AtomicInteger actualSum = new AtomicInteger();
-            resultIterator.forEachRemaining(actualSum::addAndGet);
-
-            // Calculate the actual sum of values
-            // Values in a partition should start from partition ID, and end with
-            // (NUM_RECORDS_PER_PARTITION - 1)
-            // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
-            int expectedSum = 0;
-            for (int partition = 0; partition < KafkaSourceTestEnv.NUM_PARTITIONS; partition++) {
-                for (int value = partition;
-                        value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
-                        value++) {
-                    expectedSum += value;
+                // Calculate the actual sum of values
+                // Values in a partition should start from partition ID, and end with
+                // (NUM_RECORDS_PER_PARTITION - 1)
+                // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
+                int expectedSum = 0;
+                for (int partition = 0;
+                        partition < KafkaSourceTestEnv.NUM_PARTITIONS;
+                        partition++) {
+                    for (int value = partition;
+                            value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
+                            value++) {
+                        expectedSum += value;
+                    }
                 }
+
+                // Since we have two topics, the expected sum value should be doubled
+                expectedSum *= 2;
+
+                assertThat(actualSum.get()).isEqualTo(expectedSum);
             }
-
-            // Since we have two topics, the expected sum value should be doubled
-            expectedSum *= 2;
-
-            assertEquals(expectedSum, actualSum.get());
         }
 
         @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
@@ -308,6 +309,65 @@ public class KafkaSourceITCase {
                                 }
                             });
             env.execute();
+        }
+
+        @Test
+        public void testConsumingEmptyTopic() throws Throwable {
+            String emptyTopic = "emptyTopic-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(emptyTopic, 3, 1);
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(emptyTopic)
+                            .setGroupId("empty-topic-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+            try (CloseableIterator<PartitionAndValue> iterator =
+                    env.fromSource(
+                                    source,
+                                    WatermarkStrategy.noWatermarks(),
+                                    "testConsumingEmptyTopic")
+                            .executeAndCollect()) {
+                assertThat(iterator.hasNext()).isFalse();
+            }
+        }
+
+        @Test
+        public void testConsumingTopicWithEmptyPartitions() throws Throwable {
+            String topicWithEmptyPartitions = "topicWithEmptyPartitions-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(
+                    topicWithEmptyPartitions, KafkaSourceTestEnv.NUM_PARTITIONS, 1);
+            List<ProducerRecord<String, Integer>> records =
+                    KafkaSourceTestEnv.getRecordsForTopicWithoutTimestamp(topicWithEmptyPartitions);
+            // Only keep records in partition 5
+            int partitionWithRecords = 5;
+            records.removeIf(record -> record.partition() != partitionWithRecords);
+            KafkaSourceTestEnv.produceToKafka(records);
+            KafkaSourceTestEnv.setupEarliestOffsets(
+                    Collections.singletonList(
+                            new TopicPartition(topicWithEmptyPartitions, partitionWithRecords)));
+
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(topicWithEmptyPartitions)
+                            .setGroupId("topic-with-empty-partition-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(2);
+            executeAndVerify(
+                    env,
+                    env.fromSource(
+                            source,
+                            WatermarkStrategy.noWatermarks(),
+                            "testConsumingTopicWithEmptyPartitions"));
         }
     }
 
@@ -441,15 +501,20 @@ public class KafkaSourceITCase {
                         resultPerPartition
                                 .computeIfAbsent(partitionAndValue.tp, ignored -> new ArrayList<>())
                                 .add(partitionAndValue.value));
+
+        // Expected elements from partition P should be an integer sequence from P to
+        // NUM_RECORDS_PER_PARTITION.
         resultPerPartition.forEach(
                 (tp, values) -> {
-                    int firstExpectedValue = Integer.parseInt(tp.substring(tp.indexOf('-') + 1));
+                    int firstExpectedValue =
+                            Integer.parseInt(tp.substring(tp.lastIndexOf('-') + 1));
                     for (int i = 0; i < values.size(); i++) {
-                        assertEquals(
-                                firstExpectedValue + i,
-                                (int) values.get(i),
-                                String.format(
-                                        "The %d-th value for partition %s should be %d", i, tp, i));
+                        assertThat((int) values.get(i))
+                                .as(
+                                        String.format(
+                                                "The %d-th value for partition %s should be %d",
+                                                i, tp, firstExpectedValue + i))
+                                .isEqualTo(firstExpectedValue + i);
                     }
                 });
     }

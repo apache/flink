@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -67,9 +68,9 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     private final KeyGroupRange localKeyGroupRange;
     private final KeyContext keyContext;
-
     private final PriorityQueueSetFactory priorityQueueSetFactory;
     private final ProcessingTimeService processingTimeService;
+    private final StreamTaskCancellationContext cancellationContext;
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
@@ -77,12 +78,14 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
             KeyGroupRange localKeyGroupRange,
             KeyContext keyContext,
             PriorityQueueSetFactory priorityQueueSetFactory,
-            ProcessingTimeService processingTimeService) {
+            ProcessingTimeService processingTimeService,
+            StreamTaskCancellationContext cancellationContext) {
 
         this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
         this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
         this.keyContext = Preconditions.checkNotNull(keyContext);
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+        this.cancellationContext = cancellationContext;
 
         this.timerServices = new HashMap<>();
     }
@@ -97,13 +100,18 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
             ClassLoader userClassloader,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
-            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+            StreamTaskCancellationContext cancellationContext)
             throws Exception {
         final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
-                        keyGroupRange, keyContext, keyedStateBackend, processingTimeService);
+                        keyGroupRange,
+                        keyContext,
+                        keyedStateBackend,
+                        processingTimeService,
+                        cancellationContext);
 
         // and then initialize the timer services
         for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
@@ -157,7 +165,8 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
                             processingTimeService,
                             createTimerPriorityQueue(
                                     PROCESSING_TIMER_PREFIX + name, timerSerializer),
-                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer));
+                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
+                            cancellationContext);
 
             timerServices.put(name, timerService);
         }

@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Objects;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -370,5 +371,24 @@ public class FileSystemCheckpointStorage
         return writeBufferSize >= 0
                 ? writeBufferSize
                 : CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(location, fileStateThreshold, writeBufferSize);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        FileSystemCheckpointStorage that = (FileSystemCheckpointStorage) other;
+        return Objects.equals(location, that.location)
+                && Objects.equals(fileStateThreshold, that.fileStateThreshold)
+                && Objects.equals(writeBufferSize, that.writeBufferSize);
     }
 }

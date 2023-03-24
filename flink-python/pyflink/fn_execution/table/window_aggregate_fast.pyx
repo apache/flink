@@ -30,7 +30,7 @@ from typing import List, Dict
 import pytz
 
 from pyflink.common.constants import MAX_LONG_VALUE
-from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
@@ -470,9 +470,9 @@ cdef class GroupWindowAggFunctionBase:
         cdef list timers
         cdef object timer
         timers = []
-        for timer in self._internal_timer_service.timers.keys():
+        for timer in self._internal_timer_service._timers.keys():
             timers.append(timer)
-        self._internal_timer_service.timers.clear()
+        self._internal_timer_service._timers.clear()
         return timers
 
     cpdef void close(self):

@@ -53,6 +53,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -125,7 +126,8 @@ public class StreamTaskFinalCheckpointsTest {
                             .addInput(STRING_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new EmptyOperator())
-                            .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                            .finishForSingletonOperatorChain(
+                                    StringSerializer.INSTANCE, new BroadcastPartitioner<>())
                             .build()) {
                 testHarness.endInput();
 

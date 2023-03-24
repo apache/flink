@@ -41,6 +41,8 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 Flink's streaming connectors are not part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
+{{< py_download_link "kafka" >}}
+
 ## Kafka Source
 {{< hint info >}}
 This part describes the Kafka source based on the new 
@@ -51,6 +53,9 @@ This part describes the Kafka source based on the new
 Kafka source provides a builder class for constructing instance of KafkaSource. The code snippet
 below shows how to build a KafkaSource to consume messages from the earliest offset of topic
 "input-topic", with consumer group "my-group" and deserialize only the value of message as string.
+
+{{< tabs "KafkaSource" >}}
+{{< tab "Java" >}}
 ```java
 KafkaSource<String> source = KafkaSource.<String>builder()
     .setBootstrapServers(brokers)
@@ -62,6 +67,22 @@ KafkaSource<String> source = KafkaSource.<String>builder()
 
 env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = KafkaSource.builder() \
+    .set_bootstrap_servers(brokers) \
+    .set_topics("input-topic") \
+    .set_group_id("my-group") \
+    .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
+    .set_value_only_deserializer(SimpleStringSchema()) \
+    .build()
+
+env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 The following properties are **required** for building a KafkaSource:
 - Bootstrap servers, configured by ```setBootstrapServers(String)```
 - Topics / partitions to subscribe, see the following
@@ -72,21 +93,53 @@ The following properties are **required** for building a KafkaSource:
 ### Topic-partition Subscription
 Kafka source provide 3 ways of topic-partition subscription:
 - Topic list, subscribing messages from all partitions in a list of topics. For example:
+  {{< tabs "KafkaSource#setTopics" >}}
+  {{< tab "Java" >}}
   ```java
   KafkaSource.builder().setTopics("topic-a", "topic-b");
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  KafkaSource.builder().set_topics("topic-a", "topic-b")
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - Topic pattern, subscribing messages from all topics whose name matches the provided regular
   expression. For example:
+  {{< tabs "KafkaSource#setTopicPattern" >}}
+  {{< tab "Java" >}}
   ```java
   KafkaSource.builder().setTopicPattern("topic.*");
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  KafkaSource.builder().set_topic_pattern("topic.*")
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - Partition set, subscribing partitions in the provided partition set. For example:
+  {{< tabs "KafkaSource#setPartitions" >}}
+  {{< tab "Java" >}}
   ```java
   final HashSet<TopicPartition> partitionSet = new HashSet<>(Arrays.asList(
           new TopicPartition("topic-a", 0),    // Partition 0 of topic "topic-a"
           new TopicPartition("topic-b", 5)));  // Partition 5 of topic "topic-b"
   KafkaSource.builder().setPartitions(partitionSet);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  partition_set = {
+      KafkaTopicPartition("topic-a", 0),
+      KafkaTopicPartition("topic-b", 5)
+  }
+  KafkaSource.builder().set_partitions(partition_set)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 ### Deserializer
 A deserializer is required for parsing Kafka messages. Deserializer (Deserialization schema) can be
 configured by ```setDeserializer(KafkaRecordDeserializationSchema)```, where
@@ -106,26 +159,50 @@ KafkaSource.<String>builder()
         .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
 ```
 
+Currently, PyFlink only supports ```set_value_only_deserializer``` to customize deserialization of the value of a Kafka record.
+```python
+KafkaSource.builder().set_value_only_deserializer(SimpleStringSchema())
+```
+
 ### Starting Offset
 Kafka source is able to consume messages starting from different offsets by specifying
 ```OffsetsInitializer```. Built-in initializers include:
 
+{{< tabs "KafkaSource#setStartingOffsets" >}}
+{{< tab "Java" >}}
 ```java
 KafkaSource.builder()
     // Start from committed offset of the consuming group, without reset strategy
     .setStartingOffsets(OffsetsInitializer.committedOffsets())
     // Start from committed offset, also use EARLIEST as reset strategy if committed offset doesn't exist
     .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
-    // Start from the first record whose timestamp is greater than or equals a timestamp
-    .setStartingOffsets(OffsetsInitializer.timestamp(1592323200L))
+    // Start from the first record whose timestamp is greater than or equals a timestamp (milliseconds)
+    .setStartingOffsets(OffsetsInitializer.timestamp(1657256176000L))
     // Start from earliest offset
     .setStartingOffsets(OffsetsInitializer.earliest())
     // Start from latest offset
     .setStartingOffsets(OffsetsInitializer.latest());
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+KafkaSource.builder() \
+    # Start from committed offset of the consuming group, without reset strategy
+    .set_starting_offsets(KafkaOffsetsInitializer.committed_offsets()) \
+    # Start from committed offset, also use EARLIEST as reset strategy if committed offset doesn't exist
+    .set_starting_offsets(KafkaOffsetsInitializer.committed_offsets(KafkaOffsetResetStrategy.EARLIEST)) \
+    # Start from the first record whose timestamp is greater than or equals a timestamp (milliseconds)
+    .set_starting_offsets(KafkaOffsetsInitializer.timestamp(1657256176000)) \
+    # Start from the earliest offset
+    .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
+    # Start from the latest offset
+    .set_starting_offsets(KafkaOffsetsInitializer.latest())
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 You can also implement a custom offsets initializer if built-in initializers above cannot fulfill
-your requirement.
+your requirement. (Not supported in PyFlink)
 
 If offsets initializer is not specified, **OffsetsInitializer.earliest()** will be
 used by default.
@@ -165,23 +242,27 @@ it is configured:
 - ```partition.discovery.interval.ms``` is overridden to -1 when
   ```setBounded(OffsetsInitializer)``` has been invoked
 
-The code snippet below shows configuring KafkaConsumer to use "PLAIN" as SASL mechanism and provide
-JAAS configuration:
-```java
-KafkaSource.builder()
-    .setProperty("sasl.mechanism", "PLAIN")
-    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
-```
-
 ### Dynamic Partition Discovery
 In order to handle scenarios like topic scaling-out or topic creation without restarting the Flink
 job, Kafka source can be configured to periodically discover new partitions under provided 
 topic-partition subscribing pattern. To enable partition discovery, set a non-negative value for 
 property ```partition.discovery.interval.ms```:
+
+{{< tabs "KafkaSource#PartitionDiscovery" >}}
+{{< tab "Java" >}}
 ```java
 KafkaSource.builder()
     .setProperty("partition.discovery.interval.ms", "10000"); // discover new partitions per 10 seconds
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+KafkaSource.builder() \
+    .set_property("partition.discovery.interval.ms", "10000")  # discover new partitions per 10 seconds
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 {{< hint warning >}}
 Partition discovery is **disabled** by default. You need to explicitly set the partition discovery
 interval to enable this feature.
@@ -195,7 +276,7 @@ and emit watermark downstream:
 env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy");
 ```
 [This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes
-details about how to define a ```WatermarkStrategy```.
+details about how to define a ```WatermarkStrategy```. (Not supported in PyFlink)
 
 ### Idleness
 The Kafka Source does not go automatically in an idle state if the parallelism is higher than the
@@ -307,6 +388,84 @@ For metrics of Kafka consumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumer_monitoring">Apache Kafka Documentation</a>
 for more details.
 
+In case you experience a warning with a stack trace containing
+`javax.management.InstanceAlreadyExistsException: kafka.consumer:[...]`, you are probably trying to
+register multiple ```KafkaConsumers``` with the same client.id. The warning indicates that not all
+available metrics are correctly forwarded to the metrics system. You must ensure that a different
+```client.id.prefix``` for every ```KafkaSource``` is configured and that no other
+```KafkaConsumer``` in your job uses the same ```client.id```.
+
+### Security
+In order to enable security configurations including encryption and authentication, you just need to setup security
+configurations as additional properties to the Kafka source. The code snippet below shows configuring Kafka source to
+use PLAIN as SASL mechanism and provide JAAS configuration:
+
+{{< tabs "KafkaSource#SecurityPlain" >}}
+{{< tab "Java" >}}
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_PLAINTEXT")
+    .setProperty("sasl.mechanism", "PLAIN")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+KafkaSource.builder() \
+    .set_property("security.protocol", "SASL_PLAINTEXT") \
+    .set_property("sasl.mechanism", "PLAIN") \
+    .set_property("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";")
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+For a more complex example, use SASL_SSL as the security protocol and use SCRAM-SHA-256 as SASL mechanism:
+
+{{< tabs "KafkaSource#SecuritySASL" >}}
+{{< tab "Java" >}}
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_SSL")
+    // SSL configurations
+    // Configure the path of truststore (CA) provided by the server
+    .setProperty("ssl.truststore.location", "/path/to/kafka.client.truststore.jks")
+    .setProperty("ssl.truststore.password", "test1234")
+    // Configure the path of keystore (private key) if client authentication is required
+    .setProperty("ssl.keystore.location", "/path/to/kafka.client.keystore.jks")
+    .setProperty("ssl.keystore.password", "test1234")
+    // SASL configurations
+    // Set SASL mechanism as SCRAM-SHA-256
+    .setProperty("sasl.mechanism", "SCRAM-SHA-256")
+    // Set JAAS configurations
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";");
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+KafkaSource.builder() \
+    .set_property("security.protocol", "SASL_SSL") \
+    # SSL configurations
+    # Configure the path of truststore (CA) provided by the server
+    .set_property("ssl.truststore.location", "/path/to/kafka.client.truststore.jks") \
+    .set_property("ssl.truststore.password", "test1234") \
+    # Configure the path of keystore (private key) if client authentication is required
+    .set_property("ssl.keystore.location", "/path/to/kafka.client.keystore.jks") \
+    .set_property("ssl.keystore.password", "test1234") \
+    # SASL configurations
+    # Set SASL mechanism as SCRAM-SHA-256
+    .set_property("sasl.mechanism", "SCRAM-SHA-256") \
+    # Set JAAS configurations
+    .set_property("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";")
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Please note that the class path of the login module in `sasl.jaas.config` might be different if you relocate Kafka
+client dependencies in the job JAR, so you may need to rewrite it with the actual class path of the module in the JAR.
+
+For detailed explanations of security configurations, please refer to
+<a href="https://kafka.apache.org/documentation/#security">the "Security" section in Apache Kafka documentation</a>.
+
 ### Behind the Scene
 {{< hint info >}}
 If you are interested in how Kafka source works under the design of new data source API, you may
@@ -346,7 +505,7 @@ when the record is emitted downstream.
 
 ## Kafka SourceFunction
 {{< hint warning >}}
-`FlinkKafkaConsumer` is deprecated and will be removed with Flink 1.15, please use `KafkaSource` instead.
+`FlinkKafkaConsumer` is deprecated and will be removed with Flink 1.17, please use `KafkaSource` instead.
 {{< /hint >}}
 
 For older references you can look at the Flink 1.13 <a href="https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction">documentation</a>.
@@ -360,6 +519,8 @@ For older references you can look at the Flink 1.13 <a href="https://nightlies.a
 Kafka sink provides a builder class to construct an instance of a KafkaSink. The code snippet below
 shows how to write String records to a Kafka topic with a delivery guarantee of at least once.
 
+{{< tabs "KafkaSink" >}}
+{{< tab "Java" >}}
 ```java
 DataStream<String> stream = ...;
         
@@ -370,11 +531,29 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
             .setValueSerializationSchema(new SimpleStringSchema())
             .build()
         )
-        .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+        .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+sink = KafkaSink.builder() \
+    .set_bootstrap_servers(brokers) \
+    .set_record_serializer(
+        KafkaRecordSerializationSchema.builder()
+            .set_topic("topic-name")
+            .set_value_serialization_schema(SimpleStringSchema())
+            .build()
+    ) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .build()
+
+stream.sink_to(sink)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The following properties are **required** to build a KafkaSink:
 
@@ -390,6 +569,8 @@ the data stream to Kafka producer records.
 Flink offers a schema builder to provide some common building blocks i.e. key/value serialization, topic
 selection, partitioning. You can also implement the interface on your own to exert more control.
 
+{{< tabs "KafkaSink#Serializer" >}}
+{{< tab "Java" >}}
 ```java
 KafkaRecordSerializationSchema.builder()
     .setTopicSelector((element) -> {<your-topic-selection-logic>})
@@ -398,6 +579,18 @@ KafkaRecordSerializationSchema.builder()
     .setPartitioner(new FlinkFixedPartitioner())
     .build();
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+KafkaRecordSerializationSchema.builder() \
+    .set_topic_selector(lambda element: <your-topic-selection-logic>) \
+    .set_value_serialization_schema(SimpleStringSchema()) \
+    .set_key_serialization_schema(SimpleStringSchema()) \
+    # set partitioner is not supported in PyFlink
+    .build()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 It is **required** to always set a value serialization method and a topic (selection method).
 Moreover, it is also possible to use Kafka serializers instead of Flink serializer by using 

@@ -19,20 +19,23 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 /** Wrapping {@link Output} that updates metrics on the number of emitted elements. */
-public class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
-    private final Output<StreamRecord<OUT>> output;
+public class CountingOutput<OUT> implements WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
+    private final WatermarkGaugeExposingOutput<StreamRecord<OUT>> output;
     private final Counter numRecordsOut;
 
-    public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
+    public CountingOutput(
+            WatermarkGaugeExposingOutput<StreamRecord<OUT>> output, Counter numRecordsOut) {
         this.output = output;
-        this.numRecordsOut = counter;
+        this.numRecordsOut = numRecordsOut;
     }
 
     @Override
@@ -65,5 +68,10 @@ public class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
     @Override
     public void close() {
         output.close();
+    }
+
+    @Override
+    public Gauge<Long> getWatermarkGauge() {
+        return output.getWatermarkGauge();
     }
 }

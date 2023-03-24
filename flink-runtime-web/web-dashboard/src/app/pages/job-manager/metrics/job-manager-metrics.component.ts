@@ -16,21 +16,45 @@
  * limitations under the License.
  */
 
+import { DecimalPipe, NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { map, takeUntil } from 'rxjs/operators';
+import { of, Subject } from 'rxjs';
+import { catchError, map, startWith, takeUntil } from 'rxjs/operators';
 
-import { JobManagerService, StatusService } from 'services';
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { ParseIntPipe } from '@flink-runtime-web/components/parse-int.pipe';
+import { ClusterConfiguration } from '@flink-runtime-web/interfaces';
+import { JobManagerService, StatusService } from '@flink-runtime-web/services';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-job-manager-metrics',
   templateUrl: './job-manager-metrics.component.html',
   styleUrls: ['./job-manager-metrics.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzTableModule,
+    NgIf,
+    ParseIntPipe,
+    HumanizeBytesPipe,
+    NzToolTipModule,
+    NzProgressModule,
+    DecimalPipe,
+    NzIconModule,
+    NzCardModule,
+    NzGridModule,
+    NgForOf
+  ],
+  standalone: true
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
   public metrics: { [id: string]: number } = {};
-  public config: { [id: string]: string } = {};
+  public jmConfig: { [id: string]: string } = {};
   public listOfGCName: string[] = [];
   public listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
 
@@ -43,22 +67,28 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    this.jobManagerService.loadConfig().subscribe(data => {
-      for (const item of data) {
-        this.config[item.key] = item.value;
-      }
-      this.cdr.markForCheck();
-    });
-    this.statusService.refresh$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.jobManagerService
+      .loadConfig()
+      .pipe(
+        catchError(() => of([] as ClusterConfiguration[])),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        for (const item of data) {
+          this.jmConfig[item.key] = item.value;
+        }
+        this.cdr.markForCheck();
+      });
+    this.statusService.refresh$.pipe(startWith(true), takeUntil(this.destroy$)).subscribe(() => {
       this.jobManagerService
-        .getMetricsName()
+        .loadMetricsName()
         .pipe(map(arr => arr.filter(item => item.indexOf('Status.JVM.GarbageCollector') !== -1)))
         .subscribe(data => {
           this.listOfGCName = data;
           this.cdr.markForCheck();
         });
       this.jobManagerService
-        .getMetrics([
+        .loadMetrics([
           'Status.JVM.Memory.Heap.Used',
           'Status.JVM.Memory.Heap.Max',
           'Status.JVM.Memory.Metaspace.Used',

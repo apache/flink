@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newNames
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateLiteral, generateNullLiteral}
+import org.apache.flink.table.planner.codegen.GenerateUtils.generateLiteral
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.functions.casting.CastRuleProvider
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil.toFlinkInternalValue
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 
-import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.{RexLiteral, RexUnknownAs}
 import org.apache.calcite.util.{RangeSets, Sarg}
 
 import java.util.Arrays.asList
@@ -80,23 +80,41 @@ object SearchOperatorGen {
         // The elements are constant, we perform the cast immediately
         .map(CastRuleProvider.cast(toCastContext(ctx), sargType, commonType, _))
         .map(generateLiteral(ctx, _, commonType))
-      if (sarg.containsNull) {
-        haystack += generateNullLiteral(commonType)
-      }
       val setTerm = ctx.addReusableHashSet(haystack.toSeq, commonType)
       val negation = if (sarg.isComplementedPoints) "!" else ""
 
       val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
+      // Since https://issues.apache.org/jira/browse/CALCITE-4446
+      // there is three-valued logic for SEARCH operator
+      // sarg.nullAs should be used instead of sarg.containsNull
+      val isNullCode = sarg.nullAs match {
+        case RexUnknownAs.TRUE =>
+          s"""
+             |$resultTerm = true;
+             |$nullTerm = false;
+             |""".stripMargin
+        case RexUnknownAs.FALSE =>
+          s"""
+             |$resultTerm = false;
+             |$nullTerm = false;
+             |""".stripMargin
+        case RexUnknownAs.UNKNOWN =>
+          s"""
+             |$resultTerm = false;
+             |$nullTerm = true;
+             |""".stripMargin
+      }
 
       val operatorCode =
         s"""
            |${needle.code}
            |// --- Begin SEARCH ${target.resultTerm}
-           |boolean $resultTerm = false;
-           |boolean $nullTerm = true;
+           |boolean $resultTerm;
+           |boolean $nullTerm;
+           |$isNullCode
            |if (!${needle.nullTerm}) {
            |  $resultTerm = $negation$setTerm.contains(${needle.resultTerm});
-           |  $nullTerm = !$resultTerm && $setTerm.containsNull();
+           |  $nullTerm = false;
            |}
            |// --- End SEARCH ${target.resultTerm}
            |""".stripMargin.trim
@@ -112,22 +130,41 @@ object SearchOperatorGen {
       var rangeChecks: Seq[GeneratedExpression] = sarg.rangeSet.asRanges.asScala.toSeq
         .map(RangeSets.map(_, rangeToExpression))
 
-      if (sarg.containsNull) {
-        rangeChecks = Seq(generateIsNull(target)) ++ rangeChecks
+      // Based on https://issues.apache.org/jira/browse/CALCITE-4446 description it is calculated as
+      // for sarg.nullAs == RexUnknownAs.TRUE: X IS NULL OR X IN (...)
+      // for sarg.nullAs == RexUnknownAs.FALSE: X IS NOT NULL AND (X IN (...))
+      // for sarg.nullAs == RexUnknownAs.UNKNOWN: X IN (...)
+      if (sarg.nullAs == RexUnknownAs.TRUE) {
+        rangeChecks =
+          Seq(generateIsNull(target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
       }
 
       val generatedRangeChecks = rangeChecks
-        .reduce((left, right) => generateOr(left, right))
+        .reduce(
+          (left, right) =>
+            generateOr(
+              left,
+              right,
+              new BooleanType(left.resultType.isNullable || right.resultType.isNullable)))
 
+      val generatedRangeWithIsNotNullIfRequiredChecks =
+        if (sarg.nullAs == RexUnknownAs.FALSE)
+          generateAnd(
+            generatedRangeChecks,
+            generateIsNotNull(target, new BooleanType(target.resultType.isNullable)),
+            new BooleanType(
+              generatedRangeChecks.resultType.isNullable || target.resultType.isNullable)
+          )
+        else generatedRangeChecks;
       // Add the target expression code
       val finalCode =
         s"""
            |${target.code}
            |// --- Begin SEARCH ${target.resultTerm}
-           |${generatedRangeChecks.code}
+           |${generatedRangeWithIsNotNullIfRequiredChecks.code}
            |// --- End SEARCH ${target.resultTerm}
            |""".stripMargin.trim
-      generatedRangeChecks.copy(code = finalCode)
+      generatedRangeWithIsNotNullIfRequiredChecks.copy(code = finalCode)
     }
   }
 
@@ -137,64 +174,72 @@ object SearchOperatorGen {
       target: GeneratedExpression)
     extends RangeSets.Handler[C, GeneratedExpression] {
 
+    final val resultTypeForBoolExpr = new BooleanType(
+      boundType.isNullable
+        || target.resultType.isNullable)
+
     override def all(): GeneratedExpression = {
-      generateLiteral(ctx, true, new BooleanType())
+      generateLiteral(ctx, true, new BooleanType(false))
     }
 
     /** lower <= target */
     override def atLeast(lower: C): GeneratedExpression = {
-      generateComparison(ctx, "<=", lit(lower), target)
+      generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr)
     }
 
     /** target <= upper */
     override def atMost(upper: C): GeneratedExpression = {
-      generateComparison(ctx, "<=", target, lit(upper))
+      generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr)
     }
 
     /** lower < target */
     override def greaterThan(lower: C): GeneratedExpression = {
-      generateComparison(ctx, "<", lit(lower), target)
+      generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr)
     }
 
     /** target < upper */
     override def lessThan(upper: C): GeneratedExpression = {
-      generateComparison(ctx, "<", target, lit(upper))
+      generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr)
     }
 
     /** value == target */
     override def singleton(value: C): GeneratedExpression = {
-      generateComparison(ctx, "==", lit(value), target)
+      generateComparison(ctx, "==", lit(value), target, resultTypeForBoolExpr)
     }
 
     /** lower <= target && target <= upper */
     override def closed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<=", lit(lower), target),
-        generateComparison(ctx, "<=", target, lit(upper))
+        generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
     /** lower <= target && target < upper */
     override def closedOpen(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<=", lit(lower), target),
-        generateComparison(ctx, "<", target, lit(upper))
+        generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
     /** lower < target && target <= upper */
     override def openClosed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<", lit(lower), target),
-        generateComparison(ctx, "<=", target, lit(upper))
+        generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
     /** lower < target && target < upper */
     override def open(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<", lit(lower), target),
-        generateComparison(ctx, "<", target, lit(upper))
+        generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 

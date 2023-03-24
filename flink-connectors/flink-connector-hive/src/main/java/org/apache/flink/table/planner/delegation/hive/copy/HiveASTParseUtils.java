@@ -179,6 +179,9 @@ public class HiveASTParseUtils {
         HashSet<String> aliases = new HashSet<>();
         for (int i = 0; i < select.getChildCount(); ++i) {
             Tree selExpr = select.getChild(i);
+            if (selExpr.getType() == HiveASTParser.QUERY_HINT) {
+                continue;
+            }
             assert selExpr.getType() == HiveASTParser.TOK_SELEXPR;
             assert selExpr.getChildCount() > 0;
             // Examine the last child. It could be an alias.

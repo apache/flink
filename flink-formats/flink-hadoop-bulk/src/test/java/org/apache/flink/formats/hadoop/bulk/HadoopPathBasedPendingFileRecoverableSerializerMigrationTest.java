@@ -22,7 +22,6 @@ import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.Hadoop
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverableSerializer;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -35,6 +34,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the {@link HadoopPathBasedPendingFileRecoverableSerializer} that verify we can still
@@ -86,8 +87,8 @@ public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest extend
         HadoopPathBasedPendingFileRecoverable recoverable =
                 serializer.deserialize(previousVersion, Files.readAllBytes(versionPath));
 
-        Assert.assertEquals(TARGET_PATH, recoverable.getTargetFilePath());
-        Assert.assertEquals(TEMP_PATH, recoverable.getTempFilePath());
+        assertThat(recoverable.getTargetFilePath()).isEqualTo(TARGET_PATH);
+        assertThat(recoverable.getTempFilePath()).isEqualTo(TEMP_PATH);
     }
 
     private java.nio.file.Path resolveVersionPath(long version, String scenario) {

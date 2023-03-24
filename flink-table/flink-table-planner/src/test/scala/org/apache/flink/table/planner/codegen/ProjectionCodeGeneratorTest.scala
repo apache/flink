@@ -37,7 +37,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionBinaryRow(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         "name",
         RowType.of(new IntType(), new BigIntType()),
         RowType.of(new BigIntType(), new IntType()),
@@ -54,7 +54,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionGenericRow(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         "name",
         RowType.of(new IntType(), new BigIntType()),
         RowType.of(new BigIntType(), new IntType()),
@@ -73,7 +73,7 @@ class ProjectionCodeGeneratorTest {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         "name",
         rowType,
         rowType,
@@ -94,7 +94,7 @@ class ProjectionCodeGeneratorTest {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         "name",
         rowType,
         rowType,
@@ -115,7 +115,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionBinaryRowWithVariableLengthData(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         "name",
         RowType.of(new DecimalType(38, 0), new DecimalType(38, 0), new TimestampType(9)),
         RowType.of(new DecimalType(38, 0), new TimestampType(9), new DecimalType(38, 0)),

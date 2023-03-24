@@ -41,16 +41,20 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
+import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -62,6 +66,7 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
@@ -1012,6 +1017,37 @@ public class ExecutingTest extends TestLogger {
 
         @Override
         public boolean isDynamic() {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public boolean isNonFinishedHybridPartitionShouldBeUnknown() {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public ExecutionGraphID getExecutionGraphID() {
+            return new ExecutionGraphID();
+        }
+
+        @Override
+        public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+                IntermediateDataSetID intermediateResultPartition) {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public JobVertexInputInfo getJobVertexInputInfo(
+                JobVertexID jobVertexId, IntermediateDataSetID resultId) {
             throw new UnsupportedOperationException(
                     "This method is not supported by the MockInternalExecutionGraphAccessor.");
         }

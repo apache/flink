@@ -92,6 +92,53 @@ Flink 管理的状态存储在 _state backend_ 中。Flink 有两种 state backe
 
 {{< top >}}
 
+## Checkpoint Storage
+
+Flink 定期对每个算子的所有状态进行持久化快照，并将这些快照复制到更持久的地方，例如分布式文件系统。 如果发生故障，Flink 可以恢复应用程序的完整状态并恢复处理，就好像没有出现任何问题一样。
+
+这些快照的存储位置是通过作业_checkpoint storage_定义的。
+有两种可用检查点存储实现：一种持久保存其状态快照
+到一个分布式文件系统，另一种是使用 JobManager 的堆。
+
+<center>
+  <table class="table table-bordered">
+    <thead>
+      <tr class="book-hint info">
+        <th class="text-left">名称</th>
+        <th class="text-left">状态备份</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th class="text-left">FileSystemCheckpointStorage</th>
+        <td class="text-left">分布式文件系统</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>支持非常大的状态大小</li>
+            <li>高度可靠</li>
+            <li>推荐用于生产部署</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <th class="text-left">JobManagerCheckpointStorage</th>
+        <td class="text-left">JobManager JVM Heap</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>适合小状态（本地）的测试和实验</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</center>
+
+{{< top >}}
+
 ## 状态快照
 
 ### 定义

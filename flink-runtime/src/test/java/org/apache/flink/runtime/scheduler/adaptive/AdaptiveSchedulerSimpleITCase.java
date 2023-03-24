@@ -126,8 +126,7 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
 
         // wait until we are in RESTARTING state
         CommonTestUtils.waitUntilCondition(
-                () -> miniCluster.getJobStatus(jobGraph.getJobID()).get() == JobStatus.RESTARTING,
-                5);
+                () -> miniCluster.getJobStatus(jobGraph.getJobID()).get() == JobStatus.RESTARTING);
 
         // now cancel while in RESTARTING state
         miniCluster.cancelJob(jobGraph.getJobID()).get();

@@ -80,7 +80,7 @@ $ pyflink-shell.sh local
 ...         .option("field-delimiter", ",")
 ...         .build())
 ...     .build())
->>> t.select("a + 1, b, c")\
+>>> t.select(col('a') + 1, col('b'), col('c'))\
 ...     .execute_insert("stream_sink").wait()
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
 >>> with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:
@@ -111,7 +111,7 @@ $ pyflink-shell.sh local
 ...         .option("field-delimiter", ",")
 ...         .build())
 ...     .build())
->>> t.select("a + 1, b, c")\
+>>> t.select(col('a') + 1, col('b'), col('c'))\
 ...     .execute_insert("batch_sink").wait()
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
 >>> with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:

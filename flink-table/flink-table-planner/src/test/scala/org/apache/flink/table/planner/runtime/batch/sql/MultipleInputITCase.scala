@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -42,7 +43,8 @@ import scala.util.Random
  * [[org.apache.flink.table.planner.plan.batch.sql.MultipleInputCreationTest]].
  */
 @RunWith(classOf[Parameterized])
-class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
+class MultipleInputITCase(shuffleMode: BatchShuffleMode, schedulerType: SchedulerType)
+  extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
@@ -74,6 +76,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
       MultipleInputITCase.nullables)
 
     tEnv.getConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode)
+    tEnv.getConfig.set(JobManagerOptions.SCHEDULER, schedulerType)
   }
 
   @Test
@@ -215,9 +218,14 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
 
 object MultipleInputITCase {
 
-  @Parameters(name = "shuffleMode: {0}")
-  def parameters: Array[BatchShuffleMode] =
-    Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
+  @Parameters(name = "shuffleMode: {0}, schedulerType: {1}")
+  def parameters(): Array[Array[java.lang.Object]] = {
+    Array(
+      Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, SchedulerType.AdaptiveBatch),
+      Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, SchedulerType.Default),
+      Array(BatchShuffleMode.ALL_EXCHANGES_PIPELINED, SchedulerType.Default)
+    )
+  }
 
   def generateRandomData(): Seq[Row] = {
     val data = new java.util.ArrayList[Row]()

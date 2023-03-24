@@ -18,9 +18,8 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
@@ -170,6 +169,12 @@ object RelExplainUtil {
     var offset = fullGrouping.length
     val aggStrings = aggCallToAggFunction.zipWithIndex.map {
       case ((aggCall, udf), index) =>
+        val approximate = if (aggCall.isApproximate) {
+          "APPROXIMATE "
+        } else {
+          ""
+        }
+
         val distinct = if (aggCall.isDistinct) {
           if (aggCall.getArgList.size() == 0) {
             "DISTINCT"
@@ -208,10 +213,10 @@ object RelExplainUtil {
         }
 
         if (aggCall.filterArg >= 0 && aggCall.filterArg < inputFieldNames.size) {
-          s"${aggCall.getAggregation}($distinct$argListNames) FILTER " +
+          s"${aggCall.getAggregation}($approximate$distinct$argListNames) FILTER " +
             s"${inputFieldNames(aggCall.filterArg)}"
         } else {
-          s"${aggCall.getAggregation}($distinct$argListNames)"
+          s"${aggCall.getAggregation}($approximate$distinct$argListNames)"
         }
     }
 

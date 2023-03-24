@@ -21,14 +21,14 @@ package org.apache.flink.streaming.api.operators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledFuture;
 import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE;
 import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_TIME_MILLS;
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_SYSTEMENV_ENABLED;
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
@@ -50,6 +51,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private static final long serialVersionUID = 1L;
 
     protected final Configuration config;
+
+    protected transient boolean systemEnvEnabled;
 
     /** Max number of elements to include in a bundle. */
     protected transient int maxBundleSize;
@@ -77,6 +80,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     @Override
     public void open() throws Exception {
         try {
+            this.systemEnvEnabled = config.get(PYTHON_SYSTEMENV_ENABLED);
             this.maxBundleSize = config.get(MAX_BUNDLE_SIZE);
             if (this.maxBundleSize <= 0) {
                 this.maxBundleSize = MAX_BUNDLE_SIZE.defaultValue();
@@ -180,21 +184,29 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // Approach 1) is the easiest and gives better latency, yet 2)
         // gives better throughput due to the bundle not getting cut on
         // every watermark. So we have implemented 2) below.
+
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
-            super.processWatermark(mark);
+            advanceWatermark(mark);
+            output.emitWatermark(mark);
         } else if (isBundleFinished()) {
-            // forward the watermark immediately if the bundle is already finished.
-            super.processWatermark(mark);
+            advanceWatermark(mark);
+            output.emitWatermark(mark);
         } else {
             // It is not safe to advance the output watermark yet, so add a hold on the current
             // output watermark.
             bundleFinishedCallback =
                     () -> {
                         try {
+                            // avoid invoking bundleFinishedCallback repeatedly in advanceWatermark
+                            // which will invoke finishBundle(which will finally invoke
+                            // bundleFinishedCallback)
+                            bundleFinishedCallback = null;
+
+                            advanceWatermark(mark);
                             // at this point the bundle is finished, allow the watermark to pass
-                            super.processWatermark(mark);
+                            output.emitWatermark(mark);
                         } catch (Exception e) {
                             throw new RuntimeException(
                                     "Failed to process watermark after finished bundle.", e);
@@ -212,7 +224,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private void processElementsOfCurrentKeyIfNeeded(Object newKey) {
         // process all the elements belonging to the current key when encountering a new key
         // for batch operator
-        if (inBatchExecutionMode(getKeyedStateBackend())
+        if (getKeyedStateStore() != null
+                && inBatchExecutionMode(getKeyedStateBackend())
                 && !Objects.equals(newKey, getCurrentKey())) {
             while (!isBundleFinished()) {
                 try {
@@ -253,12 +266,25 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         return config;
     }
 
-    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
-    public abstract PythonEnv getPythonEnv();
-
     protected abstract void invokeFinishBundle() throws Exception;
 
     protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
+
+    /**
+     * Advances the watermark of all managed timer services, potentially firing event time timers.
+     * It also ensures that the fired timers are processed in the Python user-defined functions.
+     */
+    private void advanceWatermark(Watermark watermark) throws Exception {
+        if (getTimeServiceManager().isPresent()) {
+            InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
+            timeServiceManager.advanceWatermark(watermark);
+
+            while (!isBundleFinished()) {
+                invokeFinishBundle();
+                timeServiceManager.advanceWatermark(watermark);
+            }
+        }
+    }
 
     /** Checks whether to invoke finishBundle by elements count. Called in processElement. */
     protected void checkInvokeFinishBundleByCount() throws Exception {

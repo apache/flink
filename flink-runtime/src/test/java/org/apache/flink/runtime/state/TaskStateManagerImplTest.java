@@ -47,6 +47,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
 public class TaskStateManagerImplTest extends TestLogger {
 
     /** Test reporting and retrieving prioritized local and remote state. */
@@ -54,7 +56,7 @@ public class TaskStateManagerImplTest extends TestLogger {
     public void testStateReportingAndRetrieving() {
 
         JobID jobID = new JobID();
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
 
         TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
         TestTaskLocalStateStore testTaskLocalStateStore = new TestTaskLocalStateStore();
@@ -199,7 +201,7 @@ public class TaskStateManagerImplTest extends TestLogger {
         JobID jobID = new JobID(42L, 43L);
         AllocationID allocationID = new AllocationID(4711L, 23L);
         JobVertexID jobVertexID = new JobVertexID(12L, 34L);
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId(jobVertexID);
         TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
         Executor directExecutor = Executors.directExecutor();
@@ -277,9 +279,10 @@ public class TaskStateManagerImplTest extends TestLogger {
         TaskStateManagerImpl stateManager =
                 new TaskStateManagerImpl(
                         new JobID(),
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         null,
+                        new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,
                         new TestCheckpointResponder());
         Assert.assertTrue(stateManager.isTaskDeployedAsFinished());
@@ -289,9 +292,10 @@ public class TaskStateManagerImplTest extends TestLogger {
         TaskStateManagerImpl emptyStateManager =
                 new TaskStateManagerImpl(
                         new JobID(),
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         null,
+                        new TaskExecutorStateChangelogStoragesManager(),
                         null,
                         new TestCheckpointResponder());
         Assert.assertFalse(emptyStateManager.getRestoreCheckpointId().isPresent());
@@ -299,9 +303,10 @@ public class TaskStateManagerImplTest extends TestLogger {
         TaskStateManagerImpl nonEmptyStateManager =
                 new TaskStateManagerImpl(
                         new JobID(),
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         null,
+                        new TaskExecutorStateChangelogStoragesManager(),
                         new JobManagerTaskRestore(2, new TaskStateSnapshot()),
                         new TestCheckpointResponder());
         Assert.assertEquals(2L, (long) nonEmptyStateManager.getRestoreCheckpointId().get());
@@ -320,6 +325,7 @@ public class TaskStateManagerImplTest extends TestLogger {
                 executionAttemptID,
                 localStateStore,
                 stateChangelogStorage,
+                new TaskExecutorStateChangelogStoragesManager(),
                 jobManagerTaskRestore,
                 checkpointResponderMock);
     }

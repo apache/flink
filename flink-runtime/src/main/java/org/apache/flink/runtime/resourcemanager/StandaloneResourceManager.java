@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -26,6 +27,8 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.slotmanager.NonSupportedResourceAllocatorImpl;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -34,7 +37,9 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -57,6 +62,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
             DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
+            BlocklistHandler.Factory blocklistHandlerFactory,
             JobLeaderIdService jobLeaderIdService,
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
@@ -72,6 +78,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
                 delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
+                blocklistHandlerFactory,
                 jobLeaderIdService,
                 clusterInformation,
                 fatalErrorHandler,
@@ -96,19 +103,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
             ApplicationStatus finalStatus, @Nullable String diagnostics) {}
 
     @Override
-    public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
-        return false;
-    }
-
-    @Override
-    public boolean stopWorker(ResourceID resourceID) {
-        // standalone resource manager cannot stop workers
-        return false;
-    }
-
-    @Override
-    protected ResourceID workerStarted(ResourceID resourceID) {
-        return resourceID;
+    protected Optional<ResourceID> getWorkerNodeIfAcceptRegistration(ResourceID resourceID) {
+        return Optional.of(resourceID);
     }
 
     private void startStartupPeriod() {
@@ -122,5 +118,15 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
                     startupPeriodMillis,
                     TimeUnit.MILLISECONDS);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> getReadyToServeFuture() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    protected ResourceAllocator getResourceAllocator() {
+        return NonSupportedResourceAllocatorImpl.INSTANCE;
     }
 }

@@ -21,10 +21,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -45,7 +46,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for hive partition fetch implementations. */
 public class HivePartitionFetcherTest {
@@ -61,13 +62,16 @@ public class HivePartitionFetcherTest {
         // create test table
         String[] fieldNames = new String[] {"i", "date"};
         DataType[] fieldTypes = new DataType[] {DataTypes.INT(), DataTypes.STRING()};
-        TableSchema schema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
+        Schema schema = Schema.newBuilder().fromFields(fieldNames, fieldTypes).build();
         List<String> partitionKeys = Collections.singletonList("date");
         Map<String, String> options = new HashMap<>();
         options.put("connector", "hive");
-        CatalogTable catalogTable = new CatalogTableImpl(schema, partitionKeys, options, null);
+        CatalogTable catalogTable = CatalogTable.of(schema, null, partitionKeys, options);
+        ResolvedCatalogTable resolvedCatalogTable =
+                new ResolvedCatalogTable(
+                        catalogTable, ResolvedSchema.physical(fieldNames, fieldTypes));
         ObjectPath tablePath = new ObjectPath("default", "test");
-        hiveCatalog.createTable(tablePath, catalogTable, false);
+        hiveCatalog.createTable(tablePath, resolvedCatalogTable, false);
 
         // add a valid partition path
         Table hiveTable = hiveCatalog.getHiveTable(tablePath);
@@ -87,12 +91,10 @@ public class HivePartitionFetcherTest {
                         hiveShim,
                         jobConfWrapper,
                         partitionKeys,
-                        fieldTypes,
-                        fieldNames,
                         flinkConf,
                         defaultPartName);
         fetcherContext.open();
-        assertEquals(0, fetcherContext.getComparablePartitionValueList().size());
+        assertThat(fetcherContext.getComparablePartitionValueList()).isEmpty();
 
         // test create-time order
         flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, HiveOptions.PartitionOrder.CREATE_TIME);
@@ -102,12 +104,10 @@ public class HivePartitionFetcherTest {
                         hiveShim,
                         jobConfWrapper,
                         partitionKeys,
-                        fieldTypes,
-                        fieldNames,
                         flinkConf,
                         defaultPartName);
         fetcherContext.open();
-        assertEquals(0, fetcherContext.getComparablePartitionValueList().size());
+        assertThat(fetcherContext.getComparablePartitionValueList()).isEmpty();
 
         // test partition-name order
         flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, HiveOptions.PartitionOrder.PARTITION_NAME);
@@ -117,12 +117,10 @@ public class HivePartitionFetcherTest {
                         hiveShim,
                         jobConfWrapper,
                         partitionKeys,
-                        fieldTypes,
-                        fieldNames,
                         flinkConf,
                         defaultPartName);
         fetcherContext.open();
-        assertEquals(0, fetcherContext.getComparablePartitionValueList().size());
+        assertThat(fetcherContext.getComparablePartitionValueList()).isEmpty();
     }
 
     private static class MyHivePartitionFetcherContext
@@ -135,8 +133,6 @@ public class HivePartitionFetcherTest {
                 HiveShim hiveShim,
                 JobConfWrapper confWrapper,
                 List<String> partitionKeys,
-                DataType[] fieldTypes,
-                String[] fieldNames,
                 Configuration configuration,
                 String defaultPartitionName) {
             super(
@@ -144,8 +140,6 @@ public class HivePartitionFetcherTest {
                     hiveShim,
                     confWrapper,
                     partitionKeys,
-                    fieldTypes,
-                    fieldNames,
                     configuration,
                     defaultPartitionName);
         }

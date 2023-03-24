@@ -23,6 +23,8 @@ import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** Test {@link WordCount}. */
 public class WordCountITCase extends JavaProgramTestBase {
 

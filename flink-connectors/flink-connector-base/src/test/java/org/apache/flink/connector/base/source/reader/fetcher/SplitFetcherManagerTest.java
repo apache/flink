@@ -19,6 +19,7 @@
 package org.apache.flink.connector.base.source.reader.fetcher;
 
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.mocks.TestingRecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit;
@@ -28,7 +29,6 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.testutils.OneShotLatch;
 
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -37,10 +37,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Queue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Unit tests for the {@link SplitFetcherManager}. */
 public class SplitFetcherManagerTest {
@@ -64,13 +63,8 @@ public class SplitFetcherManagerTest {
         SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
                 createFetcher("test-split", new FutureCompletingBlockingQueue<>(), reader);
         fetcherManager.close(1000L);
-        try {
-            fetcherManager.checkErrors();
-        } catch (Exception e) {
-            assertEquals(
-                    "Artificial exception on closing the split reader.",
-                    ExceptionUtils.getRootCause(e).getMessage());
-        }
+        assertThatThrownBy(fetcherManager::checkErrors)
+                .hasRootCauseMessage("Artificial exception on closing the split reader.");
     }
 
     // the final modifier is important so that '@SafeVarargs' is accepted on Java 8
@@ -90,7 +84,7 @@ public class SplitFetcherManagerTest {
         reader.awaitAllRecordsReturned();
         drainQueue(queue);
 
-        assertFalse(queue.getAvailabilityFuture().isDone());
+        assertThat(queue.getAvailabilityFuture().isDone()).isFalse();
         reader.triggerThrowException();
 
         // await the error propagation
@@ -100,7 +94,7 @@ public class SplitFetcherManagerTest {
             fetcher.checkErrors();
             fail("expected exception");
         } catch (Exception e) {
-            assertSame(testingException, e.getCause().getCause());
+            assertThat(e.getCause().getCause()).isSameAs(testingException);
         } finally {
             fetcher.close(20_000L);
         }
@@ -116,7 +110,7 @@ public class SplitFetcherManagerTest {
             final SplitReader<E, TestingSourceSplit> reader) {
 
         final SingleThreadFetcherManager<E, TestingSourceSplit> fetcher =
-                new SingleThreadFetcherManager<>(queue, () -> reader);
+                new SingleThreadFetcherManager<>(queue, () -> reader, new Configuration());
         fetcher.addSplits(Collections.singletonList(new TestingSourceSplit(splitId)));
         return fetcher;
     }

@@ -90,7 +90,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.TimeoutException;
-import org.junit.Assert;
 import org.junit.Before;
 
 import javax.annotation.Nullable;
@@ -119,13 +118,8 @@ import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommu
 import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilNoJobIsRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Abstract test base for all Kafka consumer tests. */
 @SuppressWarnings("serial")
@@ -194,17 +188,15 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         } catch (JobExecutionException jee) {
             final Optional<TimeoutException> optionalTimeoutException =
                     ExceptionUtils.findThrowable(jee, TimeoutException.class);
-            assertTrue(optionalTimeoutException.isPresent());
+            assertThat(optionalTimeoutException).isPresent();
 
             final TimeoutException timeoutException = optionalTimeoutException.get();
             if (useNewSource) {
-                assertThat(
-                        timeoutException.getCause().getMessage(),
-                        containsString("Timed out waiting for a node assignment."));
+                assertThat(timeoutException)
+                        .hasMessageContaining("Timed out waiting for a node assignment.");
             } else {
-                assertEquals(
-                        "Timeout expired while fetching topic metadata",
-                        timeoutException.getMessage());
+                assertThat(timeoutException)
+                        .hasMessage("Timeout expired while fetching topic metadata");
             }
         }
     }
@@ -278,9 +270,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
         Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
         Long o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
-        Assert.assertEquals(Long.valueOf(50L), o1);
-        Assert.assertEquals(Long.valueOf(50L), o2);
-        Assert.assertEquals(Long.valueOf(50L), o3);
+        assertThat(o1).isEqualTo(Long.valueOf(50L));
+        assertThat(o2).isEqualTo(Long.valueOf(50L));
+        assertThat(o3).isEqualTo(Long.valueOf(50L));
 
         kafkaOffsetHandler.close();
         deleteTestTopic(topicName);
@@ -369,9 +361,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
         Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
         Long o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
-        Assert.assertEquals(Long.valueOf(50L), o1);
-        Assert.assertEquals(Long.valueOf(50L), o2);
-        Assert.assertEquals(Long.valueOf(50L), o3);
+        assertThat(o1).isEqualTo(Long.valueOf(50L));
+        assertThat(o2).isEqualTo(Long.valueOf(50L));
+        assertThat(o3).isEqualTo(Long.valueOf(50L));
 
         kafkaOffsetHandler.close();
         deleteTestTopic(topicName);
@@ -813,8 +805,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      */
     @RetryOnException(times = 2, exception = NotLeaderForPartitionException.class)
     public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
-        final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
-        final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID().toString();
+        final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID();
+        final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID();
 
         final int parallelism = 3;
         final int elementsPerPartition = 100;
@@ -894,19 +886,17 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                         new RichSinkFunction<Tuple2<Long, String>>() {
 
                             private int elCnt = 0;
+
                             private BitSet validator = new BitSet(totalElements);
 
                             @Override
                             public void invoke(Tuple2<Long, String> value) throws Exception {
                                 String[] sp = value.f1.split("-");
                                 int v = Integer.parseInt(sp[1]);
-
-                                assertEquals(value.f0 - 1000, (long) v);
-
-                                assertFalse("Received tuple twice", validator.get(v));
+                                assertThat((long) v).isEqualTo(value.f0 - 1000);
+                                assertThat(validator.get(v)).as("Received tuple twice").isFalse();
                                 validator.set(v);
                                 elCnt++;
-
                                 if (elCnt == totalElements) {
                                     // check if everything in the bitset is set to true
                                     int nc;
@@ -954,7 +944,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      */
     public void runOneToOneExactlyOnceTest() throws Exception {
 
-        final String topic = "oneToOneTopic";
+        final String topic = "oneToOneTopic-" + UUID.randomUUID();
         final int parallelism = 5;
         final int numElementsPerPartition = 1000;
         final int totalElements = parallelism * numElementsPerPartition;
@@ -1002,7 +992,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * Flink source will read multiple Kafka partitions.
      */
     public void runOneSourceMultiplePartitionsExactlyOnceTest() throws Exception {
-        final String topic = "oneToManyTopic";
+        final String topic = "oneToManyTopic-" + UUID.randomUUID();
         final int numPartitions = 5;
         final int numElementsPerPartition = 1000;
         final int totalElements = numPartitions * numElementsPerPartition;
@@ -1052,7 +1042,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * means that some Flink sources will read no partitions.
      */
     public void runMultipleSourcesOnePartitionExactlyOnceTest() throws Exception {
-        final String topic = "manyToOneTopic";
+        final String topic = "manyToOneTopic-" + UUID.randomUUID();
         final int numPartitions = 5;
         final int numElementsPerPartition = 1000;
         final int totalElements = numPartitions * numElementsPerPartition;
@@ -1104,7 +1094,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
     /** Tests that the source can be properly canceled when reading full partitions. */
     public void runCancelingOnFullInputTest() throws Exception {
-        final String topic = "cancelingOnFullTopic";
+        final String topic = "cancelingOnFullTopic-" + UUID.randomUUID();
 
         final int parallelism = 3;
         createTestTopic(topic, parallelism, 1);
@@ -1149,7 +1139,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Throwable failueCause = jobError.get();
         if (failueCause != null) {
             failueCause.printStackTrace();
-            Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
+            fail("Test failed prematurely with: " + failueCause.getMessage());
         }
 
         // cancel
@@ -1158,7 +1148,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         // wait for the program to be done and validate that we failed with the right exception
         runnerThread.join();
 
-        assertEquals(JobStatus.CANCELED, client.getJobStatus(jobId).get());
+        assertThat(client.getJobStatus(jobId).get()).isEqualTo(JobStatus.CANCELED);
 
         if (generator.isAlive()) {
             generator.shutdown();
@@ -1178,7 +1168,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
     /** Tests that the source can be properly canceled when reading empty partitions. */
     public void runCancelingOnEmptyInputTest() throws Exception {
-        final String topic = "cancelingOnEmptyInputTopic";
+        final String topic = "cancelingOnEmptyInputTopic-" + UUID.randomUUID();
 
         final int parallelism = 3;
         createTestTopic(topic, parallelism, 1);
@@ -1218,7 +1208,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Throwable failueCause = error.get();
         if (failueCause != null) {
             failueCause.printStackTrace();
-            Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
+            fail("Test failed prematurely with: " + failueCause.getMessage());
         }
         // cancel
         client.cancel(jobId).get();
@@ -1226,7 +1216,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         // wait for the program to be done and validate that we failed with the right exception
         runnerThread.join();
 
-        assertEquals(JobStatus.CANCELED, client.getJobStatus(jobId).get());
+        assertThat(client.getJobStatus(jobId).get()).isEqualTo(JobStatus.CANCELED);
 
         deleteTestTopic(topic);
     }
@@ -1248,7 +1238,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         // create topics with content
         final List<String> topics = new ArrayList<>();
         for (int i = 0; i < numTopics; i++) {
-            final String topic = topicNamePrefix + i;
+            final String topic = topicNamePrefix + i + "-" + UUID.randomUUID();
             topics.add(topic);
             // create topic
             createTestTopic(topic, i + 1 /*partitions*/, 1);
@@ -1263,15 +1253,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                         new RichParallelSourceFunction<Tuple3<Integer, Integer, String>>() {
 
                             @Override
-                            public void run(SourceContext<Tuple3<Integer, Integer, String>> ctx)
-                                    throws Exception {
+                            public void run(SourceContext<Tuple3<Integer, Integer, String>> ctx) {
                                 int partition = getRuntimeContext().getIndexOfThisSubtask();
 
                                 for (int topicId = 0; topicId < numTopics; topicId++) {
                                     for (int i = 0; i < numElements; i++) {
                                         ctx.collect(
-                                                new Tuple3<>(
-                                                        partition, i, topicNamePrefix + topicId));
+                                                new Tuple3<>(partition, i, topics.get(topicId)));
                                     }
                                 }
                             }
@@ -1343,8 +1331,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         tryExecute(env, "Count elements from the topics");
 
         // delete all topics again
-        for (int i = 0; i < numTopics; i++) {
-            final String topic = topicNamePrefix + i;
+        for (String topic : topics) {
             deleteTestTopic(topic);
         }
     }
@@ -1356,7 +1343,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      */
     public void runBigRecordTestTopology() throws Exception {
 
-        final String topic = "bigRecordTestTopic";
+        final String topic = "bigRecordTestTopic-" + UUID.randomUUID();
         final int parallelism = 1; // otherwise, the kafka mini clusters may run out of heap space
 
         createTestTopic(topic, parallelism, 1);
@@ -1521,7 +1508,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     }
 
     public void runKeyValueTest() throws Exception {
-        final String topic = "keyvaluetest";
+        final String topic = "keyvaluetest-" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
         final int elementCount = 5000;
 
@@ -1579,17 +1566,20 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         DataStream<Tuple2<Long, PojoValue>> fromKafka = getStream(env, topic, readSchema, props);
         fromKafka.flatMap(
                 new RichFlatMapFunction<Tuple2<Long, PojoValue>, Object>() {
+
                     long counter = 0;
 
                     @Override
                     public void flatMap(Tuple2<Long, PojoValue> value, Collector<Object> out)
                             throws Exception {
                         // the elements should be in order.
-                        Assert.assertTrue("Wrong value " + value.f1.lat, value.f1.lat == counter);
+                        assertThat(value.f1.lat)
+                                .as("Wrong value " + value.f1.lat)
+                                .isEqualTo(counter);
                         if (value.f1.lat % 2 == 0) {
-                            assertNull("key was not null", value.f0);
+                            assertThat(value.f0).as("key was not null").isNull();
                         } else {
-                            Assert.assertTrue("Wrong value " + value.f0, value.f0 == counter);
+                            assertThat(value.f0).as("Wrong value " + value.f0).isEqualTo(counter);
                         }
                         counter++;
                         if (counter == elementCount) {
@@ -1618,7 +1608,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * @throws Exception
      */
     public void runAllDeletesTest() throws Exception {
-        final String topic = "alldeletestest";
+        final String topic = "alldeletestest-" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
         final int elementCount = 300;
 
@@ -1671,13 +1661,14 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         fromKafka.flatMap(
                 new RichFlatMapFunction<Tuple2<byte[], PojoValue>, Object>() {
+
                     long counter = 0;
 
                     @Override
                     public void flatMap(Tuple2<byte[], PojoValue> value, Collector<Object> out)
                             throws Exception {
                         // ensure that deleted messages are passed as nulls
-                        assertNull(value.f1);
+                        assertThat(value.f1).isNull();
                         counter++;
                         if (counter == elementCount) {
                             // we got the right number of elements
@@ -1801,7 +1792,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     public void runMetricsTest() throws Throwable {
 
         // create a stream with 5 topics
-        final String topic = "metricsStream";
+        final String topic = "metricsStream-" + UUID.randomUUID();
         createTestTopic(topic, 5, 1);
 
         final Tuple1<Throwable> error = new Tuple1<>(null);
@@ -1888,7 +1879,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                 offsetMetrics = mBeanServer.queryNames(new ObjectName("*current-offsets*:*"), null);
                 Thread.sleep(50);
             }
-            Assert.assertEquals(5, offsetMetrics.size());
+            assertThat(offsetMetrics).hasSize(5);
             // we can't rely on the consumer to have touched all the partitions already
             // that's why we'll wait until all five partitions have a positive offset.
             // The test will fail if we never meet the condition
@@ -1911,7 +1902,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
             // check if producer metrics are also available.
             Set<ObjectName> producerMetrics =
                     mBeanServer.queryNames(new ObjectName("*KafkaProducer*:*"), null);
-            Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
+            assertThat(producerMetrics.size()).as("No producer metrics found").isGreaterThan(30);
 
             LOG.info("Found all JMX metrics. Cancelling job.");
         } finally {
@@ -2253,7 +2244,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         for (int attempt = 1; attempt <= maxNumAttempts; attempt++) {
 
-            final String topicName = baseTopicName + '-' + attempt;
+            final String topicName = baseTopicName + '-' + attempt + '-' + UUID.randomUUID();
 
             LOG.info("Writing attempt #" + attempt);
 

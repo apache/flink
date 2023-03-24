@@ -294,6 +294,7 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
                         .toArray(TypeSerializer[]::new));
         streamConfig.setTypeSerializerOut(
                 wrapper.getOutputType().createSerializer(executionConfig));
+        streamConfig.serializeAllConfigs();
         return streamConfig;
     }
 

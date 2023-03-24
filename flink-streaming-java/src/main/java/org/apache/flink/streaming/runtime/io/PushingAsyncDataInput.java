@@ -34,8 +34,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
 
     /**
-     * Pushes the next element to the output from current data input, and returns the input status
-     * to indicate whether there are more available data in current input.
+     * Pushes elements to the output from current data input, and returns the input status to
+     * indicate whether there are more available data in current input.
      *
      * <p>This method should be non blocking.
      */

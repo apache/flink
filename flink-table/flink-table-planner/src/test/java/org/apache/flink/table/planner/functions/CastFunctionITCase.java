@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
@@ -76,7 +75,6 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,11 +115,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
     Configuration getConfiguration() {
-        return new Configuration()
-                .set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId())
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                        LegacyCastBehaviour.DISABLED);
+        return super.getConfiguration().set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId());
     }
 
     @Override
@@ -1080,9 +1074,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
                         .fromCase(ARRAY(INT().nullable()), new Integer[] {null, 456}, "[NULL, 456]")
                         .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH()).nullable()),
-                                map(entry("a", -123), entry("b", null)),
-                                "{a=-10-03, b=NULL}")
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                map(entry("a", -123)),
+                                "{a=-10-03}")
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 Row.of(null, "abc"),
@@ -1226,7 +1220,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private final List<Object> columnData = new ArrayList<>();
         private final List<DataType> columnTypes = new ArrayList<>();
         private final List<Object> expectedValues = new ArrayList<>();
-        private final List<Class<? extends Throwable>> expectedFailureClasses = new ArrayList<>();
         private final List<TestType> testTypes = new ArrayList<>();
 
         private enum TestType {

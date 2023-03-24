@@ -86,7 +86,9 @@ Flink SQL> SELECT * FROM RightTable;
 | 2020-04-15 12:05 |   4 | R4 |
 +------------------+-----+----+
 
-Flink SQL> SELECT L.num as L_Num, L.id as L_Id, R.num as R_Num, R.id as R_Id, L.window_start, L.window_end
+Flink SQL> SELECT L.num as L_Num, L.id as L_Id, R.num as R_Num, R.id as R_Id,
+           COALESCE(L.window_start, R.window_start) as window_start,
+           COALESCE(L.window_end, R.window_end) as window_end
            FROM (
                SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
            ) L

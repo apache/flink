@@ -186,6 +186,10 @@ public class CheckpointOptions implements Serializable {
         return alignmentType == AlignmentType.UNALIGNED;
     }
 
+    public boolean needsChannelState() {
+        return isUnalignedCheckpoint() || isTimeoutable();
+    }
+
     public CheckpointOptions withUnalignedSupported() {
         if (alignmentType == AlignmentType.FORCED_ALIGNED) {
             return alignedCheckpointTimeout != NO_ALIGNED_CHECKPOINT_TIME_OUT
@@ -196,7 +200,7 @@ public class CheckpointOptions implements Serializable {
     }
 
     public CheckpointOptions withUnalignedUnsupported() {
-        if (isUnalignedCheckpoint() || isTimeoutable()) {
+        if (needsChannelState()) {
             return forceAligned(checkpointType, targetLocation, alignedCheckpointTimeout);
         }
         return this;

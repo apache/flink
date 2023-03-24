@@ -36,11 +36,15 @@ public interface JobInformation {
 
     VertexInformation getVertexInformation(JobVertexID jobVertexId);
 
+    Iterable<VertexInformation> getVertices();
+
     /** Information about a single vertex. */
     interface VertexInformation {
         JobVertexID getJobVertexID();
 
         int getParallelism();
+
+        int getMaxParallelism();
 
         SlotSharingGroup getSlotSharingGroup();
     }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration.description;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,6 +27,7 @@ import java.util.List;
  * Description for {@link org.apache.flink.configuration.ConfigOption}. Allows providing multiple
  * rich formats.
  */
+@PublicEvolving
 public class Description {
 
     private final List<BlockElement> blocks;
@@ -50,6 +53,7 @@ public class Description {
      * 	.build();
      * }</pre>
      */
+    @PublicEvolving
     public static class DescriptionBuilder {
 
         private final List<BlockElement> blocks = new ArrayList<>();

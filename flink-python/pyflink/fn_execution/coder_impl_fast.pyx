@@ -28,10 +28,13 @@ import pickle
 from typing import List, Union
 
 import cloudpickle
+import avro.schema as avro_schema
 
 from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
-from pyflink.datastream.window import CountWindow, TimeWindow
+from pyflink.datastream.window import CountWindow, TimeWindow, GlobalWindow
+from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
+    FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -324,7 +327,7 @@ cdef class FlattenRowCoderImpl(FieldCoderImpl):
         cdef size_t i
         cdef FieldCoderImpl field_coder
 
-        list_value = <list> value
+        list_value = <list?> value
 
         # encode mask value
         self._mask_utils.write_mask(list_value, 0, out_stream)
@@ -385,7 +388,7 @@ cdef class RowCoderImpl(FieldCoderImpl):
             row_kind_value = <unsigned char> value.row_kind
         else:
             # the type is Row
-            list_values = <list> value._values
+            list_values = <list> value.get_fields_by_names(self._field_names)
             row_kind_value = <unsigned char> value.get_row_kind().value
         # encode mask value
         self._mask_utils.write_mask(list_values, row_kind_value, out_stream)
@@ -909,6 +912,18 @@ cdef class CountWindowCoderImpl(FieldCoderImpl):
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return CountWindow(in_stream.read_int64())
 
+cdef class GlobalWindowCoderImpl(FieldCoderImpl):
+    """
+    A coder for GlobalWindow.
+    """
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        out_stream.write_byte(0)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        in_stream.read_byte()
+        return GlobalWindow()
+
 cdef class DataViewFilterCoderImpl(FieldCoderImpl):
     """
     A coder for CountWindow.
@@ -931,4 +946,97 @@ cdef class DataViewFilterCoderImpl(FieldCoderImpl):
             i += 1
         return row
 
+cdef class AvroCoderImpl(FieldCoderImpl):
 
+    def __init__(self, schema_string: str):
+        self._buffer_wrapper = FlinkAvroBufferWrapper()
+        self._schema = avro_schema.parse(schema_string)
+        self._decoder = FlinkAvroDecoder(self._buffer_wrapper)
+        self._encoder = FlinkAvroEncoder(self._buffer_wrapper)
+        self._reader = FlinkAvroDatumReader(writer_schema=self._schema, reader_schema=self._schema)
+        self._writer = FlinkAvroDatumWriter(writer_schema=self._schema)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        self._buffer_wrapper.switch_stream(out_stream)
+        self._writer.write(value, self._encoder)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        self._buffer_wrapper.switch_stream(in_stream)
+        return self._reader.read(self._decoder)
+
+cdef class LocalDateCoderImpl(FieldCoderImpl):
+
+    @staticmethod
+    def _encode_to_stream(value, OutputStream out_stream):
+        if value is None:
+            out_stream.write_int32(0xFFFFFFFF)
+            out_stream.write_int16(0xFFFF)
+        else:
+            out_stream.write_int32(value.year)
+            out_stream.write_int8(value.month)
+            out_stream.write_int8(value.day)
+
+    @staticmethod
+    def _decode_from_stream(InputStream in_stream):
+        year = in_stream.read_int32()
+        if year == 0xFFFFFFFF:
+            in_stream.read(2)
+            return None
+        month = in_stream.read_int8()
+        day = in_stream.read_int8()
+        return datetime.date(year, month, day)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        return self._encode_to_stream(value, out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t length):
+        return self._decode_from_stream(in_stream)
+
+cdef class LocalTimeCoderImpl(FieldCoderImpl):
+
+    @staticmethod
+    def _encode_to_stream(value, OutputStream out_stream):
+        if value is None:
+            out_stream.write_int8(0xFF)
+            out_stream.write_int16(0xFFFF)
+            out_stream.write_int32(0xFFFFFFFF)
+        else:
+            out_stream.write_int8(value.hour)
+            out_stream.write_int8(value.minute)
+            out_stream.write_int8(value.second)
+            out_stream.write_int32(value.microsecond * 1000)
+
+    @staticmethod
+    def _decode_from_stream(InputStream in_stream):
+        hour = in_stream.read_int8()
+        if hour == 0xFF:
+            in_stream.read(6)
+            return None
+        minute = in_stream.read_int8()
+        second = in_stream.read_int8()
+        nano = in_stream.read_int32()
+        return datetime.time(hour, minute, second, nano // 1000)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        return self._encode_to_stream(value, out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t length):
+        return self._decode_from_stream(in_stream)
+
+cdef class LocalDateTimeCoderImpl(FieldCoderImpl):
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value is None:
+            LocalDateCoderImpl._encode_to_stream(None, out_stream)
+            LocalTimeCoderImpl._encode_to_stream(None, out_stream)
+        else:
+            LocalDateCoderImpl._encode_to_stream(value.date(), out_stream)
+            LocalTimeCoderImpl._encode_to_stream(value.time(), out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t length):
+        date = LocalDateCoderImpl._decode_from_stream(in_stream)
+        time = LocalTimeCoderImpl._decode_from_stream(in_stream)
+        if date is None or time is None:
+            return None
+        return datetime.datetime(date.year, date.month, date.day, time.hour, time.minute,
+                                 time.second, time.microsecond)

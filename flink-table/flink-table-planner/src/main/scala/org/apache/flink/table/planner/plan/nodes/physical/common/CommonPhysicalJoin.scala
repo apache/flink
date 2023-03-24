@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.utils.JoinUtil
@@ -80,4 +81,14 @@ abstract class CommonPhysicalJoin(
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
+  def getUpsertKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
+    val upsertKeys = FlinkRelMetadataQuery
+      .reuseOrCreate(cluster.getMetadataQuery)
+      .getUpsertKeysInKeyGroupRange(input, keys)
+    if (upsertKeys == null || upsertKeys.isEmpty) {
+      List.empty
+    } else {
+      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
+    }
+  }
 }

@@ -101,16 +101,22 @@ public interface TaskExecutorGateway
             @RpcTimeout Time timeout);
 
     /**
-     * Batch release/promote intermediate result partitions.
+     * Batch release intermediate result partitions.
      *
      * @param jobId id of the job that the partitions belong to
-     * @param partitionToRelease partition ids to release
-     * @param partitionsToPromote partitions ids to promote
+     * @param partitionIds partition ids to release
      */
-    void releaseOrPromotePartitions(
-            JobID jobId,
-            Set<ResultPartitionID> partitionToRelease,
-            Set<ResultPartitionID> partitionsToPromote);
+    void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds);
+
+    /**
+     * Batch promote intermediate result partitions.
+     *
+     * @param jobId id of the job that the partitions belong to
+     * @param partitionIds partition ids to release
+     * @return Future acknowledge that the partitions are successfully promoted.
+     */
+    CompletableFuture<Acknowledge> promotePartitions(
+            JobID jobId, Set<ResultPartitionID> partitionIds);
 
     /**
      * Releases all cluster partitions belong to any of the given data sets.
@@ -285,4 +291,14 @@ public interface TaskExecutorGateway
      * @return the {@link ThreadDumpInfo} for this TaskManager.
      */
     CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
+
+    /**
+     * Sends new delegation tokens to this TaskManager.
+     *
+     * @param resourceManagerId current leader id of the ResourceManager
+     * @param tokens new tokens
+     * @return Future acknowledge of the successful operation
+     */
+    CompletableFuture<Acknowledge> updateDelegationTokens(
+            ResourceManagerId resourceManagerId, byte[] tokens);
 }

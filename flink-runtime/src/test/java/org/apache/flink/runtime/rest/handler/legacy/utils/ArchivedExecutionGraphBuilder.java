@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -158,6 +159,8 @@ public class ArchivedExecutionGraphBuilder {
                 null,
                 null,
                 "stateBackendName",
-                "checkpointStorageName");
+                "checkpointStorageName",
+                TernaryBoolean.UNDEFINED,
+                "changelogStorageName");
     }
 }

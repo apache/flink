@@ -59,7 +59,7 @@ class AvroFormatFactoryTest {
         final Map<String, String> options = getAllOptions();
 
         final DynamicTableSource actualSource = FactoryMocks.createTableSource(SCHEMA, options);
-        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
@@ -73,7 +73,7 @@ class AvroFormatFactoryTest {
                 new AvroRowDataSerializationSchema(ROW_TYPE);
 
         final DynamicTableSink actualSink = FactoryMocks.createTableSink(SCHEMA, options);
-        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 

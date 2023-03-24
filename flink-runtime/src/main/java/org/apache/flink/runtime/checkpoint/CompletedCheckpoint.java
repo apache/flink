@@ -42,6 +42,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -93,8 +94,14 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     /** States of the different operator groups belonging to this checkpoint. */
     private final Map<OperatorID, OperatorState> operatorStates;
 
-    /** Properties for this checkpoint. */
+    /** Properties of this checkpoint. Might change during recovery. */
     private final CheckpointProperties props;
+
+    /**
+     * Properties of this checkpoint as they were during checkpoint creation. Might be null for
+     * older versions.
+     */
+    @Nullable private final CheckpointProperties restoredProps;
 
     /** States that were created by a hook on the master (in the checkpoint coordinator). */
     private final Collection<MasterState> masterHookStates;
@@ -123,6 +130,30 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
             CheckpointProperties props,
             CompletedCheckpointStorageLocation storageLocation,
             @Nullable CompletedCheckpointStats completedCheckpointStats) {
+        this(
+                job,
+                checkpointID,
+                timestamp,
+                completionTimestamp,
+                operatorStates,
+                masterHookStates,
+                props,
+                storageLocation,
+                completedCheckpointStats,
+                null);
+    }
+
+    public CompletedCheckpoint(
+            JobID job,
+            long checkpointID,
+            long timestamp,
+            long completionTimestamp,
+            Map<OperatorID, OperatorState> operatorStates,
+            @Nullable Collection<MasterState> masterHookStates,
+            CheckpointProperties props,
+            CompletedCheckpointStorageLocation storageLocation,
+            @Nullable CompletedCheckpointStats completedCheckpointStats,
+            @Nullable CheckpointProperties restoredProps) {
 
         checkArgument(checkpointID >= 0);
         checkArgument(timestamp >= 0);
@@ -146,6 +177,7 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         this.metadataHandle = storageLocation.getMetadataHandle();
         this.externalPointer = storageLocation.getExternalPointer();
         this.completedCheckpointStats = completedCheckpointStats;
+        this.restoredProps = restoredProps;
     }
 
     // ------------------------------------------------------------------------
@@ -171,6 +203,10 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 
     public CheckpointProperties getProperties() {
         return props;
+    }
+
+    public Optional<CheckpointProperties> getRestoredProperties() {
+        return Optional.ofNullable(restoredProps);
     }
 
     public Map<OperatorID, OperatorState> getOperatorStates() {

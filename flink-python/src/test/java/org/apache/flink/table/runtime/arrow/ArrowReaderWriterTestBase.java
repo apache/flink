@@ -25,7 +25,8 @@ import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.junit.Test;
+import org.assertj.core.api.HamcrestCondition;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,15 +34,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Abstract test base for {@link ArrowReader} and {@link ArrowWriter}.
  *
  * @param <T> the elment type.
  */
-public abstract class ArrowReaderWriterTestBase<T> {
+abstract class ArrowReaderWriterTestBase<T> {
 
     private final DeeplyEqualsChecker checker;
 
@@ -54,7 +55,7 @@ public abstract class ArrowReaderWriterTestBase<T> {
     }
 
     @Test
-    public void testBasicFunctionality() {
+    void testBasicFunctionality() {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             Tuple2<ArrowWriter<T>, ArrowStreamWriter> tuple2 = createArrowWriter(baos);
@@ -72,10 +73,12 @@ public abstract class ArrowReaderWriterTestBase<T> {
                     createArrowReader(new ByteArrayInputStream(baos.toByteArray()));
             for (int i = 0; i < testData.length; i++) {
                 RowData deserialized = arrowReader.read(i);
-                assertThat(
-                        "Deserialized value is wrong.",
-                        deserialized,
-                        CustomEqualityMatcher.deeplyEquals(testData[i]).withChecker(checker));
+                assertThat(deserialized)
+                        .as("Deserialized value is wrong.")
+                        .is(
+                                HamcrestCondition.matching(
+                                        CustomEqualityMatcher.deeplyEquals(testData[i])
+                                                .withChecker(checker)));
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());

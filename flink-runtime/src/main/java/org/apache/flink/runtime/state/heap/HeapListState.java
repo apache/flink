@@ -203,4 +203,15 @@ class HeapListState<K, N, V> extends AbstractHeapMergingState<K, N, V, List<V>, 
                         stateTable.getNamespaceSerializer(),
                         (List<E>) stateDesc.getDefaultValue());
     }
+
+    @SuppressWarnings("unchecked")
+    static <E, K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapListState<K, N, E>) existingState)
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(
+                                (TypeSerializer<List<E>>) stateTable.getStateSerializer())
+                        .setDefaultValue((List<E>) stateDesc.getDefaultValue());
+    }
 }

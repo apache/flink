@@ -166,4 +166,42 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
         |""".stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testPushdownCalcNotAffectChangelogNormalizeKey(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE t1 (
+                    |  ingestion_time TIMESTAMP(3) METADATA FROM 'ts',
+                    |  a VARCHAR NOT NULL,
+                    |  b VARCHAR NOT NULL,
+                    |  WATERMARK FOR ingestion_time AS ingestion_time
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'readable-metadata' = 'ts:TIMESTAMP(3)'
+                    |)
+      """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE t2 (
+                    |  k VARBINARY,
+                    |  ingestion_time TIMESTAMP(3) METADATA FROM 'ts',
+                    |  a VARCHAR NOT NULL,
+                    |  f BOOLEAN NOT NULL,
+                    |  WATERMARK FOR `ingestion_time` AS `ingestion_time`,
+                    |  PRIMARY KEY (`a`) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'readable-metadata' = 'ts:TIMESTAMP(3)',
+                    | 'changelog-mode' = 'I,UA,D'
+                    |)
+      """.stripMargin)
+    // After FLINK-28988 applied, the filter will not be pushed down into left input of join and get
+    // a more optimal plan (upsert mode without ChangelogNormalize).
+    val sql =
+      """
+        |SELECT t1.a, t1.b, t2.f
+        |FROM t1 INNER JOIN t2 FOR SYSTEM_TIME AS OF t1.ingestion_time
+        | ON t1.a = t2.a WHERE t2.f = true
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
 }

@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.avro.Schema.Parser;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -48,6 +49,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSin
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertThrows;
 
 /** Tests for the {@link RegistryAvroFormatFactory}. */
 class RegistryAvroFormatFactoryTest {
@@ -63,6 +65,37 @@ class RegistryAvroFormatFactoryTest {
 
     private static final String SUBJECT = "test-subject";
     private static final String REGISTRY_URL = "http://localhost:8081";
+    private static final String SCHEMA_STRING =
+            "{\n"
+                    + "    \"type\": \"record\",\n"
+                    + "    \"name\": \"test_record\",\n"
+                    + "    \"fields\": [\n"
+                    + "        {\n"
+                    + "            \"name\": \"a\",\n"
+                    + "            \"type\": [\n"
+                    + "                \"null\",\n"
+                    + "                \"string\"\n"
+                    + "            ],\n"
+                    + "            \"default\": null\n"
+                    + "        },\n"
+                    + "        {\n"
+                    + "            \"name\": \"b\",\n"
+                    + "            \"type\": [\n"
+                    + "                \"null\",\n"
+                    + "                \"int\"\n"
+                    + "            ],\n"
+                    + "            \"default\": null\n"
+                    + "        },\n"
+                    + "        {\n"
+                    + "            \"name\": \"c\",\n"
+                    + "            \"type\": [\n"
+                    + "                \"null\",\n"
+                    + "                \"boolean\"\n"
+                    + "            ],\n"
+                    + "            \"default\": null\n"
+                    + "        }\n"
+                    + "    ]\n"
+                    + "}";
 
     private static final Map<String, String> EXPECTED_OPTIONAL_PROPERTIES = new HashMap<>();
 
@@ -139,7 +172,7 @@ class RegistryAvroFormatFactoryTest {
         final AvroRowDataDeserializationSchema expectedDeser =
                 new AvroRowDataDeserializationSchema(
                         ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                new Parser().parse(SCHEMA_STRING),
                                 REGISTRY_URL,
                                 EXPECTED_OPTIONAL_PROPERTIES),
                         AvroToRowDataConverters.createRowConverter(ROW_TYPE),
@@ -164,7 +197,7 @@ class RegistryAvroFormatFactoryTest {
                         ROW_TYPE,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
                                 SUBJECT,
-                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                new Parser().parse(SCHEMA_STRING),
                                 REGISTRY_URL,
                                 EXPECTED_OPTIONAL_PROPERTIES),
                         RowDataToAvroConverters.createConverter(ROW_TYPE));
@@ -178,6 +211,22 @@ class RegistryAvroFormatFactoryTest {
                 sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
 
         assertThat(actualSer).isEqualTo(expectedSer);
+    }
+
+    @Test
+    public void testSerializationSchemaWithInvalidOptionalSchema() {
+        Map<String, String> optionalProperties = getOptionalProperties();
+        optionalProperties.put("avro-confluent.schema", SCHEMA_STRING.replace("int", "string"));
+
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, optionalProperties);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        sinkMock.valueFormat.createRuntimeEncoder(
+                                null, SCHEMA.toPhysicalRowDataType()));
     }
 
     // ------------------------------------------------------------------------
@@ -222,6 +271,7 @@ class RegistryAvroFormatFactoryTest {
         properties.put(AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO.key(), "user:pwd");
         // defined via general property map
         properties.put("properties.bearer.auth.token", "CUSTOM");
+        properties.put("schema", SCHEMA_STRING);
 
         return getModifiedOptions(
                 opts ->

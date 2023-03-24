@@ -33,10 +33,8 @@ import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.fail;
@@ -141,17 +139,6 @@ public class WebMonitorMessagesTest {
             e.printStackTrace();
             fail(e.getMessage());
         }
-    }
-
-    private static List<JobID> randomIds(Random rnd) {
-        final int num = rnd.nextInt(20);
-        ArrayList<JobID> ids = new ArrayList<>(num);
-
-        for (int i = 0; i < num; i++) {
-            ids.add(new JobID(rnd.nextLong(), rnd.nextLong()));
-        }
-
-        return ids;
     }
 
     private Collection<JobDetails> randomJobDetails(Random rnd) {

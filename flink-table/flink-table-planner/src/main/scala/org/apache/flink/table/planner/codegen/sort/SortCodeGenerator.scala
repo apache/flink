@@ -41,7 +41,11 @@ import scala.collection.mutable
  * @param sortSpec
  *   sort specification.
  */
-class SortCodeGenerator(tableConfig: ReadableConfig, val input: RowType, val sortSpec: SortSpec) {
+class SortCodeGenerator(
+    tableConfig: ReadableConfig,
+    classLoader: ClassLoader,
+    val input: RowType,
+    val sortSpec: SortSpec) {
 
   private val MAX_NORMALIZED_KEY_LEN = 16
 
@@ -381,7 +385,7 @@ class SortCodeGenerator(tableConfig: ReadableConfig, val input: RowType, val sor
    *   A GeneratedRecordComparator
    */
   def generateRecordComparator(name: String): GeneratedRecordComparator = {
-    ComparatorCodeGenerator.gen(tableConfig, name, input, sortSpec)
+    ComparatorCodeGenerator.gen(tableConfig, classLoader, name, input, sortSpec)
   }
 
   def getter(t: LogicalType, index: Int): String = {

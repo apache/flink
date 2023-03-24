@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.types.logical.RowType
@@ -63,7 +64,7 @@ object SortAggCodeGenerator {
     val currentKeyTerm = "currentKey"
     val currentKeyWriterTerm = "currentKeyWriter"
 
-    val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
+    val groupKeyRowType = RowTypeUtils.projectRowType(inputType, grouping)
     val keyProjectionCode = ProjectionCodeGenerator
       .generateProjectionExpression(
         ctx,

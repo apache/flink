@@ -20,22 +20,30 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -122,6 +130,87 @@ public interface ChangelogStateBackendHandle
                     stateHandleId);
         }
 
+        public static ChangelogStateBackendHandle getChangelogStateBackendHandle(
+                KeyedStateHandle originKeyedStateHandle) {
+            if (originKeyedStateHandle instanceof ChangelogStateBackendHandle) {
+                return (ChangelogStateBackendHandle) originKeyedStateHandle;
+            } else {
+                return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
+                        singletonList(castToAbsolutePath(originKeyedStateHandle)),
+                        emptyList(),
+                        originKeyedStateHandle.getKeyGroupRange(),
+                        originKeyedStateHandle instanceof CheckpointBoundKeyedStateHandle
+                                ? ((CheckpointBoundKeyedStateHandle) originKeyedStateHandle)
+                                        .getCheckpointId()
+                                : 0L,
+                        0L,
+                        0L);
+            }
+        }
+
+        private static KeyedStateHandle castToAbsolutePath(
+                KeyedStateHandle originKeyedStateHandle) {
+            // For KeyedStateHandle, only KeyGroupsStateHandle and IncrementalKeyedStateHandle
+            // contain streamStateHandle, and both of them need to be cast
+            // as they all have state handles of private checkpoint scope.
+            if (originKeyedStateHandle instanceof KeyGroupsSavepointStateHandle) {
+                return originKeyedStateHandle;
+            }
+            if (originKeyedStateHandle instanceof KeyGroupsStateHandle) {
+                StreamStateHandle streamStateHandle =
+                        ((KeyGroupsStateHandle) originKeyedStateHandle).getDelegateStateHandle();
+
+                if (streamStateHandle instanceof FileStateHandle) {
+                    StreamStateHandle fileStateHandle = restoreFileStateHandle(streamStateHandle);
+                    return KeyGroupsStateHandle.restore(
+                            ((KeyGroupsStateHandle) originKeyedStateHandle).getGroupRangeOffsets(),
+                            fileStateHandle,
+                            originKeyedStateHandle.getStateHandleId());
+                }
+            }
+            if (originKeyedStateHandle instanceof IncrementalRemoteKeyedStateHandle) {
+                IncrementalRemoteKeyedStateHandle incrementalRemoteKeyedStateHandle =
+                        (IncrementalRemoteKeyedStateHandle) originKeyedStateHandle;
+
+                StreamStateHandle castMetaStateHandle =
+                        restoreFileStateHandle(
+                                incrementalRemoteKeyedStateHandle.getMetaStateHandle());
+                Map<StateHandleID, StreamStateHandle> castSharedStates =
+                        incrementalRemoteKeyedStateHandle.getSharedState().entrySet().stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                e -> restoreFileStateHandle(e.getValue())));
+                Map<StateHandleID, StreamStateHandle> castPrivateStates =
+                        incrementalRemoteKeyedStateHandle.getPrivateState().entrySet().stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                e -> restoreFileStateHandle(e.getValue())));
+
+                return IncrementalRemoteKeyedStateHandle.restore(
+                        incrementalRemoteKeyedStateHandle.getBackendIdentifier(),
+                        incrementalRemoteKeyedStateHandle.getKeyGroupRange(),
+                        incrementalRemoteKeyedStateHandle.getCheckpointId(),
+                        castSharedStates,
+                        castPrivateStates,
+                        castMetaStateHandle,
+                        incrementalRemoteKeyedStateHandle.getCheckpointedSize(),
+                        incrementalRemoteKeyedStateHandle.getStateHandleId());
+            }
+            return originKeyedStateHandle;
+        }
+
+        private static StreamStateHandle restoreFileStateHandle(
+                StreamStateHandle streamStateHandle) {
+            if (streamStateHandle instanceof FileStateHandle) {
+                return new FileStateHandle(
+                        ((FileStateHandle) streamStateHandle).getFilePath(),
+                        streamStateHandle.getStateSize());
+            }
+            return streamStateHandle;
+        }
+
         @Override
         public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
             for (KeyedStateHandle keyedStateHandle : materialized) {
@@ -131,7 +220,8 @@ public interface ChangelogStateBackendHandle
                 stateRegistry.registerReference(
                         new SharedStateRegistryKey(keyedStateHandle.getStateHandleId().toString()),
                         new StreamStateHandleWrapper(keyedStateHandle),
-                        checkpointID);
+                        checkpointID,
+                        true);
             }
             stateRegistry.registerAll(materialized, checkpointID);
             stateRegistry.registerAll(nonMaterialized, checkpointID);
@@ -277,6 +367,11 @@ public interface ChangelogStateBackendHandle
 
             @Override
             public Optional<byte[]> asBytesIfInMemory() {
+                throw new UnsupportedOperationException("Should not call here.");
+            }
+
+            @Override
+            public PhysicalStateHandleID getStreamStateHandleID() {
                 throw new UnsupportedOperationException("Should not call here.");
             }
 

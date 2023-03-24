@@ -38,34 +38,30 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcColumnarRowInputFormat}. */
-public class OrcColumnarRowInputFormatTest {
+class OrcColumnarRowInputFormatTest {
 
     /** Small batch size for test more boundary conditions. */
     protected static final int BATCH_SIZE = 9;
@@ -91,14 +87,19 @@ public class OrcColumnarRowInputFormatTest {
     private static final RowType DECIMAL_FILE_TYPE =
             RowType.of(new LogicalType[] {new DecimalType(10, 5)}, new String[] {"_col0"});
 
-    private final Path flatFile = copyFileFromResource("test-data-flat.orc");
+    private static Path flatFile;
+    private static Path decimalFile;
 
-    private final Path decimalFile = copyFileFromResource("test-data-decimal.orc");
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @BeforeAll
+    static void setupFiles(@TempDir java.nio.file.Path tmpDir) {
+        flatFile = copyFileFromResource("test-data-flat.orc", tmpDir.resolve("test-data-flat.orc"));
+        decimalFile =
+                copyFileFromResource(
+                        "test-data-decimal.orc", tmpDir.resolve("test-data-decimal.orc"));
+    }
 
     @Test
-    public void testReadFileInSplits() throws IOException {
+    void testReadFileInSplits() throws IOException {
         OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {0, 1});
 
@@ -111,21 +112,21 @@ public class OrcColumnarRowInputFormatTest {
                     format,
                     split,
                     row -> {
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
+                        assertThat(row.isNullAt(0)).isFalse();
+                        assertThat(row.isNullAt(1)).isFalse();
                         totalF0.addAndGet(row.getInt(0));
-                        Assert.assertNotNull(row.getString(1).toString());
+                        assertThat(row.getString(1).toString()).isNotNull();
                         cnt.incrementAndGet();
                     });
         }
 
         // check that all rows have been read
-        assertEquals(1920800, cnt.get());
-        assertEquals(1844737280400L, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(1920800);
+        assertThat(totalF0.get()).isEqualTo(1844737280400L);
     }
 
     @Test
-    public void testReadFileWithSelectFields() throws IOException {
+    void testReadFileWithSelectFields() throws IOException {
         OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {2, 0, 1});
 
@@ -138,23 +139,23 @@ public class OrcColumnarRowInputFormatTest {
                     format,
                     split,
                     row -> {
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
-                        Assert.assertFalse(row.isNullAt(2));
-                        Assert.assertNotNull(row.getString(0).toString());
+                        assertThat(row.isNullAt(0)).isFalse();
+                        assertThat(row.isNullAt(1)).isFalse();
+                        assertThat(row.isNullAt(2)).isFalse();
+                        assertThat(row.getString(0).toString()).isNotNull();
                         totalF0.addAndGet(row.getInt(1));
-                        Assert.assertNotNull(row.getString(2).toString());
+                        assertThat(row.getString(2).toString()).isNotNull();
                         cnt.incrementAndGet();
                     });
         }
 
         // check that all rows have been read
-        assertEquals(1920800, cnt.get());
-        assertEquals(1844737280400L, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(1920800);
+        assertThat(totalF0.get()).isEqualTo(1844737280400L);
     }
 
     @Test
-    public void testReadDecimalTypeFile() throws IOException {
+    void testReadDecimalTypeFile() throws IOException {
         OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(DECIMAL_FILE_TYPE, new int[] {0});
 
@@ -169,14 +170,13 @@ public class OrcColumnarRowInputFormatTest {
                     row -> {
                         if (cnt.get() == 0) {
                             // validate first row
-                            assertNotNull(row);
-                            assertEquals(1, row.getArity());
-                            assertEquals(
-                                    DecimalDataUtils.castFrom(-1000.5d, 10, 5),
-                                    row.getDecimal(0, 10, 5));
+                            assertThat(row).isNotNull();
+                            assertThat(row.getArity()).isEqualTo(1);
+                            assertThat(row.getDecimal(0, 10, 5))
+                                    .isEqualTo(DecimalDataUtils.castFrom(-1000.5d, 10, 5));
                         } else {
                             if (!row.isNullAt(0)) {
-                                assertNotNull(row.getDecimal(0, 10, 5));
+                                assertThat(row.getDecimal(0, 10, 5)).isNotNull();
                             } else {
                                 nullCount.incrementAndGet();
                             }
@@ -185,12 +185,12 @@ public class OrcColumnarRowInputFormatTest {
                     });
         }
 
-        assertEquals(6000, cnt.get());
-        assertEquals(2000, nullCount.get());
+        assertThat(cnt.get()).isEqualTo(6000);
+        assertThat(nullCount.get()).isEqualTo(2000);
     }
 
     @Test
-    public void testReadFileWithPartitionFields() throws IOException {
+    void testReadFileWithPartitionFields(@TempDir java.nio.file.Path tmpDir) throws IOException {
         LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
         partSpec.put("f1", "1");
         partSpec.put("f3", "3");
@@ -198,7 +198,9 @@ public class OrcColumnarRowInputFormatTest {
         partSpec.put("f8", BigDecimal.valueOf(5.333).toString());
         partSpec.put("f13", "f13");
 
-        final Path flatFile = copyFileFromResource("test-data-flat.orc", partSpec);
+        final Path flatFile =
+                copyFileFromResource(
+                        "test-data-flat.orc", tmpDir.resolve(generatePartitionPath(partSpec)));
 
         RowType tableType =
                 RowType.of(
@@ -233,32 +235,31 @@ public class OrcColumnarRowInputFormatTest {
                     split,
                     row -> {
                         // data values
-                        Assert.assertFalse(row.isNullAt(3));
-                        Assert.assertFalse(row.isNullAt(5));
+                        assertThat(row.isNullAt(3)).isFalse();
+                        assertThat(row.isNullAt(5)).isFalse();
                         totalF0.addAndGet(row.getInt(3));
-                        Assert.assertNotNull(row.getString(5).toString());
-
+                        assertThat(row.getString(5).toString()).isNotNull();
                         // part values
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
-                        Assert.assertFalse(row.isNullAt(2));
-                        Assert.assertFalse(row.isNullAt(4));
-                        Assert.assertEquals(
-                                DecimalDataUtils.castFrom(5.333, 10, 5), row.getDecimal(0, 10, 5));
-                        Assert.assertEquals(1, row.getInt(1));
-                        Assert.assertEquals(3, row.getLong(2));
-                        Assert.assertEquals("f5", row.getString(4).toString());
+                        assertThat(row.isNullAt(0)).isFalse();
+                        assertThat(row.isNullAt(1)).isFalse();
+                        assertThat(row.isNullAt(2)).isFalse();
+                        assertThat(row.isNullAt(4)).isFalse();
+                        assertThat(row.getDecimal(0, 10, 5))
+                                .isEqualTo(DecimalDataUtils.castFrom(5.333, 10, 5));
+                        assertThat(row.getInt(1)).isEqualTo(1);
+                        assertThat(row.getLong(2)).isEqualTo(3);
+                        assertThat(row.getString(4).toString()).isEqualTo("f5");
                         cnt.incrementAndGet();
                     });
         }
 
         // check that all rows have been read
-        assertEquals(1920800, cnt.get());
-        assertEquals(1844737280400L, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(1920800);
+        assertThat(totalF0.get()).isEqualTo(1844737280400L);
     }
 
     @Test
-    public void testReadFileAndRestore() throws IOException {
+    void testReadFileAndRestore() throws IOException {
         OrcColumnarRowInputFormat<?, FileSourceSplit> format =
                 createFormat(FLAT_FILE_TYPE, new int[] {0, 1});
 
@@ -271,7 +272,7 @@ public class OrcColumnarRowInputFormatTest {
     }
 
     @Test
-    public void testReadFileAndRestoreWithFilter() throws IOException {
+    void testReadFileAndRestoreWithFilter() throws IOException {
         List<Predicate> filter =
                 Collections.singletonList(
                         new Or(
@@ -303,10 +304,10 @@ public class OrcColumnarRowInputFormatTest {
 
         Consumer<RowData> consumer =
                 row -> {
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
+                    assertThat(row.isNullAt(0)).isFalse();
+                    assertThat(row.isNullAt(1)).isFalse();
                     totalF0.addAndGet(row.getInt(0));
-                    assertNotNull(row.getString(1).toString());
+                    assertThat(row.getString(1).toString()).isNotNull();
                     cnt.incrementAndGet();
                 };
 
@@ -317,7 +318,7 @@ public class OrcColumnarRowInputFormatTest {
         try (BulkFormat.Reader<RowData> reader = createReader(format, split)) {
             while (cnt.get() < breakCnt) {
                 BulkFormat.RecordIterator<RowData> batch = reader.readBatch();
-                Assert.assertNotNull(batch);
+                assertThat(batch).isNotNull();
 
                 RecordAndPosition<RowData> record;
                 while ((record = batch.next()) != null && cnt.get() < breakCnt) {
@@ -336,8 +337,8 @@ public class OrcColumnarRowInputFormatTest {
         // forEach(format, split, consumer);
 
         // check that all rows have been read
-        assertEquals(expectedCnt, cnt.get());
-        assertEquals(expectedTotalF0, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(expectedCnt);
+        assertThat(totalF0.get()).isEqualTo(expectedTotalF0);
     }
 
     protected OrcColumnarRowInputFormat<?, FileSourceSplit> createFormat(
@@ -400,35 +401,15 @@ public class OrcColumnarRowInputFormatTest {
         Utils.forEachRemaining(createReader(format, split), action);
     }
 
-    private Path copyFileFromResource(String fileName) {
-        try {
-            File file = TEMPORARY_FOLDER.newFile();
-            return copyFileFromResource(fileName, file);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private Path copyFileFromResource(String fileName, LinkedHashMap<String, String> partSpec) {
-        try {
-            File folder = TEMPORARY_FOLDER.newFolder();
-            folder = new File(folder, generatePartitionPath(partSpec));
-            return copyFileFromResource(fileName, new File(folder, UUID.randomUUID().toString()));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private Path copyFileFromResource(String fileName, File file) {
-        try {
-            file.getParentFile().mkdirs();
-            file.delete();
-            file.createNewFile();
-            IOUtils.copyBytes(
-                    getClass().getClassLoader().getResource(fileName).openStream(),
-                    new FileOutputStream(file),
-                    true);
-            return new Path(file.getPath());
+    static Path copyFileFromResource(String resourceName, java.nio.file.Path file) {
+        try (InputStream resource =
+                OrcColumnarRowInputFormatTest.class
+                        .getClassLoader()
+                        .getResource(resourceName)
+                        .openStream()) {
+            Files.createDirectories(file.getParent());
+            Files.copy(resource, file);
+            return new Path(file.toString());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

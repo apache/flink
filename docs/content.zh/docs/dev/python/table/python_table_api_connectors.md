@@ -134,6 +134,8 @@ if __name__ == '__main__':
 PyFlink 表支持与 Pandas DataFrame 之间互相转换。
 
 ```python
+from pyflink.table.expressions import col
+
 import pandas as pd
 import numpy as np
 
@@ -150,6 +152,8 @@ pdf = table.to_pandas()
 `from_elements()` 用于从一个元素集合中创建一张表。元素类型必须是可支持的原子类型或者复杂类型。
 
 ```python
+from pyflink.table import DataTypes
+
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 
 # 使用第二个参数指定自定义字段名

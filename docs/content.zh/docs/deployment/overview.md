@@ -143,7 +143,7 @@ When deploying Flink, there are often multiple options available for each buildi
                 <ul>
                     <li>Apache Kafka</li>
                     <li>Amazon S3</li>
-                    <li>ElasticSearch</li>
+                    <li>Elasticsearch</li>
                     <li>Apache Cassandra</li>
                 </ul>
                 See <a href="{{< ref "docs/connectors/datastream/overview" >}}">Connectors</a> page.
@@ -308,7 +308,7 @@ Supported Environment:
 
 #### Huawei Cloud Stream Service
 
-[Website](https://www.huaweicloud.com/en-us/product/cs.html)
+[Website](https://www.huaweicloud.com/intl/zh-cn/product/cs.html)
 
 Supported Environment:
 {{< label Huawei Cloud >}}

@@ -18,10 +18,18 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.connector.source.lookup.LookupOptions
+import org.apache.flink.table.connector.source.lookup.LookupOptions.{LookupCacheType, ReloadStrategy}
+import org.apache.flink.table.data.GenericRowData
+import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
+import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
+import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
 import org.apache.flink.types.Row
 
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.{After, Assume, Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
@@ -33,7 +41,8 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends BatchTestBase {
+class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheType: LookupCacheType)
+  extends BatchTestBase {
 
   val data = List(
     rowOf(1L, 12L, "Julian"),
@@ -59,6 +68,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
   @Before
   override def before() {
     super.before()
+    if (legacyTableSource) {
+      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
+    } else {
+      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
+      FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)
+    }
     createScanTable("T", data)
     createScanTable("nullableT", dataWithNull)
 
@@ -76,6 +91,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
       assertEquals(0, InMemoryLookupableTableSource.RESOURCE_COUNTER.get())
     } else {
       assertEquals(0, TestValuesTableFactory.RESOURCE_COUNTER.get())
+      assertEquals(0, FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get())
     }
   }
 
@@ -96,12 +112,27 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
         isBounded = true)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (cacheType == LookupCacheType.PARTIAL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else if (cacheType == LookupCacheType.FULL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
+
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
                          |  `id` BIGINT,
                          |  `name` STRING
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId',
                          |  'async' = '$isAsyncMode',
@@ -114,6 +145,19 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (cacheType == LookupCacheType.PARTIAL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else if (cacheType == LookupCacheType.FULL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
@@ -121,6 +165,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
                          |  `name` STRING,
                          |  `nominal_age` as age + 1
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId',
                          |  'async' = '$isAsyncMode',
@@ -304,17 +349,91 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
       BatchTestBase.row(3, 15, "Fabian", "Fabian", 33, 34))
     checkResult(sql, expected)
   }
+
+  @Test
+  def testLookupCacheSharingAcrossSubtasks(): Unit = {
+    if (cacheType == LookupCacheType.NONE) {
+      return
+    }
+    // Keep the cache for later validation
+    LookupCacheManager.keepCacheOnRelease(true)
+    try {
+      // Use datagen source here to support parallel running
+      val sourceDdl =
+        s"""
+           |CREATE TABLE datagen_source (
+           |  id BIGINT,
+           |  proc AS PROCTIME()
+           |) WITH (
+           |  'connector' = 'datagen',
+           |  'fields.id.kind' = 'sequence',
+           |  'fields.id.start' = '1',
+           |  'fields.id.end' = '6',
+           |  'number-of-rows' = '6'
+           |)
+           |""".stripMargin
+      tEnv.executeSql(sourceDdl)
+      val sql =
+        """
+          |SELECT T.id, D.name, D.age FROM datagen_source as T 
+          |LEFT JOIN userTable FOR SYSTEM_TIME AS OF T.proc AS D 
+          |ON T.id = D.id
+          |""".stripMargin
+      executeQuery(parseQuery(sql))
+
+      // Validate that only one cache is registered
+      val managedCaches = LookupCacheManager.getInstance().getManagedCaches
+      assertThat(managedCaches.size()).isEqualTo(1)
+
+      val numEntries = if (cacheType == LookupCacheType.PARTIAL) 6 else userData.size
+      // Validate 6 entries are cached for PARTIAL and all entries for FULL
+      val cache = managedCaches.get(managedCaches.keySet().iterator().next()).getCache
+      assertThat(cache.size()).isEqualTo(numEntries)
+
+      // Validate contents of cached entries
+      assertThatIterable(cache.getIfPresent(GenericRowData.of(jl(1L))))
+        .containsExactlyInAnyOrder(
+          GenericRowData.of(ji(11), jl(1L), BinaryStringData.fromString("Julian")))
+      assertThatIterable(cache.getIfPresent(GenericRowData.of(jl(2L))))
+        .containsExactlyInAnyOrder(
+          GenericRowData.of(ji(22), jl(2L), BinaryStringData.fromString("Jark")))
+      assertThatIterable(cache.getIfPresent(GenericRowData.of(jl(3L))))
+        .containsExactlyInAnyOrder(
+          GenericRowData.of(ji(33), jl(3L), BinaryStringData.fromString("Fabian")))
+      assertThatIterable(cache.getIfPresent(GenericRowData.of(jl(4L)))).isEmpty()
+    } finally {
+      LookupCacheManager.getInstance().checkAllReleased()
+      LookupCacheManager.getInstance().clear()
+      LookupCacheManager.keepCacheOnRelease(false)
+    }
+  }
+
+  def ji(i: Int): java.lang.Integer = {
+    new java.lang.Integer(i)
+  }
+
+  def jl(l: Long): java.lang.Long = {
+    new java.lang.Long(l)
+  }
 }
 
 object LookupJoinITCase {
 
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}")
+  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
+  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
+  val ASYNC_MODE: JBoolean = JBoolean.TRUE;
+  val SYNC_MODE: JBoolean = JBoolean.FALSE;
+
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(JBoolean.TRUE, JBoolean.TRUE),
-      Array(JBoolean.TRUE, JBoolean.FALSE),
-      Array(JBoolean.FALSE, JBoolean.TRUE),
-      Array(JBoolean.FALSE, JBoolean.FALSE)
+      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),
+      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL)
     )
   }
 }

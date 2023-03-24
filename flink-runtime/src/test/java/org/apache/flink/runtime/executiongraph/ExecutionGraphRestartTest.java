@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -107,7 +108,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
                             "Task", NUM_TASKS + numTasksExceedSlotPool, NoOpInvokable.class);
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     graph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
@@ -136,7 +137,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
                             "Task", NUM_TASKS + numTasksExceedSlotPool, NoOpInvokable.class);
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     graph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
@@ -159,7 +160,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
         // We want to manually control the restart and delay
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     createJobGraph(),
                                     mainThreadExecutor,
                                     EXECUTOR_RESOURCE.getExecutor())
@@ -202,7 +203,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testCancelWhileFailing() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     createJobGraph(),
                                     mainThreadExecutor,
                                     EXECUTOR_RESOURCE.getExecutor())
@@ -240,7 +241,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailWhileCanceling() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     createJobGraph(),
                                     mainThreadExecutor,
                                     EXECUTOR_RESOURCE.getExecutor())
@@ -291,7 +292,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
@@ -351,7 +352,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailExecutionAfterCancel() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
-                    new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                    new DefaultSchedulerBuilder(
                                     createJobGraphToCancel(),
                                     mainThreadExecutor,
                                     EXECUTOR_RESOURCE.getExecutor())

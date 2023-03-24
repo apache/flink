@@ -39,6 +39,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.calcite.sql.SqlKind.CUME_DIST;
+import static org.apache.calcite.sql.SqlKind.NTILE;
+import static org.apache.calcite.sql.SqlKind.PERCENT_RANK;
+
 /** Batch {@link ExecNode} base class for sort-based over window aggregate. */
 public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
@@ -99,9 +103,21 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         return overSpec.getConstants();
     }
 
+    protected boolean containSizeBasedWindowFunction(GroupSpec group) {
+        return group.getAggCalls().stream()
+                .anyMatch(
+                        agg ->
+                                (agg.getAggregation().getKind() == CUME_DIST)
+                                        || (agg.getAggregation().getKind() == PERCENT_RANK)
+                                        || (agg.getAggregation().getKind() == NTILE));
+    }
+
     /** Infer the over window mode based on given group info. */
     protected OverWindowMode inferGroupMode(GroupSpec group) {
         AggregateCall aggCall = group.getAggCalls().get(0);
+        if (aggCall.getAggregation().getKind() == NTILE) {
+            return OverWindowMode.INSENSITIVE;
+        }
         if (aggCall.getAggregation().allowsFraming()) {
             if (group.isRows()) {
                 return OverWindowMode.ROW;
@@ -111,6 +127,10 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         } else {
             if (aggCall.getAggregation() instanceof SqlLeadLagAggFunction) {
                 return OverWindowMode.OFFSET;
+            } else if (aggCall.getAggregation().getKind() == CUME_DIST) {
+                // CUME_DIST is range mode (RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
+                // because equal values in window partition should return same result.
+                return OverWindowMode.RANGE;
             } else {
                 return OverWindowMode.INSENSITIVE;
             }
@@ -130,7 +150,7 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         OFFSET,
         /**
          * The INSENSITIVE mode does not care the window framing without LEAD/LAG agg function, for
-         * example RANK/DENSE_RANK/PERCENT_RANK/CUME_DIST/ROW_NUMBER.
+         * example RANK/DENSE_RANK/PERCENT_RANK/ROW_NUMBER/NTILE.
          */
         INSENSITIVE
     }

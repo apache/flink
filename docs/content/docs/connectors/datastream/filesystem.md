@@ -71,6 +71,15 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...);
 FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+# reads the contents of a file from a file stream.
+FileSource.for_record_stream_format(stream_format, *path)
+
+# reads batches of records from a file at a time
+FileSource.for_bulk_file_format(bulk_format, *path)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 This creates a `FileSource.FileSourceBuilder` on which you can configure all the properties of the File Source.
@@ -89,6 +98,13 @@ final FileSource<String> source =
         FileSource.forRecordStreamFormat(...)
         .monitorContinuously(Duration.ofMillis(5))  
         .build();
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(...) \
+    .monitor_continously(Duration.of_millis(5)) \
+    .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -157,8 +173,8 @@ The schema for CSV parsing, in this case, is automatically derived based on the 
 If you need more fine-grained control over the CSV schema or the parsing options, use the more low-level `forSchema` static factory method of `CsvReaderFormat`:
 
 ```java
-CsvReaderFormat<T> forSchema(CsvMapper mapper, 
-                             CsvSchema schema, 
+CsvReaderFormat<T> forSchema(Supplier<CsvMapper> mapperFactory, 
+                             Function<CsvMapper, CsvSchema> schemaGenerator, 
                              TypeInformation<T> typeInformation) 
 ```
 
@@ -315,9 +331,9 @@ final FileSink<String> sink = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
 	.build();
 
@@ -341,14 +357,27 @@ val sink: FileSink[String] = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
     .build()
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_rolling_policy(RollingPolicy.default_rolling_policy(
+        part_size=1024 ** 3, rollover_interval=15 * 60 * 1000, inactivity_interval=5 * 60 * 1000)) \
+    .build()
+
+data_stream.sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -389,7 +418,9 @@ For writing to other Parquet compatible data formats, users need to create the P
 
 To use the Parquet bulk encoder in your application you need to add the following dependency:
 
-{{< artifact flink-parquet withScalaVersion >}}
+{{< artifact flink-parquet >}}
+
+{{< py_download_link "parquet" >}}
 
 A `FileSink` that writes Avro data to Parquet format can be created like this:
 
@@ -427,6 +458,22 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroParquetWriters.for_generic_record(schema)) \
+    .build()
+
+# A map to indicate its Avro type info is necessary for serialization
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -468,6 +515,25 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
+For PyFlink users, `ParquetBulkWriters` could be used to create a `BulkWriterFactory` that writes `Row`s into Parquet files.
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('string', DataTypes.STRING()),
+    DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR, ParquetBulkWriters.for_row_type(
+        row_type,
+        hadoop_config=Configuration(),
+        utc_timestamp=True,
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
 ##### Avro format
 
 Flink also provides built-in support for writing data into Avro files. A list of convenience methods to create
@@ -477,6 +543,8 @@ AvroWriters class.
 To use the Avro writers in your application you need to add the following dependency:
 
 {{< artifact flink-avro >}}
+
+{{< py_download_link "avro" >}}
 
 A `FileSink` that writes data to Avro files can be created like this:
 
@@ -514,6 +582,22 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroBulkWriters.for_generic_record(schema)) \
+    .build()
+
+# A map to indicate its Avro type info is necessary for serialization
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -641,7 +725,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the ORC bulk encoder in an application, users need to add the following dependency:
 
-{{< artifact flink-orc withScalaVersion >}}
+{{< artifact flink-orc >}}
 
 
 And then a `FileSink` that writes data in ORC format can be created like this:
@@ -756,6 +840,28 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
+For PyFlink users, `OrcBulkWriters` could be used to create `BulkWriterFactory` to write records to files in Orc format.
+
+{{< py_download_link "orc" >}}
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('name', DataTypes.STRING()),
+    DataTypes.FIELD('age', DataTypes.INT()),
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR,
+    OrcBulkWriters.for_row_type(
+        row_type=row_type,
+        writer_properties=Configuration(),
+        hadoop_config=Configuration(),
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
 ##### Hadoop SequenceFile format
 
 To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
@@ -828,6 +934,10 @@ Flink comes with two built-in BucketAssigners:
  - `DateTimeBucketAssigner` : Default time based assigner
  - `BasePathBucketAssigner` : Assigner that stores all part files in the base path (single global bucket)
 
+{{< hint info >}}
+Note: PyFlink only supports `DateTimeBucketAssigner` and `BasePathBucketAssigner`.
+{{< /hint >}}
+
 ### Rolling Policy
 
 The `RollingPolicy` defines when a given in-progress part file will be closed and moved to the pending and later to finished state.
@@ -840,6 +950,10 @@ Flink comes with two built-in RollingPolicies:
 
  - `DefaultRollingPolicy`
  - `OnCheckpointRollingPolicy`
+
+{{< hint info >}}
+Note: PyFlink only supports `DefaultRollingPolicy` and `OnCheckpointRollingPolicy`.
+{{< /hint >}}
 
 ### Part file lifecycle
 
@@ -956,6 +1070,22 @@ val sink = FileSink
 			
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = OutputFileConfig \
+    .builder() \
+    .with_part_prefix("prefix") \
+    .with_part_suffix(".ext") \
+    .build()
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+    .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+    .with_output_file_config(config) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Compaction
@@ -1000,6 +1130,19 @@ val fileSink: FileSink[Integer] =
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+file_sink = FileSink \
+    .for_row_format(PATH, Encoder.simple_string_encoder()) \
+    .enable_compact(
+        FileCompactStrategy.builder()
+            .set_size_threshold(1024)
+            .enable_compaction_on_checkpoint(5)
+            .build(),
+        FileCompactor.concat_file_compactor()) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Once enabled, the compaction happens between the files become `pending` and get committed. The pending files will
@@ -1031,6 +1174,10 @@ the give list of `Path` and write the result file. It could be classified into t
 **Important Note 2** When the compaction is enabled, the written files need to wait for longer time before they get visible.
 {{< /hint >}}
 
+{{< hint info >}}
+Note: PyFlink only supports `ConcatFileCompactor` and `IdenticalFileCompactor`.
+{{< /hint >}}
+
 ### Important Considerations
 
 #### General
@@ -1050,8 +1197,8 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports four filesystems: 
-HDFS, S3, OSS, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports five filesystems: 
+HDFS, S3, OSS, ABFS and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific
 

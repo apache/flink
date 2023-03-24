@@ -45,19 +45,24 @@ public class SavepointReaderCustomSerializerITCase extends SavepointReaderITTest
 
     @Override
     public DataStream<Integer> readListState(SavepointReader savepoint) throws IOException {
-        return savepoint.readListState(UID, LIST_NAME, Types.INT, CustomIntSerializer.INSTANCE);
+        return savepoint.readListState(
+                OperatorIdentifier.forUid(UID), LIST_NAME, Types.INT, CustomIntSerializer.INSTANCE);
     }
 
     @Override
     public DataStream<Integer> readUnionState(SavepointReader savepoint) throws IOException {
-        return savepoint.readUnionState(UID, UNION_NAME, Types.INT, CustomIntSerializer.INSTANCE);
+        return savepoint.readUnionState(
+                OperatorIdentifier.forUid(UID),
+                UNION_NAME,
+                Types.INT,
+                CustomIntSerializer.INSTANCE);
     }
 
     @Override
     public DataStream<Tuple2<Integer, String>> readBroadcastState(SavepointReader savepoint)
             throws IOException {
         return savepoint.readBroadcastState(
-                UID,
+                OperatorIdentifier.forUid(UID),
                 BROADCAST_NAME,
                 Types.INT,
                 Types.STRING,

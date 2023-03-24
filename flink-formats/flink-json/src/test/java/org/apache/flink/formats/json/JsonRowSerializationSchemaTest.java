@@ -30,6 +30,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.formats.utils.SerializationSchemaMatcher.whenSerializedWith;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -81,8 +82,10 @@ public class JsonRowSerializationSchemaTest {
 
         final JsonRowSerializationSchema serializationSchema =
                 new JsonRowSerializationSchema.Builder(rowSchema).build();
+        open(serializationSchema);
         final JsonRowDeserializationSchema deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
+        open(deserializationSchema);
 
         byte[] bytes = serializationSchema.serialize(row1);
         assertEquals(row1, deserializationSchema.deserialize(bytes));
@@ -122,8 +125,10 @@ public class JsonRowSerializationSchemaTest {
                         Types.PRIMITIVE_ARRAY(Types.INT));
         JsonRowDeserializationSchema deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(schema).build();
+        open(deserializationSchema);
         JsonRowSerializationSchema serializationSchema =
                 JsonRowSerializationSchema.builder().withTypeInfo(schema).build();
+        open(serializationSchema);
 
         for (int i = 0; i < jsons.length; i++) {
             String json = jsons[i];
@@ -173,6 +178,7 @@ public class JsonRowSerializationSchemaTest {
 
         final JsonRowSerializationSchema serializationSchema =
                 new JsonRowSerializationSchema.Builder(rowSchema).build();
+        open(serializationSchema);
         assertThat(
                 row,
                 whenSerializedWith(serializationSchema)

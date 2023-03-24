@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction}
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.STREAM_RECOR
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.context.ExecutionContextImpl
 import org.apache.flink.table.runtime.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
@@ -91,10 +90,6 @@ object AggCodeGenHelper {
       .map(a => a -> CodeGenUtils.udfFieldName(a))
       .toMap
       .asInstanceOf[Map[AggregateFunction[_, _], String]]
-  }
-
-  def projectRowType(rowType: RowType, mapping: Array[Int]): RowType = {
-    RowType.of(mapping.map(rowType.getTypeAt), mapping.map(rowType.getFieldNames.get(_)))
   }
 
   /** Add agg handler to class member and open it. */

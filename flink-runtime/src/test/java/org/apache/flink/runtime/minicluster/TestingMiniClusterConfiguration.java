@@ -55,7 +55,8 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
                 numTaskManagers,
                 rpcServiceSharing,
                 commonBindAddress,
-                MiniCluster.HaServices.CONFIGURED);
+                MiniCluster.HaServices.CONFIGURED,
+                null);
         this.numberDispatcherResourceManagerComponents = numberDispatcherResourceManagerComponents;
         this.localCommunication = localCommunication;
     }

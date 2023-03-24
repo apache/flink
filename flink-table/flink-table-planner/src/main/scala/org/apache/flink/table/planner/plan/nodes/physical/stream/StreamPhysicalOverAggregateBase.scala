@@ -37,7 +37,7 @@ abstract class StreamPhysicalOverAggregateBase(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    logicWindow: Window)
+    val logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 

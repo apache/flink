@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.{JDouble, JLong}
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.PlannerMocks
@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, TableScan}
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQueryBase}
@@ -52,7 +53,8 @@ class AggCallSelectivityEstimatorTest {
   private val allFieldTypes = Seq(VARCHAR, INTEGER, DOUBLE)
   val (name_idx, amount_idx, price_idx) = (0, 1, 2)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
+  val typeFactory: FlinkTypeFactory =
+    new FlinkTypeFactory(Thread.currentThread().getContextClassLoader, FlinkTypeSystem.INSTANCE);
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType =
     typeFactory.createStructType(allFieldTypes.map(typeFactory.createSqlType), allFieldNames)
@@ -74,7 +76,7 @@ class AggCallSelectivityEstimatorTest {
       .build()
       .getPlannerContext
 
-    val relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    val relBuilder = plannerContext.createRelBuilder()
     relBuilder.clear()
     relBuilder.scan(util.Arrays.asList("test")).build().asInstanceOf[TableScan]
   }
@@ -102,8 +104,11 @@ class AggCallSelectivityEstimatorTest {
           sqlAggFun,
           false,
           false,
+          false,
           ImmutableList.of(Integer.valueOf(arg)),
           -1,
+          null,
+          RelCollations.EMPTY,
           groupSet.length,
           scan,
           aggCallType,

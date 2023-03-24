@@ -17,11 +17,12 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nonnull;
+
+import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -30,7 +31,7 @@ public class AkkaRpcServiceConfiguration {
 
     @Nonnull private final Configuration configuration;
 
-    @Nonnull private final Time timeout;
+    @Nonnull private final Duration timeout;
 
     private final long maximumFramesize;
 
@@ -40,7 +41,7 @@ public class AkkaRpcServiceConfiguration {
 
     private AkkaRpcServiceConfiguration(
             @Nonnull Configuration configuration,
-            @Nonnull Time timeout,
+            @Nonnull Duration timeout,
             long maximumFramesize,
             boolean captureAskCallStack,
             boolean forceRpcInvocationSerialization) {
@@ -59,7 +60,7 @@ public class AkkaRpcServiceConfiguration {
     }
 
     @Nonnull
-    public Time getTimeout() {
+    public Duration getTimeout() {
         return timeout;
     }
 
@@ -76,7 +77,7 @@ public class AkkaRpcServiceConfiguration {
     }
 
     public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
-        final Time timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        final Duration timeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
 
         final long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 

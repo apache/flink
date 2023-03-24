@@ -65,7 +65,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
     // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_14;
+    private static final FlinkVersion currentVersion = FlinkVersion.v1_16;
 
     // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
     // TODO Note: You should generate the snapshot based on the release branch instead of the
@@ -79,7 +79,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 SnapshotSpec.withVersions(
                         StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_4, FlinkVersion.v1_14)));
+                        FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_14)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
@@ -89,7 +89,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_4, currentVersion)));
+                        FlinkVersion.rangeOf(FlinkVersion.v1_8, currentVersion)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,

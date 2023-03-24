@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-orc</artifactId>
@@ -86,6 +86,14 @@ under the License.
 					<groupId>javax.xml.bind</groupId>
 					<artifactId>jaxb-api</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -99,12 +107,32 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-hdfs</artifactId>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Tests -->
@@ -164,6 +192,16 @@ under the License.
 
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>27.0.1-jre</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<profiles>
 		<profile>
 			<!-- This profile adds dependencies needed to execute the tests
@@ -173,8 +211,18 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs-client</artifactId>
-					<version>${hadoop.version}</version>
+					<version>${flink.hadoop.version}</version>
 					<scope>test</scope>
+					<exclusions>
+						<exclusion>
+							<groupId>ch.qos.reload4j</groupId>
+							<artifactId>reload4j</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.slf4j</groupId>
+							<artifactId>slf4j-reload4j</artifactId>
+						</exclusion>
+					</exclusions>
 				</dependency>
 			</dependencies>
 		</profile>

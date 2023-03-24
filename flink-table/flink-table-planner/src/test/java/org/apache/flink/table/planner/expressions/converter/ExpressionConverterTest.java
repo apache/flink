@@ -22,7 +22,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.utils.PlannerMocks;
-import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rex.RexLiteral;
@@ -49,10 +48,7 @@ public class ExpressionConverterTest {
 
     private final PlannerContext plannerContext = PlannerMocks.create().getPlannerContext();
     private final ExpressionConverter converter =
-            new ExpressionConverter(
-                    plannerContext.createRelBuilder(
-                            CatalogManagerMocks.DEFAULT_CATALOG,
-                            CatalogManagerMocks.DEFAULT_DATABASE));
+            new ExpressionConverter(plannerContext.createRelBuilder());
 
     @Test
     public void testLiteral() {

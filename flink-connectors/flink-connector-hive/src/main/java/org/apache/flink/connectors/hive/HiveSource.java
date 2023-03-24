@@ -59,9 +59,12 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
 
     private static final long serialVersionUID = 1L;
 
-    private final int threadNum;
     private final JobConfWrapper jobConfWrapper;
     private final List<String> partitionKeys;
+
+    private final String hiveVersion;
+    private final List<String> dynamicFilterPartitionKeys;
+    private final List<byte[]> partitionBytes;
     private final ContinuousPartitionFetcher<Partition, ?> fetcher;
     private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
     private final ObjectPath tablePath;
@@ -72,10 +75,12 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
             FileSplitAssigner.Provider splitAssigner,
             BulkFormat<T, HiveSourceSplit> readerFormat,
             @Nullable ContinuousEnumerationSettings continuousEnumerationSettings,
-            int threadNum,
             JobConf jobConf,
             ObjectPath tablePath,
             List<String> partitionKeys,
+            String hiveVersion,
+            @Nullable List<String> dynamicFilterPartitionKeys,
+            List<byte[]> partitionBytes,
             @Nullable ContinuousPartitionFetcher<Partition, ?> fetcher,
             @Nullable HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
         super(
@@ -84,14 +89,12 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                 splitAssigner,
                 readerFormat,
                 continuousEnumerationSettings);
-        Preconditions.checkArgument(
-                threadNum >= 1,
-                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key()
-                        + " cannot be less than 1");
-        this.threadNum = threadNum;
         this.jobConfWrapper = new JobConfWrapper(jobConf);
         this.tablePath = tablePath;
         this.partitionKeys = partitionKeys;
+        this.hiveVersion = hiveVersion;
+        this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        this.partitionBytes = partitionBytes;
         this.fetcher = fetcher;
         this.fetcherContext = fetcherContext;
     }
@@ -120,6 +123,8 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                     fetcherContext.getConsumeStartOffset(),
                     Collections.emptyList(),
                     Collections.emptyList());
+        } else if (dynamicFilterPartitionKeys != null) {
+            return createDynamicSplitEnumerator(enumContext);
         } else {
             return super.createEnumerator(enumContext);
         }
@@ -163,10 +168,22 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                 seenPartitions,
                 getAssignerFactory().create(new ArrayList<>(splits)),
                 getContinuousEnumerationSettings().getDiscoveryInterval().toMillis(),
-                threadNum,
                 jobConfWrapper.conf(),
                 tablePath,
                 fetcher,
                 fetcherContext);
+    }
+
+    private SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>
+            createDynamicSplitEnumerator(SplitEnumeratorContext<HiveSourceSplit> enumContext) {
+        return new DynamicHiveSplitEnumerator(
+                enumContext,
+                new HiveSourceDynamicFileEnumerator.Provider(
+                        tablePath.getFullName(),
+                        dynamicFilterPartitionKeys,
+                        partitionBytes,
+                        hiveVersion,
+                        jobConfWrapper),
+                getAssignerFactory());
     }
 }

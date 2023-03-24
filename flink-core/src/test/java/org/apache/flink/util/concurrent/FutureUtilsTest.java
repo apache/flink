@@ -18,7 +18,6 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.testutils.TestingUtils;
@@ -230,7 +229,6 @@ public class FutureUtilsTest extends TestLogger {
      */
     public void testRetryWithDelayRetryStrategy() throws Exception {
         final int retries = 4;
-        final Time delay = Time.milliseconds(5L);
         final AtomicInteger countDown = new AtomicInteger(retries);
 
         long start = System.currentTimeMillis();
@@ -288,58 +286,6 @@ public class FutureUtilsTest extends TestLogger {
 
         assertTrue(retryFuture.isCancelled());
         assertTrue(scheduledFuture.isCancelled());
-    }
-
-    /** Tests that the operation could be scheduled with expected delay. */
-    @Test
-    public void testScheduleWithDelay() throws Exception {
-        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-
-        final int expectedResult = 42;
-        CompletableFuture<Integer> completableFuture =
-                FutureUtils.scheduleWithDelay(
-                        () -> expectedResult, Time.milliseconds(0), scheduledExecutor);
-
-        scheduledExecutor.triggerScheduledTasks();
-        final int actualResult = completableFuture.get();
-
-        assertEquals(expectedResult, actualResult);
-    }
-
-    /** Tests that a scheduled task is canceled if the scheduled future is being cancelled. */
-    @Test
-    public void testScheduleWithDelayCancellation() {
-        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-
-        final Runnable noOpRunnable = () -> {};
-        CompletableFuture<Void> completableFuture =
-                FutureUtils.scheduleWithDelay(
-                        noOpRunnable, TestingUtils.infiniteTime(), scheduledExecutor);
-
-        final ScheduledFuture<?> scheduledFuture =
-                scheduledExecutor.getActiveScheduledTasks().iterator().next();
-
-        completableFuture.cancel(false);
-
-        assertTrue(completableFuture.isCancelled());
-        assertTrue(scheduledFuture.isCancelled());
-    }
-
-    /** Tests that the operation is never scheduled if the delay is virtually infinite. */
-    @Test
-    public void testScheduleWithInfiniteDelayNeverSchedulesOperation() {
-        final Runnable noOpRunnable = () -> {};
-        final CompletableFuture<Void> completableFuture =
-                FutureUtils.scheduleWithDelay(
-                        noOpRunnable,
-                        TestingUtils.infiniteTime(),
-                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
-
-        assertFalse(completableFuture.isDone());
-
-        completableFuture.cancel(false);
     }
 
     /** Tests that a future is timed out after the specified timeout. */

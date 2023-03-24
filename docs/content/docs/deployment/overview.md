@@ -143,7 +143,7 @@ When deploying Flink, there are often multiple options available for each buildi
                 <ul>
                     <li>Apache Kafka</li>
                     <li>Amazon S3</li>
-                    <li>ElasticSearch</li>
+                    <li>Elasticsearch</li>
                     <li>Apache Cassandra</li>
                 </ul>
                 See <a href="{{< ref "docs/connectors/datastream/overview" >}}">Connectors</a> page.
@@ -183,7 +183,7 @@ Flink can execute applications in one of three ways:
 
 
 <!-- Image source: https://docs.google.com/drawings/d/1EfloufuOp1A7YDwZmBEsHKRLIrrbtRkoWRPcfZI5RYQ/edit?usp=sharing -->
-{{< img class="img-fluid" width="80%" style="margin: 15px" src="/fig/deployment_modes.svg" alt="Figure for Deployment Modes" >}}
+{{< img class="img-fluid" width="100%" style="margin: 15px" src="/fig/deployment_modes.svg" alt="Figure for Deployment Modes" >}}
 
 ### Application Mode
     
@@ -196,7 +196,7 @@ network bandwidth to download dependencies and ship binaries to the cluster, and
 
 Building on this observation, the *Application Mode* creates a cluster per submitted application, but this time,
 the `main()` method of the application is executed by the *JobManager*. Creating a cluster per application can be 
-seen as creating a session cluster shared only among the jobs of a particular application, and torn down when
+seen as creating a session cluster shared only among the jobs of a particular application, and turning down when
 the application finishes. With this architecture, the *Application Mode* provides the same resource isolation
 and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application.
 
@@ -314,7 +314,7 @@ Supported Environment:
 
 #### Huawei Cloud Stream Service
 
-[Website](https://www.huaweicloud.com/en-us/product/cs.html)
+[Website](https://www.huaweicloud.com/intl/en-us/product/cs.html)
 
 Supported Environment:
 {{< label Huawei Cloud >}}

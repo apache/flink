@@ -36,6 +36,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
+
 /** Integration tests for {@link DataSet#first}. */
 @RunWith(Parameterized.class)
 public class FirstNITCase extends MultipleProgramsTestBase {

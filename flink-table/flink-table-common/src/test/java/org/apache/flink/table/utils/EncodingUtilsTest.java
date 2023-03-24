@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -26,17 +26,17 @@ import java.util.Objects;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link org.apache.flink.table.utils.EncodingUtils}. */
-public class EncodingUtilsTest {
+class EncodingUtilsTest {
 
     @Test
-    public void testObjectStringEncoding() {
+    void testObjectStringEncoding() {
         final MyPojo pojo = new MyPojo(33, "Hello");
         final String base64 = EncodingUtils.encodeObjectToString(pojo);
         assertThat(EncodingUtils.decodeStringToObject(base64, Serializable.class)).isEqualTo(pojo);
     }
 
     @Test
-    public void testStringBase64Encoding() {
+    void testStringBase64Encoding() {
         final String string = "Hello, this is apache flink.";
         final String base64 = EncodingUtils.encodeStringToBase64(string);
         assertThat(base64).isEqualTo("SGVsbG8sIHRoaXMgaXMgYXBhY2hlIGZsaW5rLg==");
@@ -44,20 +44,20 @@ public class EncodingUtilsTest {
     }
 
     @Test
-    public void testMd5Hex() {
+    void testMd5Hex() {
         final String string = "Hello, world! How are you? 高精确";
         assertThat(EncodingUtils.hex(EncodingUtils.md5(string)))
                 .isEqualTo("983abac84e994b4ba73be177e5cc298b");
     }
 
     @Test
-    public void testJavaEscaping() {
+    void testJavaEscaping() {
         assertThat(EncodingUtils.escapeJava("\\hello\"world'space/"))
                 .isEqualTo("\\\\hello\\\"world'space/");
     }
 
     @Test
-    public void testRepetition() {
+    void testRepetition() {
         assertThat(EncodingUtils.repeat("we", 3)).isEqualTo("wewewe");
     }
 

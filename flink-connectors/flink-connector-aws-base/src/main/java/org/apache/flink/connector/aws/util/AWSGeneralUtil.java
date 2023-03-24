@@ -38,16 +38,19 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.utils.AttributeMap;
 import software.amazon.awssdk.utils.SdkAutoCloseable;
 
+import java.net.URI;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /** Some general utilities specific to Amazon Web Service. */
 @Internal
@@ -187,6 +190,16 @@ public class AWSGeneralUtil {
 
     private static AwsCredentialsProvider getAssumeRoleCredentialProvider(
             final Properties configProps, final String configPrefix) {
+        final StsClientBuilder stsClientBuilder =
+                StsClient.builder()
+                        .credentialsProvider(
+                                getCredentialsProvider(
+                                        configProps,
+                                        AWSConfigConstants.roleCredentialsProvider(configPrefix)))
+                        .region(getRegion(configProps));
+        Optional.ofNullable(getStsEndpoint(configProps))
+                .ifPresent(stsClientBuilder::endpointOverride);
+
         return StsAssumeRoleCredentialsProvider.builder()
                 .refreshRequest(
                         AssumeRoleRequest.builder()
@@ -200,15 +213,7 @@ public class AWSGeneralUtil {
                                         configProps.getProperty(
                                                 AWSConfigConstants.externalId(configPrefix)))
                                 .build())
-                .stsClient(
-                        StsClient.builder()
-                                .credentialsProvider(
-                                        getCredentialsProvider(
-                                                configProps,
-                                                AWSConfigConstants.roleCredentialsProvider(
-                                                        configPrefix)))
-                                .region(getRegion(configProps))
-                                .build())
+                .stsClient(stsClientBuilder.build())
                 .build();
     }
 
@@ -307,13 +312,28 @@ public class AWSGeneralUtil {
     }
 
     /**
+     * Creates STS endpoint URI object from the given Properties.
+     *
+     * @param configProps the properties containing the endpoint
+     * @return STS endpoint URI specified by the properties, or {@code null} if endpoint not
+     *     specified
+     */
+    public static URI getStsEndpoint(final Properties configProps) {
+        return Optional.ofNullable(
+                        configProps.getProperty(AWSConfigConstants.AWS_ROLE_STS_ENDPOINT))
+                .map(URI::create)
+                .orElse(null);
+    }
+
+    /**
      * Checks whether or not a region is valid.
      *
      * @param region The AWS region to check
      * @return true if the supplied region is valid, false otherwise
      */
     public static boolean isValidRegion(Region region) {
-        return Region.regions().contains(region);
+        return Pattern.matches(
+                "^[a-z]+-([a-z]+[-]{0,1}[a-z]+-([0-9]|global)|global)$", region.id());
     }
 
     /**

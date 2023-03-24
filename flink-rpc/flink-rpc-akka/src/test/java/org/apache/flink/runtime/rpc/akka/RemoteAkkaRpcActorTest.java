@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -58,7 +57,7 @@ class RemoteAkkaRpcActorTest {
 
     @AfterAll
     static void teardownClass() throws InterruptedException, ExecutionException, TimeoutException {
-        RpcUtils.terminateRpcServices(Time.seconds(10), rpcService, otherRpcService);
+        RpcUtils.terminateRpcService(rpcService, otherRpcService);
     }
 
     @Test
@@ -161,14 +160,14 @@ class RemoteAkkaRpcActorTest {
                                     AkkaRpcActorTest.SerializedValueRespondingGateway.class)
                             .join();
 
-            toBeClosedRpcService.stopService().join();
+            toBeClosedRpcService.closeAsync().join();
 
             // the rpc result should not fail because of a TimeoutException
             assertThatThrownBy(() -> gateway.getSerializedValue().join())
                     .satisfies(
                             FlinkAssertions.anyCauseMatches(RecipientUnreachableException.class));
         } finally {
-            RpcUtils.terminateRpcService(toBeClosedRpcService, Time.seconds(10L));
+            RpcUtils.terminateRpcService(toBeClosedRpcService);
         }
     }
 }

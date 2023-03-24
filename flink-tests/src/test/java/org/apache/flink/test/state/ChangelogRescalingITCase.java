@@ -128,7 +128,8 @@ public class ChangelogRescalingITCase extends TestLogger {
     @Before
     public void before() throws Exception {
         Configuration configuration = new Configuration();
-        FsStateChangelogStorageFactory.configure(configuration, temporaryFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, temporaryFolder.newFolder(), Duration.ofMinutes(1), 10);
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -328,7 +329,7 @@ public class ChangelogRescalingITCase extends TestLogger {
     private String checkpointAndCancel(JobID jobID) throws Exception {
         waitForCheckpoint(jobID, cluster.getMiniCluster(), 1);
         cluster.getClusterClient().cancel(jobID).get();
-        checkStatus(jobID);
+        waitForSuccessfulTermination(jobID);
         return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, cluster.getMiniCluster())
                 .<NoSuchElementException>orElseThrow(
                         () -> {
@@ -336,7 +337,13 @@ public class ChangelogRescalingITCase extends TestLogger {
                         });
     }
 
-    private void checkStatus(JobID jobID) throws InterruptedException, ExecutionException {
+    private void waitForSuccessfulTermination(JobID jobID) throws Exception {
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        cluster.getClusterClient()
+                                .getJobStatus(jobID)
+                                .get()
+                                .isGloballyTerminalState());
         if (cluster.getClusterClient().getJobStatus(jobID).get().isGloballyTerminalState()) {
             cluster.getClusterClient()
                     .requestJobResult(jobID)

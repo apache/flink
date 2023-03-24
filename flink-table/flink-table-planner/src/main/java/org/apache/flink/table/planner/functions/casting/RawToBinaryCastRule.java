@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldPad;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldTrim;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.trimOrPadByteArray;
@@ -86,7 +86,7 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
 
         // Get serializer for RAW type
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
-        final String deserializedByteArrayTerm = newName("deserializedByteArray");
+        final String deserializedByteArrayTerm = CodeGenUtils.newName("deserializedByteArray");
 
         if (context.legacyBehaviour()
                 || !(couldTrim(targetLength) || (couldPad(targetLogicalType, targetLength)))) {

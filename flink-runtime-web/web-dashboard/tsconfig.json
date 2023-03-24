@@ -4,12 +4,8 @@
     "baseUrl": "./",
     "downlevelIteration": true,
     "paths": {
-      "*": ["src/@types/*"],
-      "services": ["src/app/services"],
-      "config": ["src/app/app.config.ts"],
-      "interfaces": ["src/app/interfaces"],
-      "utils": ["src/app/utils"],
-      "share/*": ["src/app/share/*"]
+      "*": ["./src/@types/*"],
+      "@flink-runtime-web/*": ["./src/app/*", "./src/environments/*"]
     },
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
@@ -18,7 +14,7 @@
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "es2015",
+    "target": "es2020",
     "typeRoots": ["node_modules/@types"],
     "lib": ["es2018", "dom"],
     "noUnusedParameters": true,

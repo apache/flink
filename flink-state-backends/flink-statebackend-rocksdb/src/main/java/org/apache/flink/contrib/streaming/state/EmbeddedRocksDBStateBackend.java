@@ -30,6 +30,7 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.contrib.streaming.state.RocksDBMemoryControllerUtils.RocksDBMemoryFactory;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -147,8 +148,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     /** This determines the type of priority queue state. */
     @Nullable private PriorityQueueStateType priorityQueueStateType;
 
-    /** The default rocksdb metrics options. */
-    private final RocksDBNativeMetricOptions defaultMetricOptions;
+    /** The default rocksdb property-based metrics options. */
+    private final RocksDBNativeMetricOptions nativeMetricOptions;
 
     // -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -175,6 +176,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * key-group range.
      */
     private double overlapFractionThreshold;
+
+    /** Factory for Write Buffer Manager and Block Cache. */
+    private RocksDBMemoryFactory rocksDBMemoryFactory;
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code EmbeddedRocksDBStateBackend} for storing local state. */
@@ -199,10 +203,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     public EmbeddedRocksDBStateBackend(TernaryBoolean enableIncrementalCheckpointing) {
         this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
         this.numberOfTransferThreads = UNDEFINED_NUMBER_OF_TRANSFER_THREADS;
-        this.defaultMetricOptions = new RocksDBNativeMetricOptions();
+        this.nativeMetricOptions = new RocksDBNativeMetricOptions();
         this.memoryConfiguration = new RocksDBMemoryConfiguration();
         this.writeBatchSize = UNDEFINED_WRITE_BATCH_SIZE;
         this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
+        this.rocksDBMemoryFactory = RocksDBMemoryFactory.DEFAULT;
     }
 
     /**
@@ -263,7 +268,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         }
 
         // configure metric options
-        this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
+        this.nativeMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
         // configure RocksDB predefined options
         this.predefinedOptions =
@@ -298,6 +303,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         checkArgument(
                 overlapFractionThreshold >= 0 && this.overlapFractionThreshold <= 1,
                 "Overlap fraction threshold of restoring should be between 0 and 1");
+
+        this.rocksDBMemoryFactory = original.rocksDBMemoryFactory;
     }
 
     // ------------------------------------------------------------------------
@@ -460,12 +467,13 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         final OpaqueMemoryResource<RocksDBSharedResources> sharedResources =
                 RocksDBOperationUtils.allocateSharedCachesIfConfigured(
-                        memoryConfiguration, env.getMemoryManager(), managedMemoryFraction, LOG);
+                        memoryConfiguration, env, managedMemoryFraction, LOG, rocksDBMemoryFactory);
         if (sharedResources != null) {
             LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
         }
         final RocksDBResourceContainer resourceContainer =
-                createOptionsAndResourceContainer(sharedResources);
+                createOptionsAndResourceContainer(
+                        sharedResources, nativeMetricOptions.isStatisticsEnabled());
 
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
@@ -496,7 +504,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
                         .setNumberOfTransferingThreads(getNumberOfTransferThreads())
                         .setNativeMetricOptions(
-                                resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
+                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
                         .setWriteBatchSize(getWriteBatchSize())
                         .setOverlapFractionThreshold(getOverlapFractionThreshold());
         return builder.build();
@@ -833,6 +841,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.writeBatchSize = writeBatchSize;
     }
 
+    /** Set RocksDBMemoryFactory. */
+    public void setRocksDBMemoryFactory(RocksDBMemoryFactory rocksDBMemoryFactory) {
+        this.rocksDBMemoryFactory = checkNotNull(rocksDBMemoryFactory);
+    }
+
     double getOverlapFractionThreshold() {
         return overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
                 ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
@@ -863,18 +876,20 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     @VisibleForTesting
     RocksDBResourceContainer createOptionsAndResourceContainer() {
-        return createOptionsAndResourceContainer(null);
+        return createOptionsAndResourceContainer(null, false);
     }
 
     @VisibleForTesting
     private RocksDBResourceContainer createOptionsAndResourceContainer(
-            @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
+            @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources,
+            boolean enableStatistics) {
 
         return new RocksDBResourceContainer(
                 configurableOptions != null ? configurableOptions : new Configuration(),
                 predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
                 rocksDbOptionsFactory,
-                sharedResources);
+                sharedResources,
+                enableStatistics);
     }
 
     @Override

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -25,20 +26,26 @@ import {
   OnInit,
   ViewChild
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
-import { catchError, filter, map, takeUntil } from 'rxjs/operators';
+import { catchError, filter, map, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { DagreComponent } from 'share/common/dagre/dagre.component';
+import { DagreComponent } from '@flink-runtime-web/components/dagre/dagre.component';
+import { ResizeComponent } from '@flink-runtime-web/components/resize/resize.component';
+import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
+import { JobOverviewListComponent } from '@flink-runtime-web/pages/job/overview/list/job-overview-list.component';
+import { MetricsService } from '@flink-runtime-web/services';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 
-import { NodesItemCorrect, NodesItemLink } from 'interfaces';
-import { JobService, MetricsService } from 'services';
+import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-overview',
   templateUrl: './job-overview.component.html',
   styleUrls: ['./job-overview.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzAlertModule, NgIf, DagreComponent, RouterOutlet, JobOverviewListComponent, ResizeComponent],
+  standalone: true
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];
@@ -53,22 +60,23 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private readonly jobService: JobService,
     private readonly router: Router,
     private readonly activatedRoute: ActivatedRoute,
     public readonly elementRef: ElementRef,
     private readonly metricService: MetricsService,
+    private readonly jobLocalService: JobLocalService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
   public ngOnInit(): void {
-    this.jobService.jobDetail$
+    this.jobLocalService
+      .jobDetailChanges()
       .pipe(
         filter(job => job.jid === this.activatedRoute.parent!.parent!.snapshot.params.jid),
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
-        if (this.jobId !== data.plan.jid) {
+        if (this.jobId !== data.plan.jid || this.nodes.length === 0) {
           this.nodes = data.plan.nodes;
           this.links = data.plan.links;
           this.jobId = data.plan.jid;
@@ -81,14 +89,18 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       });
 
-    this.jobService.selectedVertex$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      if (data) {
-        this.dagreComponent.focusNode(data);
-      } else if (this.selectedNode) {
-        this.timeoutId = setTimeout(() => this.dagreComponent.redrawGraph());
-      }
-      this.selectedNode = data;
-    });
+    this.jobLocalService
+      .selectedVertexChanges()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (data) {
+          this.dagreComponent.focusNode(data);
+        } else if (this.selectedNode) {
+          this.timeoutId = window.setTimeout(() => this.dagreComponent.redrawGraph());
+        }
+        this.selectedNode = data;
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {
@@ -109,13 +121,28 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     } else {
       this.dagreComponent.focusNode(this.selectedNode, true);
     }
+    this.cdr.markForCheck();
   }
 
-  public mergeWithBackPressure(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
+  public refreshNodesWithMetrics(): void {
+    this.mergeWithBackPressure(this.nodes)
+      .pipe(
+        mergeMap(nodes => this.mergeWithWatermarks(nodes)),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(nodes => {
+        nodes.forEach(node => {
+          this.dagreComponent.updateNode(node.id, node);
+          this.cdr.markForCheck();
+        });
+      });
+  }
+
+  private mergeWithBackPressure(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
     return forkJoin(
       nodes.map(node => {
         return this.metricService
-          .getAggregatedMetrics(this.jobId, node.id, ['backPressuredTimeMsPerSecond', 'busyTimeMsPerSecond'])
+          .loadAggregatedMetrics(this.jobId, node.id, ['backPressuredTimeMsPerSecond', 'busyTimeMsPerSecond'])
           .pipe(
             map(result => {
               return {
@@ -129,25 +156,15 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     ).pipe(catchError(() => of(nodes)));
   }
 
-  public mergeWithWatermarks(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
+  private mergeWithWatermarks(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
     return forkJoin(
       nodes.map(node => {
-        return this.metricService.getWatermarks(this.jobId, node.id).pipe(
+        return this.metricService.loadWatermarks(this.jobId, node.id).pipe(
           map(result => {
             return { ...node, lowWatermark: result.lowWatermark };
           })
         );
       })
     ).pipe(catchError(() => of(nodes)));
-  }
-
-  public refreshNodesWithMetrics(): void {
-    this.mergeWithBackPressure(this.nodes).subscribe(nodes => {
-      this.mergeWithWatermarks(nodes).subscribe(nodes2 => {
-        nodes2.forEach(node => {
-          this.dagreComponent.updateNode(node.id, node);
-        });
-      });
-    });
   }
 }

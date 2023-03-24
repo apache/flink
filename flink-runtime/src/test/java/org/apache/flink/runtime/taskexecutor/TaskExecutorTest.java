@@ -38,10 +38,13 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
+import org.apache.flink.runtime.heartbeat.RecordingHeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -78,6 +81,8 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
@@ -106,7 +111,6 @@ import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
@@ -116,6 +120,7 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriConsumerWithException;
 
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.After;
@@ -127,16 +132,19 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -149,7 +157,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.IntStream.range;
@@ -178,7 +188,8 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link TaskExecutor}. */
 public class TaskExecutorTest extends TestLogger {
 
-    public static final HeartbeatServices HEARTBEAT_SERVICES = new HeartbeatServices(1000L, 1000L);
+    public static final HeartbeatServices HEARTBEAT_SERVICES =
+            new HeartbeatServicesImpl(1000L, 1000L);
 
     private static final TaskExecutorResourceSpec TM_RESOURCE_SPEC =
             new TaskExecutorResourceSpec(
@@ -200,7 +211,7 @@ public class TaskExecutorTest extends TestLogger {
     private static final Time timeout = Time.milliseconds(10000L);
 
     private static final HeartbeatServices failedRpcEnabledHeartbeatServices =
-            new HeartbeatServices(1L, 10000000L, 1);
+            new HeartbeatServicesImpl(1L, 10000000L, 1);
 
     private TestingRpcService rpc;
 
@@ -249,7 +260,7 @@ public class TaskExecutorTest extends TestLogger {
     @After
     public void teardown() throws Exception {
         if (rpc != null) {
-            RpcUtils.terminateRpcService(rpc, timeout);
+            RpcUtils.terminateRpcService(rpc);
             rpc = null;
         }
 
@@ -299,7 +310,7 @@ public class TaskExecutorTest extends TestLogger {
         try {
             taskManager.start();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
 
         assertThat(taskSlotTable.isClosed(), is(true));
@@ -416,7 +427,8 @@ public class TaskExecutorTest extends TestLogger {
                         new TaskExecutorRegistrationSuccess(
                                 new InstanceID(),
                                 testingResourceManagerGateway.getOwnResourceId(),
-                                new ClusterInformation("foobar", 1234))));
+                                new ClusterInformation("foobar", 1234),
+                                null)));
         registrationResponses.add(new CompletableFuture<>());
         testingResourceManagerGateway.setRegisterTaskExecutorFunction(
                 taskExecutorRegistration -> registrationResponses.poll());
@@ -467,14 +479,14 @@ public class TaskExecutorTest extends TestLogger {
                     "The TaskExecutor should try to reconnect to the JM",
                     registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
     @Test
     public void testHeartbeatTimeoutWithResourceManager() throws Exception {
         runResourceManagerHeartbeatTest(
-                new HeartbeatServices(1L, 3L),
+                new HeartbeatServicesImpl(1L, 3L),
                 (ignoredResourceManagerGateway) -> {},
                 (ignoredA, ignoredB, ignoredC) -> {});
     }
@@ -521,7 +533,10 @@ public class TaskExecutorTest extends TestLogger {
 
         final TaskExecutorRegistrationSuccess registrationResponse =
                 new TaskExecutorRegistrationSuccess(
-                        new InstanceID(), rmResourceId, new ClusterInformation("localhost", 1234));
+                        new InstanceID(),
+                        rmResourceId,
+                        new ClusterInformation("localhost", 1234),
+                        null);
         final Queue<CompletableFuture<RegistrationResponse>> registrationResponses =
                 new ArrayDeque<>(2);
         registrationResponses.add(CompletableFuture.completedFuture(registrationResponse));
@@ -582,7 +597,7 @@ public class TaskExecutorTest extends TestLogger {
                     "The TaskExecutor should try to reconnect to the RM",
                     registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
@@ -602,7 +617,8 @@ public class TaskExecutorTest extends TestLogger {
                         new TaskExecutorRegistrationSuccess(
                                 new InstanceID(),
                                 rmResourceId,
-                                new ClusterInformation("localhost", 1234)));
+                                new ClusterInformation("localhost", 1234),
+                                null));
 
         rmGateway.setRegisterTaskExecutorFunction(
                 taskExecutorRegistration -> {
@@ -689,17 +705,30 @@ public class TaskExecutorTest extends TestLogger {
             assertEquals(
                     partitionTracker.createClusterPartitionReport(), actualClusterPartitionReport);
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
     private static TaskExecutorPartitionTracker createPartitionTrackerWithFixedPartitionReport(
             ShuffleEnvironment<?, ?> shuffleEnvironment) {
+        ResultPartitionID resultPartitionID = new ResultPartitionID();
         final ClusterPartitionReport.ClusterPartitionReportEntry clusterPartitionReportEntry =
                 new ClusterPartitionReport.ClusterPartitionReportEntry(
                         new IntermediateDataSetID(),
-                        Collections.singleton(new ResultPartitionID()),
-                        4);
+                        4,
+                        Collections.singletonMap(
+                                resultPartitionID,
+                                new ShuffleDescriptor() {
+                                    @Override
+                                    public ResultPartitionID getResultPartitionID() {
+                                        return resultPartitionID;
+                                    }
+
+                                    @Override
+                                    public Optional<ResourceID> storesLocalResourcesOn() {
+                                        return Optional.empty();
+                                    }
+                                }));
 
         final ClusterPartitionReport clusterPartitionReport =
                 new ClusterPartitionReport(Collections.singletonList(clusterPartitionReportEntry));
@@ -727,7 +756,8 @@ public class TaskExecutorTest extends TestLogger {
                                     new TaskExecutorRegistrationSuccess(
                                             new InstanceID(),
                                             new ResourceID(resourceManagerAddress),
-                                            new ClusterInformation("localhost", 1234)));
+                                            new ClusterInformation("localhost", 1234),
+                                            null));
                         }));
 
         rpc.registerGateway(resourceManagerAddress, testingResourceManagerGateway);
@@ -752,7 +782,7 @@ public class TaskExecutorTest extends TestLogger {
                     taskManagerRegisteredLatch.await(
                             timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
@@ -832,7 +862,7 @@ public class TaskExecutorTest extends TestLogger {
                     is(unresolvedTaskManagerLocation.getResourceID()));
             assertNotNull(taskManager.getResourceManagerConnection());
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
@@ -842,7 +872,8 @@ public class TaskExecutorTest extends TestLogger {
                 new TaskExecutorRegistrationSuccess(
                         new InstanceID(),
                         rmGateway1.getOwnResourceId(),
-                        new ClusterInformation("localhost", 1234)));
+                        new ClusterInformation("localhost", 1234),
+                        null));
     }
 
     @Test
@@ -852,7 +883,8 @@ public class TaskExecutorTest extends TestLogger {
                 createTaskExecutorTestingContext(
                         TestingTaskSlotTable.<Task>newBuilder()
                                 .closeAsyncReturns(taskSlotTableClosingFuture)
-                                .build());
+                                .build(),
+                        HEARTBEAT_SERVICES);
         final CompletableFuture<Void> taskExecutorTerminationFuture;
         try {
             submissionContext.start();
@@ -971,7 +1003,7 @@ public class TaskExecutorTest extends TestLogger {
                             .collect(Collectors.toList());
             assertThat(allocationIds, containsInAnyOrder(allocationId));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
@@ -1071,7 +1103,7 @@ public class TaskExecutorTest extends TestLogger {
                     jobMasterGateway.getAddress(),
                     resourceManagerGateway.getFencingToken());
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
@@ -1208,7 +1240,7 @@ public class TaskExecutorTest extends TestLogger {
                     return;
             }
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1317,7 +1349,7 @@ public class TaskExecutorTest extends TestLogger {
                     threadSafeTaskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId2),
                     contains(slotOffer2.getAllocationId()));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1394,7 +1426,7 @@ public class TaskExecutorTest extends TestLogger {
             assertThat(availableSlotFuture.get().f2, is(allocationId));
             assertThat(threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId), empty());
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1474,7 +1506,7 @@ public class TaskExecutorTest extends TestLogger {
             // wait for the task completion
             taskInTerminalState.await();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+            RpcUtils.terminateRpcEndpoint(taskManager);
         }
     }
 
@@ -1494,7 +1526,8 @@ public class TaskExecutorTest extends TestLogger {
                                 new TaskExecutorRegistrationSuccess(
                                         registrationId,
                                         resourceManagerGateway.getOwnResourceId(),
-                                        new ClusterInformation("localhost", 1234))));
+                                        new ClusterInformation("localhost", 1234),
+                                        null)));
 
         resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
 
@@ -1616,7 +1649,7 @@ public class TaskExecutorTest extends TestLogger {
                     unmonitoredTargets.poll(pollTimeout, TimeUnit.MILLISECONDS),
                     equalTo(rmResourceID));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1704,7 +1737,7 @@ public class TaskExecutorTest extends TestLogger {
             stopFuture.get();
             assertThat(jobLeaderService.containsJob(jobId), is(false));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1727,7 +1760,7 @@ public class TaskExecutorTest extends TestLogger {
 
             testingFatalErrorHandler.clearError();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1741,7 +1774,7 @@ public class TaskExecutorTest extends TestLogger {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
         final TaskExecutor taskExecutor =
-                createTaskExecutor(taskManagerServices, new HeartbeatServices(10L, 10L));
+                createTaskExecutor(taskManagerServices, new HeartbeatServicesImpl(10L, 10L));
 
         taskExecutor.start();
 
@@ -1787,7 +1820,7 @@ public class TaskExecutorTest extends TestLogger {
 
             testingFatalErrorHandler.clearError();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1848,7 +1881,7 @@ public class TaskExecutorTest extends TestLogger {
                         instanceOf(TaskManagerException.class));
             }
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1878,7 +1911,10 @@ public class TaskExecutorTest extends TestLogger {
             final CompletableFuture<RegistrationResponse> registrationResponseFuture =
                     CompletableFuture.completedFuture(
                             new TaskExecutorRegistrationSuccess(
-                                    new InstanceID(), ResourceID.generate(), clusterInformation));
+                                    new InstanceID(),
+                                    ResourceID.generate(),
+                                    clusterInformation,
+                                    null));
             final BlockingQueue<ResourceID> registrationQueue = new ArrayBlockingQueue<>(1);
 
             testingResourceManagerGateway.setRegisterTaskExecutorFunction(
@@ -1913,7 +1949,7 @@ public class TaskExecutorTest extends TestLogger {
                     equalTo(unresolvedTaskManagerLocation.getResourceID()));
 
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1946,7 +1982,7 @@ public class TaskExecutorTest extends TestLogger {
 
             assertThat(initialSlotReportFuture.get(), equalTo(taskExecutor.getResourceID()));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -1972,7 +2008,8 @@ public class TaskExecutorTest extends TestLogger {
                                 new TaskExecutorRegistrationSuccess(
                                         new InstanceID(),
                                         ownResourceId,
-                                        new ClusterInformation("localhost", 1234)));
+                                        new ClusterInformation("localhost", 1234),
+                                        null));
                     });
 
             rpc.registerGateway(
@@ -1987,7 +2024,7 @@ public class TaskExecutorTest extends TestLogger {
                             TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
                                     TM_RESOURCE_SPEC, numberOfSlots)));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2027,7 +2064,8 @@ public class TaskExecutorTest extends TestLogger {
                             new TaskExecutorRegistrationSuccess(
                                     new InstanceID(),
                                     testingResourceManagerGateway.getOwnResourceId(),
-                                    new ClusterInformation("foobar", 1234)));
+                                    new ClusterInformation("foobar", 1234),
+                                    null));
 
             final CountDownLatch numberRegistrations = new CountDownLatch(2);
 
@@ -2050,7 +2088,7 @@ public class TaskExecutorTest extends TestLogger {
             // wait for the second registration attempt
             numberRegistrations.await();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2127,7 +2165,7 @@ public class TaskExecutorTest extends TestLogger {
             assertThat(offeredSlotFuture.get(), is(allocationId));
             assertTrue(taskSlotTable.isSlotFree(1));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2203,37 +2241,32 @@ public class TaskExecutorTest extends TestLogger {
 
             assertThat(disconnectFuture.get(), is(resourceID));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
     @Test(timeout = 10000L)
     public void testLogNotFoundHandling() throws Throwable {
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-            int dataPort = port.getPort();
+        configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, 0);
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+        configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
 
-            configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-            configuration.setInteger(
-                    NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-            configuration.setInteger(
-                    NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-            configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
-
-            try (TaskSubmissionTestEnvironment env =
-                    new Builder(jobId)
-                            .setConfiguration(configuration)
-                            .setLocalCommunication(false)
-                            .build(EXECUTOR_RESOURCE.getExecutor())) {
-                TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-                try {
-                    CompletableFuture<TransientBlobKey> logFuture =
-                            tmGateway.requestFileUploadByType(FileType.LOG, timeout);
-                    logFuture.get();
-                } catch (Exception e) {
-                    assertThat(
-                            e.getMessage(),
-                            containsString("The file LOG does not exist on the TaskExecutor."));
-                }
+        try (TaskSubmissionTestEnvironment env =
+                new Builder(jobId)
+                        .setConfiguration(configuration)
+                        .setLocalCommunication(false)
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+            try {
+                CompletableFuture<TransientBlobKey> logFuture =
+                        tmGateway.requestFileUploadByType(FileType.LOG, timeout);
+                logFuture.get();
+            } catch (Exception e) {
+                assertThat(
+                        e.getMessage(),
+                        containsString("The file LOG does not exist on the TaskExecutor."));
             }
         }
     }
@@ -2356,7 +2389,7 @@ public class TaskExecutorTest extends TestLogger {
             assertThat(failedSlotFutures.poll(5L, TimeUnit.MILLISECONDS), nullValue());
             assertThat(allocationsNotifiedFree.poll(5L, TimeUnit.MILLISECONDS), nullValue());
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2466,7 +2499,7 @@ public class TaskExecutorTest extends TestLogger {
         } finally {
             ExecutorUtils.gracefulShutdown(
                     timeout.toMilliseconds(), TimeUnit.MILLISECONDS, heartbeatExecutor);
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2516,13 +2549,7 @@ public class TaskExecutorTest extends TestLogger {
                 range(0, 5).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
         try (TaskExecutorTestingContext ctx = createTaskExecutorTestingContext(slots.length)) {
             ctx.start();
-            ResourceManagerId rmId;
-            {
-                CompletableFuture<Tuple3<ResourceID, InstanceID, SlotReport>>
-                        initialSlotReportFuture = new CompletableFuture<>();
-                rmId = createAndRegisterResourceManager(initialSlotReportFuture);
-                initialSlotReportFuture.get();
-            }
+            ResourceManagerId rmId = getResourceManagerId();
 
             TaskExecutorGateway tm = ctx.taskExecutor.getSelfGateway(TaskExecutorGateway.class);
             for (int i = 0; i < slots.length; i++) {
@@ -2546,9 +2573,7 @@ public class TaskExecutorTest extends TestLogger {
             tm.cancelTask(exec, timeout).get();
             // wait for task thread to notify TM about its final state
             // (taskSlotTable isn't thread safe - using MainThread)
-            while (callInMain(ctx, () -> ctx.taskSlotTable.getTasks(jobId).hasNext())) {
-                Thread.sleep(50);
-            }
+            waitForTasks(ctx, numTasks -> numTasks > 0);
 
             for (int i = 0; i < slots.length; i++) {
                 tm.freeSlot(slots[i], new RuntimeException("test exception"), timeout).get();
@@ -2668,7 +2693,7 @@ public class TaskExecutorTest extends TestLogger {
             // all job partitions should be released
             assertThat(jobPartitionsReleaseFuture.get(), is(jobId));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2733,7 +2758,7 @@ public class TaskExecutorTest extends TestLogger {
             assertThat(availableSlotFuture.get().f1, is(slotId));
             assertThat(availableSlotFuture.get().f2, is(allocationId));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -2792,7 +2817,8 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
-                taskExecutorPartitionTracker);
+                taskExecutorPartitionTracker,
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices)
@@ -2827,17 +2853,20 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)
             throws IOException {
         return createTaskExecutorTestingContext(
-                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor()));
+                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor()),
+                HEARTBEAT_SERVICES);
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(
-            final TaskSlotTable<Task> taskSlotTable) throws IOException {
+            final TaskSlotTable<Task> taskSlotTable, HeartbeatServices heartbeatServices)
+            throws IOException {
         final OneShotLatch offerSlotsLatch = new OneShotLatch();
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
@@ -2870,7 +2899,7 @@ public class TaskExecutorTest extends TestLogger {
                                 .setTaskStateManager(stateStoresManager)
                                 .setTaskChangelogStoragesManager(changelogStoragesManager)
                                 .build(),
-                        HEARTBEAT_SERVICES,
+                        heartbeatServices,
                         metricGroup);
 
         jobManagerLeaderRetriever.notifyListener(
@@ -2914,7 +2943,7 @@ public class TaskExecutorTest extends TestLogger {
 
         @Override
         public void close() throws ExecutionException, InterruptedException, TimeoutException {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -3005,7 +3034,143 @@ public class TaskExecutorTest extends TestLogger {
             throws InterruptedException, ExecutionException {
         return ctx.taskExecutor
                 .getMainThreadExecutableForTesting()
-                .callAsync(booleanCallable, Time.seconds(5))
+                .callAsync(booleanCallable, Duration.ofSeconds(5))
                 .get();
+    }
+
+    @Test
+    public void testSharedResourcesLifecycle() throws Exception {
+        SharedResourceCollectingInvokable.reset();
+        AllocationID[] slots =
+                range(0, 10).mapToObj(i -> new AllocationID()).toArray(AllocationID[]::new);
+
+        try (TaskExecutorTestingContext ctx =
+                createTaskExecutorTestingContext(
+                        TaskSlotUtils.createTaskSlotTable(
+                                slots.length, EXECUTOR_RESOURCE.getExecutor()),
+                        // prevent heartbeat timeouts from failing the tests focused on other
+                        // aspects
+                        HeartbeatServices.noOp())) {
+            // prepare: start services
+            ctx.start();
+            ResourceManagerId rmId = getResourceManagerId();
+            TaskExecutorGateway taskGateway =
+                    ctx.taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+            // prepare: request slots
+            for (int i = 0; i < slots.length; i++) {
+                requestSlot(
+                        taskGateway,
+                        jobId,
+                        slots[i],
+                        new SlotID(ctx.taskExecutor.getResourceID(), i),
+                        ResourceProfile.UNKNOWN,
+                        ctx.jobMasterGateway.getAddress(),
+                        rmId);
+            }
+            ctx.offerSlotsLatch.await();
+            // prepare: submit tasks
+            List<ExecutionAttemptID> executions = new ArrayList<>(slots.length);
+            for (AllocationID allocationID : slots) {
+                executions.add(
+                        submit(
+                                allocationID,
+                                ctx.jobMasterGateway,
+                                taskGateway,
+                                SharedResourceCollectingInvokable.class));
+            }
+            waitForTasks(ctx, numTasks -> numTasks < slots.length);
+            // cancel tasks
+            // verify that the resource is not released as long as there are tasks running
+            for (int i = 0; i < executions.size(); i++) {
+                int numRemaining = slots.length - (i + 1);
+                ctx.taskExecutor.cancelTask(executions.get(i), timeout).get();
+                waitForTasks(ctx, numTasks -> numTasks > numRemaining);
+                if (numRemaining > 0) {
+                    assertEquals(0, SharedResourceCollectingInvokable.timesDeallocated.get());
+                }
+            }
+        }
+        // verify
+        assertEquals(1, SharedResourceCollectingInvokable.timesAllocated.get());
+        assertEquals(1, SharedResourceCollectingInvokable.timesDeallocated.get());
+    }
+
+    private void waitForTasks(
+            TaskExecutorTestingContext ctx, Function<Integer, Boolean> waitPredicate)
+            throws InterruptedException, ExecutionException {
+        while (callInMain(
+                ctx,
+                () -> waitPredicate.apply(Iterators.size(ctx.taskSlotTable.getTasks(jobId))))) {
+            Thread.sleep(50);
+        }
+    }
+
+    private ResourceManagerId getResourceManagerId()
+            throws InterruptedException, ExecutionException {
+        CompletableFuture<Tuple3<ResourceID, InstanceID, SlotReport>> initialSlotReportFuture =
+                new CompletableFuture<>();
+        ResourceManagerId rmId = createAndRegisterResourceManager(initialSlotReportFuture);
+        initialSlotReportFuture.get();
+        return rmId;
+    }
+
+    public static class SharedResourceCollectingInvokable implements TaskInvokable {
+
+        public static void reset() {
+            timesAllocated.set(0);
+            timesDeallocated.set(0);
+        }
+
+        private static final String RESOURCE_ID = "test";
+        private static final AtomicInteger timesAllocated = new AtomicInteger(0);
+        private static final AtomicInteger timesDeallocated = new AtomicInteger(0);
+
+        private final Environment env;
+        private final Object leaseHolder;
+        private volatile boolean cancelled = false;
+
+        public SharedResourceCollectingInvokable(Environment env) {
+            this.env = env;
+            this.leaseHolder = new Object();
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            this.env
+                    .getSharedResources()
+                    .getOrAllocateSharedResource(
+                            RESOURCE_ID,
+                            leaseHolder,
+                            unused -> {
+                                timesAllocated.incrementAndGet();
+                                return timesDeallocated::incrementAndGet;
+                            },
+                            0L);
+            while (!cancelled) {
+                Thread.sleep(50);
+            }
+        }
+
+        @Override
+        public void restore() throws Exception {}
+
+        @Override
+        public void cleanUp(@Nullable Throwable throwable) throws Exception {
+            env.getSharedResources().release(RESOURCE_ID, leaseHolder, unused -> {});
+        }
+
+        @Override
+        public void cancel() throws Exception {
+            cancelled = true;
+        }
+
+        @Override
+        public boolean isUsingNonBlockingInput() {
+            return false;
+        }
+
+        @Override
+        public void maybeInterruptOnCancel(
+                Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout) {}
     }
 }

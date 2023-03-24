@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
+import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedHashFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.util.{MurmurHashUtil, TimeWindowUtil}
@@ -311,22 +311,36 @@ object CodeGenUtils {
       case DOUBLE => s"${className[JDouble]}.hashCode($term)"
       case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         s"$term.hashCode()"
-      case TIMESTAMP_WITH_TIME_ZONE | ARRAY | MULTISET | MAP =>
+      case TIMESTAMP_WITH_TIME_ZONE =>
         throw new UnsupportedOperationException(
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
+      case ARRAY =>
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val genHash =
+          HashCodeGenerator.generateArrayHash(
+            subCtx,
+            t.asInstanceOf[ArrayType].getElementType,
+            "SubHashArray")
+        genHashFunction(ctx, subCtx, genHash, term)
+      case MULTISET | MAP =>
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val (keyType, valueType) = t match {
+          case multiset: MultisetType =>
+            (multiset.getElementType, new IntType())
+          case map: MapType =>
+            (map.getKeyType, map.getValueType)
+        }
+        val genHash =
+          HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")
+        genHashFunction(ctx, subCtx, genHash, term)
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
-        val subCtx = CodeGeneratorContext(ctx.tableConfig)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
         val genHash =
           HashCodeGenerator.generateRowHash(subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
-        ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
-        val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
-        val hashFunc = newName("hashFunc")
-        ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
-        ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
-        s"$hashFunc.hashCode($term)"
+        genHashFunction(ctx, subCtx, genHash, term)
       case DISTINCT_TYPE =>
         hashCodeForType(ctx, t.asInstanceOf[DistinctType].getSourceType, term)
       case RAW =>
@@ -343,6 +357,19 @@ object CodeGenUtils {
     }
 
   // -------------------------- Method & Enum ---------------------------------------
+
+  def genHashFunction(
+      ctx: CodeGeneratorContext,
+      subCtx: CodeGeneratorContext,
+      genHash: GeneratedHashFunction,
+      term: String): String = {
+    ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
+    val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
+    val hashFunc = newName("hashFunc")
+    ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
+    ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
+    s"$hashFunc.hashCode($term)"
+  }
 
   def qualifyMethod(method: Method): String =
     method.getDeclaringClass.getCanonicalName + "." + method.getName
@@ -406,6 +433,18 @@ object CodeGenUtils {
     if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
       throw new CodeGenException("Integer expression type expected.")
     }
+
+  def requireNumericAndTimeInterval(left: GeneratedExpression, right: GeneratedExpression): Unit = {
+    val numericAndTimeInterval = TypeCheckUtils.isNumeric(left.resultType) &&
+      TypeCheckUtils.isTimeInterval(right.resultType)
+    val timeIntervalAndTimeNumeric = TypeCheckUtils.isTimeInterval(left.resultType) &&
+      TypeCheckUtils.isNumeric(right.resultType)
+    if (!(numericAndTimeInterval || timeIntervalAndTimeNumeric)) {
+      throw new CodeGenException(
+        "Numeric and Temporal expression type, or Temporal and Numeric expression type expected. " +
+          " But were " + s"'${left.resultType}' and '${right.resultType}'.")
+    }
+  }
 
   def udfFieldName(udf: UserDefinedFunction): String = {
     s"function_${udf.functionIdentifier.replace('.', '$')}"
@@ -895,7 +934,9 @@ object CodeGenUtils {
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
+      val externalResultTypeTerm = typeTerm(targetDataType.getConversionClass)
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 
@@ -993,16 +1034,19 @@ object CodeGenUtils {
     }
 
     // convert internal format to target type
-    val externalResultTerm = if (isInternalClass(targetDataType)) {
-      s"($targetTypeTerm) ${internalExpr.resultTerm}"
+    val (externalResultTerm, externalResultTypeTerm) = if (isInternalClass(targetDataType)) {
+      (s"($targetTypeTerm) ${internalExpr.resultTerm}", s"($targetTypeTerm)")
     } else {
-      genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm)
+      (
+        genToExternalConverterWithLegacy(ctx, targetDataType, internalExpr.resultTerm),
+        typeTerm(targetDataType.getConversionClass))
     }
     // merge null term into the result term
     if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
-      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+      // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
+      s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
     }
   }
 }

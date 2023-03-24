@@ -30,12 +30,16 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.process.ProcessPythonEnvironment;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
+import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -69,7 +73,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +101,7 @@ import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
 import static org.apache.flink.python.PythonOptions.USE_MANAGED_MEMORY;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
+import static org.apache.flink.python.util.ProtoUtils.createCoderProto;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
 @Internal
@@ -119,6 +123,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @Nullable private final FlinkMetricContainer flinkMetricContainer;
 
     @Nullable private final KeyedStateBackend<?> keyedStateBackend;
+
+    @Nullable private final OperatorStateBackend operatorStateBackend;
 
     @Nullable private final TypeSerializer<?> keySerializer;
 
@@ -182,11 +188,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
+    private transient Thread shutdownHook;
+
     public BeamPythonFunctionRunner(
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             @Nullable FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend<?> keyedStateBackend,
+            @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
             @Nullable TypeSerializer<?> namespaceSerializer,
             @Nullable TimerRegistration timerRegistration,
@@ -199,6 +208,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.flinkMetricContainer = flinkMetricContainer;
         this.keyedStateBackend = keyedStateBackend;
+        this.operatorStateBackend = operatorStateBackend;
         this.keySerializer = keySerializer;
         this.namespaceSerializer = namespaceSerializer;
         this.timerRegistration = timerRegistration;
@@ -219,13 +229,23 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         stateRequestHandler =
                 getStateRequestHandler(
-                        keyedStateBackend, keySerializer, namespaceSerializer, config);
+                        keyedStateBackend,
+                        operatorStateBackend,
+                        keySerializer,
+                        namespaceSerializer,
+                        config);
 
         // The creation of stageBundleFactory depends on the initialized environment manager.
         environmentManager.open();
 
-        PortablePipelineOptions portableOptions =
-                PipelineOptionsFactory.as(PortablePipelineOptions.class);
+        PortablePipelineOptions portableOptions;
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(getClass().getClassLoader())) {
+            // It loads classes using service loader under context classloader in Beam,
+            // make sure the classloader used to load SPI classes is the same as the class loader of
+            // the current class.
+            portableOptions = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+        }
 
         int stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         if (stateCacheSize > 0) {
@@ -238,14 +258,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
-        if (memoryManager != null && config.get(USE_MANAGED_MEMORY)) {
-            Preconditions.checkArgument(
-                    managedMemoryFraction > 0 && managedMemoryFraction <= 1.0,
-                    String.format(
-                            "The configured managed memory fraction for Python worker process must be within (0, 1], was: %s. "
-                                    + "It may be because the consumer type \"Python\" was missing or set to 0 for the config option \"taskmanager.memory.managed.consumer-weights\".",
-                            managedMemoryFraction));
-
+        if (memoryManager != null
+                && config.get(USE_MANAGED_MEMORY)
+                && managedMemoryFraction > 0
+                && managedMemoryFraction <= 1.0) {
             final LongFunctionWithException<PythonSharedResources, Exception> initializer =
                     (size) ->
                             new PythonSharedResources(
@@ -264,6 +280,15 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     sharedResources.getResourceHandle().getEnvironment();
             stageBundleFactory = createStageBundleFactory(jobBundleFactory, environment);
         } else {
+            if (memoryManager != null
+                    && config.get(USE_MANAGED_MEMORY)
+                    && (managedMemoryFraction <= 0 || managedMemoryFraction > 1.0)) {
+                LOG.warn(
+                        String.format(
+                                "The configured managed memory fraction for Python worker process must be within (0, 1], was: %s, use off-heap memory instead."
+                                        + "Please see config option \"taskmanager.memory.managed.consumer-weights\" for more details.",
+                                managedMemoryFraction));
+            }
             // there is no way to access the MemoryManager for the batch job of old planner,
             // fallback to the way that spawning a Python process for each Python operator
             jobBundleFactory = createJobBundleFactory(pipelineOptions);
@@ -272,6 +297,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                             jobBundleFactory, createPythonExecutionEnvironment(config, -1));
         }
         progressHandler = getProgressHandler(flinkMetricContainer);
+
+        shutdownHook =
+                ShutdownHookUtil.addShutdownHook(
+                        this, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
     }
 
     @Override
@@ -295,6 +324,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             }
         } finally {
             sharedResources = null;
+        }
+
+        if (shutdownHook != null) {
+            ShutdownHookUtil.removeShutdownHook(
+                    shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+            shutdownHook = null;
         }
     }
 
@@ -532,7 +567,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(INPUT_COLLECTION_ID)
                         .build());
@@ -540,7 +575,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
@@ -550,7 +585,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                             .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                             .setPayload(
-                                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
+                                    org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf
                                             .ByteString.copyFrom(baos.toByteArray()))
                             .setInputOrOutputId(entry.getKey())
                             .build());
@@ -594,18 +629,28 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @VisibleForTesting
     public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
-        return DefaultJobBundleFactory.create(
-                JobInfo.create(
-                        taskName,
-                        taskName,
-                        environmentManager.createRetrievalToken(),
-                        pipelineOptions));
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(getClass().getClassLoader())) {
+            // It loads classes using service loader under context classloader in Beam,
+            // make sure the classloader used to load SPI classes is the same as the class
+            // loader of the current class.
+            return DefaultJobBundleFactory.create(
+                    JobInfo.create(
+                            taskName,
+                            taskName,
+                            environmentManager.createRetrievalToken(),
+                            pipelineOptions));
+        }
     }
 
     /** To make the error messages more user friendly, throws an exception with the boot logs. */
     private StageBundleFactory createStageBundleFactory(
             JobBundleFactory jobBundleFactory, RunnerApi.Environment environment) throws Exception {
-        try {
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(getClass().getClassLoader())) {
+            // It loads classes using service loader under context classloader in Beam,
+            // make sure the classloader used to load SPI classes is the same as the class
+            // loader of the current class.
             return jobBundleFactory.forStage(createExecutableStage(environment));
         } catch (Throwable e) {
             throw new RuntimeException(environmentManager.getBootLog(), e);
@@ -641,16 +686,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     private static StateRequestHandler getStateRequestHandler(
-            KeyedStateBackend<?> keyedStateBackend,
-            TypeSerializer<?> keySerializer,
-            TypeSerializer<?> namespaceSerializer,
+            @Nullable KeyedStateBackend<?> keyedStateBackend,
+            @Nullable OperatorStateBackend operatorStateBackend,
+            @Nullable TypeSerializer<?> keySerializer,
+            @Nullable TypeSerializer<?> namespaceSerializer,
             ReadableConfig config) {
-        if (keyedStateBackend == null) {
-            return StateRequestHandler.unsupported();
-        } else {
-            assert keySerializer != null;
-            return new SimpleStateRequestHandler(
-                    keyedStateBackend, keySerializer, namespaceSerializer, config);
-        }
+        return BeamStateRequestHandler.of(
+                keyedStateBackend,
+                operatorStateBackend,
+                keySerializer,
+                namespaceSerializer,
+                config);
     }
 }

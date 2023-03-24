@@ -16,14 +16,27 @@
  * limitations under the License.
  */
 
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil } from 'rxjs/operators';
+import { DecimalPipe, NgIf } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, map, mergeMap, takeUntil } from 'rxjs/operators';
 
+import { DynamicHostComponent } from '@flink-runtime-web/components/dynamic/dynamic-host.component';
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
+import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
+import { JobService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { VertexTaskManagerDetail } from 'interfaces';
-import { JobService } from 'services';
+import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(
   selector: (item: VertexTaskManagerDetail) => number | string
@@ -34,7 +47,18 @@ function createSortFn(
 @Component({
   selector: 'flink-job-overview-drawer-taskmanagers',
   templateUrl: './job-overview-drawer-taskmanagers.component.html',
-  styleUrls: ['./job-overview-drawer-taskmanagers.component.less']
+  styleUrls: ['./job-overview-drawer-taskmanagers.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzTableModule,
+    NgIf,
+    HumanizeBytesPipe,
+    DecimalPipe,
+    HumanizeDatePipe,
+    HumanizeDurationPipe,
+    DynamicHostComponent
+  ],
+  standalone: true
 })
 export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy {
   public readonly trackByHost = (_: number, node: VertexTaskManagerDetail): string => node.host;
@@ -50,31 +74,49 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
   public readonly sortStatusFn = createSortFn(item => item.status);
 
   public listOfTaskManager: VertexTaskManagerDetail[] = [];
-  public sortName: string;
-  public sortValue: string;
   public isLoading = true;
+  public virtualItemSize = 36;
+  public actionComponent: Type<unknown>;
+  public taskCountBadgeComponent: Type<unknown>;
+  public stateBadgeComponent: Type<unknown>;
+  public readonly narrowLogData = typeDefinition<VertexTaskManagerDetail>();
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.actionComponent =
+      moduleConfig.customComponents?.taskManagerActionComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskManagerActionComponent;
+    this.taskCountBadgeComponent =
+      moduleConfig.customComponents?.taskCountBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskCountBadgeComponent;
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
+  }
 
   ngOnInit(): void {
-    this.jobService.jobWithVertex$
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(data => this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id))
+        mergeMap(data =>
+          this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id).pipe(
+            map(data => data.taskmanagers),
+            catchError(() => of([]))
+          )
+        ),
+        takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          this.listOfTaskManager = data.taskmanagers;
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(taskmanagers => {
+        this.listOfTaskManager = taskmanagers;
+        this.isLoading = false;
+        this.cdr.markForCheck();
+      });
   }
 
   ngOnDestroy(): void {

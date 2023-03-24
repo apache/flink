@@ -152,4 +152,24 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
         util.testingTableEnv().registerTableSinkInternal("MySink", sink);
         verifyInsert("insert into MySink select * from MySource");
     }
+
+    @Test
+    public void testMatch() {
+        createSourceWithTimeAttribute();
+        String sql =
+                "SELECT T.aid, T.bid, T.cid\n"
+                        + "     FROM MyTable MATCH_RECOGNIZE (\n"
+                        + "             ORDER BY proctime\n"
+                        + "             MEASURES\n"
+                        + "             `A\"`.a AS aid,\n"
+                        + "             \u006C.a AS bid,\n"
+                        + "             C.a AS cid\n"
+                        + "             PATTERN (`A\"` \u006C C)\n"
+                        + "             DEFINE\n"
+                        + "                 `A\"` AS a = 1,\n"
+                        + "                 \u006C AS b = 2,\n"
+                        + "                 C AS c = 'c'\n"
+                        + "     ) AS T";
+        verifyQuery(sql);
+    }
 }

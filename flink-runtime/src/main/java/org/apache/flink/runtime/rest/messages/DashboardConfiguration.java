@@ -48,6 +48,8 @@ public class DashboardConfiguration implements ResponseBody {
 
     public static final String FIELD_NAME_FEATURE_WEB_CANCEL = "web-cancel";
 
+    public static final String FIELD_NAME_FEATURE_WEB_HISTORY = "web-history";
+
     @JsonProperty(FIELD_NAME_REFRESH_INTERVAL)
     private final long refreshInterval;
 
@@ -121,12 +123,17 @@ public class DashboardConfiguration implements ResponseBody {
         @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL)
         private final boolean webCancelEnabled;
 
+        @JsonProperty(FIELD_NAME_FEATURE_WEB_HISTORY)
+        private final boolean isHistoryServer;
+
         @JsonCreator
         public Features(
                 @JsonProperty(FIELD_NAME_FEATURE_WEB_SUBMIT) boolean webSubmitEnabled,
-                @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL) boolean webCancelEnabled) {
+                @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL) boolean webCancelEnabled,
+                @JsonProperty(FIELD_NAME_FEATURE_WEB_HISTORY) boolean isHistoryServer) {
             this.webSubmitEnabled = webSubmitEnabled;
             this.webCancelEnabled = webCancelEnabled;
+            this.isHistoryServer = isHistoryServer;
         }
 
         @JsonIgnore
@@ -139,6 +146,11 @@ public class DashboardConfiguration implements ResponseBody {
             return webCancelEnabled;
         }
 
+        @JsonIgnore
+        public boolean isHistoryServer() {
+            return isHistoryServer;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -149,12 +161,13 @@ public class DashboardConfiguration implements ResponseBody {
             }
             Features features = (Features) o;
             return webSubmitEnabled == features.webSubmitEnabled
-                    && webCancelEnabled == features.webCancelEnabled;
+                    && webCancelEnabled == features.webCancelEnabled
+                    && isHistoryServer == features.isHistoryServer;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(webSubmitEnabled, webCancelEnabled);
+            return Objects.hash(webSubmitEnabled, webCancelEnabled, isHistoryServer);
         }
     }
 
@@ -190,7 +203,8 @@ public class DashboardConfiguration implements ResponseBody {
             long refreshInterval,
             ZonedDateTime zonedDateTime,
             boolean webSubmitEnabled,
-            boolean webCancelEnabled) {
+            boolean webCancelEnabled,
+            boolean isHistoryServer) {
 
         final String flinkVersion = EnvironmentInformation.getVersion();
 
@@ -212,6 +226,6 @@ public class DashboardConfiguration implements ResponseBody {
                 zonedDateTime.toOffsetDateTime().getOffset().getTotalSeconds() * 1000,
                 flinkVersion,
                 flinkRevision,
-                new Features(webSubmitEnabled, webCancelEnabled));
+                new Features(webSubmitEnabled, webCancelEnabled, isHistoryServer));
     }
 }

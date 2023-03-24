@@ -60,7 +60,33 @@ public enum BatchShuffleMode implements DescribedEnum {
     ALL_EXCHANGES_BLOCKING(
             text(
                     "Upstream and downstream tasks run subsequently. This reduces the resource usage "
-                            + "as downstream tasks are started after upstream tasks finished."));
+                            + "as downstream tasks are started after upstream tasks finished.")),
+
+    /**
+     * Downstream can start running anytime, as long as the upstream has started.
+     *
+     * <p>This adapts the resource usage to whatever is available.
+     *
+     * <p>This type will spill all data to disk to support re-consume.
+     */
+    ALL_EXCHANGES_HYBRID_FULL(
+            text(
+                    "Downstream can start running anytime, as long as the upstream has started. "
+                            + "This adapts the resource usage to whatever is available. "
+                            + "This type will spill all data to disk to support re-consume.")),
+
+    /**
+     * Downstream can start running anytime, as long as the upstream has started.
+     *
+     * <p>This adapts the resource usage to whatever is available.
+     *
+     * <p>This type will selective spilling data to reduce disk writes as much as possible.
+     */
+    ALL_EXCHANGES_HYBRID_SELECTIVE(
+            text(
+                    "Downstream can start running anytime, as long as the upstream has started. "
+                            + "This adapts the resource usage to whatever is available. "
+                            + "This type will selective spilling data to reduce disk writes as much as possible."));
 
     private final InlineElement description;
 

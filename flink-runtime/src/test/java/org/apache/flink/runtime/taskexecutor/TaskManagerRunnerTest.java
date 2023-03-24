@@ -35,6 +35,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
@@ -276,7 +277,8 @@ public class TaskManagerRunnerTest extends TestLogger {
                 localCommunicationOnly,
                 externalResourceInfoProvider,
                 workingDirectory,
-                fatalErrorHandler) -> taskExecutorService;
+                fatalErrorHandler,
+                delegationTokenReceiverRepository) -> taskExecutorService;
     }
 
     private static Configuration createConfiguration() {
@@ -317,7 +319,8 @@ public class TaskManagerRunnerTest extends TestLogger {
                 boolean localCommunicationOnly,
                 ExternalResourceInfoProvider externalResourceInfoProvider,
                 WorkingDirectory workingDirectory,
-                FatalErrorHandler fatalErrorHandler) {
+                FatalErrorHandler fatalErrorHandler,
+                DelegationTokenReceiverRepository delegationTokenReceiverRepository) {
             return TestingTaskExecutorService.newBuilder()
                     .setStartRunnable(
                             () ->

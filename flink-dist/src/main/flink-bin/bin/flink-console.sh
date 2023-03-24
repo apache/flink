@@ -19,7 +19,7 @@
 
 # Start a Flink service as a console application. Must be stopped with Ctrl-C
 # or with SIGTERM by kill or the controlling process.
-USAGE="Usage: flink-console.sh (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob|kubernetes-session|kubernetes-application|kubernetes-taskmanager) [args]"
+USAGE="Usage: flink-console.sh (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob|kubernetes-session|kubernetes-application|kubernetes-taskmanager|sql-gateway) [args]"
 
 SERVICE=$1
 ARGS=("${@:2}") # get remaining arguments as array
@@ -60,6 +60,11 @@ case $SERVICE in
 
     (kubernetes-taskmanager)
         CLASS_TO_RUN=org.apache.flink.kubernetes.taskmanager.KubernetesTaskExecutorRunner
+    ;;
+
+    (sql-gateway)
+        CLASS_TO_RUN=org.apache.flink.table.gateway.SqlGateway
+        SQL_GATEWAY_CLASSPATH="`findSqlGatewayJar`":"`findFlinkPythonJar`"
     ;;
 
     (*)
@@ -111,4 +116,4 @@ echo $$ >> "$pid" 2>/dev/null
 # Evaluate user options for local variable expansion
 FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
 
-exec "$JAVA_RUN" $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"
+exec "$JAVA_RUN" $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$SQL_GATEWAY_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"

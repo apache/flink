@@ -20,20 +20,20 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Iterator;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+
 /** Test for the ClientUtils. */
-public class ClientUtilsTest extends TestLogger {
+class ClientUtilsTest {
 
     private static final JobID TESTING_JOB_ID = new JobID();
 
@@ -42,28 +42,26 @@ public class ClientUtilsTest extends TestLogger {
      * JobInitializationException.
      */
     @Test
-    public void testWaitUntilJobInitializationFinished_throwsInitializationException() {
+    void testWaitUntilJobInitializationFinished_throwsInitializationException() {
         Iterator<JobStatus> statusSequenceIterator =
                 Arrays.asList(JobStatus.INITIALIZING, JobStatus.INITIALIZING, JobStatus.FAILED)
                         .iterator();
 
-        CommonTestUtils.assertThrows(
-                "Something is wrong",
-                JobInitializationException.class,
-                () -> {
-                    ClientUtils.waitUntilJobInitializationFinished(
-                            statusSequenceIterator::next,
-                            () -> {
-                                Throwable throwable =
-                                        new JobInitializationException(
-                                                TESTING_JOB_ID,
-                                                "Something is wrong",
-                                                new RuntimeException("Err"));
-                                return buildJobResult(throwable);
-                            },
-                            ClassLoader.getSystemClassLoader());
-                    return null;
-                });
+        assertThatThrownBy(
+                        () ->
+                                ClientUtils.waitUntilJobInitializationFinished(
+                                        statusSequenceIterator::next,
+                                        () -> {
+                                            Throwable throwable =
+                                                    new JobInitializationException(
+                                                            TESTING_JOB_ID,
+                                                            "Something is wrong",
+                                                            new RuntimeException("Err"));
+                                            return buildJobResult(throwable);
+                                        },
+                                        ClassLoader.getSystemClassLoader()))
+                .isInstanceOf(JobInitializationException.class)
+                .hasMessage("Something is wrong");
     }
 
     /**
@@ -71,8 +69,7 @@ public class ClientUtilsTest extends TestLogger {
      * exceptions.
      */
     @Test
-    public void testWaitUntilJobInitializationFinished_doesNotThrowRuntimeException()
-            throws Exception {
+    void testWaitUntilJobInitializationFinished_doesNotThrowRuntimeException() throws Exception {
         Iterator<JobStatus> statusSequenceIterator =
                 Arrays.asList(JobStatus.INITIALIZING, JobStatus.INITIALIZING, JobStatus.FAILED)
                         .iterator();
@@ -84,26 +81,24 @@ public class ClientUtilsTest extends TestLogger {
 
     /** Ensure that other errors are thrown. */
     @Test
-    public void testWaitUntilJobInitializationFinished_throwsOtherErrors() {
-        CommonTestUtils.assertThrows(
-                "Error while waiting for job to be initialized",
-                RuntimeException.class,
-                () -> {
-                    ClientUtils.waitUntilJobInitializationFinished(
-                            () -> {
-                                throw new RuntimeException("other error");
-                            },
-                            () -> {
-                                Throwable throwable =
-                                        new JobInitializationException(
-                                                TESTING_JOB_ID,
-                                                "Something is wrong",
-                                                new RuntimeException("Err"));
-                                return buildJobResult(throwable);
-                            },
-                            ClassLoader.getSystemClassLoader());
-                    return null;
-                });
+    void testWaitUntilJobInitializationFinished_throwsOtherErrors() {
+        assertThatThrownBy(
+                        () ->
+                                ClientUtils.waitUntilJobInitializationFinished(
+                                        () -> {
+                                            throw new RuntimeException("other error");
+                                        },
+                                        () -> {
+                                            Throwable throwable =
+                                                    new JobInitializationException(
+                                                            TESTING_JOB_ID,
+                                                            "Something is wrong",
+                                                            new RuntimeException("Err"));
+                                            return buildJobResult(throwable);
+                                        },
+                                        ClassLoader.getSystemClassLoader()))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Error while waiting for job to be initialized");
     }
 
     private JobResult buildJobResult(Throwable throwable) {
@@ -116,14 +111,14 @@ public class ClientUtilsTest extends TestLogger {
 
     /** Test normal operation. */
     @Test
-    public void testWaitUntilJobInitializationFinished_regular() throws Exception {
+    void testWaitUntilJobInitializationFinished_regular() throws Exception {
         Iterator<JobStatus> statusSequenceIterator =
                 Arrays.asList(JobStatus.INITIALIZING, JobStatus.INITIALIZING, JobStatus.RUNNING)
                         .iterator();
         ClientUtils.waitUntilJobInitializationFinished(
                 statusSequenceIterator::next,
                 () -> {
-                    Assert.fail("unexpected call");
+                    fail("unexpected call");
                     return null;
                 },
                 ClassLoader.getSystemClassLoader());

@@ -107,6 +107,10 @@ public final class ShortcutUtils {
         return unwrapContext(relOptRuleCall.getPlanner()).getTableConfig();
     }
 
+    public static ClassLoader unwrapClassLoader(RelNode relNode) {
+        return unwrapContext(relNode).getClassLoader();
+    }
+
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(
             ResolvedExpression expression) {
         // Table API expression

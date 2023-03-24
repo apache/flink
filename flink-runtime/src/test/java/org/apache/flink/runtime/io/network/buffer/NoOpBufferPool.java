@@ -100,6 +100,16 @@ public class NoOpBufferPool implements BufferPool {
     }
 
     @Override
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getMaxOverdraftBuffersPerGate() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public int getNumberOfAvailableMemorySegments() {
         throw new UnsupportedOperationException();
     }

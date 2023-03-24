@@ -68,8 +68,8 @@ def session_window_demo():
 
     # define the session window operation
     table = table.window(Session.with_gap(lit(5).seconds).on(col("ts")).alias("w")) \
-                 .group_by(table.name, col('w')) \
-                 .select(table.name, table.price.sum, col("w").start, col("w").end)
+                 .group_by(col('name'), col('w')) \
+                 .select(col('name'), col('price').sum, col("w").start, col("w").end)
 
     # submit for execution
     table.execute_insert('sink') \

@@ -28,51 +28,54 @@ import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.result.ChangelogResult;
+import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
-import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
-import org.apache.flink.table.utils.print.RowDataToStringConverter;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.jline.terminal.Terminal;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for CliTableauResultView. */
-public class CliTableauResultViewTest {
-    @ClassRule
-    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
-            new TestExecutorResource<>(Executors::newSingleThreadExecutor);
+class CliTableauResultViewTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private ByteArrayOutputStream terminalOutput;
     private Terminal terminal;
     private ResolvedSchema schema;
     private List<RowData> data;
     private List<RowData> streamingData;
-    private RowDataToStringConverter rowDataToStringConverter;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         terminalOutput = new ByteArrayOutputStream();
         terminal = TerminalUtils.createDumbTerminal(terminalOutput);
 
@@ -86,7 +89,6 @@ public class CliTableauResultViewTest {
                         Column.physical(
                                 "timestamp", DataTypes.TIMESTAMP(6).bridgedTo(Timestamp.class)),
                         Column.physical("binary", DataTypes.BYTES()));
-        rowDataToStringConverter = new RowDataToStringConverterImpl(schema.toPhysicalRowDataType());
 
         List<Row> rows =
                 Arrays.asList(
@@ -140,7 +142,7 @@ public class CliTableauResultViewTest {
                                 null,
                                 -1,
                                 -1L,
-                                "abcdefghijklmnopqrstuvwxyz",
+                                "abcdefghijklmnopqrstuvwxyz12345",
                                 BigDecimal.valueOf(-12345.06789),
                                 null,
                                 null),
@@ -177,30 +179,23 @@ public class CliTableauResultViewTest {
     }
 
     @Test
-    public void testBatchResult() {
+    void testBatchResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(
-                                () -> TypedResult.payload(data.subList(0, data.size() / 2)),
-                                () ->
-                                        TypedResult.payload(
-                                                data.subList(data.size() / 2, data.size())),
-                                TypedResult::endOfStream)
-                        .build();
-
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
-
+                new CliTableauResultView(terminal, resultDescriptor, collectResult);
         view.displayResults();
-        view.close();
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+---------------------+"
                                 + System.lineSeparator()
                                 + "| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |              binary |"
@@ -217,7 +212,7 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "|    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |         x'6e17fffe' |"
                                 + System.lineSeparator()
-                                + "|  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |              <NULL> |"
+                                + "|  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz1... |   -12345.06789 |                     <NULL> |              <NULL> |"
                                 + System.lineSeparator()
                                 + "|  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |   x'fdfeff00010203' |"
                                 + System.lineSeparator()
@@ -227,141 +222,123 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "8 rows in set"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+
+        // adjust the max column width for printing
+        testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
+
+        collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
+        view = new CliTableauResultView(terminal, resultDescriptor, collectResult);
+        view.displayResults();
+        assertThat(terminalOutput.toString()).contains("abcdefghijklmnopqrstuvwxyz12345");
+
+        view.close();
+        // Job is finished. Don't need to close the job manually.
+        assertThat(collectResult.closed).isFalse();
     }
 
     @Test
-    public void testCancelBatchResult() throws Exception {
+    void testCancelBatchResult() throws Exception {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(
-                                () -> TypedResult.payload(data.subList(0, data.size() / 2)),
-                                TypedResult::empty)
-                        .build();
-
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        TypedResult::empty);
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, resultDescriptor, collectResult);
 
         // submit result display in another thread
         Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
 
-        // wait until we trying to get batch result
-        CommonTestUtils.waitUntilCondition(
-                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1, 50L);
+        // wait until we try to get blocking iterator
+        CommonTestUtils.waitUntilCondition(() -> collectResult.fetchCount.get() > 1, 50L);
 
         // send signal to cancel
         terminal.raise(Terminal.Signal.INT);
         furture.get(5, TimeUnit.SECONDS);
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo("Query terminated, received a total of 0 row" + System.lineSeparator());
+        assertThat(terminalOutput)
+                .hasToString(
+                        "Query terminated, received a total of 0 row" + System.lineSeparator());
 
-        // didn't have a chance to read page
-        assertThat(mockExecutor.getNumRetrieveResultPageCalls()).isEqualTo(0);
-        // tried to cancel query
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
-
+        assertThat(collectResult.closed).isTrue();
         view.close();
     }
 
     @Test
-    public void testEmptyBatchResult() {
+    void testEmptyBatchResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(TypedResult::endOfStream)
-                        .setResultPageSupplier(
-                                () -> {
-                                    throw new SqlExecutionException("query failed");
-                                })
-                        .build();
-
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult testChangelogResult = new TestChangelogResult(TypedResult::endOfStream);
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, resultDescriptor, testChangelogResult);
 
         view.displayResults();
         view.close();
 
-        assertThat(terminalOutput.toString()).isEqualTo("Empty set" + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+        assertThat(terminalOutput).hasToString("Empty set" + System.lineSeparator());
+        // Job is finished. Don't need to close the job manually.
+        assertThat(testChangelogResult.closed).isFalse();
     }
 
     @Test
-    public void testFailedBatchResult() {
+    void testFailedBatchResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(
-                                () -> {
-                                    throw new SqlExecutionException("query failed");
-                                },
-                                TypedResult::endOfStream)
-                        .build();
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult changelogResult =
+                new TestChangelogResult(
+                        () -> {
+                            throw new SqlExecutionException("query failed");
+                        });
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, resultDescriptor, changelogResult);
 
-        try {
-            view.displayResults();
-            fail("Shouldn't get here");
-        } catch (SqlExecutionException e) {
-            assertThat(e).hasMessage("query failed");
-        }
+        assertThatThrownBy(view::displayResults)
+                .satisfies(anyCauseMatches(SqlExecutionException.class, "query failed"));
         view.close();
-
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(changelogResult.closed).isTrue();
     }
 
     @Test
-    public void testStreamingResult() {
+    void testStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(
-                                () ->
-                                        TypedResult.payload(
-                                                streamingData.subList(0, streamingData.size() / 2)),
-                                () ->
-                                        TypedResult.payload(
-                                                streamingData.subList(
-                                                        streamingData.size() / 2,
-                                                        streamingData.size())),
-                                TypedResult::endOfStream)
-                        .build();
-
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
-
+                new CliTableauResultView(terminal, resultDescriptor, collectResult);
         view.displayResults();
+
         view.close();
         // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
         // character's
         // width < 2 in IDE by default, every CJK character usually's width is 2, you can open this
         // source file
         // by vim or just cat the file to check the regular result.
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -378,7 +355,7 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "| +I |    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |                    x'6e17fffe' |"
                                 + System.lineSeparator()
-                                + "| -D |  <NULL> |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                     <NULL> |                         <NULL> |"
+                                + "| -D |  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz1... |   -12345.06789 |                     <NULL> |                         <NULL> |"
                                 + System.lineSeparator()
                                 + "| +I |  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |              x'fdfeff00010203' |"
                                 + System.lineSeparator()
@@ -388,30 +365,40 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Received a total of 8 rows"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+
+        // adjust the max column width for printing
+        testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
+
+        collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
+        view = new CliTableauResultView(terminal, resultDescriptor, collectResult);
+        view.displayResults();
+        assertThat(terminalOutput.toString()).contains("abcdefghijklmnopqrstuvwxyz12345");
+
+        // Job is finished. Don't need to close the job manually.
+        assertThat(collectResult.closed).isFalse();
     }
 
     @Test
-    public void testEmptyStreamingResult() {
+    void testEmptyStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(TypedResult::endOfStream)
-                        .build();
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult collectResult = new TestChangelogResult(TypedResult::endOfStream);
 
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, resultDescriptor, collectResult);
 
         view.displayResults();
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -420,43 +407,40 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Received a total of 0 row"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+        // Job is finished. Don't need to close the job manually.
+        assertThat(collectResult.closed).isFalse();
     }
 
     @Test
-    public void testCancelStreamingResult() throws Exception {
+    void testCancelStreamingResult() throws Exception {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+
+        TestChangelogResult collectResult =
+                new TestChangelogResult(
+                        () ->
+                                TypedResult.payload(
+                                        streamingData.subList(0, streamingData.size() / 2)),
+                        TypedResult::empty);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(
-                                () ->
-                                        TypedResult.payload(
-                                                streamingData.subList(0, streamingData.size() / 2)),
-                                TypedResult::empty)
-                        .build();
-
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, resultDescriptor, collectResult);
 
         // submit result display in another thread
         Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
 
         // wait until we processed first result
-        CommonTestUtils.waitUntilCondition(
-                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1, 50L);
+        CommonTestUtils.waitUntilCondition(() -> collectResult.fetchCount.get() > 1, 50L);
 
         // send signal to cancel
         terminal.raise(Terminal.Signal.INT);
-        furture.get(5, TimeUnit.SECONDS);
+        furture.get(10, TimeUnit.SECONDS);
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -473,56 +457,54 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Query terminated, received a total of 4 rows"
                                 + System.lineSeparator());
-
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        // close job manually
+        assertThat(collectResult.closed).isTrue();
     }
 
     @Test
-    public void testFailedStreamingResult() {
+    void testFailedStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         ResultDescriptor resultDescriptor =
-                new ResultDescriptor("", schema, true, testConfig, rowDataToStringConverter);
-
-        TestingExecutor mockExecutor =
-                new TestingExecutorBuilder()
-                        .setResultChangesSupplier(
-                                () ->
-                                        TypedResult.payload(
-                                                streamingData.subList(0, streamingData.size() / 2)),
-                                () -> {
-                                    throw new SqlExecutionException("query failed");
-                                })
-                        .build();
-
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult changelogResult =
+                new TestChangelogResult(
+                        () -> {
+                            throw new SqlExecutionException("query failed");
+                        });
         CliTableauResultView view =
-                new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
+                new CliTableauResultView(terminal, resultDescriptor, changelogResult);
 
-        try {
-            view.displayResults();
-            fail("Shouldn't get here");
-        } catch (SqlExecutionException e) {
-            assertThat(e).hasMessage("query failed");
-        }
+        assertThatThrownBy(view::displayResults)
+                .satisfies(anyCauseMatches(SqlExecutionException.class, "query failed"));
         view.close();
+        assertThat(changelogResult.closed).isTrue();
+    }
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
-                        "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
-                                + System.lineSeparator()
-                                + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
-                                + System.lineSeparator()
-                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
-                                + System.lineSeparator()
-                                + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |            x'32333485365d737e' |"
-                                + System.lineSeparator()
-                                + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |                  x'649e207983' |"
-                                + System.lineSeparator()
-                                + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |                    x'92e90102' |"
-                                + System.lineSeparator()
-                                + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |            x'32333485365d737e' |"
-                                + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+    private static class TestChangelogResult implements ChangelogResult {
+
+        volatile boolean closed;
+        AtomicInteger fetchCount;
+        private final Supplier<TypedResult<List<RowData>>>[] results;
+
+        @SafeVarargs
+        public TestChangelogResult(Supplier<TypedResult<List<RowData>>>... results) {
+            this.results = results;
+            this.closed = false;
+            this.fetchCount = new AtomicInteger(0);
+        }
+
+        @Override
+        public TypedResult<List<RowData>> retrieveChanges() {
+            TypedResult<List<RowData>> result =
+                    results[Math.min(fetchCount.getAndIncrement(), results.length - 1)].get();
+            return result;
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+        }
     }
 }

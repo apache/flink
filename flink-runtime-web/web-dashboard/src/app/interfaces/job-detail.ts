@@ -95,7 +95,7 @@ export interface VerticesItemRange extends VerticesItem {
   range: number[];
 }
 
-interface TasksStatus {
+export interface TasksStatus {
   FINISHED: number;
   SCHEDULED: number;
   CANCELED: number;

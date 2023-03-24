@@ -397,6 +397,7 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        rest.address: jobmanager
 ```
 * In order to start the SQL Client run
   ```sh
@@ -427,22 +428,10 @@ FROM flink:{{< version >}}
 FROM flink:latest
 {{< /unstable >}}
 
-# install python3: it has updated Python to 3.9 in Debian 11 and so install Python 3.7 from source
-# it currently only supports Python 3.6, 3.7 and 3.8 in PyFlink officially.
-
+# install python3 and pip3
 RUN apt-get update -y && \
-apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libffi-dev && \
-wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz && \
-tar -xvf Python-3.7.9.tgz && \
-cd Python-3.7.9 && \
-./configure --without-tests --enable-shared && \
-make -j6 && \
-make install && \
-ldconfig /usr/local/lib && \
-cd .. && rm -f Python-3.7.9.tgz && rm -rf Python-3.7.9 && \
-ln -s /usr/local/bin/python3 /usr/local/bin/python && \
-apt-get clean && \
-rm -rf /var/lib/apt/lists/*
+apt-get install -y python3 python3-pip python3-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install PyFlink
 {{< stable >}}
@@ -454,16 +443,8 @@ RUN pip3 install /apache-flink-libraries*.tar.gz && pip3 install /apache-flink*.
 {{< /unstable >}}
 ```
 
-<span class="label label-info">Note</span> For Debian 10 and below, Python 3 could also be installed
-alternatively as following:
-```Dockerfile
-RUN apt-get update -y && \
-apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
-RUN ln -s /usr/bin/python3 /usr/bin/python
-```
-
 {{< unstable >}}
-<span class="label label-info">Note</span> PyFlink packages could be built-in according to [development guide]({{< ref "docs/flinkDev/building" >}}#build-pyflink)
+<span class="label label-info">Note</span> PyFlink packages could be built according to [development guide]({{< ref "docs/flinkDev/building" >}}#build-pyflink)
 {{< /unstable >}}
 
 Build the image named as **pyflink:latest**:
@@ -473,6 +454,18 @@ $ docker build --tag pyflink:latest .
 ```
 
 ## Configuring Flink on Docker
+
+### Via dynamic properties
+
+```sh
+$ docker run flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} \
+    <jobmanager|standalone-job|taskmanager|historyserver> \
+    -D jobmanager.rpc.address=host \
+    -D taskmanager.numberOfTaskSlots=3 \
+    -D blob.server.port=6124
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
 
 ### Via Environment Variables
 

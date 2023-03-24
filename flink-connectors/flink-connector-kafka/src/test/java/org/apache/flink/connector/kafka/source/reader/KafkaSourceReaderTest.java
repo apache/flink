@@ -50,8 +50,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -90,8 +88,11 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     public static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
         try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
-            adminClient.createTopics(
-                    Collections.singleton(new NewTopic(TOPIC, NUM_PARTITIONS, (short) 1)));
+            adminClient
+                    .createTopics(
+                            Collections.singleton(new NewTopic(TOPIC, NUM_PARTITIONS, (short) 1)))
+                    .all()
+                    .get();
             // Use the admin client to trigger the creation of internal __consumer_offsets topic.
             // This makes sure that we won't see unavailable coordinator in the tests.
             waitUtil(
@@ -349,9 +350,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
             // Metric "commit-total" of KafkaConsumer should be greater than 0
             // It's hard to know the exactly number of commit because of the retry
-            MatcherAssert.assertThat(
-                    getKafkaConsumerMetric("commit-total", metricListener),
-                    Matchers.greaterThan(0L));
+            assertThat(getKafkaConsumerMetric("commit-total", metricListener)).isGreaterThan(0L);
 
             // Committed offset should be NUM_RECORD_PER_SPLIT
             assertThat(getCommittedOffsetMetric(tp0, metricListener))
@@ -364,7 +363,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     metricListener.getCounter(
                             KAFKA_SOURCE_READER_METRIC_GROUP, COMMITS_SUCCEEDED_METRIC_COUNTER);
             assertThat(commitsSucceeded).isPresent();
-            MatcherAssert.assertThat(commitsSucceeded.get().getCount(), Matchers.greaterThan(0L));
+            assertThat(commitsSucceeded.get().getCount()).isGreaterThan(0L);
         }
     }
 
@@ -395,11 +394,88 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     new TestingReaderOutput<>(),
                     () -> reader.getNumAliveFetchers() == 0,
                     "The split fetcher did not exit before timeout.");
-            MatcherAssert.assertThat(
-                    finishedSplits,
-                    Matchers.containsInAnyOrder(
+            assertThat(finishedSplits)
+                    .containsExactlyInAnyOrder(
                             KafkaPartitionSplit.toSplitId(normalSplit.getTopicPartition()),
-                            KafkaPartitionSplit.toSplitId(emptySplit.getTopicPartition())));
+                            KafkaPartitionSplit.toSplitId(emptySplit.getTopicPartition()));
+        }
+    }
+
+    @Test
+    void testAssigningEmptySplitOnly() throws Exception {
+        // Empty split with no record
+        KafkaPartitionSplit emptySplit0 =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 0), NUM_RECORDS_PER_SPLIT, NUM_RECORDS_PER_SPLIT);
+        KafkaPartitionSplit emptySplit1 =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 1), NUM_RECORDS_PER_SPLIT, NUM_RECORDS_PER_SPLIT);
+        // Split finished hook for listening finished splits
+        final Set<String> finishedSplits = new HashSet<>();
+        final Consumer<Collection<String>> splitFinishedHook = finishedSplits::addAll;
+
+        try (final KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.BOUNDED,
+                                "KafkaSourceReaderTestGroup",
+                                new TestingReaderContext(),
+                                splitFinishedHook)) {
+            reader.addSplits(Arrays.asList(emptySplit0, emptySplit1));
+            pollUntil(
+                    reader,
+                    new TestingReaderOutput<>(),
+                    () -> reader.getNumAliveFetchers() == 0,
+                    "The split fetcher did not exit before timeout.");
+            assertThat(reader.getNumAliveFetchers()).isEqualTo(0);
+            assertThat(finishedSplits)
+                    .containsExactly(emptySplit0.splitId(), emptySplit1.splitId());
+        }
+    }
+
+    @Test
+    public void testSupportsPausingOrResumingSplits() throws Exception {
+        final Set<String> finishedSplits = new HashSet<>();
+
+        try (final KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.BOUNDED,
+                                "groupId",
+                                new TestingReaderContext(),
+                                finishedSplits::addAll)) {
+            KafkaPartitionSplit split1 =
+                    new KafkaPartitionSplit(new TopicPartition(TOPIC, 0), 0, NUM_RECORDS_PER_SPLIT);
+            KafkaPartitionSplit split2 =
+                    new KafkaPartitionSplit(new TopicPartition(TOPIC, 1), 0, NUM_RECORDS_PER_SPLIT);
+            reader.addSplits(Arrays.asList(split1, split2));
+
+            TestingReaderOutput<Integer> output = new TestingReaderOutput<>();
+
+            reader.pauseOrResumeSplits(
+                    Collections.singleton(split1.splitId()), Collections.emptyList());
+
+            pollUntil(
+                    reader,
+                    output,
+                    () ->
+                            finishedSplits.contains(split2.splitId())
+                                    && output.getEmittedRecords().size() == NUM_RECORDS_PER_SPLIT,
+                    "The split fetcher did not exit before timeout.");
+
+            reader.pauseOrResumeSplits(
+                    Collections.emptyList(), Collections.singleton(split1.splitId()));
+
+            pollUntil(
+                    reader,
+                    output,
+                    () ->
+                            finishedSplits.contains(split1.splitId())
+                                    && output.getEmittedRecords().size()
+                                            == NUM_RECORDS_PER_SPLIT * 2,
+                    "The split fetcher did not exit before timeout.");
+
+            assertThat(finishedSplits).containsExactly(split1.splitId(), split2.splitId());
         }
     }
 

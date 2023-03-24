@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
-import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFunction}
+import org.apache.flink.streaming.api.scala.async.{AsyncRetryStrategies, ResultFuture, RetryPredicates, RichAsyncFunction}
 import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.Assert._
@@ -164,6 +164,87 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4))
   }
 
+  @Test
+  def testAsyncWaitWithRetry(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1, 2, 3, 4, 5, 6)
+
+    val asyncFunction = new OddInputReturnEmptyAsyncFunc
+
+    val asyncRetryStrategy =
+      new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 10)
+        .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE[Int])
+        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+        .build()
+
+    val timeout = 10000L
+    val asyncMapped = if (ordered) {
+      AsyncDataStream.orderedWaitWithRetry(
+        source,
+        asyncFunction,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy)
+    } else {
+      AsyncDataStream.unorderedWaitWithRetry(
+        source,
+        asyncFunction,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy)
+    }
+
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4, 6))
+  }
+
+  @Test
+  def testAsyncWaitWithRetryUsingAnonymousFunction(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1, 2, 3, 4, 5, 6)
+
+    val asyncFunction: (Int, ResultFuture[Int]) => Unit =
+      (input, collector: ResultFuture[Int]) => {
+        Thread.sleep(3)
+        if (input % 2 == 1) {
+          Future {
+            collector.complete(List[Int]())
+          }(ExecutionContext.global)
+        } else {
+          Future {
+            collector.complete(List[Int](input))
+          }(ExecutionContext.global)
+        }
+      }
+
+    val timeout = 10000L
+    val asyncRetryStrategy = new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder[Int](3, 10)
+      .build()
+
+    val asyncMapped = if (ordered) {
+      AsyncDataStream.orderedWaitWithRetry(
+        source,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy) {
+        asyncFunction
+      }
+    } else {
+      AsyncDataStream.unorderedWaitWithRetry(
+        source,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy) {
+        asyncFunction
+      }
+    }
+
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4, 6))
+  }
+
 }
 
 class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
@@ -179,6 +260,7 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
       resultFuture.complete(Seq(input * 2))
     }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
     invokeLatch.countDown()
@@ -203,6 +285,7 @@ class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
       timeoutLatch.countDown()
     }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     // this sleeping helps reproducing race condition with cancellation
     Thread.sleep(10)
@@ -222,7 +305,24 @@ class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
       resultFuture.complete(Seq(input * 2))
     }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
+  }
+}
+
+class OddInputReturnEmptyAsyncFunc extends RichAsyncFunction[Int, Int] {
+
+  override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    Thread.sleep(3)
+    if (input % 2 == 1) {
+      Future {
+        resultFuture.complete(List[Int]())
+      }(ExecutionContext.global)
+    } else {
+      Future {
+        resultFuture.complete(List[Int](input))
+      }(ExecutionContext.global)
+    }
   }
 }

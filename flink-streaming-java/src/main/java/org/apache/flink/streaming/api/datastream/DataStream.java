@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -864,7 +865,8 @@ public class DataStream<T> {
                         "Timestamps/Watermarks",
                         inputParallelism,
                         getTransformation(),
-                        cleanedStrategy);
+                        cleanedStrategy,
+                        false);
         getExecutionEnvironment().addOperator(transformation);
         return new SingleOutputStreamOperator<>(getExecutionEnvironment(), transformation);
     }
@@ -1198,7 +1200,8 @@ public class DataStream<T> {
                         operatorName,
                         operatorFactory,
                         outTypeInfo,
-                        environment.getParallelism());
+                        environment.getParallelism(),
+                        false);
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         SingleOutputStreamOperator<R> returnStream =
@@ -1368,7 +1371,48 @@ public class DataStream<T> {
         }
     }
 
-    ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
+    /**
+     * Sets up the collection of the elements in this {@link DataStream}, and returns an iterator
+     * over the collected elements that can be used to retrieve elements once the job execution has
+     * started.
+     *
+     * <p>Caution: When multiple streams are being collected it is recommended to consume all
+     * streams in parallel to not back-pressure the job.
+     *
+     * <p>Caution: Closing the returned iterator cancels the job! It is recommended to close all
+     * iterators once you are no longer interested in any of the collected streams.
+     *
+     * <p>This method is functionally equivalent to {@link #collectAsync(Collector)}.
+     *
+     * @return iterator over the contained elements
+     */
+    @Experimental
+    public CloseableIterator<T> collectAsync() {
+        final Collector<T> collector = new Collector<>();
+        collectAsync(collector);
+        return collector.getOutput();
+    }
+
+    /**
+     * Sets up the collection of the elements in this {@link DataStream}, which can be retrieved
+     * later via the given {@link Collector}.
+     *
+     * <p>Caution: When multiple streams are being collected it is recommended to consume all
+     * streams in parallel to not back-pressure the job.
+     *
+     * <p>Caution: Closing the iterator from the collector cancels the job! It is recommended to
+     * close all iterators once you are no longer interested in any of the collected streams.
+     *
+     * <p>This method is functionally equivalent to {@link #collectAsync()}.
+     *
+     * <p>This method is meant to support use-cases where the application of a sink is done via a
+     * {@code Consumer<DataStream<T>>}, where it wouldn't be possible (or inconvenient) to return an
+     * iterator.
+     *
+     * @param collector a collector that can be used to retrieve the elements
+     */
+    @Experimental
+    public void collectAsync(Collector<T> collector) {
         TypeSerializer<T> serializer =
                 getType().createSerializer(getExecutionEnvironment().getConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
@@ -1387,8 +1431,44 @@ public class DataStream<T> {
         sink.name("Data stream collect sink");
         env.addOperator(sink.getTransformation());
 
-        final JobClient jobClient = env.executeAsync(jobExecutionName);
-        iterator.setJobClient(jobClient);
+        env.registerCollectIterator(iterator);
+        collector.setIterator(iterator);
+    }
+
+    /**
+     * This class acts as an accessor to elements collected via {@link #collectAsync(Collector)}.
+     *
+     * @param <T> the element type
+     */
+    @Experimental
+    public static class Collector<T> {
+        private CloseableIterator<T> iterator;
+
+        @Internal
+        void setIterator(CloseableIterator<T> iterator) {
+            this.iterator = iterator;
+        }
+
+        /**
+         * Returns an iterator over the collected elements. The returned iterator must only be used
+         * once the job execution was triggered.
+         *
+         * <p>This method will always return the same iterator instance.
+         *
+         * @return iterator over collected elements
+         */
+        public CloseableIterator<T> getOutput() {
+            // we intentionally fail here instead of waiting, because it indicates a
+            // misunderstanding on the user and would usually just block the application
+            Preconditions.checkNotNull(iterator, "The job execution was not yet started.");
+            return iterator;
+        }
+    }
+
+    ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
+        final CloseableIterator<T> iterator = collectAsync();
+
+        final JobClient jobClient = getExecutionEnvironment().executeAsync(jobExecutionName);
 
         return new ClientAndIterator<>(jobClient, iterator);
     }

@@ -30,10 +30,12 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleEntry;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.AbstractDataType;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -516,13 +518,53 @@ public interface TableEnvironment {
             boolean ignoreIfExists);
 
     /**
-     * Drops a catalog function registered in the given path.
+     * Registers a {@link UserDefinedFunction} class as a catalog function in the given path by the
+     * specific class name and user defined resource uri.
      *
-     * @param path The path under which the function has been registered. See also the {@link
+     * <p>Compared to {@link #createFunction(String, Class)}, this method allows registering a user
+     * defined function by only providing a full path class name and a list of resources that
+     * contain the implementation of the function along with its dependencies. Users don't need to
+     * initialize the function instance in advance. The resource file can be a local or remote JAR
+     * file.
+     *
+     * <p>Compared to system functions with a globally defined name, catalog functions are always
+     * (implicitly or explicitly) identified by a catalog and database.
+     *
+     * <p>There must not be another function (temporary or permanent) registered under the same
+     * path.
+     *
+     * @param path The path under which the function will be registered. See also the {@link
      *     TableEnvironment} class description for the format of the path.
-     * @return true if a function existed in the given path and was removed
+     * @param className The class name of UDF to be registered.
+     * @param resourceUris The list of udf resource uris in local or remote.
      */
-    boolean dropFunction(String path);
+    void createFunction(String path, String className, List<ResourceUri> resourceUris);
+
+    /**
+     * Registers a {@link UserDefinedFunction} class as a catalog function in the given path by the
+     * specific class name and user defined resource uri.
+     *
+     * <p>Compared to {@link #createFunction(String, Class)}, this method allows registering a user
+     * defined function by only providing a full path class name and a list of resources that
+     * contain the implementation of the function along with its dependencies. Users don't need to
+     * initialize the function instance in advance. The resource file can be a local or remote JAR
+     * file.
+     *
+     * <p>Compared to system functions with a globally defined name, catalog functions are always
+     * (implicitly or explicitly) identified by a catalog and database.
+     *
+     * <p>There must not be another function (temporary or permanent) registered under the same
+     * path.
+     *
+     * @param path The path under which the function will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param className The class name of UDF to be registered.
+     * @param resourceUris The list of udf resource uris in local or remote.
+     * @param ignoreIfExists If a function exists under the given path and this flag is set, no
+     *     operation is executed. An exception is thrown otherwise.
+     */
+    void createFunction(
+            String path, String className, List<ResourceUri> resourceUris, boolean ignoreIfExists);
 
     /**
      * Registers a {@link UserDefinedFunction} class as a temporary catalog function.
@@ -562,6 +604,61 @@ public interface TableEnvironment {
      *     implementation.
      */
     void createTemporaryFunction(String path, UserDefinedFunction functionInstance);
+
+    /**
+     * Registers a {@link UserDefinedFunction} class as a temporary catalog function in the given
+     * path by the specific class name and user defined resource uri.
+     *
+     * <p>Compared to {@link #createTemporaryFunction(String, Class)}, this method allows
+     * registering a user defined function by only providing a full path class name and a list of
+     * resources that contain the implementation of the function along with its dependencies. Users
+     * don't need to initialize the function instance in advance. The resource file can be a local
+     * or remote JAR file.
+     *
+     * <p>Compared to {@link #createTemporarySystemFunction(String, String, List)} with a globally
+     * defined name, catalog functions are always (implicitly or explicitly) identified by a catalog
+     * and database.
+     *
+     * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name
+     * exists, it will be inaccessible in the current session. To make the permanent function
+     * available again one can drop the corresponding temporary function.
+     *
+     * @param path The path under which the function will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param className The class name of UDF to be registered.
+     * @param resourceUris The list udf resource uri in local or remote.
+     */
+    void createTemporaryFunction(String path, String className, List<ResourceUri> resourceUris);
+
+    /**
+     * Registers a {@link UserDefinedFunction} class as a temporary system function by the specific
+     * class name and user defined resource uri.
+     *
+     * <p>Compared to {@link #createTemporaryFunction(String, Class)}, this method allows
+     * registering a user defined function by only providing a full path class name and a list of
+     * resources that contain the implementation of the function along with its dependencies. Users
+     * don't need to initialize the function instance in advance. The resource file can be a local
+     * or remote JAR file.
+     *
+     * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name
+     * exists, it will be inaccessible in the current session. To make the permanent function
+     * available again one can drop the corresponding temporary system function.
+     *
+     * @param name The name under which the function will be registered globally.
+     * @param className The class name of UDF to be registered.
+     * @param resourceUris The list of udf resource uris in local or remote.
+     */
+    void createTemporarySystemFunction(
+            String name, String className, List<ResourceUri> resourceUris);
+
+    /**
+     * Drops a catalog function registered in the given path.
+     *
+     * @param path The path under which the function has been registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @return true if a function existed in the given path and was removed
+     */
+    boolean dropFunction(String path);
 
     /**
      * Drops a temporary catalog function registered in the given path.
@@ -873,7 +970,21 @@ public interface TableEnvironment {
      *     estimated cost, changelog mode for streaming, displaying execution plan in json format
      * @return AST and the execution plan.
      */
-    String explainSql(String statement, ExplainDetail... extraDetails);
+    default String explainSql(String statement, ExplainDetail... extraDetails) {
+        return explainSql(statement, ExplainFormat.TEXT, extraDetails);
+    }
+
+    /**
+     * Returns the AST of the specified statement and the execution plan to compute the result of
+     * the given statement.
+     *
+     * @param statement The statement for which the AST and execution plan will be returned.
+     * @param format The output format of explained plan.
+     * @param extraDetails The extra explain details which the explain result should include, e.g.
+     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
+     * @return AST and the execution plan.
+     */
+    String explainSql(String statement, ExplainFormat format, ExplainDetail... extraDetails);
 
     /**
      * Returns completion hints for the given statement at the given cursor position. The completion

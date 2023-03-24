@@ -35,7 +35,7 @@ Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault
 **注意:** 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
 {{< /hint >}}
 
-To make proper use of savepoints, it's important to understand the differences between [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) and savepoints which is described in [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
+为了正确使用 savepoints，了解 [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) 与 savepoints 之间的区别非常重要，[checkpoints 与 savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}) 中对此进行了描述。
 
 ## 分配算子 ID
 
@@ -116,6 +116,19 @@ mapper-id   | State of StatefulMapper
 **注意:** 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
 {{< /hint >}}
 
+<a name="savepoint-format"></a>
+
+#### Savepoint 格式
+
+你可以在 savepoint 的两种二进制格式之间进行选择：
+
+* 标准格式 - 一种在所有 state backends 间统一的格式，允许你使用一种状态后端创建 savepoint 后，使用另一种状态后端恢复这个 savepoint。这是最稳定的格式，旨在与之前的版本、模式、修改等保持最大兼容性。
+
+* 原生格式 - 标准格式的缺点是它的创建和恢复速度通常很慢。原生格式以特定于使用的状态后端的格式创建快照（例如 RocksDB 的 SST 文件）。
+
+{{< hint info >}}
+以原生格式创建 savepoint 的能力在 Flink 1.15 中引入，在那之前 savepoint 都是以标准格式创建的。
+{{< /hint >}}
 
 #### 触发 Savepoint
 
@@ -123,7 +136,11 @@ mapper-id   | State of StatefulMapper
 $ bin/flink savepoint :jobId [:targetDirectory]
 ```
 
-这将触发 ID 为 `:jobId` 的作业的 Savepoint，并返回创建的 Savepoint 路径。 你需要此路径来还原和删除 Savepoint 。
+这将触发 ID 为 `:jobId` 的作业的 Savepoint，并返回创建的 Savepoint 路径。 你需要此路径来恢复和删除 Savepoint 。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
+
+```shell
+$ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
+```
 
 #### 使用 YARN 触发 Savepoint
 
@@ -133,13 +150,15 @@ $ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
 
 这将触发 ID 为 `:jobId` 和 YARN 应用程序 ID `:yarnAppId` 的作业的 Savepoint，并返回创建的 Savepoint 的路径。
 
-#### 使用 Savepoint 取消作业
+<a name="stopping-a-job-with-savepoint"></a>
+
+#### 使用 Savepoint 停止作业
 
 ```shell
-$ bin/flink cancel -s [:targetDirectory] :jobId
+$ bin/flink stop --type [native/canonical] --savepointPath [:targetDirectory] :jobId
 ```
 
-这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并取消该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。
+这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并停止该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
 
 ### 从 Savepoint 恢复
 

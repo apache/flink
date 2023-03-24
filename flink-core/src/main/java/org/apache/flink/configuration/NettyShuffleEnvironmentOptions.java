@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 
@@ -69,31 +70,40 @@ public class NettyShuffleEnvironmentOptions {
                                     + ") is set to true");
 
     /**
-     * Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle
-     * mode.
+     * Boolean flag indicating whether the shuffle data will be compressed for batch shuffle mode.
      *
      * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is
      * more effective for IO bounded scenario when data compression ratio is high.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
-            key("taskmanager.network.blocking-shuffle.compression.enabled")
+    public static final ConfigOption<Boolean> BATCH_SHUFFLE_COMPRESSION_ENABLED =
+            key("taskmanager.network.batch-shuffle.compression.enabled")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("taskmanager.network.blocking-shuffle.compression.enabled")
                     .withDescription(
                             "Boolean flag indicating whether the shuffle data will be compressed "
-                                    + "for blocking shuffle mode. Note that data is compressed per "
+                                    + "for batch shuffle mode. Note that data is compressed per "
                                     + "buffer and compression can incur extra CPU overhead, so it "
                                     + "is more effective for IO bounded scenario when compression "
                                     + "ratio is high.");
 
     /** The codec to be used when compressing shuffle data. */
-    @Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Experimental
     public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
                     .stringType()
                     .defaultValue("LZ4")
-                    .withDescription("The codec to be used when compressing shuffle data.");
+                    .withDescription(
+                            "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
+                                    + "and \"ZSTD\" are supported now. Through tpc-ds test of these "
+                                    + "three algorithms, the results show that \"LZ4\" algorithm has "
+                                    + "the highest compression and decompression speed, but the "
+                                    + "compression ratio is the lowest. \"ZSTD\" has the highest "
+                                    + "compression ratio, but the compression and decompression "
+                                    + "speed is the slowest, and LZO is between the two. Also note "
+                                    + "that this option is experimental and might be changed in the future.");
 
     /**
      * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
@@ -170,15 +180,43 @@ public class NettyShuffleEnvironmentOptions {
                             "The maximum number of tpc connections between taskmanagers for data communication.");
 
     /**
-     * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
-     * channel). The minimum valid value that can be configured is 0. When 0 buffers-per-channel is
-     * configured, the exclusive network buffers used per downstream incoming channel will be 0, but
-     * for each upstream outgoing channel, max(1, configured value) will be used. In other words we
-     * ensure that, for performance reasons, there is at least one buffer per outgoing channel
-     * regardless of the configuration.
-     *
-     * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel
-     * serialization.
+     * The maximum number of network read buffers that are required by an input gate. (An input gate
+     * is responsible for reading data from all subtasks of an upstream task.) The number of buffers
+     * needed by an input gate is dynamically calculated in runtime, depending on various factors
+     * (e.g., the parallelism of the upstream task). Among the calculated number of needed buffers,
+     * the part below this configured value is required, while the excess part, if any, is optional.
+     * A task will fail if the required buffers cannot be obtained in runtime. A task will not fail
+     * due to not obtaining optional buffers, but may suffer a performance reduction.
+     */
+    @Experimental
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE =
+            key("taskmanager.network.memory.read-buffer.required-per-gate.max")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum number of network read buffers that are required by an"
+                                    + " input gate. (An input gate is responsible for reading data"
+                                    + " from all subtasks of an upstream task.) The number of buffers"
+                                    + " needed by an input gate is dynamically calculated in runtime,"
+                                    + " depending on various factors (e.g., the parallelism of the"
+                                    + " upstream task). Among the calculated number of needed buffers,"
+                                    + " the part below this configured value is required, while the"
+                                    + " excess part, if any, is optional. A task will fail if the"
+                                    + " required buffers cannot be obtained in runtime. A task will"
+                                    + " not fail due to not obtaining optional buffers, but may"
+                                    + " suffer a performance reduction. If not explicitly configured,"
+                                    + " the default value is Integer.MAX_VALUE for streaming workloads,"
+                                    + " and 1000 for batch workloads. If explicitly configured, the"
+                                    + " configured value should be at least 1.");
+
+    /**
+     * Number of network buffers for each outgoing/incoming channel (subpartition/input channel).
+     * The minimum valid value for the option is 0. When the option is configured as 0, the
+     * exclusive network buffers used per downstream incoming channel will be 0, but for each
+     * upstream outgoing channel, max(1, configured value) will be used. In other words we ensure
+     * that, for performance reasons, at least one buffer is used per outgoing channel regardless of
+     * the configuration.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
@@ -186,22 +224,29 @@ public class NettyShuffleEnvironmentOptions {
                     .intType()
                     .defaultValue(2)
                     .withDescription(
-                            "Number of exclusive network buffers to use for each outgoing/incoming "
-                                    + "channel (subpartition/input channel) in the credit-based flow"
-                                    + " control model. It should be configured at least 2 for good "
-                                    + "performance. 1 buffer is for receiving in-flight data in the"
-                                    + " subpartition and 1 buffer is for parallel serialization. The"
-                                    + " minimum valid value that can be configured is 0. When 0 "
-                                    + "buffers-per-channel is configured, the exclusive network "
-                                    + "buffers used per downstream incoming channel will be 0, but "
-                                    + "for each upstream outgoing channel, max(1, configured value)"
-                                    + " will be used. In other words we ensure that, for performance"
-                                    + " reasons, there is at least one buffer per outgoing channel "
-                                    + "regardless of the configuration.");
+                            String.format(
+                                    "Number of exclusive network buffers for each outgoing/incoming"
+                                            + " channel (subpartition/input channel) in the credit-based"
+                                            + " flow control model. For the outgoing channel(subpartition),"
+                                            + " this value is the effective exclusive buffers per channel."
+                                            + " For the incoming channel(input channel), this value"
+                                            + " is the max number of exclusive buffers per channel,"
+                                            + " the number of effective exclusive network buffers per"
+                                            + " channel is dynamically calculated from %s and the"
+                                            + " effective range is from 0 to the configured value."
+                                            + " The minimum valid value for the option is 0. When"
+                                            + " the option is configured as 0, the exclusive network"
+                                            + " buffers used by downstream incoming channel will be"
+                                            + " 0, but for each upstream outgoing channel, max(1,"
+                                            + " configured value) will be used. In other words, we"
+                                            + " ensure that, for performance reasons, at least one"
+                                            + " buffer is used per outgoing channel regardless of"
+                                            + " the configuration.",
+                                    NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE.key()));
 
     /**
-     * Number of extra network buffers to use for each outgoing/incoming gate (result
-     * partition/input gate).
+     * Number of floating network buffers for each outgoing/incoming gate (result partition/input
+     * gate).
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
@@ -209,11 +254,21 @@ public class NettyShuffleEnvironmentOptions {
                     .intType()
                     .defaultValue(8)
                     .withDescription(
-                            "Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)."
-                                    + " In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels."
-                                    + " The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can"
-                                    + " help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be"
-                                    + " increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
+                            String.format(
+                                    "Number of floating network buffers for each outgoing/incoming"
+                                            + " gate (result partition/input gate). In credit-based"
+                                            + " flow control mode, this indicates how many floating"
+                                            + " credits are shared among all the channels. The floating"
+                                            + " buffers can help relieve back-pressure caused by"
+                                            + " unbalanced data distribution among the subpartitions."
+                                            + " For the outgoing gate(result partition), this value"
+                                            + " is the effective floating buffers per gate. For the"
+                                            + " incoming gate(input gate), this value is a recommended"
+                                            + " number of floating buffers, the number of effective"
+                                            + " floating network buffers per gate is dynamically"
+                                            + " calculated from %s and the range of effective floating"
+                                            + " buffers is from 0 to (parallelism - 1).",
+                                    NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE.key()));
 
     /**
      * Minimum number of network buffers required per blocking result partition for sort-shuffle.
@@ -260,7 +315,25 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
-    /** Number of max buffers can be used for each output subparition. */
+    /** Segment size of hybrid spilled file data index. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_SEGMENT_SIZE =
+            key("taskmanager.network.hybrid-shuffle.spill-index-segment-size")
+                    .intType()
+                    .defaultValue(1024)
+                    .withDescription(
+                            "Controls the segment size(in bytes) of hybrid spilled file data index.");
+
+    /** Max number of hybrid retained regions in memory. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Long> HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX =
+            key("taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max")
+                    .longType()
+                    .defaultValue(1024 * 1024L)
+                    .withDescription(
+                            "Controls the max number of hybrid retained regions in memory.");
+
+    /** Number of max buffers can be used for each output subpartition. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.max-buffers-per-channel")
@@ -273,6 +346,25 @@ public class NettyShuffleEnvironmentOptions {
                                     + " case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed,"
                                     + " and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer"
                                     + " producing large amount of data.");
+
+    /** Number of max overdraft network buffers to use for each ResultPartition. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE =
+            key("taskmanager.network.memory.max-overdraft-buffers-per-gate")
+                    .intType()
+                    .defaultValue(5)
+                    .withDescription(
+                            "Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers"
+                                    + " will be used when the subtask cannot apply to the normal buffers  due to back pressure,"
+                                    + " while subtask is performing an action that can not be interrupted in the middle,  like"
+                                    + " serializing a large record, flatMap operator producing multiple records for one single"
+                                    + " input record or processing time timer producing large output. In situations like that"
+                                    + " system will allow subtask to request overdraft buffers, so that the subtask can finish"
+                                    + " such uninterruptible action, without blocking unaligned checkpoints for long period of"
+                                    + " time. Overdraft buffers are provided on best effort basis only if the system has some"
+                                    + " unused buffers available. Subtask that has used overdraft buffers won't be allowed to"
+                                    + " process any more records until the overdraft buffers are returned to the pool."
+                                    + " It should be noted that this config option only takes effect for Pipelined Shuffle.");
 
     /** The timeout for requesting exclusive buffers for each channel. */
     @Documentation.ExcludeFromDocumentation(

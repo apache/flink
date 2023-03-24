@@ -45,7 +45,17 @@ public final class GlobalConfiguration {
 
     // the keys whose values should be hidden
     private static final String[] SENSITIVE_KEYS =
-            new String[] {"password", "secret", "fs.azure.account.key", "apikey"};
+            new String[] {
+                "password",
+                "secret",
+                "fs.azure.account.key",
+                "apikey",
+                "auth-params",
+                "service-key",
+                "token",
+                "basic-auth",
+                "jaas.config"
+            };
 
     // the hidden content to be displayed
     public static final String HIDDEN_CONTENT = "******";
@@ -134,11 +144,24 @@ public final class GlobalConfiguration {
 
         Configuration configuration = loadYAMLResource(yamlConfigFile);
 
+        logConfiguration("Loading", configuration);
+
         if (dynamicProperties != null) {
+            logConfiguration("Loading dynamic", dynamicProperties);
             configuration.addAll(dynamicProperties);
         }
 
         return configuration;
+    }
+
+    private static void logConfiguration(String prefix, Configuration config) {
+        config.confData.forEach(
+                (key, value) ->
+                        LOG.info(
+                                "{} configuration property: {}, {}",
+                                prefix,
+                                key,
+                                isSensitive(key) ? HIDDEN_CONTENT : value));
     }
 
     /**
@@ -188,9 +211,7 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
+                                        + ": Line is not a key-value pair (missing space after ':'?)");
                         continue;
                     }
 
@@ -204,16 +225,10 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
+                                        + ": Key or value was empty");
                         continue;
                     }
 
-                    LOG.info(
-                            "Loading configuration property: {}, {}",
-                            key,
-                            isSensitive(key) ? HIDDEN_CONTENT : value);
                     config.setString(key, value);
                 }
             }

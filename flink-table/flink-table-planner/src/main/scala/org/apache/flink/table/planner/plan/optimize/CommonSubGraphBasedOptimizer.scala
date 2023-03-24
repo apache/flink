@@ -17,7 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.optimize
 
+import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
+import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toJava
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rel.core.TableScan
@@ -72,15 +76,39 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
    *   a list of RelNode represents an optimized RelNode DAG.
    */
   override def optimize(roots: Seq[RelNode]): Seq[RelNode] = {
-    val sinkBlocks = doOptimize(roots)
+    // resolve hints before optimizing
+    val joinHintResolver = new JoinHintResolver()
+    val resolvedHintRoots = joinHintResolver.resolve(toJava(roots))
+
+    // clear query block alias bef optimizing
+    val clearQueryBlockAliasResolver = new ClearQueryBlockAliasResolver
+    val resolvedAliasRoots = clearQueryBlockAliasResolver.resolve(resolvedHintRoots)
+
+    val sinkBlocks = doOptimize(resolvedAliasRoots)
     val optimizedPlan = sinkBlocks.map {
       block =>
         val plan = block.getOptimizedPlan
         require(plan != null)
         plan
     }
-    expandIntermediateTableScan(optimizedPlan)
+    val expanded = expandIntermediateTableScan(optimizedPlan)
+
+    val postOptimizedPlan = postOptimize(expanded)
+
+    // Rewrite same rel object to different rel objects
+    // in order to get the correct dag (dag reuse is based on object not digest)
+    val shuttle = new SameRelObjectShuttle()
+    val relsWithoutSameObj = postOptimizedPlan.map(_.accept(shuttle))
+
+    // reuse subplan
+    SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, unwrapTableConfig(roots.head))
   }
+
+  /**
+   * Post process for the physical [[RelNode]] dag, e.g., can be overloaded for validation or
+   * rewriting purpose.
+   */
+  protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = expanded
 
   /**
    * Decompose RelNode trees into multiple [[RelNodeBlock]]s, optimize recursively each

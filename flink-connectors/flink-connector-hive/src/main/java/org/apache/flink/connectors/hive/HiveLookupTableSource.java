@@ -27,9 +27,10 @@ import org.apache.flink.connectors.hive.read.HiveInputFormatPartitionReader;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
@@ -78,7 +79,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
             JobConf jobConf,
             ReadableConfig flinkConf,
             ObjectPath tablePath,
-            CatalogTable catalogTable) {
+            ResolvedCatalogTable catalogTable) {
         super(jobConf, flinkConf, tablePath, catalogTable);
         this.configuration = new Configuration();
         catalogTable.getOptions().forEach(configuration::setString);
@@ -88,6 +89,17 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
     @Override
     public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
         return TableFunctionProvider.of(getLookupFunction(context.getKeys()));
+    }
+
+    @Override
+    public DynamicTableSource copy() {
+        HiveLookupTableSource source =
+                new HiveLookupTableSource(jobConf, flinkConf, tablePath, catalogTable);
+        source.remainingPartitions = remainingPartitions;
+        source.projectedFields = projectedFields;
+        source.limit = limit;
+        source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        return source;
     }
 
     @VisibleForTesting
@@ -153,8 +165,6 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                         hiveShim,
                         new JobConfWrapper(jobConf),
                         catalogTable.getPartitionKeys(),
-                        getProducedTableSchema().getFieldDataTypes(),
-                        getProducedTableSchema().getFieldNames(),
                         configuration,
                         defaultPartitionName);
 
@@ -246,8 +256,12 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                         jobConf,
                         hiveVersion,
                         tablePath,
-                        getProducedTableSchema().getFieldDataTypes(),
-                        getProducedTableSchema().getFieldNames(),
+                        DataType.getFieldDataTypes(
+                                        catalogTable.getResolvedSchema().toPhysicalRowDataType())
+                                .toArray(new DataType[0]),
+                        DataType.getFieldNames(
+                                        catalogTable.getResolvedSchema().toPhysicalRowDataType())
+                                .toArray(new String[0]),
                         catalogTable.getPartitionKeys(),
                         projectedFields,
                         flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
@@ -256,7 +270,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                 partitionFetcher,
                 fetcherContext,
                 partitionReader,
-                (RowType) getProducedTableSchema().toRowDataType().getLogicalType(),
+                (RowType) producedDataType.getLogicalType(),
                 keys,
                 hiveTableReloadInterval);
     }
@@ -272,8 +286,6 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                 HiveShim hiveShim,
                 JobConfWrapper confWrapper,
                 List<String> partitionKeys,
-                DataType[] fieldTypes,
-                String[] fieldNames,
                 Configuration configuration,
                 String defaultPartitionName) {
             super(
@@ -281,8 +293,6 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                     hiveShim,
                     confWrapper,
                     partitionKeys,
-                    fieldTypes,
-                    fieldNames,
                     configuration,
                     defaultPartitionName);
         }

@@ -33,8 +33,23 @@ import javax.annotation.concurrent.ThreadSafe;
 public class FsStateChangelogStorageForRecovery
         implements StateChangelogStorageView<ChangelogStateHandleStreamImpl> {
 
+    private final ChangelogStreamHandleReader changelogStreamHandleReader;
+
+    public FsStateChangelogStorageForRecovery(
+            ChangelogStreamHandleReader changelogStreamHandleReader) {
+        this.changelogStreamHandleReader = changelogStreamHandleReader;
+    }
+
     @Override
     public StateChangelogHandleReader<ChangelogStateHandleStreamImpl> createReader() {
-        return new StateChangelogHandleStreamHandleReader(new StateChangeFormat());
+        return new StateChangelogHandleStreamHandleReader(
+                new StateChangeIteratorImpl(changelogStreamHandleReader));
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (changelogStreamHandleReader != null) {
+            changelogStreamHandleReader.close();
+        }
     }
 }

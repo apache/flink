@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link org.apache.flink.table.utils.PartitionPathUtils}. */
-public class PartitionPathUtilsTest {
+class PartitionPathUtilsTest {
 
     @Test
-    public void testEscapeChar() {
+    void testEscapeChar() {
         for (char c = 0; c <= 128; c++) {
             String expected = "%" + String.format("%1$02X", (int) c);
             String actual = PartitionPathUtils.escapeChar(c, new StringBuilder()).toString();
@@ -35,7 +35,7 @@ public class PartitionPathUtilsTest {
     }
 
     @Test
-    public void testEscapePathNameWithHeadControl() {
+    void testEscapePathNameWithHeadControl() {
         String origin = "[00";
         String expected = "%5B00";
         String actual = PartitionPathUtils.escapePathName(origin);
@@ -44,7 +44,7 @@ public class PartitionPathUtilsTest {
     }
 
     @Test
-    public void testEscapePathNameWithTailControl() {
+    void testEscapePathNameWithTailControl() {
         String origin = "00]";
         String expected = "00%5D";
         String actual = PartitionPathUtils.escapePathName(origin);
@@ -53,7 +53,7 @@ public class PartitionPathUtilsTest {
     }
 
     @Test
-    public void testEscapePathNameWithMidControl() {
+    void testEscapePathNameWithMidControl() {
         String origin = "00:00";
         String expected = "00%3A00";
         String actual = PartitionPathUtils.escapePathName(origin);
@@ -62,7 +62,7 @@ public class PartitionPathUtilsTest {
     }
 
     @Test
-    public void testEscapePathName() {
+    void testEscapePathName() {
         String origin = "[00:00]";
         String expected = "%5B00%3A00%5D";
         String actual = PartitionPathUtils.escapePathName(origin);
@@ -71,9 +71,18 @@ public class PartitionPathUtilsTest {
     }
 
     @Test
-    public void testEscapePathNameWithoutControl() {
+    void testEscapePathNameWithoutControl() {
         String origin = "0000";
         String expected = "0000";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertThat(actual).isEqualTo(expected);
+        assertThat(PartitionPathUtils.unescapePathName(actual)).isEqualTo(origin);
+    }
+
+    @Test
+    void testEscapePathNameWithCurlyBraces() {
+        String origin = "{partName}";
+        String expected = "%7BpartName%7D";
         String actual = PartitionPathUtils.escapePathName(origin);
         assertThat(actual).isEqualTo(expected);
         assertThat(PartitionPathUtils.unescapePathName(actual)).isEqualTo(origin);

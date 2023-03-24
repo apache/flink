@@ -22,21 +22,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Window Deduplication
+# 窗口去重
 {{< label Streaming >}}
 
-Window Deduplication is a special [Deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) which removes rows that duplicate over a set of columns, keeping the first one or the last one for each window and partitioned keys. 
+窗口去重是一种特殊的 [去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})，它根据指定的多个列来删除重复的行，保留每个窗口和分区键的第一个或最后一个数据。
 
-For streaming queries, unlike regular Deduplicate on continuous tables, Window Deduplication does not emit intermediate results but only a final result at the end of the window. Moreover, window Deduplication purges all intermediate state when no longer needed.
-Therefore, Window Deduplication queries have better performance if users don't need results updated per record. Usually, Window Deduplication is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) directly. Besides, Window Deduplication could be used with other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}). 
+对于流式查询，与普通去重不同，窗口去重只在窗口的最后返回结果数据，不会产生中间结果。它会清除不需要的中间状态。
+因此，窗口去重查询在用户不需要更新结果时，性能较好。通常，窗口去重直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 上。另外，它可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作。比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
-Window Deduplication can be defined in the same syntax as regular Deduplication, see [Deduplication documentation]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) for more information.
-Besides that, Window Deduplication requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation.
-Otherwise, the optimizer won’t be able to translate the query.
+窗口Top-N的语法和普通的Top-N相同，更多信息参见：[去重文档]({{< ref "docs/dev/table/sql/queries/deduplication" >}})。
+除此之外，窗口去重需要 `PARTITION BY` 子句包含表的 `window_start` 和 `window_end` 列。
+否则优化器无法翻译。
 
-Flink uses `ROW_NUMBER()` to remove duplicates, just like the way of [Window Top-N query]({{< ref "docs/dev/table/sql/queries/window-topn" >}}). In theory, Window Deduplication is a special case of Window Top-N in which the N is one and order by the processing time or event time.
+Flink 使用 `ROW_NUMBER()` 移除重复数据，就像 [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) 一样。理论上，窗口是一种特殊的窗口 Top-N：N是1并且是根据处理时间或事件时间排序的。
 
-The following shows the syntax of the Window Deduplication statement:
+下面展示了窗口去重的语法：
 
 ```sql
 SELECT [column_list]
@@ -48,20 +48,20 @@ FROM (
 WHERE (rownum = 1 | rownum <=1 | rownum < 2) [AND conditions]
 ```
 
-**Parameter Specification:**
+**参数说明：**
 
-- `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
-- `PARTITION BY window_start, window_end [, col_key1...]`: Specifies the partition columns which contain `window_start`, `window_end` and other partition keys.
-- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). Currently Flink supports [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) and [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time). Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
-- `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`: The `rownum = 1 | rownum <=1 | rownum < 2` is required for the optimizer to recognize the query could be translated to Window Deduplication.
+*   `ROW_NUMBER()`：为每一行分配一个唯一且连续的序号，从1开始。
+*   `PARTITION BY window_start, window_end [, col_key1...]`： 指定分区字段，需要包含`window_start`， `window_end`以及其他分区键。
+*   `ORDER BY time_attr [asc|desc]`： 指定排序列，必须是 [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。目前 Flink 支持 [处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) 和 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)。 Order by ASC 表示保留第一行，Order by DESC 表示保留最后一行。
+*   `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`： 优化器通过 `rownum = 1 | rownum <=1 | rownum < 2` 来识别查询能否被翻译成窗口去重。
 
 {{< hint info >}}
-Note: the above pattern must be followed exactly, otherwise the optimizer won’t translate the query to Window Deduplication.
+注意：必须严格遵循上述模式，否则优化器无法翻译查询。
 {{< /hint >}}
 
-## Example
+## 示例
 
-The following example shows how to keep last record for every 10 minutes tumbling window.
+下面的示例展示了在10分钟的滚动窗口上保持最后一条记录。
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
@@ -101,15 +101,15 @@ Flink SQL> SELECT *
 +------------------+-------+------+-------------+------------------+------------------+--------+
 ```
 
-*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+*注意： 为了更好地理解窗口行为，这里把 timestamp 值后面的0去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)` ，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
-## Limitation
+## 限制
 
-### Limitation on Window Deduplication which follows after Windowing TVFs directly
-Currently, if Window Deduplication follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows. Session windows will be supported in the near future.
+### 在窗口表值函数后直接进行窗口去重的限制
+目前，Flink 只支持在滚动窗口、滑动窗口和累积窗口的[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})后进行窗口去重。会话窗口的去重将在未来版本中支持。
 
-### Limitation on time attribute of order key
-Currently, Window Deduplication requires order key must be [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) instead of [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time). Ordering by processing-time would be supported in the near future.
+### 根据时间属性排序的限制
+目前，窗口去重只支持根据[事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)进行排序。根据处理时间排序将在未来版本中支持。
 
 
 {{< top >}}

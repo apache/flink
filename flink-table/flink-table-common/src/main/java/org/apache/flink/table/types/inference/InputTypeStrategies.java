@@ -90,6 +90,15 @@ public final class InputTypeStrategies {
     }
 
     /**
+     * Strategy for a named function signature like {@code f(s STRING, n NUMERIC)} using a sequence
+     * of {@link ArgumentTypeStrategy}s.
+     */
+    public static InputTypeStrategy sequence(
+            List<String> argumentNames, List<ArgumentTypeStrategy> strategies) {
+        return new SequenceInputTypeStrategy(strategies, argumentNames);
+    }
+
+    /**
      * Strategy for a varying function signature like {@code f(INT, STRING, NUMERIC...)} using a
      * sequence of {@link ArgumentTypeStrategy}s. The first n - 1 arguments must be constant. The
      * n-th argument can occur 0, 1, or more times.

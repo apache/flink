@@ -26,21 +26,27 @@ import java.util.Objects;
 /** IO metrics information. */
 public final class IOMetricsInfo {
 
-    private static final String FIELD_NAME_BYTES_READ = "read-bytes";
+    public static final String FIELD_NAME_BYTES_READ = "read-bytes";
 
     private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
 
-    private static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
+    public static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
 
     private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
 
-    private static final String FIELD_NAME_RECORDS_READ = "read-records";
+    public static final String FIELD_NAME_RECORDS_READ = "read-records";
 
     private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
 
-    private static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
+    public static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
 
     private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
+
+    public static final String FIELD_NAME_ACC_BACK_PRESSURE = "accumulated-backpressured-time";
+
+    public static final String FIELD_NAME_ACC_IDLE = "accumulated-idle-time";
+
+    public static final String FIELD_NAME_ACC_BUSY = "accumulated-busy-time";
 
     @JsonProperty(FIELD_NAME_BYTES_READ)
     private final long bytesRead;
@@ -66,6 +72,15 @@ public final class IOMetricsInfo {
     @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
     private final boolean recordsWrittenComplete;
 
+    @JsonProperty(FIELD_NAME_ACC_BACK_PRESSURE)
+    private final long accumulatedBackpressured;
+
+    @JsonProperty(FIELD_NAME_ACC_IDLE)
+    private final long accumulatedIdle;
+
+    @JsonProperty(FIELD_NAME_ACC_BUSY)
+    private final double accumulatedBusy;
+
     @JsonCreator
     public IOMetricsInfo(
             @JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
@@ -75,7 +90,10 @@ public final class IOMetricsInfo {
             @JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
             @JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
             @JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
-            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete) {
+            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete,
+            @JsonProperty(FIELD_NAME_ACC_BACK_PRESSURE) long accumulatedBackpressured,
+            @JsonProperty(FIELD_NAME_ACC_IDLE) long accumulatedIdle,
+            @JsonProperty(FIELD_NAME_ACC_BUSY) double accumulatedBusy) {
         this.bytesRead = bytesRead;
         this.bytesReadComplete = bytesReadComplete;
         this.bytesWritten = bytesWritten;
@@ -84,6 +102,9 @@ public final class IOMetricsInfo {
         this.recordsReadComplete = recordsReadComplete;
         this.recordsWritten = recordsWritten;
         this.recordsWrittenComplete = recordsWrittenComplete;
+        this.accumulatedBackpressured = accumulatedBackpressured;
+        this.accumulatedIdle = accumulatedIdle;
+        this.accumulatedBusy = accumulatedBusy;
     }
 
     public long getBytesRead() {
@@ -118,6 +139,18 @@ public final class IOMetricsInfo {
         return recordsWrittenComplete;
     }
 
+    public long getAccumulatedBackpressured() {
+        return accumulatedBackpressured;
+    }
+
+    public double getAccumulatedBusy() {
+        return accumulatedBusy;
+    }
+
+    public long getAccumulatedIdle() {
+        return accumulatedIdle;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -134,7 +167,10 @@ public final class IOMetricsInfo {
                 && recordsRead == that.recordsRead
                 && recordsReadComplete == that.recordsReadComplete
                 && recordsWritten == that.recordsWritten
-                && recordsWrittenComplete == that.recordsWrittenComplete;
+                && recordsWrittenComplete == that.recordsWrittenComplete
+                && accumulatedBackpressured == that.accumulatedBackpressured
+                && accumulatedBusy == that.accumulatedBusy
+                && accumulatedIdle == that.accumulatedIdle;
     }
 
     @Override
@@ -147,6 +183,9 @@ public final class IOMetricsInfo {
                 recordsRead,
                 recordsReadComplete,
                 recordsWritten,
-                recordsWrittenComplete);
+                recordsWrittenComplete,
+                accumulatedBackpressured,
+                accumulatedBusy,
+                accumulatedIdle);
     }
 }

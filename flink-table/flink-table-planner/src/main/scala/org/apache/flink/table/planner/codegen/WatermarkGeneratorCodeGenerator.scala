@@ -18,10 +18,8 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
-import org.apache.flink.api.common.externalresource.ExternalResourceInfo
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.metrics.MetricGroup
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
@@ -32,14 +30,12 @@ import org.apache.flink.table.types.logical.{LogicalTypeRoot, RowType}
 
 import org.apache.calcite.rex.RexNode
 
-import java.io.File
-import java.util
-
 /** A code generator for generating [[WatermarkGenerator]]s. */
 object WatermarkGeneratorCodeGenerator {
 
   def generateWatermarkGenerator(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       inputType: RowType,
       watermarkExpr: RexNode,
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
@@ -55,9 +51,9 @@ object WatermarkGeneratorCodeGenerator {
     }
     val funcName = newName("WatermarkGenerator")
     val ctx = if (contextTerm.isDefined) {
-      new WatermarkGeneratorFunctionContext(tableConfig, contextTerm.get)
+      new WatermarkGeneratorFunctionContext(tableConfig, classLoader, contextTerm.get)
     } else {
-      CodeGeneratorContext(tableConfig)
+      new CodeGeneratorContext(tableConfig, classLoader)
     }
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")
@@ -122,17 +118,18 @@ object WatermarkGeneratorCodeGenerator {
 
 class WatermarkGeneratorFunctionContext(
     tableConfig: ReadableConfig,
-    contextTerm: String = "parameters")
-  extends CodeGeneratorContext(tableConfig) {
+    classLoader: ClassLoader,
+    contextTerm: String)
+  extends CodeGeneratorContext(tableConfig, classLoader) {
 
   override def addReusableFunction(
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
-      runtimeContextTerm: String = null): String = {
+      contextArgs: Seq[String] = null): String = {
     super.addReusableFunction(
       function,
       classOf[WatermarkGeneratorCodeGeneratorFunctionContextWrapper],
-      this.contextTerm)
+      Seq(contextTerm))
   }
 
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {
@@ -142,26 +139,7 @@ class WatermarkGeneratorFunctionContext(
 
 class WatermarkGeneratorCodeGeneratorFunctionContextWrapper(
     context: WatermarkGeneratorSupplier.Context)
-  extends FunctionContext(null) {
+  extends FunctionContext(null, null, null) {
 
   override def getMetricGroup: MetricGroup = context.getMetricGroup
-
-  override def getCachedFile(name: String): File = {
-    throw new TableException(
-      "Calls to FunctionContext.getCachedFile are not available " +
-        "for WatermarkGeneratorCodeGeneratorFunctionContextWrapper.")
-  }
-
-  override def getJobParameter(key: String, defaultValue: String): String = {
-    throw new TableException(
-      "Calls to FunctionContext.getJobParameter are not available " +
-        "for WatermarkGeneratorCodeGeneratorFunctionContextWrapper")
-
-  }
-
-  override def getExternalResourceInfos(resourceName: String): util.Set[ExternalResourceInfo] = {
-    throw new TableException(
-      "Calls to FunctionContext.getExternalResourceInfos are not available " +
-        "for WatermarkGeneratorCodeGeneratorFunctionContextWrapper")
-  }
 }

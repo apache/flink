@@ -29,14 +29,12 @@ import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
@@ -51,7 +49,6 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ZooKeeperMultipleComponentLeaderElectionDriver}. */
-@ExtendWith(TestLoggerExtension.class)
 class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
@@ -61,7 +58,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             new EachCallbackWrapper<>(zooKeeperExtension);
 
     @Test
-    public void testElectionDriverGainsLeadershipAtStartup() throws Exception {
+    void testElectionDriverGainsLeadershipAtStartup() throws Exception {
         new Context() {
             {
                 runTest(
@@ -73,7 +70,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testElectionDriverLosesLeadership() throws Exception {
+    void testElectionDriverLosesLeadership() throws Exception {
         new Context() {
             {
                 runTest(
@@ -87,7 +84,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testPublishLeaderInformation() throws Exception {
+    void testPublishLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -122,7 +119,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testPublishEmptyLeaderInformation() throws Exception {
+    void testPublishEmptyLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -161,7 +158,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testNonLeaderCannotPublishLeaderInformation() throws Exception {
+    void testNonLeaderCannotPublishLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -198,7 +195,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testLeaderInformationChange() throws Exception {
+    void testLeaderInformationChange() throws Exception {
         new Context() {
             {
                 runTest(
@@ -233,7 +230,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testLeaderElectionWithMultipleDrivers() throws Exception {
+    void testLeaderElectionWithMultipleDrivers() throws Exception {
         final CuratorFrameworkWithUnhandledErrorListener curatorFramework = startCuratorFramework();
 
         try {
@@ -262,6 +259,24 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                                 ElectionDriver::hasLeadership, Collectors.toSet()));
 
                 assertThat(leaderAndRest.get(true)).hasSize(1);
+
+                // TODO: remove this line after CURATOR-645 is resolved
+                // CURATOR-645 covers a bug in the LeaderLatch implementation that causes a race
+                // condition if a child node, participating in the leader election, is removed too
+                // fast. This results in a different code branch being executed which triggers a
+                // reset of the LeaderLatch instead of re-collecting the children to determine the
+                // next leader.
+                // The issue occurs because LeaderLatch#checkLeadership is not executed
+                // transactionally, i.e. retrieving the children and setting up the watcher for the
+                // predecessor is not done atomically. This leads to the race condition where a
+                // children (the previous leader's node) is removed before setting up the watcher
+                // which results in an invalid handling of the situation using reset.
+                // Adding some sleep here (simulating the leader actually doing something) will
+                // reduce the risk of falling into the race condition because it will give the
+                // concurrently running LeaderLatch instances more time to set up the watchers
+                // properly.
+                Thread.sleep(100);
+
                 Iterables.getOnlyElement(leaderAndRest.get(true)).close();
 
                 electionDrivers = leaderAndRest.get(false);
@@ -272,7 +287,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     @Test
-    public void testLeaderConnectionInfoNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
+    void testLeaderConnectionInfoNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
             throws Exception {
         new Context() {
             {

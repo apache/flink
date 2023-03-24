@@ -17,16 +17,16 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{hashCodeForType, newName, ROW_DATA}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{hashCodeForType, newName, primitiveTypeTermForType, rowFieldReadAccess, ARRAY_DATA, MAP_DATA, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedHashFunction, HashFunction}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.util.MathUtils
 
 /**
- * CodeGenerator for hash code RowData, Calculate a hash value based on some fields of RowData.
- * NOTE: If you need a hash value that is more evenly distributed, call [[MathUtils.murmurHash]]
- * outside to scatter.
+ * CodeGenerator for hash code RowData/ArrayData/MapData, Calculate a hash value based on some
+ * fields of RowData. NOTE: If you need a hash value that is more evenly distributed, call
+ * [[MathUtils.murmurHash]] outside to scatter.
  */
 object HashCodeGenerator {
 
@@ -69,7 +69,8 @@ object HashCodeGenerator {
         }
 
         @Override
-        public int hashCode($ROW_DATA $inputTerm) {
+        public int hashCode(Object _in) {
+          $ROW_DATA $inputTerm = ($ROW_DATA) _in;
           ${ctx.reuseLocalVariableCode()}
           $hashBody
           return $resultTerm;
@@ -82,10 +83,136 @@ object HashCodeGenerator {
     new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
+  def generateArrayHash(
+      ctx: CodeGeneratorContext,
+      elementType: LogicalType,
+      name: String): GeneratedHashFunction = {
+    val className = newName(name)
+    val baseClass = classOf[HashFunction]
+    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+
+    val typeTerm = primitiveTypeTermForType(elementType)
+    val isNull = newName("isNull")
+    val fieldTerm = newName("fieldTerm")
+    val elementHashTerm = newName("elementHashCode")
+    val hashIntTerm = newName("hashCode")
+    val i = newName("i")
+
+    // Generate element hash code firstly
+    val elementHashBody = hashCodeForType(ctx, elementType, fieldTerm)
+    val code =
+      j"""
+      public class $className implements ${baseClass.getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $className(Object[] references) throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        @Override
+        public int hashCode(Object _in) {
+          $ARRAY_DATA $inputTerm = ($ARRAY_DATA) _in;
+          int $hashIntTerm = 1;
+          // This is inspired by hive & presto
+          for (int $i = 0; $i < $inputTerm.size(); $i++) {
+            boolean $isNull = $inputTerm.isNullAt($i);
+            int $elementHashTerm = 0;
+            if (!$isNull) {
+              $typeTerm $fieldTerm = ${rowFieldReadAccess(i, inputTerm, elementType)};
+              $elementHashTerm = $elementHashBody;
+            }
+             $hashIntTerm = 31 * $hashIntTerm + $elementHashTerm;
+          }
+
+          return $hashIntTerm;
+        }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
+      }
+    """.stripMargin
+
+    new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
+  }
+
+  def generateMapHash(
+      ctx: CodeGeneratorContext,
+      keyType: LogicalType,
+      valueType: LogicalType,
+      name: String): GeneratedHashFunction = {
+    val className = newName(name)
+    val baseClass = classOf[HashFunction]
+    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+
+    val keyTypeTerm = primitiveTypeTermForType(keyType)
+    val valueTypeTerm = primitiveTypeTermForType(valueType)
+    val keys = newName("keys")
+    val values = newName("values")
+    val keyIsNull = newName("keyIsNull")
+    val keyFieldTerm = newName("keyFieldTerm")
+    val valueIsNull = newName("valueIsNull")
+    val valueFieldTerm = newName("valueFieldTerm")
+    val keyHashTerm = newName("keyHashCode")
+    val valueHashTerm = newName("valueHashCode")
+    val hashIntTerm = newName("hashCode")
+    val i = newName("i")
+
+    // Generate key and value hash code body firstly
+    val keyElementHashBody = hashCodeForType(ctx, keyType, keyFieldTerm)
+    val valueElementHashBody = hashCodeForType(ctx, valueType, valueFieldTerm)
+    val code =
+      j"""
+      public class $className implements ${baseClass.getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $className(Object[] references) throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        @Override
+        public int hashCode(Object _in) {
+          $MAP_DATA $inputTerm = ($MAP_DATA) _in;
+          $ARRAY_DATA $keys = $inputTerm.keyArray();
+          $ARRAY_DATA $values = $inputTerm.valueArray();
+
+          int $keyHashTerm = 0;
+          int $valueHashTerm = 0;
+          int $hashIntTerm = 0;
+          
+          // This is inspired by hive & presto
+          for (int $i = 0; $i < $inputTerm.size(); $i++) {
+            boolean $keyIsNull = $keys.isNullAt($i);
+            $keyHashTerm = 0;
+            if (!$keyIsNull) {
+              $keyTypeTerm $keyFieldTerm = ${rowFieldReadAccess(i, keys, keyType)};
+              $keyHashTerm = $keyElementHashBody;
+            }
+
+            boolean $valueIsNull = $values.isNullAt($i);
+            $valueHashTerm = 0;
+            if(!$valueIsNull) {
+              $valueTypeTerm $valueFieldTerm = ${rowFieldReadAccess(i, values, valueType)};
+              $valueHashTerm = $valueElementHashBody;
+            }
+            
+            $hashIntTerm += $keyHashTerm ^ $valueHashTerm;
+          }
+
+          return $hashIntTerm;
+        }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
+      }
+    """.stripMargin
+
+    new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
+  }
+
   private def generateCodeBody(
       ctx: CodeGeneratorContext,
       accessExprs: Seq[GeneratedExpression]): (String, String) = {
-    val hashIntTerm = CodeGenUtils.newName("hashCode")
+    val hashIntTerm = newName("hashCode")
     var i = -1
     val hashBodyCode = accessExprs
       .map(

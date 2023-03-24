@@ -18,7 +18,10 @@
 
 package org.apache.flink.configuration.description;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** Part of a {@link Description} that can be converted into String representation. */
+@PublicEvolving
 interface DescriptionElement {
     /**
      * Transforms itself into String representation using given format.

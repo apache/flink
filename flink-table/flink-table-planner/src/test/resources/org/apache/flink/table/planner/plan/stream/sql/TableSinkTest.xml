@@ -258,14 +258,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
   <TestCase name="testInsertPartColumn">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.zm_test], fields=[a, m1, m2, m3, m4])
+LogicalSink(table=[default_catalog.default_database.zm_test], targetColumns=[[0]], fields=[a, m1, m2, m3, m4])
 +- LogicalProject(a=[CAST($0):BIGINT], m1=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m2=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m4=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.zm_test], fields=[a, m1, m2, m3, m4], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.zm_test], targetColumns=[[0]], fields=[a, m1, m2, m3, m4], changelogMode=[NONE])
 +- Calc(select=[CAST(a AS BIGINT) AS a, null:(VARCHAR(2147483647), BIGINT) MAP AS m1, null:(VARCHAR(2147483647), BIGINT) MAP AS m2, null:(VARCHAR(2147483647), BIGINT) MAP AS m3, null:(VARCHAR(2147483647), BIGINT) MAP AS m4], changelogMode=[I])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
@@ -483,6 +483,22 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
     } ]
   } ]
 }]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertWithTargetColumnsAndSqlHint">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.appendSink], targetColumns=[[0],[1]], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]])
++- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.appendSink], targetColumns=[[0],[1]], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]], changelogMode=[NONE])
++- Calc(select=[+(a, b) AS EXPR$0, c], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
     </Resource>
   </TestCase>
   <TestCase name="testManagedTableSinkWithEnableCheckpointing">

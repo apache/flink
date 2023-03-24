@@ -28,7 +28,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 
 /** General tests for the {@link KubernetesJobManagerFactory} with pod template. */
-public class KubernetesJobManagerFactoryWithPodTemplateTest
+class KubernetesJobManagerFactoryWithPodTemplateTest
         extends KubernetesFactoryWithPodTemplateTestBase {
 
     @Override

@@ -85,7 +85,7 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
 
         RelBuilder relBuilder = call.builder();
         Tuple2<RexNode[], RexNode[]> extractedPredicates =
-                extractPredicates(
+                FlinkRexUtil.extractPredicates(
                         originProgram.getInputRowType().getFieldNames().toArray(new String[0]),
                         originProgram.expandLocalRef(originProgram.getCondition()),
                         scan,

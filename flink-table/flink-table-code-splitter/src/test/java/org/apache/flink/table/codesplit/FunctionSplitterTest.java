@@ -17,32 +17,32 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link FunctionSplitter}. */
-public class FunctionSplitterTest extends CodeRewriterTestBase<FunctionSplitter> {
+class FunctionSplitterTest extends CodeRewriterTestBase<FunctionSplitter> {
 
     public FunctionSplitterTest() {
         super("function", code -> new FunctionSplitter(code, 40));
     }
 
     @Test
-    public void testSplitFunction() {
+    void testSplitFunction() {
         runTest("TestSplitFunction");
     }
 
     @Test
-    public void testNotSplitFunctionWithReturnValue() {
+    void testNotSplitFunctionWithReturnValue() {
         runTest("TestNotSplitFunctionWithReturnValue");
     }
 
     @Test
-    public void testNotSplitFunctionWithOnlyOneStatement() {
+    void testNotSplitFunctionWithOnlyOneStatement() {
         runTest("TestNotSplitFunctionWithOnlyOneStatement");
     }
 
     @Test
-    public void testRewriteInnerClass() {
+    void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
     }
 }

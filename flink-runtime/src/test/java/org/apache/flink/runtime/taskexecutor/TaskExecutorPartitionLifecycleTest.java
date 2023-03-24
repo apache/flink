@@ -33,7 +33,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -58,6 +58,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -142,27 +143,23 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
     @AfterClass
     public static void shutdownClass() throws ExecutionException, InterruptedException {
-        rpc.stopService().get();
+        rpc.closeAsync().get();
     }
 
     @Test
     public void testJobMasterConnectionTerminationAfterExternalRelease() throws Exception {
         testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
                 ((taskExecutorGateway, jobID, resultPartitionID) ->
-                        taskExecutorGateway.releaseOrPromotePartitions(
-                                jobID,
-                                Collections.singleton(resultPartitionID),
-                                Collections.emptySet())));
+                        taskExecutorGateway.releasePartitions(
+                                jobID, Collections.singleton(resultPartitionID))));
     }
 
     @Test
     public void testJobMasterConnectionTerminationAfterExternalPromotion() throws Exception {
         testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
                 ((taskExecutorGateway, jobID, resultPartitionID) ->
-                        taskExecutorGateway.releaseOrPromotePartitions(
-                                jobID,
-                                Collections.emptySet(),
-                                Collections.singleton(resultPartitionID))));
+                        taskExecutorGateway.promotePartitions(
+                                jobID, Collections.singleton(resultPartitionID))));
     }
 
     private void testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
@@ -215,10 +212,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             TaskSubmissionTestEnvironment.registerJobMasterConnection(
                     jobTable,
                     jobId,
-                    rpc,
                     jobMasterGateway,
                     new NoOpTaskManagerActions(),
-                    timeout,
                     taskExecutor.getMainThreadExecutableForTesting());
 
             final TaskExecutorGateway taskExecutorGateway =
@@ -227,8 +222,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             trackerIsTrackingPartitions.set(true);
             assertThat(firstReleasePartitionsCallFuture.isDone(), is(false));
 
-            taskExecutorGateway.releaseOrPromotePartitions(
-                    jobId, Collections.singleton(new ResultPartitionID()), Collections.emptySet());
+            taskExecutorGateway.releasePartitions(
+                    jobId, Collections.singleton(new ResultPartitionID()));
 
             // at this point we only know that the TE has entered releasePartitions; we cannot be
             // certain whether it
@@ -246,7 +241,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
             disconnectFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -278,10 +273,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                                     .getShuffleDescriptor()
                                     .getResultPartitionID();
 
-                    taskExecutorGateway.releaseOrPromotePartitions(
-                            jobId,
-                            Collections.singleton(resultPartitionId),
-                            Collections.emptySet());
+                    taskExecutorGateway.releasePartitions(
+                            jobId, Collections.singleton(resultPartitionId));
 
                     assertThat(releasePartitionsFuture.get(), hasItems(resultPartitionId));
                 });
@@ -301,10 +294,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                                     .getShuffleDescriptor()
                                     .getResultPartitionID();
 
-                    taskExecutorGateway.releaseOrPromotePartitions(
-                            jobId,
-                            Collections.emptySet(),
-                            Collections.singleton(resultPartitionId));
+                    taskExecutorGateway.promotePartitions(
+                            jobId, Collections.singleton(resultPartitionId));
 
                     assertThat(promotePartitionsFuture.get(), hasItems(resultPartitionId));
                 });
@@ -422,9 +413,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                         new SerializedValue<>(new ExecutionConfig()),
                         "Sender",
                         1,
-                        0,
                         1,
-                        0,
                         new Configuration(),
                         new Configuration(),
                         TestingInvokable.class.getName(),
@@ -490,7 +479,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                                 new TaskExecutorRegistrationSuccess(
                                         new InstanceID(),
                                         testingResourceManagerGateway.getOwnResourceId(),
-                                        new ClusterInformation("blobServerHost", 55555))));
+                                        new ClusterInformation("blobServerHost", 55555),
+                                        null)));
 
         try {
             taskExecutor.start();
@@ -567,7 +557,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             testAction.accept(
                     jobId, taskResultPartitionDescriptor, taskExecutor, taskExecutorGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
 
         // the shutdown of the backing shuffle environment releases all partitions
@@ -605,12 +595,13 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-                new HeartbeatServices(10_000L, 30_000L),
+                new HeartbeatServicesImpl(10_000L, 30_000L),
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 new TestingFatalErrorHandler(),
-                partitionTracker);
+                partitionTracker,
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable() {

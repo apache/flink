@@ -49,7 +49,9 @@ public class HiveParserRowResolver implements Serializable {
      */
     private final Map<String, String[]> altInvRslvMap;
     private final Map<String, HiveParserASTNode> expressionMap;
+    private final LinkedHashMap<String, LinkedHashMap<String, String>> ambiguousColumns;
 
+    private boolean checkForAmbiguity;
     // TODO: Refactor this and do in a more object oriented manner
     private boolean isExprResolver;
 
@@ -59,12 +61,34 @@ public class HiveParserRowResolver implements Serializable {
     private HiveParserNamedJoinInfo namedJoinInfo;
 
     public HiveParserRowResolver() {
-        rowSchema = new RowSchema();
-        rslvMap = new LinkedHashMap<>();
-        invRslvMap = new HashMap<>();
-        altInvRslvMap = new HashMap<>();
-        expressionMap = new HashMap<>();
-        isExprResolver = false;
+        this(
+                new RowSchema(),
+                new LinkedHashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                false,
+                new LinkedHashMap<>(),
+                false);
+    }
+
+    public HiveParserRowResolver(
+            RowSchema rowSchema,
+            LinkedHashMap<String, LinkedHashMap<String, ColumnInfo>> rslvMap,
+            HashMap<String, String[]> invRslvMap,
+            Map<String, String[]> altInvRslvMap,
+            Map<String, HiveParserASTNode> expressionMap,
+            boolean isExprResolver,
+            LinkedHashMap<String, LinkedHashMap<String, String>> ambiguousColumns,
+            boolean checkForAmbiguity) {
+        this.rowSchema = rowSchema;
+        this.rslvMap = rslvMap;
+        this.invRslvMap = invRslvMap;
+        this.altInvRslvMap = altInvRslvMap;
+        this.expressionMap = expressionMap;
+        this.isExprResolver = isExprResolver;
+        this.ambiguousColumns = ambiguousColumns;
+        this.checkForAmbiguity = checkForAmbiguity;
     }
 
     /**
@@ -109,6 +133,14 @@ public class HiveParserRowResolver implements Serializable {
         }
     }
 
+    private void keepAmbiguousInfo(String colAlias, String tabAlias) {
+        // we keep track of duplicate <tab alias, col alias> so that get can check
+        // for ambiguity
+        LinkedHashMap<String, String> colAliases =
+                ambiguousColumns.computeIfAbsent(tabAlias, k -> new LinkedHashMap<>());
+        colAliases.put(colAlias, colAlias);
+    }
+
     public boolean addMappingOnly(String tabAlias, String colAlias, ColumnInfo colInfo) {
         if (tabAlias != null) {
             tabAlias = tabAlias.toLowerCase();
@@ -134,6 +166,7 @@ public class HiveParserRowResolver implements Serializable {
                             + oldColInfo
                             + " by "
                             + colInfo);
+            keepAmbiguousInfo(colAlias, tabAlias);
         }
 
         String[] qualifiedAlias = new String[2];
@@ -169,6 +202,12 @@ public class HiveParserRowResolver implements Serializable {
      */
     public ColumnInfo get(String tabAlias, String colAlias) throws SemanticException {
         ColumnInfo ret = null;
+
+        if (!isExprResolver && isAmbiguousReference(tabAlias, colAlias)) {
+            String colNamePrefix = tabAlias != null ? tabAlias + "." : "";
+            String fullQualifiedName = colNamePrefix + colAlias;
+            throw new SemanticException("Ambiguous column reference: " + fullQualifiedName);
+        }
 
         if (tabAlias != null) {
             tabAlias = tabAlias.toLowerCase();
@@ -390,6 +429,7 @@ public class HiveParserRowResolver implements Serializable {
         if (internalName != null) {
             existing = get(tabAlias, internalName);
             if (existing == null) {
+                keepAmbiguousInfo(colAlias, tabAlias);
                 put(tabAlias, internalName, newCI);
                 return true;
             } else if (existing.isSameColumnForRR(newCI)) {
@@ -432,11 +472,58 @@ public class HiveParserRowResolver implements Serializable {
         return combinedRR;
     }
 
+    public HiveParserRowResolver duplicate() {
+        return new HiveParserRowResolver(
+                new RowSchema(rowSchema),
+                new LinkedHashMap<>(rslvMap),
+                new HashMap<>(invRslvMap),
+                new HashMap<>(altInvRslvMap),
+                new HashMap<>(expressionMap),
+                isExprResolver,
+                new LinkedHashMap<>(ambiguousColumns),
+                checkForAmbiguity);
+    }
+
     public HiveParserNamedJoinInfo getNamedJoinInfo() {
         return namedJoinInfo;
     }
 
     public void setNamedJoinInfo(HiveParserNamedJoinInfo namedJoinInfo) {
         this.namedJoinInfo = namedJoinInfo;
+    }
+
+    private boolean isAmbiguousReference(String tableAlias, String colAlias) {
+
+        if (!getCheckForAmbiguity()) {
+            return false;
+        }
+        if (ambiguousColumns == null || ambiguousColumns.isEmpty()) {
+            return false;
+        }
+
+        if (tableAlias != null) {
+            LinkedHashMap<String, String> colAliases =
+                    ambiguousColumns.get(tableAlias.toLowerCase());
+            return colAliases != null && colAliases.containsKey(colAlias.toLowerCase());
+        } else {
+            for (Map.Entry<String, LinkedHashMap<String, String>> ambigousColsEntry :
+                    ambiguousColumns.entrySet()) {
+                LinkedHashMap<String, String> cmap = ambigousColsEntry.getValue();
+                for (Map.Entry<String, String> cmapEnt : cmap.entrySet()) {
+                    if (colAlias.equalsIgnoreCase(cmapEnt.getKey())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public void setCheckForAmbiguity(boolean check) {
+        this.checkForAmbiguity = check;
+    }
+
+    public boolean getCheckForAmbiguity() {
+        return this.checkForAmbiguity;
     }
 }

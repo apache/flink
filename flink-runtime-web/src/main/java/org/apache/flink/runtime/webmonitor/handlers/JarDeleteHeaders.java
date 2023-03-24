@@ -21,13 +21,14 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Message headers for {@link JarDeleteHandler}. */
 public class JarDeleteHeaders
-        implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
 
     private static final JarDeleteHeaders INSTANCE = new JarDeleteHeaders();
 
@@ -63,6 +64,11 @@ public class JarDeleteHeaders
 
     public static JarDeleteHeaders getInstance() {
         return INSTANCE;
+    }
+
+    @Override
+    public String operationId() {
+        return "deleteJar";
     }
 
     @Override

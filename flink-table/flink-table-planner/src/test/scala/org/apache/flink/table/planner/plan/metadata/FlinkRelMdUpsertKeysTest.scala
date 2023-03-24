@@ -367,6 +367,20 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUpsertKeysOnLookupJoinWithPk(): Unit = {
+    Array(batchLookupJoinWithPk, streamLookupJoinWithPk).foreach {
+      join => assertEquals(toBitSet(Array(7), Array(0, 7), Array(0)), mq.getUpsertKeys(join).toSet)
+    }
+  }
+
+  @Test
+  def testGetUpsertKeysOnLookupJoinNotContainsPk(): Unit = {
+    Array(batchLookupJoinNotContainsPk, streamLookupJoinNotContainsPk).foreach {
+      join => assertEquals(toBitSet(), mq.getUpsertKeys(join).toSet)
+    }
+  }
+
+  @Test
   def testGetUpsertKeysOnSetOp(): Unit = {
     Array(logicalUnionAll, logicalIntersectAll, logicalMinusAll).foreach {
       setOp => assertEquals(toBitSet(), mq.getUpsertKeys(setOp).toSet)

@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 
+import java.util.Set;
+
 /**
  * This registry manages state that is shared across (incremental) checkpoints, and is responsible
  * for deleting shared state that is no longer used in any valid checkpoint.
@@ -43,6 +45,15 @@ public interface SharedStateRegistry extends AutoCloseable {
             };
 
     /**
+     * Shortcut for {@link #registerReference(SharedStateRegistryKey, StreamStateHandle, long,
+     * boolean)} with preventDiscardingCreatedCheckpoint = false.
+     */
+    default StreamStateHandle registerReference(
+            SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID) {
+        return registerReference(registrationKey, state, checkpointID, false);
+    }
+
+    /**
      * Register a reference to the given shared state in the registry. If there is already a state
      * handle registered under the given key, the "new" state handle is disposed .
      *
@@ -52,17 +63,24 @@ public interface SharedStateRegistry extends AutoCloseable {
      *
      * @param state the shared state for which we register a reference.
      * @param checkpointID which uses the state
+     * @param preventDiscardingCreatedCheckpoint as long as this state is still in use. The
+     *     "checkpoint that created the state" is recorded on the first state registration.
      * @return the result of this registration request, consisting of the state handle that is
      *     registered under the key by the end of the operation and its current reference count.
      */
     StreamStateHandle registerReference(
-            SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID);
+            SharedStateRegistryKey registrationKey,
+            StreamStateHandle state,
+            long checkpointID,
+            boolean preventDiscardingCreatedCheckpoint);
+
     /**
      * Unregister state that is not referenced by the given checkpoint ID or any newer.
      *
-     * @param lowestCheckpointID which is still valid
+     * @param lowestCheckpointID which is still valid.
+     * @return a set of checkpointID which is still in use.
      */
-    void unregisterUnusedState(long lowestCheckpointID);
+    Set<Long> unregisterUnusedState(long lowestCheckpointID);
 
     /**
      * Register given shared states in the registry.

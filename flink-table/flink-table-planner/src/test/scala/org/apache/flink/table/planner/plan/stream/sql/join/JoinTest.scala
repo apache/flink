@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
 import org.junit.Test
 
@@ -32,17 +32,17 @@ class JoinTest extends TableTestBase {
   util.addTableSource[(Long, String, Int)]("s", 'x, 'y, 'z)
 
   @Test
-  def testDependentConditionDerivationInnerJoin: Unit = {
+  def testDependentConditionDerivationInnerJoin(): Unit = {
     util.verifyExecPlan("SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND b2 = 2)")
   }
 
   @Test
-  def testDependentConditionDerivationInnerJoinWithTrue: Unit = {
+  def testDependentConditionDerivationInnerJoinWithTrue(): Unit = {
     util.verifyExecPlan("SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND true)")
   }
 
   @Test
-  def testDependentConditionDerivationInnerJoinWithNull: Unit = {
+  def testDependentConditionDerivationInnerJoinWithNull(): Unit = {
     util.verifyExecPlan("SELECT * FROM t JOIN s ON (a = 1 AND x = 1) OR (a = 2 AND y is null)")
   }
 
@@ -502,6 +502,83 @@ class JoinTest extends TableTestBase {
         | join source_city t2 on t1.city_id = t2.id
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testInnerJoinWithFilterPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |   (select a1, count(a2) as a2 from A group by a1)
+                          |   join
+                          |   (select b1, count(b2) as b2 from B group by b1)
+                          |   on true where a1 = b1 and a2 = b2 and b1 = 2
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testInnerJoinWithJoinConditionPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |  (select a1, count(a2) as a2 from A group by a1)
+                          |   join
+                          |  (select b1, count(b2) as b2 from B group by b1)
+                          |   on true where a1 = b1 and a2 = b2 and b1 = 2 and a2 = 1
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testLeftJoinWithFilterPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |  (select a1, count(a2) as a2 from A group by a1)
+                          |   left join
+                          |  (select b1, count(b2) as b2 from B group by b1)
+                          |   on true where a1 = b1 and b2 = a2 and a1 = 2
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testLeftJoinWithJoinConditionPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |  (select a1, count(a2) as a2 from A group by a1)
+                          |   left join
+                          |  (select b1, count(b2) as b2 from B group by b1)
+                          |   on a1 = b1 and a2 = b2 and a1 = 2 and b2 = 1
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testRightJoinWithFilterPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          |  (select a1, count(a2) as a2 from A group by a1)
+                          |   right join
+                          |  (select b1, count(b2) as b2 from B group by b1)
+                          |   on true where a1 = b1 and a2 = b2 and b1 = 2
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testRightJoinWithJoinConditionPushDown(): Unit = {
+    util.verifyExecPlan("""
+                          |SELECT * FROM
+                          | (select a1, count(a2) as a2 from A group by a1)
+                          |   right join
+                          | (select b1, count(b2) as b2 from B group by b1)
+                          |   on a1 = b1 and a2 = b2 and b1 = 2 and a2 = 1
+                          |""".stripMargin)
+  }
+
+  @Test
+  def testJoinUDTFWithInvalidJoinHint(): Unit = {
+    // TODO the error message should be improved after we support extracting alias from table func
+    util.addTemporarySystemFunction("TableFunc1", new TableFunc1)
+    util.verifyExpectdException(
+      "SELECT /*+ LOOKUP('table'='D') */ T.a FROM t AS T CROSS JOIN LATERAL TABLE(TableFunc1(c)) AS D(c1)",
+      "The options of following hints cannot match the name of input tables or views: \n" +
+        "`D` in `LOOKUP`"
     )
   }
 }

@@ -24,8 +24,11 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.type.TypeFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -451,6 +454,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                         "Failed to release user code class loader for "
                                 + Arrays.toString(libraries.toArray()));
             }
+            // clear potential references to user-classes in the singleton cache
+            TypeFactory.defaultInstance().clearCache();
         }
 
         private void runReleaseHooks() {

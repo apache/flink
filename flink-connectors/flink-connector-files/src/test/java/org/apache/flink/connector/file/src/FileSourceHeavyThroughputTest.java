@@ -38,8 +38,8 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -53,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * This test simulates readers that just produce byte arrays very fast. The test is meant to check
  * that this does not break the system in terms of object allocations, etc.
  */
-public class FileSourceHeavyThroughputTest {
+class FileSourceHeavyThroughputTest {
 
     /**
      * Testing file system reference, to be cleaned up in an @After method. That way it also gets
@@ -61,8 +61,8 @@ public class FileSourceHeavyThroughputTest {
      */
     private TestingFileSystem testFs;
 
-    @After
-    public void unregisterTestFs() throws Exception {
+    @AfterEach
+    void unregisterTestFs() throws Exception {
         if (testFs != null) {
             testFs.unregister();
         }
@@ -71,7 +71,7 @@ public class FileSourceHeavyThroughputTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testHeavyThroughput() throws Exception {
+    void testHeavyThroughput() throws Exception {
         final Path path = new Path("testfs:///testpath");
         final long fileSize = 20L << 30; // 20 GB
         final FileSourceSplit split =
@@ -224,6 +224,11 @@ public class FileSourceHeavyThroughputTest {
         @Override
         public UserCodeClassLoader getUserCodeClassLoader() {
             return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
+        }
+
+        @Override
+        public int currentParallelism() {
+            return 1;
         }
     }
 

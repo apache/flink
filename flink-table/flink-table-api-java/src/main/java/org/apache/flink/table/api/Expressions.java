@@ -280,6 +280,14 @@ public final class Expressions {
     }
 
     /**
+     * Return the current database, the return type of this expression is {@link
+     * DataTypes#STRING()}.
+     */
+    public static ApiExpression currentDatabase() {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_DATABASE);
+    }
+
+    /**
      * Returns the current SQL time in local time zone, the return type of this expression is {@link
      * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
      */
@@ -293,6 +301,50 @@ public final class Expressions {
      */
     public static ApiExpression localTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.LOCAL_TIMESTAMP);
+    }
+
+    /**
+     * Converts the given date string with format 'yyyy-MM-dd' to {@link DataTypes#DATE()}.
+     *
+     * @param dateStr The date string.
+     * @return The date value of {@link DataTypes#DATE()} type.
+     */
+    public static ApiExpression toDate(Object dateStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr);
+    }
+
+    /**
+     * Converts the date string with the specified format to {@link DataTypes#DATE()}.
+     *
+     * @param dateStr The date string.
+     * @param format The format of the string.
+     * @return The date value of {@link DataTypes#DATE()} type.
+     */
+    public static ApiExpression toDate(Object dateStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr, format);
+    }
+
+    /**
+     * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time
+     * zone to {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr);
+    }
+
+    /**
+     * Converts the given time string with the specified format under the 'UTC+0' time zone to
+     * {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr, format);
     }
 
     /**
@@ -402,6 +454,78 @@ public final class Expressions {
                 timePoint2);
     }
 
+    /**
+     * Converts a datetime dateStr (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from
+     * time zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation
+     * such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00".
+     * E.g., convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31
+     * 16:00:00'.
+     *
+     * @param dateStr the date time string
+     * @param tzFrom the original time zone
+     * @param tzTo the target time zone
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression convertTz(Object dateStr, Object tzFrom, Object tzTo) {
+        return apiCall(BuiltInFunctionDefinitions.CONVERT_TZ, dateStr, tzFrom, tzTo);
+    }
+
+    /**
+     * Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * "yyyy-MM-dd HH:mm:ss" format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime);
+    }
+
+    /**
+     * Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * given format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @param format The format of the string.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime, format);
+    }
+
+    /**
+     * Gets the current unix timestamp in seconds. This function is not deterministic which means
+     * the value would be recalculated for each record.
+     *
+     * @return The current unix timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp() {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP);
+    }
+
+    /**
+     * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' to unix timestamp (in
+     * seconds), using the time zone specified in the table config.
+     *
+     * @param timestampStr The date time string.
+     * @return The converted timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp(Object timestampStr) {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, timestampStr);
+    }
+
+    /**
+     * Converts the given date time string with the specified format to unix timestamp (in seconds),
+     * using the specified timezone in table config.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the date time string.
+     * @return The converted timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp(Object timestampStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, timestampStr, format);
+    }
+
     /** Creates an array of literals. */
     public static ApiExpression array(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.ARRAY, head, tail);
@@ -428,6 +552,26 @@ public final class Expressions {
      */
     public static ApiExpression map(Object key, Object value, Object... tail) {
         return apiCallAtLeastTwoArgument(BuiltInFunctionDefinitions.MAP, key, value, tail);
+    }
+
+    /**
+     * Creates a map from an array of keys and an array of values.
+     *
+     * <pre>{@code
+     * table.select(
+     *     mapFromArrays(
+     *         array("key1", "key2", "key3"),
+     *         array(1, 2, 3)
+     *     ))
+     * }</pre>
+     *
+     * <p>Note both arrays should have the same length.
+     */
+    public static ApiExpression mapFromArrays(Object key, Object value) {
+        return apiCall(
+                BuiltInFunctionDefinitions.MAP_FROM_ARRAYS,
+                objectToExpression(key),
+                objectToExpression(value));
     }
 
     /**

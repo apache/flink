@@ -17,11 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.table.planner.expressions.utils.TestNonDeterministicUdf
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 
+import org.assertj.core.api.Assertions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,6 +74,21 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
          |  'data-id' = '$peopleDataId'
          |)
          |""".stripMargin)
+
+    val userDataId = TestValuesTableFactory.registerData(TestData.userChangelog)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE users (
+                       |  user_id STRING,
+                       |  user_name STRING,
+                       |  email STRING,
+                       |  balance DECIMAL(18,2),
+                       |  primary key (user_id) not enforced
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$userDataId',
+                       | 'changelog-mode' = 'I,UA,UB,D'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -157,6 +174,52 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @Test
+  def testChangelogSourceWithNonDeterministicFuncSinkWithDifferentPk(): Unit = {
+    tEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf)
+    tEnv.executeSql("""
+                      |CREATE TABLE sink_with_pk (
+                      |  user_id STRING,
+                      |  user_name STRING,
+                      |  email STRING,
+                      |  balance DECIMAL(18,2),
+                      |  PRIMARY KEY(email) NOT ENFORCED
+                      |) WITH(
+                      |  'connector' = 'values',
+                      |  'sink-insert-only' = 'false'
+                      |)
+                      |""".stripMargin)
+
+    tEnv
+      .executeSql(s"""
+                     |insert into sink_with_pk
+                     |select user_id, SPLIT_INDEX(ndFunc(user_name), '-', 0), email, balance
+                     |from users
+                     |""".stripMargin)
+      .await()
+
+    val result = TestValuesTableFactory.getResults("sink_with_pk")
+    val expected = List(
+      "+I[user1, Tom, tom123@gmail.com, 8.10]",
+      "+I[user3, Bailey, bailey@qq.com, 9.99]",
+      "+I[user4, Tina, tina@gmail.com, 11.30]")
+    assertEquals(expected.sorted, result.sorted)
+
+    val rawResult = TestValuesTableFactory.getRawResults("sink_with_pk")
+    val expectedRaw = List(
+      "+I[user1, Tom, tom@gmail.com, 10.02]",
+      "+I[user2, Jack, jack@hotmail.com, 71.20]",
+      "-D[user1, Tom, tom@gmail.com, 10.02]",
+      "+I[user1, Tom, tom123@gmail.com, 8.10]",
+      "+I[user3, Bailey, bailey@gmail.com, 9.99]",
+      "-D[user2, Jack, jack@hotmail.com, 71.20]",
+      "+I[user4, Tina, tina@gmail.com, 11.30]",
+      "-D[user3, Bailey, bailey@gmail.com, 9.99]",
+      "+I[user3, Bailey, bailey@qq.com, 9.99]"
+    )
+    assertEquals(expectedRaw, rawResult.toList)
+  }
+
+  @Test
   def testInsertPartColumn(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE zm_test (
@@ -191,5 +254,133 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[jason, 1, null, null, null, null]"
     )
     assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testCreateTableAsSelect(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResults("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1]",
+      "+I[jason, 1]",
+      "+I[jason, 1]",
+      "+I[jason, 1]"
+    )
+    Assertions.assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResults("MyCtasTableUseStatement")
+    Assertions.assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testCreateTableAsSelectWithoutOptions(): Unit = {
+    // TODO: CTAS supports ManagedTable
+    // If the connector option is not specified, Flink will creates a Managed table.
+    // Managed table requires two layers of log storage and file storage
+    // and depends on the flink table store, CTAS will support Managed Table in the future.
+    Assertions
+      .assertThatThrownBy(
+        () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
+      .hasMessage("You should enable the checkpointing for sinking to managed table " +
+        "'default_catalog.default_database.MyCtasTable'," +
+        " managed table relies on checkpoint to commit and the data is visible only after commit.")
+  }
+
+  @Test
+  def testPartialInsert(): Unit = {
+    val srcDataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1L, "jason", 3L, "X", 43),
+        row(2L, "andy", 2L, "Y", 32),
+        row(3L, "clark", 1L, "Z", 29)
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE test_source (
+                       |  id bigint,
+                       |  person String,
+                       |  votes bigint,
+                       |  city String,
+                       |  age int)
+                       |WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$srcDataId'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql("""
+                      |CREATE TABLE test_sink (
+                      |  id bigint,
+                      |  person String,
+                      |  votes bigint,
+                      |  city String,
+                      |  age int,
+                      |  primary key(id) not enforced
+                      |) WITH (
+                      |  'connector' = 'values',
+                      |  'sink-insert-only' = 'false'
+                      |)
+                      |""".stripMargin)
+
+    tEnv
+      .executeSql("""
+                    |insert into test_sink (id, person, votes)
+                    |  select
+                    |    id,
+                    |    person,
+                    |    votes
+                    |  from
+                    |    test_source
+                    |""".stripMargin)
+      .await()
+
+    val result = TestValuesTableFactory.getResults("test_sink")
+    val expected = List(
+      "+I[1, jason, 3, null, null]",
+      "+I[2, andy, 2, null, null]",
+      "+I[3, clark, 1, null, null]")
+    assertEquals(expected.sorted, result.sorted)
+
+    tEnv
+      .executeSql("""
+                    |insert into test_sink (id, city, age)
+                    |  select
+                    |    id,
+                    |    city,
+                    |    age 
+                    |  from
+                    |    test_source
+                    |""".stripMargin)
+      .await()
+
+    val result2 = TestValuesTableFactory.getResults("test_sink")
+    val expected2 =
+      List("+I[1, jason, 3, X, 43]", "+I[2, andy, 2, Y, 32]", "+I[3, clark, 1, Z, 29]")
+    assertEquals(expected2.sorted, result2.sorted)
   }
 }

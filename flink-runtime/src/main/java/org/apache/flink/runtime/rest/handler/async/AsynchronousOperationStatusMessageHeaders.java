@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -32,7 +32,7 @@ import java.util.Collections;
  * @param <M> type of the message parameters
  */
 public abstract class AsynchronousOperationStatusMessageHeaders<V, M extends MessageParameters>
-        implements MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M> {
 
     /**
      * Returns the class of the value wrapped in the {@link AsynchronousOperationResult}.

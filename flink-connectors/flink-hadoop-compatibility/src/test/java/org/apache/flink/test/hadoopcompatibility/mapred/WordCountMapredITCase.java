@@ -39,6 +39,8 @@ import org.apache.hadoop.mapred.TextOutputFormat;
 import org.junit.Assume;
 import org.junit.Before;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** Test WordCount with Hadoop input and output "mapred" (legacy) formats. */
 public class WordCountMapredITCase extends JavaProgramTestBase {
 

@@ -40,6 +40,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -47,20 +48,18 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.TreeNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.InjectableValues;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Module;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
@@ -100,7 +99,7 @@ public class JsonSerdeUtil {
     private static final ObjectMapper OBJECT_MAPPER_INSTANCE;
 
     static {
-        OBJECT_MAPPER_INSTANCE = new ObjectMapper();
+        OBJECT_MAPPER_INSTANCE = JacksonMapperFactory.createObjectMapper();
 
         OBJECT_MAPPER_INSTANCE.setTypeFactory(
                 // Make sure to register the classloader of the planner
@@ -108,22 +107,24 @@ public class JsonSerdeUtil {
                         .getTypeFactory()
                         .withClassLoader(JsonSerdeUtil.class.getClassLoader()));
         OBJECT_MAPPER_INSTANCE.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
-        OBJECT_MAPPER_INSTANCE.configure(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS, false);
-        OBJECT_MAPPER_INSTANCE.registerModule(new Jdk8Module().configureAbsentsAsNulls(true));
-        OBJECT_MAPPER_INSTANCE.registerModule(new JavaTimeModule());
         OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
     }
 
     public static ObjectReader createObjectReader(SerdeContext serdeContext) {
         return OBJECT_MAPPER_INSTANCE
                 .reader()
-                .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext);
+                .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext)
+                .with(defaultInjectedValues());
     }
 
     public static ObjectWriter createObjectWriter(SerdeContext serdeContext) {
         return OBJECT_MAPPER_INSTANCE
                 .writer()
                 .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext);
+    }
+
+    private static InjectableValues defaultInjectedValues() {
+        return new InjectableValues.Std().addValue("isDeserialize", true);
     }
 
     private static Module createFlinkTableJacksonModule() {

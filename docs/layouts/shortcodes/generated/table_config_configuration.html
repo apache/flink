@@ -21,6 +21,12 @@
             <td>The name of the default database in the initial catalog to be created when instantiating TableEnvironment.</td>
         </tr>
         <tr>
+            <td><h5>table.display.max-column-width</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">30</td>
+            <td>Integer</td>
+            <td>When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. This only applies to columns with variable-length types (e.g. STRING) in the streaming mode. Fixed-length types are printed in the batch mode using a deterministic column width.</td>
+        </tr>
+        <tr>
             <td><h5>table.dml-sync</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -61,6 +67,12 @@
             <td style="word-wrap: break-word;">ALL</td>
             <td><p>Enum</p></td>
             <td>Strategy how to restore catalog objects such as tables, functions, or data types using a given plan and performing catalog lookups if necessary. It influences the need for catalog metadata to bepresent and enables partial enrichment of plan information.<br /><br />Possible values:<ul><li>"ALL": Reads all metadata about catalog tables, functions, or data types that has been persisted in the plan. The strategy performs a catalog lookup by identifier to fill in missing information or enrich mutable options. If the original object is not available in the catalog anymore, pipelines can still be restored if all information necessary is contained in the plan.</li><li>"ALL_ENFORCED": Requires that all metadata about catalog tables, functions, or data types has been persisted in the plan. The strategy will neither perform a catalog lookup by identifier nor enrich mutable options with catalog information. A restore will fail if not all information necessary is contained in the plan.</li><li>"IDENTIFIER": Uses only the identifier of catalog tables, functions, or data types and always performs a catalog lookup. A restore will fail if the original object is not available in the catalog anymore. Additional metadata that might be contained in the plan will be ignored.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.resources.download-dir</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
+            <td>String</td>
+            <td>Local directory that is used by planner for storing downloaded resources.</td>
         </tr>
         <tr>
             <td><h5>table.sql-dialect</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

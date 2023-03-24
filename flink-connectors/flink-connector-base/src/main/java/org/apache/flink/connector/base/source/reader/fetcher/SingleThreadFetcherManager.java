@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -52,11 +53,14 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      *     the same queue instance that is also passed to the {@link SourceReaderBase}.
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      *     system.
+     * @deprecated Please use {@link #SingleThreadFetcherManager(FutureCompletingBlockingQueue,
+     *     Supplier, Configuration)} instead.
      */
+    @Deprecated
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+        this(elementsQueue, splitReaderSupplier, new Configuration());
     }
 
     /**
@@ -67,14 +71,33 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      *     the same queue instance that is also passed to the {@link SourceReaderBase}.
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      *     system.
+     * @param configuration The configuration to create the fetcher manager.
+     */
+    public SingleThreadFetcherManager(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration configuration) {
+        super(elementsQueue, splitReaderSupplier, configuration);
+    }
+
+    /**
+     * Creates a new SplitFetcherManager with a single I/O threads.
+     *
+     * @param elementsQueue The queue that is used to hand over data from the I/O thread (the
+     *     fetchers) to the reader (which emits the records and book-keeps the state. This must be
+     *     the same queue instance that is also passed to the {@link SourceReaderBase}.
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     * @param configuration The configuration to create the fetcher manager.
      * @param splitFinishedHook Hook for handling finished splits in split fetchers
      */
     @VisibleForTesting
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration configuration,
             Consumer<Collection<String>> splitFinishedHook) {
-        super(elementsQueue, splitReaderSupplier, splitFinishedHook);
+        super(elementsQueue, splitReaderSupplier, configuration, splitFinishedHook);
     }
 
     @Override
@@ -87,6 +110,14 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
             startFetcher(fetcher);
         } else {
             fetcher.addSplits(splitsToAdd);
+        }
+    }
+
+    @Override
+    public void removeSplits(List<SplitT> splitsToRemove) {
+        SplitFetcher<E, SplitT> fetcher = getRunningFetcher();
+        if (fetcher != null) {
+            fetcher.removeSplits(splitsToRemove);
         }
     }
 

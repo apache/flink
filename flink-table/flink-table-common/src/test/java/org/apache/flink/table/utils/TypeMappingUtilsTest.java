@@ -37,9 +37,7 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -55,18 +53,13 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TypeMappingUtils}. */
-public class TypeMappingUtilsTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class TypeMappingUtilsTest {
 
     @Test
-    public void testFieldMappingReordered() {
+    void testFieldMappingReordered() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -81,45 +74,60 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingNonMatchingTypes() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Type TIMESTAMP(3) of table field 'f0' does not match with the physical type STRING of "
-                        + "the 'f0' field of the TableSource return type.");
-        TypeMappingUtils.computePhysicalIndices(
-                TableSchema.builder()
-                        .field("f1", DataTypes.BIGINT())
-                        .field("f0", DataTypes.TIMESTAMP(3))
-                        .build()
-                        .getTableColumns(),
-                ROW(FIELD("f0", DataTypes.STRING()), FIELD("f1", DataTypes.BIGINT())),
-                Function.identity());
+    void testFieldMappingNonMatchingTypes() {
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndices(
+                                        TableSchema.builder()
+                                                .field("f1", DataTypes.BIGINT())
+                                                .field("f0", DataTypes.TIMESTAMP(3))
+                                                .build()
+                                                .getTableColumns(),
+                                        ROW(
+                                                FIELD("f0", DataTypes.STRING()),
+                                                FIELD("f1", DataTypes.BIGINT())),
+                                        Function.identity()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Type TIMESTAMP(3) of table field 'f0' does not match with the physical "
+                                + "type STRING of the 'f0' field of the TableSource return type.");
     }
 
     @Test
-    public void testFieldMappingNonMatchingPrecision() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Type TIMESTAMP(9) of table field 'f0' does not match with the physical type "
-                        + "TIMESTAMP(3) of the 'f0' field of the TableSource return type.");
-        TypeMappingUtils.computePhysicalIndices(
-                TableSchema.builder().field("f0", DataTypes.TIMESTAMP(9)).build().getTableColumns(),
-                ROW(FIELD("f0", DataTypes.TIMESTAMP(3))),
-                Function.identity());
+    void testFieldMappingNonMatchingPrecision() {
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndices(
+                                        TableSchema.builder()
+                                                .field("f0", DataTypes.TIMESTAMP(9))
+                                                .build()
+                                                .getTableColumns(),
+                                        ROW(FIELD("f0", DataTypes.TIMESTAMP(3))),
+                                        Function.identity()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Type TIMESTAMP(9) of table field 'f0' does not match with the physical "
+                                + "type TIMESTAMP(3) of the 'f0' field of the TableSource "
+                                + "return type.");
     }
 
     @Test
-    public void testNameMappingDoesNotExist() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("Field 'f0' could not be resolved by the field mapping.");
-        TypeMappingUtils.computePhysicalIndices(
-                TableSchema.builder().field("f0", DataTypes.BIGINT()).build().getTableColumns(),
-                ROW(FIELD("f0", DataTypes.BIGINT())),
-                str -> null);
+    void testNameMappingDoesNotExist() {
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndices(
+                                        TableSchema.builder()
+                                                .field("f0", DataTypes.BIGINT())
+                                                .build()
+                                                .getTableColumns(),
+                                        ROW(FIELD("f0", DataTypes.BIGINT())),
+                                        str -> null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Field 'f0' could not be resolved by the field mapping.");
     }
 
     @Test
-    public void testFieldMappingLegacyDecimalType() {
+    void testFieldMappingLegacyDecimalType() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -133,32 +141,32 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingLegacyDecimalTypeNotMatchingPrecision() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Type DECIMAL(38, 10) of table field 'f0' does not match with the physical type"
-                        + " LEGACY('DECIMAL', 'DECIMAL') of the 'f0' field of the TableSource return type.");
-        thrown.expectCause(
-                allOf(
-                        instanceOf(ValidationException.class),
-                        hasMessage(
-                                equalTo(
-                                        "Legacy decimal type can only be mapped to DECIMAL(38, 18)."))));
-
-        int[] indices =
-                TypeMappingUtils.computePhysicalIndices(
-                        TableSchema.builder()
-                                .field("f0", DECIMAL(38, 10))
-                                .build()
-                                .getTableColumns(),
-                        ROW(FIELD("f0", TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC))),
-                        Function.identity());
-
-        assertThat(indices).isEqualTo(new int[] {0});
+    void testFieldMappingLegacyDecimalTypeNotMatchingPrecision() {
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndices(
+                                        TableSchema.builder()
+                                                .field("f0", DECIMAL(38, 10))
+                                                .build()
+                                                .getTableColumns(),
+                                        ROW(
+                                                FIELD(
+                                                        "f0",
+                                                        TypeConversions.fromLegacyInfoToDataType(
+                                                                Types.BIG_DEC))),
+                                        Function.identity()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Type DECIMAL(38, 10) of table field 'f0' does not match with the "
+                                + "physical type LEGACY('DECIMAL', 'DECIMAL') of the "
+                                + "'f0' field of the TableSource return type.")
+                .cause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Legacy decimal type can only be mapped to DECIMAL(38, 18).");
     }
 
     @Test
-    public void testFieldMappingRowTypeNotMatchingNamesInNestedType() {
+    void testFieldMappingRowTypeNotMatchingNamesInNestedType() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -183,26 +191,36 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingRowTypeNotMatchingTypesInNestedType() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Type ROW<`f1_0` BIGINT, `f1_1` STRING> of table field 'f1' does not match with the "
-                        + "physical type ROW<`f1_0` STRING, `f1_1` STRING> of the 'f1' field of the TableSource return type.");
-
-        TypeMappingUtils.computePhysicalIndices(
-                TableSchema.builder()
-                        .field("f0", DECIMAL(38, 18))
-                        .field("f1", ROW(FIELD("f1_0", BIGINT()), FIELD("f1_1", STRING())))
-                        .build()
-                        .getTableColumns(),
-                ROW(
-                        FIELD("f0", DECIMAL(38, 18)),
-                        FIELD("f1", ROW(FIELD("f1_0", STRING()), FIELD("f1_1", STRING())))),
-                Function.identity());
+    void testFieldMappingRowTypeNotMatchingTypesInNestedType() {
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndices(
+                                        TableSchema.builder()
+                                                .field("f0", DECIMAL(38, 18))
+                                                .field(
+                                                        "f1",
+                                                        ROW(
+                                                                FIELD("f1_0", BIGINT()),
+                                                                FIELD("f1_1", STRING())))
+                                                .build()
+                                                .getTableColumns(),
+                                        ROW(
+                                                FIELD("f0", DECIMAL(38, 18)),
+                                                FIELD(
+                                                        "f1",
+                                                        ROW(
+                                                                FIELD("f1_0", STRING()),
+                                                                FIELD("f1_1", STRING())))),
+                                        Function.identity()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Type ROW<`f1_0` BIGINT, `f1_1` STRING> of table field 'f1' does not "
+                                + "match with the physical type ROW<`f1_0` STRING, `f1_1` STRING> "
+                                + "of the 'f1' field of the TableSource return type.");
     }
 
     @Test
-    public void testFieldMappingLegacyCompositeType() {
+    void testFieldMappingLegacyCompositeType() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -218,7 +236,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingLegacyCompositeTypeWithRenaming() {
+    void testFieldMappingLegacyCompositeTypeWithRenaming() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -243,7 +261,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testMappingWithBatchTimeAttributes() {
+    void testMappingWithBatchTimeAttributes() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
@@ -263,7 +281,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testMappingWithStreamTimeAttributes() {
+    void testMappingWithStreamTimeAttributes() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
@@ -283,7 +301,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testMappingWithStreamTimeAttributesFromCompositeType() {
+    void testMappingWithStreamTimeAttributesFromCompositeType() {
         TestTableSource tableSource =
                 new TestTableSource(
                         ROW(FIELD("b", TIME()), FIELD("a", DataTypes.BIGINT())),
@@ -305,49 +323,54 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testWrongLogicalTypeForRowtimeAttribute() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Rowtime field 'rowtime' has invalid type TIME(0). Rowtime attributes must be of a Timestamp family.");
-
+    void testWrongLogicalTypeForRowtimeAttribute() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
-        TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
-                tableSource,
-                TableSchema.builder()
-                        .field("a", Types.LONG)
-                        .field("rowtime", Types.SQL_TIME)
-                        .field("proctime", Types.SQL_TIMESTAMP)
-                        .build()
-                        .getTableColumns(),
-                false,
-                Function.identity());
+
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+                                        tableSource,
+                                        TableSchema.builder()
+                                                .field("a", Types.LONG)
+                                                .field("rowtime", Types.SQL_TIME)
+                                                .field("proctime", Types.SQL_TIMESTAMP)
+                                                .build()
+                                                .getTableColumns(),
+                                        false,
+                                        Function.identity()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Rowtime field 'rowtime' has invalid type TIME(0). Rowtime attributes "
+                                + "must be of a Timestamp family.");
     }
 
     @Test
-    public void testWrongLogicalTypeForProctimeAttribute() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Proctime field 'proctime' has invalid type TIME(0). Proctime attributes must be of a Timestamp family.");
-
+    void testWrongLogicalTypeForProctimeAttribute() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
-        TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
-                tableSource,
-                TableSchema.builder()
-                        .field("a", Types.LONG)
-                        .field("rowtime", Types.SQL_TIMESTAMP)
-                        .field("proctime", Types.SQL_TIME)
-                        .build()
-                        .getTableColumns(),
-                false,
-                Function.identity());
+        assertThatThrownBy(
+                        () ->
+                                TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+                                        tableSource,
+                                        TableSchema.builder()
+                                                .field("a", Types.LONG)
+                                                .field("rowtime", Types.SQL_TIMESTAMP)
+                                                .field("proctime", Types.SQL_TIME)
+                                                .build()
+                                                .getTableColumns(),
+                                        false,
+                                        Function.identity()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Proctime field 'proctime' has invalid type TIME(0). Proctime attributes "
+                                + "must be of a Timestamp family.");
     }
 
     @Test
-    public void testCheckPhysicalLogicalTypeCompatible() {
+    void testCheckPhysicalLogicalTypeCompatible() {
         TableSchema tableSchema =
                 TableSchema.builder()
                         .field("a", DataTypes.VARCHAR(2))

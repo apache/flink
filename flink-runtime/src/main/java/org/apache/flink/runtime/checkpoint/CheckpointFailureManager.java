@@ -203,8 +203,13 @@ public class CheckpointFailureManager {
             checkFailureCounter(exception, checkpointId);
             if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
                 clearCount();
-                errorHandler.accept(
-                        new FlinkRuntimeException(EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE));
+                String exceptionMessage =
+                        String.format(
+                                "%s The latest checkpoint failed due to %s, view the Checkpoint History tab"
+                                        + " or the Job Manager log to find out why continuous checkpoints failed.",
+                                EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE,
+                                exception.getCheckpointFailureReason().message());
+                errorHandler.accept(new FlinkRuntimeException(exceptionMessage));
             }
         }
     }
@@ -217,20 +222,17 @@ public class CheckpointFailureManager {
         CheckpointFailureReason reason = exception.getCheckpointFailureReason();
         switch (reason) {
             case PERIODIC_SCHEDULER_SHUTDOWN:
-            case TOO_MANY_CONCURRENT_CHECKPOINTS:
             case TOO_MANY_CHECKPOINT_REQUESTS:
             case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
             case NOT_ALL_REQUIRED_TASKS_RUNNING:
             case CHECKPOINT_SUBSUMED:
             case CHECKPOINT_COORDINATOR_SUSPEND:
             case CHECKPOINT_COORDINATOR_SHUTDOWN:
-            case JOB_FAILURE:
+            case CHANNEL_STATE_SHARED_STREAM_EXCEPTION:
             case JOB_FAILOVER_REGION:
                 // for compatibility purposes with user job behavior
             case CHECKPOINT_DECLINED_TASK_NOT_READY:
             case CHECKPOINT_DECLINED_TASK_CLOSING:
-            case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-            case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
             case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
             case CHECKPOINT_DECLINED_SUBSUMED:
             case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
@@ -238,8 +240,8 @@ public class CheckpointFailureManager {
             case TASK_FAILURE:
             case TASK_CHECKPOINT_FAILURE:
             case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
+                // there are some edge cases shouldn't be counted as a failure, e.g. shutdown
             case TRIGGER_CHECKPOINT_FAILURE:
-            case FINALIZE_CHECKPOINT_FAILURE:
                 // ignore
                 break;
 
@@ -247,6 +249,7 @@ public class CheckpointFailureManager {
             case CHECKPOINT_ASYNC_EXCEPTION:
             case CHECKPOINT_DECLINED:
             case CHECKPOINT_EXPIRED:
+            case FINALIZE_CHECKPOINT_FAILURE:
                 // we should make sure one checkpoint only be counted once
                 if (checkpointId == UNKNOWN_CHECKPOINT_ID
                         || countedCheckpointIds.add(checkpointId)) {

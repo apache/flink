@@ -132,7 +132,7 @@ LogicalProject(EXPR$0=[1])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[1])
-+- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[m1]]])
 ]]>
     </Resource>
   </TestCase>
@@ -347,7 +347,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 +- LogicalProject($f0=[0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[], metadata=[]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]])
 ]]>
     </Resource>
   </TestCase>

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -88,6 +90,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -120,6 +124,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -177,7 +182,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @After
     public void tearDown() throws Exception {
         if (dispatcher != null) {
-            RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(dispatcher);
         }
         super.tearDown();
     }
@@ -556,7 +561,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .deserializeError(ClassLoader.getSystemClassLoader());
 
         // ensure correct exception type
-        assertThat(throwable, is(testFailure));
+        assertThat(throwable.getMessage(), equalTo(testFailure.getMessage()));
     }
 
     /** Test that {@link JobResult} is cached when the job finishes. */
@@ -589,9 +594,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(
                 dispatcherGateway.requestJobStatus(failedJobId, TIMEOUT).get(),
                 equalTo(expectedState));
-        assertThat(
-                dispatcherGateway.requestExecutionGraphInfo(failedJobId, TIMEOUT).get(),
-                equalTo(failedExecutionGraphInfo));
+        final CompletableFuture<ExecutionGraphInfo> completableFutureCompletableFuture =
+                dispatcher.callAsyncInMainThread(
+                        () -> dispatcher.requestExecutionGraphInfo(failedJobId, TIMEOUT));
+        assertThat(completableFutureCompletableFuture.get(), is(failedExecutionGraphInfo));
     }
 
     @Test
@@ -663,13 +669,35 @@ public class DispatcherTest extends AbstractDispatcherTest {
         return new URI(completedCheckpointStorageLocation.getExternalPointer());
     }
 
-    /**
-     * Tests that the {@link Dispatcher} fails fatally if the recovered jobs cannot be started. See
-     * FLINK-9097.
-     */
     @Test
     public void testFatalErrorIfRecoveredJobsCannotBeStarted() throws Exception {
-        final FlinkException testException = new FlinkException("Test exception");
+        testJobManagerRunnerFailureResultingInFatalError(
+                (testingJobManagerRunner, actualError) ->
+                        testingJobManagerRunner.completeResultFuture(
+                                // Let the initialization of the JobManagerRunner fail
+                                JobManagerRunnerResult.forInitializationFailure(
+                                        new ExecutionGraphInfo(
+                                                ArchivedExecutionGraph
+                                                        .createSparseArchivedExecutionGraph(
+                                                                jobId,
+                                                                jobGraph.getName(),
+                                                                JobStatus.FAILED,
+                                                                actualError,
+                                                                jobGraph.getCheckpointingSettings(),
+                                                                1L)),
+                                        actualError)));
+    }
+
+    @Test
+    public void testFatalErrorIfSomeOtherErrorCausedTheJobMasterToFail() throws Exception {
+        testJobManagerRunnerFailureResultingInFatalError(
+                TestingJobManagerRunner::completeResultFutureExceptionally);
+    }
+
+    private void testJobManagerRunnerFailureResultingInFatalError(
+            BiConsumer<TestingJobManagerRunner, Exception> jobManagerRunnerWithErrorConsumer)
+            throws Exception {
+        final FlinkException testException = new FlinkException("Expected test exception");
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
         final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
@@ -685,21 +713,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final TestingFatalErrorHandler fatalErrorHandler =
                 testingFatalErrorHandlerResource.getFatalErrorHandler();
 
-        final TestingJobManagerRunner testingJobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-
-        // Let the initialization of the JobManagerRunner fail
-        testingJobManagerRunner.completeResultFuture(
-                JobManagerRunnerResult.forInitializationFailure(
-                        new ExecutionGraphInfo(
-                                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                                        jobId,
-                                        jobGraph.getName(),
-                                        JobStatus.FAILED,
-                                        testException,
-                                        jobGraph.getCheckpointingSettings(),
-                                        1L)),
-                        testException));
+        jobManagerRunnerWithErrorConsumer.accept(
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner(), testException);
 
         final Throwable error =
                 fatalErrorHandler
@@ -1018,6 +1033,44 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get();
 
         InstantiationUtil.serializeObject(multipleJobsDetails);
+    }
+
+    @Test
+    public void testOverridingJobVertexParallelisms() throws Exception {
+        JobVertex v1 = new JobVertex("v1");
+        v1.setParallelism(1);
+        JobVertex v2 = new JobVertex("v2");
+        v2.setParallelism(2);
+        JobVertex v3 = new JobVertex("v3");
+        v3.setParallelism(3);
+        jobGraph = new JobGraph(jobGraph.getJobID(), "job", v1, v2, v3);
+
+        configuration.set(
+                PipelineOptions.PARALLELISM_OVERRIDES,
+                ImmutableMap.of(
+                        v1.getID().toHexString(), "10",
+                        // v2 is omitted
+                        v3.getID().toHexString(), "42",
+                        // unknown vertex added
+                        new JobVertexID().toHexString(), "23"));
+
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new ExpectedJobIdJobManagerRunnerFactory(
+                                jobId, createdJobManagerRunnerLatch));
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        Assert.assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 1);
+        Assert.assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
+        Assert.assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 3);
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        Assert.assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 10);
+        Assert.assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
+        Assert.assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 42);
     }
 
     private JobManagerRunner runningJobManagerRunnerWithJobStatus(
@@ -1408,8 +1461,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         }
 
         @Override
-        public void initializeOnMaster(ClassLoader loader) throws Exception {
-            super.initializeOnMaster(loader);
+        public void initializeOnMaster(InitializeOnMasterContext context) throws Exception {
+            super.initializeOnMaster(context);
             oneShotLatch.await();
         }
 

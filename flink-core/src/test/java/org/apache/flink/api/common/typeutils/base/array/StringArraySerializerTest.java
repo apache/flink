@@ -22,16 +22,16 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A test for the {@link org.apache.flink.api.common.typeutils.base.array.StringArraySerializer}.
  */
-public class StringArraySerializerTest extends SerializerTestBase<String[]> {
+class StringArraySerializerTest extends SerializerTestBase<String[]> {
 
     @Override
     protected TypeSerializer<String[]> createSerializer() {
@@ -89,8 +89,8 @@ public class StringArraySerializerTest extends SerializerTestBase<String[]> {
     }
 
     @Test
-    public void arrayTypeIsMutable() {
+    void arrayTypeIsMutable() {
         StringArraySerializer serializer = (StringArraySerializer) createSerializer();
-        assertFalse(serializer.isImmutableType());
+        assertThat(serializer.isImmutableType()).isFalse();
     }
 }

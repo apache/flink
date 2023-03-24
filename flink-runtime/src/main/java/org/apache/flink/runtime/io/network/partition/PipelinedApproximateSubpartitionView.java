@@ -30,7 +30,7 @@ public class PipelinedApproximateSubpartitionView extends PipelinedSubpartitionV
      * Pipelined ResultPartition relies on its subpartition view's release to decide whether the
      * partition is ready to release. In contrast, Approximate Pipelined ResultPartition is put into
      * the JobMaster's Partition Tracker and relies on the tracker to release partitions after the
-     * job is finished. Hence in the approximate pipelined case, no resource related to view is
+     * job is finished. Hence, in the approximate pipelined case, no resource related to view is
      * needed to be released.
      */
     @Override

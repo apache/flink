@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,7 +56,7 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         assertThat(metrics.getBinary()).isEqualTo(0L);
@@ -69,13 +70,13 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
         metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
 
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -88,8 +89,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
@@ -106,8 +107,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.STREAMING, settings);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
@@ -127,8 +128,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.STREAMING, settings);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
@@ -151,8 +152,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -168,8 +169,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -185,8 +186,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
@@ -206,7 +207,7 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -214,7 +215,7 @@ class DeploymentStateTimeMetricsTest {
         metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.FINISHED);
         assertThat(metrics.getTotalTime()).isEqualTo(5L);
 
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -230,8 +231,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -247,8 +248,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
@@ -267,8 +268,8 @@ class DeploymentStateTimeMetricsTest {
         final DeploymentStateTimeMetrics metrics =
                 new DeploymentStateTimeMetrics(JobType.BATCH, settings, clock);
 
-        final ExecutionAttemptID id1 = new ExecutionAttemptID();
-        final ExecutionAttemptID id2 = new ExecutionAttemptID();
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
 
         metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);

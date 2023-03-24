@@ -118,6 +118,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         final GeneratedWatermarkGenerator watermarkGenerator =
                 WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         (RowType) inputEdge.getOutputType(),
                         watermarkExpr,
                         JavaScalaConversionUtil.toScala(Optional.empty()));
@@ -134,6 +135,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
                 createTransformationMeta(WATERMARK_ASSIGNER_TRANSFORMATION, config),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

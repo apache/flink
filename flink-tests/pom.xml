@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-tests</artifactId>
@@ -45,6 +45,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -56,6 +63,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -82,6 +95,16 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -252,6 +275,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- For UpsertTestDynamicTableSinkITCase -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- utility to scan classpaths -->
 		<dependency>
 			<groupId>org.reflections</groupId>
@@ -357,12 +388,13 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Adding scala source directories to build path -->
+			<!-- Adding scala source directories to build path
+			 	 This is required for the source jar -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
+					<!-- Add src/main/scala to build path -->
 					<execution>
 						<id>add-source</id>
 						<phase>generate-sources</phase>
@@ -375,7 +407,7 @@ under the License.
 							</sources>
 						</configuration>
 					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
+					<!-- Add src/test/scala to build path -->
 					<execution>
 						<id>add-test-source</id>
 						<phase>generate-test-sources</phase>

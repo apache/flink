@@ -25,16 +25,24 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.generated.RecordComparator;
+import org.apache.flink.table.runtime.operators.sort.StringNormalizedKeyComputer;
+import org.apache.flink.table.runtime.operators.sort.StringRecordComparator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.JoinUtil;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -81,8 +89,10 @@ public class String2HashJoinOperatorTest implements Serializable {
     }
 
     private void init(boolean leftOut, boolean rightOut, boolean buildLeft) throws Exception {
-        HashJoinType type = HashJoinType.of(buildLeft, leftOut, rightOut);
-        HashJoinOperator operator = newOperator(33 * 32 * 1024, type, !buildLeft);
+        FlinkJoinType flinkJoinType = JoinUtil.getJoinType(leftOut, rightOut);
+        HashJoinType hashJoinType = HashJoinType.of(buildLeft, leftOut, rightOut);
+        HashJoinOperator operator =
+                newOperator(33 * 32 * 1024, flinkJoinType, hashJoinType, !buildLeft);
         testHarness =
                 new TwoInputStreamTaskTestHarness<>(
                         TwoInputStreamTask::new,
@@ -325,33 +335,116 @@ public class String2HashJoinOperatorTest implements Serializable {
     }
 
     private HashJoinOperator newOperator(
-            long memorySize, HashJoinType type, boolean reverseJoinFunction) {
-        return HashJoinOperator.newHashJoinOperator(
-                type,
+            long memorySize,
+            FlinkJoinType flinkJoinType,
+            HashJoinType hashJoinType,
+            boolean reverseJoinFunction) {
+        boolean buildLeft = false;
+        GeneratedJoinCondition condFuncCode =
                 new GeneratedJoinCondition("", "", new Object[0]) {
                     @Override
                     public JoinCondition newInstance(ClassLoader classLoader) {
-                        return new Int2HashJoinOperatorTest.TrueCondition();
+                        return new Int2HashJoinOperatorTestBase.TrueCondition();
                     }
-                },
+                };
+        GeneratedProjection buildProjectionCode =
+                new GeneratedProjection("", "", new Object[0]) {
+                    @Override
+                    public Projection newInstance(ClassLoader classLoader) {
+                        return new MyProjection();
+                    }
+                };
+        GeneratedProjection probeProjectionCode =
+                new GeneratedProjection("", "", new Object[0]) {
+                    @Override
+                    public Projection newInstance(ClassLoader classLoader) {
+                        return new MyProjection();
+                    }
+                };
+        GeneratedNormalizedKeyComputer computer1 =
+                new GeneratedNormalizedKeyComputer("", "") {
+                    @Override
+                    public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
+                        return new StringNormalizedKeyComputer();
+                    }
+                };
+        GeneratedRecordComparator comparator1 =
+                new GeneratedRecordComparator("", "", new Object[0]) {
+                    @Override
+                    public RecordComparator newInstance(ClassLoader classLoader) {
+                        return new StringRecordComparator();
+                    }
+                };
+
+        GeneratedNormalizedKeyComputer computer2 =
+                new GeneratedNormalizedKeyComputer("", "") {
+                    @Override
+                    public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
+                        return new StringNormalizedKeyComputer();
+                    }
+                };
+        GeneratedRecordComparator comparator2 =
+                new GeneratedRecordComparator("", "", new Object[0]) {
+                    @Override
+                    public RecordComparator newInstance(ClassLoader classLoader) {
+                        return new StringRecordComparator();
+                    }
+                };
+        GeneratedRecordComparator genKeyComparator =
+                new GeneratedRecordComparator("", "", new Object[0]) {
+                    @Override
+                    public RecordComparator newInstance(ClassLoader classLoader) {
+                        return new StringRecordComparator();
+                    }
+                };
+        boolean[] filterNulls = new boolean[] {true};
+
+        int maxNumFileHandles =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue();
+        boolean compressionEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue();
+        int compressionBlockSize =
+                (int)
+                        ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                .defaultValue()
+                                .getBytes();
+        boolean asyncMergeEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue();
+
+        SortMergeJoinFunction sortMergeJoinFunction =
+                new SortMergeJoinFunction(
+                        0,
+                        flinkJoinType,
+                        buildLeft,
+                        maxNumFileHandles,
+                        compressionEnable,
+                        compressionBlockSize,
+                        asyncMergeEnable,
+                        condFuncCode,
+                        probeProjectionCode,
+                        buildProjectionCode,
+                        computer2,
+                        comparator2,
+                        computer1,
+                        comparator1,
+                        genKeyComparator,
+                        filterNulls);
+
+        return HashJoinOperator.newHashJoinOperator(
+                hashJoinType,
+                buildLeft,
+                compressionEnable,
+                compressionBlockSize,
+                condFuncCode,
                 reverseJoinFunction,
-                new boolean[] {true},
-                new GeneratedProjection("", "", new Object[0]) {
-                    @Override
-                    public Projection newInstance(ClassLoader classLoader) {
-                        return new MyProjection();
-                    }
-                },
-                new GeneratedProjection("", "", new Object[0]) {
-                    @Override
-                    public Projection newInstance(ClassLoader classLoader) {
-                        return new MyProjection();
-                    }
-                },
+                filterNulls,
+                buildProjectionCode,
+                probeProjectionCode,
                 false,
                 20,
                 10000,
                 10000,
-                RowType.of(VarCharType.STRING_TYPE));
+                RowType.of(VarCharType.STRING_TYPE),
+                sortMergeJoinFunction);
     }
 }

@@ -54,9 +54,9 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalJoin(condition=[$4], joinType=[semi])
+LogicalJoin(condition=[true], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
-+- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $f0=[$t1])
++- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $condition=[$t1])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalCalc(expr#0=[{inputs}], expr#1=[true], i=[$t1])
          +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
@@ -83,9 +83,9 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalJoin(condition=[$4], joinType=[semi])
+LogicalJoin(condition=[true], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
-+- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $f0=[$t1])
++- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $condition=[$t1])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalCalc(expr#0=[{inputs}], expr#1=[true], i=[$t1])
          +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
@@ -131,9 +131,9 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalJoin(condition=[$4], joinType=[semi])
+LogicalJoin(condition=[true], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
-+- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $f0=[$t1])
++- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $condition=[$t1])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalCalc(expr#0=[{inputs}], expr#1=[true], i=[$t1])
          +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
@@ -160,9 +160,9 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalJoin(condition=[$4], joinType=[semi])
+LogicalJoin(condition=[true], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
-+- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $f0=[$t1])
++- LogicalCalc(expr#0=[{inputs}], expr#1=[IS NOT NULL($t0)], $condition=[$t1])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalCalc(expr#0=[{inputs}], expr#1=[true], i=[$t1])
          +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])

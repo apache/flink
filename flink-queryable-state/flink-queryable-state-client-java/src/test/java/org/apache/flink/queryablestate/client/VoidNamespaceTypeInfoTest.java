@@ -21,7 +21,7 @@ package org.apache.flink.queryablestate.client;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link VoidNamespaceTypeInfo}. */
-public class VoidNamespaceTypeInfoTest extends TypeInformationTestBase<VoidNamespaceTypeInfo> {
+class VoidNamespaceTypeInfoTest extends TypeInformationTestBase<VoidNamespaceTypeInfo> {
 
     @Override
     protected VoidNamespaceTypeInfo[] getTestData() {

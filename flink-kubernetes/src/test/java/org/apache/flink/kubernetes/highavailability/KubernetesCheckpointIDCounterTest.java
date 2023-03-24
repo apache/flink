@@ -19,25 +19,23 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletionException;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KubernetesCheckpointIDCounter} operations. */
-public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBase {
+class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBase {
 
     @Test
-    public void testGetAndIncrement() throws Exception {
+    void testGetAndIncrement() throws Exception {
         new Context() {
             {
                 runTest(
@@ -49,15 +47,15 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                                             flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
                             checkpointIDCounter.setCount(100L);
                             final long counter = checkpointIDCounter.getAndIncrement();
-                            assertThat(counter, is(100L));
-                            assertThat(checkpointIDCounter.get(), is(101L));
+                            assertThat(counter).isEqualTo(100L);
+                            assertThat(checkpointIDCounter.get()).isEqualTo(101L);
                         });
             }
         };
     }
 
     @Test
-    public void testShutdown() throws Exception {
+    void testShutdown() throws Exception {
         new Context() {
             {
                 runTest(
@@ -71,26 +69,20 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
 
                             checkpointIDCounter.setCount(100L);
 
-                            assertThat(
-                                    getLeaderConfigMap()
-                                            .getData()
-                                            .get(Constants.CHECKPOINT_COUNTER_KEY),
-                                    is("100"));
+                            assertThat(getLeaderConfigMap().getData())
+                                    .containsEntry(Constants.CHECKPOINT_COUNTER_KEY, "100");
 
                             checkpointIDCounter.shutdown(JobStatus.FINISHED).join();
 
-                            assertThat(
-                                    getLeaderConfigMap()
-                                            .getData()
-                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
-                                    is(false));
+                            assertThat(getLeaderConfigMap().getData())
+                                    .doesNotContainKey(Constants.CHECKPOINT_COUNTER_KEY);
                         });
             }
         };
     }
 
     @Test
-    public void testShutdownForLocallyTerminatedJobStatus() throws Exception {
+    void testShutdownForLocallyTerminatedJobStatus() throws Exception {
         new Context() {
             {
                 runTest(
@@ -104,26 +96,20 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
 
                             checkpointIDCounter.setCount(100L);
 
-                            assertThat(
-                                    getLeaderConfigMap()
-                                            .getData()
-                                            .get(Constants.CHECKPOINT_COUNTER_KEY),
-                                    is("100"));
+                            assertThat(getLeaderConfigMap().getData())
+                                    .containsEntry(Constants.CHECKPOINT_COUNTER_KEY, "100");
 
                             checkpointIDCounter.shutdown(JobStatus.SUSPENDED).join();
 
-                            assertThat(
-                                    getLeaderConfigMap()
-                                            .getData()
-                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
-                                    is(true));
+                            assertThat(getLeaderConfigMap().getData())
+                                    .containsKey(Constants.CHECKPOINT_COUNTER_KEY);
                         });
             }
         };
     }
 
     @Test
-    public void testIdempotentShutdown() throws Exception {
+    void testIdempotentShutdown() throws Exception {
         new Context() {
             {
                 runTest(
@@ -135,19 +121,13 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                                             flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
                             checkpointIDCounter.start();
 
-                            assertThat(
-                                    getLeaderConfigMap()
-                                            .getData()
-                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
-                                    is(false));
+                            assertThat(getLeaderConfigMap().getData())
+                                    .doesNotContainKey(Constants.CHECKPOINT_COUNTER_KEY);
 
                             checkpointIDCounter.shutdown(JobStatus.FINISHED).join();
 
-                            assertThat(
-                                    getLeaderConfigMap()
-                                            .getData()
-                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
-                                    is(false));
+                            assertThat(getLeaderConfigMap().getData())
+                                    .doesNotContainKey(Constants.CHECKPOINT_COUNTER_KEY);
 
                             // a second shutdown should work without causing any errors
                             checkpointIDCounter.shutdown(JobStatus.FINISHED).join();
@@ -157,7 +137,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testShutdownFailureDueToMissingConfigMap() throws Exception {
+    void testShutdownFailureDueToMissingConfigMap() throws Exception {
         new Context() {
             {
                 runTest(
@@ -174,10 +154,12 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                             // ConfigMap) causes an unexpected failure which we want to simulate
                             // here
                             flinkKubeClient.deleteConfigMap(LEADER_CONFIGMAP_NAME);
-
-                            assertThrows(
-                                    CompletionException.class,
-                                    () -> checkpointIDCounter.shutdown(JobStatus.FINISHED).get());
+                            assertThatThrownBy(
+                                            () ->
+                                                    checkpointIDCounter
+                                                            .shutdown(JobStatus.FINISHED)
+                                                            .get())
+                                    .satisfies(anyCauseMatches(CompletionException.class));
 
                             // fixing the internal issue should make the shutdown succeed again
                             KubernetesUtils.createConfigMapIfItDoesNotExist(
@@ -189,7 +171,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testGetAndIncrementWithNoLeadership() throws Exception {
+    void testGetAndIncrementWithNoLeadership() throws Exception {
         new Context() {
             {
                 runTest(
@@ -208,25 +190,22 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
 
-                            try {
-                                checkpointIDCounter.getAndIncrement();
-                                fail(
-                                        "We should get an exception when trying to GetAndIncrement no leadership.");
-                            } catch (Exception ex) {
-                                final String errMsg =
-                                        "Failed to update ConfigMap "
-                                                + LEADER_CONFIGMAP_NAME
-                                                + " since "
-                                                + "current KubernetesCheckpointIDCounter does not have the leadership.";
-                                assertThat(ex, FlinkMatchers.containsMessage(errMsg));
-                            }
+                            final String errMsg =
+                                    "Failed to update ConfigMap "
+                                            + LEADER_CONFIGMAP_NAME
+                                            + " since "
+                                            + "current KubernetesCheckpointIDCounter does not have the leadership.";
+                            assertThatThrownBy(
+                                            () -> checkpointIDCounter.getAndIncrement(),
+                                            "We should get an exception when trying to GetAndIncrement no leadership.")
+                                    .satisfies(anyCauseMatches(errMsg));
                         });
             }
         };
     }
 
     @Test
-    public void testSetAndGet() throws Exception {
+    void testSetAndGet() throws Exception {
         new Context() {
             {
                 runTest(
@@ -238,14 +217,14 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                                             flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
                             checkpointIDCounter.setCount(100L);
                             final long counter = checkpointIDCounter.get();
-                            assertThat(counter, is(100L));
+                            assertThat(counter).isEqualTo(100L);
                         });
             }
         };
     }
 
     @Test
-    public void testGetWhenConfigMapNotExist() throws Exception {
+    void testGetWhenConfigMapNotExist() throws Exception {
         new Context() {
             {
                 runTest(
@@ -253,23 +232,20 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                             final KubernetesCheckpointIDCounter checkpointIDCounter =
                                     new KubernetesCheckpointIDCounter(
                                             flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
-                            try {
-                                checkpointIDCounter.get();
-                                fail(
-                                        "We should get an exception when trying to get checkpoint id counter but "
-                                                + "ConfigMap does not exist.");
-                            } catch (Exception ex) {
-                                final String errMsg =
-                                        "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
-                                assertThat(ex, FlinkMatchers.containsMessage(errMsg));
-                            }
+
+                            final String errMsg =
+                                    "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
+                            assertThatThrownBy(
+                                            () -> checkpointIDCounter.get(),
+                                            "We should get an exception when trying to get checkpoint id counter but ConfigMap does not exist.")
+                                    .satisfies(anyCauseMatches(errMsg));
                         });
             }
         };
     }
 
     @Test
-    public void testSetWithNoLeadershipShouldNotBeIssued() throws Exception {
+    void testSetWithNoLeadershipShouldNotBeIssued() throws Exception {
         new Context() {
             {
                 runTest(
@@ -290,7 +266,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
 
                             checkpointIDCounter.setCount(100L);
-                            assertThat(checkpointIDCounter.get(), is(2L));
+                            assertThat(checkpointIDCounter.get()).isEqualTo(2L);
                         });
             }
         };

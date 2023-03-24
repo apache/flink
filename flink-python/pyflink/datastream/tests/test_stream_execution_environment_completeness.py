@@ -49,7 +49,9 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'socketTextStream', 'initializeContextEnvironment', 'readTextFile',
                 'setNumberOfExecutionRetries', 'executeAsync', 'registerJobListener',
                 'clearJobListeners', 'getJobListeners', 'fromSequence', 'getConfiguration',
-                'generateStreamGraph', 'getTransformations', 'areExplicitEnvironmentsAllowed'}
+                'generateStreamGraph', 'getTransformations', 'areExplicitEnvironmentsAllowed',
+                'registerCollectIterator', 'listCompletedClusterDatasets',
+                'invalidateClusterDataset', 'registerCacheTransformation', 'close'}
 
 
 if __name__ == '__main__':

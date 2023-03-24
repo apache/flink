@@ -184,8 +184,8 @@
       "filterNulls" : [ true ],
       "nonEquiCondition" : null
     },
-    "leftUniqueKeys" : [ [ 0 ] ],
-    "rightUniqueKeys" : [ [ 0 ] ],
+    "leftUpsertKeys" : [ [ 0 ] ],
+    "rightUpsertKeys" : [ [ 0 ] ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -242,6 +242,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `b1` INT>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a1, b1])"
   } ],
   "edges" : [ {

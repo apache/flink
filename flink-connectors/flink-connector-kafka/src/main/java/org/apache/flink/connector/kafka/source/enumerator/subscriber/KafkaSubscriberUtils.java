@@ -41,7 +41,7 @@ class KafkaSubscriberUtils {
     static Map<String, TopicDescription> getTopicMetadata(
             AdminClient adminClient, Set<String> topicNames) {
         try {
-            return adminClient.describeTopics(topicNames).all().get();
+            return adminClient.describeTopics(topicNames).allTopicNames().get();
         } catch (Exception e) {
             throw new RuntimeException(
                     String.format("Failed to get metadata for topics %s.", topicNames), e);

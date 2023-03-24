@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-rpc</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-rpc-akka</artifactId>
@@ -33,9 +33,9 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<akka.version>2.6.15</akka.version>
+		<akka.version>2.6.20</akka.version>
 		<scala.binary.version>2.12</scala.binary.version>
-		<scala.version>2.12.7</scala.version>
+		<scala.version>2.12.16</scala.version>
 	</properties>
 
 	<dependencies>
@@ -145,10 +145,11 @@ under the License.
 				<artifactId>scala-reflect</artifactId>
 				<version>${scala.version}</version>
 			</dependency>
+			<!-- For dependency convergence in Akka 2.6.20 -->
 			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-				<version>1.1.2</version>
+				<groupId>com.typesafe</groupId>
+				<artifactId>config</artifactId>
+				<version>1.4.2</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -193,6 +194,14 @@ under the License.
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 											 copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.scala-lang:*</artifact>
+									<excludes>
+										<!-- For deduplication purposes. -->
+										<exclude>LICENSE</exclude>
+										<exclude>NOTICE</exclude>
 									</excludes>
 								</filter>
 							</filters>

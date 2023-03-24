@@ -46,7 +46,7 @@ class RelNodeTestBase {
 
   @Before
   def setUp(): Unit = {
-    relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    relBuilder = plannerContext.createRelBuilder()
     rexBuilder = relBuilder.getRexBuilder
     cluster = relBuilder.getCluster
     logicalTraits = cluster.traitSetOf(Convention.NONE)
@@ -64,7 +64,7 @@ class RelNodeTestBase {
   def buildLogicalTableScan(
       fieldNames: Array[String],
       fieldTypes: Array[LogicalType]): LogicalTableScan = {
-    val flinkTypeFactory = new FlinkTypeFactory()
+    val flinkTypeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
     val table = new MockMetaTable(rowType, FlinkStatistic.UNKNOWN)
     LogicalTableScan.create(cluster, table, new util.ArrayList[RelHint]())

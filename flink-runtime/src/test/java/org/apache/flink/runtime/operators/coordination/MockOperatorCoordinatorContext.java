@@ -18,7 +18,10 @@ limitations under the License.
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -57,6 +60,12 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     }
 
     @Override
+    public OperatorCoordinatorMetricGroup metricGroup() {
+        return new InternalOperatorCoordinatorMetricGroup(
+                UnregisteredMetricGroups.createUnregisteredJobManagerOperatorMetricGroup());
+    }
+
+    @Override
     public void failJob(Throwable cause) {
         jobFailed = true;
         jobFailureReason = cause;
@@ -76,6 +85,11 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     @Override
     public CoordinatorStore getCoordinatorStore() {
         return coordinatorStore;
+    }
+
+    @Override
+    public boolean isConcurrentExecutionAttemptsSupported() {
+        return false;
     }
 
     // -------------------------------

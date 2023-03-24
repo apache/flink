@@ -43,7 +43,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -140,21 +139,30 @@ public class KafkaWriterITCase {
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(
                         getKafkaClientConfiguration(), DeliveryGuarantee.NONE, metricGroup)) {
-            final Counter numBytesSend = metricGroup.getNumBytesSendCounter();
-            final Counter numRecordsSend = metricGroup.getNumRecordsSendCounter();
-            final Counter numRecordsWrittenErrors = metricGroup.getNumRecordsOutErrorsCounter();
+            final Counter numBytesOut = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+            final Counter numRecordsOut = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+            final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
             final Counter numRecordsSendErrors = metricGroup.getNumRecordsSendErrorsCounter();
-            assertThat(numBytesSend.getCount()).isEqualTo(0L);
-            assertThat(numRecordsSend.getCount()).isEqualTo(0);
-            assertThat(numRecordsWrittenErrors.getCount()).isEqualTo(0);
+            assertThat(numBytesOut.getCount()).isEqualTo(0L);
+            assertThat(numRecordsOut.getCount()).isEqualTo(0);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
 
+            // elements for which the serializer returns null should be silently skipped
+            writer.write(null, SINK_WRITER_CONTEXT);
+            timeService.trigger();
+            assertThat(numBytesOut.getCount()).isEqualTo(0L);
+            assertThat(numRecordsOut.getCount()).isEqualTo(0);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
+            assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
+
+            // but elements for which a non-null producer record is returned should count
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
-            assertThat(numRecordsSend.getCount()).isEqualTo(1);
-            assertThat(numRecordsWrittenErrors.getCount()).isEqualTo(0);
+            assertThat(numRecordsOut.getCount()).isEqualTo(1);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
-            assertThat(numBytesSend.getCount()).isGreaterThan(0L);
+            assertThat(numBytesOut.getCount()).isGreaterThan(0L);
         }
     }
 
@@ -198,13 +206,10 @@ public class KafkaWriterITCase {
                 createWriterWithConfiguration(
                         properties, DeliveryGuarantee.EXACTLY_ONCE, metricGroup)) {
             final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
-            final Counter numRecordsSendErrors = metricGroup.getNumRecordsSendErrorsCounter();
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
-            assertThat(numRecordsSendErrors.getCount()).isEqualTo(0L);
 
             writer.write(1, SINK_WRITER_CONTEXT);
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
-            assertThat(numRecordsSendErrors.getCount()).isEqualTo(0L);
 
             final String transactionalId = writer.getCurrentProducer().getTransactionalId();
 
@@ -221,7 +226,6 @@ public class KafkaWriterITCase {
             writer.flush(false);
             writer.prepareCommit();
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
-            assertThat(numRecordsSendErrors.getCount()).isEqualTo(1L);
         }
     }
 
@@ -385,8 +389,7 @@ public class KafkaWriterITCase {
         config.put(configKey, configValue);
         try (final KafkaWriter<Integer> ignored =
                 createWriterWithConfiguration(config, guarantee)) {
-            Assertions.assertFalse(
-                    metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME).isPresent());
+            assertThat(metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME)).isNotPresent();
         }
     }
 
@@ -472,6 +475,11 @@ public class KafkaWriterITCase {
         }
 
         @Override
+        public int getAttemptNumber() {
+            return 0;
+        }
+
+        @Override
         public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
         }
@@ -497,6 +505,10 @@ public class KafkaWriterITCase {
         @Override
         public ProducerRecord<byte[], byte[]> serialize(
                 Integer element, KafkaSinkContext context, Long timestamp) {
+            if (element == null) {
+                // in general, serializers should be allowed to skip invalid elements
+                return null;
+            }
             return new ProducerRecord<>(topic, ByteBuffer.allocate(4).putInt(element).array());
         }
     }

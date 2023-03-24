@@ -125,4 +125,10 @@ Additionally, the RocksDB state backend relies on binary object identity, rather
 
 When Kryo is used, there is no possibility for the framework to verify if any incompatible changes have been made.
 
+{{< hint warning >}}
+This means that if a data-structure containing a given type is serialized via Kryo, then that contained type can **not** undergo schema evolution.
+
+For example, if a POJO contains a `List<SomeOtherPojo>`, then the `List` _and_ its contents are serialized via Kryo and schema evolution is **not** supported for `SomeOtherPojo`.
+{{< /hint >}}
+
 {{< top >}}

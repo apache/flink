@@ -94,7 +94,8 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .withDescription(
                             "The directory for RocksDB's information logging files. "
                                     + "If empty (Flink default setting), log files will be in the same directory as the Flink log. "
-                                    + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name.");
+                                    + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name. "
+                                    + "If setting this option as a non-existing location, e.g '/dev/null', RocksDB will then create the log under its own database folder as before.");
 
     public static final ConfigOption<InfoLogLevel> LOG_LEVEL =
             key("state.backend.rocksdb.log.level")

@@ -116,7 +116,7 @@ public class YarnConfigOptions {
                                                     + "Set this value to -1 in order to count globally. "
                                                     + "See %s for more information.",
                                             link(
-                                                    "https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/",
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Application_Attempts_API",
                                                     "here"))
                                     .build());
 
@@ -194,7 +194,7 @@ public class YarnConfigOptions {
      * unset yarn priority setting and use cluster default priority.
      *
      * @see <a
-     *     href="https://hadoop.apache.org/docs/r2.8.5/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN
+     *     href="https://hadoop.apache.org/docs/r2.10.2/hadoop-yarn/hadoop-yarn-site/CapacityScheduler.html">YARN
      *     Capacity Scheduling Doc</a>
      */
     public static final ConfigOption<Integer> APPLICATION_PRIORITY =
@@ -323,7 +323,7 @@ public class YarnConfigOptions {
                                     + " localized to. If "
                                     + SHIP_LOCAL_KEYTAB.key()
                                     + " set to "
-                                    + "true, Flink willl ship the keytab file as a YARN local "
+                                    + "true, Flink will ship the keytab file as a YARN local "
                                     + "resource. In this case, the path is relative to the local "
                                     + "resource directory. If set to false, Flink"
                                     + " will try to directly locate the keytab from the path itself.");
@@ -340,13 +340,20 @@ public class YarnConfigOptions {
                                     + "they doesn't need to be downloaded every time for each application. An example could be "
                                     + "hdfs://$namenode_address/path/of/flink/lib");
 
-    public static final ConfigOption<List<String>> YARN_ACCESS =
-            key("yarn.security.kerberos.additionalFileSystems")
+    /**
+     * Allows users to directly utilize usrlib directory in HDFS for YARN application mode. The
+     * classloader for loading jars under the usrlib will be controlled by {@link
+     * YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR}.
+     */
+    public static final ConfigOption<String> PROVIDED_USRLIB_DIR =
+            key("yarn.provided.usrlib.dir")
                     .stringType()
-                    .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
+                            "The provided usrlib directory in remote. It should be pre-uploaded and "
+                                    + "world-readable. Flink will use it to exclude the local usrlib directory(i.e. usrlib/ under the parent directory of FLINK_LIB_DIR)."
+                                    + " Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be "
+                                    + "hdfs://$namenode_address/path/of/flink/usrlib");
 
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =

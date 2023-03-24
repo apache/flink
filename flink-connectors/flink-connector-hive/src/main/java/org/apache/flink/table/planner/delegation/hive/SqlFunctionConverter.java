@@ -22,7 +22,7 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBetween;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlTimestampFunction;
+import org.apache.flink.table.planner.functions.sql.FlinkTimestampWithPrecisionDynamicFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -42,6 +42,9 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlCastFunction;
+import org.apache.calcite.sql.fun.SqlMonotonicBinaryOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
@@ -50,6 +53,7 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** A RexShuttle that converts Hive function calls so that Flink recognizes them. */
@@ -91,11 +95,14 @@ public class SqlFunctionConverter extends RexShuttle {
             RelDataType type = call.getType();
             return builder.makeCall(type, convertedOp, visitList(operands, update));
         } else {
-            if (convertedOp instanceof FlinkSqlTimestampFunction) {
-                // flink's current_timestamp has different type from hive's, convert it to a literal
+            if (convertedOp instanceof FlinkTimestampWithPrecisionDynamicFunction
+                    && convertedOp
+                            .getName()
+                            .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_TIMESTAMP.getName())) {
+                // flink's current_timestamp(no localtimestamp or now or current_row_timestamp in
+                // hive built-in functions) has different type from hive's, convert it to a literal
                 Timestamp currentTS =
-                        ((HiveParser.HiveParserSessionState) SessionState.get())
-                                .getHiveParserCurrentTS();
+                        ((HiveSessionState) SessionState.get()).getHiveParserCurrentTS();
                 HiveShim hiveShim = HiveParserUtils.getSessionHiveShim();
                 try {
                     return HiveParserRexNodeConverter.convertConstant(
@@ -103,6 +110,12 @@ public class SqlFunctionConverter extends RexShuttle {
                 } catch (SemanticException e) {
                     throw new FlinkHiveException(e);
                 }
+            } else if (convertedOp instanceof SqlMonotonicBinaryOperator
+                    && isTimeInterval(operands.get(0).getType())
+                    && isTimePoint(operands.get(1).getType())) {
+                // Flink can't handle INTERVAL + DATETIME (INTERVAL at left).
+                // so we manually switch them here
+                operands = Arrays.asList(operands.get(1), operands.get(0));
             }
             return builder.makeCall(convertedOp, visitList(operands, update));
         }
@@ -188,6 +201,23 @@ public class SqlFunctionConverter extends RexShuttle {
             return (List<RexFieldCollation>) REX_WINDOW_ORDER_KEYS.get(window);
         } catch (IllegalAccessException e) {
             throw new FlinkHiveException("Failed to get orderKeys from RexWindow", e);
+        }
+    }
+
+    private boolean isTimeInterval(RelDataType relDataType) {
+        return SqlTypeName.INTERVAL_TYPES.contains(relDataType.getSqlTypeName());
+    }
+
+    private boolean isTimePoint(RelDataType relDataType) {
+        switch (relDataType.getSqlTypeName()) {
+            case DATE:
+            case TIME:
+            case TIMESTAMP:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case TIME_WITH_LOCAL_TIME_ZONE:
+                return true;
+            default:
+                return false;
         }
     }
 }

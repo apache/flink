@@ -58,7 +58,7 @@ public class HiveTemporalJoinITCase extends TableTestBase {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         hiveCatalog = HiveTestUtils.createHiveCatalog();
 
-        hiveCatalog = HiveTestUtils.createHiveCatalog(CatalogTest.TEST_CATALOG_NAME, "3.1.2");
+        hiveCatalog = HiveTestUtils.createHiveCatalog(CatalogTest.TEST_CATALOG_NAME, "3.1.3");
 
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());

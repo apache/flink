@@ -39,6 +39,9 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.apache.flink.test.util.TestBaseUtils.checkLinesAgainstRegexp;
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** Integration test for streaming programs in Java examples. */
 public class StreamingExamplesITCase extends AbstractTestBase {
 

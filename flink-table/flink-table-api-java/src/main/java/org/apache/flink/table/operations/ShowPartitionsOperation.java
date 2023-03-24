@@ -18,19 +18,44 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW PARTITIONS statement. */
 public class ShowPartitionsOperation implements ShowOperation {
 
     protected final ObjectIdentifier tableIdentifier;
     private final CatalogPartitionSpec partitionSpec;
+    // the name for the default partition, which usually means the partition's value is null or
+    // empty string
+    @Nullable private final String defaultPartitionName;
 
     public ShowPartitionsOperation(
             ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+        this(tableIdentifier, partitionSpec, null);
+    }
+
+    public ShowPartitionsOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogPartitionSpec partitionSpec,
+            @Nullable String defaultPartitionName) {
         this.tableIdentifier = tableIdentifier;
         this.partitionSpec = partitionSpec;
+        this.defaultPartitionName = defaultPartitionName;
     }
 
     public ObjectIdentifier getTableIdentifier() {
@@ -39,6 +64,10 @@ public class ShowPartitionsOperation implements ShowOperation {
 
     public CatalogPartitionSpec getPartitionSpec() {
         return partitionSpec;
+    }
+
+    public String getDefaultPartitionName() {
+        return defaultPartitionName;
     }
 
     @Override
@@ -52,5 +81,37 @@ public class ShowPartitionsOperation implements ShowOperation {
                             " PARTITION (%s)", OperationUtils.formatPartitionSpec(partitionSpec)));
         }
         return builder.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            final ObjectPath tablePath = tableIdentifier.toObjectPath();
+            Catalog catalog =
+                    ctx.getCatalogManager()
+                            .getCatalogOrThrowException(tableIdentifier.getCatalogName());
+            List<CatalogPartitionSpec> partitionSpecs =
+                    partitionSpec == null
+                            ? catalog.listPartitions(tablePath)
+                            : catalog.listPartitions(tablePath, partitionSpec);
+            List<String> partitionNames = new ArrayList<>(partitionSpecs.size());
+            for (CatalogPartitionSpec spec : partitionSpecs) {
+                List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
+                for (Map.Entry<String, String> partitionKV : spec.getPartitionSpec().entrySet()) {
+                    String partitionValue =
+                            partitionKV.getValue() == null
+                                    ? defaultPartitionName
+                                    : partitionKV.getValue();
+                    partitionKVs.add(partitionKV.getKey() + "=" + partitionValue);
+                }
+                partitionNames.add(String.join("/", partitionKVs));
+            }
+            return buildStringArrayResult("partition name", partitionNames.toArray(new String[0]));
+        } catch (TableNotExistException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

@@ -34,7 +34,6 @@ __all__ = [
     'JsonQueryOnEmptyOrError'
 ]
 
-
 _aggregation_doc = """
 {op_desc}
 
@@ -161,7 +160,7 @@ def _make_aggregation_doc():
         Expression.sum: "Returns the sum of the numeric field across all input values. "
                         "If all values are null, null is returned.",
         Expression.sum0: "Returns the sum of the numeric field across all input values. "
-                        "If all values are null, 0 is returned.",
+                         "If all values are null, 0 is returned.",
         Expression.min: "Returns the minimum value of field across all input values.",
         Expression.max: "Returns the maximum value of field across all input values.",
         Expression.count: "Returns the number of input rows for which the field is not null.",
@@ -790,6 +789,30 @@ class Expression(Generic[T]):
         return _unary_op("avg")(self)
 
     @property
+    def first_value(self) -> 'Expression':
+        """
+        Returns the first value of field across all input values.
+        """
+        return _unary_op("firstValue")(self)
+
+    @property
+    def last_value(self) -> 'Expression':
+        """
+        Returns the last value of field across all input values.
+        """
+        return _unary_op("lastValue")(self)
+
+    def list_agg(self, separator: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+        """
+        Concatenates the values of string expressions and places separator values between them.
+        The separator is not added at the end of string. The default value of separator is ‘,’.
+        """
+        if separator is None:
+            return _unary_op("listAgg")(self)
+        else:
+            return _binary_op("listAgg")(self, separator)
+
+    @property
     def stddev_pop(self) -> 'Expression':
         return _unary_op("stddevPop")(self)
 
@@ -900,7 +923,7 @@ class Expression(Generic[T]):
         ::
 
             >>> tab.where(col("a").in_(1, 2, 3))
-            >>> table_a.where(col("x").in_(table_b.select("y")))
+            >>> table_a.where(col("x").in_(table_b.select(col("y"))))
         """
         from pyflink.table import Table
         if isinstance(first_element_or_table, Table):
@@ -1001,6 +1024,20 @@ class Expression(Generic[T]):
             return _binary_op("substring")(self, begin_index)
         else:
             return _ternary_op("substring")(self, begin_index, length)
+
+    def substr(self,
+               begin_index: Union[int, 'Expression[int]'],
+               length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+        """
+        Creates a substring of the given string at given index for a given length.
+
+        :param begin_index: first character of the substring (starting at 1, inclusive)
+        :param length: number of characters of the substring
+        """
+        if length is None:
+            return _binary_op("substr")(self, begin_index)
+        else:
+            return _ternary_op("substr")(self, begin_index, length)
 
     def trim_leading(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
@@ -1136,6 +1173,13 @@ class Expression(Generic[T]):
             return Expression(getattr(self._j_expr, "overlay")(
                 j_expr_new_string, j_expr_starting, j_expr_length))
 
+    def regexp(self, regex: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Returns True if any (possibly empty) substring matches the regular expression,
+        otherwise False. Returns None if any of arguments is None.
+        """
+        return _binary_op("regexp")(self, regex)
+
     def regexp_replace(self,
                        regex: Union[str, 'Expression[str]'],
                        replacement: Union[str, 'Expression[str]']) -> 'Expression[str]':
@@ -1145,10 +1189,9 @@ class Expression(Generic[T]):
         """
         return _ternary_op("regexpReplace")(self, regex, replacement)
 
-    def regexp_extract(
-            self,
-            regex: Union[str, 'Expression[str]'],
-            extract_index: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+    def regexp_extract(self,
+                       regex: Union[str, 'Expression[str]'],
+                       extract_index: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
         """
         Returns a string extracted with a specified regular expression and a regex match
         group index.
@@ -1171,6 +1214,71 @@ class Expression(Generic[T]):
         Returns the base64-encoded result of the input string.
         """
         return _unary_op("toBase64")(self)
+
+    @property
+    def ascii(self) -> 'Expression[int]':
+        """
+        Returns the numeric value of the first character of the input string.
+        """
+        return _unary_op("ascii")(self)
+
+    @property
+    def chr(self) -> 'Expression[str]':
+        """
+        Returns the ASCII character result of the input integer.
+        """
+        return _unary_op("chr")(self)
+
+    def decode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Decodes the first argument into a String using the provided character set.
+        """
+        return _binary_op("decode")(self, charset)
+
+    def encode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[bytes]':
+        """
+        Encodes the string into a BINARY using the provided character set.
+        """
+        return _binary_op("encode")(self, charset)
+
+    def left(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Returns the leftmost integer characters from the input string.
+        """
+        return _binary_op("left")(self, length)
+
+    def right(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Returns the rightmost integer characters from the input string.
+        """
+        return _binary_op("right")(self, length)
+
+    def instr(self, s: Union[str, 'Expression[str]']) -> 'Expression[int]':
+        """
+        Returns the position of the first occurrence in the input string.
+        """
+        return _binary_op("instr")(self, s)
+
+    def locate(self, s: Union[str, 'Expression[str]'],
+               pos: Union[int, 'Expression[int]'] = None) -> 'Expression[int]':
+        """
+        Returns the position of the first occurrence in the input string after position integer.
+        """
+        if pos is None:
+            return _binary_op("locate")(self, s)
+        else:
+            return _ternary_op("locate")(self, s, pos)
+
+    def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
+                  key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+        """
+        Parse url and return various parameter of the URL.
+        If accept any null arguments, return null.
+        """
+        if key is None:
+            return _binary_op("parseUrl")(self, part_to_extract)
+        else:
+            return _ternary_op("parseUrl")(self, part_to_extract, key)
 
     @property
     def ltrim(self) -> 'Expression[str]':
@@ -1208,6 +1316,33 @@ class Expression(Generic[T]):
             >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
         """
         return _binary_op("over")(self, alias)
+
+    @property
+    def reverse(self) -> 'Expression[str]':
+        """
+        Reverse each character in current string.
+        """
+        return _unary_op("reverse")(self)
+
+    def split_index(self, separator: Union[str, 'Expression[str]'],
+                    index: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Split target string with custom separator and pick the index-th(start with 0) result.
+        """
+        return _ternary_op("splitIndex")(self, separator, index)
+
+    def str_to_map(self, list_delimiter: Union[str, 'Expression[str]'] = None,
+                   key_value_delimiter: Union[str, 'Expression[str]'] = None) -> 'Expression[dict]':
+        """
+        Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
+        first delimiter separates pairs, and the second delimiter separates key and value. Both
+        list_delimiter and key_value_delimiter are treated as regular expressions.
+        Default delimiters are used: ',' as list_delimiter and '=' as key_value_delimiter.
+        """
+        if list_delimiter is None or key_value_delimiter is None:
+            return _unary_op("strToMap")(self)
+        else:
+            return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
 
     # ---------------------------- temporal functions ----------------------------------
 
@@ -1334,6 +1469,41 @@ class Expression(Generic[T]):
         .. seealso:: :func:`~Expression.at`, :py:attr:`~Expression.cardinality`
         """
         return _unary_op("element")(self)
+
+    def array_contains(self, needle) -> 'Expression':
+        """
+        Returns whether the given element exists in an array.
+
+        Checking for null elements in the array is supported. If the array itself is null, the
+        function will return null. The given element is cast implicitly to the array's element type
+        if necessary.
+        """
+        return _binary_op("arrayContains")(self, needle)
+
+    def array_distinct(self) -> 'Expression':
+        """
+        Returns an array with unique elements.
+        If the array itself is null, the function will return null. Keeps ordering of elements.
+        """
+        return _binary_op("arrayDistinct")(self)
+
+    @property
+    def map_keys(self) -> 'Expression':
+        """
+        Returns the keys of the map as an array. No order guaranteed.
+
+        .. seealso:: :py:attr:`~Expression.map_values`
+        """
+        return _unary_op("mapKeys")(self)
+
+    @property
+    def map_values(self) -> 'Expression':
+        """
+        Returns the values of the map as an array. No order guaranteed.
+
+        .. seealso:: :py:attr:`~Expression.map_keys`
+        """
+        return _unary_op("mapValues")(self)
 
     # ---------------------------- time definition functions -----------------------------
 

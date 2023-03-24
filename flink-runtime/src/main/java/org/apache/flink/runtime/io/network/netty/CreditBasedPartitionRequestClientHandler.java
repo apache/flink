@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
@@ -42,6 +43,8 @@ import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Channel handler to read the messages of buffer response or error response from the producer, to
@@ -73,6 +76,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
      * during releasing resources.
      */
     private volatile ChannelHandlerContext ctx;
+
+    private ConnectionID connectionID;
 
     // ------------------------------------------------------------------------
     // Input channel/receiver registration
@@ -119,19 +124,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        // Unexpected close. In normal operation, the client closes the connection after all input
-        // channels have been removed. This indicates a problem with the remote task manager.
-        if (!inputChannels.isEmpty()) {
-            final SocketAddress remoteAddr = ctx.channel().remoteAddress();
+        final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
-            notifyAllChannelsOfErrorAndClose(
-                    new RemoteTransportException(
-                            "Connection unexpectedly closed by remote task manager '"
-                                    + remoteAddr
-                                    + "'. "
-                                    + "This might indicate that the remote task manager was lost.",
-                            remoteAddr));
-        }
+        notifyAllChannelsOfErrorAndClose(
+                new RemoteTransportException(
+                        "Connection unexpectedly closed by remote task manager '"
+                                + remoteAddr
+                                + " [ "
+                                + connectionID.getResourceID().getStringWithMetadata()
+                                + " ] "
+                                + "'. "
+                                + "This might indicate that the remote task manager was lost.",
+                        remoteAddr));
 
         super.channelInactive(ctx);
     }
@@ -157,6 +161,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                         new RemoteTransportException(
                                 "Lost connection to task manager '"
                                         + remoteAddr
+                                        + " [ "
+                                        + connectionID.getResourceID().getStringWithMetadata()
+                                        + " ] "
                                         + "'. "
                                         + "This indicates that the remote task manager was lost.",
                                 remoteAddr,
@@ -166,7 +173,10 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                 tex =
                         new LocalTransportException(
                                 String.format(
-                                        "%s (connection to '%s')", cause.getMessage(), remoteAddr),
+                                        "%s (connection to '%s [%s]')",
+                                        cause.getMessage(),
+                                        remoteAddr,
+                                        connectionID.getResourceID().getStringWithMetadata()),
                                 localAddr,
                                 cause);
             }
@@ -213,6 +223,11 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
     }
 
     @Override
+    public void setConnectionId(ConnectionID connectionId) {
+        this.connectionID = checkNotNull(connectionId);
+    }
+
+    @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         writeAndFlushNextMessageIfPossible(ctx.channel());
     }
@@ -256,7 +271,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         }
     }
 
-    private void decodeMsg(Object msg) throws Throwable {
+    private void decodeMsg(Object msg) {
         final Class<?> msgClazz = msg.getClass();
 
         // ---- Buffer --------------------------------------------------------
@@ -287,7 +302,12 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             if (error.isFatalError()) {
                 notifyAllChannelsOfErrorAndClose(
                         new RemoteTransportException(
-                                "Fatal error at remote task manager '" + remoteAddr + "'.",
+                                "Fatal error at remote task manager '"
+                                        + remoteAddr
+                                        + " [ "
+                                        + connectionID.getResourceID().getStringWithMetadata()
+                                        + " ] "
+                                        + "'.",
                                 remoteAddr,
                                 error.cause));
             } else {
@@ -299,7 +319,14 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     } else {
                         inputChannel.onError(
                                 new RemoteTransportException(
-                                        "Error at remote task manager '" + remoteAddr + "'.",
+                                        "Error at remote task manager '"
+                                                + remoteAddr
+                                                + " [ "
+                                                + connectionID
+                                                        .getResourceID()
+                                                        .getStringWithMetadata()
+                                                + " ] "
+                                                + "'.",
                                         remoteAddr,
                                         error.cause));
                     }

@@ -47,7 +47,7 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
+run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence \
     -Dmaven.javadoc.skip=true -U -DskipTests | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
@@ -69,9 +69,9 @@ fi
 
 echo "============ Checking Javadocs ============"
 
-# use the same invocation as on buildbot (https://svn.apache.org/repos/infra/infrastructure/buildbot/aegis/buildmaster/master1/projects/flink.conf)
-run_mvn javadoc:aggregate -Paggregate-scaladoc -DadditionalJOption='-Xdoclint:none' \
-      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true \
+# use the same invocation as .github/workflows/docs.sh
+run_mvn javadoc:aggregate -DadditionalJOption='-Xdoclint:none' \
+      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -Drat.skip=true \
       -Dheader=someTestHeader > javadoc.out
 EXIT_CODE=$?
 if [ $EXIT_CODE != 0 ] ; then
@@ -101,10 +101,6 @@ EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_s3_fs hadoop
 EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_s3_fs presto
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 6
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 7
 EXIT_CODE=$(($EXIT_CODE+$?))
 
 echo "============ Run license check ============"

@@ -65,7 +65,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** An implementation of the KafkaServerProvider. */
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
@@ -142,15 +142,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
     private void tryDelete(AdminClient adminClient, String topic) throws Exception {
         try {
-            adminClient
-                    .deleteTopics(Collections.singleton(topic))
-                    .all()
-                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            adminClient.deleteTopics(Collections.singleton(topic)).all().get();
             CommonTestUtils.waitUtil(
                     () -> {
                         try {
-                            return adminClient.listTopics().listings()
-                                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).stream()
+                            return adminClient.listTopics().listings().get().stream()
                                     .map(TopicListing::name)
                                     .noneMatch((name) -> name.equals(topic));
                         } catch (Exception e) {
@@ -164,11 +160,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
             LOG.info(
                     "Did not receive delete topic response within {} seconds. Checking if it succeeded",
                     REQUEST_TIMEOUT_SECONDS);
-            if (adminClient
-                    .listTopics()
-                    .names()
-                    .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    .contains(topic)) {
+            if (adminClient.listTopics().names().get().contains(topic)) {
                 throw new Exception("Topic still exists after timeout", e);
             }
         }
@@ -188,7 +180,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
                             topicDescriptions =
                                     adminClient
                                             .describeTopics(Collections.singleton(topic))
-                                            .all()
+                                            .allTopicNames()
                                             .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                         } catch (Exception e) {
                             LOG.warn("Exception caught when describing Kafka topics", e);
@@ -339,7 +331,10 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     public int getLeaderToShutDown(String topic) throws Exception {
         try (final AdminClient client = AdminClient.create(getStandardProperties())) {
             TopicDescription result =
-                    client.describeTopics(Collections.singleton(topic)).all().get().get(topic);
+                    client.describeTopics(Collections.singleton(topic))
+                            .allTopicNames()
+                            .get()
+                            .get(topic);
             return result.partitions().get(0).leader().id();
         }
     }

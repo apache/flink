@@ -1,5 +1,5 @@
 ---
-title: "JAR Statements"
+title: "JAR 语句"
 weight: 16
 type: docs
 aliases:
@@ -32,10 +32,8 @@ JAR 语句用于将用户 jar 添加到 classpath、或将用户 jar 从 classpa
 
 目前 Flink SQL 支持以下 JAR 语句：
 - ADD JAR
-- REMOVE JAR
 - SHOW JARS
-
-<span class="label label-danger">注意</span> JAR 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}})。
+- REMOVE JAR
 
 <a name="run-a-jar-statement"></a>
 
@@ -53,10 +51,18 @@ JAR 语句用于将用户 jar 添加到 classpath、或将用户 jar 从 classpa
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> ADD JAR '/path/hello.jar';
-[INFO] The specified jar is added into session classloader.
+[INFO] Execute statement succeed.
+
+Flink SQL> ADD JAR 'hdfs:///udf/common-udf.jar';
+[INFO] Execute statement succeed.
 
 Flink SQL> SHOW JARS;
-/path/hello.jar
++----------------------------+
+|                       jars |
++----------------------------+
+|            /path/hello.jar |
+| hdfs:///udf/common-udf.jar |
++----------------------------+
 
 Flink SQL> REMOVE JAR '/path/hello.jar';
 [INFO] The specified jar is removed from session classloader.
@@ -72,17 +78,11 @@ Flink SQL> REMOVE JAR '/path/hello.jar';
 ADD JAR '<path_to_filename>.jar'
 ```
 
-目前只支持将本地 jar 添加到会话类类加载器（session classloader）中。
+添加一个 JAR 文件到资源列表中，该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 中。添加的 JAR 文件可以使用 [`SHOW JARS`](#show-jars) 语句列出。
 
-<a name="remove-jar"></a>
+### 限制
 
-## REMOVE JAR
-
-```sql
-REMOVE JAR '<path_to_filename>.jar'
-```
-
-目前只支持删除 [`ADD JAR`](#add-jar) 语句添加的 jar。
+请不要通过 `ADD JAR` 语句来加载 Hive 的source、sink、function、catalog。这是 Hive connector 的一个已知限制，且会在将来版本中修复。当前，建议跟随这个指南来[安装 Hive 的集成]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies)。
 
 <a name="show-jars"></a>
 
@@ -92,6 +92,18 @@ REMOVE JAR '<path_to_filename>.jar'
 SHOW JARS
 ```
 
-展示会话类类加载器（session classloader）中所有基于 [`ADD JAR`](#add-jar) 语句添加的 jar。
+展示所有通过 [`ADD JAR`](#add-jar) 语句添加的 jar。
+
+<a name="remove-jar"></a>
+
+## REMOVE JAR
+
+```sql
+REMOVE JAR '<path_to_filename>.jar'
+```
+
+删除由 [`ADD JAR`](#add-jar) 语句添加的指定 jar。
+
+<span class="label label-danger">注意</span> REMOVE JAR 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}})。
 
 {{< top >}}

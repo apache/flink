@@ -33,8 +33,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -55,8 +53,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The base class for json plan testing. */
 public abstract class JsonPlanTestBase extends AbstractTestBase {
-
-    @Rule public ExpectedException exception = ExpectedException.none();
 
     protected TableEnvironment tableEnv;
 

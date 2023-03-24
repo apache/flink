@@ -24,13 +24,12 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
 
@@ -38,8 +37,6 @@ import static org.hamcrest.Matchers.contains;
 public class CumulativeWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of(StringData.fromString("String"));
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testWindowAssignment() {
@@ -144,23 +141,32 @@ public class CumulativeWindowAssignerTest {
 
     @Test
     public void testInvalidParameters1() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("step > 0 and size > 0");
-        CumulativeWindowAssigner.of(Duration.ofSeconds(-2), Duration.ofSeconds(1));
+        assertThatThrownBy(
+                        () ->
+                                CumulativeWindowAssigner.of(
+                                        Duration.ofSeconds(-2), Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("step > 0 and size > 0");
     }
 
     @Test
     public void testInvalidParameters2() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("step > 0 and size > 0");
-        CumulativeWindowAssigner.of(Duration.ofSeconds(2), Duration.ofSeconds(-1));
+        assertThatThrownBy(
+                        () ->
+                                CumulativeWindowAssigner.of(
+                                        Duration.ofSeconds(2), Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("step > 0 and size > 0");
     }
 
     @Test
     public void testInvalidParameters3() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size must be an integral multiple of step.");
-        CumulativeWindowAssigner.of(Duration.ofSeconds(5000), Duration.ofSeconds(2000));
+        assertThatThrownBy(
+                        () ->
+                                CumulativeWindowAssigner.of(
+                                        Duration.ofSeconds(5000), Duration.ofSeconds(2000)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("size must be an integral multiple of step.");
     }
 
     @Test

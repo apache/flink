@@ -91,7 +91,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         final Transformation<?> sourceTransform = dataStream.getTransformation();
-        final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.getRelBuilder());
+        final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.createRelBuilder());
 
         final Transformation<RowData> transformation;
         // when there is row time extraction expression, we need internal conversion
@@ -108,7 +108,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                 resetElement = "";
             }
             final CodeGeneratorContext ctx =
-                    new CodeGeneratorContext(config)
+                    new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader())
                             .setOperatorBaseClass(TableStreamOperator.class);
             transformation =
                     ScanUtil.convertToInternalRow(

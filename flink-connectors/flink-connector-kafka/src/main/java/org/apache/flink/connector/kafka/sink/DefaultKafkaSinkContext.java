@@ -32,7 +32,7 @@ import java.util.Properties;
  * Context providing information to assist constructing a {@link
  * org.apache.kafka.clients.producer.ProducerRecord}.
  */
-class DefaultKafkaSinkContext implements KafkaRecordSerializationSchema.KafkaSinkContext {
+public class DefaultKafkaSinkContext implements KafkaRecordSerializationSchema.KafkaSinkContext {
 
     private final int subtaskId;
     private final int numberOfParallelInstances;

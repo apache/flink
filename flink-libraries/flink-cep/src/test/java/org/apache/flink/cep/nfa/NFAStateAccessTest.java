@@ -61,63 +61,18 @@ public class NFAStateAccessTest {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .allowCombinations()
                         .optional()
                         .followedByAny("end1")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
                         .followedByAny("end2")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedByAny("end3")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("e");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("e")));
 
         TestSharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
@@ -158,28 +113,10 @@ public class NFAStateAccessTest {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            6215754202506583964L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle1")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-                                    private static final long serialVersionUID =
-                                            2178338526904474690L;
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().startsWith("foo");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().startsWith("foo")))
                         .followedBy("middle2")
                         .where(
                                 new IterativeCondition<Event>() {
@@ -203,16 +140,7 @@ public class NFAStateAccessTest {
                                 })
                         .oneOrMore()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            562590474115118323L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         TestSharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());

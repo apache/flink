@@ -17,12 +17,15 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -52,7 +55,10 @@ public class StateChangelogStorageLoaderTest {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
         assertNotNull(
                 StateChangelogStorageLoader.load(
-                        new Configuration(), createUnregisteredTaskManagerJobMetricGroup()));
+                        JobID.generate(),
+                        new Configuration(),
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled()));
     }
 
     @Test
@@ -60,9 +66,11 @@ public class StateChangelogStorageLoaderTest {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
         assertNull(
                 StateChangelogStorageLoader.load(
+                        JobID.generate(),
                         new Configuration()
                                 .set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "not_exist"),
-                        createUnregisteredTaskManagerJobMetricGroup()));
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled()));
     }
 
     @Test
@@ -73,7 +81,10 @@ public class StateChangelogStorageLoaderTest {
         StateChangelogStorageLoader.initialize(pluginManager);
         StateChangelogStorage loaded =
                 StateChangelogStorageLoader.load(
-                        new Configuration(), createUnregisteredTaskManagerJobMetricGroup());
+                        JobID.generate(),
+                        new Configuration(),
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
         assertTrue(loaded instanceof TestStateChangelogStorage);
     }
 
@@ -114,12 +125,16 @@ public class StateChangelogStorageLoaderTest {
 
         @Override
         public StateChangelogStorage<?> createStorage(
-                Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+                JobID jobID,
+                Configuration configuration,
+                TaskManagerJobMetricGroup metricGroup,
+                LocalRecoveryConfig localRecoveryConfig) {
             return new TestStateChangelogStorage();
         }
 
         @Override
-        public StateChangelogStorageView<?> createStorageView() throws IOException {
+        public StateChangelogStorageView<?> createStorageView(Configuration configuration)
+                throws IOException {
             return new TestStateChangelogStorage();
         }
     }

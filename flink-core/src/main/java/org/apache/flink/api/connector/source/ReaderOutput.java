@@ -27,10 +27,10 @@ import org.apache.flink.api.common.eventtime.Watermark;
  * optionally watermarks, to downstream operators for message processing.
  *
  * <p>The {@code ReaderOutput} is a {@link SourceOutput} and can be used directly to emit the stream
- * of events from the source. This is recommended for source where the SourceReader processes only a
- * single split, or where NO split-specific characteristics are required (like per-split watermarks
- * and idleness, split-specific event-time skew handling, etc.). As a special case, this is true for
- * sources that are purely supporting bounded/batch data processing.
+ * of events from the source. This is recommended for sources where the SourceReader processes only
+ * a single split, or where NO split-specific characteristics are required (like per-split
+ * watermarks and idleness, split-specific event-time skew handling, etc.). As a special case, this
+ * is true for sources that only support bounded/batch data processing.
  *
  * <p>For most streaming sources, the {@code SourceReader} should use split-specific outputs, to
  * allow the processing logic to run per-split watermark generators, idleness detection, etc. To

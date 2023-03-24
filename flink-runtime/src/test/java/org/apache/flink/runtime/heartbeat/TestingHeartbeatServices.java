@@ -28,13 +28,20 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.flink.configuration.HeartbeatManagerOptions.FAILED_RPC_DETECTION_DISABLED;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link HeartbeatServices} implementation for testing purposes. This implementation is able to
  * trigger a timeout of specific component manually.
  */
-public class TestingHeartbeatServices extends HeartbeatServices {
+public class TestingHeartbeatServices implements HeartbeatServices {
+
+    /** Heartbeat interval for the created services. */
+    private final long heartbeatInterval;
+
+    /** Heartbeat timeout for the created services. */
+    private final long heartbeatTimeout;
 
     private static final long DEFAULT_HEARTBEAT_TIMEOUT = 10000L;
 
@@ -47,15 +54,16 @@ public class TestingHeartbeatServices extends HeartbeatServices {
             new ConcurrentHashMap<>();
 
     public TestingHeartbeatServices() {
-        super(DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_TIMEOUT);
+        this(DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_TIMEOUT);
     }
 
     public TestingHeartbeatServices(long heartbeatInterval) {
-        super(heartbeatInterval, DEFAULT_HEARTBEAT_TIMEOUT);
+        this(heartbeatInterval, DEFAULT_HEARTBEAT_TIMEOUT);
     }
 
     public TestingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
-        super(heartbeatInterval, heartbeatTimeout);
+        this.heartbeatInterval = heartbeatInterval;
+        this.heartbeatTimeout = heartbeatTimeout;
     }
 
     @Override
@@ -68,7 +76,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
         HeartbeatManagerImpl<I, O> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
-                        failedRpcRequestsUntilUnreachable,
+                        FAILED_RPC_DETECTION_DISABLED,
                         resourceId,
                         heartbeatListener,
                         mainThreadExecutor,
@@ -104,7 +112,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
                 new HeartbeatManagerSenderImpl<>(
                         heartbeatInterval,
                         heartbeatTimeout,
-                        failedRpcRequestsUntilUnreachable,
+                        FAILED_RPC_DETECTION_DISABLED,
                         resourceId,
                         heartbeatListener,
                         mainThreadExecutor,
@@ -199,7 +207,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
      *
      * @param <O> Type of the outgoing heartbeat payload
      */
-    static class TestingHeartbeatMonitor<O> extends HeartbeatMonitorImpl<O> {
+    static class TestingHeartbeatMonitor<O> extends DefaultHeartbeatMonitor<O> {
 
         private volatile boolean timeoutTriggered = false;
 

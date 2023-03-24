@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -34,11 +34,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link CatalogTableImpl}. */
-public class CatalogTableImpTest {
+class CatalogTableImpTest {
     private static final String TEST = "test";
 
     @Test
-    public void testToProperties() {
+    void testToProperties() {
         TableSchema schema = createTableSchema();
         Map<String, String> prop = createProperties();
         CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
@@ -50,7 +50,7 @@ public class CatalogTableImpTest {
     }
 
     @Test
-    public void testFromProperties() {
+    void testFromProperties() {
         TableSchema schema = createTableSchema();
         Map<String, String> prop = createProperties();
         CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
@@ -64,7 +64,7 @@ public class CatalogTableImpTest {
     }
 
     @Test
-    public void testNullComment() {
+    void testNullComment() {
         TableSchema schema = createTableSchema();
         Map<String, String> prop = createProperties();
         CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, null);

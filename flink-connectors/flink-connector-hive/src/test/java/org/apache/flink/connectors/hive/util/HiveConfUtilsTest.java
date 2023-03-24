@@ -19,13 +19,14 @@
 package org.apache.flink.connectors.hive.util;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveConfUtils}. */
 public class HiveConfUtilsTest {
@@ -42,17 +43,19 @@ public class HiveConfUtilsTest {
     @Test
     public void testCreateHiveConf() {
         HiveConf hiveConf = createHiveConf();
-        Assert.assertTrue(hiveConf.getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
+        assertThat(hiveConf.getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL)).isTrue();
 
         // will override configurations from `hiveConf` with hive default values which default value
         // is null or empty string
-        Assert.assertFalse(
-                new HiveConf(hiveConf, HiveConf.class)
-                        .getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
+        assertThat(
+                        new HiveConf(hiveConf, HiveConf.class)
+                                .getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL))
+                .isFalse();
 
-        Assert.assertTrue(
-                HiveConfUtils.create(hiveConf)
-                        .getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
+        assertThat(
+                        HiveConfUtils.create(hiveConf)
+                                .getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL))
+                .isTrue();
     }
 
     private HiveConf createHiveConf() {

@@ -31,7 +31,9 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
+import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -49,6 +51,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Default {@link ExecutionGraphFactory} implementation. */
 public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
 
@@ -64,6 +68,9 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
     private final JobMasterPartitionTracker jobMasterPartitionTracker;
     private final Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory;
     private final boolean isDynamicGraph;
+    private final ExecutionJobVertex.Factory executionJobVertexFactory;
+
+    private final boolean nonFinishedHybridPartitionShouldBeUnknown;
 
     public DefaultExecutionGraphFactory(
             Configuration configuration,
@@ -87,6 +94,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                 blobWriter,
                 shuffleMaster,
                 jobMasterPartitionTracker,
+                false,
+                new ExecutionJobVertex.Factory(),
                 false);
     }
 
@@ -101,7 +110,9 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             BlobWriter blobWriter,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker jobMasterPartitionTracker,
-            boolean isDynamicGraph) {
+            boolean isDynamicGraph,
+            ExecutionJobVertex.Factory executionJobVertexFactory,
+            boolean nonFinishedHybridPartitionShouldBeUnknown) {
         this.configuration = configuration;
         this.userCodeClassLoader = userCodeClassLoader;
         this.executionDeploymentTracker = executionDeploymentTracker;
@@ -120,6 +131,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                                                 WebOptions.CHECKPOINTS_HISTORY_SIZE),
                                         jobManagerJobMetricGroup));
         this.isDynamicGraph = isDynamicGraph;
+        this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
+        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
     }
 
     @Override
@@ -133,6 +146,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
             ExecutionStateUpdateListener executionStateUpdateListener,
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
             Logger log)
             throws Exception {
         ExecutionDeploymentListener executionDeploymentListener =
@@ -167,7 +181,10 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         vertexAttemptNumberStore,
                         vertexParallelismStore,
                         checkpointStatsTrackerFactory,
-                        isDynamicGraph);
+                        isDynamicGraph,
+                        executionJobVertexFactory,
+                        markPartitionFinishedStrategy,
+                        nonFinishedHybridPartitionShouldBeUnknown);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();

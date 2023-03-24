@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -60,6 +61,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -70,7 +72,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
     private static final Time testingTimeout = Time.seconds(10L);
 
     private final HeartbeatServices heartbeatServices =
-            new HeartbeatServices(Integer.MAX_VALUE, Integer.MAX_VALUE);
+            new HeartbeatServicesImpl(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
     private final TestingHighAvailabilityServices haServices =
             new TestingHighAvailabilityServices();
@@ -127,7 +129,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                     deploymentTrackerWrapper.getTaskDeploymentFuture().get();
             assertFalse(taskCancellationFuture.isDone());
 
-            ExecutionAttemptID unknownDeployment = new ExecutionAttemptID();
+            ExecutionAttemptID unknownDeployment = createExecutionAttemptId();
             //  the deployment report is missing the just deployed task, but contains the ID of some
             // other unknown deployment
             //  the job master should cancel the unknown deployment, and fail the job

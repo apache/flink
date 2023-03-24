@@ -18,14 +18,17 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.result.ChangelogResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.keymap.KeyMap;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -58,10 +61,17 @@ public class CliChangelogResultView
 
     private LocalTime lastRetrieval;
     private int scrolling;
+    private final ChangelogResult collectResult;
 
-    public CliChangelogResultView(CliClient client, ResultDescriptor resultDescriptor) {
+    public CliChangelogResultView(Terminal terminal, ResultDescriptor resultDescriptor) {
+        this(terminal, resultDescriptor, resultDescriptor.createResult());
+    }
+
+    @VisibleForTesting
+    public CliChangelogResultView(
+            Terminal terminal, ResultDescriptor resultDescriptor, ChangelogResult collectResult) {
         super(
-                client,
+                terminal,
                 resultDescriptor,
                 PrintStyle.tableauWithTypeInferredColumnWidths(
                         resultDescriptor.getResultSchema(),
@@ -69,8 +79,8 @@ public class CliChangelogResultView
                         resultDescriptor.maxColumnWidth(),
                         false,
                         true));
-
-        if (client.isPlainTerminal()) {
+        this.collectResult = collectResult;
+        if (TerminalUtils.isPlainTerminal(terminal)) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
         } else {
             refreshInterval = DEFAULT_REFRESH_INTERVAL;
@@ -85,6 +95,11 @@ public class CliChangelogResultView
     @Override
     protected String[] getRow(String[] resultRow) {
         return Arrays.copyOfRange(resultRow, 1, resultRow.length);
+    }
+
+    @Override
+    void cleanUpQuery() {
+        collectResult.close();
     }
 
     @Override
@@ -104,10 +119,7 @@ public class CliChangelogResultView
         // retrieve change record
         final TypedResult<List<RowData>> result;
         try {
-            result =
-                    client.getExecutor()
-                            .retrieveResultChanges(
-                                    client.getSessionId(), resultDescriptor.getResultId());
+            result = collectResult.retrieveChanges();
         } catch (SqlExecutionException e) {
             close(e);
             return;
@@ -155,31 +167,11 @@ public class CliChangelogResultView
         final KeyMap<ResultChangelogOperation> keys = new KeyMap<>();
         keys.setAmbiguousTimeout(200); // make ESC quicker
         keys.bind(ResultChangelogOperation.QUIT, "q", "Q", esc(), ctrl('c'));
-        keys.bind(
-                ResultChangelogOperation.REFRESH,
-                "r",
-                "R",
-                key(client.getTerminal(), Capability.key_f5));
-        keys.bind(
-                ResultChangelogOperation.UP,
-                "w",
-                "W",
-                key(client.getTerminal(), Capability.key_up));
-        keys.bind(
-                ResultChangelogOperation.DOWN,
-                "s",
-                "S",
-                key(client.getTerminal(), Capability.key_down));
-        keys.bind(
-                ResultChangelogOperation.LEFT,
-                "a",
-                "A",
-                key(client.getTerminal(), Capability.key_left));
-        keys.bind(
-                ResultChangelogOperation.RIGHT,
-                "d",
-                "D",
-                key(client.getTerminal(), Capability.key_right));
+        keys.bind(ResultChangelogOperation.REFRESH, "r", "R", key(terminal, Capability.key_f5));
+        keys.bind(ResultChangelogOperation.UP, "w", "W", key(terminal, Capability.key_up));
+        keys.bind(ResultChangelogOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
+        keys.bind(ResultChangelogOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
+        keys.bind(ResultChangelogOperation.RIGHT, "d", "D", key(terminal, Capability.key_right));
         keys.bind(ResultChangelogOperation.OPEN, "o", "O", "\r");
         keys.bind(ResultChangelogOperation.INC_REFRESH, "+");
         keys.bind(ResultChangelogOperation.DEC_REFRESH, "-");

@@ -29,7 +29,6 @@ import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,9 +47,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}. */
 public class HiveCatalogFactoryTest extends TestLogger {
@@ -80,11 +78,11 @@ public class HiveCatalogFactoryTest extends TestLogger {
                 FactoryUtil.createCatalog(
                         catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
-        assertEquals(
-                "dummy-hms",
-                ((HiveCatalog) actualCatalog)
-                        .getHiveConf()
-                        .getVar(HiveConf.ConfVars.METASTOREURIS));
+        assertThat(
+                        ((HiveCatalog) actualCatalog)
+                                .getHiveConf()
+                                .getVar(HiveConf.ConfVars.METASTOREURIS))
+                .isEqualTo("dummy-hms");
         checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
     }
 
@@ -112,7 +110,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
                         catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
         checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
-        assertEquals(mapredVal, ((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey));
+        assertThat(((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey)).isEqualTo(mapredVal);
     }
 
     @Test
@@ -120,23 +118,19 @@ public class HiveCatalogFactoryTest extends TestLogger {
         final String catalogName = "mycatalog";
 
         final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
+        options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
-        try {
-            final Map<String, String> options = new HashMap<>();
-            options.put(
-                    CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
-            options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
-            options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
-
-            final Catalog actualCatalog =
-                    FactoryUtil.createCatalog(
-                            catalogName,
-                            options,
-                            null,
-                            Thread.currentThread().getContextClassLoader());
-            Assert.fail();
-        } catch (ValidationException e) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                FactoryUtil.createCatalog(
+                                        catalogName,
+                                        options,
+                                        null,
+                                        Thread.currentThread().getContextClassLoader()))
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
@@ -188,7 +182,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
         }
         // validate the result
         for (String key : customProps.keySet()) {
-            assertEquals(customProps.get(key), hiveConf.get(key, null));
+            assertThat(hiveConf.get(key, null)).isEqualTo(customProps.get(key));
         }
     }
 
@@ -247,22 +241,22 @@ public class HiveCatalogFactoryTest extends TestLogger {
         HiveCatalog catalog2 = (HiveCatalog) future2.get();
 
         // verify we read our own props
-        assertEquals("val1", catalog1.getHiveConf().get("key"));
-        assertNotNull(catalog1.getHiveConf().get("conf1", null));
+        assertThat(catalog1.getHiveConf().get("key")).isEqualTo("val1");
+        assertThat(catalog1.getHiveConf().get("conf1", null)).isNotNull();
         // verify we don't read props from other conf
-        assertNull(catalog1.getHiveConf().get("conf2", null));
+        assertThat(catalog1.getHiveConf().get("conf2", null)).isNull();
 
         // verify we read our own props
-        assertEquals("val2", catalog2.getHiveConf().get("key"));
-        assertNotNull(catalog2.getHiveConf().get("conf2", null));
+        assertThat(catalog2.getHiveConf().get("key")).isEqualTo("val2");
+        assertThat(catalog2.getHiveConf().get("conf2", null)).isNotNull();
         // verify we don't read props from other conf
-        assertNull(catalog2.getHiveConf().get("conf1", null));
+        assertThat(catalog2.getHiveConf().get("conf1", null)).isNull();
     }
 
     private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {
         // Only assert a few selected properties for now
-        assertEquals(c1.getName(), c2.getName());
-        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
+        assertThat(c2.getName()).isEqualTo(c1.getName());
+        assertThat(c2.getDefaultDatabase()).isEqualTo(c1.getDefaultDatabase());
     }
 
     private static void writeProperty(File file, String key, String value) throws IOException {

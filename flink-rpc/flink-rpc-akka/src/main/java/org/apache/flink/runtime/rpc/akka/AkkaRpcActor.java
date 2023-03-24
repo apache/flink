@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
-import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
@@ -65,11 +65,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Akka rpc actor which receives {@link LocalRpcInvocation}, {@link RunAsync} and {@link CallAsync}
+ * Akka rpc actor which receives {@link RpcInvocation}, {@link RunAsync} and {@link CallAsync}
  * {@link ControlMessages} messages.
  *
- * <p>The {@link LocalRpcInvocation} designates a rpc and is dispatched to the given {@link
- * RpcEndpoint} instance.
+ * <p>The {@link RpcInvocation} designates a rpc and is dispatched to the given {@link RpcEndpoint}
+ * instance.
  *
  * <p>The {@link RunAsync} and {@link CallAsync} messages contain executable code which is executed
  * in the context of the actor thread.
@@ -101,6 +101,8 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 
     private final AtomicBoolean rpcEndpointStopped;
 
+    private final boolean forceSerialization;
+
     private volatile RpcEndpointTerminationResult rpcEndpointTerminationResult;
 
     @Nonnull private State state;
@@ -110,11 +112,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             final CompletableFuture<Boolean> terminationFuture,
             final int version,
             final long maximumFramesize,
+            final boolean forceSerialization,
             final ClassLoader flinkClassLoader) {
 
         checkArgument(maximumFramesize > 0, "Maximum framesize must be positive.");
         this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
         this.flinkClassLoader = checkNotNull(flinkClassLoader);
+        this.forceSerialization = forceSerialization;
         this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
         this.terminationFuture = checkNotNull(terminationFuture);
         this.version = version;
@@ -315,12 +319,14 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                     }
 
                     final String methodName = rpcMethod.getName();
+                    final boolean isLocalRpcInvocation =
+                            rpcMethod.getAnnotation(Local.class) != null;
 
                     if (result instanceof CompletableFuture) {
                         final CompletableFuture<?> responseFuture = (CompletableFuture<?>) result;
-                        sendAsyncResponse(responseFuture, methodName);
+                        sendAsyncResponse(responseFuture, methodName, isLocalRpcInvocation);
                     } else {
-                        sendSyncResponse(result, methodName);
+                        sendSyncResponse(result, methodName, isLocalRpcInvocation);
                     }
                 }
             } catch (Throwable e) {
@@ -331,8 +337,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         }
     }
 
-    private void sendSyncResponse(Object response, String methodName) {
-        if (isRemoteSender(getSender())) {
+    private void sendSyncResponse(
+            Object response, String methodName, boolean isLocalRpcInvocation) {
+        if (isRemoteSender(getSender()) || (forceSerialization && !isLocalRpcInvocation)) {
             Either<AkkaRpcSerializedValue, AkkaRpcException> serializedResult =
                     serializeRemoteResultAndVerifySize(response, methodName);
 
@@ -346,7 +353,8 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         }
     }
 
-    private void sendAsyncResponse(CompletableFuture<?> asyncResponse, String methodName) {
+    private void sendAsyncResponse(
+            CompletableFuture<?> asyncResponse, String methodName, boolean isLocalRpcInvocation) {
         final ActorRef sender = getSender();
         Promise.DefaultPromise<Object> promise = new Promise.DefaultPromise<>();
 
@@ -356,7 +364,8 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                             if (throwable != null) {
                                 promise.failure(throwable);
                             } else {
-                                if (isRemoteSender(sender)) {
+                                if (isRemoteSender(sender)
+                                        || (forceSerialization && !isLocalRpcInvocation)) {
                                     Either<AkkaRpcSerializedValue, AkkaRpcException>
                                             serializedResult =
                                                     serializeRemoteResultAndVerifySize(

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.sql.Date;
 
 /** A test for the {@link SqlDateSerializer}. */
-public class SqlDateSerializerTest extends SerializerTestBase<Date> {
+class SqlDateSerializerTest extends SerializerTestBase<Date> {
 
     @Override
     protected TypeSerializer<Date> createSerializer() {

@@ -23,8 +23,9 @@ import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
 import java.util.Arrays;
+import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JarRunRequestBody}. */
 public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequestBody> {
@@ -44,19 +45,23 @@ public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRun
                 new JobID(),
                 true,
                 "foo/bar",
-                RestoreMode.CLAIM);
+                RestoreMode.CLAIM,
+                Collections.singletonMap("key", "value"));
     }
 
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             final JarRunRequestBody expected, final JarRunRequestBody actual) {
-        assertEquals(expected.getEntryClassName(), actual.getEntryClassName());
-        assertEquals(expected.getProgramArguments(), actual.getProgramArguments());
-        assertEquals(expected.getProgramArgumentsList(), actual.getProgramArgumentsList());
-        assertEquals(expected.getParallelism(), actual.getParallelism());
-        assertEquals(expected.getJobId(), actual.getJobId());
-        assertEquals(expected.getAllowNonRestoredState(), actual.getAllowNonRestoredState());
-        assertEquals(expected.getSavepointPath(), actual.getSavepointPath());
-        assertEquals(expected.getRestoreMode(), actual.getRestoreMode());
+        assertThat(actual.getEntryClassName()).isEqualTo(expected.getEntryClassName());
+        assertThat(actual.getProgramArguments()).isEqualTo(expected.getProgramArguments());
+        assertThat(actual.getProgramArgumentsList()).isEqualTo(expected.getProgramArgumentsList());
+        assertThat(actual.getParallelism()).isEqualTo(expected.getParallelism());
+        assertThat(actual.getJobId()).isEqualTo(expected.getJobId());
+        assertThat(actual.getAllowNonRestoredState())
+                .isEqualTo(expected.getAllowNonRestoredState());
+        assertThat(actual.getSavepointPath()).isEqualTo(expected.getSavepointPath());
+        assertThat(actual.getRestoreMode()).isEqualTo(expected.getRestoreMode());
+        assertThat(actual.getFlinkConfiguration().toMap())
+                .containsExactlyEntriesOf(expected.getFlinkConfiguration().toMap());
     }
 }

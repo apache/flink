@@ -53,7 +53,8 @@ class ShellExampleTests(PyFlinkTestCase):
                                               .build())
                                       .build())
 
-        t.select(t.a + 1, t.b, t.c).execute_insert("stream_sink").wait()
+        from pyflink.table.expressions import col
+        t.select(col('a') + 1, col('b'), col('c')).execute_insert("stream_sink").wait()
 
         # verify code, do not copy these code to shell.py
         with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:

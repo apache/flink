@@ -160,11 +160,15 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         sliceAssigner,
                         aggInfoList,
                         config,
-                        planner.getRelBuilder(),
+                        planner.getFlinkContext().getClassLoader(),
+                        planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
 
         PagedTypeSerializer<RowData> keySer =
                 (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer();
@@ -185,19 +189,21 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
                 // use less memory here to let the chained head operator can have more memory
-                WINDOW_AGG_MEMORY_RATIO / 2);
+                WINDOW_AGG_MEMORY_RATIO / 2,
+                false);
     }
 
     private GeneratedNamespaceAggsHandleFunction<Long> createAggsHandler(
             SliceAssigner sliceAssigner,
             AggregateInfoList aggInfoList,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
             ZoneId shiftTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config, classLoader),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(fieldTypes),
                                 true) // copyInputField

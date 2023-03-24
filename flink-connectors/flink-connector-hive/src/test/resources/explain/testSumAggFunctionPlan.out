@@ -1,0 +1,17 @@
+== Abstract Syntax Tree ==
+LogicalProject(x=[$0], _o__c1=[$1])
++- LogicalAggregate(group=[{0}], agg#0=[sum($1)])
+   +- LogicalProject($f0=[$0], $f1=[$1])
+      +- LogicalTableScan(table=[[test-catalog, default, foo]])
+
+== Optimized Physical Plan ==
+HashAggregate(isMerge=[true], groupBy=[x], select=[x, Final_sum(sum$0, isEmpty$1) AS $f1])
++- Exchange(distribution=[hash[x]])
+   +- LocalHashAggregate(groupBy=[x], select=[x, Partial_sum(y) AS (sum$0, isEmpty$1)])
+      +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])
+
+== Optimized Execution Plan ==
+HashAggregate(isMerge=[true], groupBy=[x], select=[x, Final_sum(sum$0, isEmpty$1) AS $f1])
++- Exchange(distribution=[hash[x]])
+   +- LocalHashAggregate(groupBy=[x], select=[x, Partial_sum(y) AS (sum$0, isEmpty$1)])
+      +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])

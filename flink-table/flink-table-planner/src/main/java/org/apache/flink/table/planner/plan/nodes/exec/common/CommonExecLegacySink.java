@@ -201,7 +201,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
 
             final CodeGenOperatorFactory<T> converterOperator =
                     SinkCodeGenerator.generateRowConverterOperator(
-                            new CodeGeneratorContext(config),
+                            new CodeGeneratorContext(
+                                    config, planner.getFlinkContext().getClassLoader()),
                             convertedInputRowType,
                             tableSink,
                             physicalOutputType,
@@ -216,7 +217,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
                     createFormattedTransformationDescription(description, config),
                     converterOperator,
                     outputTypeInfo,
-                    inputTransform.getParallelism());
+                    inputTransform.getParallelism(),
+                    false);
         }
     }
 

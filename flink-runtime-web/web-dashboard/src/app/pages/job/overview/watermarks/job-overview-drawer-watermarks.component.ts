@@ -16,57 +16,81 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil } from 'rxjs/operators';
+import { of, Subject } from 'rxjs';
+import { catchError, map, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { JobService, MetricsService } from 'services';
+import {
+  HumanizeWatermarkPipe,
+  HumanizeWatermarkToDatetimePipe
+} from '@flink-runtime-web/components/humanize-watermark.pipe';
+import { MetricsService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+
+import { JobLocalService } from '../../job-local.service';
+
+interface WatermarkData {
+  subTaskIndex: number;
+  watermark: number;
+}
 
 @Component({
   selector: 'flink-job-overview-drawer-watermarks',
   templateUrl: './job-overview-drawer-watermarks.component.html',
   styleUrls: ['./job-overview-drawer-watermarks.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule],
+  standalone: true
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
-  public readonly trackBySubtaskIndex = (_: number, node: { subTaskIndex: string; watermark: number }): string =>
+  public readonly trackBySubtaskIndex = (_: number, node: { subTaskIndex: number; watermark: number }): number =>
     node.subTaskIndex;
 
-  public listOfWaterMark: Array<{ subTaskIndex: number; watermark: number }> = [];
+  public listOfWaterMark: WatermarkData[] = [];
   public isLoading = true;
+  public virtualItemSize = 36;
+  public readonly narrowLogData = typeDefinition<WatermarkData>();
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
     private readonly metricsService: MetricsService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
   public ngOnInit(): void {
-    this.jobService.jobWithVertex$
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id))
+        mergeMap(data =>
+          this.metricsService.loadWatermarks(data.job.jid, data.vertex!.id).pipe(
+            map(data => {
+              const list = [];
+              for (const key in data.watermarks) {
+                list.push({
+                  subTaskIndex: +key,
+                  watermark: data.watermarks[key]
+                } as WatermarkData);
+              }
+              return list;
+            }),
+            catchError(() => {
+              return of([] as WatermarkData[]);
+            })
+          )
+        ),
+        takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          const list = [];
-          this.isLoading = false;
-          for (const key in data.watermarks) {
-            list.push({
-              subTaskIndex: +key,
-              watermark: data.watermarks[key]
-            });
-          }
-          this.listOfWaterMark = list;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(list => {
+        this.isLoading = false;
+        this.listOfWaterMark = list;
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {

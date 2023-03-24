@@ -21,46 +21,9 @@ package org.apache.flink.architecture.common;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.Source;
-import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.core.importer.Location;
-
-import static com.tngtech.archunit.core.importer.ImportOption.Predefined.DO_NOT_INCLUDE_TESTS;
-import static com.tngtech.archunit.core.importer.ImportOption.Predefined.ONLY_INCLUDE_TESTS;
 
 /** Predicates for a {@link JavaClass}'s {@link Source}. */
 public class SourcePredicates {
-
-    /**
-     * Passes if and only if the given class is from production code.
-     *
-     * <p>This check is best-effort only.
-     */
-    public static DescribedPredicate<JavaClass> areProductionCode() {
-        return targetCode(DO_NOT_INCLUDE_TESTS, "are production code");
-    }
-
-    /**
-     * Passes if and only if the given class is from test code.
-     *
-     * <p>This check is best-effort only.
-     */
-    public static DescribedPredicate<JavaClass> areTestCode() {
-        return targetCode(ONLY_INCLUDE_TESTS, "are test code");
-    }
-
-    private static DescribedPredicate<JavaClass> targetCode(
-            ImportOption.Predefined predicates, String description) {
-        return new DescribedPredicate<JavaClass>(description) {
-            @Override
-            public boolean apply(JavaClass clazz) {
-                return clazz.getSource()
-                        .map(Source::getUri)
-                        .map(Location::of)
-                        .map(predicates::includes)
-                        .orElse(false);
-            }
-        };
-    }
 
     /**
      * Tests that a given class is a Java class.
@@ -71,7 +34,7 @@ public class SourcePredicates {
     public static DescribedPredicate<JavaClass> areJavaClasses() {
         return new DescribedPredicate<JavaClass>("are Java classes") {
             @Override
-            public boolean apply(JavaClass clazz) {
+            public boolean test(JavaClass clazz) {
                 return isJavaClass(clazz);
             }
         };
@@ -83,7 +46,7 @@ public class SourcePredicates {
      * <p>ArchUnit does not yet fully support Scala. Rules should ensure that they restrict
      * themselves to only Java classes for correct results.
      */
-    public static boolean isJavaClass(JavaClass clazz) {
+    static boolean isJavaClass(JavaClass clazz) {
         if (!clazz.getSource().isPresent()) {
             return false;
         }

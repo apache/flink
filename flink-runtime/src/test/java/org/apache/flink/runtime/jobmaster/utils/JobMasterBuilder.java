@@ -18,9 +18,12 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
+import org.apache.flink.runtime.blocklist.NoOpBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
@@ -54,7 +57,7 @@ public class JobMasterBuilder {
     private static final long heartbeatInterval = 1000L;
     private static final long heartbeatTimeout = 5_000_000L;
     private static final HeartbeatServices DEFAULT_HEARTBEAT_SERVICES =
-            new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+            new HeartbeatServicesImpl(heartbeatInterval, heartbeatTimeout);
 
     private Configuration configuration = new Configuration();
 
@@ -85,6 +88,8 @@ public class JobMasterBuilder {
             new DefaultExecutionDeploymentTracker();
     private ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory =
             DefaultExecutionDeploymentReconciler::new;
+
+    private BlocklistHandler.Factory blocklistHandlerFactory = new NoOpBlocklistHandler.Factory();
 
     public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
         TestingHighAvailabilityServices testingHighAvailabilityServices =
@@ -167,6 +172,12 @@ public class JobMasterBuilder {
         return this;
     }
 
+    public JobMasterBuilder withBlocklistHandlerFactory(
+            BlocklistHandler.Factory blocklistHandlerFactory) {
+        this.blocklistHandlerFactory = blocklistHandlerFactory;
+        return this;
+    }
+
     public JobMasterBuilder withJobMasterId(JobMasterId jobMasterId) {
         this.jobMasterId = jobMasterId;
         return this;
@@ -186,7 +197,7 @@ public class JobMasterBuilder {
                 slotPoolServiceSchedulerFactory != null
                         ? slotPoolServiceSchedulerFactory
                         : DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                                configuration, jobGraph.getJobType()),
+                                configuration, jobGraph.getJobType(), jobGraph.isDynamic()),
                 jobManagerSharedServices != null
                         ? jobManagerSharedServices
                         : new TestingJobManagerSharedServicesBuilder().build(),
@@ -199,6 +210,7 @@ public class JobMasterBuilder {
                 partitionTrackerFactory,
                 executionDeploymentTracker,
                 executionDeploymentReconcilerFactory,
+                blocklistHandlerFactory,
                 System.currentTimeMillis());
     }
 

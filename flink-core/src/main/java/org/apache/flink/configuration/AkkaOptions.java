@@ -35,7 +35,7 @@ public class AkkaOptions {
 
     @Internal
     @Documentation.ExcludeFromDocumentation("Internal use only")
-    private static final ConfigOption<Boolean> FORCE_RPC_INVOCATION_SERIALIZATION =
+    public static final ConfigOption<Boolean> FORCE_RPC_INVOCATION_SERIALIZATION =
             ConfigOptions.key("akka.rpc.force-invocation-serialization")
                     .booleanType()
                     .defaultValue(false)
@@ -49,8 +49,11 @@ public class AkkaOptions {
                                     .build());
 
     public static boolean isForceRpcInvocationSerializationEnabled(Configuration config) {
-        return config.get(FORCE_RPC_INVOCATION_SERIALIZATION)
-                || System.getProperties().containsKey(FORCE_RPC_INVOCATION_SERIALIZATION.key());
+        return config.getOptional(FORCE_RPC_INVOCATION_SERIALIZATION)
+                .orElse(
+                        FORCE_RPC_INVOCATION_SERIALIZATION.defaultValue()
+                                || System.getProperties()
+                                        .containsKey(FORCE_RPC_INVOCATION_SERIALIZATION.key()));
     }
 
     /** Flag whether to capture call stacks for RPC ask calls. */

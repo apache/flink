@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.operators.testutils.types;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -119,7 +119,7 @@ public class IntListSerializer extends TypeSerializer<IntList> {
     }
 
     @Override
-    public TypeSerializerConfigSnapshot<IntList> snapshotConfiguration() {
+    public TypeSerializerSnapshot<IntList> snapshotConfiguration() {
         throw new UnsupportedOperationException();
     }
 }

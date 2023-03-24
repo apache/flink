@@ -49,7 +49,8 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUt
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Upsert-kafka IT cases. */
 @RunWith(Parameterized.class)
@@ -187,7 +188,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 LocalDateTime.parse("2020-03-11T13:12:11.120"),
                                 "payload"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -285,7 +286,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 42,
                                 "payload"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -380,7 +381,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 100L,
                                 "payload"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -782,7 +783,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
         // we ignore the orders for easier comparing, as we already verified ordering in
         // testAggregate()
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
     }
 
     private void temporalJoinUpsertKafka(String userTable) throws Exception {
@@ -876,6 +877,6 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                         format, userTable)),
                         7);
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
     }
 }

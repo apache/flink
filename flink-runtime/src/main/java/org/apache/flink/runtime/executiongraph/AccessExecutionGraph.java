@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
 
@@ -175,4 +176,18 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return The checkpoint storage name, or an empty Optional in the case of batch jobs
      */
     Optional<String> getCheckpointStorageName();
+
+    /**
+     * Returns whether the state changelog is enabled for this ExecutionGraph.
+     *
+     * @return true, if state changelog enabled, false otherwise.
+     */
+    TernaryBoolean isChangelogStateBackendEnabled();
+
+    /**
+     * Returns the changelog storage name for this ExecutionGraph.
+     *
+     * @return The changelog storage name, or an empty Optional in the case of batch jobs
+     */
+    Optional<String> getChangelogStorageName();
 }

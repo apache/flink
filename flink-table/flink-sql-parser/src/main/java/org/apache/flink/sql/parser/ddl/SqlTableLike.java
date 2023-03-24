@@ -223,6 +223,9 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("LIKE");
         sourceTable.unparse(writer, leftPrec, rightPrec);
+        if (options == null || options.isEmpty()) {
+            return;
+        }
         SqlWriter.Frame frame = writer.startList("(", ")");
         for (SqlTableLikeOption option : options) {
             writer.newlineAndIndent();

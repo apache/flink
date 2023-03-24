@@ -20,10 +20,35 @@ from functools import reduce
 from itertools import chain
 from typing import Tuple
 
+from pyflink import fn_execution
+
+if fn_execution.PYFLINK_CYTHON_ENABLED:
+    try:
+        from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
+            SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+            SimpleTableAggsHandleFunction, GroupTableAggFunction
+        from pyflink.fn_execution.table.window_aggregate_fast import \
+            SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+        from pyflink.fn_execution.coder_impl_fast import InternalRow
+    except:
+        from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
+            SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+            SimpleTableAggsHandleFunction, GroupTableAggFunction
+        from pyflink.fn_execution.table.window_aggregate_slow import \
+            SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+        fn_execution.PYFLINK_CYTHON_ENABLED = False
+else:
+    from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
+        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+        SimpleTableAggsHandleFunction, GroupTableAggFunction
+    from pyflink.fn_execution.table.window_aggregate_slow import \
+        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+
 from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
-from pyflink.fn_execution.datastream.timerservice_impl import TimerOperandType, InternalTimerImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import (
+    TimerOperandType, InternalTimerImpl)
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
 
 from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
@@ -33,22 +58,8 @@ from pyflink.fn_execution.table.window_trigger import EventTimeTrigger, Processi
     CountTrigger
 from pyflink.fn_execution.utils import operation_utils
 from pyflink.fn_execution.utils.operation_utils import extract_user_defined_aggregate_function
+from pyflink.fn_execution.metrics.process.metric_impl import GenericMetricGroup
 
-try:
-    from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
-        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-        SimpleTableAggsHandleFunction, GroupTableAggFunction
-    from pyflink.fn_execution.table.window_aggregate_fast import \
-        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
-    from pyflink.fn_execution.coder_impl_fast import InternalRow
-    has_cython = True
-except ImportError:
-    from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
-        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-        SimpleTableAggsHandleFunction, GroupTableAggFunction
-    from pyflink.fn_execution.table.window_aggregate_slow import \
-        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
-    has_cython = False
 
 from pyflink.table import FunctionContext, Row
 
@@ -76,8 +87,24 @@ class BundleOperation(object):
 
 class BaseOperation(Operation):
     def __init__(self, serialized_fn):
-        super(BaseOperation, self).__init__(serialized_fn)
+        if serialized_fn.metric_enabled:
+            self.base_metric_group = GenericMetricGroup(None, None)
+        else:
+            self.base_metric_group = None
         self.func, self.user_defined_funcs = self.generate_func(serialized_fn)
+        self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
+
+    def finish(self):
+        self._update_gauge(self.base_metric_group)
+
+    def _update_gauge(self, base_metric_group):
+        if base_metric_group is not None:
+            for name in base_metric_group._flink_gauge:
+                flink_gauge = base_metric_group._flink_gauge[name]
+                beam_gauge = base_metric_group._beam_gauge[name]
+                beam_gauge.set(flink_gauge())
+            for sub_group in base_metric_group._sub_groups:
+                self._update_gauge(sub_group)
 
     def process_element(self, value):
         return self.func(value)
@@ -85,7 +112,7 @@ class BaseOperation(Operation):
     def open(self):
         for user_defined_func in self.user_defined_funcs:
             if hasattr(user_defined_func, 'open'):
-                user_defined_func.open(FunctionContext(self.base_metric_group))
+                user_defined_func.open(FunctionContext(self.base_metric_group, self.job_parameters))
 
     def close(self):
         for user_defined_func in self.user_defined_funcs:
@@ -180,9 +207,9 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
         bounded_range_window_nums = 0
         for i, window in enumerate(self.windows):
             window_type = window.window_type
-            if (window_type is window_types.RANGE_UNBOUNDED_PRECEDING) or (
-                    window_type is window_types.RANGE_UNBOUNDED_FOLLOWING) or (
-                    window_type is window_types.RANGE_SLIDING):
+            if (window_type == window_types.RANGE_UNBOUNDED_PRECEDING) or (
+                    window_type == window_types.RANGE_UNBOUNDED_FOLLOWING) or (
+                    window_type == window_types.RANGE_SLIDING):
                 self.bounded_range_window_index[i] = bounded_range_window_nums
                 self.is_bounded_range_window.append(True)
                 bounded_range_window_nums += 1
@@ -221,13 +248,13 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
             if self.is_bounded_range_window[window_index]:
                 window_boundaries = boundaries_series[
                     self.bounded_range_window_index[window_index]]
-                if window_type is OverWindow.RANGE_UNBOUNDED_PRECEDING:
+                if window_type == OverWindow.RANGE_UNBOUNDED_PRECEDING:
                     # range unbounded preceding window
                     for j in range(input_cnt):
                         end = window_boundaries[j]
                         series_slices = [s.iloc[:end] for s in input_series]
                         result.append(func(series_slices))
-                elif window_type is OverWindow.RANGE_UNBOUNDED_FOLLOWING:
+                elif window_type == OverWindow.RANGE_UNBOUNDED_FOLLOWING:
                     # range unbounded following window
                     for j in range(input_cnt):
                         start = window_boundaries[j]
@@ -242,19 +269,19 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
                         result.append(func(series_slices))
             else:
                 # unbounded range window or unbounded row window
-                if (window_type is OverWindow.RANGE_UNBOUNDED) or (
-                        window_type is OverWindow.ROW_UNBOUNDED):
+                if (window_type == OverWindow.RANGE_UNBOUNDED) or (
+                        window_type == OverWindow.ROW_UNBOUNDED):
                     series_slices = [s.iloc[:] for s in input_series]
                     func_result = func(series_slices)
                     result = [func_result for _ in range(input_cnt)]
-                elif window_type is OverWindow.ROW_UNBOUNDED_PRECEDING:
+                elif window_type == OverWindow.ROW_UNBOUNDED_PRECEDING:
                     # row unbounded preceding window
                     window_end = window.upper_boundary
                     for j in range(input_cnt):
                         end = min(j + window_end + 1, input_cnt)
                         series_slices = [s.iloc[: end] for s in input_series]
                         result.append(func(series_slices))
-                elif window_type is OverWindow.ROW_UNBOUNDED_FOLLOWING:
+                elif window_type == OverWindow.ROW_UNBOUNDED_FOLLOWING:
                     # row unbounded following window
                     window_start = window.lower_boundary
                     for j in range(input_cnt):
@@ -306,11 +333,12 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         self.state_cache_size = serialized_fn.state_cache_size
         self.state_cleaning_enabled = serialized_fn.state_cleaning_enabled
         self.data_view_specs = extract_data_view_specs(serialized_fn.udfs)
+        self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
         super(AbstractStreamGroupAggregateOperation, self).__init__(
             serialized_fn, keyed_state_backend)
 
     def open(self):
-        self.group_agg_function.open(FunctionContext(self.base_metric_group))
+        self.group_agg_function.open(FunctionContext(self.base_metric_group, self.job_parameters))
 
     def close(self):
         self.group_agg_function.close()
@@ -359,13 +387,13 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
         # all the fields are nullable except the "element_type"
         if input_data[0] == NORMAL_RECORD:
-            if has_cython:
+            if fn_execution.PYFLINK_CYTHON_ENABLED:
                 row = InternalRow.from_row(input_data[1])
             else:
                 row = input_data[1]
             self.group_agg_function.process_element(row)
         else:
-            if has_cython:
+            if fn_execution.PYFLINK_CYTHON_ENABLED:
                 timer = InternalRow.from_row(input_data[3])
             else:
                 timer = input_data[3]
@@ -502,7 +530,7 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
     def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
         if input_data[0] == NORMAL_RECORD:
             self.group_agg_function.process_watermark(input_data[3])
-            if has_cython:
+            if fn_execution.PYFLINK_CYTHON_ENABLED:
                 input_row = InternalRow.from_row(input_data[1])
             else:
                 input_row = input_data[1]

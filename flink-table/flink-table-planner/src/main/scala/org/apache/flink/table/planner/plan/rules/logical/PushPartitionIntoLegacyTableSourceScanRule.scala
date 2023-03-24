@@ -40,8 +40,8 @@ import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle, RexUtil}
 import java.util
 import java.util.TimeZone
 
+import scala.collection.{mutable, JavaConversions}
 import scala.collection.JavaConversions._
-import scala.collection.mutable
 
 /**
  * Planner rule that tries to push partitions evaluated by filter condition into a
@@ -140,6 +140,7 @@ class PushPartitionIntoLegacyTableSourceScanRule
       )
       PartitionPruner.prunePartitions(
         tableConfig,
+        context.getClassLoader,
         partitionFieldNames,
         partitionFieldTypes,
         allPartitions,
@@ -204,7 +205,9 @@ class PushPartitionIntoLegacyTableSourceScanRule
                   if (stats == null) {
                     stats = currStats
                   } else {
-                    stats = stats.merge(currStats)
+                    stats = stats.merge(
+                      currStats,
+                      JavaConversions.setAsJavaSet(partitionFieldNames.toSet))
                   }
                 case None => return null
               }

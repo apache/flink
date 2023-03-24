@@ -30,7 +30,7 @@ import java.io._
 import java.net.{URL, URLClassLoader}
 
 import scala.reflect.NameTransformer
-import scala.tools.nsc.{GenericRunnerSettings, Global}
+import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
 
 class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLike {
@@ -125,10 +125,7 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
 
     val baos = new ByteArrayOutputStream()
     val output = new DataOutputViewStreamWrapper(baos)
-    TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-      output,
-      snapshot,
-      enumValueSerializer)
+    TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(output, snapshot)
 
     output.close()
     baos.close()
@@ -138,10 +135,8 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
 
     val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
 
-    val snapshot2 = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-      input,
-      classLoader2,
-      enumValueSerializer)
+    val snapshot2 = TypeSerializerSnapshotSerializationUtil
+      .readSerializerSnapshot[Enumeration#Value](input, classLoader2)
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)
@@ -177,10 +172,7 @@ object EnumValueSerializerCompatibilityTest {
   }
 
   def compileScalaFile(file: File): Unit = {
-    val in = new BufferedReader(new StringReader(""))
-    val out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out)))
-
-    val settings = new GenericRunnerSettings(out.println _)
+    val settings = new Settings()
 
     // use the java classpath so that scala libraries are available to the compiler
     settings.usejavacp.value = true
@@ -192,6 +184,9 @@ object EnumValueSerializerCompatibilityTest {
 
     run.compile(List(file.getAbsolutePath))
 
-    reporter.printSummary()
+    if (reporter.hasWarnings || reporter.hasErrors) {
+      reporter.finish()
+      fail("Scala compiler reported warnings or errors")
+    }
   }
 }

@@ -21,42 +21,43 @@ package org.apache.flink.runtime.webmonitor.threadinfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
+import org.apache.flink.runtime.taskexecutor.IdleTestTask;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.util.JvmUtils;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.emptyArray;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.runtime.taskexecutor.IdleTestTask.executeWithTerminationGuarantee;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ThreadInfoRequestCoordinator}. */
-public class ThreadInfoRequestCoordinatorTest extends TestLogger {
+class ThreadInfoRequestCoordinatorTest {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofMillis(100);
     private static final String REQUEST_TIMEOUT_MESSAGE = "Request timeout.";
@@ -68,94 +69,90 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
     private static ScheduledExecutorService executorService;
     private ThreadInfoRequestCoordinator coordinator;
 
-    @Rule public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
-
-    @BeforeClass
-    public static void setUp() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         executorService = new ScheduledThreadPoolExecutor(1);
     }
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    @AfterAll
+    static void tearDown() throws Exception {
         if (executorService != null) {
             executorService.shutdown();
         }
     }
 
-    @Before
-    public void initCoordinator() throws Exception {
+    @BeforeEach
+    void initCoordinator() {
         coordinator = new ThreadInfoRequestCoordinator(executorService, REQUEST_TIMEOUT);
     }
 
-    @After
-    public void shutdownCoordinator() throws Exception {
+    @AfterEach
+    void shutdownCoordinator() {
         if (coordinator != null) {
             // verify no more pending request
-            assertEquals(0, coordinator.getNumberOfPendingRequests());
+            assertThat(coordinator.getNumberOfPendingRequests()).isZero();
             coordinator.shutDown();
         }
     }
 
     /** Tests successful thread info stats request. */
     @Test
-    public void testSuccessfulThreadInfoRequest() throws Exception {
-        Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+    void testSuccessfulThreadInfoRequest() throws Exception {
+        Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.SUCCESSFULLY);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture =
+        CompletableFuture<VertexThreadInfoStats> requestFuture =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        JobVertexThreadInfoStats threadInfoStats = requestFuture.get();
+        VertexThreadInfoStats threadInfoStats = requestFuture.get();
 
         // verify the request result
-        assertEquals(0, threadInfoStats.getRequestId());
+        assertThat(threadInfoStats.getRequestId()).isEqualTo(0);
 
-        Map<ExecutionAttemptID, List<ThreadInfoSample>> samplesBySubtask =
+        Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samplesBySubtask =
                 threadInfoStats.getSamplesBySubtask();
 
-        for (List<ThreadInfoSample> result : samplesBySubtask.values()) {
-            assertThat(result.get(0).getStackTrace(), not(emptyArray()));
+        for (Collection<ThreadInfoSample> result : samplesBySubtask.values()) {
+            StackTraceElement[] stackTrace = result.iterator().next().getStackTrace();
+            assertThat(stackTrace).isNotEmpty();
         }
     }
 
     /** Tests that failed thread info request to one of the tasks fails the future. */
     @Test
-    public void testThreadInfoRequestWithException() throws Exception {
-        Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+    void testThreadInfoRequestWithException() throws Exception {
+        Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.EXCEPTIONALLY);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture =
+        CompletableFuture<VertexThreadInfoStats> requestFuture =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        try {
-            requestFuture.get();
-            fail("Exception expected.");
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof RuntimeException);
-        }
+        assertThatThrownBy(requestFuture::get, "The request must be failed.")
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(RuntimeException.class);
     }
 
     /** Tests that thread info stats request times out if not finished in time. */
     @Test
-    public void testThreadInfoRequestTimeout() throws Exception {
-        Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+    void testThreadInfoRequestTimeout() throws Exception {
+        Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
                                 CompletionType.SUCCESSFULLY, CompletionType.TIMEOUT);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture =
+        CompletableFuture<VertexThreadInfoStats> requestFuture =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
@@ -163,12 +160,8 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
         try {
-            requestFuture.get();
-            fail("Exception expected.");
-        } catch (ExecutionException e) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(e, REQUEST_TIMEOUT_MESSAGE)
-                            .isPresent());
+            assertThatThrownBy(requestFuture::get, "The request must be failed.")
+                    .satisfies(anyCauseMatches(REQUEST_TIMEOUT_MESSAGE));
         } finally {
             coordinator.shutDown();
         }
@@ -176,22 +169,24 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
 
     /** Tests that shutdown fails all pending requests and future request triggers. */
     @Test
-    public void testShutDown() throws Exception {
-        Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+    void testShutDown() throws Exception {
+        Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                 executionWithGateways =
                         createMockSubtaskWithGateways(
-                                CompletionType.SUCCESSFULLY, CompletionType.TIMEOUT);
+                                // request future will only be completed after all gateways
+                                // successfully return thread infos.
+                                CompletionType.SUCCESSFULLY, CompletionType.NEVER_COMPLETE);
 
-        List<CompletableFuture<JobVertexThreadInfoStats>> requestFutures = new ArrayList<>();
+        List<CompletableFuture<VertexThreadInfoStats>> requestFutures = new ArrayList<>();
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture1 =
+        CompletableFuture<VertexThreadInfoStats> requestFuture1 =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        CompletableFuture<JobVertexThreadInfoStats> requestFuture2 =
+        CompletableFuture<VertexThreadInfoStats> requestFuture2 =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
@@ -202,39 +197,63 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         requestFutures.add(requestFuture1);
         requestFutures.add(requestFuture2);
 
-        for (CompletableFuture<JobVertexThreadInfoStats> future : requestFutures) {
-            assertFalse(future.isDone());
+        for (CompletableFuture<VertexThreadInfoStats> future : requestFutures) {
+            assertThat(future).isNotDone();
         }
 
         // shut down
         coordinator.shutDown();
 
         // verify all completed
-        for (CompletableFuture<JobVertexThreadInfoStats> future : requestFutures) {
-            assertTrue(future.isCompletedExceptionally());
+        for (CompletableFuture<VertexThreadInfoStats> future : requestFutures) {
+            assertThat(future).isCompletedExceptionally();
         }
 
         // verify new trigger returns failed future
-        CompletableFuture<JobVertexThreadInfoStats> future =
+        CompletableFuture<VertexThreadInfoStats> future =
                 coordinator.triggerThreadInfoRequest(
                         executionWithGateways,
                         DEFAULT_NUMBER_OF_SAMPLES,
                         DEFAULT_DELAY_BETWEEN_SAMPLES,
                         DEFAULT_MAX_STACK_TRACE_DEPTH);
 
-        assertTrue(future.isCompletedExceptionally());
+        assertThat(future).isCompletedExceptionally();
     }
 
     private static CompletableFuture<TaskExecutorThreadInfoGateway> createMockTaskManagerGateway(
-            CompletionType completionType) {
+            CompletionType completionType) throws Exception {
 
         final CompletableFuture<TaskThreadInfoResponse> responseFuture = new CompletableFuture<>();
         switch (completionType) {
             case SUCCESSFULLY:
-                ThreadInfoSample sample =
-                        JvmUtils.createThreadInfoSample(Thread.currentThread().getId(), 100).get();
-                responseFuture.complete(
-                        new TaskThreadInfoResponse(Collections.singletonList(sample)));
+                Set<IdleTestTask> tasks = new HashSet<>();
+                executeWithTerminationGuarantee(
+                        () -> {
+                            tasks.add(new IdleTestTask());
+                            tasks.add(new IdleTestTask());
+                            Map<Long, ExecutionAttemptID> threads =
+                                    tasks.stream()
+                                            .collect(
+                                                    Collectors.toMap(
+                                                            task ->
+                                                                    task.getExecutingThread()
+                                                                            .getId(),
+                                                            IdleTestTask::getExecutionId));
+
+                            Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSample =
+                                    JvmUtils.createThreadInfoSample(threads.keySet(), 100)
+                                            .entrySet().stream()
+                                            .collect(
+                                                    Collectors.toMap(
+                                                            entry -> threads.get(entry.getKey()),
+                                                            entry ->
+                                                                    Collections.singletonList(
+                                                                            entry.getValue())));
+
+                            responseFuture.complete(new TaskThreadInfoResponse(threadInfoSample));
+                        },
+                        tasks);
+
                 break;
             case EXCEPTIONALLY:
                 responseFuture.completeExceptionally(new RuntimeException("Request failed."));
@@ -260,12 +279,18 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         return CompletableFuture.completedFuture(executorGateway);
     }
 
-    private static Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
-            createMockSubtaskWithGateways(CompletionType... completionTypes) {
-        final Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>> result =
-                new HashMap<>();
+    private static Map<
+                    ImmutableSet<ExecutionAttemptID>,
+                    CompletableFuture<TaskExecutorThreadInfoGateway>>
+            createMockSubtaskWithGateways(CompletionType... completionTypes) throws Exception {
+        final Map<
+                        ImmutableSet<ExecutionAttemptID>,
+                        CompletableFuture<TaskExecutorThreadInfoGateway>>
+                result = new HashMap<>();
         for (CompletionType completionType : completionTypes) {
-            result.put(new ExecutionAttemptID(), createMockTaskManagerGateway(completionType));
+            ImmutableSet<ExecutionAttemptID> ids =
+                    ImmutableSet.of(createExecutionAttemptId(), createExecutionAttemptId());
+            result.put(ids, createMockTaskManagerGateway(completionType));
         }
         return result;
     }

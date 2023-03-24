@@ -266,7 +266,6 @@ class OverAggregateITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationRank2(): Unit = {
-
     checkResult(
       "SELECT d, e, rank() over (order by e desc), dense_rank() over (order by e desc) FROM Table5",
       Seq(
@@ -2758,6 +2757,151 @@ class OverAggregateITCase extends BatchTestBase {
     checkResult(
       "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
       Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
+  }
+
+  @Test
+  def testCumeDist(): Unit = {
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by e desc)," +
+        " CUME_DIST() over (partition by d order by e) " +
+        " FROM Table5",
+      Seq(
+        row(0, 1.0, 1.0),
+        row(1, 0.9333333333333333, 0.5),
+        row(2, 0.8666666666666667, 1.0),
+        row(3, 0.8, 0.3333333333333333),
+        row(4, 0.7333333333333333, 0.6666666666666666),
+        row(5, 0.6666666666666666, 1.0),
+        row(6, 0.6, 0.25),
+        row(7, 0.5333333333333333, 0.5),
+        row(8, 0.4666666666666667, 0.75),
+        row(9, 0.4, 1.0),
+        row(10, 0.3333333333333333, 0.2),
+        row(11, 0.26666666666666666, 0.4),
+        row(12, 0.2, 0.6),
+        row(13, 0.13333333333333333, 0.8),
+        row(14, 0.06666666666666667, 1.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by d), CUME_DIST() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(13, 1.0, 0.3333333333333333),
+        row(12, 1.0, 0.3333333333333333),
+        row(14, 1.0, 0.3333333333333333),
+        row(11, 1.0, 0.3333333333333333),
+        row(10, 1.0, 0.3333333333333333),
+        row(9, 0.6666666666666666, 0.6),
+        row(6, 0.6666666666666666, 0.6),
+        row(8, 0.6666666666666666, 0.6),
+        row(7, 0.6666666666666666, 0.6),
+        row(4, 0.4, 0.8),
+        row(5, 0.4, 0.8),
+        row(3, 0.4, 0.8),
+        row(1, 0.2, 0.9333333333333333),
+        row(2, 0.2, 0.9333333333333333),
+        row(0, 0.06666666666666667, 1.0)
+      )
+    )
+  }
+
+  @Test
+  def testPercentRank(): Unit = {
+    checkResult(
+      "SELECT f, PERCENT_RANK() over (order by e desc)," +
+        "PERCENT_RANK() over (partition by d order by e) FROM Table5",
+      Seq(
+        row(14, 0.0, 1.0),
+        row(13, 0.07142857142857142, 0.75),
+        row(12, 0.14285714285714285, 0.5),
+        row(11, 0.21428571428571427, 0.25),
+        row(10, 0.2857142857142857, 0.0),
+        row(9, 0.35714285714285715, 1.0),
+        row(8, 0.42857142857142855, 0.6666666666666666),
+        row(7, 0.5, 0.3333333333333333),
+        row(6, 0.5714285714285714, 0.0),
+        row(5, 0.6428571428571429, 1.0),
+        row(4, 0.7142857142857143, 0.5),
+        row(3, 0.7857142857142857, 0.0),
+        row(2, 0.8571428571428571, 1.0),
+        row(1, 0.9285714285714286, 0.0),
+        row(0, 1.0, 0.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, PERCENT_RANK() over (order by d), PERCENT_RANK() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(0, 0.0, 1.0),
+        row(1, 0.07142857142857142, 0.8571428571428571),
+        row(2, 0.07142857142857142, 0.8571428571428571),
+        row(3, 0.21428571428571427, 0.6428571428571429),
+        row(4, 0.21428571428571427, 0.6428571428571429),
+        row(5, 0.21428571428571427, 0.6428571428571429),
+        row(6, 0.42857142857142855, 0.35714285714285715),
+        row(7, 0.42857142857142855, 0.35714285714285715),
+        row(8, 0.42857142857142855, 0.35714285714285715),
+        row(9, 0.42857142857142855, 0.35714285714285715),
+        row(10, 0.7142857142857143, 0.0),
+        row(11, 0.7142857142857143, 0.0),
+        row(12, 0.7142857142857143, 0.0),
+        row(13, 0.7142857142857143, 0.0),
+        row(14, 0.7142857142857143, 0.0)
+      )
+    )
+  }
+
+  @Test
+  def testNTILE(): Unit = {
+    checkResult(
+      "SELECT f, NTILE(4) over (order by e)," +
+        " NTILE(3) over (partition by d order by e desc) FROM Table5",
+      Seq(
+        row(0, 1, 1),
+        row(1, 1, 2),
+        row(2, 1, 1),
+        row(3, 1, 3),
+        row(4, 2, 2),
+        row(5, 2, 1),
+        row(6, 2, 3),
+        row(7, 2, 2),
+        row(8, 3, 1),
+        row(9, 3, 1),
+        row(10, 3, 3),
+        row(11, 3, 2),
+        row(12, 4, 2),
+        row(13, 4, 1),
+        row(14, 4, 1)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT d,  NTILE(4) over (order by d)" +
+        " FROM Table5",
+      Seq(
+        row(5, 3),
+        row(5, 3),
+        row(5, 4),
+        row(5, 4),
+        row(5, 4),
+        row(4, 2),
+        row(4, 2),
+        row(4, 3),
+        row(4, 3),
+        row(3, 1),
+        row(3, 2),
+        row(3, 2),
+        row(2, 1),
+        row(2, 1),
+        row(1, 1)
+      )
+    )
   }
 }
 

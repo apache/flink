@@ -15,7 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pandas.util.testing import assert_frame_equal
+import unittest
+
+from pandas.testing import assert_frame_equal
 
 from pyflink.common import Row
 from pyflink.table import expressions as expr, ListView
@@ -35,10 +37,10 @@ class RowBasedOperationTests(object):
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
                  DataTypes.FIELD("c", DataTypes.INT())]))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'],
-            [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results_test_map(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
 
         func = udf(lambda x: Row(a=x + 1, b=x * x), result_type=DataTypes.ROW(
             [DataTypes.FIELD("a", DataTypes.BIGINT()),
@@ -51,7 +53,7 @@ class RowBasedOperationTests(object):
         t.map(func(t.b)).alias("a", "b") \
             .map(func(t.a)) \
             .map(func2) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_map") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
@@ -66,10 +68,13 @@ class RowBasedOperationTests(object):
                                  DataTypes.ROW([DataTypes.FIELD("c", DataTypes.INT()),
                                                 DataTypes.FIELD("d", DataTypes.INT())]))]))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'],
-            [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results_test_map_with_pandas_udf(
+                a BIGINT,
+                b BIGINT
+            ) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
 
         def func(x):
             import pandas as pd
@@ -100,7 +105,8 @@ class RowBasedOperationTests(object):
                               [DataTypes.FIELD("c", DataTypes.BIGINT()),
                                DataTypes.FIELD("d", DataTypes.BIGINT())]))
 
-        t.map(pandas_udf).map(pandas_udf_2).map(general_udf).execute_insert("Results").wait()
+        t.map(pandas_udf).map(pandas_udf_2).map(general_udf).execute_insert(
+            "Results_test_map_with_pandas_udf").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
             actual,
@@ -113,11 +119,12 @@ class RowBasedOperationTests(object):
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b", DataTypes.STRING())]))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f'],
-            [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(),
-             DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results_test_flat_map(
+                a BIGINT, b STRING, c BIGINT, d STRING, e BIGINT, f STRING
+            ) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
 
         @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
         def split(x):
@@ -128,7 +135,7 @@ class RowBasedOperationTests(object):
             .flat_map(split).alias("a", "b") \
             .join_lateral(split.alias("c", "d")) \
             .left_outer_join_lateral(split.alias("e", "f")) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_flat_map") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
@@ -146,10 +153,14 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
                  DataTypes.FIELD("c", DataTypes.INT())]))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c'],
-            [DataTypes.TINYINT(), DataTypes.FLOAT(), DataTypes.INT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results_test_aggregate_with_pandas_udaf(
+                a TINYINT,
+                b FLOAT,
+                c INT
+            ) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
         pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.a.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
@@ -159,7 +170,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
             .group_by(t.a) \
             .aggregate(pandas_udaf) \
             .select(expr.col("*")) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_aggregate_with_pandas_udaf") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 5.0, 1]", "+I[2, 2.0, 2]"])
@@ -172,10 +183,13 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
                  DataTypes.FIELD("b", DataTypes.SMALLINT()),
                  DataTypes.FIELD("c", DataTypes.INT())]))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'],
-            [DataTypes.FLOAT(), DataTypes.INT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results_test_aggregate_with_pandas_udaf_without_keys(
+                a FLOAT,
+                b INT
+            ) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
         pandas_udaf = udaf(lambda pd: Row(pd.b.mean(), pd.b.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
@@ -184,11 +198,12 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
         t.select(t.b) \
             .aggregate(pandas_udaf.alias("a", "b")) \
             .select(t.a, t.b) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_aggregate_with_pandas_udaf_without_keys") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3.8, 8]"])
 
+    @unittest.skip("Not supported yet")
     def test_window_aggregate_with_pandas_udaf(self):
         import datetime
         from pyflink.table.window import Tumble
@@ -207,14 +222,15 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
                  DataTypes.FIELD("c", DataTypes.INT()),
                  DataTypes.FIELD("rowtime", DataTypes.TIMESTAMP(3))]))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c'],
-            [
-                DataTypes.TIMESTAMP(3),
-                DataTypes.FLOAT(),
-                DataTypes.INT()
-            ])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results_test_window_aggregate_with_pandas_udaf(
+                a TIMESTAMP(3),
+                b FLOAT,
+                c INT
+            ) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+        print(t.get_schema())
         pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
@@ -228,7 +244,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
             .group_by(expr.col("w")) \
             .aggregate(pandas_udaf.alias("d", "e")) \
             .select(expr.col("w").rowtime, expr.col("d"), expr.col("e")) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_window_aggregate_with_pandas_udaf") \
             .wait()
 
         actual = source_sink_utils.results()

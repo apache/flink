@@ -22,11 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -49,8 +50,8 @@ import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.python.Constants.TIMER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createReviseOutputDataStreamFunctionProto;
+import static org.apache.flink.python.util.ProtoUtils.createCoderProto;
+import static org.apache.flink.python.util.ProtoUtils.createReviseOutputDataStreamFunctionProto;
 
 /**
  * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
@@ -73,7 +74,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             String headOperatorFunctionUrn,
             List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
-            @Nullable KeyedStateBackend<?> stateBackend,
+            @Nullable KeyedStateBackend<?> keyedStateBackend,
+            @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
             @Nullable TypeSerializer<?> namespaceSerializer,
             @Nullable TimerRegistration timerRegistration,
@@ -87,7 +89,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 taskName,
                 environmentManager,
                 flinkMetricContainer,
-                stateBackend,
+                keyedStateBackend,
+                operatorStateBackend,
                 keySerializer,
                 namespaceSerializer,
                 timerRegistration,
@@ -176,7 +179,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(STATELESS_FUNCTION_URN)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                org.apache.beam.vendor.grpc.v1p48p1.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());
@@ -193,7 +196,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(urn)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                org.apache.beam.vendor.grpc.v1p48p1.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());

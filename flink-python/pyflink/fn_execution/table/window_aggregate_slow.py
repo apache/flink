@@ -24,7 +24,7 @@ import pytz
 from pyflink.common import Row, RowKind
 from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
@@ -408,8 +408,8 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
         return result
 
     def get_timers(self):
-        yield from self._internal_timer_service.timers.keys()
-        self._internal_timer_service.timers.clear()
+        yield from self._internal_timer_service._timers.keys()
+        self._internal_timer_service._timers.clear()
 
     def to_utc_timestamp_mills(self, epoch_mills):
         if self._shift_timezone == "UTC":

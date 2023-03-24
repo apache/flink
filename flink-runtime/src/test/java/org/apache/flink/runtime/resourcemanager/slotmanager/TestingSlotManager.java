@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
@@ -32,28 +32,26 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /** Implementation of {@link SlotManager} for testing purpose. */
 public class TestingSlotManager implements SlotManager {
 
     private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
-    private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
     private final Consumer<ResourceRequirements> processRequirementsConsumer;
     private final Consumer<JobID> clearRequirementsConsumer;
+    private final Consumer<Void> triggerRequirementsCheckConsumer;
 
     TestingSlotManager(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer,
-            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier,
             Consumer<ResourceRequirements> processRequirementsConsumer,
-            Consumer<JobID> clearRequirementsConsumer) {
+            Consumer<JobID> clearRequirementsConsumer,
+            Consumer<Void> triggerRequirementsCheckConsumer) {
         this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
-        this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
         this.processRequirementsConsumer = processRequirementsConsumer;
         this.clearRequirementsConsumer = clearRequirementsConsumer;
+        this.triggerRequirementsCheckConsumer = triggerRequirementsCheckConsumer;
     }
 
     @Override
@@ -74,11 +72,6 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public int getNumberFreeSlotsOf(InstanceID instanceId) {
         return 0;
-    }
-
-    @Override
-    public Map<WorkerResourceSpec, Integer> getRequiredResources() {
-        return getRequiredResourcesSupplier.get();
     }
 
     @Override
@@ -110,7 +103,9 @@ public class TestingSlotManager implements SlotManager {
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions) {}
+            ResourceAllocator newResourceAllocator,
+            ResourceEventListener resourceEventListener,
+            BlockedTaskManagerChecker newBlockedTaskManagerChecker) {}
 
     @Override
     public void suspend() {}
@@ -126,12 +121,12 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
-    public boolean registerTaskManager(
+    public RegistrationResult registerTaskManager(
             TaskExecutorConnection taskExecutorConnection,
             SlotReport initialSlotReport,
             ResourceProfile totalResourceProfile,
             ResourceProfile defaultSlotResourceProfile) {
-        return true;
+        return RegistrationResult.SUCCESS;
     }
 
     @Override
@@ -150,6 +145,11 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
         setFailUnfulfillableRequestConsumer.accept(failUnfulfillableRequest);
+    }
+
+    @Override
+    public void triggerResourceRequirementsCheck() {
+        triggerRequirementsCheckConsumer.accept(null);
     }
 
     @Override

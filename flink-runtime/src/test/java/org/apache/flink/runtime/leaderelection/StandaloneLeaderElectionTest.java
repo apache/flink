@@ -20,25 +20,25 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class StandaloneLeaderElectionTest extends TestLogger {
+class StandaloneLeaderElectionTest {
+
     private static final String TEST_URL = "akka://users/jobmanager";
 
     /**
      * Tests that the standalone leader election and retrieval service return the same leader URL.
      */
     @Test
-    public void testStandaloneLeaderElectionRetrieval() throws Exception {
+    void testStandaloneLeaderElectionRetrieval() throws Exception {
         StandaloneLeaderElectionService leaderElectionService =
                 new StandaloneLeaderElectionService();
         StandaloneLeaderRetrievalService leaderRetrievalService =
-                new StandaloneLeaderRetrievalService(TEST_URL);
+                new StandaloneLeaderRetrievalService(
+                        TEST_URL, HighAvailabilityServices.DEFAULT_LEADER_ID);
         TestingContender contender = new TestingContender(TEST_URL, leaderElectionService);
         TestingListener testingListener = new TestingListener();
 
@@ -48,16 +48,15 @@ public class StandaloneLeaderElectionTest extends TestLogger {
 
             contender.waitForLeader();
 
-            assertTrue(contender.isLeader());
-            assertEquals(
-                    HighAvailabilityServices.DEFAULT_LEADER_ID, contender.getLeaderSessionID());
+            assertThat(contender.isLeader()).isTrue();
+            assertThat(contender.getLeaderSessionID())
+                    .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
 
             testingListener.waitForNewLeader();
 
-            assertEquals(TEST_URL, testingListener.getAddress());
-            assertEquals(
-                    HighAvailabilityServices.DEFAULT_LEADER_ID,
-                    testingListener.getLeaderSessionID());
+            assertThat(testingListener.getAddress()).isEqualTo(TEST_URL);
+            assertThat(testingListener.getLeaderSessionID())
+                    .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
         } finally {
             leaderElectionService.stop();
             leaderRetrievalService.stop();

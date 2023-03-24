@@ -87,6 +87,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
@@ -742,6 +743,46 @@ public class StateAssignmentOperationTest extends TestLogger {
                 rescalingDescriptor(to(1), array(mappings(to(0), to(1), to())), set(0, 1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 2)
                         .getInputRescalingDescriptor());
+    }
+
+    @Test
+    public void testOnlyUpstreamChannelStateAssignment()
+            throws JobException, JobExecutionException {
+        // given: There is only input channel state for one subpartition.
+        List<OperatorID> operatorIds = buildOperatorIds(2);
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        Random random = new Random();
+        OperatorState upstreamState = new OperatorState(operatorIds.get(0), 2, MAX_P);
+        OperatorSubtaskState state =
+                OperatorSubtaskState.builder()
+                        .setResultSubpartitionState(
+                                new StateObjectCollection<>(
+                                        asList(
+                                                createNewResultSubpartitionStateHandle(10, random),
+                                                createNewResultSubpartitionStateHandle(
+                                                        10, random))))
+                        .build();
+        upstreamState.putState(0, state);
+
+        states.put(operatorIds.get(0), upstreamState);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                buildVertices(operatorIds, 3, RANGE, ROUND_ROBIN);
+
+        // when: States are assigned.
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // then: All subtask have not null TaskRestore information(even if it is empty).
+        ExecutionJobVertex jobVertexWithFinishedOperator = vertices.get(operatorIds.get(0));
+        for (ExecutionVertex task : jobVertexWithFinishedOperator.getTaskVertices()) {
+            assertNotNull(task.getCurrentExecutionAttempt().getTaskRestore());
+        }
+
+        ExecutionJobVertex jobVertexWithoutFinishedOperator = vertices.get(operatorIds.get(1));
+        for (ExecutionVertex task : jobVertexWithoutFinishedOperator.getTaskVertices()) {
+            assertNotNull(task.getCurrentExecutionAttempt().getTaskRestore());
+        }
     }
 
     @Test

@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveModuleFactory}. */
 public class HiveModuleFactoryTest {
@@ -44,6 +44,6 @@ public class HiveModuleFactoryTest {
     }
 
     private static void checkEquals(HiveModule m1, HiveModule m2) {
-        assertEquals(m1.getHiveVersion(), m2.getHiveVersion());
+        assertThat(m2.getHiveVersion()).isEqualTo(m1.getHiveVersion());
     }
 }

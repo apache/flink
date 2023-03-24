@@ -26,6 +26,11 @@
     <nz-divider nzType="vertical"></nz-divider>
     <strong>Checkpoint Type:</strong>
     {{ checkPointType }}
+    <ng-container *ngIf="checkPointDetail?.savepointFormat">
+      <nz-divider nzType="vertical"></nz-divider>
+      <strong>Savepoint Format:</strong>
+      {{ checkPointDetail?.savepointFormat || '-' }}
+    </ng-container>
     <ng-container *ngIf="checkPointDetail?.failure_message">
       <nz-divider nzType="vertical"></nz-divider>
       <strong>Failure Message:</strong>

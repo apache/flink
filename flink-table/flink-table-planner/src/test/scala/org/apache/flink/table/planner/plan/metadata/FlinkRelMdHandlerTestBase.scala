@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.catalog.ContextResolvedFunction
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
@@ -25,6 +26,7 @@ import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunction
 import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
@@ -39,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
 import org.apache.flink.table.planner.utils.{PlannerMocks, Top3}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.runtime.groupwindow._
@@ -48,6 +51,7 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions
 
 import com.google.common.collect.{ImmutableList, Lists}
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
@@ -60,7 +64,7 @@ import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQu
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.{SqlAggFunction, SqlWindow}
+import org.apache.calcite.sql.{SqlAggFunction, SqlIntervalQualifier, SqlWindow}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -105,7 +109,7 @@ class FlinkRelMdHandlerTestBase {
 
   @Before
   def setUp(): Unit = {
-    relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    relBuilder = plannerContext.createRelBuilder()
 
     rexBuilder = relBuilder.getRexBuilder
     cluster = relBuilder.getCluster
@@ -197,6 +201,13 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val tableSourceTableNonKeyStreamScan: StreamPhysicalDataStreamScan =
     createTableSourceTable(ImmutableList.of("TableSourceTable3"), streamPhysicalTraits)
 
+  protected lazy val temporalTableLogicalScan: LogicalTableScan =
+    createDataStreamScan(ImmutableList.of("TemporalTable4"), logicalTraits)
+  protected lazy val temporalTableFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createDataStreamScan(ImmutableList.of("TemporalTable4"), flinkLogicalTraits)
+  protected lazy val temporalTableStreamScan: StreamPhysicalDataStreamScan =
+    createDataStreamScan(ImmutableList.of("TemporalTable4"), streamPhysicalTraits)
+
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
     .add("a", SqlTypeName.BIGINT)
@@ -283,8 +294,8 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val logicalWatermarkAssigner: RelNode = {
     val scan = relBuilder.scan("TemporalTable2").build()
     val flinkContext = unwrapContext(cluster)
-    val watermarkRexNode = flinkContext.getSqlExprToRexConverterFactory
-      .create(scan.getTable.getRowType, null)
+    val watermarkRexNode = flinkContext.getRexFactory
+      .createSqlToRexConverter(scan.getTable.getRowType, null)
       .convertToRexNode("rowtime - INTERVAL '10' SECOND")
 
     relBuilder.push(scan)
@@ -973,7 +984,8 @@ class FlinkRelMdHandlerTestBase {
       false,
       Seq(Integer.valueOf(3)).toList,
       -1,
-      RelCollationImpl.of(),
+      null,
+      RelCollations.of(),
       relDataType,
       ""
     )
@@ -1162,6 +1174,7 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan.getRowType,
       Array(3),
       auxGrouping = Array(),
+      true,
       aggCallToAggFunction)
 
     val batchExchange1 = new BatchPhysicalExchange(
@@ -1325,6 +1338,7 @@ class FlinkRelMdHandlerTestBase {
         false,
         List(Integer.valueOf(argIndex)),
         filterArg,
+        null,
         RelCollations.EMPTY,
         1,
         calcOnStudentScan,
@@ -1426,6 +1440,7 @@ class FlinkRelMdHandlerTestBase {
       calcOnStudentScan.getRowType,
       Array(3),
       auxGrouping = Array(),
+      true,
       aggCallToAggFunction)
 
     val batchExchange1 = new BatchPhysicalExchange(
@@ -1578,6 +1593,7 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan.getRowType,
       Array(0),
       auxGrouping = Array(1, 4),
+      true,
       aggCallToAggFunction)
 
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
@@ -1684,8 +1700,11 @@ class FlinkRelMdHandlerTestBase {
         new SqlCountAggFunction("COUNT"),
         false,
         false,
+        false,
         List[Integer](3),
         -1,
+        null,
+        RelCollations.EMPTY,
         2,
         project,
         null,
@@ -1851,8 +1870,11 @@ class FlinkRelMdHandlerTestBase {
         new SqlCountAggFunction("COUNT"),
         false,
         false,
+        false,
         List[Integer](0),
         -1,
+        null,
+        RelCollations.EMPTY,
         1,
         project,
         null,
@@ -2017,8 +2039,11 @@ class FlinkRelMdHandlerTestBase {
         FlinkSqlOperatorTable.AUXILIARY_GROUP,
         false,
         false,
+        false,
         List[Integer](1),
         -1,
+        null,
+        RelCollations.EMPTY,
         1,
         project,
         null,
@@ -2027,8 +2052,11 @@ class FlinkRelMdHandlerTestBase {
         new SqlCountAggFunction("COUNT"),
         false,
         false,
+        false,
         List[Integer](3),
         -1,
+        null,
+        RelCollations.EMPTY,
         2,
         project,
         null,
@@ -2370,9 +2398,9 @@ class FlinkRelMdHandlerTestBase {
     new Window.Group(
       ImmutableBitSet.of(0),
       true,
-      RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
-      RexWindowBound.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
-      RelCollationImpl.of(
+      RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
+      RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+      RelCollations.of(
         new RelFieldCollation(
           1,
           RelFieldCollation.Direction.ASCENDING,
@@ -2383,6 +2411,7 @@ class FlinkRelMdHandlerTestBase {
           longType,
           ImmutableList.of[RexNode](),
           0,
+          false,
           false
         )
       )
@@ -2502,9 +2531,9 @@ class FlinkRelMdHandlerTestBase {
       new Window.Group(
         ImmutableBitSet.of(5),
         true,
-        RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
-        RexWindowBound.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
-        RelCollationImpl.of(
+        RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
+        RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        RelCollations.of(
           new RelFieldCollation(
             1,
             RelFieldCollation.Direction.ASCENDING,
@@ -2515,6 +2544,7 @@ class FlinkRelMdHandlerTestBase {
             longType,
             ImmutableList.of[RexNode](),
             0,
+            false,
             false
           )
         )
@@ -2522,9 +2552,9 @@ class FlinkRelMdHandlerTestBase {
       new Window.Group(
         ImmutableBitSet.of(5),
         false,
-        RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(4, 15)), null),
-        RexWindowBound.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
-        RelCollationImpl.of(
+        RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(4, 15)), null),
+        RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        RelCollations.of(
           new RelFieldCollation(
             2,
             RelFieldCollation.Direction.ASCENDING,
@@ -2535,6 +2565,7 @@ class FlinkRelMdHandlerTestBase {
             longType,
             ImmutableList.of[RexNode](),
             1,
+            false,
             false
           ),
           new Window.RexWinAggCall(
@@ -2542,6 +2573,7 @@ class FlinkRelMdHandlerTestBase {
             longType,
             ImmutableList.of[RexNode](),
             2,
+            false,
             false
           ),
           new Window.RexWinAggCall(
@@ -2549,6 +2581,7 @@ class FlinkRelMdHandlerTestBase {
             longType,
             util.Arrays.asList(new RexInputRef(2, longType)),
             3,
+            false,
             false
           ),
           new Window.RexWinAggCall(
@@ -2556,6 +2589,7 @@ class FlinkRelMdHandlerTestBase {
             doubleType,
             util.Arrays.asList(new RexInputRef(2, doubleType)),
             4,
+            false,
             false
           )
         )
@@ -2563,8 +2597,8 @@ class FlinkRelMdHandlerTestBase {
       new Window.Group(
         ImmutableBitSet.of(),
         false,
-        RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(7, 19)), null),
-        RexWindowBound.create(SqlWindow.createUnboundedFollowing(new SqlParserPos(0, 0)), null),
+        RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(7, 19)), null),
+        RexWindowBounds.create(SqlWindow.createUnboundedFollowing(new SqlParserPos(0, 0)), null),
         RelCollations.EMPTY,
         ImmutableList.of(
           new Window.RexWinAggCall(
@@ -2572,6 +2606,7 @@ class FlinkRelMdHandlerTestBase {
             doubleType,
             util.Arrays.asList(new RexInputRef(2, doubleType)),
             5,
+            false,
             false
           ),
           new Window.RexWinAggCall(
@@ -2579,6 +2614,7 @@ class FlinkRelMdHandlerTestBase {
             longType,
             util.Arrays.asList(new RexInputRef(0, longType)),
             6,
+            false,
             false
           )
         )
@@ -2595,8 +2631,16 @@ class FlinkRelMdHandlerTestBase {
 
   // SELECT * FROM student AS T JOIN TemporalTable
   // FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
-  protected lazy val (batchLookupJoin, streamLookupJoin) = {
-    val temporalTableSource = new TestTemporalTable
+  protected lazy val (batchLookupJoin, streamLookupJoin) = getLookupJoins()
+
+  protected lazy val (batchLookupJoinWithPk, streamLookupJoinWithPk) = getLookupJoins(Array("id"))
+
+  protected lazy val (batchLookupJoinNotContainsPk, streamLookupJoinNotContainsPk) = getLookupJoins(
+    Array("name"))
+
+  protected def getLookupJoins(
+      primaryKeys: Array[String] = Array()): (BatchPhysicalLookupJoin, StreamPhysicalLookupJoin) = {
+    val temporalTableSource = new TestTemporalTable(keys = primaryKeys)
     val batchSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, true)
     val batchScan = relBuilder.queryOperation(batchSourceOp).build().asInstanceOf[TableScan]
     val batchLookupJoin = new BatchPhysicalLookupJoin(
@@ -2617,7 +2661,9 @@ class FlinkRelMdHandlerTestBase {
       streamScan.getTable,
       None,
       JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
-      JoinRelType.INNER
+      JoinRelType.INNER,
+      Option.empty[RelHint],
+      false
     )
     (batchLookupJoin, streamLookupJoin)
   }
@@ -3121,6 +3167,10 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val batchCumulateWindowTVFRel = createWindowTVFRel(false, cumulateWindowSpec)
   protected lazy val streamCumulateWindowTVFRel = createWindowTVFRel(true, cumulateWindowSpec)
 
+  protected lazy val timeAttributeType = new TimestampType(true, TimestampKind.ROWTIME, 3)
+  protected lazy val proctimeType = new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3)
+  protected lazy val windowStartEndType = new TimestampType(false, 3)
+
   protected def createWindowTVFRel(
       isStreamingMode: Boolean,
       windowSpec: WindowSpec): CommonPhysicalWindowTableFunction = {
@@ -3158,6 +3208,307 @@ class FlinkRelMdHandlerTestBase {
         windowTVFRowType,
         new TimeAttributeWindowingStrategy(windowSpec, new TimestampType(3), timeFieldIdx))
     }
+  }
+
+  // equivalent SQL is
+  // SELECT * FROM
+  //   TABLE(TUMBLE(TABLE tmp, DESCRIPTOR(ptime), INTERVAL '10' MINUTE))
+  // CREATE TEMPORARY VIEW tmp AS
+  // SELECT `id`, `name`, PROCTIME() AS ptime FROM student
+  protected lazy val windowTableFunctionScan: TableFunctionScan = createTableFunctionScan(true)
+
+  // equivalent SQL is
+  // SELECT `name`, `val` FROM student,
+  // LATERAL TABLE(STRING_SPLIT(`name`, CAST(`id` AS STRING))) AS T(`val`);
+  protected lazy val lateralTableFunctionScan: TableFunctionScan = createTableFunctionScan(false)
+
+  protected def createTableFunctionScan(windowFunctionCall: Boolean): TableFunctionScan = {
+    relBuilder.push(studentLogicalScan)
+
+    if (windowFunctionCall) {
+      val projects = List(
+        relBuilder.field(0),
+        relBuilder.field(1),
+        relBuilder.call(FlinkSqlOperatorTable.PROCTIME))
+      val outputRowType = typeFactory.buildRelNodeRowType(
+        Array("id", "name", "ptime"),
+        Array(
+          new BigIntType,
+          new VarCharType,
+          proctimeType
+        )
+      )
+      val calcOnStudentScan =
+        createLogicalCalc(
+          studentLogicalScan,
+          outputRowType,
+          projects,
+          null
+        )
+      new FlinkLogicalTableFunctionScan(
+        cluster,
+        logicalTraits,
+        ImmutableList.of(calcOnStudentScan),
+        relBuilder.call(
+          FlinkSqlOperatorTable.TUMBLE,
+          relBuilder.field(2),
+          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.field(2)),
+          rexBuilder.makeIntervalLiteral(
+            bd(600000L),
+            new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO))
+        ),
+        null,
+        typeFactory.builder
+          .kind(outputRowType.getStructKind)
+          .addAll(outputRowType.getFieldList)
+          .add("window_start", SqlTypeName.TIMESTAMP, 3)
+          .add("window_end", SqlTypeName.TIMESTAMP, 3)
+          .add("window_time", outputRowType.getFieldList.get(2).getType)
+          .build,
+        null)
+    } else {
+      val correlVar = rexBuilder.makeCorrel(
+        typeFactory.buildRelNodeRowType(
+          Array("id", "name", "val"),
+          Array(
+            new BigIntType,
+            new VarCharType,
+            new VarCharType
+          )
+        ),
+        new CorrelationId(0))
+      val tableFunctionCall = relBuilder.call(
+        BridgingSqlFunction.of(
+          relBuilder.getCluster,
+          ContextResolvedFunction.temporary(
+            FunctionIdentifier.of("STRING_SPLIT"),
+            new JavaUserDefinedTableFunctions.StringSplit())),
+        rexBuilder.makeFieldAccess(correlVar, 1),
+        rexBuilder.makeCall(stringType, CAST, List(rexBuilder.makeFieldAccess(correlVar, 0)))
+      )
+      new FlinkLogicalTableFunctionScan(
+        cluster,
+        logicalTraits,
+        ImmutableList.of(),
+        tableFunctionCall,
+        null,
+        typeFactory.buildRelNodeRowType(Array("EXPR$0"), Array(new VarCharType)),
+        null
+      )
+    }
+  }
+
+  // equivalent SQL is
+  // SELECT b, window_end AS my_window_end, window_start FROM
+  //   TABLE(TUMBLE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+  protected lazy val keepWindowCalcOnTumbleWindowTVF: Calc =
+    createCalcOnWindowTVF(streamTumbleWindowTVFRel, true)
+
+  // equivalent SQL is
+  // SELECT b, CAST(window_end AS STRING) AS my_end, CAST(window_start AS STRING) AS my_start FROM
+  //   TABLE(TUMBLE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+  protected lazy val discardWindowCalcOnTumbleWindowTVF: Calc =
+    createCalcOnWindowTVF(streamTumbleWindowTVFRel, false)
+  // equivalent SQL is
+  // SELECT b, window_end AS my_window_end, window_start FROM
+  //   TABLE(HOP (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+  protected lazy val keepWindowCalcOnHopWindowTVF: Calc =
+    createCalcOnWindowTVF(streamHopWindowTVFRel, true)
+
+  // equivalent SQL is
+  // SELECT b, CAST(window_end AS STRING) AS my_end, CAST(window_start AS STRING) AS my_start FROM
+  //   TABLE(HOP (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+  protected lazy val discardWindowCalcOnHopWindowTVF: Calc =
+    createCalcOnWindowTVF(streamHopWindowTVFRel, false)
+  // equivalent SQL is
+  // SELECT b, window_end AS my_window_end, window_start FROM
+  //   TABLE(CUMULATE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+  protected lazy val keepWindowCalcOnCumulateWindowTVF: Calc =
+    createCalcOnWindowTVF(streamCumulateWindowTVFRel, true)
+
+  // equivalent SQL is
+  // SELECT b, CAST(window_end AS STRING) AS my_end, CAST(window_start AS STRING) AS my_start FROM
+  //   TABLE(CUMULATE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+  protected lazy val discardWindowCalcOnCumulateWindowTVF: Calc =
+    createCalcOnWindowTVF(streamCumulateWindowTVFRel, false)
+  protected def createCalcOnWindowTVF(
+      tvf: CommonPhysicalWindowTableFunction,
+      projectKeepWindow: Boolean): Calc = {
+    relBuilder.push(tvf)
+    val (projects, outputType) = {
+      if (projectKeepWindow) {
+        (
+          List(relBuilder.field(1), relBuilder.field(6), relBuilder.field(5)),
+          typeFactory.buildRelNodeRowType(
+            Array("b", "my_window_end", "window_start"),
+            Array(
+              VarCharType.STRING_TYPE,
+              windowStartEndType,
+              windowStartEndType
+            )
+          ))
+      } else {
+        (
+          List(
+            relBuilder.field(1),
+            rexBuilder.makeCast(stringType, relBuilder.field(6)),
+            rexBuilder.makeCast(stringType, relBuilder.field(5))),
+          typeFactory.buildRelNodeRowType(
+            Array("b", "my_window_end", "window_start"),
+            Array(
+              VarCharType.STRING_TYPE,
+              VarCharType.STRING_TYPE,
+              VarCharType.STRING_TYPE
+            )
+          ))
+      }
+    }
+    val program = RexProgram.create(tvf.getRowType, projects, null, outputType, rexBuilder)
+    new StreamPhysicalCalc(
+      cluster,
+      streamPhysicalTraits,
+      tvf,
+      program,
+      program.getOutputRowType
+    )
+  }
+
+  // equivalent SQL is
+  // SELECT * FROM
+  //   TABLE(TUMBLE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+  //  UNION ALL
+  // (SELECT * FROM
+  //   TABLE(TUMBLE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE)))
+  protected lazy val unionOnWindowTVFWithSameWindowSpec: Union =
+    createUnionOnWindowTVF(streamTumbleWindowTVFRel, streamTumbleWindowTVFRel)
+
+  // SELECT * FROM
+  //   TABLE(TUMBLE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+  //  UNION ALL
+  // (SELECT * FROM
+  //   TABLE(HOP (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR)))
+  protected lazy val unionOnWindowTVFWithDifferentWindowSpec: Union =
+    createUnionOnWindowTVF(streamTumbleWindowTVFRel, streamHopWindowTVFRel)
+
+  protected def createUnionOnWindowTVF(
+      tvf1: CommonPhysicalWindowTableFunction,
+      tvf2: CommonPhysicalWindowTableFunction): Union = {
+    new StreamPhysicalUnion(cluster, streamPhysicalTraits, List(tvf1, tvf2), true, tvf1.getRowType)
+  }
+
+  // hash by field a
+  protected lazy val hashOnTumbleWindowTVF = createExchangeOnWindowTVF(streamTumbleWindowTVFRel)
+  protected lazy val hashOnHopWindowTVF = createExchangeOnWindowTVF(streamHopWindowTVFRel)
+  protected lazy val hashOnCumulateWindowTVF = createExchangeOnWindowTVF(streamCumulateWindowTVFRel)
+
+  protected def createExchangeOnWindowTVF(tvf: CommonPhysicalWindowTableFunction): Exchange = {
+    val hash = FlinkRelDistribution.hash(Array(0), requireStrict = true)
+    new StreamPhysicalExchange(
+      cluster,
+      streamPhysicalTraits.replace(hash),
+      tvf,
+      hash
+    )
+  }
+
+  // equivalent SQL is
+  // CREATE TEMPORARY VIEW tmp AS
+  // SELECT `id`, `name`, PROCTIME() AS ptime FROM student
+  // SELECT `id`, `window_start`, `window_end`, COUNT(DISTINCT `name`) AS cnt FROM
+  //   (TABLE(TUMBLE(TABLE tmp, DESCRIPTOR(ptime), INTERVAL '10' MINUTE))) alias GROUP BY `id`, `window_start`, `window_end`
+  protected lazy val logicalGroupWindowAggOnTumbleWindowTVF = createLogicalAggregateOnWindowTVF(
+    true)
+
+  // equivalent SQL is
+  // CREATE TEMPORARY VIEW tmp AS
+  // SELECT `id`, `name`, PROCTIME() AS ptime FROM student
+  // SELECT `id`, COUNT(DISTINCT `name`) AS cnt FROM
+  //   (TABLE(TUMBLE(TABLE tmp, DESCRIPTOR(ptime), INTERVAL '10' MINUTE))) alias GROUP BY `id`
+  protected lazy val logicalGroupAggOnTumbleWindowTVF = createLogicalAggregateOnWindowTVF(false)
+  protected def createLogicalAggregateOnWindowTVF(groupByWindow: Boolean): FlinkLogicalAggregate = {
+    relBuilder.push(windowTableFunctionScan)
+    val groupKey =
+      if (groupByWindow)
+        List(relBuilder.field(0), relBuilder.field(3), relBuilder.field(4))
+      else List(relBuilder.field(0))
+    val logicalAgg =
+      relBuilder
+        .aggregate(
+          relBuilder.groupKey(groupKey),
+          relBuilder.count(true, "cnt", relBuilder.field(1)))
+        .build()
+        .asInstanceOf[LogicalAggregate]
+    new FlinkLogicalAggregate(
+      cluster,
+      flinkLogicalTraits,
+      windowTableFunctionScan,
+      logicalAgg.getGroupSet,
+      logicalAgg.getGroupSets,
+      logicalAgg.getAggCallList
+    )
+  }
+
+  // equivalent SQL is
+  // SELECT window_start, window_end, SUM(a) AS sum_a, COUNT(b) AS cnt_b FROM
+  //   TABLE(TUMBLE (TABLE TemporalTable1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE))
+  // GROUP BY window_start, window_end
+  protected lazy val (
+    streamWindowAggOnWindowTVF,
+    streamLocalWindowAggOnWindowTVF,
+    streamGlobalWindowAggOnWindowTVF) = {
+    val logicalAgg =
+      relBuilder
+        .push(streamTumbleWindowTVFRel)
+        .aggregate(
+          relBuilder.groupKey(relBuilder.field(5), relBuilder.field(6)),
+          relBuilder.sum(false, "sum_a", relBuilder.field(0)),
+          relBuilder.count(false, "cnt_b", relBuilder.field(1))
+        )
+        .build()
+        .asInstanceOf[LogicalAggregate]
+
+    val windowRef = new WindowReference("w$", timeAttributeType)
+    val namedWindowProperties: Seq[NamedWindowProperty] = Seq(
+      new NamedWindowProperty("window_start", new WindowStart(windowRef)),
+      new NamedWindowProperty("window_end", new WindowEnd(windowRef)))
+    val traitSet = streamPhysicalTraits.replace(FlinkRelDistribution.SINGLETON)
+    val streamWindowAggOnWindowTVF = new StreamPhysicalWindowAggregate(
+      cluster,
+      traitSet,
+      streamTumbleWindowTVFRel,
+      Array(),
+      logicalAgg.getAggCallList,
+      new WindowAttachedWindowingStrategy(tumbleWindowSpec, timeAttributeType, 5, 6),
+      namedWindowProperties)
+
+    val streamLocalWindowAggOnWindowTVF = new StreamPhysicalLocalWindowAggregate(
+      cluster,
+      traitSet,
+      streamTumbleWindowTVFRel,
+      streamWindowAggOnWindowTVF.grouping,
+      streamWindowAggOnWindowTVF.aggCalls,
+      streamWindowAggOnWindowTVF.windowing)
+
+    val exchange = new StreamPhysicalExchange(
+      cluster,
+      traitSet,
+      streamLocalWindowAggOnWindowTVF,
+      FlinkRelDistribution.SINGLETON)
+    val globalWindowing = new SliceAttachedWindowingStrategy(
+      tumbleWindowSpec,
+      timeAttributeType,
+      streamLocalWindowAggOnWindowTVF.getRowType.getFieldCount - 1)
+    val streamGlobalWindowAggOnWindowTVF = new StreamPhysicalGlobalWindowAggregate(
+      cluster,
+      traitSet,
+      exchange,
+      streamTumbleWindowTVFRel.getRowType,
+      Array(),
+      streamWindowAggOnWindowTVF.aggCalls,
+      globalWindowing,
+      namedWindowProperties)
+
+    (streamWindowAggOnWindowTVF, streamLocalWindowAggOnWindowTVF, streamGlobalWindowAggOnWindowTVF)
   }
 
   // select * from TableSourceTable1

@@ -33,7 +33,7 @@ These Python libraries are highly optimized and provide high-performance data st
 [non-vectorized user-defined functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) on how to define vectorized user-defined functions.
 Users only need to add an extra parameter `func_type="pandas"` in the decorator `udf` or `udaf` to mark it as a vectorized user-defined function.
 
-**NOTE:** Python UDF execution requires Python version (3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
+**NOTE:** Python UDF execution requires Python version (3.7, 3.8, 3.9 or 3.10) with PyFlink installed. It's required on both the client side and the cluster side. 
 
 ## Vectorized Scalar Functions
 
@@ -49,7 +49,11 @@ The following example shows how to define your own vectorized Python scalar func
 and use it in a query:
 
 ```python
-@udf(result_type=DataTypes.BIGINT(), func_type="pandas")
+from pyflink.table import TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
+from pyflink.table.udf import udf
+
+@udf(result_type='BIGINT', func_type="pandas")
 def add(i, j):
   return i + j
 
@@ -57,7 +61,7 @@ settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # use the vectorized Python scalar function in Python Table API
-my_table.select(add(my_table.bigint, my_table.bigint))
+my_table.select(add(col("bigint"), col("bigint")))
 
 # use the vectorized Python scalar function in SQL API
 table_env.create_temporary_function("add", add)
@@ -80,7 +84,12 @@ The following example shows how to define your own vectorized Python aggregate f
 and use it in `GroupBy Aggregation`, `GroupBy Window Aggregation` and `Over Window Aggregation`:
 
 ```python
-@udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
+from pyflink.table import TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col, lit
+from pyflink.table.udf import udaf
+from pyflink.table.window import Tumble
+
+@udaf(result_type='FLOAT', func_type="pandas")
 def mean_udaf(v):
     return v.mean()
 
@@ -90,16 +99,16 @@ table_env = TableEnvironment.create(settings)
 my_table = ...  # type: Table, table schema: [a: String, b: BigInt, c: BigInt]
 
 # use the vectorized Python aggregate function in GroupBy Aggregation
-my_table.group_by(my_table.a).select(my_table.a, mean_udaf(add(my_table.b)))
+my_table.group_by(col('a')).select(col('a'), mean_udaf(col('b')))
 
 
 # use the vectorized Python aggregate function in GroupBy Window Aggregation
-tumble_window = Tumble.over(expr.lit(1).hours) \
-            .on(expr.col("rowtime")) \
+tumble_window = Tumble.over(lit(1).hours) \
+            .on(col("rowtime")) \
             .alias("w")
 
 my_table.window(tumble_window) \
-    .group_by("w") \
+    .group_by(col("w")) \
     .select(col('w').start, col('w').end, mean_udaf(col('b')))
 
 # use the vectorized Python aggregate function in Over Window Aggregation
@@ -110,7 +119,6 @@ table_env.sql_query("""
         over (PARTITION BY a ORDER BY rowtime
         ROWS BETWEEN UNBOUNDED preceding AND UNBOUNDED FOLLOWING)
     FROM MyTable""")
-
 ```
 
 There are many ways to define a vectorized Python aggregate functions.
@@ -118,6 +126,7 @@ The following examples show the different ways to define a vectorized Python agg
 which takes two columns of bigint as the inputs and returns the sum of the maximum of them as the result.
 
 ```python
+from pyflink.table.udf import AggregateFunction, udaf
 
 # option 1: extending the base class `AggregateFunction`
 class MaxAdd(AggregateFunction):
@@ -142,27 +151,27 @@ class MaxAdd(AggregateFunction):
             result += arg.max()
         accumulator.append(result)
 
-max_add = udaf(MaxAdd(), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(MaxAdd(), result_type='BIGINT', func_type="pandas")
 
 # option 2: Python function
-@udaf(result_type=DataTypes.BIGINT(), func_type="pandas")
+@udaf(result_type='BIGINT', func_type="pandas")
 def max_add(i, j):
   return i.max() + j.max()
 
 # option 3: lambda function
-max_add = udaf(lambda i, j: i.max() + j.max(), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(lambda i, j: i.max() + j.max(), result_type='BIGINT', func_type="pandas")
 
 # option 4: callable function
 class CallableMaxAdd(object):
   def __call__(self, i, j):
     return i.max() + j.max()
 
-max_add = udaf(CallableMaxAdd(), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(CallableMaxAdd(), result_type='BIGINT', func_type="pandas")
 
 # option 5: partial function
 def partial_max_add(i, j, k):
   return i.max() + j.max() + k
   
-max_add = udaf(functools.partial(partial_max_add, k=1), result_type=DataTypes.BIGINT(), func_type="pandas")
+max_add = udaf(functools.partial(partial_max_add, k=1), result_type='BIGINT', func_type="pandas")
 
 ```

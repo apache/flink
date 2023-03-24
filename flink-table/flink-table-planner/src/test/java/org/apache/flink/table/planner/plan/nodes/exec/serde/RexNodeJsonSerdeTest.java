@@ -100,7 +100,9 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class RexNodeJsonSerdeTest {
 
-    private static final FlinkTypeFactory FACTORY = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    RexNodeJsonSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
     private static final String FUNCTION_NAME = "MyFunc";
     private static final FunctionIdentifier FUNCTION_SYS_ID = FunctionIdentifier.of(FUNCTION_NAME);
     private static final FunctionIdentifier FUNCTION_CAT_ID =

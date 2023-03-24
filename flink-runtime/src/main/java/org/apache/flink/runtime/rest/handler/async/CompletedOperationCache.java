@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -56,7 +57,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * operations will be removed from the cache automatically after a fixed timeout.
  */
 @ThreadSafe
-public class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseableAsync {
+public class CompletedOperationCache<K extends OperationKey, R extends Serializable>
+        implements AutoCloseableAsync {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CompletedOperationCache.class);
 
@@ -207,7 +209,7 @@ public class CompletedOperationCache<K extends OperationKey, R> implements AutoC
     }
 
     /** Stores the result of an asynchronous operation, and tracks accesses to it. */
-    private static class ResultAccessTracker<R> {
+    private static class ResultAccessTracker<R extends Serializable> {
 
         /** Result of an asynchronous operation. */
         private final OperationResult<R> operationResult;
@@ -215,7 +217,7 @@ public class CompletedOperationCache<K extends OperationKey, R> implements AutoC
         /** Future that completes if {@link #operationResult} is accessed after it finished. */
         private final CompletableFuture<Void> accessed;
 
-        private static <R> ResultAccessTracker<R> inProgress() {
+        private static <R extends Serializable> ResultAccessTracker<R> inProgress() {
             return new ResultAccessTracker<>();
         }
 

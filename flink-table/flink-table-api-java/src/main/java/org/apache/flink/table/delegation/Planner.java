@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -63,6 +64,14 @@ public interface Planner {
     Parser getParser();
 
     /**
+     * Retrieves a {@link ExtendedOperationExecutor} that provides method for executing operation in
+     * a custom way.
+     *
+     * @return initialized {@link ExtendedOperationExecutor}
+     */
+    ExtendedOperationExecutor getExtendedOperationExecutor();
+
+    /**
      * Converts a relational tree of {@link ModifyOperation}s into a set of runnable {@link
      * Transformation}s.
      *
@@ -83,10 +92,12 @@ public interface Planner {
      *
      * @param operations The collection of relational queries for which the AST and execution plan
      *     will be returned.
+     * @param format The output format of explained statement. See more details at {@link
+     *     ExplainFormat}.
      * @param extraDetails The extra explain details which the explain result should include, e.g.
      *     estimated cost, changelog mode for streaming, displaying execution plan in json format
      */
-    String explain(List<Operation> operations, ExplainDetail... extraDetails);
+    String explain(List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails);
 
     // --- Plan compilation and restore
 

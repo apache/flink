@@ -151,6 +151,12 @@ public class KafkaConnectorOptions {
                     .defaultValue(ScanStartupMode.GROUP_OFFSETS)
                     .withDescription("Startup mode for Kafka consumer.");
 
+    public static final ConfigOption<ScanBoundedMode> SCAN_BOUNDED_MODE =
+            ConfigOptions.key("scan.bounded.mode")
+                    .enumType(ScanBoundedMode.class)
+                    .defaultValue(ScanBoundedMode.UNBOUNDED)
+                    .withDescription("Bounded mode for Kafka consumer.");
+
     public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
             ConfigOptions.key("scan.startup.specific-offsets")
                     .stringType()
@@ -158,12 +164,26 @@ public class KafkaConnectorOptions {
                     .withDescription(
                             "Optional offsets used in case of \"specific-offsets\" startup mode");
 
+    public static final ConfigOption<String> SCAN_BOUNDED_SPECIFIC_OFFSETS =
+            ConfigOptions.key("scan.bounded.specific-offsets")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional offsets used in case of \"specific-offsets\" bounded mode");
+
     public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS =
             ConfigOptions.key("scan.startup.timestamp-millis")
                     .longType()
                     .noDefaultValue()
                     .withDescription(
                             "Optional timestamp used in case of \"timestamp\" startup mode");
+
+    public static final ConfigOption<Long> SCAN_BOUNDED_TIMESTAMP_MILLIS =
+            ConfigOptions.key("scan.bounded.timestamp-millis")
+                    .longType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional timestamp used in case of \"timestamp\" bounded mode");
 
     public static final ConfigOption<Duration> SCAN_TOPIC_PARTITION_DISCOVERY =
             ConfigOptions.key("scan.topic-partition-discovery.interval")
@@ -276,6 +296,46 @@ public class KafkaConnectorOptions {
         private final InlineElement description;
 
         ScanStartupMode(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Bounded mode for the Kafka consumer, see {@link #SCAN_BOUNDED_MODE}. */
+    public enum ScanBoundedMode implements DescribedEnum {
+        UNBOUNDED("unbounded", text("Do not stop consuming")),
+        LATEST_OFFSET(
+                "latest-offset",
+                text(
+                        "Bounded by latest offsets. This is evaluated at the start of consumption"
+                                + " from a given partition.")),
+        GROUP_OFFSETS(
+                "group-offsets",
+                text(
+                        "Bounded by committed offsets in ZooKeeper / Kafka brokers of a specific"
+                                + " consumer group. This is evaluated at the start of consumption"
+                                + " from a given partition.")),
+        TIMESTAMP("timestamp", text("Bounded by a user-supplied timestamp.")),
+        SPECIFIC_OFFSETS(
+                "specific-offsets",
+                text(
+                        "Bounded by user-supplied specific offsets for each partition. If an offset"
+                                + " for a partition is not provided it will not consume from that"
+                                + " partition."));
+        private final String value;
+        private final InlineElement description;
+
+        ScanBoundedMode(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }

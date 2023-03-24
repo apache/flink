@@ -1,5 +1,5 @@
 ---
-title: "Checkpoints vs. Savepoints"
+title: "Checkpoints 与 Savepoints"
 weight: 10
 type: docs
 aliases:
@@ -24,72 +24,65 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Checkpoints vs. Savepoints
+<a name="checkpoints-vs-savepoints"></a>
 
-## Overview
+# Checkpoints 与 Savepoints
 
-Conceptually, Flink's [savepoints]({{< ref "docs/ops/state/savepoints" >}}) are different from [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) 
-in a way that's analogous to how backups are different from recovery logs in traditional database systems.
+<a name="overview"></a>
 
-The primary purpose of checkpoints is to provide a recovery mechanism in case of unexpected job failures. 
-A [checkpoint's lifecycle]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) is managed by Flink, 
-i.e. a checkpoint is created, owned, and released by Flink - without user interaction. 
-Because checkpoints are being triggered often, and are relied upon for failure recovery, the two main design goals for the checkpoint implementation are 
-i) being as lightweight to create and ii) being as fast to restore from as possible. 
-Optimizations towards those goals can exploit certain properties, e.g., that the job code doesn't change between the execution attempts. 
+## 概述
 
-{{< hint info >}}
-- Checkpoints are automatically deleted if the application is terminated by the user 
-(except if checkpoints are explicitly configured to be retained).
-- Checkpoints are stored in state backend-specific (native) data format (may be incremental depending on the specific backend).
-{{< /hint >}}
+从概念上讲，Flink 的 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 与 [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) 的不同之处类似于传统数据库系统中的备份与恢复日志之间的差异。
 
-Although [savepoints]({{< ref "docs/ops/state/savepoints" >}}) are created internally with the same mechanisms as
-checkpoints, they are conceptually different and can be a bit more expensive to produce and restore from. Their design focuses
-more on portability and operational flexibility, especially with respect to changes to the job. 
-The use case for savepoints is for planned, manual operations. For example, this could be an update of your Flink version, changing your job graph, and so on.
+Checkpoints 的主要目的是为意外失败的作业提供恢复机制。
+[Checkpoint 的生命周期]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) 由 Flink 管理，
+即 Flink 创建，管理和删除 checkpoint - 无需用户交互。
+由于 checkpoint 被经常触发，且被用于作业恢复，所以 Checkpoint 的实现有两个设计目标：i）轻量级创建和 ii）尽可能快地恢复。 可能会利用某些特定的属性来达到这个目标，例如， 作业的代码在执行尝试时不会改变。
 
 {{< hint info >}}
-- Savepoints are created, owned and deleted solely by the user. 
-That means, Flink does not delete savepoints neither after job termination nor after
-restore.
-- Savepoints are stored in a state backend independent (canonical) format (Note: Since Flink 1.15, savepoints can be also stored in
-the backend-specific [native]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) format which is faster to create
-and restore but comes with some limitations.
+- 在用户终止作业后，会自动删除 Checkpoint（除非明确配置为保留的 Checkpoint）。
+- Checkpoint 以状态后端特定的（原生的）数据格式存储（有些状态后端可能是增量的）。
 {{< /hint >}}
 
-### Capabilities and limitations
-The following table gives an overview of capabilities and limitations for the various types of savepoints and
-checkpoints.
-- ✓ - Flink fully support this type of the snapshot
-- x - Flink doesn't support this type of the snapshot
-- ! - While these operations currently work, Flink doesn't officially guarantee support for them, so there is a certain level of risk associated with them
+尽管 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 在内部使用与 checkpoints 相同的机制创建，但它们在概念上有所不同，并且生成和恢复的成本可能会更高一些。Savepoints的设计更侧重于可移植性和操作灵活性，尤其是在 job 变更方面。Savepoint 的用例是针对计划中的、手动的运维。例如，可能是更新你的 Flink 版本，更改你的作业图等等。
 
-| Operation                         | Canonical Savepoint | Native Savepoint | Aligned Checkpoint | Unaligned Checkpoint |
+{{< hint info >}}
+- Savepoint 仅由用户创建、拥有和删除。这意味着 Flink 在作业终止后和恢复后都不会删除 savepoint。
+- Savepoint 以状态后端独立的（标准的）数据格式存储（注意：从 Flink 1.15 开始，savepoint 也可以以后端特定的[原生]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format)格式存储，这种格式创建和恢复速度更快，但有一些限制）。
+{{< /hint >}}
+
+<a name="capabilities-and-limitations"></a>
+
+### 功能和限制
+
+下表概述了各种类型的 savepoint 和 checkpoint 的功能和限制。
+- ✓ - Flink 完全支持这种类型的快照
+- x - Flink 不支持这种类型的快照
+- ! - 虽然这些操作目前有效，但 Flink 并未正式保证对它们的支持，因此它们存在一定程度的风险
+
+| 操作                              | 标准 Savepoint    | 原生 Savepoint | 对齐 Checkpoint | 非对齐 Checkpoint |
 |:----------------------------------|:--------------------|:-----------------|:-------------------|:---------------------|
-| State backend change              | ✓                   | x                | x                  | x                    |
-| State Processor API (writing)     | ✓                   | x                | x                  | x                    |
-| State Processor API (reading)     | ✓                   | !                | !                  | x                    |
-| Self-contained and relocatable    | ✓                   | ✓                | x                  | x                    |
-| Schema evolution                  | ✓                   | !                | !                  | !                    |
-| Arbitrary job upgrade             | ✓                   | ✓                | ✓                  | x                    |
-| Non-arbitrary job upgrade         | ✓                   | ✓                | ✓                  | x                    |
-| Flink minor version upgrade       | ✓                   | ✓                | ✓                  | x                    |
-| Flink bug/patch version upgrade   | ✓                   | ✓                | ✓                  | ✓                    |
-| Rescaling                         | ✓                   | ✓                | ✓                  | ✓                    |
+| 更换状态后端                      | ✓                   | x                | x                  | x                    |
+| State Processor API (写)          | ✓                   | x                | x                  | x                    |
+| State Processor API (读)          | ✓                   | !                | !                  | x                    |
+| 自包含和可移动                    | ✓                   | ✓                | x                  | x                    |
+| Schema 变更                       | ✓                   | !                | !                  | !                    |
+| 任意 job 升级                     | ✓                   | ✓                | ✓                  | x                    |
+| 非任意 job 升级                   | ✓                   | ✓                | ✓                  | ✓                    |
+| Flink 小版本升级                  | ✓                   | ✓                | ✓                  | x                    |
+| Flink bug/patch 版本升级          | ✓                   | ✓                | ✓                  | ✓                    |
+| 扩缩容                            | ✓                   | ✓                | ✓                  | ✓                    |
 
-- [State backend change]({{< ref "docs/ops/state/state_backends" >}})  - configuring a different State Backend than was used when taking the snapshot.
-- [State Processor API (writing)]({{< ref "docs/libs/state_processor_api" >}}#writing-new-savepoints) - the ability to create a new snapshot of this type via the State Processor API.
-- [State Processor API (reading)]({{< ref "docs/libs/state_processor_api" >}}#reading-state) - the ability to read states from an existing snapshot of this type via the State Processor API.
-- Self-contained and relocatable - the one snapshot folder contains everything it needs for recovery
-and it doesn't depend on other snapshots which means it can be easily moved to another place if needed.
-- [Schema evolution]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}) - the *state* data type can be changed if it uses a serializer that supports schema evolution (e.g., POJOs and Avro types)
-- Arbitrary job upgrade - the snapshot can be restored even if the [partitioning types]({{< ref "docs/dev/datastream/operators/overview" >}}#physical-partitioning)(rescale, rebalance, map, etc.)
-or in-flight record types for the existing operators have changed.
-- Non-arbitrary job upgrade - restoring the snapshot is possible with updated operators if the job graph topology and in-flight record types remain unchanged.
-- Flink minor version upgrade - restoring a snapshot taken with an older minor version of Flink (1.x → 1.y).
-- Flink bug/patch version upgrade - restoring a snapshot taken with an older patch version of Flink (1.14.x → 1.14.y).
-- Rescaling - restoring the snapshot with a different parallelism than was used during the snapshot creation.
+- [更换状态后端]({{< ref "docs/ops/state/state_backends" >}})  - 配置与创建快照时使用的不同的状态后端。
+- [State Processor API (写)]({{< ref "docs/libs/state_processor_api" >}}#writing-new-savepoints) - 通过 State Processor API 创建这种类型的新快照的能力。
+- [State Processor API (读)]({{< ref "docs/libs/state_processor_api" >}}#reading-state) - 通过 State Processor API 从该类型的现有快照中读取状态的能力。
+- 自包含和可移动 - 快照目录包含从该快照恢复所需的所有内容，并且不依赖于其他快照，这意味着如果需要的话，它可以轻松移动到另一个地方。
+- [Schema 变更]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}) - 如果使用支持 Schema 变更的序列化器（例如 POJO 和 Avro 类型），则可以更改*状态*数据类型。
+- 任意 job 升级 - 即使现有算子的 [partitioning 类型]({{< ref "docs/dev/datastream/operators/overview" >}}#physical-partitioning)（rescale, rebalance, map, 等）或运行中数据类型已经更改，也可以从该快照恢复。
+- 非任意 job 升级 - 如果作业图拓扑和运行中数据类型保持不变，则可以使用变更后的 operator 恢复快照。
+- Flink 小版本升级 - 从更旧的 Flink 小版本创建的快照恢复（1.x → 1.y）。
+- Flink bug/patch 版本升级 - 从更旧的 Flink 补丁版本创建的快照恢复（1.14.x → 1.14.y）。
+- 扩缩容 - 使用与快照制作时不同的并发度从该快照恢复。
 
 
 {{< top >}}

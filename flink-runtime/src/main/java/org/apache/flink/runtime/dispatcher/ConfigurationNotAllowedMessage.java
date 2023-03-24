@@ -19,34 +19,56 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.DeploymentOptions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference.ValueDifference;
 
 /**
- * If {@link org.apache.flink.configuration.DeploymentOptions#ALLOW_CLIENT_JOB_CONFIGURATIONS} is
- * disabled this error denotes the not allowed configuration.
+ * If {@link DeploymentOptions#PROGRAM_CONFIG_ENABLED} is disabled, this error denotes the not
+ * allowed configuration.
  */
 @Internal
 public class ConfigurationNotAllowedMessage {
 
     private ConfigurationNotAllowedMessage() {}
 
-    public static String ofConfigurationKeyAndValue(String configkey, String configValue) {
-        return String.format("Configuration %s:%s not allowed.", configkey, configValue);
+    public static String ofConfigurationAdded(String configKey, String configValue) {
+        return String.format("Configuration %s:%s not allowed.", configKey, configValue);
     }
 
-    public static String ofConfigurationRemoved(String configkey, String configValue) {
-        return String.format("Configuration %s:%s was removed.", configkey, configValue);
+    public static String ofConfigurationRemoved(String configKey, String configValue) {
+        return String.format("Configuration %s:%s was removed.", configKey, configValue);
     }
 
-    public static String ofConfigurationChange(
-            String configkey, MapDifference.ValueDifference<String> change) {
+    public static String ofConfigurationChanged(String configKey, ValueDifference<String> change) {
         return String.format(
                 "Configuration %s was changed from %s to %s.",
-                configkey, change.leftValue(), change.rightValue());
+                configKey, change.leftValue(), change.rightValue());
     }
 
-    public static String ofConfigurationObject(String configurationObject) {
-        return String.format("Configuration object %s changed.", configurationObject);
+    public static String ofConfigurationObjectAdded(
+            String configurationObject, String configKey, String configValue) {
+        return String.format(
+                "Configuration %s:%s not allowed in the configuration object %s.",
+                configKey, configValue, configurationObject);
+    }
+
+    public static String ofConfigurationObjectChanged(
+            String configurationObject, String configKey, ValueDifference<String> change) {
+        return String.format(
+                "Configuration %s was changed from %s to %s in the configuration object %s.",
+                configKey, change.leftValue(), change.rightValue(), configurationObject);
+    }
+
+    public static String ofConfigurationObjectRemoved(
+            String configurationObject, String configKey, String configValue) {
+        return String.format(
+                "Configuration %s:%s was removed from the configuration object %s.",
+                configKey, configValue, configurationObject);
+    }
+
+    public static String ofConfigurationObjectSetterUsed(
+            String configurationObject, String setter) {
+        return String.format("Setter %s#%s has been used", configurationObject, setter);
     }
 }

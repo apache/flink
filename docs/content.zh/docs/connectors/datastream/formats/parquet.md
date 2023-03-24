@@ -62,6 +62,8 @@ Flink 支持读取 [Parquet](https://parquet.apache.org/) 文件并生成 {{< ja
 </dependency>
 ```
 
+{{< py_download_link "parquet" >}}
+
 此格式与新的 Source 兼容，可以同时在批和流模式下使用。
 因此，你可使用此格式处理以下两类数据：
 
@@ -76,25 +78,64 @@ Flink 支持读取 [Parquet](https://parquet.apache.org/) 文件并生成 {{< ja
 
 **Vectorized reader**
 
+{{< tabs "0b1b298a-b92f-4f95-8d06-49544b48ab75" >}}
+{{< tab "Java" >}}
 ```java
+
 // Parquet rows are decoded in batches
 FileSource.forBulkFileFormat(BulkFormat,Path...)
 // Monitor the Paths to read data as unbounded data
 FileSource.forBulkFileFormat(BulkFormat,Path...)
 .monitorContinuously(Duration.ofMillis(5L))
 .build();
+
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+# Parquet rows are decoded in batches
+FileSource.for_bulk_file_format(BulkFormat, Path...)
+
+# Monitor the Paths to read data as unbounded data
+FileSource.for_bulk_file_format(BulkFormat, Path...) \
+          .monitor_continuously(Duration.of_millis(5)) \
+          .build()
+
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 **Avro Parquet reader**
 
+{{< tabs "0b1b298a-b92f-4f95-8d06-49544b12ab75" >}}
+{{< tab "Java" >}}
 ```java
+
 // Parquet rows are decoded in batches
 FileSource.forRecordStreamFormat(StreamFormat,Path...)
+
 // Monitor the Paths to read data as unbounded data
 FileSource.forRecordStreamFormat(StreamFormat,Path...)
         .monitorContinuously(Duration.ofMillis(5L))
         .build();
+
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+# Parquet rows are decoded in batches
+FileSource.for_record_stream_format(StreamFormat, Path...)
+
+# Monitor the Paths to read data as unbounded data
+FileSource.for_record_stream_format(StreamFormat, Path...) \
+          .monitor_continuously(Duration.of_millis(5)) \
+          .build()
+
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< hint info >}}
 下面的案例都是基于有界数据的。
@@ -111,29 +152,51 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...)
 第二个布尔类型参数用来指定在进行 Parquet 字段映射时，是否要区分大小写。
 这里不需要水印策略，因为记录中不包含事件时间戳。
 
+{{< tabs "RowData" >}}
+{{< tab "Java" >}}
 ```java
 final LogicalType[] fieldTypes =
         new LogicalType[] {
-        new DoubleType(), new IntType(), new VarCharType()
-        };
+                new DoubleType(), new IntType(), new VarCharType()};
+final RowType rowType = RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"});
 
 final ParquetColumnarRowInputFormat<FileSourceSplit> format =
         new ParquetColumnarRowInputFormat<>(
-        new Configuration(),
-        RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"}),
-        500,
-        false,
-        true);
+                new Configuration(),
+                rowType,
+                InternalTypeInfo.of(rowType),
+                500,
+                false,
+                true);
 final FileSource<RowData> source =
         FileSource.forBulkFileFormat(format,  /* Flink Path */)
-        .build();
+                .build();
 final DataStream<RowData> stream =
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('f7', DataTypes.DOUBLE()),
+    DataTypes.FIELD('f4', DataTypes.INT()),
+    DataTypes.FIELD('f99', DataTypes.VARCHAR()),
+])
+source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
+    row_type=row_type,
+    hadoop_config=Configuration(),
+    batch_size=500,
+    is_utc_timestamp=False,
+    is_case_sensitive=True,
+), PARQUET_FILE_PATH).build()
+ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Avro Records
 
-Flink 支持三种方式来读取 Parquet 文件并创建 Avro records ：
+Flink 支持三种方式来读取 Parquet 文件并创建 Avro records （PyFlink 只支持 Generic record）：
 
 - [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
 - [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
@@ -163,6 +226,8 @@ Flink 会基于 JSON 字符串解析 Avro schema。也有很多其他的方式�
 请参考 [Avro Schema](https://avro.apache.org/docs/1.10.0/api/java/org/apache/avro/Schema.html) 以获取更多详细信息。
 然后，你可以通过 `AvroParquetReaders` 为 Avro Generic 记录创建 `AvroParquetRecordFormat`。
 
+{{< tabs "GenericRecord" >}}
+{{< tab "Java" >}}
 ```java
 // 解析 avro schema
 final Schema schema =
@@ -188,6 +253,33 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 final DataStream<GenericRecord> stream =
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# 解析 avro schema
+schema = AvroSchema.parse_string("""
+{
+    "type": "record",
+    "name": "User",
+    "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "favoriteNumber",  "type": ["int", "null"]},
+        {"name": "favoriteColor", "type": ["string", "null"]}
+    ]
+}
+""")
+
+source = FileSource.for_record_stream_format(
+    AvroParquetReaders.for_generic_record(schema), # file paths
+).build()
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_checkpointing(10)
+
+stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Specific record
 
@@ -196,7 +288,7 @@ final DataStream<GenericRecord> stream =
 你可以使用 `avro-tools.jar` 手动生成代码，也可以直接使用 Avro Maven 插件对配置的源目录中的任何 .avsc 文件执行代码生成。
 请参考 [Avro Getting Started](https://avro.apache.org/docs/1.10.0/gettingstartedjava.html) 获取更多信息。
 
-此示例使用了样例 schema [testdata.avsc](https://github.com/apache/flink/blob/master/flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc)：
+此示例使用了样例 schema {{< gh_link file="flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc" name="testdata.avsc" >}}：
 
 ```json lines
 [
@@ -245,7 +337,7 @@ final DataStream<GenericRecord> stream =
 在这种场景中，Avro 会使用 Java 反射为这些 POJO 类生成 schema 和协议。
 请参考 [Avro reflect](https://avro.apache.org/docs/1.10.0/api/java/index.html) 文档获取更多关于 Java 类型到 Avro schemas 映射的详细信息。
 
-本例使用了一个简单的 Java POJO 类 [Datum](https://github.com/apache/flink/blob/master/flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java)：
+本例使用了一个简单的 Java POJO 类 {{< gh_link file="flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java" name="Datum" >}}：
 
 ```java
 public class Datum implements Serializable {

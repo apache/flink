@@ -38,9 +38,9 @@ Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) i
 In order to start an HA-cluster you have to configure the following configuration keys:
 
 - [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (required): 
-The `high-availability` option has to be set to `zookeeper`.
+The `high-availability.type` option has to be set to `zookeeper`.
 
-  <pre>high-availability: zookeeper</pre>
+  <pre>high-availability.type: zookeeper</pre>
 
 - [high-availability.storageDir]({{< ref "docs/deployment/config" >}}#high-availability-storagedir) (required): 
 JobManager metadata is persisted in the file system `high-availability.storageDir` and only a pointer to this state is stored in ZooKeeper.
@@ -76,7 +76,7 @@ The *cluster-id ZooKeeper node*, under which all required coordination data for 
 Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
@@ -117,17 +117,6 @@ If you are willing to take a more aggressive approach, then you can tolerate sus
 Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
 
 For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
-
-## ZooKeeper Versions
-
-Flink ships with separate ZooKeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
-and thus used by default, whereas 3.5 is placed in the `opt` directory.
-
-The 3.5 client allows you to secure the ZooKeeper connection via SSL, but _may_ not work with 3.4- ZooKeeper installations.
-
-You can control which version is used by Flink by placing either jar in the `lib` directory.
-
-{{< top >}}
 
 ## Bootstrap ZooKeeper
 

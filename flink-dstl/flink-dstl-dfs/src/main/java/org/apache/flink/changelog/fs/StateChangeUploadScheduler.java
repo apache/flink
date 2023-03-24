@@ -17,9 +17,12 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -59,7 +62,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * directly calls {@link StateChangeUploader#upload(Collection)}. Other implementations might batch
  * the tasks for efficiency.
  */
-interface StateChangeUploadScheduler extends AutoCloseable {
+@Internal
+public interface StateChangeUploadScheduler extends AutoCloseable {
 
     /**
      * Schedule the upload and {@link UploadTask#complete(List) complete} or {@link
@@ -82,18 +86,37 @@ interface StateChangeUploadScheduler extends AutoCloseable {
     }
 
     static StateChangeUploadScheduler fromConfig(
-            ReadableConfig config, ChangelogStorageMetricGroup metricGroup) throws IOException {
+            JobID jobID,
+            ReadableConfig config,
+            ChangelogStorageMetricGroup metricGroup,
+            TaskChangelogRegistry changelogRegistry,
+            LocalRecoveryConfig localRecoveryConfig)
+            throws IOException {
         Path basePath = new Path(config.get(BASE_PATH));
         long bytes = config.get(UPLOAD_BUFFER_SIZE).getBytes();
         checkArgument(bytes <= Integer.MAX_VALUE);
         int bufferSize = (int) bytes;
-        StateChangeFsUploader store =
-                new StateChangeFsUploader(
-                        basePath,
-                        basePath.getFileSystem(),
-                        config.get(COMPRESSION_ENABLED),
-                        bufferSize,
-                        metricGroup);
+        StateChangeUploader store =
+                localRecoveryConfig.isLocalRecoveryEnabled()
+                        ? new DuplicatingStateChangeFsUploader(
+                                jobID,
+                                basePath,
+                                basePath.getFileSystem(),
+                                config.get(COMPRESSION_ENABLED),
+                                bufferSize,
+                                metricGroup,
+                                changelogRegistry,
+                                localRecoveryConfig
+                                        .getLocalStateDirectoryProvider()
+                                        .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled()))
+                        : new StateChangeFsUploader(
+                                jobID,
+                                basePath,
+                                basePath.getFileSystem(),
+                                config.get(COMPRESSION_ENABLED),
+                                bufferSize,
+                                metricGroup,
+                                changelogRegistry);
         BatchingStateChangeUploadScheduler batchingStore =
                 new BatchingStateChangeUploadScheduler(
                         config.get(PERSIST_DELAY).toMillis(),
@@ -110,6 +133,7 @@ interface StateChangeUploadScheduler extends AutoCloseable {
         return () -> AvailabilityProvider.AVAILABLE;
     }
 
+    /** Upload Task for {@link StateChangeUploadScheduler}. */
     @ThreadSafe
     final class UploadTask {
         final Collection<StateChangeSet> changeSets;
@@ -150,9 +174,17 @@ interface StateChangeUploadScheduler extends AutoCloseable {
             return size;
         }
 
+        public Collection<StateChangeSet> getChangeSets() {
+            return changeSets;
+        }
+
         @Override
         public String toString() {
             return "changeSets=" + changeSets;
+        }
+
+        public boolean isFinished() {
+            return finished.get();
         }
     }
 }

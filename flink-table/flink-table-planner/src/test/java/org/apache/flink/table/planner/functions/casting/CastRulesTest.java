@@ -169,6 +169,7 @@ class CastRulesTest {
                         .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(STRING(), fromString("1.234"), (byte) 1)
                         .fromCase(STRING(), fromString("123"), (byte) 123)
+                        .fromCase(STRING(), fromString(" 123 "), (byte) 123)
                         .fail(STRING(), fromString("-130"), TableException.class)
                         .fromCase(
                                 DECIMAL(4, 3),
@@ -203,6 +204,7 @@ class CastRulesTest {
                         .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(STRING(), fromString("1.234"), (short) 1)
                         .fromCase(STRING(), fromString("123"), (short) 123)
+                        .fromCase(STRING(), fromString(" 123 "), (short) 123)
                         .fail(STRING(), fromString("-32769"), TableException.class)
                         .fromCase(
                                 DECIMAL(4, 3),
@@ -247,6 +249,7 @@ class CastRulesTest {
                         .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(STRING(), fromString("1.234"), 1)
                         .fromCase(STRING(), fromString("123"), 123)
+                        .fromCase(STRING(), fromString(" 123 "), 123)
                         .fail(STRING(), fromString("-3276913443134"), TableException.class)
                         .fromCase(DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -293,6 +296,7 @@ class CastRulesTest {
                         .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(STRING(), fromString("1.234"), 1L)
                         .fromCase(STRING(), fromString("123"), 123L)
+                        .fromCase(STRING(), fromString(" 123 "), 123L)
                         .fromCase(STRING(), fromString("-3276913443134"), -3276913443134L)
                         .fromCase(DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9L)
                         .fromCase(
@@ -334,6 +338,7 @@ class CastRulesTest {
                         .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(STRING(), fromString("1.234"), 1.234f)
                         .fromCase(STRING(), fromString("123"), 123.0f)
+                        .fromCase(STRING(), fromString(" 123 "), 123.0f)
                         .fromCase(STRING(), fromString("-3276913443134"), -3.27691351E12f)
                         .fromCase(
                                 DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9.87f)
@@ -380,6 +385,8 @@ class CastRulesTest {
                         .fail(STRING(), fromString("Apache"), TableException.class)
                         .fromCase(STRING(), fromString("1.234"), 1.234d)
                         .fromCase(STRING(), fromString("123"), 123.0d)
+                        .fromCase(STRING(), fromString(" 123 "), 123.0d)
+                        .fromCase(STRING(), fromString(" .123 "), 0.123d)
                         .fromCase(STRING(), fromString("-3276913443134"), -3.276913443134E12d)
                         .fromCase(
                                 DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9.87d)
@@ -1251,6 +1258,14 @@ class CastRulesTest {
                                 STRING(),
                                 fromString("1.2"),
                                 fromBigDecimal(new BigDecimal("1.200"), 5, 3))
+                        .fromCase(
+                                STRING(),
+                                fromString(" 1.2 "),
+                                fromBigDecimal(new BigDecimal("1.200"), 5, 3))
+                        .fromCase(
+                                STRING(),
+                                fromString(" .2 "),
+                                fromBigDecimal(new BigDecimal("0.200"), 5, 3))
                         .fromCase(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.87"), 4, 3),

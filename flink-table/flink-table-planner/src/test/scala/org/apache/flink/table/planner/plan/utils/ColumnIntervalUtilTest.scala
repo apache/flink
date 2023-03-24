@@ -195,7 +195,8 @@ class ColumnIntervalUtilTest {
 
   @Test
   def testGetColumnIntervalWithFilter(): Unit = {
-    val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE)
+    val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+      Thread.currentThread().getContextClassLoader)
     val rexBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
 
     // ($1 >= 1 and $1 < 10) or (not($1 > 5)

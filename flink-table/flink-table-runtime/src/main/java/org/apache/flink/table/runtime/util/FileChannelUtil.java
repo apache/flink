@@ -49,12 +49,12 @@ public class FileChannelUtil {
             IOManager ioManager,
             ChannelWithMeta channel,
             List<FileIOChannel> channels,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             BlockCompressionFactory compressionCodecFactory,
             int compressionBlockSize,
             int segmentSize)
             throws IOException {
-        if (compressionEnable) {
+        if (compressionEnabled) {
             CompressedHeaderlessChannelReaderInputView in =
                     new CompressedHeaderlessChannelReaderInputView(
                             channel.getChannel(),
@@ -82,12 +82,12 @@ public class FileChannelUtil {
     public static AbstractChannelWriterOutputView createOutputView(
             IOManager ioManager,
             FileIOChannel.ID channel,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             BlockCompressionFactory compressionCodecFactory,
             int compressionBlockSize,
             int segmentSize)
             throws IOException {
-        if (compressionEnable) {
+        if (compressionEnabled) {
             BufferFileWriter bufferWriter = ioManager.createBufferFileWriter(channel);
             return new CompressedHeaderlessChannelWriterOutputView(
                     bufferWriter, compressionCodecFactory, compressionBlockSize);

@@ -70,7 +70,10 @@ public class LogicalRelDataTypeConverterTest {
     @ParameterizedTest
     @MethodSource("testConversion")
     public void testConversion(LogicalType logicalType) throws IOException {
-        final RelDataTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
+        final RelDataTypeFactory typeFactory =
+                new FlinkTypeFactory(
+                        LogicalRelDataTypeConverterTest.class.getClassLoader(),
+                        FlinkTypeSystem.INSTANCE);
         final DataTypeFactoryMock dataTypeFactory = new DataTypeFactoryMock();
         final RelDataType relDataType =
                 LogicalRelDataTypeConverter.toRelDataType(logicalType, typeFactory);

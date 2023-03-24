@@ -21,7 +21,7 @@ package org.apache.flink.api.common.typeinfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link FractionalTypeInfo}. */
-public class FractionalTypeInfoTest extends TypeInformationTestBase<FractionalTypeInfo<?>> {
+class FractionalTypeInfoTest extends TypeInformationTestBase<FractionalTypeInfo<?>> {
 
     @Override
     protected FractionalTypeInfo<?>[] getTestData() {

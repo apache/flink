@@ -51,7 +51,8 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
             boolean markChannelBlocked)
             throws IOException, CheckpointException {
         if (checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint()) {
-            BarrierHandlerState unalignedState = alignmentTimeout(controller, checkpointBarrier);
+            BarrierHandlerState unalignedState =
+                    alignedCheckpointTimeout(controller, checkpointBarrier);
             return unalignedState.barrierReceived(
                     controller, channelInfo, checkpointBarrier, markChannelBlocked);
         }
@@ -63,10 +64,11 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
         }
 
         if (controller.allBarriersReceived()) {
+            controller.initInputsCheckpoint(checkpointBarrier);
             controller.triggerGlobalCheckpoint(checkpointBarrier);
             return finishCheckpoint();
         } else if (controller.isTimedOut(checkpointBarrier)) {
-            return alignmentTimeout(controller, checkpointBarrier)
+            return alignedCheckpointTimeout(controller, checkpointBarrier)
                     .barrierReceived(
                             controller,
                             channelInfo,

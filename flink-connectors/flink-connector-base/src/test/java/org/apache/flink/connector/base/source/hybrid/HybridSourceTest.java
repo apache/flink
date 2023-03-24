@@ -29,9 +29,8 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HybridSource}. */
 public class HybridSourceTest {
@@ -44,22 +43,24 @@ public class HybridSourceTest {
                 HybridSource.builder(new MockBaseSource(1, 1, Boundedness.BOUNDED))
                         .addSource(new MockBaseSource(1, 1, Boundedness.BOUNDED))
                         .build();
-        assertEquals(Boundedness.BOUNDED, source.getBoundedness());
+        assertThat(source.getBoundedness()).isEqualTo(Boundedness.BOUNDED);
 
         source =
                 HybridSource.builder(new MockBaseSource(1, 1, Boundedness.BOUNDED))
                         .addSource(new MockBaseSource(1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
                         .build();
-        assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, source.getBoundedness());
+        assertThat(source.getBoundedness()).isEqualTo(Boundedness.CONTINUOUS_UNBOUNDED);
 
-        try {
-            HybridSource.builder(new MockBaseSource(1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
-                    .addSource(new MockBaseSource(1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
-                    .build();
-            fail("expected exception");
-        } catch (IllegalArgumentException e) {
-            // boundedness check to fail
-        }
+        assertThatThrownBy(
+                        () ->
+                                HybridSource.builder(
+                                                new MockBaseSource(
+                                                        1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
+                                        .addSource(
+                                                new MockBaseSource(
+                                                        1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -82,7 +83,7 @@ public class HybridSourceTest {
                                 new MockBaseSource(1, 1, Boundedness.BOUNDED))
                         .addSource(sourceFactory, Boundedness.BOUNDED)
                         .build();
-        assertNotNull(source);
+        assertThat(source).isNotNull();
     }
 
     private static class ExtendedMockSplitEnumerator extends MockSplitEnumerator {
@@ -110,6 +111,6 @@ public class HybridSourceTest {
                                 new MockBaseSource(1, 1, Boundedness.BOUNDED))
                         .addSource(sourceFactory, Boundedness.BOUNDED)
                         .build();
-        assertNotNull(source);
+        assertThat(source).isNotNull();
     }
 }

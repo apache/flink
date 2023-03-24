@@ -20,33 +20,31 @@ package org.apache.flink.connector.aws.testutils;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.awscore.client.builder.AwsSyncClientBuilder;
 import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.async.AsyncResponseTransformer;
-import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
+import software.amazon.awssdk.core.SdkClient;
+import software.amazon.awssdk.http.Protocol;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.SdkHttpConfigurationOption;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.iam.IamAsyncClient;
+import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.iam.model.CreateRoleRequest;
-import software.amazon.awssdk.services.iam.model.CreateRoleResponse;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.services.s3.waiters.S3AsyncWaiter;
+import software.amazon.awssdk.services.s3.waiters.S3Waiter;
+import software.amazon.awssdk.utils.AttributeMap;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,27 +61,26 @@ public class AWSServicesTestUtils {
     private static final String ACCESS_KEY_ID = "accessKeyId";
     private static final String SECRET_ACCESS_KEY = "secretAccessKey";
 
-    public static S3AsyncClient createS3Client(String endpoint, SdkAsyncHttpClient httpClient) {
-        return S3AsyncClient.builder()
-                .httpClient(httpClient)
-                .region(Region.AP_SOUTHEAST_1)
-                .endpointOverride(URI.create(endpoint))
-                .credentialsProvider(createDefaultCredentials())
-                .build();
+    public static S3Client createS3Client(String endpoint, SdkHttpClient httpClient) {
+        return createAwsSyncClient(endpoint, httpClient, S3Client.builder());
     }
 
-    public static IamAsyncClient createIamClient(String endpoint, SdkAsyncHttpClient httpClient) {
-        return IamAsyncClient.builder()
-                .httpClient(httpClient)
-                .region(Region.AWS_GLOBAL)
-                .endpointOverride(URI.create(endpoint))
-                .credentialsProvider(createDefaultCredentials())
-                .build();
+    public static IamClient createIamClient(String endpoint, SdkHttpClient httpClient) {
+        return createAwsSyncClient(endpoint, httpClient, IamClient.builder());
     }
 
-    public static AwsCredentialsProvider createDefaultCredentials() {
-        return StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY_ID, SECRET_ACCESS_KEY));
+    public static <
+                    S extends SdkClient,
+                    T extends
+                            AwsSyncClientBuilder<? extends T, S> & AwsClientBuilder<? extends T, S>>
+            S createAwsSyncClient(String endpoint, SdkHttpClient httpClient, T clientBuilder) {
+        Properties config = createConfig(endpoint);
+        return clientBuilder
+                .httpClient(httpClient)
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(AWSGeneralUtil.getCredentialsProvider(config))
+                .region(AWSGeneralUtil.getRegion(config))
+                .build();
     }
 
     public static Properties createConfig(String endpoint) {
@@ -97,15 +94,14 @@ public class AWSServicesTestUtils {
         return config;
     }
 
-    public static SdkAsyncHttpClient createHttpClient(String endpoint) {
-        return AWSGeneralUtil.createAsyncHttpClient(
-                createConfig(endpoint),
-                NettyNioAsyncHttpClient.builder()
-                        .eventLoopGroupBuilder(SdkEventLoopGroup.builder()));
+    public static SdkHttpClient createHttpClient() {
+        AttributeMap.Builder attributeMapBuilder = AttributeMap.builder();
+        attributeMapBuilder.put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true);
+        attributeMapBuilder.put(SdkHttpConfigurationOption.PROTOCOL, Protocol.HTTP1_1);
+        return ApacheHttpClient.builder().buildWithDefaults(attributeMapBuilder.build());
     }
 
-    public static void createBucket(S3AsyncClient s3Client, String bucketName)
-            throws ExecutionException, InterruptedException {
+    public static void createBucket(S3Client s3Client, String bucketName) {
         CreateBucketRequest bucketRequest =
                 CreateBucketRequest.builder().bucket(bucketName).build();
         s3Client.createBucket(bucketRequest);
@@ -113,61 +109,38 @@ public class AWSServicesTestUtils {
         HeadBucketRequest bucketRequestWait =
                 HeadBucketRequest.builder().bucket(bucketName).build();
 
-        try (final S3AsyncWaiter waiter = s3Client.waiter()) {
-            waiter.waitUntilBucketExists(bucketRequestWait).get();
+        try (final S3Waiter waiter = s3Client.waiter()) {
+            waiter.waitUntilBucketExists(bucketRequestWait);
         }
     }
 
-    public static void createIAMRole(IamAsyncClient iam, String roleName)
-            throws ExecutionException, InterruptedException {
+    public static void createIAMRole(IamClient iam, String roleName) {
         CreateRoleRequest request = CreateRoleRequest.builder().roleName(roleName).build();
 
-        CompletableFuture<CreateRoleResponse> responseFuture = iam.createRole(request);
-        responseFuture.get();
+        iam.createRole(request);
     }
 
-    public static List<S3Object> listBucketObjects(S3AsyncClient s3, String bucketName)
-            throws ExecutionException, InterruptedException {
-        ListObjectsRequest listObjects = ListObjectsRequest.builder().bucket(bucketName).build();
-        CompletableFuture<ListObjectsResponse> res = s3.listObjects(listObjects);
-        return res.get().contents();
+    public static List<S3Object> listBucketObjects(S3Client s3, String bucketName) {
+        ListObjectsV2Request listObjects =
+                ListObjectsV2Request.builder().bucket(bucketName).build();
+        ListObjectsV2Response res = s3.listObjectsV2(listObjects);
+        return res.contents();
     }
 
     public static <T> List<T> readObjectsFromS3Bucket(
-            S3AsyncClient s3AsyncClient,
+            S3Client s3Client,
             List<S3Object> objects,
             String bucketName,
             Function<ResponseBytes<GetObjectResponse>, T> deserializer) {
-        S3BucketReader bucketReader = new S3BucketReader(s3AsyncClient, bucketName);
-        return bucketReader.readObjects(objects, deserializer);
-    }
-
-    /** Helper class to read objects from S3. */
-    private static class S3BucketReader {
-        private final S3AsyncClient s3AsyncClient;
-        private final String bucketName;
-
-        public S3BucketReader(S3AsyncClient s3AsyncClient, String bucketName) {
-            this.s3AsyncClient = s3AsyncClient;
-            this.bucketName = bucketName;
-        }
-
-        public <T> List<T> readObjects(
-                List<S3Object> objectList,
-                Function<ResponseBytes<GetObjectResponse>, T> deserializer) {
-            return objectList.stream()
-                    .map(object -> readObjectWitKey(object.key(), deserializer))
-                    .collect(Collectors.toList());
-        }
-
-        public <T> T readObjectWitKey(
-                String key, Function<ResponseBytes<GetObjectResponse>, T> deserializer) {
-            GetObjectRequest getObjectRequest =
-                    GetObjectRequest.builder().bucket(bucketName).key(key).build();
-            return s3AsyncClient
-                    .getObject(getObjectRequest, AsyncResponseTransformer.toBytes())
-                    .thenApply(deserializer)
-                    .join();
-        }
+        return objects.stream()
+                .map(
+                        object ->
+                                GetObjectRequest.builder()
+                                        .bucket(bucketName)
+                                        .key(object.key())
+                                        .build())
+                .map(s3Client::getObjectAsBytes)
+                .map(deserializer)
+                .collect(Collectors.toList());
     }
 }

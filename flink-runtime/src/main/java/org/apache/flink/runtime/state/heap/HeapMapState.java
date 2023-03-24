@@ -213,4 +213,15 @@ class HeapMapState<K, N, UK, UV> extends AbstractHeapState<K, N, Map<UK, UV>>
                         stateTable.getNamespaceSerializer(),
                         (Map<UK, UV>) stateDesc.getDefaultValue());
     }
+
+    @SuppressWarnings("unchecked")
+    static <UK, UV, K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapMapState<K, N, UK, UV>) existingState)
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(
+                                (TypeSerializer<Map<UK, UV>>) stateTable.getStateSerializer())
+                        .setDefaultValue((Map<UK, UV>) stateDesc.getDefaultValue());
+    }
 }

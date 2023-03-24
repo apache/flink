@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.collection.IsEmptyCollection;

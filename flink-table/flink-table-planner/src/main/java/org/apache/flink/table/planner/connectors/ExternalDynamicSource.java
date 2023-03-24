@@ -138,7 +138,8 @@ final class ExternalDynamicSource<E>
                                 propagateWatermark,
                                 changelogMode.containsOnly(RowKind.INSERT)),
                         null, // will be filled by the framework
-                        externalTransformation.getParallelism());
+                        externalTransformation.getParallelism(),
+                        false);
             }
 
             @Override

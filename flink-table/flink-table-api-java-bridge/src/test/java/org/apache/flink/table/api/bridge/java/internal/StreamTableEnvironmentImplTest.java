@@ -27,13 +27,15 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExecutorMock;
 import org.apache.flink.table.utils.PlannerMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -41,9 +43,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTableEnvironmentImpl}. */
-public class StreamTableEnvironmentImplTest {
+class StreamTableEnvironmentImplTest {
     @Test
-    public void testAppendStreamDoesNotOverwriteTableConfig() {
+    void testAppendStreamDoesNotOverwriteTableConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 
@@ -58,7 +60,7 @@ public class StreamTableEnvironmentImplTest {
     }
 
     @Test
-    public void testRetractStreamDoesNotOverwriteTableConfig() {
+    void testRetractStreamDoesNotOverwriteTableConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 
@@ -77,16 +79,22 @@ public class StreamTableEnvironmentImplTest {
         TableConfig tableConfig = TableConfig.getDefault();
         CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         ModuleManager moduleManager = new ModuleManager();
+        ResourceManager resourceManager =
+                ResourceManager.createResourceManager(
+                        new URL[0],
+                        Thread.currentThread().getContextClassLoader(),
+                        tableConfig.getConfiguration());
+
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+                resourceManager,
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager),
                 tableConfig,
                 env,
                 new TestPlanner(elements.getTransformation()),
                 new ExecutorMock(),
-                true,
-                this.getClass().getClassLoader());
+                true);
     }
 
     private static class TestPlanner extends PlannerMock {

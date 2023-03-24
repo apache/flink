@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.enumerator.initializer;
 
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 
@@ -53,23 +54,23 @@ class TimestampOffsetsInitializer implements OffsetsInitializer {
         // no message is going to be missed.
         Map<TopicPartition, Long> endOffsets = partitionOffsetsRetriever.endOffsets(partitions);
         partitions.forEach(tp -> startingTimestamps.put(tp, startingTimestamp));
-        partitionOffsetsRetriever
-                .offsetsForTimes(startingTimestamps)
-                .forEach(
-                        (tp, offsetMetadata) -> {
-                            if (offsetMetadata != null) {
-                                initialOffsets.put(tp, offsetMetadata.offset());
-                            } else {
-                                // The timestamp does not exist in the partition yet, we will just
-                                // consume from the latest.
-                                initialOffsets.put(tp, endOffsets.get(tp));
-                            }
-                        });
+        Map<TopicPartition, OffsetAndTimestamp> topicPartitionOffsetAndTimestampMap =
+                partitionOffsetsRetriever.offsetsForTimes(startingTimestamps);
+
+        for (TopicPartition tp : partitions) {
+            // offset may not have been resolved
+            if (topicPartitionOffsetAndTimestampMap.containsKey(tp)) {
+                initialOffsets.put(tp, topicPartitionOffsetAndTimestampMap.get(tp).offset());
+            } else {
+                initialOffsets.put(tp, endOffsets.get(tp));
+            }
+        }
+
         return initialOffsets;
     }
 
     @Override
     public OffsetResetStrategy getAutoOffsetResetStrategy() {
-        return OffsetResetStrategy.NONE;
+        return OffsetResetStrategy.LATEST;
     }
 }

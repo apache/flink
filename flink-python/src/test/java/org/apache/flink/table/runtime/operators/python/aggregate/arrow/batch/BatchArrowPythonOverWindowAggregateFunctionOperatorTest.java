@@ -39,13 +39,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for {@link BatchArrowPythonOverWindowAggregateFunctionOperator}. These test that:
@@ -55,11 +55,11 @@ import static org.junit.Assert.assertEquals;
  *   <li>FinishBundle is called when bundled time reach to max bundle time
  * </ul>
  */
-public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
+class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
         extends AbstractBatchArrowPythonAggregateFunctionOperatorTest {
 
     @Test
-    public void testOverWindowAggregateFunction() throws Exception {
+    void testOverWindowAggregateFunction() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
 
@@ -88,7 +88,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -123,7 +123,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
+    void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
@@ -160,27 +160,27 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
     }
 
     @Test
-    public void testUserDefinedFunctionsProto() throws Exception {
+    void testUserDefinedFunctionsProto() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 getTestHarness(new Configuration());
         testHarness.open();
         BatchArrowPythonOverWindowAggregateFunctionOperator operator =
                 (BatchArrowPythonOverWindowAggregateFunctionOperator)
                         testHarness.getOneInputOperator();
-        FlinkFnApi.UserDefinedFunctions functionsProto = operator.getUserDefinedFunctionsProto();
+        FlinkFnApi.UserDefinedFunctions functionsProto = operator.createUserDefinedFunctionsProto();
         List<FlinkFnApi.OverWindow> windows = functionsProto.getWindowsList();
-        assertEquals(2, windows.size());
+        assertThat(windows).hasSize(2);
 
         // first window is a range sliding window.
         FlinkFnApi.OverWindow firstWindow = windows.get(0);
-        assertEquals(firstWindow.getWindowType(), FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
+        assertThat(firstWindow.getWindowType())
+                .isEqualTo(FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
 
         // second window is a row unbounded preceding window.
         FlinkFnApi.OverWindow secondWindow = windows.get(1);
-        assertEquals(
-                secondWindow.getWindowType(),
-                FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
-        assertEquals(secondWindow.getUpperBoundary(), 2L);
+        assertThat(secondWindow.getWindowType())
+                .isEqualTo(FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
+        assertThat(secondWindow.getUpperBoundary()).isEqualTo(2L);
     }
 
     @Override
@@ -243,19 +243,25 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                 3,
                 true,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "UdafInputProjection",
                         inputRowType,
                         udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "GroupKey",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),
                         groupingSet),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "GroupSet",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),
@@ -305,7 +311,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                     udfInputType,
                     udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     true);
         }

@@ -73,6 +73,7 @@ public class JobGraphJobInformation implements JobInformation {
         return jobGraph.getCheckpointingSettings();
     }
 
+    @Override
     public Iterable<JobInformation.VertexInformation> getVertices() {
         return Iterables.transform(
                 jobGraph.getVertices(), (vertex) -> getVertexInformation(vertex.getID()));
@@ -103,6 +104,11 @@ public class JobGraphJobInformation implements JobInformation {
         @Override
         public int getParallelism() {
             return parallelismInfo.getParallelism();
+        }
+
+        @Override
+        public int getMaxParallelism() {
+            return parallelismInfo.getMaxParallelism();
         }
 
         @Override

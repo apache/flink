@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-client</artifactId>
@@ -49,6 +49,20 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- SQL Gateway -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- CLI for SQL CLI client -->
@@ -104,14 +118,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -146,10 +152,51 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway-api</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Client parser -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-testkit</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
@@ -420,19 +467,30 @@ under the License.
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>commons-lang</groupId>
+					<artifactId>commons-lang</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>org.apache.curator</groupId>
 					<artifactId>curator-client</artifactId>
@@ -465,13 +523,28 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -494,6 +567,14 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -503,8 +584,26 @@ under the License.
 			<artifactId>log4j-1.2-api</artifactId>
 			<scope>provided</scope>
 		</dependency>
-
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- dependency convergence -->
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.9.4</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<!-- dependency convergence -->
+				<groupId>org.codehaus.woodstox</groupId>
+				<artifactId>stax2-api</artifactId>
+				<version>4.2.1</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -525,11 +624,23 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.jline:*</include>
+									<include>org.apache.flink:flink-sql-parser</include>
 								</includes>
 							</artifactSet>
 						</configuration>
 					</execution>
 				</executions>
+				<configuration>
+					<filters>
+						<filter>
+							<!-- Only include TokenManager related class-->
+							<artifact>org.apache.flink:flink-sql-parser</artifact>
+							<includes>
+								<include>org/apache/flink/sql/parser/impl/**</include>
+							</includes>
+						</filter>
+					</filters>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

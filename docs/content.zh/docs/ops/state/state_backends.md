@@ -136,6 +136,12 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setStateBackend(new HashMapStateBackend())
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_state_backend(HashMapStateBackend())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 如果你想在 IDE 中使用 `EmbeddedRocksDBStateBackend`，或者需要在作业中通过编程方式动态配置它，必须添加以下依赖到 Flink 项目中。
@@ -150,17 +156,17 @@ env.setStateBackend(new HashMapStateBackend())
 ```
 
 {{< hint info >}}
-  **注意:** 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
+  **注意:** 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend.type` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
 {{< /hint >}}
 
 <a name="setting-default-state-backend"></a>
 
 ### 设置默认的（全局的） State Backend
 
-在 `flink-conf.yaml` 可以通过键 `state.backend` 设置默认的 State Backend。
+在 `flink-conf.yaml` 可以通过键 `state.backend.type` 设置默认的 State Backend。
 
 可选值包括 *jobmanager* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend)，
-或使用实现了 state backend 工厂 [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java) 的类的全限定类名，
+或使用实现了 state backend 工厂 {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}} 的类的全限定类名，
 例如： EmbeddedRocksDBStateBackend 对应为 `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory`。
 
 `state.checkpoints.dir` 选项指定了所有 State Backend 写 CheckPoint 数据和写元数据文件的目录。
@@ -229,7 +235,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 <span class="label label-info">注意</span> 上述机制开启时将覆盖用户在 [`PredefinedOptions`](#predefined-per-columnfamily-options) 和 [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb) 中对 block cache 和 write buffer 进行的配置。
 
 <span class="label label-info">注意</span> *仅面向专业用户*：若要手动控制内存，可以将 `state.backend.rocksdb.memory.managed` 设置为 `false`，并通过 [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb) 配置 RocksDB。
-或者可以复用上述 cache/write-buffer-manager 机制，但将内存大小设置为与 Flink 的托管内存大小无关的固定大小（通过 `state.backend.rocksdb.memory.fixed-per-slot` 选项）。
+或者可以复用上述 cache/write-buffer-manager 机制，但将内存大小设置为与 Flink 的托管内存大小无关的固定大小（通过 `state.backend.rocksdb.memory.fixed-per-slot`/`state.backend.rocksdb.memory.fixed-per-tm` 选项）。
 注意在这两种情况下，用户都需要确保在 JVM 之外有足够的内存可供 RocksDB 使用。
 
 <a name="timers-heap-vs-rocksdb"></a>
@@ -292,6 +298,8 @@ RocksDB State Backend 会将 [这里定义]({{< ref "docs/deployment/config" >}}
 
 下面是自定义 `ConfigurableRocksDBOptionsFactory` 的一个示例 (开发完成后，请将您的实现类全名设置到 `state.backend.rocksdb.options-factory`).
 
+{{< tabs "6e6f1fd6-fcc6-4af4-929f-97dc7d639ef9" >}}
+{{< tab "Java" >}}
 ```java
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     public static final ConfigOption<Integer> BLOCK_RESTART_INTERVAL = ConfigOptions
@@ -326,7 +334,13 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 }
 ```
-
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
+{{< /tabs >}}
 {{< top >}}
 
 <a name="enabling-changelog"></a>
@@ -392,7 +406,6 @@ dstl.dfs.base-path: s3://<bucket-name> # 类似于 state.checkpoints.dir
 请将如下配置保持默认值 （参见[限制](#limitations)）:
 ```yaml
 execution.checkpointing.max-concurrent-checkpoints: 1
-state.backend.local-recovery: false
 ```
 
 有关其他配置选项，请参阅[配置]({{< ref "docs/deployment/config#state-changelog-options" >}})部分。
@@ -433,25 +446,25 @@ env.enable_changelog_statebackend(true)
 
 **开启 Changelog**
 
-仅支持从标准格式的 savepoint 恢复：
+支持从 savepoint 或 checkpoint 恢复：
 - 给定一个没有开启 Changelog 的作业
-- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) （默认为标准格式）
+- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - 更改配置（开启 Changelog）
 - 从创建的 snapshot 恢复
 
 **关闭 Changelog**
 
-仅支持从 [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 恢复。从 [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}}) 恢复计划在未来版本中支持。
-
-当前不支持**状态迁移**（包括改变 TTL）。
+支持从 savepoint 或 checkpoint 恢复：
+- 给定一个开启 Changelog 的作业
+- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- 更改配置（关闭 Changelog）
+- 从创建的 snapshot 恢复
 
 <a name="limitations"></a>
 
 ### 限制
 - 最多同时创建一个 checkpoint
-- 本地恢复暂不支持
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
-- 尚不支持状态迁移（包括修改 TTL）
 - 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
 
 {{< top >}}
@@ -494,6 +507,13 @@ env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage()
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setStateBackend(new HashMapStateBackend)
 env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_state_backend(HashMapStateBackend())
+env.get_checkpoint_config().set_checkpoint_storage(JobManagerCheckpointStorage())
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -540,6 +560,18 @@ env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
 env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_state_backend(HashMapStateBackend())
+env.get_checkpoint_config().set_checkpoint_storage_dir("file:///checkpoint-dir")
+
+
+# Advanced FsStateBackend configurations, such as write buffer size
+# can be set by manually instantiating a FileSystemCheckpointStorage object.
+env.get_checkpoint_config().set_checkpoint_storage(FileSystemCheckpointStorage("file:///checkpoint-dir"))
+```
+{{< /tab >}}
 {{< /tabs>}}
 
 ### RocksDBStateBackend 
@@ -584,6 +616,19 @@ env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
 // to specify advanced checkpointing configurations such as write buffer size,
 // you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
 env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_state_backend(EmbeddedRocksDBStateBackend())
+env.get_checkpoint_config().set_checkpoint_storage_dir("file:///checkpoint-dir")
+
+
+# If you manually passed FsStateBackend into the RocksDBStateBackend constructor
+# to specify advanced checkpointing configurations such as write buffer size,
+# you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
+env.get_checkpoint_config().set_checkpoint_storage(FileSystemCheckpointStorage("file:///checkpoint-dir"))
 ```
 {{< /tab >}}
 {{< /tabs>}}

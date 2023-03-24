@@ -137,9 +137,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     testSqlApi("locate('testx', 'xxxtest')", "0")
 
-    testSqlApi("locate('aa',  'aaads')", "1")
+    testAllApis("aa".locate("aaads"), "LOCATE('aa', 'aaads')", "1")
 
-    testSqlApi("locate('aa', 'aaads', 2)", "2")
+    testAllApis("aa".locate("aaads", 2), "LOCATE('aa', 'aaads', 2)", "2")
   }
 
   @Test
@@ -178,7 +178,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testAscii(): Unit = {
-    testSqlApi("ascii('efg')", "101")
+    testAllApis("efg".ascii(), "ASCII('efg')", "101")
 
     testSqlApi("ascii('abcdef')", "97")
 
@@ -196,6 +196,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testLeftAndRight(): Unit = {
+    val str = "Hello"
+    testAllApis(str.left(3), s"LEFT('$str', 3)", "Hel")
+    testAllApis(str.right(3), s"RIGHT('$str', 3)", "llo")
+  }
+
+  @Test
   def testInstr(): Unit = {
     testSqlApi("instr('Corporate Floor', 'or', 3, 2)", "14")
 
@@ -209,7 +216,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     testSqlApi("instr('Tech on the net', 'e', -3, 2)", "2")
 
-    testSqlApi("instr('myteststring', 'st')", "5")
+    testAllApis("myteststring".instr("st"), "instr('myteststring', 'st')", "5")
 
     testSqlApi(
       "instr(cast (null AS VARCHAR), 'e')",
@@ -642,7 +649,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testSubString(): Unit = {
     Array("substring", "substr").foreach {
       substr =>
-        testSqlApi(s"$substr(f0, 2, 3)", "his")
+        testAllApis('f0.substr(2, 3), s"$substr(f0, 2, 3)", "his")
+        testAllApis('f0.substr(2), s"$substr(f0, 2)", "his is a test String.")
         testSqlApi(s"$substr(f0, 2, 100)", "his is a test String.")
         testSqlApi(s"$substr(f0, 100, 10)", "")
         testSqlApi(s"$substr(f0, 2, -1)", "NULL")
@@ -732,10 +740,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
           "USERINFO" -> userInfo)
 
       for ((n, v) <- parts) {
-        testSqlApi(s"parse_url('$url', '$n')", v)
+        testAllApis(url.parseUrl(s"$n"), s"parse_url('$url', '$n')", v)
       }
 
-      testSqlApi(s"parse_url('$url', 'QUERY', 'query')", qv)
+      testAllApis(url.parseUrl("QUERY", "query"), s"parse_url('$url', 'QUERY', 'query')", qv)
     }
 
     testUrl(
@@ -842,8 +850,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testReverse(): Unit = {
-    testSqlApi("reverse(f38)", "==ABDIQA")
-    testSqlApi("reverse(f40)", "NULL")
+    testAllApis('f38.reverse(), "reverse(f38)", "==ABDIQA")
+    testAllApis('f40.reverse(), "reverse(f40)", "NULL")
     testSqlApi("reverse('hi')", "ih")
     testSqlApi("reverse('hhhi')", "ihhh")
     testSqlApi("reverse(CAST(null as VARCHAR))", "NULL")
@@ -851,7 +859,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testSplitIndex(): Unit = {
-    testSqlApi("split_index(f38, 'I', 0)", "AQ")
+    testAllApis('f38.splitIndex("I", 0), "split_index(f38, 'I', 0)", "AQ")
     testSqlApi("split_index(f38, 'I', 2)", "NULL")
     testSqlApi("split_index(f38, 'I', -1)", "NULL")
     testSqlApi("split_index(f38, CAST(null as VARCHAR), 0)", "NULL")
@@ -886,7 +894,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testRegexp(): Unit = {
-    testSqlApi("regexp('100-200', '(\\d+)')", "TRUE")
+    testAllApis("100-200".regexp("(\\d+)"), "regexp('100-200', '(\\d+)')", "TRUE")
     testSqlApi("regexp('abc-def', '(\\d+)')", "FALSE")
     testSqlApi("regexp(f35, 'a')", "TRUE")
     testSqlApi("regexp(f40, '(\\d+)')", "NULL")
@@ -1568,12 +1576,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "NULL"
     )
 
-    // invalid log
-    val infiniteOrNaNException = "Infinite or NaN"
+    // test Infinite or NaN
     // Infinity
-    testExpectedSqlException("LOG(1, 100)", infiniteOrNaNException, classOf[NumberFormatException])
+    testSqlApi("LOG(1, 100)", "Infinity")
     // NaN
-    testExpectedSqlException("LOG(-1)", infiniteOrNaNException, classOf[NumberFormatException])
+    testSqlApi("LOG(-1)", "NaN")
   }
 
   @Test
@@ -1594,6 +1601,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testChr(): Unit = {
+    testAllApis(
+      65.chr(),
+      "CHR(65)",
+      "A"
+    )
+
+    testAllApis(
+      -9.chr(),
+      "CHR(-9)",
+      ""
+    )
+
     testSqlApi(
       "CHR(f4)",
       ","
@@ -1607,11 +1626,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "CHR(f42)",
       Character.MIN_VALUE.toString
-    )
-
-    testSqlApi(
-      "CHR(65)",
-      "A"
     )
 
     testSqlApi(
@@ -1632,11 +1646,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "CHR(97 + 256)",
       "a"
-    )
-
-    testSqlApi(
-      "CHR(-9)",
-      ""
     )
 
     testSqlApi(
@@ -2530,7 +2539,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testEncodeAndDecode(): Unit = {
-    testSqlApi("decode(encode('aabbef', 'UTF-16LE'), 'UTF-16LE')", "aabbef")
+    testAllApis(
+      "aabbef".encode("UTF-16LE").decode("UTF-16LE"),
+      "decode(encode('aabbef', 'UTF-16LE'), 'UTF-16LE')",
+      "aabbef")
 
     testSqlApi("decode(encode('aabbef', 'utf-8'), 'utf-8')", "aabbef")
 
@@ -2576,8 +2588,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testStringToMap(): Unit = {
-    testSqlApi("STR_TO_MAP('k1=v1,k2=v2')", "{k1=v1, k2=v2}")
-    testSqlApi("STR_TO_MAP('k1:v1;k2: v2', ';', ':')", "{k1=v1, k2= v2}")
+    testAllApis("k1=v1,k2=v2".strToMap(), "STR_TO_MAP('k1=v1,k2=v2')", "{k1=v1, k2=v2}")
+    testAllApis(
+      "k1:v1;k2: v2".strToMap(";", ":"),
+      "STR_TO_MAP('k1:v1;k2: v2', ';', ':')",
+      "{k1=v1, k2= v2}")
     testSqlApi("STR_TO_MAP('k1$$v1|k2$$ v2', '\\|', '\\$\\$')", "{k1=v1, k2= v2}")
 
     // test empty

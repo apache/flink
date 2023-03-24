@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -57,20 +56,23 @@ import org.junit.Assert._
 
 class BatchTestBase extends BatchAbstractTestBase {
 
-  private val settings = EnvironmentSettings.newInstance().inBatchMode().build()
-  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
+  protected var settings = EnvironmentSettings.newInstance().inBatchMode().build()
+  protected var testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
     .create(settings, catalogManager = None, TableConfig.getDefault)
-  val tEnv: TableEnvironment = testingTableEnv
-  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-  val env: StreamExecutionEnvironment = planner.getExecEnv
+  protected var tEnv: TableEnvironment = testingTableEnv
+  tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
+  protected var planner =
+    tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+  protected var env: StreamExecutionEnvironment = planner.getExecEnv
   env.getConfig.enableObjectReuse()
-  val tableConfig: TableConfig = tEnv.getConfig
+  protected var tableConfig: TableConfig = tEnv.getConfig
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile(
     "(?s)From line ([0-9]+),"
       + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
+  @throws(classOf[Exception])
   @Before
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)
@@ -535,6 +537,5 @@ object BatchTestBase {
 
   def configForMiniCluster(tableConfig: TableConfig): Unit = {
     tableConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(DEFAULT_PARALLELISM))
-    tableConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
   }
 }

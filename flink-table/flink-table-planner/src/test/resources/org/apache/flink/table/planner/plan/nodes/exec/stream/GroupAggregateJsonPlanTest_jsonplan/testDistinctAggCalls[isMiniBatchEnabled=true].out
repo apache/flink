@@ -545,6 +545,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`d` BIGINT, `cnt_a1` BIGINT, `cnt_a2` BIGINT, `sum_a` BIGINT, `sum_b` INT, `avg_b` DOUBLE, `cnt_c` BIGINT>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[d, cnt_a1, cnt_a2, sum_a, sum_b, avg_b, cnt_c])"
   } ],
   "edges" : [ {

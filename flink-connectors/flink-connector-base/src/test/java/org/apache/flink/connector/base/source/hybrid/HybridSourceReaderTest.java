@@ -24,19 +24,28 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
+import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
+import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.mock.Whitebox;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HybridSourceReader}. */
 public class HybridSourceReaderTest {
@@ -55,11 +64,11 @@ public class HybridSourceReaderTest {
 
         HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
 
-        Assert.assertThat(readerContext.getSentEvents(), Matchers.emptyIterable());
+        assertThat(readerContext.getSentEvents()).isEmpty();
         reader.start();
         assertAndClearSourceReaderFinishedEvent(readerContext, -1);
-        Assert.assertNull(currentReader(reader));
-        Assert.assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(readerOutput));
+        assertThat(currentReader(reader)).isNull();
+        assertThat(reader.pollNext(readerOutput)).isEqualTo(InputStatus.NOTHING_AVAILABLE);
 
         Source source1 =
                 new MockSource(null, 0) {
@@ -85,19 +94,19 @@ public class HybridSourceReaderTest {
             status = reader.pollNext(readerOutput);
             Thread.sleep(10);
         }
-        Assert.assertThat(readerOutput.getEmittedRecords(), Matchers.contains(0));
+        assertThat(readerOutput.getEmittedRecords()).contains(0);
         reader.pollNext(readerOutput);
-        Assert.assertEquals(
-                "before notifyNoMoreSplits",
-                InputStatus.NOTHING_AVAILABLE,
-                reader.pollNext(readerOutput));
+        assertThat(reader.pollNext(readerOutput))
+                .as("before notifyNoMoreSplits")
+                .isEqualTo(InputStatus.NOTHING_AVAILABLE);
 
         reader.notifyNoMoreSplits();
         reader.pollNext(readerOutput);
         assertAndClearSourceReaderFinishedEvent(readerContext, 0);
 
-        Assert.assertEquals(
-                "reader before switch source event", mockSplitReader1, currentReader(reader));
+        assertThat(currentReader(reader))
+                .as("reader before switch source event")
+                .isEqualTo(mockSplitReader1);
 
         Source source2 =
                 new MockSource(null, 0) {
@@ -108,14 +117,128 @@ public class HybridSourceReaderTest {
                     }
                 };
         reader.handleSourceEvents(new SwitchSourceEvent(1, source2, true));
-        Assert.assertEquals(
-                "reader after switch source event", mockSplitReader2, currentReader(reader));
+        assertThat(currentReader(reader))
+                .as("reader after switch source event")
+                .isEqualTo(mockSplitReader2);
 
         reader.notifyNoMoreSplits();
-        Assert.assertEquals(
-                "reader 1 after notifyNoMoreSplits",
-                InputStatus.END_OF_INPUT,
-                reader.pollNext(readerOutput));
+        assertThat(reader.pollNext(readerOutput))
+                .as("reader 1 after notifyNoMoreSplits")
+                .isEqualTo(InputStatus.END_OF_INPUT);
+
+        reader.close();
+    }
+
+    @Test
+    public void testAvailabilityFutureSwitchover() throws Exception {
+        TestingReaderContext readerContext = new TestingReaderContext();
+        TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
+        MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
+
+        // 2 underlying readers to exercise switch
+        MutableFutureSourceReader mockSplitReader1 =
+                MutableFutureSourceReader.createReader(readerContext);
+        MutableFutureSourceReader mockSplitReader2 =
+                MutableFutureSourceReader.createReader(readerContext);
+
+        HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
+
+        assertThat(readerContext.getSentEvents()).isEmpty();
+        reader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        assertThat(currentReader(reader)).isNull();
+        assertThat(reader.pollNext(readerOutput)).isEqualTo(InputStatus.NOTHING_AVAILABLE);
+        CompletableFuture<Void> hybridSourceFutureBeforeFirstReader = reader.isAvailable();
+        assertThat(hybridSourceFutureBeforeFirstReader).isNotDone();
+
+        Source source1 =
+                new MockSource(null, 0) {
+                    @Override
+                    public SourceReader<Integer, MockSourceSplit> createReader(
+                            SourceReaderContext readerContext) {
+                        return mockSplitReader1;
+                    }
+                };
+        reader.handleSourceEvents(new SwitchSourceEvent(0, source1, false));
+        assertThat(hybridSourceFutureBeforeFirstReader)
+                .isDone()
+                .as("the previous underlying future should be completed after switch event");
+
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 1);
+        mockSplit.addRecord(0);
+
+        SwitchedSources switchedSources = new SwitchedSources();
+        switchedSources.put(0, source);
+        HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
+        reader.addSplits(Collections.singletonList(hybridSplit));
+
+        // drain splits
+        CompletableFuture<Void> futureBeforeDraining = reader.isAvailable();
+        mockSplitReader1.completeFuture();
+        assertThat(futureBeforeDraining)
+                .isDone()
+                .as("underlying future is complete and hybrid source should poll");
+
+        InputStatus status = reader.pollNext(readerOutput);
+        while (readerOutput.getEmittedRecords().isEmpty() || status == InputStatus.MORE_AVAILABLE) {
+            status = reader.pollNext(readerOutput);
+            Thread.sleep(10);
+        }
+        // mock reader no more records
+        mockSplitReader1.resetFuture();
+
+        CompletableFuture<Void> futureAfterDraining = reader.isAvailable();
+        assertThat(futureBeforeDraining)
+                .isNotEqualTo(futureAfterDraining)
+                .as("Future should have been refreshed since the previous future is complete");
+        assertThat(futureAfterDraining).isNotDone().as("Future should not be complete");
+
+        assertThat(readerOutput.getEmittedRecords()).contains(0);
+        reader.pollNext(readerOutput);
+        assertThat(reader.pollNext(readerOutput))
+                .as("before notifyNoMoreSplits")
+                .isEqualTo(InputStatus.NOTHING_AVAILABLE);
+
+        reader.notifyNoMoreSplits();
+        reader.pollNext(readerOutput);
+        assertAndClearSourceReaderFinishedEvent(readerContext, 0);
+
+        assertThat(futureAfterDraining)
+                .isNotDone()
+                .as("still no more records and runtime should not poll");
+
+        assertThat(currentReader(reader))
+                .as("reader before switch source event")
+                .isEqualTo(mockSplitReader1);
+
+        Source source2 =
+                new MockSource(null, 0) {
+                    @Override
+                    public SourceReader<Integer, MockSourceSplit> createReader(
+                            SourceReaderContext readerContext) {
+                        return mockSplitReader2;
+                    }
+                };
+
+        reader.handleSourceEvents(new SwitchSourceEvent(1, source2, true));
+        assertThat(futureAfterDraining)
+                .isDone()
+                .as("switching should signal completion to poll the new reader");
+        CompletableFuture<Void> futureReader2 = reader.isAvailable();
+
+        // futures must be different
+        assertThat(futureBeforeDraining).isNotSameAs(futureReader2);
+        assertThat(currentReader(reader))
+                .as("reader after switch source event")
+                .isEqualTo(mockSplitReader2);
+
+        reader.notifyNoMoreSplits();
+        assertThat(reader.pollNext(readerOutput))
+                .as("reader 1 after notifyNoMoreSplits")
+                .isEqualTo(InputStatus.END_OF_INPUT);
+        assertThat(futureReader2)
+                .isSameAs(reader.isAvailable())
+                .as("future should not have been refreshed");
 
         reader.close();
     }
@@ -140,22 +263,22 @@ public class HybridSourceReaderTest {
         reader.addSplits(Collections.singletonList(hybridSplit));
 
         List<HybridSourceSplit> snapshot = reader.snapshotState(0);
-        Assert.assertThat(snapshot, Matchers.contains(hybridSplit));
+        assertThat(snapshot).contains(hybridSplit);
 
         // reader recovery
         readerContext.clearSentEvents();
         reader = new HybridSourceReader<>(readerContext);
 
         reader.addSplits(snapshot);
-        Assert.assertNull(currentReader(reader));
+        assertThat(currentReader(reader)).isNull();
 
         reader.start();
-        Assert.assertNull(currentReader(reader));
+        assertThat(currentReader(reader)).isNull();
 
         assertAndClearSourceReaderFinishedEvent(readerContext, -1);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
-        Assert.assertNotNull(currentReader(reader));
-        Assert.assertThat(reader.snapshotState(1), Matchers.contains(hybridSplit));
+        assertThat(currentReader(reader)).isNotNull();
+        assertThat(reader.snapshotState(1)).contains(hybridSplit);
 
         reader.close();
     }
@@ -196,10 +319,52 @@ public class HybridSourceReaderTest {
 
     private static void assertAndClearSourceReaderFinishedEvent(
             TestingReaderContext context, int sourceIndex) {
-        Assert.assertThat(context.getSentEvents(), Matchers.iterableWithSize(1));
-        Assert.assertEquals(
-                sourceIndex,
-                ((SourceReaderFinishedEvent) context.getSentEvents().get(0)).sourceIndex());
+        assertThat(context.getSentEvents()).hasSize(1);
+        assertThat(((SourceReaderFinishedEvent) context.getSentEvents().get(0)).sourceIndex())
+                .isEqualTo(sourceIndex);
         context.clearSentEvents();
+    }
+
+    private static class MutableFutureSourceReader extends MockSourceReader {
+
+        private CompletableFuture<Void> availabilityFuture = new CompletableFuture<>();
+
+        public MutableFutureSourceReader(
+                FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
+                Supplier<SplitReader<int[], MockSourceSplit>> splitFetcherSupplier,
+                Configuration config,
+                SourceReaderContext context) {
+            super(elementsQueue, splitFetcherSupplier, config, context);
+        }
+
+        public static MutableFutureSourceReader createReader(SourceReaderContext readerContext) {
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+                    new FutureCompletingBlockingQueue<>();
+
+            Configuration config = new Configuration();
+            config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 2);
+            config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
+            MockSplitReader.Builder builder =
+                    MockSplitReader.newBuilder()
+                            .setNumRecordsPerSplitPerFetch(2)
+                            .setBlockingFetch(true);
+            return new MutableFutureSourceReader(
+                    elementsQueue, builder::build, config, readerContext);
+        }
+
+        @Override
+        public CompletableFuture<Void> isAvailable() {
+            return availabilityFuture;
+        }
+
+        public void completeFuture() {
+            availabilityFuture.complete(null);
+        }
+
+        public void resetFuture() {
+            if (this.availabilityFuture.isDone()) {
+                availabilityFuture = new CompletableFuture<>();
+            }
+        }
     }
 }

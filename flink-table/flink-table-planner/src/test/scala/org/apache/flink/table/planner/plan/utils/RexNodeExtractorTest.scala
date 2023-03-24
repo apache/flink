@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
+import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -43,6 +44,7 @@ import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue
 import org.junit.Test
 
 import java.math.BigDecimal
+import java.net.URL
 import java.time.ZoneId
 import java.util.{Arrays, List => JList, TimeZone}
 
@@ -50,10 +52,15 @@ import scala.collection.JavaConverters._
 
 /** Test for [[RexNodeExtractor]]. */
 class RexNodeExtractorTest extends RexNodeTestBase {
+  val tableConfig = TableConfig.getDefault
+  val resourceManager = ResourceManager.createResourceManager(
+    new Array[URL](0),
+    Thread.currentThread.getContextClassLoader,
+    tableConfig.getConfiguration)
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val moduleManager = new ModuleManager
   private val functionCatalog =
-    new FunctionCatalog(TableConfig.getDefault, catalogManager, moduleManager)
+    new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager)
 
   @Test
   def testExtractRefInputFields(): Unit = {

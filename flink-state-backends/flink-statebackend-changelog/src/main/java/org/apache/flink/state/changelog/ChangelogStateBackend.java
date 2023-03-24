@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
@@ -33,6 +34,8 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation.BaseBackendBuilder;
+import org.apache.flink.state.common.ChangelogMaterializationMetricGroup;
+import org.apache.flink.state.common.PeriodicMaterializationManager;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -73,6 +76,7 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
             TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
             Collection<ChangelogStateBackendHandle> stateBackendHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
@@ -88,7 +92,9 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
         CheckpointableKeyedStateBackend<K> keyedStateBackend =
                 ChangelogBackendRestoreOperation.restore(
+                        env.getTaskManagerInfo().getConfiguration(),
                         env.getUserCodeClassLoader().asClassLoader(),
+                        env.getTaskStateManager(),
                         stateBackendHandles,
                         baseBackendBuilder,
                         (baseBackend, baseState) ->
@@ -97,6 +103,7 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
                                                 subtaskName,
                                                 executionConfig,
                                                 ttlTimeProvider,
+                                                new ChangelogStateBackendMetricGroup(metricGroup),
                                                 changelogStorage.createWriter(
                                                         operatorIdentifier,
                                                         keyGroupRange,
@@ -116,6 +123,7 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
                         (message, exception) ->
                                 env.failExternally(new AsynchronousException(message, exception)),
                         changelogKeyedStateBackend,
+                        new ChangelogMaterializationMetricGroup(metricGroup),
                         executionConfig.getPeriodicMaterializeIntervalMillis(),
                         executionConfig.getMaterializationMaxAllowedFailures(),
                         operatorIdentifier);

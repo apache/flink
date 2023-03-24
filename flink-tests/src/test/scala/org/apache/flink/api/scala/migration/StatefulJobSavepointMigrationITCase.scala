@@ -52,7 +52,7 @@ import scala.util.{Failure, Try}
 object StatefulJobSavepointMigrationITCase {
 
   // TODO increase this to newer version to create and test snapshot migration for newer versions
-  val currentVersion = FlinkVersion.v1_14
+  val currentVersion = FlinkVersion.v1_16
 
   // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
   // TODO Note: You should generate the snapshot based on the release branch instead of the
@@ -153,7 +153,6 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
       case _ => throw new UnsupportedOperationException
     }
 
-    env.enableChangelogStateBackend(false)
     env.enableCheckpointing(500)
     env.setParallelism(4)
     env.setMaxParallelism(4)

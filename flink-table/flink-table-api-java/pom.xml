@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-api-java</artifactId>
@@ -51,6 +51,14 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
@@ -69,6 +77,12 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<excludes>
+						<!-- test-jar is still used by JUnit4 modules -->
+						<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
+					</excludes>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

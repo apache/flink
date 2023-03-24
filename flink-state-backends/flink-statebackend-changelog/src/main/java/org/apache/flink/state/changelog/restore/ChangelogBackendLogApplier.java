@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Map;
 
-import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE;
 import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
 import static org.apache.flink.state.changelog.restore.FunctionDelegationHelper.delegateAggregateFunction;
 import static org.apache.flink.state.changelog.restore.FunctionDelegationHelper.delegateReduceFunction;
@@ -161,7 +160,6 @@ class ChangelogBackendLogApplier {
         // An alternative solution to load metadata "natively" by the base backends would require
         // base state to be always present, i.e. the 1st checkpoint would have to be "full" always.
         StateDescriptor stateDescriptor = toStateDescriptor(meta, defaultValue);
-        // todo: support changing ttl (FLINK-23143)
         if (ttlConfig.isEnabled()) {
             stateDescriptor.enableTimeToLive(ttlConfig);
         }
@@ -207,8 +205,7 @@ class ChangelogBackendLogApplier {
     private static StateMetaInfoSnapshot readStateMetaInfoSnapshot(
             DataInputView in, ClassLoader classLoader) throws IOException {
         int version = in.readInt();
-        StateMetaInfoReader reader =
-                StateMetaInfoSnapshotReadersWriters.getReader(version, KEYED_STATE);
+        StateMetaInfoReader reader = StateMetaInfoSnapshotReadersWriters.getReader(version);
         return reader.readStateMetaInfoSnapshot(in, classLoader);
     }
 

@@ -50,7 +50,9 @@ import scala.collection.mutable
  * Flink specific type factory that represents the interface between Flink's [[LogicalType]] and
  * Calcite's [[RelDataType]].
  */
-class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
+class FlinkTypeFactory(
+    classLoader: ClassLoader,
+    typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   extends JavaTypeFactoryImpl(typeSystem)
   with ExtendedRelTypeFactory {
 
@@ -283,6 +285,18 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   }
 
   /**
+   * Creats a struct type with the persisted columns using FlinkTypeFactory
+   *
+   * @param tableSchema
+   *   schema to convert to Calcite's specific one
+   * @return
+   *   a struct type with the input fieldsNames, input fieldTypes.
+   */
+  def buildPersistedRelNodeRowType(tableSchema: TableSchema): RelDataType = {
+    buildRelNodeRowType(TableSchemaUtils.getPersistedSchema(tableSchema))
+  }
+
+  /**
    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory.
    *
    * @param fieldNames
@@ -366,10 +380,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   }
 
   override def createRawType(className: String, serializerString: String): RelDataType = {
-    val rawType = RawType.restore(
-      FlinkTypeFactory.getClass.getClassLoader, // temporary solution until FLINK-15635 is fixed
-      className,
-      serializerString)
+    val rawType = RawType.restore(classLoader, className, serializerString)
     val rawRelDataType = createFieldTypeFromLogicalType(rawType)
     canonize(rawRelDataType)
   }

@@ -113,6 +113,7 @@ val result = orders
 
 ```python
 from pyflink.table import *
+from pyflink.table.expressions import col
 
 # 环境配置
 t_env = TableEnvironment.create(
@@ -151,8 +152,7 @@ t_env.execute_sql(sink_ddl)
 # 指定表程序
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
-orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_insert("result").wait()
-
+orders.group_by(col("a")).select(col("a"), col("b").count.alias('cnt')).execute_insert("result").wait()
 ```
 
 {{< /tab >}}
@@ -207,14 +207,15 @@ val result: Table = orders
 ```python
 # 指定表程序
 from pyflink.table.expressions import col, lit
+from pyflink.table.window import Tumble
 
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
-result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is_not_null) \
-               .select(orders.a.lower_case.alias('a'), orders.b, orders.rowtime) \
-               .window(Tumble.over(lit(1).hour).on(orders.rowtime).alias("hourly_window")) \
+result = orders.filter(col("a").is_not_null & col("b").is_not_null & col("c").is_not_null) \
+               .select(col("a").lower_case.alias('a'), col("b"), col("rowtime")) \
+               .window(Tumble.over(lit(1).hour).on(col("rowtime")).alias("hourly_window")) \
                .group_by(col('hourly_window'), col('a')) \
-               .select(col('a'), col('hourly_window').end.alias('hour'), b.avg.alias('avg_billing_amount'))
+               .select(col('a'), col('hourly_window').end.alias('hour'), col("b").avg.alias('avg_billing_amount'))
 ```
 
 {{< /tab >}}
@@ -369,7 +370,7 @@ Table result = orders.select($"a", $"c" as "d")
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.select(orders.a, orders.c.alias('d'))
+result = orders.select(col("a"), col("c").alias('d'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -446,7 +447,7 @@ val result = orders.filter($"a" % 2 === 0)
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.where(orders.a == 'red')
+result = orders.where(col("a") == 'red')
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -469,7 +470,7 @@ val result = orders.filter($"a" % 2 === 0)
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.filter(orders.a == 'red')
+result = orders.filter(col("a") == 'red')
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -504,7 +505,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
 from pyflink.table.expressions import concat
 
 orders = t_env.from_path("Orders")
-result = orders.add_columns(concat(orders.c, 'sunny'))
+result = orders.add_columns(concat(col("c"), 'sunny'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -535,7 +536,7 @@ val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 from pyflink.table.expressions import concat
 
 orders = t_env.from_path("Orders")
-result = orders.add_or_replace_columns(concat(orders.c, 'sunny').alias('desc'))
+result = orders.add_or_replace_columns(concat(col("c"), 'sunny').alias('desc'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -560,7 +561,7 @@ val result = orders.dropColumns($"b", $"c")
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.drop_columns(orders.b, orders.c)
+result = orders.drop_columns(col("b"), col("c"))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -588,7 +589,7 @@ val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
+result = orders.rename_columns(col("b").alias('b2'), col("c").alias('c2'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -621,7 +622,7 @@ val result = orders.groupBy($"a").select($"a", $"b".sum().as("d"))
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.group_by(orders.a).select(orders.a, orders.b.sum.alias('d'))
+result = orders.group_by(col("a")).select(col("a"), col("b").sum.alias('d'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -666,9 +667,9 @@ from pyflink.table.window import Tumble
 from pyflink.table.expressions import lit, col
 
 orders = t_env.from_path("Orders")
-result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")) \ 
-               .group_by(orders.a, col('w')) \
-               .select(orders.a, col('w').start, col('w').end, orders.b.sum.alias('d'))
+result = orders.window(Tumble.over(lit(5).minutes).on(col('rowtime')).alias("w")) \
+               .group_by(col('a'), col('w')) \
+               .select(col('a'), col('w').start, col('w').end, col('b').sum.alias('d'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -721,10 +722,10 @@ from pyflink.table.window import Over
 from pyflink.table.expressions import col, UNBOUNDED_RANGE, CURRENT_RANGE
 
 orders = t_env.from_path("Orders")
-result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
+result = orders.over_window(Over.partition_by(col("a")).order_by(col("rowtime"))
                             .preceding(UNBOUNDED_RANGE).following(CURRENT_RANGE)
                             .alias("w")) \
-               .select(orders.a, orders.b.avg.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
+               .select(col("a"), col("b").avg.over(col('w')), col("b").max.over(col('w')), col("b").min.over(col('w')))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -795,22 +796,23 @@ val result = orders
 {{< tab "Python" >}}
 ```python
 from pyflink.table.expressions import col, lit, UNBOUNDED_RANGE
+from pyflink.table.window import Over, Tumble
 
 orders = t_env.from_path("Orders")
 # 按属性分组后的的互异（互不相同、去重）聚合
-group_by_distinct_result = orders.group_by(orders.a) \
-                                 .select(orders.a, orders.b.sum.distinct.alias('d'))
+group_by_distinct_result = orders.group_by(col("a")) \
+                                 .select(col("a"), col("b").sum.distinct.alias('d'))
 # 按属性、时间窗口分组后的互异（互不相同、去重）聚合
-group_by_window_distinct_result = orders.window(
-    Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")).group_by(orders.a, col('w')) \
-    .select(orders.a, orders.b.sum.distinct.alias('d'))
+group_by_window_distinct_result = orders.window(Tumble.over(lit(5).minutes).on(col("rowtime")).alias("w")) \
+    .group_by(col("a"), col('w')) \
+    .select(col("a"), col("b").sum.distinct.alias('d'))
 # over window 上的互异（互不相同、去重）聚合
 result = orders.over_window(Over
-                       .partition_by(orders.a)
-                       .order_by(orders.rowtime)
-                       .preceding(UNBOUNDED_RANGE)
-                       .alias("w")) \
-                       .select(orders.a, orders.b.avg.distinct.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
+                            .partition_by(col("a"))
+                            .order_by(col("rowtime"))
+                            .preceding(UNBOUNDED_RANGE)
+                            .alias("w")) \
+    .select(col("a"), col("b").avg.distinct.over(col('w')), col("b").max.over(col('w')), col("b").min.over(col('w')))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -911,7 +913,7 @@ from pyflink.table.expressions import col
 
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
-result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.e)
+result = left.join(right).where(col('a') == col('d')).select(col('a'), col('b'), col('e'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -957,9 +959,9 @@ from pyflink.table.expressions import col
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
 
-left_outer_result = left.left_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
-right_outer_result = left.right_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
-full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
+left_outer_result = left.left_outer_join(right, col('a') == col('d')).select(col('a'), col('b'), col('e'))
+right_outer_result = left.right_outer_join(right, col('a') == col('d')).select(col('a'), col('b'), col('e'))
+full_outer_result = left.full_outer_join(right, col('a') == col('d')).select(col('a'), col('b'), col('e'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1006,9 +1008,9 @@ from pyflink.table.expressions import col
 
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
-  
-joined_table = left.join(right).where((left.a == right.d) & (left.rowtime1 >= right.rowtime2 - lit(1).second) & (left.rowtime1 <= right.rowtime2 + lit(2).seconds))
-result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joined_table.rowtime1)
+
+joined_table = left.join(right).where((col('a') == col('d')) & (col('rowtime1') >= col('rowtime2') - lit(1).second) & (col('rowtime1') <= col('rowtime2') + lit(2).seconds))
+result = joined_table.select(col('a'), col('b'), col('e'), col('rowtime1'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1054,8 +1056,8 @@ def split(x):
 
 # join
 orders = t_env.from_path("Orders")
-joined_table = orders.join_lateral(split(orders.c).alias("s", "t", "v"))
-result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
+joined_table = orders.join_lateral(split(col('c')).alias("s", "t", "v"))
+result = joined_table.select(col('a'), col('b'), col('s'), col('t'), col('v'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1103,8 +1105,8 @@ def split(x):
 
 # join
 orders = t_env.from_path("Orders")
-joined_table = orders.left_outer_join_lateral(split(orders.c).alias("s", "t", "v"))
-result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
+joined_table = orders.left_outer_join_lateral(split(col('c')).alias("s", "t", "v"))
+result = joined_table.select(col('a'), col('b'), col('s'), col('t'), col('v'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1178,11 +1180,13 @@ val right = tableEnv.from("orders2")
 left.union(right)
 ```
 {{< /tab >}}
-{{< tab >}}
-left = tableEnv.from_path("orders1")
-right = tableEnv.from_path("orders2")
+{{< tab "Python" >}}
+```python
+left = t_env.from_path("orders1")
+right = t_env.from_path("orders2")
 
 left.union(right)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1211,11 +1215,13 @@ val right = tableEnv.from("orders2")
 left.unionAll(right)
 ```
 {{< /tab >}}
-{{< tab >}}
-left = tableEnv.from_path("orders1")
-right = tableEnv.from_path("orders2")
+{{< tab "Python" >}}
+```python
+left = t_env.from_path("orders1")
+right = t_env.from_path("orders2")
 
-left.unionAll(right)
+left.union_all(right)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1242,11 +1248,13 @@ val right = tableEnv.from("orders2")
 left.intersect(right)
 ```
 {{< /tab >}}
-{{< tab >}}
-left = tableEnv.from_path("orders1")
-right = tableEnv.from_path("orders2")
+{{< tab "Python" >}}
+```python
+left = t_env.from_path("orders1")
+right = t_env.from_path("orders2")
 
 left.intersect(right)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1273,11 +1281,13 @@ val right = tableEnv.from("orders2")
 left.intersectAll(right)
 ```
 {{< /tab >}}
-{{< tab >}}
-left = tableEnv.from_path("orders1")
-right = tableEnv.from_path("orders2")
+{{< tab "Python" >}}
+```python
+left = t_env.from_path("orders1")
+right = t_env.from_path("orders2")
 
-left.intersectAll(right)
+left.intersect_all(right)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1304,11 +1314,13 @@ val right = tableEnv.from("orders2")
 left.minus(right)
 ```
 {{< /tab >}}
-{{< tab >}}
-left = tableEnv.from_path("orders1")
-right = tableEnv.from_path("orders2")
+{{< tab "Python" >}}
+```python
+left = t_env.from_path("orders1")
+right = t_env.from_path("orders2")
 
 left.minus(right)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1334,11 +1346,13 @@ val right = tableEnv.from("orders2")
 left.minusAll(right)
 ```
 {{< /tab >}}
-{{< tab >}}
-left = tableEnv.from_path("orders1")
-right = tableEnv.from_path("orders2")
+{{< tab "Python" >}}
+```python
+left = t_env.from_path("orders1")
+right = t_env.from_path("orders2")
 
-left.minusAll(right)
+left.minus_all(right)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1370,7 +1384,7 @@ val result = left.select($"a", $"b", $"c").where($"a".in(right))
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'))
 
-result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
+result = left.select(col('a'), col('b'), col('c')).where(col('a').in_(right))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1390,17 +1404,17 @@ result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 {{< tabs "orderby" >}}
 {{< tab "Java" >}}
 ```java
-Table result = in.orderBy($("a").asc());
+Table result = tab.orderBy($("a").asc());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val result = in.orderBy($"a".asc)
+val result = tab.orderBy($"a".asc)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-result = in.order_by(in.a.asc)
+result = tab.order_by(col('a').asc)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1440,13 +1454,13 @@ val result3: Table = in.orderBy($"a".asc).offset(10).fetch(5)
 {{< tab "Python" >}}
 ```python
 # 从已排序的结果集中返回前5条记录
-result1 = table.order_by(table.a.asc).fetch(5)
+result1 = table.order_by(col('a').asc).fetch(5)
 
 # 从已排序的结果集中返回跳过3条记录之后的所有记录
-result2 = table.order_by(table.a.asc).offset(3)
+result2 = table.order_by(col('a').asc).offset(3)
 
 # 从已排序的结果集中返回跳过10条记录之后的前5条记录
-result3 = table.order_by(table.a.asc).offset(10).fetch(5)
+result3 = table.order_by(col('a').asc).offset(10).fetch(5)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1518,7 +1532,7 @@ val table = input
 ```python
 # 定义窗口并指定别名为 w，以窗口 w 对表进行分组，然后再聚合
 table = input.window([w: GroupWindow].alias("w")) \
-             .group_by(col('w')).select(input.b.sum)
+             .group_by(col('w')).select(col('b').sum)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1554,7 +1568,7 @@ val table = input
 # 定义窗口并指定别名为 w，以属性 a 和窗口 w 对表进行分组，
 # 然后再聚合
 table = input.window([w: GroupWindow].alias("w")) \
-             .group_by(col('w'), input.a).select(input.b.sum)
+             .group_by(col('w'), col('a')).select(col('b').sum)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1583,8 +1597,8 @@ val table = input
 # 定义窗口并指定别名为 w，以属性 a 和窗口 w 对表进行分组，
 # 然后再聚合并添加窗口开始、结束和 rowtime 时间戳
 table = input.window([w: GroupWindow].alias("w")) \
-             .group_by(col('w'), input.a) \
-             .select(input.a, col('w').start, col('w').end, col('w').rowtime, input.b.count)
+             .group_by(col('w'), col('a')) \
+             .select(col('a'), col('w').start, col('w').end, col('w').rowtime, col('b').count)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1989,8 +2003,8 @@ val table = input
 {{< tab "Python" >}}
 ```python
 # define over window with alias w and aggregate over the over window w
-table = input.over_window([w: OverWindow].alias("w")) \
-    .select(input.a, input.b.sum.over(col('w')), input.c.min.over(col('w')))
+table = input.over_window([w: OverWindow].alias("w"))
+    .select(col('a'), col('b').sum.over(col('w')), col('c').min.over(col('w')))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -2217,9 +2231,9 @@ func = udf(map_function, result_type=DataTypes.ROW(
 table = input.map(func).alias('a', 'b')
 
 # 使用 python 向量化标量函数进行 map 操作
-pandas_func = udf(lambda x: x * 2, result_type=DataTypes.ROW(
-                                                    [DataTypes.FIELD("a", DataTypes.BIGINT()),
-                                                    DataTypes.FIELD("b", DataTypes.BIGINT()))]),
+pandas_func = udf(lambda x: x * 2,
+                  result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                             DataTypes.FIELD("b", DataTypes.BIGINT())]),
                   func_type='pandas')
 
 table = input.map(pandas_func).alias('a', 'b')
@@ -2451,7 +2465,7 @@ agg = udaf(function,
            name=str(function.__class__.__name__))
 
 # 使用 python 通用聚合函数进行聚合
-result = t.group_by(t.a) \
+result = t.group_by(col('a')) \
     .aggregate(agg.alias("c", "d")) \
     .select(col('a'), col('c'), col('d'))
     
@@ -2462,7 +2476,7 @@ pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                         DataTypes.FIELD("b", DataTypes.INT())]),
                    func_type="pandas")
 t.aggregate(pandas_udaf.alias("a", "b")) \
-    .select(col('a'), col('b'))
+ .select(col('a'), col('b'))
 ```
 
 {{< /tab >}}
@@ -2503,16 +2517,18 @@ val table = input
 ```python
 from pyflink.table import DataTypes
 from pyflink.table.udf import AggregateFunction, udaf
+from pyflink.table.expressions import col, lit
+from pyflink.table.window import Tumble
 
 pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                    result_type=DataTypes.ROW(
                        [DataTypes.FIELD("a", DataTypes.FLOAT()),
                         DataTypes.FIELD("b", DataTypes.INT())]),
                    func_type="pandas")
-tumble_window = Tumble.over(expr.lit(1).hours) \
-    .on(expr.col("rowtime")) \
+tumble_window = Tumble.over(lit(1).hours) \
+    .on(col("rowtime")) \
     .alias("w")
-t.select(t.b, t.rowtime) \
+t.select(col('b'), col('rowtime')) \
     .window(tumble_window) \
     .group_by(col("w")) \
     .aggregate(pandas_udaf.alias("d", "e")) \
@@ -2666,6 +2682,7 @@ val result = orders
 from pyflink.common import Row
 from pyflink.table.udf import TableAggregateFunction, udtaf
 from pyflink.table import DataTypes
+from pyflink.table.expressions import col
 
 class Top2(TableAggregateFunction):
 
@@ -2701,13 +2718,13 @@ t = t_env.from_elements([(1, 'Hi', 'Hello'),
                               (3, 'Hi', 'hi'),
                               (5, 'Hi2', 'hi'),
                               (7, 'Hi', 'Hello'),
-                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
-result = t.select(t.a, t.c) \
-    .group_by(t.c) \
+                              (2, 'Hi', 'Hello')],
+                        ['a', 'b', 'c'])
+result = t.select(col('a'), col('c')) \
+    .group_by(col('c')) \
     .flat_aggregate(mytop) \
-    .select(t.a) \
+    .select(col('a')) \
     .flat_aggregate(mytop.alias("b"))
-
 ```
 {{< /tab >}}
 {{< /tabs >}}

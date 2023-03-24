@@ -19,6 +19,12 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.module.Module;
 
 import java.util.Collections;
 import java.util.Map;
@@ -30,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a LOAD MODULE statement. */
 @Internal
-public class LoadModuleOperation implements Operation {
+public class LoadModuleOperation implements Operation, ExecutableOperation {
 
     private final String moduleName;
     private final Map<String, String> options;
@@ -70,5 +76,27 @@ public class LoadModuleOperation implements Operation {
         }
 
         return sb.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            final Module module =
+                    FactoryUtil.createModule(
+                            getModuleName(),
+                            getOptions(),
+                            ctx.getTableConfig(),
+                            ctx.getResourceManager().getUserClassLoader());
+            ctx.getModuleManager().loadModule(getModuleName(), module);
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s. %s", asSummaryString(), e.getMessage()),
+                    e);
+        } catch (Exception e) {
+            throw new TableException(
+                    String.format("Could not execute %s. %s", asSummaryString(), e.getMessage()),
+                    e);
+        }
     }
 }

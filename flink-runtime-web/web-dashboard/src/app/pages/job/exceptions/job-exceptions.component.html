@@ -78,7 +78,15 @@
                   </nz-option>
                 </nz-select>
               </td>
-              <td>{{ item.selected.location || '(unassigned)' }}</td>
+              <td class="clickable" (click)="navigateTo(item.selected.taskManagerId)">
+                <a>
+                  {{
+                    item.selected.location
+                      ? item.selected.taskManagerId + '(' + item.selected.location + ')'
+                      : '(unassigned)'
+                  }}
+                </a>
+              </td>
             </tr>
             <tr [nzExpand]="item.expand">
               <td colspan="5" class="expand-td">

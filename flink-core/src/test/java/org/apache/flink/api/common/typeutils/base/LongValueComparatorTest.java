@@ -25,7 +25,7 @@ import org.apache.flink.types.LongValue;
 
 import java.util.Random;
 
-public class LongValueComparatorTest extends ComparatorTestBase<LongValue> {
+class LongValueComparatorTest extends ComparatorTestBase<LongValue> {
 
     @Override
     protected TypeComparator<LongValue> createComparator(boolean ascending) {

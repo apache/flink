@@ -226,6 +226,9 @@ public final class CatalogManager {
                 "Catalog name cannot be null or empty.");
 
         if (catalogs.containsKey(catalogName)) {
+            if (currentCatalogName.equals(catalogName)) {
+                throw new CatalogException("Cannot drop a catalog which is currently in use.");
+            }
             Catalog catalog = catalogs.remove(catalogName);
             catalog.close();
         } else if (!ignoreIfNotExists) {
@@ -241,6 +244,14 @@ public final class CatalogManager {
      */
     public Optional<Catalog> getCatalog(String catalogName) {
         return Optional.ofNullable(catalogs.get(catalogName));
+    }
+
+    public Catalog getCatalogOrThrowException(String catalogName) {
+        return getCatalog(catalogName)
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        String.format("Catalog %s does not exist", catalogName)));
     }
 
     /**
@@ -797,6 +808,30 @@ public final class CatalogManager {
                 (catalog, path) -> {
                     final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
                     catalog.alterTable(path, resolvedTable, ignoreIfNotExists);
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterTable");
+    }
+
+    /**
+     * Alters a table in a given fully qualified path with table changes.
+     *
+     * @param table The table to put in the given path
+     * @param changes The table changes from the original table to the new table.
+     * @param objectIdentifier The fully qualified path where to alter the table.
+     * @param ignoreIfNotExists If false exception will be thrown if the table or database or
+     *     catalog to be altered does not exist.
+     */
+    public void alterTable(
+            CatalogBaseTable table,
+            List<TableChange> changes,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
+                    catalog.alterTable(path, resolvedTable, changes, ignoreIfNotExists);
                 },
                 objectIdentifier,
                 ignoreIfNotExists,

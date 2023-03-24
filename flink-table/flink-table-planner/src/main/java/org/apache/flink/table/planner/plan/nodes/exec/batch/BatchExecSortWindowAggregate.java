@@ -125,8 +125,9 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
         final SortWindowCodeGenerator windowCodeGenerator =
                 new SortWindowCodeGenerator(
-                        new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
+                        planner.createRelBuilder(),
                         window,
                         inputTimeFieldIndex,
                         inputTimeIsDate,
@@ -157,6 +158,7 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
                 createTransformationDescription(config),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

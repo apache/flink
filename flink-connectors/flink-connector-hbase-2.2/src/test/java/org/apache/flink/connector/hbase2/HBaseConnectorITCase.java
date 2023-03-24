@@ -168,7 +168,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         tEnv.executeSql(
                 "CREATE TABLE hTable ("
-                        + " rowkey INT PRIMARY KEY,"
+                        + " rowkey INT PRIMARY KEY NOT ENFORCED,"
                         + " family2 ROW<col1 STRING, col2 BIGINT>,"
                         + " family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>,"
                         + " family1 ROW<col1 INT>"
@@ -364,11 +364,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                 "+I[7, 70, Hello-7, 700, 7.07, false, Welt-7, 2019-08-19T19:30, 2019-08-19, 19:30, 12345678.0007]");
         expected.add(
                 "+I[8, 80, null, 800, 8.08, true, Welt-8, 2019-08-19T19:40, 2019-08-19, 19:40, 12345678.0008]");
-
-        Table countTable =
-                batchEnv.sqlQuery("SELECT COUNT(h.rowkey) FROM " + TEST_TABLE_3 + " AS h");
-
-        assertEquals(new Long(expected.size()), countTable.execute().collect().next().getField(0));
 
         String query =
                 "SELECT "

@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sort.SortOperator;
@@ -43,7 +44,8 @@ import java.util.Collections;
  *
  * <p>This node will output all data rather than `limit` records.
  */
-public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
+public class BatchExecSort extends ExecNodeBase<RowData>
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final SortSpec sortSpec;
 
@@ -72,12 +74,22 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         RowType inputType = (RowType) inputEdge.getOutputType();
-        SortCodeGenerator codeGen = new SortCodeGenerator(config, inputType, sortSpec);
+        SortCodeGenerator codeGen =
+                new SortCodeGenerator(
+                        config, planner.getFlinkContext().getClassLoader(), inputType, sortSpec);
 
         SortOperator operator =
                 new SortOperator(
                         codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
-                        codeGen.generateRecordComparator("BatchExecSortComparator"));
+                        codeGen.generateRecordComparator("BatchExecSortComparator"),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                config.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
         long sortMemory =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         return ExecNodeUtil.createOneInputTransformation(
@@ -87,6 +99,7 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
                 inputTransform.getParallelism(),
-                sortMemory);
+                sortMemory,
+                false);
     }
 }

@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.aws.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link AWSAsyncSinkUtil}. */
-public class AWSAsyncSinkUtilTest {
+class AWSAsyncSinkUtilTest {
 
     private static final String DEFAULT_USER_AGENT_PREFIX_FORMAT =
             "Apache Flink %s (%s) *Destination* Connector";
@@ -55,7 +55,7 @@ public class AWSAsyncSinkUtilTest {
             "Apache Flink %s (%s) *Destination* Connector V2";
 
     @Test
-    public void testCreateKinesisAsyncClient() {
+    void testCreateKinesisAsyncClient() {
         Properties properties = TestUtil.properties(AWS_REGION, "eu-west-2");
         MockAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
         ClientOverrideConfiguration clientOverrideConfiguration =
@@ -74,7 +74,7 @@ public class AWSAsyncSinkUtilTest {
     }
 
     @Test
-    public void testCreateKinesisAsyncClientWithEndpointOverride() {
+    void testCreateKinesisAsyncClientWithEndpointOverride() {
         Properties properties = TestUtil.properties(AWS_REGION, "eu-west-2");
         properties.setProperty(AWS_ENDPOINT, "https://localhost");
 
@@ -90,7 +90,7 @@ public class AWSAsyncSinkUtilTest {
     }
 
     @Test
-    public void testClientOverrideConfigurationWithDefaults() {
+    void testClientOverrideConfigurationWithDefaults() {
         SdkClientConfiguration clientConfiguration = SdkClientConfiguration.builder().build();
 
         ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
@@ -112,7 +112,7 @@ public class AWSAsyncSinkUtilTest {
     }
 
     @Test
-    public void testClientOverrideConfigurationUserAgentSuffix() {
+    void testClientOverrideConfigurationUserAgentSuffix() {
         SdkClientConfiguration clientConfiguration =
                 SdkClientConfiguration.builder()
                         .option(SdkAdvancedClientOption.USER_AGENT_SUFFIX, "suffix")
@@ -130,7 +130,7 @@ public class AWSAsyncSinkUtilTest {
     }
 
     @Test
-    public void testClientOverrideConfigurationApiCallAttemptTimeout() {
+    void testClientOverrideConfigurationApiCallAttemptTimeout() {
         SdkClientConfiguration clientConfiguration =
                 SdkClientConfiguration.builder()
                         .option(SdkClientOption.API_CALL_ATTEMPT_TIMEOUT, Duration.ofMillis(500))
@@ -149,7 +149,7 @@ public class AWSAsyncSinkUtilTest {
     }
 
     @Test
-    public void testClientOverrideConfigurationApiCallTimeout() {
+    void testClientOverrideConfigurationApiCallTimeout() {
         SdkClientConfiguration clientConfiguration =
                 SdkClientConfiguration.builder()
                         .option(SdkClientOption.API_CALL_TIMEOUT, Duration.ofMillis(600))
@@ -220,8 +220,23 @@ public class AWSAsyncSinkUtilTest {
         }
 
         @Override
+        public MockAsyncClientBuilder dualstackEnabled(Boolean aBoolean) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder fipsEnabled(Boolean aBoolean) {
+            return null;
+        }
+
+        @Override
         public MockAsyncClientBuilder overrideConfiguration(
                 ClientOverrideConfiguration clientOverrideConfiguration) {
+            return null;
+        }
+
+        @Override
+        public ClientOverrideConfiguration overrideConfiguration() {
             return null;
         }
 

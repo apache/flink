@@ -45,8 +45,10 @@ import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.mapping.Mappings;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -59,22 +61,25 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Transpose {@link StreamPhysicalWatermarkAssigner} past into {@link
  * StreamPhysicalChangelogNormalize}.
  */
+@Value.Enclosing
 public class WatermarkAssignerChangelogNormalizeTransposeRule
         extends RelRule<WatermarkAssignerChangelogNormalizeTransposeRule.Config> {
 
     public static final RelOptRule WITH_CALC =
-            Config.EMPTY
-                    .withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithCalc")
-                    .as(Config.class)
-                    .withCalc()
-                    .toRule();
+            new WatermarkAssignerChangelogNormalizeTransposeRule(
+                    Config.DEFAULT
+                            .withDescription(
+                                    "WatermarkAssignerChangelogNormalizeTransposeRuleWithCalc")
+                            .as(Config.class)
+                            .withCalc());
 
     public static final RelOptRule WITHOUT_CALC =
-            Config.EMPTY
-                    .withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithoutCalc")
-                    .as(Config.class)
-                    .withoutCalc()
-                    .toRule();
+            new WatermarkAssignerChangelogNormalizeTransposeRule(
+                    Config.DEFAULT
+                            .withDescription(
+                                    "WatermarkAssignerChangelogNormalizeTransposeRuleWithoutCalc")
+                            .as(Config.class)
+                            .withoutCalc());
 
     public WatermarkAssignerChangelogNormalizeTransposeRule(Config config) {
         super(config);
@@ -359,6 +364,16 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
                                         inputNode,
                                         nodeAndTrait.f1.getTrait(
                                                 FlinkRelDistributionTraitDef.INSTANCE()));
+            } else if (currentNode instanceof StreamPhysicalChangelogNormalize) {
+                final List<String> inputNodeFields = inputNode.getRowType().getFieldNames();
+                final List<String> currentNodeFields = currentNode.getRowType().getFieldNames();
+                int[] remappedUniqueKeys =
+                        Arrays.stream(((StreamPhysicalChangelogNormalize) currentNode).uniqueKeys())
+                                .map(ukIdx -> inputNodeFields.indexOf(currentNodeFields.get(ukIdx)))
+                                .toArray();
+                currentNode =
+                        ((StreamPhysicalChangelogNormalize) currentNode)
+                                .copy(nodeAndTrait.f1, inputNode, remappedUniqueKeys);
             } else {
                 currentNode =
                         currentNode.copy(nodeAndTrait.f1, Collections.singletonList(inputNode));
@@ -369,7 +384,11 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
     }
 
     /** Rule configuration. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
+
+        Config DEFAULT =
+                ImmutableWatermarkAssignerChangelogNormalizeTransposeRule.Config.builder().build();
 
         @Override
         default WatermarkAssignerChangelogNormalizeTransposeRule toRule() {

@@ -549,9 +549,10 @@ LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP
       <![CDATA[
 Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, avgB])
 +- SortWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, SUM(a) AS sumA, AVG(b) AS avgB])
-   +- Sort(orderBy=[c ASC, d ASC, ts ASC])
-      +- Exchange(distribution=[hash[c, d]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[c ASC, d ASC, ts ASC])
+         +- Exchange(distribution=[hash[c, d]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -818,10 +819,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, COUNT(c) AS EXPR$0])
-   +- Sort(orderBy=[b ASC, ts ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[b, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, ts ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Calc(select=[b, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -864,12 +866,14 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, assignedPane$ ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalSortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_MAX(c) AS max$0])
-            +- Sort(orderBy=[a ASC, ts ASC])
-               +- Calc(select=[a, ts, c])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, assignedPane$ ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalSortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_MAX(c) AS max$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, ts ASC])
+                     +- Calc(select=[a, ts, c])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -889,10 +893,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, MAX(c) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, ts ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, ts ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -912,12 +917,14 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, assignedPane$ ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalSortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_MAX(c) AS max$0])
-            +- Sort(orderBy=[a ASC, ts ASC])
-               +- Calc(select=[a, ts, c])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, assignedPane$ ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalSortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_MAX(c) AS max$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, ts ASC])
+                     +- Calc(select=[a, ts, c])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -937,10 +944,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 1000, 111)], select=[b, MAX(c) AS EXPR$0])
-   +- Sort(orderBy=[b ASC, ts ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[b, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, ts ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Calc(select=[b, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -960,10 +968,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 1000, 111)], select=[b, MAX(c) AS EXPR$0])
-   +- Sort(orderBy=[b ASC, ts ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[b, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, ts ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Calc(select=[b, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -983,10 +992,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 1000, 111)], select=[b, MAX(c) AS EXPR$0])
-   +- Sort(orderBy=[b ASC, ts ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[b, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, ts ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Calc(select=[b, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1006,9 +1016,10 @@ LogicalProject(EXPR$0=[$3])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, countFun(c) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, d ASC, b ASC])
-      +- Exchange(distribution=[hash[a, d]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, d ASC, b ASC])
+         +- Exchange(distribution=[hash[a, d]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1028,9 +1039,10 @@ LogicalProject(EXPR$0=[$3])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, countFun(c) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, d ASC, b ASC])
-      +- Exchange(distribution=[hash[a, d]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, d ASC, b ASC])
+         +- Exchange(distribution=[hash[a, d]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1050,11 +1062,13 @@ LogicalProject(EXPR$0=[$3])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, Final_countFun(EXPR$0) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, d ASC, assignedPane$ ASC])
-      +- Exchange(distribution=[hash[a, d]])
-         +- LocalSortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, Partial_countFun(c) AS EXPR$0])
-            +- Sort(orderBy=[a ASC, d ASC, b ASC])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, d ASC, assignedPane$ ASC])
+         +- Exchange(distribution=[hash[a, d]])
+            +- LocalSortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, Partial_countFun(c) AS EXPR$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, d ASC, b ASC])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1074,10 +1088,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, COUNT(c) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, ts ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, ts ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1253,12 +1268,14 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, assignedWindow$ ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalSortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_MAX(c) AS max$0])
-            +- Sort(orderBy=[a ASC, ts ASC])
-               +- Calc(select=[a, ts, c])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, assignedWindow$ ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalSortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_MAX(c) AS max$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, ts ASC])
+                     +- Calc(select=[a, ts, c])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1278,10 +1295,11 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, MAX(c) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, ts ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, ts ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, ts, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1301,12 +1319,14 @@ LogicalProject(EXPR$0=[$2])
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
-   +- Sort(orderBy=[a ASC, assignedWindow$ ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalSortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_MAX(c) AS max$0])
-            +- Sort(orderBy=[a ASC, ts ASC])
-               +- Calc(select=[a, ts, c])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, assignedWindow$ ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalSortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_MAX(c) AS max$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, ts ASC])
+                     +- Calc(select=[a, ts, c])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1326,9 +1346,10 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- SortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, AVG(c) AS EXPR$0, countFun(a) AS EXPR$1])
-   +- Sort(orderBy=[a ASC, d ASC, b ASC])
-      +- Exchange(distribution=[hash[a, d]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, d ASC, b ASC])
+         +- Exchange(distribution=[hash[a, d]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1348,9 +1369,10 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- SortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, AVG(c) AS EXPR$0, countFun(a) AS EXPR$1])
-   +- Sort(orderBy=[a ASC, d ASC, b ASC])
-      +- Exchange(distribution=[hash[a, d]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, d ASC, b ASC])
+         +- Exchange(distribution=[hash[a, d]])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1370,11 +1392,13 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- SortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Final_AVG(sum$0, count$1) AS EXPR$0, Final_countFun(EXPR$1) AS EXPR$1])
-   +- Sort(orderBy=[a ASC, d ASC, assignedWindow$ ASC])
-      +- Exchange(distribution=[hash[a, d]])
-         +- LocalSortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_countFun(a) AS EXPR$1])
-            +- Sort(orderBy=[a ASC, d ASC, b ASC])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, d ASC, assignedWindow$ ASC])
+         +- Exchange(distribution=[hash[a, d]])
+            +- LocalSortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_countFun(a) AS EXPR$1])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, d ASC, b ASC])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1396,9 +1420,10 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
 +- Sort(orderBy=[assignedWindow$ ASC])
    +- Exchange(distribution=[single])
       +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Partial_weightedAvg(b, a) AS wAvg])
-         +- Sort(orderBy=[ts ASC])
-            +- Calc(select=[ts, b, a])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[ts ASC])
+               +- Calc(select=[ts, b, a])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1442,9 +1467,10 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
 +- Sort(orderBy=[assignedWindow$ ASC])
    +- Exchange(distribution=[single])
       +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Partial_weightedAvg(b, a) AS wAvg])
-         +- Sort(orderBy=[ts ASC])
-            +- Calc(select=[ts, b, a])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[ts ASC])
+               +- Calc(select=[ts, b, a])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>

@@ -6,17 +6,19 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.16-SNAPSHOT
+  version: v1/1.18-SNAPSHOT
 paths:
   /cluster:
     delete:
       description: Shuts down the cluster
+      operationId: shutdownCluster
       responses:
         "200":
           description: The request was successful.
   /config:
     get:
       description: Returns the configuration of the WebUI.
+      operationId: getDashboardConfiguration
       responses:
         "200":
           description: The request was successful.
@@ -27,6 +29,7 @@ paths:
   /datasets:
     get:
       description: Returns all cluster data sets.
+      operationId: getClusterDataSetList
       responses:
         "200":
           description: The request was successful.
@@ -37,6 +40,7 @@ paths:
   /datasets/delete/{triggerid}:
     get:
       description: Returns the status for the delete operation of a cluster data set.
+      operationId: getClusterDataSetDeleteStatus
       parameters:
       - name: triggerid
         in: path
@@ -56,6 +60,7 @@ paths:
     delete:
       description: Triggers the deletion of a cluster data set. This async operation
         would return a 'triggerid' for further query identifier.
+      operationId: deleteClusterDataSet
       parameters:
       - name: datasetid
         in: path
@@ -74,6 +79,7 @@ paths:
   /jars:
     get:
       description: Returns a list of all jars previously uploaded via '/jars/upload'.
+      operationId: getJarList
       responses:
         "200":
           description: The request was successful.
@@ -83,14 +89,16 @@ paths:
                 $ref: '#/components/schemas/JarListInfo'
   /jars/upload:
     post:
-      description: "Uploads a jar to the cluster. The jar must be sent as multi-part\
-        \ data. Make sure that the \"Content-Type\" header is set to \"application/x-java-archive\"\
-        , as some http libraries do not add the header by default.\nUsing 'curl' you\
-        \ can upload a jar via 'curl -X POST -H \"Expect:\" -F \"jarfile=@path/to/flink-job.jar\"\
-        \ http://hostname:port/jars/upload'."
+      description: |-
+        Uploads a jar to the cluster. The jar must be sent as multi-part data. Make sure that the "Content-Type" header is set to "application/x-java-archive", as some http libraries do not add the header by default.
+        Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@path/to/flink-job.jar" http://hostname:port/jars/upload'.
+      operationId: uploadJar
       requestBody:
         content:
-          application/x-java-archive: {}
+          application/x-java-archive:
+            schema:
+              type: string
+              format: binary
         required: true
       responses:
         "200":
@@ -102,6 +110,7 @@ paths:
   /jars/{jarid}:
     delete:
       description: Deletes a jar previously uploaded via '/jars/upload'.
+      operationId: deleteJar
       parameters:
       - name: jarid
         in: path
@@ -115,62 +124,11 @@ paths:
         "200":
           description: The request was successful.
   /jars/{jarid}/plan:
-    get:
-      description: Returns the dataflow plan of a job contained in a jar previously
-        uploaded via '/jars/upload'. Program arguments can be passed both via the
-        JSON request (recommended) or query parameters.
-      parameters:
-      - name: jarid
-        in: path
-        description: "String value that identifies a jar. When uploading the jar a\
-          \ path is returned, where the filename is the ID. This value is equivalent\
-          \ to the `id` field in the list of uploaded jars (/jars)."
-        required: true
-        schema:
-          type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: programArg
-        in: query
-        description: Comma-separated list of program arguments.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: entry-class
-        in: query
-        description: String value that specifies the fully qualified name of the entry
-          point class. Overrides the class defined in the jar file manifest.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: parallelism
-        in: query
-        description: Positive integer value that specifies the desired parallelism
-          for the job.
-        required: false
-        style: form
-        schema:
-          type: integer
-          format: int32
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JobPlanInfo'
     post:
       description: Returns the dataflow plan of a job contained in a jar previously
         uploaded via '/jars/upload'. Program arguments can be passed both via the
         JSON request (recommended) or query parameters.
+      operationId: generatePlanFromJar
       parameters:
       - name: jarid
         in: path
@@ -229,6 +187,7 @@ paths:
       description: Submits a job by running a jar previously uploaded via '/jars/upload'.
         Program arguments can be passed both via the JSON request (recommended) or
         query parameters.
+      operationId: submitJobFromJar
       parameters:
       - name: jarid
         in: path
@@ -302,6 +261,7 @@ paths:
   /jobmanager/config:
     get:
       description: Returns the cluster configuration.
+      operationId: getClusterConfigurationInfo
       responses:
         "200":
           description: The request was successful.
@@ -313,10 +273,22 @@ paths:
                   empty:
                     type: boolean
                 items:
-                  $ref: '#/components/schemas/ClusterConfigurationInfoEntry'
+                  $ref: '#/components/schemas/ConfigurationInfoEntry'
+  /jobmanager/environment:
+    get:
+      description: Returns the jobmanager environment.
+      operationId: getJobManagerEnvironment
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentInfo'
   /jobmanager/logs:
     get:
       description: Returns the list of log files on the JobManager.
+      operationId: getJobManagerLogList
       responses:
         "200":
           description: The request was successful.
@@ -327,6 +299,7 @@ paths:
   /jobmanager/metrics:
     get:
       description: Provides access to job manager metrics.
+      operationId: getJobManagerMetrics
       parameters:
       - name: get
         in: query
@@ -345,6 +318,7 @@ paths:
   /jobmanager/thread-dump:
     get:
       description: Returns the thread dump of the JobManager.
+      operationId: getJobManagerThreadDump
       responses:
         "200":
           description: The request was successful.
@@ -355,6 +329,7 @@ paths:
   /jobs:
     get:
       description: Returns an overview over all jobs and their current state.
+      operationId: getJobIdsWithStatusesOverview
       responses:
         "200":
           description: The request was successful.
@@ -367,6 +342,7 @@ paths:
         \ Flink client. This call expects a multipart/form-data request that consists\
         \ of file uploads for the serialized JobGraph, jars and distributed cache\
         \ artifacts and an attribute named \"request\" for the JSON payload."
+      operationId: submitJob
       requestBody:
         content:
           multipart/form-data:
@@ -390,6 +366,7 @@ paths:
   /jobs/metrics:
     get:
       description: Provides access to aggregated job metrics.
+      operationId: getAggregatedJobMetrics
       parameters:
       - name: get
         in: query
@@ -405,12 +382,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - MIN
-          - MAX
-          - SUM
-          - AVG
+          $ref: '#/components/schemas/AggregationMode'
       - name: jobs
         in: query
         description: Comma-separated list of 32-character hexadecimal strings to select
@@ -429,6 +401,7 @@ paths:
   /jobs/overview:
     get:
       description: Returns an overview over all jobs.
+      operationId: getJobsOverview
       responses:
         "200":
           description: The request was successful.
@@ -439,6 +412,7 @@ paths:
   /jobs/{jobid}:
     get:
       description: Returns details of a job.
+      operationId: getJobDetails
       parameters:
       - name: jobid
         in: path
@@ -455,6 +429,7 @@ paths:
                 $ref: '#/components/schemas/JobDetailsInfo'
     patch:
       description: Terminates a job.
+      operationId: cancelJob
       parameters:
       - name: jobid
         in: path
@@ -469,10 +444,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - CANCEL
-          - STOP
+          $ref: '#/components/schemas/TerminationMode'
       responses:
         "202":
           description: The request was successful.
@@ -480,6 +452,7 @@ paths:
     get:
       description: "Returns the accumulators for all tasks of a job, aggregated across\
         \ the respective subtasks."
+      operationId: getJobAccumulators
       parameters:
       - name: jobid
         in: path
@@ -505,6 +478,7 @@ paths:
   /jobs/{jobid}/checkpoints:
     get:
       description: Returns checkpointing statistics for a job.
+      operationId: getCheckpointingStatistics
       parameters:
       - name: jobid
         in: path
@@ -519,9 +493,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CheckpointingStatistics'
+    post:
+      description: Triggers a checkpoint. This async operation would return a 'triggerid'
+        for further query identifier.
+      operationId: triggerCheckpoint
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckpointTriggerRequestBody'
+      responses:
+        "202":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerResponse'
   /jobs/{jobid}/checkpoints/config:
     get:
       description: Returns the checkpointing configuration.
+      operationId: getCheckpointConfig
       parameters:
       - name: jobid
         in: path
@@ -539,6 +537,7 @@ paths:
   /jobs/{jobid}/checkpoints/details/{checkpointid}:
     get:
       description: Returns details for a checkpoint.
+      operationId: getCheckpointStatisticDetails
       parameters:
       - name: jobid
         in: path
@@ -563,6 +562,7 @@ paths:
   /jobs/{jobid}/checkpoints/details/{checkpointid}/subtasks/{vertexid}:
     get:
       description: Returns checkpoint statistics for a task and its subtasks.
+      operationId: getTaskCheckpointStatistics
       parameters:
       - name: jobid
         in: path
@@ -590,9 +590,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskCheckpointStatisticsWithSubtaskDetails'
+  /jobs/{jobid}/checkpoints/{triggerid}:
+    get:
+      description: Returns the status of a checkpoint trigger operation.
+      operationId: getCheckpointStatus
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: triggerid
+        in: path
+        description: 32-character hexadecimal string that identifies an asynchronous
+          operation trigger ID. The ID was returned then the operation was triggered.
+        required: true
+        schema:
+          $ref: '#/components/schemas/TriggerId'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/clientHeartbeat:
+    patch:
+      description: Report the jobClient's aliveness.
+      operationId: triggerHeartbeat
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobClientHeartbeatRequestBody'
+      responses:
+        "202":
+          description: The request was successful.
   /jobs/{jobid}/config:
     get:
       description: Returns the configuration of a job.
+      operationId: getJobConfig
       parameters:
       - name: jobid
         in: path
@@ -616,6 +661,7 @@ paths:
         \ through web.exception-history-size in the Flink configuration. The following\
         \ first-level members are deprecated: 'root-exception', 'timestamp', 'all-exceptions',\
         \ and 'truncated'. Use the data provided through 'exceptionHistory', instead."
+      operationId: getJobExceptions
       parameters:
       - name: jobid
         in: path
@@ -643,6 +689,7 @@ paths:
     get:
       description: Returns the result of a job execution. Gives access to the execution
         time of the job and to all accumulators created by this job.
+      operationId: getJobExecutionResult
       parameters:
       - name: jobid
         in: path
@@ -657,9 +704,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobExecutionResultResponseBody'
+  /jobs/{jobid}/jobmanager/config:
+    get:
+      description: Returns the jobmanager's configuration of a specific job.
+      operationId: getJobManagerJobConfiguration
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                type: array
+                properties:
+                  empty:
+                    type: boolean
+                items:
+                  $ref: '#/components/schemas/ConfigurationInfoEntry'
+  /jobs/{jobid}/jobmanager/environment:
+    get:
+      description: Returns the jobmanager's environment of a specific job.
+      operationId: getJobManagerJobEnvironment
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentInfo'
+  /jobs/{jobid}/jobmanager/log-url:
+    get:
+      description: Returns the log url of jobmanager of a specific job.
+      operationId: getJobManagerLogUrl
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogUrlResponse'
   /jobs/{jobid}/metrics:
     get:
       description: Provides access to job metrics.
+      operationId: getJobMetrics
       parameters:
       - name: jobid
         in: path
@@ -684,6 +791,7 @@ paths:
   /jobs/{jobid}/plan:
     get:
       description: Returns the dataflow plan of a job.
+      operationId: getJobPlan
       parameters:
       - name: jobid
         in: path
@@ -702,6 +810,7 @@ paths:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
         a 'triggerid' for further query identifier.
+      operationId: rescaleJob
       parameters:
       - name: jobid
         in: path
@@ -727,6 +836,7 @@ paths:
   /jobs/{jobid}/rescaling/{triggerid}:
     get:
       description: Returns the status of a rescaling operation.
+      operationId: getRescalingStatus
       parameters:
       - name: jobid
         in: path
@@ -752,6 +862,7 @@ paths:
     post:
       description: "Triggers a savepoint, and optionally cancels the job afterwards.\
         \ This async operation would return a 'triggerid' for further query identifier."
+      operationId: triggerSavepoint
       parameters:
       - name: jobid
         in: path
@@ -774,6 +885,7 @@ paths:
   /jobs/{jobid}/savepoints/{triggerid}:
     get:
       description: Returns the status of a savepoint operation.
+      operationId: getSavepointStatus
       parameters:
       - name: jobid
         in: path
@@ -798,6 +910,7 @@ paths:
   /jobs/{jobid}/status:
     get:
       description: Returns the current status of a job execution.
+      operationId: getJobStatusInfo
       parameters:
       - name: jobid
         in: path
@@ -818,6 +931,7 @@ paths:
         \ before taking the savepoint to flush out any state waiting for timers to\
         \ fire. This async operation would return a 'triggerid' for further query\
         \ identifier."
+      operationId: triggerStopWithSavepoint
       parameters:
       - name: jobid
         in: path
@@ -837,9 +951,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TriggerResponse'
+  /jobs/{jobid}/taskmanagers/{taskmanagerid}/log-url:
+    get:
+      description: Returns the log url of jobmanager of a specific job.
+      operationId: getTaskManagerLogUrl
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: taskmanagerid
+        in: path
+        description: 32-character hexadecimal string that identifies a task manager.
+        required: true
+        schema:
+          $ref: '#/components/schemas/ResourceID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogUrlResponse'
   /jobs/{jobid}/vertices/{vertexid}:
     get:
       description: "Returns details for a task, with a summary for each of its subtasks."
+      operationId: getJobVertexDetails
       parameters:
       - name: jobid
         in: path
@@ -864,6 +1003,7 @@ paths:
     get:
       description: "Returns user-defined accumulators of a task, aggregated across\
         \ all subtasks."
+      operationId: getJobVertexAccumulators
       parameters:
       - name: jobid
         in: path
@@ -888,6 +1028,7 @@ paths:
     get:
       description: "Returns back-pressure information for a job, and may initiate\
         \ back-pressure sampling if necessary."
+      operationId: getJobVertexBackPressure
       parameters:
       - name: jobid
         in: path
@@ -912,6 +1053,7 @@ paths:
     get:
       description: "Returns flame graph information for a vertex, and may initiate\
         \ flame graph sampling if necessary."
+      operationId: getJobVertexFlameGraph
       parameters:
       - name: jobid
         in: path
@@ -932,21 +1074,26 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - FULL
-          - ON_CPU
-          - OFF_CPU
+          $ref: '#/components/schemas/Type'
+      - name: subtaskindex
+        in: query
+        description: Positive integer value that identifies a subtask.
+        required: false
+        style: form
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobVertexFlameGraph'
+                $ref: '#/components/schemas/VertexFlameGraph'
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
+      operationId: getJobVertexMetrics
       parameters:
       - name: jobid
         in: path
@@ -977,6 +1124,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasks/accumulators:
     get:
       description: Returns all user-defined accumulators for all subtasks of a task.
+      operationId: getSubtasksAllAccumulators
       parameters:
       - name: jobid
         in: path
@@ -1000,6 +1148,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasks/metrics:
     get:
       description: Provides access to aggregated subtask metrics.
+      operationId: getAggregatedSubtaskMetrics
       parameters:
       - name: jobid
         in: path
@@ -1027,12 +1176,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - MIN
-          - MAX
-          - SUM
-          - AVG
+          $ref: '#/components/schemas/AggregationMode'
       - name: subtasks
         in: query
         description: "Comma-separated list of integer ranges (e.g. \"1,3,5-9\") to\
@@ -1052,6 +1196,7 @@ paths:
     get:
       description: Returns details of the current or latest execution attempt of a
         subtask.
+      operationId: getSubtaskCurrentAttemptDetails
       parameters:
       - name: jobid
         in: path
@@ -1083,6 +1228,7 @@ paths:
     get:
       description: Returns details of an execution attempt of a subtask. Multiple
         execution attempts happen in case of failure/recovery.
+      operationId: getSubtaskExecutionAttemptDetails
       parameters:
       - name: jobid
         in: path
@@ -1121,6 +1267,7 @@ paths:
     get:
       description: Returns the accumulators of an execution attempt of a subtask.
         Multiple execution attempts happen in case of failure/recovery.
+      operationId: getSubtaskExecutionAttemptAccumulators
       parameters:
       - name: jobid
         in: path
@@ -1158,6 +1305,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasks/{subtaskindex}/metrics:
     get:
       description: Provides access to subtask metrics.
+      operationId: getSubtaskMetrics
       parameters:
       - name: jobid
         in: path
@@ -1195,6 +1343,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasktimes:
     get:
       description: Returns time-related information for all subtasks of a task.
+      operationId: getSubtasksTimes
       parameters:
       - name: jobid
         in: path
@@ -1218,6 +1367,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/taskmanagers:
     get:
       description: Returns task information aggregated by task manager.
+      operationId: getJobVertexTaskManagers
       parameters:
       - name: jobid
         in: path
@@ -1241,6 +1391,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/watermarks:
     get:
       description: Returns the watermarks for all subtasks of a task.
+      operationId: getJobVertexWatermarks
       parameters:
       - name: jobid
         in: path
@@ -1264,6 +1415,7 @@ paths:
   /overview:
     get:
       description: Returns an overview over the Flink cluster.
+      operationId: getClusterOverview
       responses:
         "200":
           description: The request was successful.
@@ -1275,6 +1427,7 @@ paths:
     post:
       description: Triggers the desposal of a savepoint. This async operation would
         return a 'triggerid' for further query identifier.
+      operationId: triggerSavepointDisposal
       requestBody:
         content:
           application/json:
@@ -1290,6 +1443,7 @@ paths:
   /savepoint-disposal/{triggerid}:
     get:
       description: Returns the status of a savepoint disposal operation.
+      operationId: getSavepointDisposalStatus
       parameters:
       - name: triggerid
         in: path
@@ -1308,6 +1462,7 @@ paths:
   /taskmanagers:
     get:
       description: Returns an overview over all task managers.
+      operationId: getTaskManagers
       responses:
         "200":
           description: The request was successful.
@@ -1318,6 +1473,7 @@ paths:
   /taskmanagers/metrics:
     get:
       description: Provides access to aggregated task manager metrics.
+      operationId: getAggregatedTaskManagerMetrics
       parameters:
       - name: get
         in: query
@@ -1333,12 +1489,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - MIN
-          - MAX
-          - SUM
-          - AVG
+          $ref: '#/components/schemas/AggregationMode'
       - name: taskmanagers
         in: query
         description: Comma-separated list of 32-character hexadecimal strings to select
@@ -1359,6 +1510,7 @@ paths:
       description: Returns details for a task manager. "metrics.memorySegmentsAvailable"
         and "metrics.memorySegmentsTotal" are deprecated. Please use "metrics.nettyShuffleMemorySegmentsAvailable"
         and "metrics.nettyShuffleMemorySegmentsTotal" instead.
+      operationId: getTaskManagerDetails
       parameters:
       - name: taskmanagerid
         in: path
@@ -1376,6 +1528,7 @@ paths:
   /taskmanagers/{taskmanagerid}/logs:
     get:
       description: Returns the list of log files on a TaskManager.
+      operationId: getTaskManagerLogs
       parameters:
       - name: taskmanagerid
         in: path
@@ -1393,6 +1546,7 @@ paths:
   /taskmanagers/{taskmanagerid}/metrics:
     get:
       description: Provides access to task manager metrics.
+      operationId: getTaskManagerMetrics
       parameters:
       - name: taskmanagerid
         in: path
@@ -1417,6 +1571,7 @@ paths:
   /taskmanagers/{taskmanagerid}/thread-dump:
     get:
       description: Returns the thread dump of the requested TaskManager.
+      operationId: getTaskManagerThreadDump
       parameters:
       - name: taskmanagerid
         in: path
@@ -1433,574 +1588,219 @@ paths:
                 $ref: '#/components/schemas/ThreadDumpInfo'
 components:
   schemas:
-    JarFileInfo:
+    AggregatedMetricsResponseBody:
+      type: object
+    AggregatedTaskDetailsInfo:
       type: object
       properties:
-        id:
-          type: string
-        name:
-          type: string
-        uploaded:
-          type: integer
-          format: int64
-        entry:
-          type: array
-          items:
-            $ref: '#/components/schemas/JarEntryInfo'
-    Node:
+        metrics:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
+        status-duration:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
+    AggregationMode:
+      type: string
+      enum:
+      - MIN
+      - MAX
+      - SUM
+      - AVG
+    ApplicationStatus:
+      type: string
+      enum:
+      - SUCCEEDED
+      - FAILED
+      - CANCELED
+      - UNKNOWN
+    AsynchronousOperationInfo:
       type: object
       properties:
-        name:
-          type: string
-        value:
-          type: integer
-          format: int32
-        children:
-          type: array
-          items:
-            $ref: '#/components/schemas/Node'
+        failure-cause:
+          $ref: '#/components/schemas/SerializedThrowable'
+    AsynchronousOperationResult:
+      type: object
+      properties:
+        operation:
+          oneOf:
+          - $ref: '#/components/schemas/AsynchronousOperationInfo'
+          - $ref: '#/components/schemas/CheckpointInfo'
+          - $ref: '#/components/schemas/SavepointInfo'
+        status:
+          $ref: '#/components/schemas/QueueStatus'
     CheckpointAlignment:
       type: object
       properties:
         buffered:
           type: integer
           format: int64
-        processed:
+        duration:
           type: integer
           format: int64
         persisted:
           type: integer
           format: int64
-        duration:
+        processed:
           type: integer
           format: int64
-    SavepointInfo:
+    CheckpointConfigInfo:
       type: object
       properties:
-        location:
+        aligned_checkpoint_timeout:
+          type: integer
+          format: int64
+        changelog_periodic_materialization_interval:
+          type: integer
+          format: int64
+        changelog_storage:
           type: string
-        failure-cause:
+        checkpoint_storage:
+          type: string
+        checkpoints_after_tasks_finish:
+          type: boolean
+        externalization:
+          $ref: '#/components/schemas/ExternalizedCheckpointInfo'
+        interval:
+          type: integer
+          format: int64
+        max_concurrent:
+          type: integer
+          format: int64
+        min_pause:
+          type: integer
+          format: int64
+        mode:
+          $ref: '#/components/schemas/ProcessingMode'
+        state_backend:
+          type: string
+        state_changelog_enabled:
+          type: boolean
+        timeout:
+          type: integer
+          format: int64
+        tolerable_failed_checkpoints:
+          type: integer
+          format: int32
+        unaligned_checkpoints:
+          type: boolean
+    CheckpointDuration:
+      type: object
+      properties:
+        async:
+          type: integer
+          format: int64
+        sync:
+          type: integer
+          format: int64
+    CheckpointInfo:
+      type: object
+      properties:
+        checkpointId:
+          type: integer
+          format: int64
+        failureCause:
           $ref: '#/components/schemas/SerializedThrowable'
-    AsynchronousOperationInfo:
-      type: object
-      properties:
-        failure-cause:
-          $ref: '#/components/schemas/SerializedThrowable'
-    TaskManagerMetricsInfo:
-      type: object
-      properties:
-        heapUsed:
-          type: integer
-          format: int64
-        heapCommitted:
-          type: integer
-          format: int64
-        heapMax:
-          type: integer
-          format: int64
-        nonHeapUsed:
-          type: integer
-          format: int64
-        nonHeapCommitted:
-          type: integer
-          format: int64
-        nonHeapMax:
-          type: integer
-          format: int64
-        directCount:
-          type: integer
-          format: int64
-        directUsed:
-          type: integer
-          format: int64
-        directMax:
-          type: integer
-          format: int64
-        mappedCount:
-          type: integer
-          format: int64
-        mappedUsed:
-          type: integer
-          format: int64
-        mappedMax:
-          type: integer
-          format: int64
-        memorySegmentsAvailable:
-          type: integer
-          format: int64
-        memorySegmentsTotal:
-          type: integer
-          format: int64
-        nettyShuffleMemorySegmentsAvailable:
-          type: integer
-          format: int64
-        nettyShuffleMemorySegmentsUsed:
-          type: integer
-          format: int64
-        nettyShuffleMemorySegmentsTotal:
-          type: integer
-          format: int64
-        nettyShuffleMemoryAvailable:
-          type: integer
-          format: int64
-        nettyShuffleMemoryUsed:
-          type: integer
-          format: int64
-        nettyShuffleMemoryTotal:
-          type: integer
-          format: int64
-        garbageCollectors:
-          type: array
-          items:
-            $ref: '#/components/schemas/GarbageCollectorInfo'
-    JarEntryInfo:
-      type: object
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-    TriggerId:
-      pattern: "[0-9a-f]{32}"
-      type: string
-    JobVertexFlameGraph:
-      type: object
-      properties:
-        endTimestamp:
-          type: integer
-          format: int64
-        data:
-          $ref: '#/components/schemas/Node'
-    JobDetailsInfo:
-      type: object
-      properties:
-        jid:
-          $ref: '#/components/schemas/JobID'
-        name:
-          type: string
-        isStoppable:
-          type: boolean
-        state:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
-        start-time:
-          type: integer
-          format: int64
-        end-time:
-          type: integer
-          format: int64
-        duration:
-          type: integer
-          format: int64
-        maxParallelism:
-          type: integer
-          format: int64
-        now:
-          type: integer
-          format: int64
-        timestamps:
-          type: object
-          additionalProperties:
-            type: integer
-            format: int64
-        vertices:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobVertexDetailsInfo'
-        status-counts:
-          type: object
-          additionalProperties:
-            type: integer
-            format: int32
-        plan:
-          type: string
-    IOMetricsInfo:
-      type: object
-      properties:
-        read-bytes:
-          type: integer
-          format: int64
-        read-bytes-complete:
-          type: boolean
-        write-bytes:
-          type: integer
-          format: int64
-        write-bytes-complete:
-          type: boolean
-        read-records:
-          type: integer
-          format: int64
-        read-records-complete:
-          type: boolean
-        write-records:
-          type: integer
-          format: int64
-        write-records-complete:
-          type: boolean
-    SerializedThrowable:
-      type: object
-      properties:
-        serialized-throwable:
-          type: string
-          format: binary
-    TaskManagersInfo:
-      type: object
-      properties:
-        taskmanagers:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskManagerInfo'
-    SubtaskExecutionAttemptDetailsInfo:
-      type: object
-      properties:
-        subtask:
-          type: integer
-          format: int32
-        status:
-          type: string
-          enum:
-          - CREATED
-          - SCHEDULED
-          - DEPLOYING
-          - RUNNING
-          - FINISHED
-          - CANCELING
-          - CANCELED
-          - FAILED
-          - RECONCILING
-          - INITIALIZING
-        attempt:
-          type: integer
-          format: int32
-        host:
-          type: string
-        start-time:
-          type: integer
-          format: int64
-        end-time:
-          type: integer
-          format: int64
-        duration:
-          type: integer
-          format: int64
-        metrics:
-          $ref: '#/components/schemas/IOMetricsInfo'
-        taskmanager-id:
-          type: string
-    JobResult:
-      type: object
-      properties:
-        jobId:
-          $ref: '#/components/schemas/JobID'
-        applicationStatus:
-          type: string
-          enum:
-          - SUCCEEDED
-          - FAILED
-          - CANCELED
-          - UNKNOWN
-        accumulatorResults:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/SerializedValueOptionalFailureObject'
-        netRuntime:
-          type: integer
-          format: int64
-        serializedThrowable:
-          $ref: '#/components/schemas/SerializedThrowable'
-        success:
-          type: boolean
-    JobVertexDetailsInfo:
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/JobVertexID'
-        name:
-          type: string
-        parallelism:
-          type: integer
-          format: int32
-        maxParallelism:
-          type: integer
-          format: int32
-        now:
-          type: integer
-          format: int64
-        subtasks:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
-    DistributedCacheFile:
-      type: object
-      properties:
-        entryName:
-          type: string
-        fileName:
-          type: string
-    RestoredCheckpointStatistics:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        restore_timestamp:
-          type: integer
-          format: int64
-        is_savepoint:
-          type: boolean
-        external_path:
-          type: string
-    SavepointTriggerRequestBody:
-      type: object
-      properties:
-        target-directory:
-          type: string
-        cancel-job:
-          type: boolean
-        formatType:
-          type: string
-          enum:
-          - CANONICAL
-          - NATIVE
-        triggerId:
-          $ref: '#/components/schemas/TriggerId'
-    ThreadDumpInfo:
-      type: object
-      properties:
-        threadInfos:
-          type: array
-          items:
-            $ref: '#/components/schemas/ThreadInfo'
-    AsynchronousOperationResult:
-      type: object
-      properties:
-        status:
-          $ref: '#/components/schemas/QueueStatus'
-        operation:
-          oneOf:
-          - $ref: '#/components/schemas/AsynchronousOperationInfo'
-          - $ref: '#/components/schemas/SavepointInfo'
-    CheckpointingStatistics:
-      type: object
-      properties:
-        counts:
-          $ref: '#/components/schemas/Counts'
-        summary:
-          $ref: '#/components/schemas/Summary'
-        latest:
-          $ref: '#/components/schemas/LatestCheckpoints'
-        history:
-          type: array
-          items:
-            $ref: '#/components/schemas/CheckpointStatistics'
-    HardwareDescription:
-      type: object
-      properties:
-        cpuCores:
-          type: integer
-          format: int32
-        physicalMemory:
-          type: integer
-          format: int64
-        freeMemory:
-          type: integer
-          format: int64
-        managedMemory:
-          type: integer
-          format: int64
-    TaskCheckpointStatistics:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
-        latest_ack_timestamp:
-          type: integer
-          format: int64
-        checkpointed_size:
-          type: integer
-          format: int64
-        state_size:
-          type: integer
-          format: int64
-        end_to_end_duration:
-          type: integer
-          format: int64
-        alignment_buffered:
-          type: integer
-          format: int64
-        processed_data:
-          type: integer
-          format: int64
-        persisted_data:
-          type: integer
-          format: int64
-        num_subtasks:
-          type: integer
-          format: int32
-        num_acknowledged_subtasks:
-          type: integer
-          format: int32
-    JobStatusInfo:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
-    JobAccumulator:
-      type: object
-    JobID:
-      pattern: "[0-9a-f]{32}"
-      type: string
     CheckpointStatistics:
       required:
       - className
       type: object
       properties:
-        id:
+        alignment_buffered:
           type: integer
           format: int64
-        status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
-        is_savepoint:
-          type: boolean
-        trigger_timestamp:
-          type: integer
-          format: int64
-        latest_ack_timestamp:
-          type: integer
-          format: int64
+        checkpoint_type:
+          $ref: '#/components/schemas/RestAPICheckpointType'
         checkpointed_size:
           type: integer
           format: int64
-        state_size:
-          type: integer
-          format: int64
+        className:
+          type: string
         end_to_end_duration:
           type: integer
           format: int64
-        alignment_buffered:
+        id:
+          type: integer
+          format: int64
+        is_savepoint:
+          type: boolean
+        latest_ack_timestamp:
+          type: integer
+          format: int64
+        num_acknowledged_subtasks:
+          type: integer
+          format: int32
+        num_subtasks:
+          type: integer
+          format: int32
+        persisted_data:
           type: integer
           format: int64
         processed_data:
           type: integer
           format: int64
-        persisted_data:
+        savepointFormat:
+          type: string
+        state_size:
           type: integer
           format: int64
-        num_subtasks:
-          type: integer
-          format: int32
-        num_acknowledged_subtasks:
-          type: integer
-          format: int32
-        checkpoint_type:
-          type: string
-          enum:
-          - CHECKPOINT
-          - SAVEPOINT
-          - SYNC_SAVEPOINT
+        status:
+          $ref: '#/components/schemas/CheckpointStatsStatus'
         tasks:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/TaskCheckpointStatistics'
-        className:
-          type: string
+        trigger_timestamp:
+          type: integer
+          format: int64
       discriminator:
         propertyName: className
-    JobConfigInfo:
+    CheckpointStatsStatus:
+      type: string
+      enum:
+      - IN_PROGRESS
+      - COMPLETED
+      - FAILED
+    CheckpointTriggerRequestBody:
       type: object
       properties:
-        jobId:
-          $ref: '#/components/schemas/JobID'
-        jobName:
-          type: string
-        executionConfigInfo:
-          $ref: '#/components/schemas/ExecutionConfigInfo'
-    MetricCollectionResponseBody:
+        checkpointType:
+          $ref: '#/components/schemas/CheckpointType'
+        triggerId:
+          $ref: '#/components/schemas/TriggerId'
+    CheckpointType:
+      type: string
+      enum:
+      - CONFIGURED
+      - FULL
+      - INCREMENTAL
+    CheckpointingStatistics:
       type: object
       properties:
-        metrics:
+        counts:
+          $ref: '#/components/schemas/Counts'
+        history:
           type: array
           items:
-            $ref: '#/components/schemas/Metric'
-    ClusterOverviewWithVersion:
-      type: object
-      properties:
-        taskmanagers:
-          type: integer
-          format: int32
-        slots-total:
-          type: integer
-          format: int32
-        slots-available:
-          type: integer
-          format: int32
-        jobs-running:
-          type: integer
-          format: int32
-        jobs-finished:
-          type: integer
-          format: int32
-        jobs-cancelled:
-          type: integer
-          format: int32
-        jobs-failed:
-          type: integer
-          format: int32
-        flink-version:
-          type: string
-        flink-commit:
-          type: string
-    AggregatedMetricsResponseBody:
-      type: object
-    SubtasksAllAccumulatorsInfo:
+            $ref: '#/components/schemas/CheckpointStatistics'
+        latest:
+          $ref: '#/components/schemas/LatestCheckpoints'
+        summary:
+          $ref: '#/components/schemas/Summary'
+    ClusterDataSetEntry:
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/JobVertexID'
-        parallelism:
-          type: integer
-          format: int32
-        subtasks:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubtaskAccumulatorsInfo'
-    ResourceID:
-      pattern: "[0-9a-f]{32}"
-      type: string
+          type: string
+        isComplete:
+          type: boolean
     ClusterDataSetListResponseBody:
       type: object
       properties:
@@ -2008,26 +1808,40 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClusterDataSetEntry'
-    SavepointDisposalRequest:
+    ClusterOverviewWithVersion:
       type: object
       properties:
-        savepoint-path:
+        flink-commit:
           type: string
-    PendingSubtaskCheckpointStatistics:
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/SubtaskCheckpointStatistics'
-    LogInfo:
-      type: object
-      properties:
-        name:
+        flink-version:
           type: string
-        size:
+        jobs-cancelled:
           type: integer
-          format: int64
-        mtime:
+          format: int32
+        jobs-failed:
           type: integer
-          format: int64
+          format: int32
+        jobs-finished:
+          type: integer
+          format: int32
+        jobs-running:
+          type: integer
+          format: int32
+        slots-available:
+          type: integer
+          format: int32
+        slots-free-and-blocked:
+          type: integer
+          format: int32
+        slots-total:
+          type: integer
+          format: int32
+        taskmanagers:
+          type: integer
+          format: int32
+        taskmanagers-blocked:
+          type: integer
+          format: int32
     CompletedCheckpointStatistics:
       type: object
       allOf:
@@ -2038,158 +1852,6 @@ components:
             type: string
           discarded:
             type: boolean
-    JarRunRequestBody:
-      type: object
-      properties:
-        entryClass:
-          type: string
-        programArgs:
-          type: string
-        programArgsList:
-          type: array
-          items:
-            type: string
-        parallelism:
-          type: integer
-          format: int32
-        jobId:
-          $ref: '#/components/schemas/JobID'
-        allowNonRestoredState:
-          type: boolean
-        savepointPath:
-          type: string
-        restoreMode:
-          type: string
-          enum:
-          - CLAIM
-          - NO_CLAIM
-          - LEGACY
-    SubtaskAccumulatorsInfo:
-      type: object
-      properties:
-        subtask:
-          type: integer
-          format: int32
-        attempt:
-          type: integer
-          format: int32
-        host:
-          type: string
-        user-accumulators:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserAccumulator'
-    JobPlanInfo:
-      type: object
-      properties:
-        plan:
-          $ref: '#/components/schemas/RawJson'
-    TaskExecutorMemoryConfiguration:
-      type: object
-      properties:
-        frameworkHeap:
-          type: integer
-          format: int64
-        taskHeap:
-          type: integer
-          format: int64
-        frameworkOffHeap:
-          type: integer
-          format: int64
-        taskOffHeap:
-          type: integer
-          format: int64
-        networkMemory:
-          type: integer
-          format: int64
-        managedMemory:
-          type: integer
-          format: int64
-        jvmMetaspace:
-          type: integer
-          format: int64
-        jvmOverhead:
-          type: integer
-          format: int64
-        totalFlinkMemory:
-          type: integer
-          format: int64
-        totalProcessMemory:
-          type: integer
-          format: int64
-    FailedCheckpointStatistics:
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/CheckpointStatistics'
-      - type: object
-        properties:
-          failure_timestamp:
-            type: integer
-            format: int64
-          failure_message:
-            type: string
-    JobVertexAccumulatorsInfo:
-      type: object
-      properties:
-        id:
-          type: string
-        user-accumulators:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserAccumulator'
-    ClusterConfigurationInfo:
-      type: array
-      properties:
-        empty:
-          type: boolean
-      items:
-        $ref: '#/components/schemas/ClusterConfigurationInfoEntry'
-    UserAccumulator:
-      type: object
-      properties:
-        name:
-          type: string
-        type:
-          type: string
-        value:
-          type: string
-    CheckpointDuration:
-      type: object
-      properties:
-        sync:
-          type: integer
-          format: int64
-        async:
-          type: integer
-          format: int64
-    ExceptionInfo:
-      type: object
-      properties:
-        exceptionName:
-          type: string
-        stacktrace:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
-        taskName:
-          type: string
-        location:
-          type: string
-    SubtaskCheckpointStatistics:
-      required:
-      - className
-      type: object
-      properties:
-        index:
-          type: integer
-          format: int32
-        status:
-          type: string
-        className:
-          type: string
-      discriminator:
-        propertyName: className
     CompletedSubtaskCheckpointStatistics:
       type: object
       allOf:
@@ -2219,24 +1881,422 @@ components:
             type: boolean
           aborted:
             type: boolean
-    PendingCheckpointStatistics:
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/CheckpointStatistics'
-    JobSubmitResponseBody:
+    ConfigurationInfo:
+      type: array
+      properties:
+        empty:
+          type: boolean
+      items:
+        $ref: '#/components/schemas/ConfigurationInfoEntry'
+    ConfigurationInfoEntry:
       type: object
       properties:
-        jobUrl:
-          type: string
-    UserTaskAccumulator:
-      type: object
-      properties:
-        name:
-          type: string
-        type:
+        key:
           type: string
         value:
           type: string
+    Counts:
+      type: object
+      properties:
+        completed:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        in_progress:
+          type: integer
+          format: int32
+        restored:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    DashboardConfiguration:
+      type: object
+      properties:
+        features:
+          $ref: '#/components/schemas/Features'
+        flink-revision:
+          type: string
+        flink-version:
+          type: string
+        refresh-interval:
+          type: integer
+          format: int64
+        timezone-name:
+          type: string
+        timezone-offset:
+          type: integer
+          format: int32
+    DistributedCacheFile:
+      type: object
+      properties:
+        entryName:
+          type: string
+        fileName:
+          type: string
+    EnvironmentInfo:
+      type: object
+      properties:
+        classpath:
+          type: array
+          items:
+            type: string
+        jvm:
+          $ref: '#/components/schemas/JVMInfo'
+    ExceptionInfo:
+      type: object
+      properties:
+        exceptionName:
+          type: string
+        location:
+          type: string
+        stacktrace:
+          type: string
+        taskManagerId:
+          type: string
+        taskName:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+    ExecutionConfigInfo:
+      type: object
+      properties:
+        execution-mode:
+          type: string
+        job-parallelism:
+          type: integer
+          format: int32
+        object-reuse-mode:
+          type: boolean
+        restart-strategy:
+          type: string
+        user-config:
+          type: object
+          additionalProperties:
+            type: string
+    ExecutionExceptionInfo:
+      type: object
+      properties:
+        exception:
+          type: string
+        location:
+          type: string
+        task:
+          type: string
+        taskManagerId:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+    ExecutionState:
+      type: string
+      enum:
+      - CREATED
+      - SCHEDULED
+      - DEPLOYING
+      - RUNNING
+      - FINISHED
+      - CANCELING
+      - CANCELED
+      - FAILED
+      - RECONCILING
+      - INITIALIZING
+    ExternalizedCheckpointInfo:
+      type: object
+      properties:
+        delete_on_cancellation:
+          type: boolean
+        enabled:
+          type: boolean
+    FailedCheckpointStatistics:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/CheckpointStatistics'
+      - type: object
+        properties:
+          failure_timestamp:
+            type: integer
+            format: int64
+          failure_message:
+            type: string
+    Features:
+      type: object
+      properties:
+        web-cancel:
+          type: boolean
+        web-history:
+          type: boolean
+        web-submit:
+          type: boolean
+    GarbageCollectorInfo:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64
+        name:
+          type: string
+        time:
+          type: integer
+          format: int64
+    HardwareDescription:
+      type: object
+      properties:
+        cpuCores:
+          type: integer
+          format: int32
+        freeMemory:
+          type: integer
+          format: int64
+        managedMemory:
+          type: integer
+          format: int64
+        physicalMemory:
+          type: integer
+          format: int64
+    IOMetricsInfo:
+      type: object
+      properties:
+        accumulated-backpressured-time:
+          type: integer
+          format: int64
+        accumulated-busy-time:
+          type: number
+          format: double
+        accumulated-idle-time:
+          type: integer
+          format: int64
+        read-bytes:
+          type: integer
+          format: int64
+        read-bytes-complete:
+          type: boolean
+        read-records:
+          type: integer
+          format: int64
+        read-records-complete:
+          type: boolean
+        write-bytes:
+          type: integer
+          format: int64
+        write-bytes-complete:
+          type: boolean
+        write-records:
+          type: integer
+          format: int64
+        write-records-complete:
+          type: boolean
+    Id:
+      type: string
+      enum:
+      - IN_PROGRESS
+      - COMPLETED
+    IntermediateDataSetID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    JVMInfo:
+      type: object
+      properties:
+        arch:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+    JarEntryInfo:
+      type: object
+      properties:
+        description:
+          type: string
+        name:
+          type: string
+    JarFileInfo:
+      type: object
+      properties:
+        entry:
+          type: array
+          items:
+            $ref: '#/components/schemas/JarEntryInfo'
+        id:
+          type: string
+        name:
+          type: string
+        uploaded:
+          type: integer
+          format: int64
+    JarListInfo:
+      type: object
+      properties:
+        address:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/JarFileInfo'
+    JarPlanRequestBody:
+      type: object
+      properties:
+        entryClass:
+          type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
+        jobId:
+          $ref: '#/components/schemas/JobID'
+        parallelism:
+          type: integer
+          format: int32
+        programArgs:
+          type: string
+        programArgsList:
+          type: array
+          items:
+            type: string
+    JarRunRequestBody:
+      type: object
+      properties:
+        allowNonRestoredState:
+          type: boolean
+        entryClass:
+          type: string
+        flinkConfiguration:
+          type: object
+          additionalProperties:
+            type: string
+        jobId:
+          $ref: '#/components/schemas/JobID'
+        parallelism:
+          type: integer
+          format: int32
+        programArgs:
+          type: string
+        programArgsList:
+          type: array
+          items:
+            type: string
+        restoreMode:
+          $ref: '#/components/schemas/RestoreMode'
+        savepointPath:
+          type: string
+    JarRunResponseBody:
+      type: object
+      properties:
+        jobid:
+          $ref: '#/components/schemas/JobID'
+    JarUploadResponseBody:
+      type: object
+      properties:
+        filename:
+          type: string
+        status:
+          $ref: '#/components/schemas/UploadStatus'
+    JobAccumulator:
+      type: object
+    JobAccumulatorsInfo:
+      type: object
+      properties:
+        job-accumulators:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobAccumulator'
+        serialized-user-task-accumulators:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SerializedValueOptionalFailureObject'
+        user-task-accumulators:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserTaskAccumulator'
+    JobClientHeartbeatRequestBody:
+      type: object
+      properties:
+        expiredTimestamp:
+          type: integer
+          format: int64
+    JobConfigInfo:
+      type: object
+      properties:
+        executionConfigInfo:
+          $ref: '#/components/schemas/ExecutionConfigInfo'
+        jobId:
+          $ref: '#/components/schemas/JobID'
+        jobName:
+          type: string
+    JobDetails:
+      type: object
+      properties:
+        duration:
+          type: integer
+          format: int64
+        end-time:
+          type: integer
+          format: int64
+        jid:
+          $ref: '#/components/schemas/JobID'
+        last-modification:
+          type: integer
+          format: int64
+        name:
+          type: string
+        start-time:
+          type: integer
+          format: int64
+        state:
+          $ref: '#/components/schemas/JobStatus'
+        tasks:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+    JobDetailsInfo:
+      type: object
+      properties:
+        duration:
+          type: integer
+          format: int64
+        end-time:
+          type: integer
+          format: int64
+        isStoppable:
+          type: boolean
+        jid:
+          $ref: '#/components/schemas/JobID'
+        maxParallelism:
+          type: integer
+          format: int64
+        name:
+          type: string
+        now:
+          type: integer
+          format: int64
+        plan:
+          type: string
+        start-time:
+          type: integer
+          format: int64
+        state:
+          $ref: '#/components/schemas/JobStatus'
+        status-counts:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        timestamps:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        vertices:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobVertexDetailsInfo'
     JobExceptionHistory:
       type: object
       properties:
@@ -2246,236 +2306,391 @@ components:
             $ref: '#/components/schemas/RootExceptionInfo'
         truncated:
           type: boolean
-    SubtaskTimeInfo:
+    JobExceptionsInfoWithHistory:
       type: object
       properties:
-        subtask:
-          type: integer
-          format: int32
-        host:
-          type: string
-        duration:
-          type: integer
-          format: int64
-        timestamps:
-          type: object
-          additionalProperties:
-            type: integer
-            format: int64
-    ExternalizedCheckpointInfo:
-      type: object
-      properties:
-        enabled:
-          type: boolean
-        delete_on_cancellation:
-          type: boolean
-    ResourceProfileInfo:
-      type: object
-      properties:
-        cpuCores:
-          type: number
-          format: double
-        taskHeapMemory:
-          type: integer
-          format: int32
-        taskOffHeapMemory:
-          type: integer
-          format: int32
-        managedMemory:
-          type: integer
-          format: int32
-        networkMemory:
-          type: integer
-          format: int32
-        extendedResources:
-          type: object
-          additionalProperties:
-            type: number
-            format: double
-    ClusterDataSetEntry:
-      type: object
-      properties:
-        id:
-          type: string
-        isComplete:
-          type: boolean
-    JobVertexBackPressureInfo:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-          - deprecated
-          - ok
-        backpressure-level:
-          type: string
-          enum:
-          - ok
-          - low
-          - high
-        end-timestamp:
-          type: integer
-          format: int64
-        subtasks:
+        all-exceptions:
           type: array
           items:
-            $ref: '#/components/schemas/SubtaskBackPressureInfo'
+            $ref: '#/components/schemas/ExecutionExceptionInfo'
+        exceptionHistory:
+          $ref: '#/components/schemas/JobExceptionHistory'
+        root-exception:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+        truncated:
+          type: boolean
+    JobExecutionResultResponseBody:
+      required:
+      - status
+      type: object
+      properties:
+        job-execution-result:
+          $ref: '#/components/schemas/JobResult'
+        status:
+          $ref: '#/components/schemas/QueueStatus'
+    JobID:
+      pattern: "[0-9a-f]{32}"
+      type: string
     JobIdWithStatus:
       type: object
       properties:
         id:
           $ref: '#/components/schemas/JobID'
         status:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
-    ClusterConfigurationInfoEntry:
+          $ref: '#/components/schemas/JobStatus'
+    JobIdsWithStatusOverview:
       type: object
       properties:
-        key:
-          type: string
-        value:
-          type: string
-    QueueStatus:
-      required:
-      - id
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobIdWithStatus'
+    JobPlanInfo:
       type: object
       properties:
-        id:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-    LatestCheckpoints:
+        plan:
+          $ref: '#/components/schemas/RawJson'
+    JobResult:
       type: object
       properties:
-        completed:
-          $ref: '#/components/schemas/CompletedCheckpointStatistics'
-        savepoint:
-          $ref: '#/components/schemas/CompletedCheckpointStatistics'
-        failed:
-          $ref: '#/components/schemas/FailedCheckpointStatistics'
-        restored:
-          $ref: '#/components/schemas/RestoredCheckpointStatistics'
+        accumulatorResults:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SerializedValueOptionalFailureObject'
+        applicationStatus:
+          $ref: '#/components/schemas/ApplicationStatus'
+        jobId:
+          $ref: '#/components/schemas/JobID'
+        netRuntime:
+          type: integer
+          format: int64
+        serializedThrowable:
+          $ref: '#/components/schemas/SerializedThrowable'
+        success:
+          type: boolean
+    JobStatus:
+      type: string
+      enum:
+      - INITIALIZING
+      - CREATED
+      - RUNNING
+      - FAILING
+      - FAILED
+      - CANCELLING
+      - CANCELED
+      - FINISHED
+      - RESTARTING
+      - SUSPENDED
+      - RECONCILING
+    JobStatusInfo:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatus'
     JobSubmitRequestBody:
       type: object
       properties:
+        jobArtifactFileNames:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributedCacheFile'
         jobGraphFileName:
           type: string
         jobJarFileNames:
           type: array
           items:
             type: string
-        jobArtifactFileNames:
-          type: array
-          items:
-            $ref: '#/components/schemas/DistributedCacheFile'
-    SubtaskExecutionAttemptAccumulatorsInfo:
+    JobSubmitResponseBody:
       type: object
       properties:
-        subtask:
-          type: integer
-          format: int32
-        attempt:
-          type: integer
-          format: int32
+        jobUrl:
+          type: string
+    JobVertexAccumulatorsInfo:
+      type: object
+      properties:
         id:
           type: string
         user-accumulators:
           type: array
           items:
             $ref: '#/components/schemas/UserAccumulator'
-    SubtasksTimesInfo:
+    JobVertexBackPressureInfo:
       type: object
       properties:
+        backpressureLevel:
+          $ref: '#/components/schemas/VertexBackPressureLevel'
+        end-timestamp:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/VertexBackPressureStatus'
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskBackPressureInfo'
+    JobVertexDetailsInfo:
+      type: object
+      properties:
+        aggregated:
+          $ref: '#/components/schemas/AggregatedTaskDetailsInfo'
         id:
-          type: string
+          $ref: '#/components/schemas/JobVertexID'
+        maxParallelism:
+          type: integer
+          format: int32
         name:
           type: string
         now:
           type: integer
           format: int64
+        parallelism:
+          type: integer
+          format: int32
         subtasks:
           type: array
           items:
-            $ref: '#/components/schemas/SubtaskTimeInfo'
-    StopWithSavepointRequestBody:
+            $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
+    JobVertexID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    JobVertexTaskManagersInfo:
       type: object
       properties:
-        targetDirectory:
-          type: string
-        drain:
-          type: boolean
-        formatType:
-          type: string
-          enum:
-          - CANONICAL
-          - NATIVE
-        triggerId:
-          $ref: '#/components/schemas/TriggerId'
-    DashboardConfiguration:
-      type: object
-      properties:
-        refresh-interval:
-          type: integer
-          format: int64
-        timezone-name:
-          type: string
-        timezone-offset:
-          type: integer
-          format: int32
-        flink-version:
-          type: string
-        flink-revision:
-          type: string
-        features:
-          $ref: '#/components/schemas/Features'
-    GarbageCollectorInfo:
-      type: object
-      properties:
+        id:
+          $ref: '#/components/schemas/JobVertexID'
         name:
           type: string
-        count:
+        now:
           type: integer
           format: int64
-        time:
-          type: integer
-          format: int64
-    JobAccumulatorsInfo:
+        taskmanagers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskManagersInfo'
+    LatestCheckpoints:
       type: object
       properties:
-        job-accumulators:
+        completed:
+          $ref: '#/components/schemas/CompletedCheckpointStatistics'
+        failed:
+          $ref: '#/components/schemas/FailedCheckpointStatistics'
+        restored:
+          $ref: '#/components/schemas/RestoredCheckpointStatistics'
+        savepoint:
+          $ref: '#/components/schemas/CompletedCheckpointStatistics'
+    LogInfo:
+      type: object
+      properties:
+        mtime:
+          type: integer
+          format: int64
+        name:
+          type: string
+        size:
+          type: integer
+          format: int64
+    LogListInfo:
+      type: object
+      properties:
+        logs:
           type: array
           items:
-            $ref: '#/components/schemas/JobAccumulator'
-        user-task-accumulators:
+            $ref: '#/components/schemas/LogInfo'
+    LogUrlResponse:
+      type: object
+      properties:
+        url:
+          type: string
+    Metric:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          type: string
+        value:
+          type: string
+    MetricCollectionResponseBody:
+      type: object
+      properties:
+        metrics:
           type: array
           items:
-            $ref: '#/components/schemas/UserTaskAccumulator'
-        serialized-user-task-accumulators:
+            $ref: '#/components/schemas/Metric'
+    MultipleJobsDetails:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobDetails'
+    Node:
+      type: object
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        name:
+          type: string
+        value:
+          type: integer
+          format: int32
+    PendingCheckpointStatistics:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/CheckpointStatistics'
+    PendingSubtaskCheckpointStatistics:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/SubtaskCheckpointStatistics'
+    ProcessingMode:
+      type: string
+      enum:
+      - AT_LEAST_ONCE
+      - EXACTLY_ONCE
+    QueueStatus:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+    RawJson:
+      type: object
+    ResourceID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    ResourceProfileInfo:
+      type: object
+      properties:
+        cpuCores:
+          type: number
+          format: double
+        extendedResources:
           type: object
           additionalProperties:
-            $ref: '#/components/schemas/SerializedValueOptionalFailureObject'
+            type: number
+            format: double
+        managedMemory:
+          type: integer
+          format: int32
+        networkMemory:
+          type: integer
+          format: int32
+        taskHeapMemory:
+          type: integer
+          format: int32
+        taskOffHeapMemory:
+          type: integer
+          format: int32
+    RestAPICheckpointType:
+      type: string
+      enum:
+      - CHECKPOINT
+      - SAVEPOINT
+      - SYNC_SAVEPOINT
+    RestoreMode:
+      type: string
+      enum:
+      - CLAIM
+      - NO_CLAIM
+      - LEGACY
+    RestoredCheckpointStatistics:
+      type: object
+      properties:
+        external_path:
+          type: string
+        id:
+          type: integer
+          format: int64
+        is_savepoint:
+          type: boolean
+        restore_timestamp:
+          type: integer
+          format: int64
+    RootExceptionInfo:
+      type: object
+      properties:
+        concurrentExceptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExceptionInfo'
+        exceptionName:
+          type: string
+        location:
+          type: string
+        stacktrace:
+          type: string
+        taskManagerId:
+          type: string
+        taskName:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+    SavepointDisposalRequest:
+      type: object
+      properties:
+        savepoint-path:
+          type: string
+    SavepointFormatType:
+      type: string
+      enum:
+      - CANONICAL
+      - NATIVE
+    SavepointInfo:
+      type: object
+      properties:
+        failure-cause:
+          $ref: '#/components/schemas/SerializedThrowable'
+        location:
+          type: string
+    SavepointTriggerRequestBody:
+      type: object
+      properties:
+        cancel-job:
+          type: boolean
+        formatType:
+          $ref: '#/components/schemas/SavepointFormatType'
+        target-directory:
+          type: string
+        triggerId:
+          $ref: '#/components/schemas/TriggerId'
+    SerializedThrowable:
+      type: object
+      properties:
+        serialized-throwable:
+          type: string
+          format: binary
+    SerializedValueOptionalFailureObject:
+      type: object
+      properties:
+        byteArray:
+          type: array
+          items:
+            type: string
+            format: byte
+    SlotInfo:
+      type: object
+      properties:
+        jobId:
+          $ref: '#/components/schemas/JobID'
+        resource:
+          $ref: '#/components/schemas/ResourceProfileInfo'
     StatsSummaryDto:
       type: object
       properties:
-        min:
+        avg:
           type: integer
           format: int64
         max:
           type: integer
           format: int64
-        avg:
+        min:
           type: integer
           format: int64
         p50:
@@ -2493,441 +2708,501 @@ components:
         p999:
           type: number
           format: double
-    TaskManagerDetailsInfo:
+    StopWithSavepointRequestBody:
       type: object
       properties:
-        id:
-          $ref: '#/components/schemas/ResourceID'
-        path:
-          type: string
-        dataPort:
-          type: integer
-          format: int32
-        jmxPort:
-          type: integer
-          format: int32
-        timeSinceLastHeartbeat:
-          type: integer
-          format: int64
-        slotsNumber:
-          type: integer
-          format: int32
-        freeSlots:
-          type: integer
-          format: int32
-        totalResource:
-          $ref: '#/components/schemas/ResourceProfileInfo'
-        freeResource:
-          $ref: '#/components/schemas/ResourceProfileInfo'
-        hardware:
-          $ref: '#/components/schemas/HardwareDescription'
-        memoryConfiguration:
-          $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
-        allocatedSlots:
-          type: array
-          items:
-            $ref: '#/components/schemas/SlotInfo'
-        metrics:
-          $ref: '#/components/schemas/TaskManagerMetricsInfo'
-    ExecutionConfigInfo:
-      type: object
-      properties:
-        execution-mode:
-          type: string
-        restart-strategy:
-          type: string
-        job-parallelism:
-          type: integer
-          format: int32
-        object-reuse-mode:
+        drain:
           type: boolean
-        user-config:
-          type: object
-          additionalProperties:
-            type: string
-    Counts:
-      type: object
-      properties:
-        restored:
-          type: integer
-          format: int64
-        total:
-          type: integer
-          format: int64
-        in_progress:
-          type: integer
-          format: int32
-        completed:
-          type: integer
-          format: int64
-        failed:
-          type: integer
-          format: int64
-    JobExecutionResultResponseBody:
-      required:
-      - status
-      type: object
-      properties:
-        status:
-          $ref: '#/components/schemas/QueueStatus'
-        job-execution-result:
-          $ref: '#/components/schemas/JobResult'
-    JobVertexID:
-      pattern: "[0-9a-f]{32}"
-      type: string
-    JarRunResponseBody:
-      type: object
-      properties:
-        jobid:
-          $ref: '#/components/schemas/JobID'
-    MultipleJobsDetails:
-      type: object
-      properties:
-        jobs:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobDetails'
-    JobDetails:
-      type: object
-      properties:
-        jobId:
-          $ref: '#/components/schemas/JobID'
-        jobName:
+        formatType:
+          $ref: '#/components/schemas/SavepointFormatType'
+        targetDirectory:
           type: string
-        startTime:
-          type: integer
-          format: int64
-        endTime:
-          type: integer
-          format: int64
-        duration:
-          type: integer
-          format: int64
-        status:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
-        lastUpdateTime:
-          type: integer
-          format: int64
-        tasksPerState:
-          type: array
-          items:
-            type: integer
-            format: int32
-        numTasks:
-          type: integer
-          format: int32
-    ThreadInfo:
-      type: object
-      properties:
-        threadName:
-          type: string
-        stringifiedThreadInfo:
-          type: string
-    JobIdsWithStatusOverview:
-      type: object
-      properties:
-        jobs:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobIdWithStatus'
-    TaskCheckpointStatisticsWithSubtaskDetails:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
-        latest_ack_timestamp:
-          type: integer
-          format: int64
-        checkpointed_size:
-          type: integer
-          format: int64
-        state_size:
-          type: integer
-          format: int64
-        end_to_end_duration:
-          type: integer
-          format: int64
-        alignment_buffered:
-          type: integer
-          format: int64
-        processed_data:
-          type: integer
-          format: int64
-        persisted_data:
-          type: integer
-          format: int64
-        num_subtasks:
-          type: integer
-          format: int32
-        num_acknowledged_subtasks:
-          type: integer
-          format: int32
-        summary:
-          $ref: '#/components/schemas/Summary'
-        subtasks:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubtaskCheckpointStatistics'
-    Features:
-      type: object
-      properties:
-        web-submit:
-          type: boolean
-        web-cancel:
-          type: boolean
-    JobVertexTaskManagersInfo:
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/JobVertexID'
-        name:
-          type: string
-        now:
-          type: integer
-          format: int64
-        taskmanagers:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskManagersInfo'
-    CheckpointConfigInfo:
-      type: object
-      properties:
-        mode:
-          type: string
-          enum:
-          - AT_LEAST_ONCE
-          - EXACTLY_ONCE
-        interval:
-          type: integer
-          format: int64
-        timeout:
-          type: integer
-          format: int64
-        min_pause:
-          type: integer
-          format: int64
-        max_concurrent:
-          type: integer
-          format: int64
-        externalization:
-          $ref: '#/components/schemas/ExternalizedCheckpointInfo'
-        state_backend:
-          type: string
-        checkpoint_storage:
-          type: string
-        unaligned_checkpoints:
-          type: boolean
-        tolerable_failed_checkpoints:
-          type: integer
-          format: int32
-        aligned_checkpoint_timeout:
-          type: integer
-          format: int64
-        checkpoints_after_tasks_finish:
-          type: boolean
-    JobExceptionsInfoWithHistory:
-      type: object
-      properties:
-        root-exception:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
-        all-exceptions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExecutionExceptionInfo'
-        truncated:
-          type: boolean
-        exceptionHistory:
-          $ref: '#/components/schemas/JobExceptionHistory'
-    LogListInfo:
-      type: object
-      properties:
-        logs:
-          type: array
-          items:
-            $ref: '#/components/schemas/LogInfo'
-    ExecutionExceptionInfo:
-      type: object
-      properties:
-        exception:
-          type: string
-        task:
-          type: string
-        location:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
-    JarPlanRequestBody:
-      type: object
-      properties:
-        entryClass:
-          type: string
-        programArgs:
-          type: string
-        programArgsList:
-          type: array
-          items:
-            type: string
-        parallelism:
-          type: integer
-          format: int32
-        jobId:
-          $ref: '#/components/schemas/JobID'
-    JarUploadResponseBody:
-      type: object
-      properties:
-        filename:
-          type: string
-        status:
-          type: string
-          enum:
-          - success
-    RawJson:
-      type: object
-    SerializedValueOptionalFailureObject:
-      type: object
-      properties:
-        byteArray:
-          type: array
-          items:
-            type: string
-            format: byte
-    JarListInfo:
-      type: object
-      properties:
-        address:
-          type: string
-        files:
-          type: array
-          items:
-            $ref: '#/components/schemas/JarFileInfo'
-    RootExceptionInfo:
-      type: object
-      properties:
-        exceptionName:
-          type: string
-        stacktrace:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
-        taskName:
-          type: string
-        location:
-          type: string
-        concurrentExceptions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExceptionInfo'
-    TaskManagerInfo:
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/ResourceID'
-        path:
-          type: string
-        dataPort:
-          type: integer
-          format: int32
-        jmxPort:
-          type: integer
-          format: int32
-        timeSinceLastHeartbeat:
-          type: integer
-          format: int64
-        slotsNumber:
-          type: integer
-          format: int32
-        freeSlots:
-          type: integer
-          format: int32
-        totalResource:
-          $ref: '#/components/schemas/ResourceProfileInfo'
-        freeResource:
-          $ref: '#/components/schemas/ResourceProfileInfo'
-        hardware:
-          $ref: '#/components/schemas/HardwareDescription'
-        memoryConfiguration:
-          $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
-    Summary:
-      type: object
-      properties:
-        checkpointed_size:
-          $ref: '#/components/schemas/StatsSummaryDto'
-        state_size:
-          $ref: '#/components/schemas/StatsSummaryDto'
-        end_to_end_duration:
-          $ref: '#/components/schemas/StatsSummaryDto'
-        checkpoint_duration:
-          $ref: '#/components/schemas/CheckpointDuration'
-        alignment:
-          $ref: '#/components/schemas/CheckpointAlignment'
-        start_delay:
-          $ref: '#/components/schemas/StatsSummaryDto'
-    IntermediateDataSetID:
-      pattern: "[0-9a-f]{32}"
-      type: string
-    Metric:
-      required:
-      - id
-      type: object
-      properties:
-        id:
-          type: string
-        value:
-          type: string
-    TriggerResponse:
-      type: object
-      properties:
-        request-id:
+        triggerId:
           $ref: '#/components/schemas/TriggerId'
-    SlotInfo:
+    SubtaskAccumulatorsInfo:
       type: object
       properties:
-        jobId:
-          $ref: '#/components/schemas/JobID'
-        resource:
-          $ref: '#/components/schemas/ResourceProfileInfo'
-    SubtaskBackPressureInfo:
-      type: object
-      properties:
+        attempt:
+          type: integer
+          format: int32
+        host:
+          type: string
         subtask:
           type: integer
           format: int32
-        backpressure-level:
-          type: string
-          enum:
-          - ok
-          - low
-          - high
-        ratio:
+        user-accumulators:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAccumulator'
+    SubtaskBackPressureInfo:
+      type: object
+      properties:
+        attempt-number:
+          type: integer
+          format: int32
+        backpressureLevel:
+          $ref: '#/components/schemas/VertexBackPressureLevel'
+        busyRatio:
           type: number
           format: double
         idleRatio:
           type: number
           format: double
-        busyRatio:
+        other-concurrent-attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskBackPressureInfo'
+        ratio:
           type: number
           format: double
+        subtask:
+          type: integer
+          format: int32
+    SubtaskCheckpointStatistics:
+      required:
+      - className
+      type: object
+      properties:
+        className:
+          type: string
+        index:
+          type: integer
+          format: int32
+        status:
+          type: string
+      discriminator:
+        propertyName: className
+    SubtaskExecutionAttemptAccumulatorsInfo:
+      type: object
+      properties:
+        attempt:
+          type: integer
+          format: int32
+        id:
+          type: string
+        subtask:
+          type: integer
+          format: int32
+        user-accumulators:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAccumulator'
+    SubtaskExecutionAttemptDetailsInfo:
+      type: object
+      properties:
+        attempt:
+          type: integer
+          format: int32
+        duration:
+          type: integer
+          format: int64
+        end-time:
+          type: integer
+          format: int64
+        host:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/IOMetricsInfo'
+        other-concurrent-attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
+        start-time:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/ExecutionState'
+        status-duration:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        subtask:
+          type: integer
+          format: int32
+        taskmanager-id:
+          type: string
+    SubtaskTimeInfo:
+      type: object
+      properties:
+        duration:
+          type: integer
+          format: int64
+        host:
+          type: string
+        subtask:
+          type: integer
+          format: int32
+        timestamps:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+    SubtasksAllAccumulatorsInfo:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/JobVertexID'
+        parallelism:
+          type: integer
+          format: int32
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskAccumulatorsInfo'
+    SubtasksTimesInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        now:
+          type: integer
+          format: int64
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskTimeInfo'
+    Summary:
+      type: object
+      properties:
+        alignment:
+          $ref: '#/components/schemas/CheckpointAlignment'
+        checkpoint_duration:
+          $ref: '#/components/schemas/CheckpointDuration'
+        checkpointed_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        end_to_end_duration:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        start_delay:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        state_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
+    TaskCheckpointStatistics:
+      type: object
+      properties:
+        alignment_buffered:
+          type: integer
+          format: int64
+        checkpointed_size:
+          type: integer
+          format: int64
+        end_to_end_duration:
+          type: integer
+          format: int64
+        id:
+          type: integer
+          format: int64
+        latest_ack_timestamp:
+          type: integer
+          format: int64
+        num_acknowledged_subtasks:
+          type: integer
+          format: int32
+        num_subtasks:
+          type: integer
+          format: int32
+        persisted_data:
+          type: integer
+          format: int64
+        processed_data:
+          type: integer
+          format: int64
+        state_size:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/CheckpointStatsStatus'
+    TaskCheckpointStatisticsWithSubtaskDetails:
+      type: object
+      properties:
+        alignment_buffered:
+          type: integer
+          format: int64
+        checkpointed_size:
+          type: integer
+          format: int64
+        end_to_end_duration:
+          type: integer
+          format: int64
+        id:
+          type: integer
+          format: int64
+        latest_ack_timestamp:
+          type: integer
+          format: int64
+        num_acknowledged_subtasks:
+          type: integer
+          format: int32
+        num_subtasks:
+          type: integer
+          format: int32
+        persisted_data:
+          type: integer
+          format: int64
+        processed_data:
+          type: integer
+          format: int64
+        state_size:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/CheckpointStatsStatus'
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskCheckpointStatistics'
+        summary:
+          $ref: '#/components/schemas/Summary'
+    TaskExecutorMemoryConfiguration:
+      type: object
+      properties:
+        frameworkHeap:
+          type: integer
+          format: int64
+        frameworkOffHeap:
+          type: integer
+          format: int64
+        jvmMetaspace:
+          type: integer
+          format: int64
+        jvmOverhead:
+          type: integer
+          format: int64
+        managedMemory:
+          type: integer
+          format: int64
+        networkMemory:
+          type: integer
+          format: int64
+        taskHeap:
+          type: integer
+          format: int64
+        taskOffHeap:
+          type: integer
+          format: int64
+        totalFlinkMemory:
+          type: integer
+          format: int64
+        totalProcessMemory:
+          type: integer
+          format: int64
+    TaskManagerDetailsInfo:
+      type: object
+      properties:
+        allocatedSlots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotInfo'
+        blocked:
+          type: boolean
+        dataPort:
+          type: integer
+          format: int32
+        freeResource:
+          $ref: '#/components/schemas/ResourceProfileInfo'
+        freeSlots:
+          type: integer
+          format: int32
+        hardware:
+          $ref: '#/components/schemas/HardwareDescription'
+        id:
+          $ref: '#/components/schemas/ResourceID'
+        jmxPort:
+          type: integer
+          format: int32
+        memoryConfiguration:
+          $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
+        metrics:
+          $ref: '#/components/schemas/TaskManagerMetricsInfo'
+        path:
+          type: string
+        slotsNumber:
+          type: integer
+          format: int32
+        timeSinceLastHeartbeat:
+          type: integer
+          format: int64
+        totalResource:
+          $ref: '#/components/schemas/ResourceProfileInfo'
+    TaskManagerInfo:
+      type: object
+      properties:
+        blocked:
+          type: boolean
+        dataPort:
+          type: integer
+          format: int32
+        freeResource:
+          $ref: '#/components/schemas/ResourceProfileInfo'
+        freeSlots:
+          type: integer
+          format: int32
+        hardware:
+          $ref: '#/components/schemas/HardwareDescription'
+        id:
+          $ref: '#/components/schemas/ResourceID'
+        jmxPort:
+          type: integer
+          format: int32
+        memoryConfiguration:
+          $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
+        path:
+          type: string
+        slotsNumber:
+          type: integer
+          format: int32
+        timeSinceLastHeartbeat:
+          type: integer
+          format: int64
+        totalResource:
+          $ref: '#/components/schemas/ResourceProfileInfo'
+    TaskManagerMetricsInfo:
+      type: object
+      properties:
+        directCount:
+          type: integer
+          format: int64
+        directMax:
+          type: integer
+          format: int64
+        directUsed:
+          type: integer
+          format: int64
+        garbageCollectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/GarbageCollectorInfo'
+        heapCommitted:
+          type: integer
+          format: int64
+        heapMax:
+          type: integer
+          format: int64
+        heapUsed:
+          type: integer
+          format: int64
+        mappedCount:
+          type: integer
+          format: int64
+        mappedMax:
+          type: integer
+          format: int64
+        mappedUsed:
+          type: integer
+          format: int64
+        memorySegmentsAvailable:
+          type: integer
+          format: int64
+        memorySegmentsTotal:
+          type: integer
+          format: int64
+        nettyShuffleMemoryAvailable:
+          type: integer
+          format: int64
+        nettyShuffleMemorySegmentsAvailable:
+          type: integer
+          format: int64
+        nettyShuffleMemorySegmentsTotal:
+          type: integer
+          format: int64
+        nettyShuffleMemorySegmentsUsed:
+          type: integer
+          format: int64
+        nettyShuffleMemoryTotal:
+          type: integer
+          format: int64
+        nettyShuffleMemoryUsed:
+          type: integer
+          format: int64
+        nonHeapCommitted:
+          type: integer
+          format: int64
+        nonHeapMax:
+          type: integer
+          format: int64
+        nonHeapUsed:
+          type: integer
+          format: int64
+    TaskManagersInfo:
+      type: object
+      properties:
+        taskmanagers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskManagerInfo'
+    TerminationMode:
+      type: string
+      enum:
+      - CANCEL
+      - STOP
+    ThreadDumpInfo:
+      type: object
+      properties:
+        threadInfos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreadInfo'
+    ThreadInfo:
+      type: object
+      properties:
+        stringifiedThreadInfo:
+          type: string
+        threadName:
+          type: string
+    TriggerId:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    TriggerResponse:
+      type: object
+      properties:
+        request-id:
+          $ref: '#/components/schemas/TriggerId'
+    Type:
+      type: string
+      enum:
+      - FULL
+      - ON_CPU
+      - OFF_CPU
+    UploadStatus:
+      type: string
+      enum:
+      - success
+    UserAccumulator:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        value:
+          type: string
+    UserTaskAccumulator:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        value:
+          type: string
+    VertexBackPressureLevel:
+      type: string
+      enum:
+      - ok
+      - low
+      - high
+    VertexBackPressureStatus:
+      type: string
+      enum:
+      - deprecated
+      - ok
+    VertexFlameGraph:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Node'
+        endTimestamp:
+          type: integer
+          format: int64

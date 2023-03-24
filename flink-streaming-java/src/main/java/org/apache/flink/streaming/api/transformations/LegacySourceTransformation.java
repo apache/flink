@@ -56,24 +56,18 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T>
      * @param outputType The type of the elements produced by this {@code
      *     LegacySourceTransformation}
      * @param parallelism The parallelism of this {@code LegacySourceTransformation}
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
      */
     public LegacySourceTransformation(
             String name,
             StreamSource<T, ?> operator,
             TypeInformation<T> outputType,
             int parallelism,
-            Boundedness boundedness) {
-        this(name, SimpleOperatorFactory.of(operator), outputType, parallelism, boundedness);
-    }
-
-    public LegacySourceTransformation(
-            String name,
-            StreamOperatorFactory<T> operatorFactory,
-            TypeInformation<T> outputType,
-            int parallelism,
-            Boundedness boundedness) {
-        super(name, outputType, parallelism);
-        this.operatorFactory = checkNotNull(operatorFactory);
+            Boundedness boundedness,
+            boolean parallelismConfigured) {
+        super(name, outputType, parallelism, parallelismConfigured);
+        this.operatorFactory = checkNotNull(SimpleOperatorFactory.of(operator));
         this.boundedness = checkNotNull(boundedness);
     }
 

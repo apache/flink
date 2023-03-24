@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
@@ -66,6 +67,27 @@ public class MetricOptions {
                             "An optional list of reporter names. If configured, only reporters whose name matches"
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
+
+    /**
+     * Returns a view over the given configuration via which options can be set/retrieved for the
+     * given reporter.
+     *
+     * <pre>
+     *     Configuration config = ...
+     *     MetricOptions.forReporter(config, "my_reporter")
+     *         .set(MetricOptions.REPORTER_INTERVAL, Duration.ofSeconds(10))
+     *         ...
+     * </pre>
+     *
+     * @param configuration backing configuration
+     * @param reporterName reporter name
+     * @return view over configuration
+     */
+    @Experimental
+    public static Configuration forReporter(Configuration configuration, String reporterName) {
+        return new DelegatingConfiguration(
+                configuration, ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + ".");
+    }
 
     /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
     @Deprecated
@@ -243,17 +265,30 @@ public class MetricOptions {
 
     /** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
-            key("metrics.scope.jm.job")
+            key("metrics.scope.jm-job")
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>")
+                    .withDeprecatedKeys("metrics.scope.jm.job")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured");
 
+    /**
+     * The scope format string that is applied to all metrics scoped to the components running on a
+     * JobManager of an operator.
+     */
+    public static final ConfigOption<String> SCOPE_NAMING_JM_OPERATOR =
+            key("metrics.scope.jm-operator")
+                    .stringType()
+                    .defaultValue("<host>.jobmanager.<job_name>.<operator_name>")
+                    .withDescription(
+                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator.");
+
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
-            key("metrics.scope.tm.job")
+            key("metrics.scope.tm-job")
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
+                    .withDeprecatedKeys("metrics.scope.tm.job")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured");
 

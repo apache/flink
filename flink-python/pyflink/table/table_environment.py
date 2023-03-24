@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import atexit
 import os
 import sys
 import tempfile
@@ -23,6 +24,7 @@ from typing import Union, List, Tuple, Iterable
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common.configuration import Configuration
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.sources import TableSource
 
@@ -39,7 +41,7 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
-from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
+from pyflink.table.types import _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
     _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
@@ -98,18 +100,24 @@ class TableEnvironment(object):
         self._open()
 
     @staticmethod
-    def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
+    def create(environment_settings: Union[EnvironmentSettings, Configuration]) \
+            -> 'TableEnvironment':
         """
         Creates a table environment that is the entry point and central context for creating Table
         and SQL API programs.
 
-        :param environment_settings: The environment settings used to instantiate the
-                                     :class:`~pyflink.table.TableEnvironment`.
+        :param environment_settings: The configuration or environment settings used to instantiate
+            the :class:`~pyflink.table.TableEnvironment`, the name is for backward compatibility.
         :return: The :class:`~pyflink.table.TableEnvironment`.
         """
         gateway = get_gateway()
-        j_tenv = gateway.jvm.TableEnvironment.create(
-            environment_settings._j_environment_settings)
+        if isinstance(environment_settings, Configuration):
+            environment_settings = EnvironmentSettings.new_instance() \
+                .with_configuration(environment_settings).build()
+        elif not isinstance(environment_settings, EnvironmentSettings):
+            raise TypeError("argument should be EnvironmentSettings or Configuration")
+
+        j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
 
     def from_table_source(self, table_source: 'TableSource') -> 'Table':
@@ -784,8 +792,9 @@ class TableEnvironment(object):
         .. versionadded:: 1.11.0
         """
 
+        JExplainFormat = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_tenv.explainSql(stmt, j_extra_details)
+        return self._j_tenv.explainSql(stmt, JExplainFormat.TEXT, j_extra_details)
 
     def sql_query(self, query: str) -> Table:
         """
@@ -1228,7 +1237,7 @@ class TableEnvironment(object):
 
             Please make sure the installation packages matches the platform of the cluster
             and the python version used. These packages will be installed using pip,
-            so also make sure the version of Pip (version >= 7.1.0) and the version of
+            so also make sure the version of Pip (version >= 20.3) and the version of
             SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
@@ -1419,7 +1428,7 @@ class TableEnvironment(object):
         elements = [schema.to_sql_type(element) for element in elements]
         return self._from_elements(elements, schema)
 
-    def _from_elements(self, elements: List, schema: Union[DataType, List[str]]) -> Table:
+    def _from_elements(self, elements: List, schema: DataType) -> Table:
         """
         Creates a table from a collection of elements.
 
@@ -1432,22 +1441,15 @@ class TableEnvironment(object):
         try:
             with temp_file:
                 serializer.serialize(elements, temp_file)
-            row_type_info = _to_java_type(schema)
-            execution_config = self._get_j_env().getConfig()
+            j_schema = _to_java_data_type(schema)
             gateway = get_gateway()
-            j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             PythonTableUtils = gateway.jvm \
                 .org.apache.flink.table.utils.python.PythonTableUtils
-            PythonInputFormatTableSource = gateway.jvm \
-                .org.apache.flink.table.utils.python.PythonInputFormatTableSource
-            j_input_format = PythonTableUtils.getInputFormat(
-                j_objs, row_type_info, execution_config)
-            j_table_source = PythonInputFormatTableSource(
-                j_input_format, row_type_info)
-
-            return Table(self._j_tenv.fromTableSource(j_table_source), self)
+            j_table = PythonTableUtils.createTableFromElement(
+                self._j_tenv, temp_file.name, j_schema, True)
+            return Table(j_table, self)
         finally:
-            os.unlink(temp_file.name)
+            atexit.register(lambda: os.unlink(temp_file.name))
 
     def from_pandas(self, pdf,
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],
@@ -1519,8 +1521,7 @@ class TableEnvironment(object):
                 serializer.serialize(data, temp_file)
             jvm = get_gateway().jvm
 
-            data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
-                .fromLegacyInfoToDataType(_to_java_type(result_type)).notNull()
+            data_type = _to_java_data_type(result_type).notNull()
             data_type = data_type.bridgedTo(
                 load_java_class('org.apache.flink.table.data.RowData'))
 
@@ -1934,7 +1935,7 @@ class StreamTableEnvironment(TableEnvironment):
             ...         .column("id", DataTypes.BIGINT())
             ...         .column("payload", DataTypes.ROW(
             ...                                     [DataTypes.FIELD("name", DataTypes.STRING()),
-            ...                                     DataTypes.FIELD("age", DataTypes.INT())]))
+            ...                                      DataTypes.FIELD("age", DataTypes.INT())]))
             ...         .build())
 
         Note that the type system of the table ecosystem is richer than the one of the DataStream

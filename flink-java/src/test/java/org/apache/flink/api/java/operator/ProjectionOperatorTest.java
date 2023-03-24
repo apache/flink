@@ -24,22 +24,23 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link DataSet#project(int...)}. */
-public class ProjectionOperatorTest {
+class ProjectionOperatorTest {
 
     // TUPLE DATA
 
     private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
-            new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
+            new ArrayList<>();
 
     private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo =
-            new TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
+            new TupleTypeInfo<>(
                     BasicTypeInfo.INT_TYPE_INFO,
                     BasicTypeInfo.LONG_TYPE_INFO,
                     BasicTypeInfo.STRING_TYPE_INFO,
@@ -48,110 +49,66 @@ public class ProjectionOperatorTest {
 
     // LONG DATA
 
-    private final List<Long> emptyLongData = new ArrayList<Long>();
+    private final List<Long> emptyLongData = new ArrayList<>();
 
     @Test
-    public void testFieldsProjection() {
+    void testFieldsProjection() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.project(0);
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        tupleDs.project(0);
 
         // should not work: too many fields
-        try {
-            tupleDs.project(
-                    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-                    22, 23, 24, 25);
-            Assert.fail();
-        } catch (IllegalArgumentException iae) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        assertThatThrownBy(
+                        () ->
+                                tupleDs.project(
+                                        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                                        17, 18, 19, 20, 21, 22, 23, 24, 25))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // should not work: index out of bounds of input tuple
-        try {
-            tupleDs.project(0, 5, 2);
-            Assert.fail();
-        } catch (IndexOutOfBoundsException ioobe) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        assertThatThrownBy(() -> tupleDs.project(0, 5, 2))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // should not work: not applied to tuple dataset
         DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
-        try {
-            longDs.project(0);
-            Assert.fail();
-        } catch (UnsupportedOperationException uoe) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        assertThatThrownBy(() -> longDs.project(0))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    public void testProjectionTypes() {
+    void testProjectionTypes() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.project(0);
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        tupleDs.project(0);
 
         // should work: dummy types() here
-        try {
-            tupleDs.project(2, 1, 4);
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        tupleDs.project(2, 1, 4);
     }
 
     @Test
-    public void testProjectionWithoutTypes() {
+    void testProjectionWithoutTypes() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.project(2, 0, 4);
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        tupleDs.project(2, 0, 4);
 
         // should not work: field index is out of bounds of input tuple
-        try {
-            tupleDs.project(2, -1, 4);
-            Assert.fail();
-        } catch (IndexOutOfBoundsException iob) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        assertThatThrownBy(() -> tupleDs.project(2, -1, 4))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // should not work: field index is out of bounds of input tuple
-        try {
-            tupleDs.project(2, 1, 4, 5, 8, 9);
-            Assert.fail();
-        } catch (IndexOutOfBoundsException iob) {
-            // we're good here
-        } catch (Exception e) {
-            Assert.fail();
-        }
+        assertThatThrownBy(() -> tupleDs.project(2, 1, 4, 5, 8, 9))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 }

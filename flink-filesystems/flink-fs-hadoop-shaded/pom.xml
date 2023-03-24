@@ -23,13 +23,17 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-fs-hadoop-shaded</artifactId>
 	<name>Flink : FileSystems : Hadoop FS shaded</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencyManagement>
 		<dependencies>
@@ -165,6 +169,14 @@ under the License.
 					<groupId>net.minidev</groupId>
 					<artifactId>json-smart</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 	</dependencies>
@@ -236,18 +248,6 @@ under the License.
 								</relocation>
 							</relocations>
 							<filters>
-								<!-- remove the classes from Hadoop that we replace with our overwritten implementation -->
-								<filter>
-									<artifact>org.apache.hadoop:hadoop-common</artifact>
-									<excludes>
-										<exclude>org/apache/hadoop/conf/Configuration**</exclude>
-										<exclude>org/apache/hadoop/util/NativeCodeLoader**</exclude>
-										<exclude>org/apache/hadoop/util/VersionInfo**</exclude>
-										<exclude>core-default.xml</exclude>
-										<exclude>common-version-info.properties</exclude>
-										<exclude>org.apache.hadoop.application-classloader.properties</exclude>
-									</excludes>
-								</filter>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>

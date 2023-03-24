@@ -68,6 +68,18 @@ public class BufferCompressionTest {
                     {false, "LZ4", true, false},
                     {false, "LZ4", false, true},
                     {false, "LZ4", false, false},
+                    {true, "ZSTD", true, false},
+                    {true, "ZSTD", false, true},
+                    {true, "ZSTD", false, false},
+                    {false, "ZSTD", true, false},
+                    {false, "ZSTD", false, true},
+                    {false, "ZSTD", false, false},
+                    {true, "LZO", true, false},
+                    {true, "LZO", false, true},
+                    {true, "LZO", false, false},
+                    {false, "LZO", true, false},
+                    {false, "LZO", false, true},
+                    {false, "LZO", false, false}
                 });
     }
 

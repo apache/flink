@@ -27,6 +27,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -58,6 +59,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -84,18 +86,18 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     @After
     public void teardown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
 
         if (metricRegistry != null) {
-            metricRegistry.shutdown().get();
+            metricRegistry.closeAsync().get();
         }
     }
 
     @Test
     public void eventHandlingInTaskFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
         try (TaskSubmissionTestEnvironment env =
                 createExecutorWithRunningTask(jobId, eid, OperatorEventFailingInvokable.class)) {
@@ -115,7 +117,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     @Test
     public void eventToCoordinatorDeliveryFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
         try (TaskSubmissionTestEnvironment env =
                 createExecutorWithRunningTask(jobId, eid, OperatorEventSendingInvokable.class)) {
@@ -129,7 +131,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     @Test
     public void requestToCoordinatorDeliveryFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
         try (TaskSubmissionTestEnvironment env =
                 createExecutorWithRunningTask(
@@ -201,9 +203,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                 new SerializedValue<>(new ExecutionConfig()),
                 "test task",
                 64,
-                3,
                 17,
-                0,
                 new Configuration(),
                 new Configuration(),
                 invokableClass.getName(),

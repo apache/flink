@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.MatchUtil.AggregationPatternVariableFinder
-import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.runtime.generated.GeneratedFunction
@@ -47,6 +46,7 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
@@ -674,8 +674,11 @@ class MatchCodeGenerator(
             a.sqlAggFunction,
             false,
             false,
+            false,
             a.exprIndices,
             -1,
+            null,
+            RelCollations.EMPTY,
             a.resultType,
             a.sqlAggFunction.getName))
 
@@ -700,7 +703,7 @@ class MatchCodeGenerator(
         .map(expr => FlinkTypeFactory.toLogicalType(expr.getType))
 
       val aggsHandlerCodeGenerator = new AggsHandlerCodeGenerator(
-        CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, ctx.classLoader),
         relBuilder,
         inputFieldTypes,
         copyInputField = false).needAccumulate()

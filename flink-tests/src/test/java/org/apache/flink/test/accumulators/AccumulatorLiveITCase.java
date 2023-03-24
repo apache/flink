@@ -23,7 +23,6 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
@@ -199,7 +198,7 @@ public class AccumulatorLiveITCase extends TestLogger {
                                 return FutureUtils.completedExceptionally(e);
                             }
                         },
-                        Time.milliseconds(20),
+                        Duration.ofMillis(20),
                         deadline,
                         accumulators ->
                                 accumulators.size() == 1

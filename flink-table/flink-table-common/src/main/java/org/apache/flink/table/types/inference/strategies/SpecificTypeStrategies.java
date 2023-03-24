@@ -31,6 +31,9 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 @Internal
 public final class SpecificTypeStrategies {
 
+    /** See {@link UnusedTypeStrategy}. */
+    public static final TypeStrategy UNUSED = new UnusedTypeStrategy();
+
     /** See {@link RowTypeStrategy}. */
     public static final TypeStrategy ROW = new RowTypeStrategy();
 
@@ -63,6 +66,9 @@ public final class SpecificTypeStrategies {
 
     /** See {@link AggDecimalPlusTypeStrategy}. */
     public static final TypeStrategy AGG_DECIMAL_PLUS = new AggDecimalPlusTypeStrategy();
+
+    /** See {@link HiveAggDecimalPlusTypeStrategy}. */
+    public static final TypeStrategy HIVE_AGG_DECIMAL_PLUS = new HiveAggDecimalPlusTypeStrategy();
 
     /** See {@link DecimalScale0TypeStrategy}. */
     public static final TypeStrategy DECIMAL_SCALE_0 = new DecimalScale0TypeStrategy();

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -44,9 +45,9 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
-import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
@@ -85,7 +86,7 @@ import static org.mockito.Mockito.mock;
 /** Simple environment setup for task executor task. */
 class TaskSubmissionTestEnvironment implements AutoCloseable {
 
-    private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+    private final HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
     private final TestingRpcService testingRpcService;
     private final TaskExecutorBlobService taskExecutorBlobService =
             NoOpTaskExecutorBlobService.INSTANCE;
@@ -194,20 +195,16 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         registerJobMasterConnection(
                 jobTable,
                 jobId,
-                testingRpcService,
                 jobMasterGateway,
                 taskManagerActions,
-                timeout,
                 taskExecutor.getMainThreadExecutableForTesting());
     }
 
     static void registerJobMasterConnection(
             JobTable jobTable,
             JobID jobId,
-            RpcService testingRpcService,
             JobMasterGateway jobMasterGateway,
             TaskManagerActions taskManagerActions,
-            Time timeout,
             MainThreadExecutable mainThreadExecutable) {
         mainThreadExecutable.runAsync(
                 () -> {
@@ -220,10 +217,6 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                             taskManagerActions,
                             new TestCheckpointResponder(),
                             new TestGlobalAggregateManager(),
-                            new RpcResultPartitionConsumableNotifier(
-                                    jobMasterGateway,
-                                    testingRpcService.getScheduledExecutor(),
-                                    timeout),
                             TestingPartitionProducerStateChecker.newBuilder()
                                     .setPartitionProducerStateFunction(
                                             (jobID, intermediateDataSetID, resultPartitionID) ->
@@ -277,7 +270,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                 metricQueryServiceAddress,
                 taskExecutorBlobService,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
@@ -326,7 +320,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        testingRpcService.stopService().join();
+        testingRpcService.closeAsync().join();
 
         timerService.stop();
 

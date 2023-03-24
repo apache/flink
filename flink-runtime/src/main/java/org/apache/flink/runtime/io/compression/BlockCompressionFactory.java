@@ -20,6 +20,11 @@ package org.apache.flink.runtime.io.compression;
 
 import org.apache.flink.configuration.IllegalConfigurationException;
 
+import io.airlift.compress.lzo.LzoCompressor;
+import io.airlift.compress.lzo.LzoDecompressor;
+import io.airlift.compress.zstd.ZstdCompressor;
+import io.airlift.compress.zstd.ZstdDecompressor;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -34,7 +39,9 @@ public interface BlockCompressionFactory {
 
     /** Name of {@link BlockCompressionFactory}. */
     enum CompressionFactoryName {
-        LZ4
+        LZ4,
+        LZO,
+        ZSTD
     }
 
     /**
@@ -54,11 +61,19 @@ public interface BlockCompressionFactory {
             compressionName = null;
         }
 
-        BlockCompressionFactory blockCompressionFactory = null;
+        BlockCompressionFactory blockCompressionFactory;
         if (compressionName != null) {
             switch (compressionName) {
                 case LZ4:
                     blockCompressionFactory = new Lz4BlockCompressionFactory();
+                    break;
+                case LZO:
+                    blockCompressionFactory =
+                            new AirCompressorFactory(new LzoCompressor(), new LzoDecompressor());
+                    break;
+                case ZSTD:
+                    blockCompressionFactory =
+                            new AirCompressorFactory(new ZstdCompressor(), new ZstdDecompressor());
                     break;
                 default:
                     throw new IllegalStateException("Unknown CompressionMethod " + compressionName);

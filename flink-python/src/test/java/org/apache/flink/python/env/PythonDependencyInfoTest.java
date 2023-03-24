@@ -25,8 +25,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -37,11 +36,11 @@ import java.util.concurrent.Future;
 import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link PythonDependencyInfo}. */
-public class PythonDependencyInfoTest {
+class PythonDependencyInfoTest {
 
     private DistributedCache distributedCache;
 
@@ -69,9 +68,9 @@ public class PythonDependencyInfoTest {
     }
 
     @Test
-    public void testParsePythonFiles() {
+    void testParsePythonFiles() {
         // Skip this test on Windows as we can not control the Window Driver letters.
-        Assume.assumeFalse(OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows()).isFalse();
 
         Configuration config = new Configuration();
         Map<String, String> pythonFiles = new HashMap<>();
@@ -83,13 +82,13 @@ public class PythonDependencyInfoTest {
         Map<String, String> expected = new HashMap<>();
         expected.put("/distributed_cache/file0", "test_file1.py");
         expected.put("/distributed_cache/file1", "test_file2.py");
-        assertEquals(expected, dependencyInfo.getPythonFiles());
+        assertThat(dependencyInfo.getPythonFiles()).isEqualTo(expected);
     }
 
     @Test
-    public void testParsePythonRequirements() throws IOException {
+    void testParsePythonRequirements() throws IOException {
         // Skip this test on Windows as we can not control the Window Driver letters.
-        Assume.assumeFalse(OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows()).isFalse();
 
         Configuration config = new Configuration();
         config.set(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
@@ -97,21 +96,24 @@ public class PythonDependencyInfoTest {
                 .put(PythonDependencyUtils.FILE, "python_requirements_file_{SHA256}");
         PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
-        assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
-        assertFalse(dependencyInfo.getRequirementsCacheDir().isPresent());
+        assertThat(dependencyInfo.getRequirementsFilePath().get())
+                .isEqualTo("/distributed_cache/file2");
+        assertThat(dependencyInfo.getRequirementsCacheDir()).isNotPresent();
 
         config.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                 .put(PythonDependencyUtils.CACHE, "python_requirements_cache_{SHA256}");
         dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
-        assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
-        assertEquals("/distributed_cache/file3", dependencyInfo.getRequirementsCacheDir().get());
+        assertThat(dependencyInfo.getRequirementsFilePath().get())
+                .isEqualTo("/distributed_cache/file2");
+        assertThat(dependencyInfo.getRequirementsCacheDir().get())
+                .isEqualTo("/distributed_cache/file3");
     }
 
     @Test
-    public void testParsePythonArchives() {
+    void testParsePythonArchives() {
         // Skip this test on Windows as we can not control the Window Driver letters.
-        Assume.assumeFalse(OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows()).isFalse();
 
         Configuration config = new Configuration();
         Map<String, String> pythonArchives = new HashMap<>();
@@ -123,15 +125,15 @@ public class PythonDependencyInfoTest {
         Map<String, String> expected = new HashMap<>();
         expected.put("/distributed_cache/file4", "py27.zip");
         expected.put("/distributed_cache/file5", "py37");
-        assertEquals(expected, dependencyInfo.getArchives());
+        assertThat(dependencyInfo.getArchives()).isEqualTo(expected);
     }
 
     @Test
-    public void testParsePythonExec() {
+    void testParsePythonExec() {
         Configuration config = new Configuration();
         config.set(PythonOptions.PYTHON_EXECUTABLE, "/usr/bin/python3");
         PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
-        assertEquals("/usr/bin/python3", dependencyInfo.getPythonExec());
+        assertThat(dependencyInfo.getPythonExec()).isEqualTo("/usr/bin/python3");
     }
 }

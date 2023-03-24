@@ -199,6 +199,11 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     // ------------------------------------------------------------------------------------------
 
     @Override
+    public void open(InitializationContext context) throws Exception {
+        jsonDeserializer.open(context);
+    }
+
+    @Override
     public RowData deserialize(byte[] message) throws IOException {
         throw new RuntimeException(
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");

@@ -31,11 +31,13 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.concurrent.Executors;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 /** Builder for the {@link NettyShuffleEnvironment}. */
 public class NettyShuffleEnvironmentBuilder {
 
+    private static final int DEFAULT_NUM_SLOTS = 1;
     private static final int DEFAULT_NETWORK_BUFFER_SIZE = 32 << 10;
     private static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
 
@@ -56,6 +58,8 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int floatingNetworkBuffersPerGate = 8;
 
+    private Optional<Integer> maxRequiredBuffersPerGate = Optional.of(Integer.MAX_VALUE);
+
     private int sortShuffleMinBuffers = 100;
 
     private int sortShuffleMinParallelism = Integer.MAX_VALUE;
@@ -67,6 +71,8 @@ public class NettyShuffleEnvironmentBuilder {
     private boolean blockingShuffleCompressionEnabled = false;
 
     private boolean connectionReuseEnabled = true;
+
+    private int maxOverdraftBuffersPerGate = 0;
 
     private String compressionCodec = "LZ4";
 
@@ -84,6 +90,10 @@ public class NettyShuffleEnvironmentBuilder {
             BufferDebloatConfiguration.fromConfiguration(new Configuration());
 
     private int maxNumberOfConnections = 1;
+
+    private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
+
+    private int hybridShuffleSpilledIndexSegmentSize = 256;
 
     public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
@@ -124,6 +134,12 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setMaxRequiredBuffersPerGate(
+            Optional<Integer> maxRequiredBuffersPerGate) {
+        this.maxRequiredBuffersPerGate = maxRequiredBuffersPerGate;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
         this.maxBuffersPerChannel = maxBuffersPerChannel;
         return this;
@@ -155,6 +171,12 @@ public class NettyShuffleEnvironmentBuilder {
     public NettyShuffleEnvironmentBuilder setConnectionReuseEnabled(
             boolean connectionReuseEnabled) {
         this.connectionReuseEnabled = connectionReuseEnabled;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setMaxOverdraftBuffersPerGate(
+            int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
         return this;
     }
 
@@ -195,6 +217,19 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setHybridShuffleNumRetainedInMemoryRegionsMax(
+            long hybridShuffleNumRetainedInMemoryRegionsMax) {
+        this.hybridShuffleNumRetainedInMemoryRegionsMax =
+                hybridShuffleNumRetainedInMemoryRegionsMax;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setHybridShuffleSpilledIndexSegmentSize(
+            int hybridShuffleSpilledIndexSegmentSize) {
+        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+        return this;
+    }
+
     public NettyShuffleEnvironment build() {
         return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
                 new NettyShuffleEnvironmentConfiguration(
@@ -204,6 +239,7 @@ public class NettyShuffleEnvironmentBuilder {
                         partitionRequestMaxBackoff,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
+                        maxRequiredBuffersPerGate,
                         DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
                         false,
                         nettyConfig,
@@ -217,11 +253,16 @@ public class NettyShuffleEnvironmentBuilder {
                         sortShuffleMinParallelism,
                         debloatConfiguration,
                         maxNumberOfConnections,
-                        connectionReuseEnabled),
+                        connectionReuseEnabled,
+                        maxOverdraftBuffersPerGate,
+                        hybridShuffleSpilledIndexSegmentSize,
+                        hybridShuffleNumRetainedInMemoryRegionsMax),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,
                 metricGroup,
-                ioExecutor);
+                ioExecutor,
+                DEFAULT_NUM_SLOTS,
+                DEFAULT_TEMP_DIRS);
     }
 }

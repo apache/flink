@@ -539,7 +539,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
         }
         mq.getDistinctRowCount(rel.getLeft, groupKey, newPred)
       case _ =>
-        RelMdUtil.getJoinDistinctRowCount(mq, rel, rel.getJoinType, groupKey, predicate, false)
+        FlinkRelMdUtil.getJoinDistinctRowCount(mq, rel, rel.getJoinType, groupKey, predicate, false)
     }
   }
 

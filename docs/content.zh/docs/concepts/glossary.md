@@ -27,15 +27,13 @@ under the License.
 
 #### Flink Application Cluster
 
-A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that
-only executes [Flink Jobs](#flink-job) from one [Flink Application](#flink-application).
-The lifetime of the [Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
+Flink Application 集群是专用的 [Flink Cluster](#flink-cluster)，仅从 [Flink Application](#flink-application) 执行 [Flink Jobs](#flink-job)。
+[Flink Cluster](#flink-cluster) 的寿命与 Flink Application 的寿命有关。
 
 #### Flink Job Cluster
 
-A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
-executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
+Flink Job 集群是专用的 [Flink Cluster](#flink-cluster)，仅执行一个 [Flink Job](#flink-job)。
+[Flink Cluster](#flink-cluster) 的寿命与 Flink Job 的寿命有关。
 
 #### Flink Cluster
 
@@ -59,20 +57,14 @@ Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator)
 
 #### Flink Application
 
-A Flink application is a Java Application that submits one or multiple [Flink
-Jobs](#flink-job) from the `main()` method (or by some other means). Submitting
-jobs is usually done by calling `execute()` on an execution environment.
+一个 Flink 应用程序是一个 Java 应用程序，它从 `main()` 方法（或通过一些其他方式）提交一个或多个 [Flink Jobs](#flink-job)。
+提交 jobs 通常是通过调用 ExecutionEnvironment 的 `execute()` 方法来完成的。
 
-The jobs of an application can either be submitted to a long running [Flink
-Session Cluster](#flink-session-cluster), to a dedicated [Flink Application
-Cluster](#flink-application-cluster), or to a [Flink Job
-Cluster](#flink-job-cluster).
+一个应用程序的作业可以提交给一个长期运行的 [Flink Session Cluster](#flink-session-cluster)，或者提交到一个专用的 [Flink Application Cluster](#flink-application-cluster)，或提交到 [Flink Job Cluster](#flink-job-cluster)。
 
 #### Flink Job
 
-A Flink Job is the runtime representation of a [logical graph](#logical-graph)
-(also often called dataflow graph) that is created and submitted by calling
-`execute()` in a [Flink Application](#flink-application).
+Flink Job 表示为 runtime 的 [logical graph](#logical-graph)（通常也称为数据流图），通过在 [Flink Application](#flink-application) 中调用 `execute()` 方法来创建和提交 。
 
 #### JobGraph
 
@@ -89,19 +81,14 @@ JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一�
 
 #### JobResultStore
 
-The JobResultStore is a Flink component that persists the results of globally terminated
-(i.e. finished, cancelled or failed) jobs to a filesystem, allowing the results to outlive
-a finished job. These results are then used by Flink to determine whether jobs should
-be subject to recovery in highly-available clusters.
+JobResultStore 是一个 Flink 组件，它将全局终止（已完成的、已取消的或失败的）作业的结果保存到文件系统中，从而使结果比已完成的作业更长久。
+这些结果然后被 Flink 用来确定作业是否应该在高可用集群中被恢复。
 
 #### Logical Graph
 
-A logical graph is a directed graph where the nodes are  [Operators](#operator)
-and the edges define input/output-relationships of the operators and correspond
-to data streams or data sets. A logical graph is created by submitting jobs
-from a [Flink Application](#flink-application).
+逻辑图是一种有向图，其中顶点是 [算子](#operator)，边定义算子的输入/输出关系，并对应于数据流或数据集。通过从 [Flink Application](#flink-application) 提交作业来创建逻辑图。
 
-Logical graphs are also often referred to as *dataflow graphs*.
+逻辑图通常也称为*数据流图*。
 
 #### Managed State
 
@@ -150,3 +137,16 @@ TaskManager 是 [Flink Cluster](#flink-cluster) 的工作进程。[Task](#task) 
 #### Transformation
 
 Transformation 应用于一个或多个数据流或数据集，并产生一个或多个输出数据流或数据集。Transformation 可能会在每个记录的基础上更改数据流或数据集，但也可以只更改其分区或执行聚合。虽然 [Operator](#operator) 和 [Function](#function) 是 Flink API 的“物理”部分，但 Transformation 只是一个 API 概念。具体来说，大多数（但不是全部）Transformation 是由某些 [Operator](#operator) 实现的。
+
+#### UID
+
+A unique identifier of an [Operator](#operator), either provided by the user or determined from the
+structure of the job. When the [Application](#flink-application) is submitted this is converted to
+a [UID hash](#uid-hash).
+
+#### UID hash
+
+A unique identifier of an [Operator](#operator) at runtime, otherwise known as "Operator ID" or
+"Vertex ID" and generated from a [UID](#uid).
+It is commonly exposed in logs, the REST API or metrics, and most importantly is how
+operators are identified within [savepoints]({{< ref "docs/ops/state/savepoints" >}}).

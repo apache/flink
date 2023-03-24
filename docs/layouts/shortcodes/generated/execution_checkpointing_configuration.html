@@ -12,7 +12,7 @@
             <td><h5>execution.checkpointing.aligned-checkpoint-timeout</h5></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
-            <td>Only relevant if <code class="highlighter-rouge">execution.checkpointing.unaligned</code> is enabled.<br /><br />If timeout is 0, checkpoints will always start unaligned.<br /><br />If timeout has a positive value, checkpoints will start aligned. If during checkpointing, checkpoint start delay exceeds this timeout, alignment will timeout and checkpoint barrier will start working as unaligned checkpoint.</td>
+            <td>Only relevant if <code class="highlighter-rouge">execution.checkpointing.unaligned.enabled</code> is enabled.<br /><br />If timeout is 0, checkpoints will always start unaligned.<br /><br />If timeout has a positive value, checkpoints will start aligned. If during checkpointing, checkpoint start delay exceeds this timeout, alignment will timeout and checkpoint barrier will start working as unaligned checkpoint.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.checkpoints-after-tasks-finish.enabled</h5></td>
@@ -69,7 +69,7 @@
             <td>The tolerable checkpoint consecutive failure number. If set to 0, that means we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the Job Manager, failures in the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of checkpoint failures (such as checkpoint being subsumed) are being ignored.</td>
         </tr>
         <tr>
-            <td><h5>execution.checkpointing.unaligned</h5></td>
+            <td><h5>execution.checkpointing.unaligned.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.<br /><br />Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore.<br /><br />Unaligned checkpoints can only be enabled if <code class="highlighter-rouge">execution.checkpointing.mode</code> is <code class="highlighter-rouge">EXACTLY_ONCE</code> and if <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code> is 1</td>
@@ -79,6 +79,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.max-subtasks-per-channel-state-file</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Defines the maximum number of subtasks that share the same channel state file. It can reduce the number of small files when enable unaligned checkpoint. Each subtask will create a new channel state file when this is configured to 1.</td>
         </tr>
     </tbody>
 </table>

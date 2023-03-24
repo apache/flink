@@ -73,7 +73,7 @@ def tumble_window_demo():
             .preceding(row_interval(2))
             .following(CURRENT_ROW)
             .alias('w')) \
-        .select(table.name, table.price.max.over(col('w')))
+        .select(col('name'), col('price').max.over(col('w')))
 
     # submit for execution
     table.execute_insert('sink') \

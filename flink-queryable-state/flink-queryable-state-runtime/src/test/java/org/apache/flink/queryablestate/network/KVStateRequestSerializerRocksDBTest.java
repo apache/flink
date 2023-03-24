@@ -59,7 +59,7 @@ public final class KVStateRequestSerializerRocksDBTest {
         longHeapKeyedStateBackend.setCurrentKey(key);
 
         final InternalListState<Long, VoidNamespace, Long> listState =
-                longHeapKeyedStateBackend.createInternalState(
+                longHeapKeyedStateBackend.createOrUpdateInternalState(
                         VoidNamespaceSerializer.INSTANCE,
                         new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 

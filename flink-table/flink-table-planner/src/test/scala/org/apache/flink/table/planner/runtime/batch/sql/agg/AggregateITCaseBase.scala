@@ -17,20 +17,22 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.table.api.{DataTypes, TableException, Types}
 import org.apache.flink.table.data.DecimalDataUtils
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
-
-import scala.collection.Seq
 
 /** Aggregate IT case base class. */
 abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
@@ -296,9 +298,16 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     val tableRows = tableData.map(toRow)
 
     val tupleTypeInfo = implicitly[TypeInformation[T]]
-    val fieldInfos = tupleTypeInfo.getGenericParameters.values()
-    import scala.collection.JavaConverters._
-    val rowTypeInfo = new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    val rowTypeInfo: RowTypeInfo = if (tupleTypeInfo.isTupleType) {
+      new RowTypeInfo(
+        tupleTypeInfo
+          .asInstanceOf[TupleTypeInfoBase[T]]
+          .getFieldTypes: _*)
+    } else {
+      val fieldInfos = tupleTypeInfo.getGenericParameters.values()
+      import scala.collection.JavaConverters._
+      new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    }
 
     newTableId += 1
     val tableName = "TestTableX" + newTableId
@@ -905,6 +914,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   @Test
   def testLeadLag(): Unit = {
+    tEnv.getConfig.set(JobManagerOptions.SCHEDULER, SchedulerType.Default)
+    tEnv.getConfig
+      .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
 
     val testAllDataTypeCardinality = tEnv.fromValues(
       DataTypes.ROW(
@@ -1106,6 +1118,70 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
         )
       )
     )
+  }
+
+  @Test
+  def testGroupByArrayType(): Unit = {
+    checkResult(
+      "SELECT sum(a) FROM (" +
+        "VALUES (1, array[1, 2]), (2, array[1, 2]), (5, array[3, 4])) T(a, b) GROUP BY b",
+      Seq(
+        row(3),
+        row(5)
+      )
+    )
+  }
+
+  @Test
+  def testDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT DISTINCT b FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row("[1, 2]"),
+        row("[2, 3]"),
+        row("[3, 4]")
+      ))
+  }
+
+  @Test
+  def testCountDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT a, COUNT(DISTINCT b) FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |GROUP BY a
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row(2, 2),
+        row(5, 1)
+      ))
+  }
+
+  @Test
+  def testCountStar(): Unit = {
+    val data =
+      List(rowOf(2L, 15, "Hello"), rowOf(8L, 11, "Hello world"), rowOf(9L, 12, "Hello world!"))
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` BIGINT,
+                       |  `len` INT,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+    checkResult("select count(*) from src", Seq(row(3)))
   }
 
   // TODO support csv

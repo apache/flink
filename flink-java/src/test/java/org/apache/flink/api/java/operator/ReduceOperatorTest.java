@@ -30,22 +30,21 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataSet#reduce(ReduceFunction)}. */
-@SuppressWarnings("serial")
-public class ReduceOperatorTest {
+class ReduceOperatorTest {
 
     private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
-            new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
+            new ArrayList<>();
 
     private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo =
-            new TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
+            new TupleTypeInfo<>(
                     BasicTypeInfo.INT_TYPE_INFO,
                     BasicTypeInfo.LONG_TYPE_INFO,
                     BasicTypeInfo.STRING_TYPE_INFO,
@@ -53,7 +52,7 @@ public class ReduceOperatorTest {
                     BasicTypeInfo.INT_TYPE_INFO);
 
     @Test
-    public void testSemanticPropsWithKeySelector1() {
+    void testSemanticPropsWithKeySelector1() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -64,32 +63,25 @@ public class ReduceOperatorTest {
 
         SemanticProperties semProps = reduceOp.getSemanticProperties();
 
-        assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 1).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).contains(4));
-        assertTrue(semProps.getForwardingTargetFields(0, 3).size() == 2);
-        assertTrue(semProps.getForwardingTargetFields(0, 3).contains(1));
-        assertTrue(semProps.getForwardingTargetFields(0, 3).contains(3));
-        assertTrue(semProps.getForwardingTargetFields(0, 4).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 4).contains(2));
-        assertTrue(semProps.getForwardingTargetFields(0, 5).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 6).size() == 0);
+        assertThat(semProps.getForwardingTargetFields(0, 0)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 2)).containsExactly(4);
+        assertThat(semProps.getForwardingTargetFields(0, 3)).containsExactly(1, 3);
+        assertThat(semProps.getForwardingTargetFields(0, 4)).containsExactly(2);
+        assertThat(semProps.getForwardingTargetFields(0, 5)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 6)).isEmpty();
 
-        assertTrue(semProps.getForwardingSourceField(0, 0) < 0);
-        assertTrue(semProps.getForwardingSourceField(0, 1) == 3);
-        assertTrue(semProps.getForwardingSourceField(0, 2) == 4);
-        assertTrue(semProps.getForwardingSourceField(0, 3) == 3);
-        assertTrue(semProps.getForwardingSourceField(0, 4) == 2);
+        assertThat(semProps.getForwardingSourceField(0, 0)).isLessThan(0);
+        assertThat(semProps.getForwardingSourceField(0, 1)).isEqualTo(3);
+        assertThat(semProps.getForwardingSourceField(0, 2)).isEqualTo(4);
+        assertThat(semProps.getForwardingSourceField(0, 3)).isEqualTo(3);
+        assertThat(semProps.getForwardingSourceField(0, 4)).isEqualTo(2);
 
-        assertTrue(semProps.getReadFields(0).size() == 3);
-        assertTrue(semProps.getReadFields(0).contains(2));
-        assertTrue(semProps.getReadFields(0).contains(5));
-        assertTrue(semProps.getReadFields(0).contains(6));
+        assertThat(semProps.getReadFields(0)).containsExactly(2, 5, 6);
     }
 
     @Test
-    public void testSemanticPropsWithKeySelector2() {
+    void testSemanticPropsWithKeySelector2() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -102,32 +94,25 @@ public class ReduceOperatorTest {
 
         SemanticProperties semProps = reduceOp.getSemanticProperties();
 
-        assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 1).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).contains(4));
-        assertTrue(semProps.getForwardingTargetFields(0, 3).size() == 2);
-        assertTrue(semProps.getForwardingTargetFields(0, 3).contains(1));
-        assertTrue(semProps.getForwardingTargetFields(0, 3).contains(3));
-        assertTrue(semProps.getForwardingTargetFields(0, 4).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 4).contains(2));
-        assertTrue(semProps.getForwardingTargetFields(0, 5).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 6).size() == 0);
+        assertThat(semProps.getForwardingTargetFields(0, 0)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 2)).containsExactly(4);
+        assertThat(semProps.getForwardingTargetFields(0, 3)).containsExactly(1, 3);
+        assertThat(semProps.getForwardingTargetFields(0, 4)).containsExactly(2);
+        assertThat(semProps.getForwardingTargetFields(0, 5)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 6)).isEmpty();
 
-        assertTrue(semProps.getForwardingSourceField(0, 0) < 0);
-        assertTrue(semProps.getForwardingSourceField(0, 1) == 3);
-        assertTrue(semProps.getForwardingSourceField(0, 2) == 4);
-        assertTrue(semProps.getForwardingSourceField(0, 3) == 3);
-        assertTrue(semProps.getForwardingSourceField(0, 4) == 2);
+        assertThat(semProps.getForwardingSourceField(0, 0)).isLessThan(0);
+        assertThat(semProps.getForwardingSourceField(0, 1)).isEqualTo(3);
+        assertThat(semProps.getForwardingSourceField(0, 2)).isEqualTo(4);
+        assertThat(semProps.getForwardingSourceField(0, 3)).isEqualTo(3);
+        assertThat(semProps.getForwardingSourceField(0, 4)).isEqualTo(2);
 
-        assertTrue(semProps.getReadFields(0).size() == 3);
-        assertTrue(semProps.getReadFields(0).contains(2));
-        assertTrue(semProps.getReadFields(0).contains(5));
-        assertTrue(semProps.getReadFields(0).contains(6));
+        assertThat(semProps.getReadFields(0)).containsExactly(2, 5, 6);
     }
 
     @Test
-    public void testSemanticPropsWithKeySelector3() {
+    void testSemanticPropsWithKeySelector3() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -140,29 +125,25 @@ public class ReduceOperatorTest {
 
         SemanticProperties semProps = reduceOp.getSemanticProperties();
 
-        assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 1).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 3).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 4).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 4).contains(2));
-        assertTrue(semProps.getForwardingTargetFields(0, 5).size() == 2);
-        assertTrue(semProps.getForwardingTargetFields(0, 5).contains(1));
-        assertTrue(semProps.getForwardingTargetFields(0, 5).contains(3));
-        assertTrue(semProps.getForwardingTargetFields(0, 6).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 6).contains(0));
+        assertThat(semProps.getForwardingTargetFields(0, 0)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 2)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 3)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 4)).containsExactly(2);
+        assertThat(semProps.getForwardingTargetFields(0, 5)).containsExactly(1, 3);
+        assertThat(semProps.getForwardingTargetFields(0, 6)).containsExactly(0);
 
-        assertTrue(semProps.getForwardingSourceField(0, 0) == 6);
-        assertTrue(semProps.getForwardingSourceField(0, 1) == 5);
-        assertTrue(semProps.getForwardingSourceField(0, 2) == 4);
-        assertTrue(semProps.getForwardingSourceField(0, 3) == 5);
-        assertTrue(semProps.getForwardingSourceField(0, 4) < 0);
+        assertThat(semProps.getForwardingSourceField(0, 0)).isEqualTo(6);
+        assertThat(semProps.getForwardingSourceField(0, 1)).isEqualTo(5);
+        assertThat(semProps.getForwardingSourceField(0, 2)).isEqualTo(4);
+        assertThat(semProps.getForwardingSourceField(0, 3)).isEqualTo(5);
+        assertThat(semProps.getForwardingSourceField(0, 4)).isLessThan(0);
 
-        assertTrue(semProps.getReadFields(0) == null);
+        assertThat(semProps.getReadFields(0)).isNull();
     }
 
     @Test
-    public void testSemanticPropsWithKeySelector4() {
+    void testSemanticPropsWithKeySelector4() {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -173,24 +154,21 @@ public class ReduceOperatorTest {
 
         SemanticProperties semProps = reduceOp.getSemanticProperties();
 
-        assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 1).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 2).contains(0));
-        assertTrue(semProps.getForwardingTargetFields(0, 3).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 3).contains(1));
-        assertTrue(semProps.getForwardingTargetFields(0, 4).size() == 0);
-        assertTrue(semProps.getForwardingTargetFields(0, 5).size() == 1);
-        assertTrue(semProps.getForwardingTargetFields(0, 5).contains(3));
-        assertTrue(semProps.getForwardingTargetFields(0, 6).size() == 0);
+        assertThat(semProps.getForwardingTargetFields(0, 0)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 2)).containsExactly(0);
+        assertThat(semProps.getForwardingTargetFields(0, 3)).containsExactly(1);
+        assertThat(semProps.getForwardingTargetFields(0, 4)).isEmpty();
+        assertThat(semProps.getForwardingTargetFields(0, 5)).containsExactly(3);
+        assertThat(semProps.getForwardingTargetFields(0, 6)).isEmpty();
 
-        assertTrue(semProps.getForwardingSourceField(0, 0) == 2);
-        assertTrue(semProps.getForwardingSourceField(0, 1) == 3);
-        assertTrue(semProps.getForwardingSourceField(0, 2) < 0);
-        assertTrue(semProps.getForwardingSourceField(0, 3) == 5);
-        assertTrue(semProps.getForwardingSourceField(0, 4) < 0);
+        assertThat(semProps.getForwardingSourceField(0, 0)).isEqualTo(2);
+        assertThat(semProps.getForwardingSourceField(0, 1)).isEqualTo(3);
+        assertThat(semProps.getForwardingSourceField(0, 2)).isLessThan(0);
+        assertThat(semProps.getForwardingSourceField(0, 3)).isEqualTo(5);
+        assertThat(semProps.getForwardingSourceField(0, 4)).isLessThan(0);
 
-        assertTrue(semProps.getReadFields(0) == null);
+        assertThat(semProps.getReadFields(0)).isNull();
     }
 
     private static class DummyTestKeySelector
@@ -199,7 +177,7 @@ public class ReduceOperatorTest {
         @Override
         public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value)
                 throws Exception {
-            return new Tuple2<Long, Integer>();
+            return new Tuple2<>();
         }
     }
 
@@ -212,7 +190,7 @@ public class ReduceOperatorTest {
                 Tuple5<Integer, Long, String, Long, Integer> v1,
                 Tuple5<Integer, Long, String, Long, Integer> v2)
                 throws Exception {
-            return new Tuple5<Integer, Long, String, Long, Integer>();
+            return new Tuple5<>();
         }
     }
 
@@ -224,7 +202,7 @@ public class ReduceOperatorTest {
                 Tuple5<Integer, Long, String, Long, Integer> v1,
                 Tuple5<Integer, Long, String, Long, Integer> v2)
                 throws Exception {
-            return new Tuple5<Integer, Long, String, Long, Integer>();
+            return new Tuple5<>();
         }
     }
 
@@ -235,7 +213,7 @@ public class ReduceOperatorTest {
                 Tuple5<Integer, Long, String, Long, Integer> v1,
                 Tuple5<Integer, Long, String, Long, Integer> v2)
                 throws Exception {
-            return new Tuple5<Integer, Long, String, Long, Integer>();
+            return new Tuple5<>();
         }
     }
 
@@ -247,7 +225,7 @@ public class ReduceOperatorTest {
                 Tuple5<Integer, Long, String, Long, Integer> v1,
                 Tuple5<Integer, Long, String, Long, Integer> v2)
                 throws Exception {
-            return new Tuple5<Integer, Long, String, Long, Integer>();
+            return new Tuple5<>();
         }
     }
 }

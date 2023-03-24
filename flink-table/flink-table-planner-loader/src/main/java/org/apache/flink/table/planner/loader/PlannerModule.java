@@ -27,6 +27,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
 import java.io.IOException;
@@ -67,7 +68,8 @@ class PlannerModule {
                                     // flink-table-runtime or flink-dist itself
                                     "org.codehaus.janino",
                                     "org.codehaus.commons",
-                                    "org.apache.commons.lang3"))
+                                    "org.apache.commons.lang3",
+                                    "org.apache.commons.math3"))
                     .toArray(String[]::new);
 
     private static final String[] COMPONENT_CLASSPATH = new String[] {"org.apache.flink"};
@@ -92,7 +94,7 @@ class PlannerModule {
 
             final Path tmpDirectory =
                     Paths.get(ConfigurationUtils.parseTempDirectories(new Configuration())[0]);
-            Files.createDirectories(tmpDirectory);
+            Files.createDirectories(FileUtils.getTargetPathIfContainsSymbolicPath(tmpDirectory));
             final Path tempFile =
                     Files.createFile(
                             tmpDirectory.resolve(
@@ -110,6 +112,7 @@ class PlannerModule {
             }
 
             IOUtils.copyBytes(resourceStream, Files.newOutputStream(tempFile));
+            tempFile.toFile().deleteOnExit();
 
             this.submoduleClassLoader =
                     new ComponentClassLoader(

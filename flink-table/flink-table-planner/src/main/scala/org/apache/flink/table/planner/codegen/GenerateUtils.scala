@@ -304,9 +304,10 @@ object GenerateUtils {
       // as they're not cheap to construct. For the other types, the return term is directly
       // the literal value
       case CHAR | VARCHAR =>
-        val str = literalValue.asInstanceOf[BinaryStringData]
-        val field = ctx.addReusableEscapedStringConstant(EncodingUtils.escapeJava(str.toString))
-        generateNonNullLiteral(literalType, field, str)
+        val escapedValue =
+          EncodingUtils.escapeJava(literalValue.asInstanceOf[BinaryStringData].toString)
+        val field = ctx.addReusableEscapedStringConstant(escapedValue)
+        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
 
       case BINARY | VARBINARY =>
         val bytesVal = literalValue.asInstanceOf[Array[Byte]]
@@ -631,7 +632,10 @@ object GenerateUtils {
         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP =>
-      throw new UnsupportedOperationException() // TODO support MULTISET and MAP?
+      throw new UnsupportedOperationException(
+        s"Type($t) is not an orderable data type, " +
+          s"it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
+    // TODO support MULTISET and MAP?
     case ARRAY =>
       val at = t.asInstanceOf[ArrayType]
       val compareFunc = newName("compareArray")

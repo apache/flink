@@ -54,7 +54,11 @@ public class DashboardConfigHandler
 
         dashboardConfiguration =
                 DashboardConfiguration.from(
-                        refreshInterval, ZonedDateTime.now(), webSubmitEnabled, webCancelEnabled);
+                        refreshInterval,
+                        ZonedDateTime.now(),
+                        webSubmitEnabled,
+                        webCancelEnabled,
+                        false);
     }
 
     @Override

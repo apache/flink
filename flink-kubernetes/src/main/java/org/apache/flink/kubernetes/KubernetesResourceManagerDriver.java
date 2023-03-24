@@ -27,10 +27,11 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -60,6 +61,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
@@ -163,7 +166,8 @@ public class KubernetesResourceManagerDriver
     public CompletableFuture<KubernetesWorkerNode> requestResource(
             TaskExecutorProcessSpec taskExecutorProcessSpec) {
         final KubernetesTaskManagerParameters parameters =
-                createKubernetesTaskManagerParameters(taskExecutorProcessSpec);
+                createKubernetesTaskManagerParameters(
+                        taskExecutorProcessSpec, getBlockedNodeRetriever().getAllBlockedNodeIds());
         final KubernetesPod taskManagerPod =
                 KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
                         taskManagerPodTemplate, parameters);
@@ -196,11 +200,42 @@ public class KubernetesResourceManagerDriver
                                     future.completeExceptionally(exception);
                                 }
                             } else {
-                                log.info("Pod {} is created.", podName);
+                                if (requestResourceFuture.isCancelled()) {
+                                    stopPod(podName);
+                                    log.info(
+                                            "pod {} is cancelled before create pod finish, stop it.",
+                                            podName);
+                                } else {
+                                    log.info("Pod {} is created.", podName);
+                                }
                             }
                             return null;
                         },
                         getMainThreadExecutor()));
+
+        FutureUtils.assertNoException(
+                requestResourceFuture.handle(
+                        (ignore, t) -> {
+                            if (t == null) {
+                                return null;
+                            }
+                            if (t instanceof CancellationException) {
+
+                                requestResourceFutures.remove(taskManagerPod.getName());
+                                if (createPodFuture.isDone()) {
+                                    log.info(
+                                            "pod {} is cancelled before scheduled, stop it.",
+                                            podName);
+                                    stopPod(taskManagerPod.getName());
+                                }
+                            } else if (t instanceof RetryableException) {
+                                // ignore
+                            } else {
+                                log.error("Error completing resource request.", t);
+                                ExceptionUtils.rethrow(t);
+                            }
+                            return null;
+                        }));
 
         return requestResourceFuture;
     }
@@ -244,8 +279,6 @@ public class KubernetesResourceManagerDriver
                 recoveredWorkers.size(),
                 ++currentMaxAttemptId);
 
-        // Should not invoke resource event handler on the main thread executor.
-        // We are in the initializing thread. The main thread executor is not yet ready.
         getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
     }
 
@@ -257,25 +290,22 @@ public class KubernetesResourceManagerDriver
                 ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(webInterfaceUrl);
         Preconditions.checkArgument(
                 restPort > 0, "Failed to parse rest port from " + webInterfaceUrl);
+        final String restServiceName = ExternalServiceDecorator.getExternalServiceName(clusterId);
         flinkKubeClient
-                .updateServiceTargetPort(
-                        KubernetesService.ServiceType.REST_SERVICE,
-                        clusterId,
-                        Constants.REST_PORT_NAME,
-                        restPort)
+                .updateServiceTargetPort(restServiceName, Constants.REST_PORT_NAME, restPort)
                 .get();
         if (!HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+            final String internalServiceName =
+                    InternalServiceDecorator.getInternalServiceName(clusterId);
             flinkKubeClient
                     .updateServiceTargetPort(
-                            KubernetesService.ServiceType.INTERNAL_SERVICE,
-                            clusterId,
+                            internalServiceName,
                             Constants.BLOB_SERVER_PORT_NAME,
                             Integer.parseInt(flinkConfig.getString(BlobServerOptions.PORT)))
                     .get();
             flinkKubeClient
                     .updateServiceTargetPort(
-                            KubernetesService.ServiceType.INTERNAL_SERVICE,
-                            clusterId,
+                            internalServiceName,
                             Constants.JOB_MANAGER_RPC_PORT_NAME,
                             flinkConfig.getInteger(JobManagerOptions.PORT))
                     .get();
@@ -283,7 +313,7 @@ public class KubernetesResourceManagerDriver
     }
 
     private KubernetesTaskManagerParameters createKubernetesTaskManagerParameters(
-            TaskExecutorProcessSpec taskExecutorProcessSpec) {
+            TaskExecutorProcessSpec taskExecutorProcessSpec, Set<String> blockedNodes) {
         final String podName =
                 String.format(
                         TASK_MANAGER_POD_FORMAT, clusterId, currentMaxAttemptId, ++currentMaxPodId);
@@ -306,7 +336,8 @@ public class KubernetesResourceManagerDriver
                 taskManagerParameters,
                 ExternalResourceUtils.getExternalResourceConfigurationKeys(
                         flinkConfig,
-                        KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
+                        KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX),
+                blockedNodes);
     }
 
     private void handlePodEventsInMainThread(List<KubernetesPod> pods) {
@@ -347,7 +378,8 @@ public class KubernetesResourceManagerDriver
                 requestResourceFutures.remove(podName);
         if (requestResourceFuture != null) {
             log.warn("Pod {} is terminated before being scheduled.", podName);
-            requestResourceFuture.completeExceptionally(new FlinkException("Pod is terminated."));
+            requestResourceFuture.completeExceptionally(
+                    new RetryableException("Pod is terminated."));
         }
 
         getResourceEventHandler()
@@ -421,6 +453,14 @@ public class KubernetesResourceManagerDriver
             } else {
                 getResourceEventHandler().onError(throwable);
             }
+        }
+    }
+
+    private static class RetryableException extends FlinkException {
+        private static final long serialVersionUID = 1L;
+
+        RetryableException(String message) {
+            super(message);
         }
     }
 }

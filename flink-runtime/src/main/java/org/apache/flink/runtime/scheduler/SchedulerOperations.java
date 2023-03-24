@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 
 import java.util.List;
@@ -31,8 +32,7 @@ public interface SchedulerOperations {
      * with smaller indices will be deployed earlier. Only vertices in CREATED state will be
      * accepted. Errors will happen if scheduling Non-CREATED vertices.
      *
-     * @param executionVertexDeploymentOptions The deployment options of tasks to be deployed
+     * @param verticesToDeploy The execution vertices to deploy
      */
-    void allocateSlotsAndDeploy(
-            List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions);
+    void allocateSlotsAndDeploy(List<ExecutionVertexID> verticesToDeploy);
 }

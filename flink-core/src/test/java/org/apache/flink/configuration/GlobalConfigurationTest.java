@@ -129,6 +129,18 @@ public class GlobalConfigurationTest extends TestLogger {
         assertTrue(GlobalConfiguration.isSensitive("123pasSword"));
         assertTrue(GlobalConfiguration.isSensitive("PasSword"));
         assertTrue(GlobalConfiguration.isSensitive("Secret"));
+        assertTrue(GlobalConfiguration.isSensitive("polaris.client-secret"));
+        assertTrue(GlobalConfiguration.isSensitive("client-secret"));
+        assertTrue(GlobalConfiguration.isSensitive("service-key-json"));
+        assertTrue(GlobalConfiguration.isSensitive("auth.basic.password"));
+        assertTrue(GlobalConfiguration.isSensitive("auth.basic.token"));
+        assertTrue(GlobalConfiguration.isSensitive("avro-confluent.basic-auth.user-info"));
+        assertTrue(GlobalConfiguration.isSensitive("key.avro-confluent.basic-auth.user-info"));
+        assertTrue(GlobalConfiguration.isSensitive("value.avro-confluent.basic-auth.user-info"));
+        assertTrue(GlobalConfiguration.isSensitive("kafka.jaas.config"));
+        assertTrue(GlobalConfiguration.isSensitive("properties.ssl.truststore.password"));
+        assertTrue(GlobalConfiguration.isSensitive("properties.ssl.keystore.password"));
+
         assertTrue(
                 GlobalConfiguration.isSensitive(
                         "fs.azure.account.key.storageaccount123456.core.windows.net"));

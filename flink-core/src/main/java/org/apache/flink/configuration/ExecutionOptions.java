@@ -70,6 +70,15 @@ public class ExecutionOptions {
                                                     + "Such an exchange reduces the resources required to execute the "
                                                     + "job as it does not need to run upstream and downstream "
                                                     + "tasks simultaneously.")
+                                    .linebreak()
+                                    .text(
+                                            "With hybrid exchanges (experimental), downstream tasks can run anytime as "
+                                                    + "long as upstream tasks start running. When given sufficient "
+                                                    + "resources, it can reduce the overall job execution time by running "
+                                                    + "tasks simultaneously. Otherwise, it also allows jobs to be executed "
+                                                    + "with very little resources. It adapts to custom preferences between "
+                                                    + "persisting less data and restarting less tasks on failures, by "
+                                                    + "providing different spilling strategies.")
                                     .build());
 
     /**

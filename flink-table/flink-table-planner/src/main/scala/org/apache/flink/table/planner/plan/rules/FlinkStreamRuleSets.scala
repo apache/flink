@@ -122,6 +122,8 @@ object FlinkStreamRuleSets {
           ConvertToNotInOrInRule.INSTANCE,
           // optimize limit 0
           FlinkLimit0RemoveRule.INSTANCE,
+          // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
+          CoreRules.FILTER_MERGE,
           // unnest rule
           LogicalUnnestRule.INSTANCE,
           // rewrite constant table function scan to correlate
@@ -133,14 +135,14 @@ object FlinkStreamRuleSets {
 
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
-    // push a filter into a join
-    CoreRules.FILTER_INTO_JOIN,
+    // push a filter into a join (which isn't an event time temporal join)
+    FlinkFilterJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
-    CoreRules.JOIN_CONDITION_PUSH,
+    FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
-    CoreRules.FILTER_PROJECT_TRANSPOSE,
+    FlinkFilterProjectTransposeRule.INSTANCE,
     // push a filter past a setop
     CoreRules.FILTER_SET_OP_TRANSPOSE,
     CoreRules.FILTER_MERGE
@@ -215,14 +217,14 @@ object FlinkStreamRuleSets {
     // merge filter to MultiJoin
     CoreRules.FILTER_MULTI_JOIN_MERGE,
     // merge join to MultiJoin
-    CoreRules.JOIN_TO_MULTI_JOIN
+    FlinkJoinToMultiJoinRule.INSTANCE
   )
 
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
     // join reorder
-    CoreRules.MULTI_JOIN_OPTIMIZE
+    FlinkJoinReorderRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
@@ -233,6 +235,9 @@ object FlinkStreamRuleSets {
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     PushLimitIntoTableSourceScanRule.INSTANCE,
+
+    // transpose project and snapshot for scan optimization
+    ProjectSnapshotTransposeRule.INSTANCE,
 
     // reorder the project and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
@@ -275,7 +280,7 @@ object FlinkStreamRuleSets {
     DecomposeGroupingSetsRule.INSTANCE,
 
     // calc rules
-    CoreRules.FILTER_CALC_MERGE,
+    FlinkFilterCalcMergeRule.INSTANCE,
     CoreRules.PROJECT_CALC_MERGE,
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,
@@ -376,6 +381,7 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE
   )
 
@@ -464,7 +470,7 @@ object FlinkStreamRuleSets {
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE,
     // optimize ChangelogNormalize
-    PushFilterPastChangelogNormalizeRule.INSTANCE
+    PushCalcPastChangelogNormalizeRule.INSTANCE
   )
 
 }

@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import org.apache.flink.configuration.BatchExecutionOptions
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
@@ -42,14 +42,15 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation, SinkModifyOperation}
+import org.apache.flink.table.operations.{ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{InternalDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeContext, ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -57,6 +58,7 @@ import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, Tes
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
@@ -64,6 +66,8 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader}
+import org.apache.flink.util.jackson.JacksonMapperFactory
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -73,13 +77,15 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.junit.Assert.{assertEquals, assertTrue, fail}
+import org.junit.Assert.{assertEquals, assertThat, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import java.io.{File, IOException}
+import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.time.Duration
+import java.util.Collections
 
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
@@ -297,7 +303,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC))
+      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -310,7 +317,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       extraDetails.toArray,
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC))
+      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -403,7 +411,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails.toArray,
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /** Verify the AST (abstract syntax tree). */
@@ -413,7 +422,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = false,
       Array(PlanKind.AST),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /** Verify the AST (abstract syntax tree). The plans will contain the extra [[ExplainDetail]]s. */
@@ -423,7 +433,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails.toArray,
       withRowType = false,
       Array(PlanKind.AST),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -434,7 +445,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL))
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -446,7 +458,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       extraDetails.toArray,
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL))
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -530,7 +543,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -543,7 +557,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails.toArray,
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -555,7 +570,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = true,
-      Array(PlanKind.AST, PlanKind.OPT_REL))
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -581,7 +597,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = true,
       Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -615,7 +632,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_EXEC))
+      Array(PlanKind.AST, PlanKind.OPT_EXEC),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -665,7 +683,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_EXEC),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /** Verify the explain result for the given SELECT query. See more about [[Table#explain()]]. */
@@ -724,6 +743,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    */
   def verifyExplain(table: Table, extraDetails: ExplainDetail*): Unit = {
     doVerifyExplain(table.explain(extraDetails: _*), extraDetails: _*)
+  }
+
+  /** Verify the expected exception for the given sql with the given message and exception class. */
+  def verifyExpectdException(
+      sql: String,
+      message: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    try {
+      verifyExplain(sql)
+      fail(s"Expected a $clazz, but no exception is thrown.")
+    } catch {
+      case e: Throwable =>
+        assertTrue(clazz.isAssignableFrom(e.getClass))
+        assertThat(e, containsMessage(message))
+    }
   }
 
   /**
@@ -816,7 +850,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query: String,
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
-      expectedPlans: Array[PlanKind]): Unit = {
+      expectedPlans: Array[PlanKind],
+      withQueryBlockAlias: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(query)
     val relNode = TableTestUtil.toRelNode(table)
 
@@ -825,7 +860,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails,
       withRowType,
       expectedPlans,
-      () => assertEqualsOrExpand("sql", query))
+      () => assertEqualsOrExpand("sql", query),
+      withQueryBlockAlias)
   }
 
   /**
@@ -852,7 +888,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails,
       withRowType,
       expectedPlans,
-      () => assertEqualsOrExpand("sql", insert))
+      () => assertEqualsOrExpand("sql", insert),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -896,7 +933,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
-      assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
+      assertSqlEqualsOrExpandFunc: () => Unit,
+      withQueryBlockAlias: Boolean): Unit = {
     val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
 
     val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
@@ -912,7 +950,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails,
       withRowType,
       expectedPlans,
-      assertSqlEqualsOrExpandFunc)
+      assertSqlEqualsOrExpandFunc,
+      withQueryBlockAlias)
   }
 
   /**
@@ -929,13 +968,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * @param assertSqlEqualsOrExpandFunc
    *   the function to check whether the sql equals to the expected if the `relNodes` are translated
    *   from sql
+   * @param withQueryBlockAlias
+   *   whether the rel plans contains the query block alias, default is false
    */
-  private def assertPlanEquals(
+  def assertPlanEquals(
       relNodes: Array[RelNode],
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
-      assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
+      assertSqlEqualsOrExpandFunc: () => Unit,
+      withQueryBlockAlias: Boolean = false): Unit = {
 
     // build ast plan
     val astBuilder = new StringBuilder
@@ -943,8 +985,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       sink =>
         astBuilder
           .append(System.lineSeparator)
-          .append(FlinkRelOptUtil
-            .toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES, withRowType = withRowType))
+          .append(
+            FlinkRelOptUtil
+              .toString(
+                sink,
+                SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+                withRowType = withRowType,
+                withQueryBlockAlias = withQueryBlockAlias))
     }
     val astPlan = astBuilder.toString()
 
@@ -955,7 +1002,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     // build optimized exec plan if `expectedPlans` contains OPT_EXEC
     val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
-      val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels)
+      val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels, isCompiled = false)
       System.lineSeparator + ExecNodePlanDumper.dagToString(execGraph)
     } else {
       ""
@@ -970,6 +1017,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // check optimized rel plan
     if (expectedPlans.contains(PlanKind.OPT_REL)) {
       assertEqualsOrExpand("optimized rel plan", optimizedRelPlan, expand = false)
+    }
+    // check optimized rel plan with available advice
+    if (expectedPlans.contains(PlanKind.OPT_REL_WITH_ADVICE)) {
+      assertEqualsOrExpand("optimized rel plan with advice", optimizedRelPlan, expand = false)
     }
     // check optimized exec plan
     if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
@@ -1004,18 +1055,28 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
 
+    val withAdvice = extraDetails.contains(ExplainDetail.PLAN_ADVICE)
     val optimizedPlan = optimizedRels.head match {
       case _: RelNode =>
-        optimizedRels
-          .map {
-            rel =>
-              FlinkRelOptUtil.toString(
-                rel,
-                detailLevel = explainLevel,
-                withChangelogTraits = withChangelogTraits,
-                withRowType = withRowType)
-          }
-          .mkString("\n")
+        if (withAdvice) {
+          FlinkRelOptUtil.toString(
+            optimizedRels,
+            detailLevel = explainLevel,
+            withChangelogTraits = withChangelogTraits,
+            withAdvice = true)
+        } else {
+          optimizedRels
+            .map {
+              rel =>
+                FlinkRelOptUtil.toString(
+                  rel,
+                  detailLevel = explainLevel,
+                  withChangelogTraits = withChangelogTraits,
+                  withRowType = withRowType)
+            }
+            .mkString("\n")
+        }
+
       case o =>
         throw new TableException(
           "The expected optimized plan is RelNode plan, " +
@@ -1037,7 +1098,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     str
   }
 
-  protected def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
+  def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
     val expected = s"$${$tag}"
     if (!expand) {
       diffRepository.assertEquals(test.name.getMethodName, tag, expected, actual)
@@ -1064,8 +1125,9 @@ abstract class TableTestUtil(
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
-  tableEnv.getConfig
-    .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
+  tableEnv.getConfig.set(
+    BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
+    Boolean.box(false))
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 
@@ -1431,21 +1493,23 @@ class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
 class TestingTableEnvironment private (
     catalogManager: CatalogManager,
     moduleManager: ModuleManager,
+    resourceManager: ResourceManager,
     tableConfig: TableConfig,
     executor: Executor,
     functionCatalog: FunctionCatalog,
     planner: PlannerBase,
-    isStreamingMode: Boolean,
-    userClassLoader: ClassLoader)
+    isStreamingMode: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
+    resourceManager,
     tableConfig,
     executor,
     functionCatalog,
     planner,
-    isStreamingMode,
-    userClassLoader) {
+    isStreamingMode) {
+
+  def getResourceManager: ResourceManager = resourceManager
 
   // just for testing, remove this method while
   // `<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);`
@@ -1507,11 +1571,14 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    // temporary solution until FLINK-15635 is fixed
-    val classLoader = Thread.currentThread.getContextClassLoader
+    val userClassLoader: MutableURLClassLoader =
+      FlinkUserCodeClassLoaders.create(
+        new Array[URL](0),
+        settings.getUserClassLoader,
+        settings.getConfiguration)
 
     val executorFactory = FactoryUtil.discoverFactory(
-      classLoader,
+      userClassLoader,
       classOf[ExecutorFactory],
       ExecutorFactory.DEFAULT_IDENTIFIER)
 
@@ -1520,13 +1587,14 @@ object TestingTableEnvironment {
     tableConfig.setRootConfiguration(executor.getConfiguration)
     tableConfig.addConfiguration(settings.getConfiguration)
 
+    val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
 
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
         CatalogManager.newBuilder
-          .classLoader(classLoader)
+          .classLoader(userClassLoader)
           .config(tableConfig)
           .defaultCatalog(
             settings.getBuiltInCatalogName,
@@ -1536,21 +1604,28 @@ object TestingTableEnvironment {
           .build
     }
 
-    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager)
+    val functionCatalog =
+      new FunctionCatalog(settings.getConfiguration, resourceManager, catalogMgr, moduleManager)
 
     val planner = PlannerFactoryUtil
-      .createPlanner(executor, tableConfig, moduleManager, catalogMgr, functionCatalog)
+      .createPlanner(
+        executor,
+        tableConfig,
+        userClassLoader,
+        moduleManager,
+        catalogMgr,
+        functionCatalog)
       .asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,
       moduleManager,
+      resourceManager,
       tableConfig,
       executor,
       functionCatalog,
       planner,
-      settings.isStreamingMode,
-      classLoader)
+      settings.isStreamingMode)
   }
 }
 
@@ -1564,11 +1639,16 @@ object PlanKind extends Enumeration {
   /** Optimized Rel Plan */
   val OPT_REL: Value = Value("OPT_REL")
 
+  /** Optimized Rel Plan with Available Advice */
+  val OPT_REL_WITH_ADVICE: Value = Value("OPT_REL_WITH_ADVICE")
+
   /** Optimized Execution Plan */
   val OPT_EXEC: Value = Value("OPT_EXEC")
 }
 
 object TableTestUtil {
+
+  private val objectMapper = JacksonMapperFactory.createObjectMapper()
 
   val STREAM_SETTING: EnvironmentSettings =
     EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -1582,7 +1662,7 @@ object TableTestUtil {
       .asInstanceOf[TableEnvironmentImpl]
       .getPlanner
       .asInstanceOf[PlannerBase]
-      .getRelBuilder
+      .createRelBuilder
       .queryOperation(table.getQueryOperation)
       .build()
   }
@@ -1591,6 +1671,15 @@ object TableTestUtil {
   def toRelNode(tEnv: TableEnvironment, modifyOperation: ModifyOperation): RelNode = {
     val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
     planner.translateToRel(modifyOperation)
+  }
+
+  /** Convert a sql query to a ExecNodeGraph. */
+  def toExecNodeGraph(tEnv: TableEnvironment, sqlQuery: String): ExecNodeGraph = {
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    val optimizedRel =
+      planner.optimize(toRelNode(tEnv.sqlQuery(sqlQuery))).asInstanceOf[FlinkPhysicalRel]
+    val generator = new ExecNodeGraphGenerator
+    generator.generate(Collections.singletonList(optimizedRel), false)
   }
 
   def createTemporaryView[T](
@@ -1664,14 +1753,14 @@ object TableTestUtil {
 
   @throws[IOException]
   def getFormattedJson(json: String): String = {
-    val parser = new ObjectMapper().getFactory.createParser(json)
+    val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toString
   }
 
   @throws[IOException]
   def getPrettyJson(json: String): String = {
-    val parser = new ObjectMapper().getFactory.createParser(json)
+    val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toPrettyString
   }

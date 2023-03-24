@@ -548,6 +548,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
     testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
+    testAllApis(
+      dateFormat("2018-03-14 01:02:03", "yyyy/MM/dd HH:mm:ss"),
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+      "2018/03/14 01:02:03")
 
     testSqlApi(
       "DATE_FORMAT(TIMESTAMP '2018-03-14 01:02:03.123456', 'yyyy/MM/dd HH:mm:ss.SSSSSS')",
@@ -632,7 +636,16 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")
     testSqlApi("CAST('2018-03-18' AS DATE)", "2018-03-18")
     testSqlApi("TIME '12:44:31'", "12:44:31")
-    testSqlApi("TO_DATE('2018-03-18')", "2018-03-18")
+
+    testAllApis(toDate("2018-03-18", "yyyy-MM-dd"), "TO_DATE('2018-03-18')", "2018-03-18")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40')",
+      "1970-01-01 08:01:40.000")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+      "1970-01-01 08:01:40.000")
 
     // EXTRACT
     // testSqlApi("TO_DATE(1521331200)", "2018-03-18")
@@ -729,10 +742,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
     testSqlApi("CEIL(TIME '12:44:31' TO HOUR)", "13:00:00")
 
-    testSqlApi("FLOOR( DATE '2021-02-27' TO WEEK)", "2021-02-21")
-    testSqlApi("FLOOR( DATE '2021-03-01' TO WEEK)", "2021-02-28")
-    testSqlApi("CEIL( DATE '2021-02-27' TO WEEK)", "2021-02-28")
-    testSqlApi("CEIL( DATE '2021-03-01' TO WEEK)", "2021-03-07")
+    testSqlApi("FLOOR(DATE '2021-02-27' TO DAY)", "2021-02-27")
+    testSqlApi("FLOOR(DATE '2021-02-27' TO WEEK)", "2021-02-21")
+    testSqlApi("FLOOR(DATE '2021-03-01' TO WEEK)", "2021-02-28")
+    testSqlApi("CEIL(DATE '2021-02-27' TO DAY)", "2021-02-28")
+    testSqlApi("CEIL(DATE '2021-02-27' TO WEEK)", "2021-02-28")
+    testSqlApi("CEIL(DATE '2021-03-01' TO WEEK)", "2021-03-07")
     testSqlApi("CEIL(DATE '2018-01-02' TO DECADE)", "2020-01-01")
     testSqlApi("CEIL(DATE '2018-03-27' TO CENTURY)", "2101-01-01")
     testSqlApi("CEIL(DATE '2018-01-02' TO MILLENNIUM)", "3001-01-01")
@@ -859,7 +874,10 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi("DATE_FORMAT(cast(NULL as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
 
-    testSqlApi("FROM_UNIXTIME(cast(NULL as bigInt))", nullable)
+    testAllApis(
+      fromUnixtime(nullOf(DataTypes.BIGINT())),
+      "FROM_UNIXTIME(cast(NULL as bigInt))",
+      nullable)
 
     testSqlApi("TO_DATE(cast(NULL as varchar))", nullable)
 
@@ -894,7 +912,10 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testConvertTZ(): Unit = {
-    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')", "2018-03-14 19:00:00")
+    testAllApis(
+      convertTz("2018-03-14 11:00:00", "UTC", "Asia/Shanghai"),
+      "CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
+      "2018-03-14 19:00:00")
   }
 
   @Test
@@ -905,9 +926,15 @@ class TemporalTypesTest extends ExpressionTestBase {
     val fmt3 = "yy-MM-dd HH-mm-ss"
     val sdf3 = new SimpleDateFormat(fmt3, Locale.US)
 
-    testSqlApi("from_unixtime(f21)", sdf1.format(new Timestamp(44000)))
-    testSqlApi(s"from_unixtime(f21, '$fmt2')", sdf2.format(new Timestamp(44000)))
-    testSqlApi(s"from_unixtime(f21, '$fmt3')", sdf3.format(new Timestamp(44000)))
+    testAllApis(fromUnixtime('f21), "from_unixtime(f21)", sdf1.format(new Timestamp(44000)))
+    testAllApis(
+      fromUnixtime('f21, fmt2),
+      s"from_unixtime(f21, '$fmt2')",
+      sdf2.format(new Timestamp(44000)))
+    testAllApis(
+      fromUnixtime('f21, fmt3),
+      s"from_unixtime(f21, '$fmt3')",
+      sdf3.format(new Timestamp(44000)))
 
     testSqlApi("from_unixtime(f22)", sdf1.format(new Timestamp(3000)))
     testSqlApi(s"from_unixtime(f22, '$fmt2')", sdf2.format(new Timestamp(3000)))
@@ -941,10 +968,19 @@ class TemporalTypesTest extends ExpressionTestBase {
     val ss2 = "2015-07-25 02:02:02"
     val fmt = "yyyy/MM/dd HH:mm:ss.S"
 
+    testAllApis(unixTimestamp(ss1), s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(ss2), s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s1, fmt),
+      s"UNIX_TIMESTAMP('$s1', '$fmt')",
+      (ts1.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s2, fmt),
+      s"UNIX_TIMESTAMP('$s2', '$fmt')",
+      (ts2.getTime / 1000L).toString)
+
     testSqlApi(s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
-    testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
-    testSqlApi(s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
   }
 
   @Test

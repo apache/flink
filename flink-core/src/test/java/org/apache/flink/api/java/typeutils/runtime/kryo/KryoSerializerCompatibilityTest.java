@@ -19,9 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -38,12 +36,10 @@ import org.junit.rules.ExpectedException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -51,46 +47,6 @@ import static org.junit.Assert.assertTrue;
 public class KryoSerializerCompatibilityTest {
 
     @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testMigrationStrategyForRemovedAvroDependency() throws Exception {
-        KryoSerializer<TestClass> kryoSerializerForA =
-                new KryoSerializer<>(TestClass.class, new ExecutionConfig());
-
-        // read configuration again from bytes
-        TypeSerializerSnapshot kryoSerializerConfigSnapshot;
-        try (InputStream in =
-                getClass().getResourceAsStream("/kryo-serializer-flink1.3-snapshot")) {
-            kryoSerializerConfigSnapshot =
-                    TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                            new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            kryoSerializerForA);
-        }
-
-        @SuppressWarnings("unchecked")
-        TypeSerializerSchemaCompatibility<TestClass> compatResult =
-                kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForA);
-        assertTrue(compatResult.isCompatibleAsIs());
-    }
-
-    @Test
-    public void testDeserializingKryoSerializerWithoutAvro() throws Exception {
-        final String resource = "serialized-kryo-serializer-1.3";
-
-        TypeSerializer<?> serializer;
-
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resource)) {
-            DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
-
-            serializer =
-                    TypeSerializerSerializationUtil.tryReadSerializer(
-                            inView, getClass().getClassLoader());
-        }
-
-        assertNotNull(serializer);
-        assertTrue(serializer instanceof KryoSerializer);
-    }
 
     /** Verifies that reconfiguration result is INCOMPATIBLE if data type has changed. */
     @Test
@@ -104,9 +60,7 @@ public class KryoSerializerCompatibilityTest {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    kryoSerializerConfigSnapshot,
-                    kryoSerializerForA);
+                    new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -118,8 +72,7 @@ public class KryoSerializerCompatibilityTest {
             kryoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            kryoSerializerForB);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         @SuppressWarnings("unchecked")
@@ -271,9 +224,7 @@ public class KryoSerializerCompatibilityTest {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    kryoSerializerConfigSnapshot,
-                    kryoSerializer);
+                    new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -289,8 +240,7 @@ public class KryoSerializerCompatibilityTest {
             kryoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            kryoSerializer);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         // reconfigure - check reconfiguration result and that registration id remains the same

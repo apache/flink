@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Random;
 
-public class IntComparatorTest extends ComparatorTestBase<Integer> {
+class IntComparatorTest extends ComparatorTestBase<Integer> {
 
     @Override
     protected TypeComparator<Integer> createComparator(boolean ascending) {

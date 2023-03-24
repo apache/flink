@@ -32,7 +32,7 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 
 本页讲述了Flink CEP中可用的API，我们首先讲述[模式API](#模式api)，它可以让你指定想在数据流中检测的模式，然后讲述如何[检测匹配的事件序列并进行处理](#检测模式)。
 再然后我们讲述Flink在按照事件时间[处理迟到事件](#按照事件时间处理迟到事件)时的假设，
-以及如何从旧版本的Flink向1.3之后的版本[迁移作业](#从旧版本迁移13之前)。
+以及如何从旧版本的Flink向1.13之后的版本[迁移作业](#从旧版本迁移13之前)。
 
 
 
@@ -66,28 +66,13 @@ FlinkCEP 不是二进制发布包的一部分。在集群上执行如何链接�
 ```java
 DataStream<Event> input = ...;
 
-Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
-        new SimpleCondition<Event>() {
-            @Override
-            public boolean filter(Event event) {
-                return event.getId() == 42;
-            }
-        }
-    ).next("middle").subtype(SubEvent.class).where(
-        new SimpleCondition<SubEvent>() {
-            @Override
-            public boolean filter(SubEvent subEvent) {
-                return subEvent.getVolume() >= 10.0;
-            }
-        }
-    ).followedBy("end").where(
-         new SimpleCondition<Event>() {
-            @Override
-            public boolean filter(Event event) {
-                return event.getName().equals("end");
-            }
-         }
-    );
+Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+    .where(SimpleCondition.of(event -> event.getId() == 42))
+    .next("middle")
+    .subtype(SubEvent.class)
+    .where(SimpleCondition.of(subEvent -> subEvent.getVolume() >= 10.0))
+    .followedBy("end")
+    .where(SimpleCondition.of(event -> event.getName().equals("end")));
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
@@ -314,12 +299,7 @@ middle.oneOrMore()
 {{< tabs "20073e8b-3772-4faf-894c-e1bf2cbff15e" >}}
 {{< tab "Java" >}}
 ```java
-start.where(new SimpleCondition<Event>() {
-    @Override
-    public boolean filter(Event value) {
-        return value.getName().startsWith("foo");
-    }
-});
+start.where(SimpleCondition.of(value -> value.getName().startsWith("foo")));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -334,12 +314,8 @@ start.where(event => event.getName.startsWith("foo"))
 {{< tabs "5011129d-6c43-4fb7-84ae-3000d2296f28" >}}
 {{< tab "Java" >}}
 ```java
-start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
-    @Override
-    public boolean filter(SubEvent value) {
-        return ...; // 一些判断条件
-    }
-});
+start.subtype(SubEvent.class)
+    .where(SimpleCondition.of(value -> ... /*一些判断条件*/));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -355,17 +331,9 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* 一些判断条件 */)
 {{< tabs "ba6bc50b-c9f6-4534-aff8-b2957ada791b" >}}
 {{< tab "Java" >}}
 ```java
-pattern.where(new SimpleCondition<Event>() {
-    @Override
-    public boolean filter(Event value) {
-        return ...; // 一些判断条件
-    }
-}).or(new SimpleCondition<Event>() {
-    @Override
-    public boolean filter(Event value) {
-        return ...; // 一些判断条件
-    }
-});
+pattern
+    .where(SimpleCondition.of(value -> ... /*一些判断条件*/))
+    .or(SimpleCondition.of(value -> ... /*一些判断条件*/));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -388,21 +356,12 @@ pattern.where(event => ... /* 一些判断条件 */).or(event => ... /* 一些�
 
 你可以看到`{a1 a2 a3}`和`{a2 a3}`由于停止条件没有被输出。
 
-{{< tabs "3b2dea6b-1615-47cb-bec5-2a281666dc4c" >}}
+#### `where(condition)`
+
+为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。 多个连续的 where() 语句取与组成判断条件。
+
+{{< tabs "where" >}}
 {{< tab "Java" >}}
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th class="text-left" style="width: 25%">模式操作</th>
-            <th class="text-center">描述</th>
-        </tr>
-    </thead>
-    <tbody>
-       <tr>
-            <td><strong>where(condition)</strong></td>
-            <td>
-                <p>为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。
-                 多个连续的where()语句取与组成判断条件：</p>
 ```java
 pattern.where(new IterativeCondition<Event>() {
     @Override
@@ -411,233 +370,183 @@ pattern.where(new IterativeCondition<Event>() {
     }
 });
 ```
-            </td>
-        </tr>
-        <tr>
-            <td><strong>or(condition)</strong></td>
-            <td>
-                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+pattern.where(event => ... /* 一些判断条件 */)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `or(condition)`
+
+增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式。
+
+{{< tabs orcondition >}}
+{{< tab "Java" >}}
 ```java
 pattern.where(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // 一些判断条件
+        return ...; //  一些判断条件
     }
 }).or(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // 替代条件
+        return ...; // 替代条件 
     }
 });
 ```
-                    </td>
-       </tr>
-              <tr>
-                 <td><strong>until(condition)</strong></td>
-                 <td>
-                     <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
-                     <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
-                     <p><b>NOTE:</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+pattern.where(event => ... /* 一些判断条件 */)
+    .or(event => ... /* 替代条件  */)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `until(condition)`
+
+为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。
+只适用于和oneOrMore()同时使用。
+`NOTE:` 在基于事件的条件中，它可用于清理对应模式的状态。
+
+{{< tabs untilcond >}}
+{{< tab "Java" >}}
 ```java
 pattern.oneOrMore().until(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // 替代条件
+        return ...; // 替代条件 
     }
 });
 ```
-                 </td>
-              </tr>
-       <tr>
-           <td><strong>subtype(subClass)</strong></td>
-           <td>
-               <p>为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式：</p>
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+pattern.oneOrMore().until(event => ... /* 一些判断条件 */)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `subtype(subClass)`
+
+为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式。
+
+{{< tabs subtype >}}
+{{< tab "Java" >}}
 ```java
 pattern.subtype(SubEvent.class);
 ```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>oneOrMore()</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件至少出现一次。.</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-              <p><b>NOTE:</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
-```java
-pattern.oneOrMore();
-```
-          </td>
-       </tr>
-           <tr>
-              <td><strong>timesOrMore(#times)</strong></td>
-              <td>
-                  <p>指定模式期望匹配到的事件至少出现<strong>#times</strong>次。.</p>
-                  <p>默认（在子事件间）使用松散的内部连续性。
-                  关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```java
-pattern.timesOrMore(2);
-```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>times(#ofTimes)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件正好出现的次数。</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```java
-pattern.times(2);
-```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>times(#fromTimes, #toTimes)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件出现次数在<strong>#fromTimes</strong>和<strong>#toTimes</strong>之间。</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```java
-pattern.times(2, 4);
-```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>optional()</strong></td>
-          <td>
-              <p>指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。</p>
-```java
-pattern.oneOrMore().optional();
-```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>greedy()</strong></td>
-          <td>
-              <p>指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。</p>
-```java
-pattern.oneOrMore().greedy();
-```
-          </td>
-       </tr>
-  </tbody>
-</table>
 {{< /tab >}}
 {{< tab "Scala" >}}
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th class="text-left" style="width: 25%">模式操作</th>
-            <th class="text-center">描述</th>
-        </tr>
-	    </thead>
-    <tbody>
-
-        <tr>
-            <td><strong>where(condition)</strong></td>
-            <td>
-              <p>为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。
-              多个连续的where()语句取与组成判断条件：</p>
-```scala
-pattern.where(event => ... /* 一些判断条件 */)
-```
-            </td>
-        </tr>
-        <tr>
-            <td><strong>or(condition)</strong></td>
-            <td>
-                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
-```scala
-pattern.where(event => ... /* 一些判断条件 */)
-    .or(event => ... /* 替代条件 */)
-```
-                    </td>
-                </tr>
-<tr>
-          <td><strong>until(condition)</strong></td>
-          <td>
-              <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
-              <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
-              <p><b>提示：</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
-```scala
-pattern.oneOrMore().until(event => ... /* 替代条件 */)
-```
-          </td>
-       </tr>
-       <tr>
-           <td><strong>subtype(subClass)</strong></td>
-           <td>
-               <p>为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式：</p>
 ```scala
 pattern.subtype(classOf[SubEvent])
 ```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>oneOrMore()</strong></td>
-          <td>
-               <p>指定模式期望匹配到的事件至少出现一次。.</p>
-               <p>默认（在子事件间）使用松散的内部连续性。
-               关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-               <p><b>提示：</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `oneOrMore()`
+
+指定模式期望匹配到的事件至少出现一次。
+默认（在子事件间）使用松散的内部连续性。 关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+推荐使用 until()或者 within()来清理状态。
+
+{{< tabs oneormoe >}}
+{{< tab "Java" >}}
+```java
+pattern.oneOrMore();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
 ```scala
 pattern.oneOrMore()
 ```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>timesOrMore(#times)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件至少出现<strong>#times</strong>次。.</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```scala
-pattern.timesOrMore(2)
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `timesOrMore(#times)`
+
+指定模式期望匹配到的事件至少出现 #times 次。
+默认（在子事件间）使用松散的内部连续性。 关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+
+{{< tabs timesormore >}}
+{{< tab "Java" >}}
+```java
+pattern.timesOrMore(2);
 ```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>times(#ofTimes)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件正好出现的次数。</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `times(#ofTimes)`
+
+指定模式期望匹配到的事件正好出现的次数。
+默认（在子事件间）使用松散的内部连续性。
+关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+
+{{< tabs times >}}
+{{< tab "Java" >}}
+```java
+pattern.times(2);
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
 ```scala
 pattern.times(2)
 ```
-                 </td>
-       </tr>
-       <tr>
-         <td><strong>times(#fromTimes, #toTimes)</strong></td>
-         <td>
-             <p>指定模式期望匹配到的事件出现次数在<strong>#fromTimes</strong>和<strong>#toTimes</strong>之间。</p>
-             <p>默认（在子事件间）使用松散的内部连续性。
-             关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```scala
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `times(#fromTimes, #toTimes)`
+
+指定模式期望匹配到的事件出现次数在#fromTimes和#toTimes之间。
+默认（在子事件间）使用松散的内部连续性。 关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+
+{{< tabs timesrange >}}
+{{< tab "Java" >}}
+```java
+pattern.times(2, 4);
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
 pattern.times(2, 4)
 ```
-         </td>
-       </tr>
-       <tr>
-          <td><strong>optional()</strong></td>
-          <td>
-             <p>指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。</p>
-```scala
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `optional()`
+
+指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。
+
+{{< tabs optional >}}
+{{< tab "Java" >}}
+```java
+pattern.oneOrMore().optional();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
 pattern.oneOrMore().optional()
 ```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>greedy()</strong></td>
-          <td>
-             <p>指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。</p>
-```scala
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `greedy()`
+
+指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。
+
+{{< tabs greedy >}}
+{{< tab "Java" >}}
+```java
+pattern.oneOrMore().greedy();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
 pattern.oneOrMore().greedy()
 ```
-          </td>
-       </tr>
-  </tbody>
-</table>
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -680,7 +589,7 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 2. `notFollowedBy()`，如果不想一个特定事件发生在两个事件之间的任何地方。
 
 {{< hint warning >}}
-模式序列不能以`notFollowedBy()`结尾。
+如果模式序列没有定义时间约束，则不能以 `notFollowedBy()` 结尾。
 {{< /hint >}}
 
 {{< hint warning >}}
@@ -760,6 +669,29 @@ next.within(Time.seconds(10))
 {{< /tab >}}
 {{< /tabs >}}
 
+注意定义过时间约束的模式允许以 `notFollowedBy()` 结尾。
+例如，可以定义如下的模式:
+
+{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
+{{< tab "Java" >}}
+```java
+Pattern.<Event>begin("start")
+    .next("middle")
+    .where(SimpleCondition.of(value -> value.getName().equals("a")))
+    .notFollowedBy("end")
+    .where(SimpleCondition.of(value -> value.getName().equals("b")))
+    .within(Time.seconds(10));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+Pattern.begin("start").where(_.getName().equals("a"))
+.notFollowedBy("end").where(_.getName == "b")
+.within(Time.seconds(10))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 #### 循环模式中的连续性
 
 你可以在循环模式中使用和前面[章节](#组合模式)讲过的同样的连续性。
@@ -767,7 +699,7 @@ next.within(Time.seconds(10))
 用这个例子来说明上面所说的连续性，一个模式序列`"a b+ c"`（`"a"`后面跟着一个或者多个（不确定连续的）`"b"`，然后跟着一个`"c"`）
 输入为`"a"，"b1"，"d1"，"b2"，"d2"，"b3"，"c"`，输出结果如下：
 
- 1. **严格连续**: `{a b3 c}` -- `"b1"`之后的`"d1"`导致`"b1"`被丢弃，同样`"b2"`因为`"d2"`被丢弃。
+ 1. **严格连续**: `{a b1 c}`, `{a b2 c}`, `{a b3 c}` - 没有相邻的 `"b"` 。
 
  2. **松散连续**: `{a b1 c}`，`{a b1 b2 c}`，`{a b1 b2 b3 c}`，`{a b2 c}`，`{a b2 b3 c}`，`{a b3 c}` - `"d"`都被忽略了。
 
@@ -796,24 +728,14 @@ next.within(Time.seconds(10))
 
               <p>例如，一个如下的模式：</p>
 ```java
-Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("c");
-  }
-})
-.followedBy("middle").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("a");
-  }
-}).oneOrMore().consecutive()
-.followedBy("end1").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("b");
-  }
-});
+Pattern.<Event>begin("start")
+    .where(SimpleCondition.of(value -> value.getName().equals("c")))
+    .followedBy("middle")
+    .where(SimpleCondition.of(value -> value.getName().equals("a")))
+    .oneOrMore()
+    .consecutive()
+    .followedBy("end1")
+    .where(SimpleCondition.of(value -> value.getName().equals("b")));
 ```
               <p>输入：C D A1 A2 A3 D A4 B，会产生下面的输出：</p>
 
@@ -830,24 +752,14 @@ Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 
               <p>例如，一个如下的模式：</p>
 ```java
-Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("c");
-  }
-})
-.followedBy("middle").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("a");
-  }
-}).oneOrMore().allowCombinations()
-.followedBy("end1").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("b");
-  }
-});
+Pattern.<Event>begin("start")
+    .where(SimpleCondition.of(value -> value.getName().equals("c")))
+    .followedBy("middle")
+    .where(SimpleCondition.of(value -> value.getName().equals("a")))
+    .oneOrMore()
+    .allowCombinations()
+    .followedBy("end1")
+    .where(SimpleCondition.of(value -> value.getName().equals("b")));
 ```
                <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
 
@@ -1391,7 +1303,7 @@ Pattern.begin("patternName", skipStrategy)
 {{< /tabs >}}
 
 {{< hint info >}}
-使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应的变量名上的情况。
+使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应模式名上的情况。
 默认情况下会使用NO_SKIP策略，另外一个选项是抛出异常。
 可以使用如下的选项：
 {{< /hint >}}
@@ -1639,7 +1551,7 @@ public interface TimeContext {
 
 用于配置 Flink CEP 的 `SharedBuffer` 缓存容量的选项。它可以加快 CEP 算子的处理速度，并限制内存中缓存的元素数量。
 
-<span class="label label-info">Note</span> 仅当 `state.backend` 设置为 `rocksdb` 时限制内存使用才有效，这会将超过缓存数量的元素传输到 `rocksdb` 状态存储而不是内存状态存储。当 `state.backend` 设置为 `rocksdb` 时，这些配置项有助于限制内存。相比之下，当 `state.backend` 设置为非 `rocksdb` 时，缓存会导致性能下降。与使用 `Map` 实现的旧缓存相比，状态部分将包含更多从 `guava-cache` 换出的元素，这将使得 `copy on write` 时的状态处理增加一些开销。
+<span class="label label-info">Note</span> 仅当 `state.backend.type` 设置为 `rocksdb` 时限制内存使用才有效，这会将超过缓存数量的元素传输到 `rocksdb` 状态存储而不是内存状态存储。当 `state.backend.type` 设置为 `rocksdb` 时，这些配置项有助于限制内存。相比之下，当 `state.backend` 设置为非 `rocksdb` 时，缓存会导致性能下降。与使用 `Map` 实现的旧缓存相比，状态部分将包含更多从 `guava-cache` 换出的元素，这将使得 `copy on write` 时的状态处理增加一些开销。
 
 {{< generated/cep_cache_configuration >}}
 
@@ -1663,17 +1575,11 @@ DataStream<Event> partitionedInput = input.keyBy(new KeySelector<Event, Integer>
 });
 
 Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-	.next("middle").where(new SimpleCondition<Event>() {
-		@Override
-		public boolean filter(Event value) throws Exception {
-			return value.getName().equals("error");
-		}
-	}).followedBy("end").where(new SimpleCondition<Event>() {
-		@Override
-		public boolean filter(Event value) throws Exception {
-			return value.getName().equals("critical");
-		}
-	}).within(Time.seconds(10));
+    .next("middle")
+    .where(SimpleCondition.of(value -> value.getName().equals("error")))
+    .followedBy("end")
+    .where(SimpleCondition.of(value -> value.getName().equals("critical")))
+    .within(Time.seconds(10));
 
 PatternStream<Event> patternStream = CEP.pattern(partitionedInput, pattern);
 

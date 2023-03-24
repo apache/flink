@@ -26,7 +26,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link BlackHoleTableSinkFactory}. */
-public class BlackHoleSinkFactoryTest {
+class BlackHoleSinkFactoryTest {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(
@@ -47,7 +47,7 @@ public class BlackHoleSinkFactoryTest {
                     Column.physical("f2", DataTypes.BIGINT()));
 
     @Test
-    public void testBlackHole() {
+    void testBlackHole() {
         Map<String, String> properties = new HashMap<>();
         properties.put("connector", "blackhole");
 
@@ -59,7 +59,7 @@ public class BlackHoleSinkFactoryTest {
     }
 
     @Test
-    public void testWrongKey() {
+    void testWrongKey() {
         try {
             Map<String, String> properties = new HashMap<>();
             properties.put("connector", "blackhole");

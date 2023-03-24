@@ -23,9 +23,10 @@ networks:
 
 services:
   kdc:
+    build: kdc
     container_name: "kdc"
     hostname: kdc.kerberos.com
-    image: sequenceiq/kerberos
+    image: flink/test-kdc:latest
     networks:
       - docker-hadoop-cluster-network
     environment:
@@ -33,7 +34,8 @@ services:
       DOMAIN_REALM: kdc.kerberos.com
 
   master:
-    image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/docker-hadoop-secure-cluster:latest}
+    build: hadoop
+    image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/test-hadoop:latest}
     command: master
     depends_on:
       - kdc
@@ -46,7 +48,8 @@ services:
       DOMAIN_REALM: kdc.kerberos.com
 
   worker1:
-    image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/docker-hadoop-secure-cluster:latest}
+    build: hadoop
+    image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/test-hadoop:latest}
     command: worker
     depends_on:
       - kdc
@@ -60,7 +63,8 @@ services:
       DOMAIN_REALM: kdc.kerberos.com
 
   worker2:
-    image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/docker-hadoop-secure-cluster:latest}
+    build: hadoop
+    image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/test-hadoop:latest}
     command: worker
     depends_on:
       - kdc

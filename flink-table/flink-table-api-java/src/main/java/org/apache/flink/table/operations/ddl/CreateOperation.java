@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.Operation;
 
 /**
@@ -30,4 +31,4 @@ import org.apache.flink.table.operations.Operation;
  * instance.
  */
 @Internal
-public interface CreateOperation extends Operation {}
+public interface CreateOperation extends Operation, ExecutableOperation {}

@@ -23,12 +23,17 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.rocksdb.Cache;
 import org.rocksdb.LRUCache;
 import org.rocksdb.WriteBufferManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
 
 /**
  * Utils to create {@link Cache} and {@link WriteBufferManager} which are used to control total
  * memory usage of RocksDB.
  */
 public class RocksDBMemoryControllerUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBMemoryControllerUtils.class);
 
     /**
      * Allocate memory controllable RocksDB shared resources.
@@ -36,27 +41,33 @@ public class RocksDBMemoryControllerUtils {
      * @param totalMemorySize The total memory limit size.
      * @param writeBufferRatio The ratio of total memory which is occupied by write buffer manager.
      * @param highPriorityPoolRatio The high priority pool ratio of cache.
+     * @param factory creates Write Buffer Manager and Bock Cache
      * @return memory controllable RocksDB shared resources.
      */
     public static RocksDBSharedResources allocateRocksDBSharedResources(
             long totalMemorySize,
             double writeBufferRatio,
             double highPriorityPoolRatio,
-            boolean usingPartitionedIndexFilters) {
+            boolean usingPartitionedIndexFilters,
+            RocksDBMemoryFactory factory) {
+
         long calculatedCacheCapacity =
                 RocksDBMemoryControllerUtils.calculateActualCacheCapacity(
                         totalMemorySize, writeBufferRatio);
-        final Cache cache =
-                RocksDBMemoryControllerUtils.createCache(
-                        calculatedCacheCapacity, highPriorityPoolRatio);
+        final Cache cache = factory.createCache(calculatedCacheCapacity, highPriorityPoolRatio);
 
         long writeBufferManagerCapacity =
                 RocksDBMemoryControllerUtils.calculateWriteBufferManagerCapacity(
                         totalMemorySize, writeBufferRatio);
         final WriteBufferManager wbm =
-                RocksDBMemoryControllerUtils.createWriteBufferManager(
-                        writeBufferManagerCapacity, cache);
+                factory.createWriteBufferManager(writeBufferManagerCapacity, cache);
 
+        LOG.debug(
+                "Allocated RocksDB shared resources, calculatedCacheCapacity: {}, highPriorityPoolRatio: {}, writeBufferManagerCapacity: {}, usingPartitionedIndexFilters: {}",
+                calculatedCacheCapacity,
+                highPriorityPoolRatio,
+                writeBufferManagerCapacity,
+                usingPartitionedIndexFilters);
         return new RocksDBSharedResources(
                 cache, wbm, writeBufferManagerCapacity, usingPartitionedIndexFilters);
     }
@@ -82,7 +93,7 @@ public class RocksDBMemoryControllerUtils {
      * @return The actual calculated cache capacity.
      */
     @VisibleForTesting
-    static long calculateActualCacheCapacity(long totalMemorySize, double writeBufferRatio) {
+    public static long calculateActualCacheCapacity(long totalMemorySize, double writeBufferRatio) {
         return (long) ((3 - writeBufferRatio) * totalMemorySize / 3);
     }
 
@@ -158,5 +169,28 @@ public class RocksDBMemoryControllerUtils {
     @VisibleForTesting
     static boolean validateArenaBlockSize(long arenaBlockSize, long mutableLimit) {
         return arenaBlockSize <= mutableLimit;
+    }
+
+    /** Factory for Write Buffer Manager and Bock Cache. */
+    public interface RocksDBMemoryFactory extends Serializable {
+        Cache createCache(long cacheCapacity, double highPriorityPoolRatio);
+
+        WriteBufferManager createWriteBufferManager(long writeBufferManagerCapacity, Cache cache);
+
+        RocksDBMemoryFactory DEFAULT =
+                new RocksDBMemoryFactory() {
+                    @Override
+                    public Cache createCache(long cacheCapacity, double highPriorityPoolRatio) {
+                        return RocksDBMemoryControllerUtils.createCache(
+                                cacheCapacity, highPriorityPoolRatio);
+                    }
+
+                    @Override
+                    public WriteBufferManager createWriteBufferManager(
+                            long writeBufferManagerCapacity, Cache cache) {
+                        return RocksDBMemoryControllerUtils.createWriteBufferManager(
+                                writeBufferManagerCapacity, cache);
+                    }
+                };
     }
 }

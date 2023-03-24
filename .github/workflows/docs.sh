@@ -23,16 +23,23 @@ java -version
 javadoc -J-version
 
 # setup hugo
-HUGO_REPO=https://github.com/gohugoio/hugo/releases/download/v0.80.0/hugo_extended_0.80.0_Linux-64bit.tar.gz
-HUGO_ARTIFACT=hugo_extended_0.80.0_Linux-64bit.tar.gz
+HUGO_REPO=https://github.com/gohugoio/hugo/releases/download/v0.110.0/hugo_extended_0.110.0_Linux-64bit.tar.gz
+HUGO_ARTIFACT=hugo_extended_0.110.0_Linux-64bit.tar.gz
 if ! curl --fail -OL $HUGO_REPO ; then
 	echo "Failed to download Hugo binary"
 	exit 1
 fi
-tar -zxvf $HUGO_ARTIFACT
+tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin
 git submodule update --init --recursive
+# Setup the external documentation modules
+cd docs
+source setup_docs.sh
+cd ..
+# Build the docs
+hugo --source docs
+
 # generate docs into docs/target
-./hugo -v --source docs --destination target
+hugo -v --source docs --destination target
 if [ $? -ne 0 ]; then
 	echo "Error building the docs"
 	exit 1
@@ -44,7 +51,6 @@ mvn clean install -B -DskipTests -Dfast -Pskip-webui-build
 # build java/scala docs
 mkdir -p docs/target/api
 mvn javadoc:aggregate -B \
-    -Paggregate-scaladoc \
     -DadditionalJOption="-Xdoclint:none --allow-script-in-comments" \
     -Dmaven.javadoc.failOnError=false \
     -Dcheckstyle.skip=true \

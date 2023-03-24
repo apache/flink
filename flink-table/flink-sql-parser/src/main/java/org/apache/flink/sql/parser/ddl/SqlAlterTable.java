@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.SqlPartitionUtils;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -31,13 +32,15 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName
- * ...
+ * Abstract class to describe statements like ALTER TABLE [IF EXISTS] [[catalogName.]
+ * dataBasesName].tableName ...
  */
 public abstract class SqlAlterTable extends SqlCall {
 
@@ -46,16 +49,26 @@ public abstract class SqlAlterTable extends SqlCall {
 
     protected final SqlIdentifier tableIdentifier;
     protected final SqlNodeList partitionSpec;
+    protected final boolean ifTableExists;
 
     public SqlAlterTable(
-            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            @Nullable SqlNodeList partitionSpec,
+            boolean ifTableExists) {
         super(pos);
         this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
         this.partitionSpec = partitionSpec;
+        this.ifTableExists = ifTableExists;
     }
 
-    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
-        this(pos, tableName, null);
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
+        this(pos, tableName, null, ifTableExists);
+    }
+
+    public SqlAlterTable(
+            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+        this(pos, tableName, partitionSpec, false);
     }
 
     @Override
@@ -70,6 +83,9 @@ public abstract class SqlAlterTable extends SqlCall {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("ALTER TABLE");
+        if (ifTableExists) {
+            writer.keyword("IF EXISTS");
+        }
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
         SqlNodeList partitionSpec = getPartitionSpec();
         if (partitionSpec != null && partitionSpec.size() > 0) {
@@ -93,5 +109,19 @@ public abstract class SqlAlterTable extends SqlCall {
     /** Get partition spec as key-value strings. */
     public LinkedHashMap<String, String> getPartitionKVs() {
         return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+    }
+
+    /**
+     * Whether to ignore the error if the table doesn't exist.
+     *
+     * @return true when IF EXISTS is specified.
+     */
+    public boolean ifTableExists() {
+        return ifTableExists;
+    }
+
+    /** Alter table context. */
+    public static class AlterTableContext extends SqlCreateTable.TableCreationContext {
+        public List<SqlNode> columnPositions = new ArrayList<>();
     }
 }

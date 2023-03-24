@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.optimize
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, RexFactory}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
@@ -39,7 +39,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
+    val rootBlocks =
+      RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks
@@ -101,12 +102,13 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
         override def getModuleManager: ModuleManager = planner.moduleManager
 
-        override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
-          context.getSqlExprToRexConverterFactory
+        override def getRexFactory: RexFactory = context.getRexFactory
 
-        override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+        override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
         override def needFinalTimeIndicatorConversion: Boolean = true
+
+        override def getClassLoader: ClassLoader = context.getClassLoader
       }
     )
   }

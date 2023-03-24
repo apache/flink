@@ -37,6 +37,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName.{TIME, TIMESTAMP}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
+import org.apache.calcite.util.NumberUtil.multiply
 
 import java.math.BigDecimal
 import java.util
@@ -245,6 +246,86 @@ object FlinkRelMdUtil {
       pushable.add(fun)
     }
     RexUtil.composeConjunction(rexBuilder, pushable, true)
+  }
+
+  /**
+   * This method is copied from calcite RelMdUtil and line 324 ~ 328 are changed. This method should
+   * be removed once CALCITE-4351 is fixed. See CALCITE-4351 and FLINK-19780.
+   *
+   * Computes the number of distinct rows for a set of keys returned from a join. Also known as NDV
+   * (number of distinct values).
+   *
+   * @param joinRel
+   *   RelNode representing the join
+   * @param joinType
+   *   type of join
+   * @param groupKey
+   *   keys that the distinct row count will be computed for
+   * @param predicate
+   *   join predicate
+   * @param useMaxNdv
+   *   If true use formula <code>max(left NDV, right NDV)</code>, otherwise use <code>left NDV *
+   *   right NDV</code>.
+   * @return
+   *   number of distinct rows
+   */
+  def getJoinDistinctRowCount(
+      mq: RelMetadataQuery,
+      joinRel: RelNode,
+      joinType: JoinRelType,
+      groupKey: ImmutableBitSet,
+      predicate: RexNode,
+      useMaxNdv: Boolean): JDouble = {
+    if ((predicate == null || predicate.isAlwaysTrue) && groupKey.isEmpty) {
+      return 1d
+    }
+    val join = joinRel.asInstanceOf[Join]
+    if (join.isSemiJoin) {
+      return RelMdUtil.getSemiJoinDistinctRowCount(join, mq, groupKey, predicate)
+    }
+    val leftMask = ImmutableBitSet.builder
+    val rightMask = ImmutableBitSet.builder
+    val left = joinRel.getInputs.get(0)
+    val right = joinRel.getInputs.get(1)
+    RelMdUtil.setLeftRightBitmaps(groupKey, leftMask, rightMask, left.getRowType.getFieldCount)
+    // determine which filters apply to the left vs right
+    val (leftPred, rightPred) = if (predicate != null) {
+      val leftFilters = new util.ArrayList[RexNode]
+      val rightFilters = new util.ArrayList[RexNode]
+      val joinFilters = new util.ArrayList[RexNode]
+      val predList = RelOptUtil.conjunctions(predicate)
+      RelOptUtil.classifyFilters(
+        joinRel,
+        predList,
+        joinType.canPushIntoFromAbove,
+        joinType.canPushLeftFromAbove,
+        joinType.canPushRightFromAbove,
+        joinFilters,
+        leftFilters,
+        rightFilters)
+      val rexBuilder = joinRel.getCluster.getRexBuilder
+      val leftResult = RexUtil.composeConjunction(rexBuilder, leftFilters, true)
+      val rightResult = RexUtil.composeConjunction(rexBuilder, rightFilters, true)
+      (leftResult, rightResult)
+    } else {
+      (null, null)
+    }
+
+    val distRowCount = if (useMaxNdv) {
+      NumberUtil.max(
+        mq.getDistinctRowCount(left, leftMask.build, leftPred),
+        mq.getDistinctRowCount(right, rightMask.build, rightPred))
+    } else {
+      multiply(
+        mq.getDistinctRowCount(left, leftMask.build, leftPred),
+        mq.getDistinctRowCount(right, rightMask.build, rightPred))
+    }
+    val rowCount = mq.getRowCount(joinRel)
+    if (distRowCount == null || rowCount == null) {
+      null
+    } else {
+      FlinkRelMdUtil.numDistinctVals(distRowCount, rowCount)
+    }
   }
 
   /**

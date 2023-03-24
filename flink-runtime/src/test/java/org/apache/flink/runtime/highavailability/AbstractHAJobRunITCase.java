@@ -20,7 +20,6 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -96,7 +95,7 @@ public abstract class AbstractHAJobRunITCase {
         final JobStatus jobStatus =
                 FutureUtils.retrySuccessfulWithDelay(
                                 () -> flinkCluster.getJobStatus(jobGraph.getJobID()),
-                                Time.milliseconds(10),
+                                Duration.ofMillis(10),
                                 deadline,
                                 status -> flinkCluster.isRunning() && status == JobStatus.FINISHED,
                                 new ScheduledExecutorServiceAdapter(

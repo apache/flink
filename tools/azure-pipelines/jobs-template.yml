@@ -92,10 +92,10 @@ jobs:
         module: python
       table:
         module: table
-      connectors:
-        module: connectors
-      kafka_gelly:
-        module: kafka/gelly
+      connect_1:
+        module: connect_1
+      connect_2:
+        module: connect_2
       tests:
         module: tests
       misc:
@@ -156,8 +156,6 @@ jobs:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
       IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
       IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
-      IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
-      IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()

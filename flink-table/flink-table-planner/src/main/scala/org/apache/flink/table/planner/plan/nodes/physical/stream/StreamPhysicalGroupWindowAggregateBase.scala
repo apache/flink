@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
 
 /** Base streaming group window aggregate physical node for either aggregate or table aggregate. */
@@ -33,12 +33,18 @@ abstract class StreamPhysicalGroupWindowAggregateBase(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     val window: LogicalWindow,
-    val namedWindowProperties: Seq[NamedWindowProperty],
+    namedWindowProperties: Seq[NamedWindowProperty],
     val emitStrategy: WindowEmitStrategy)
-  extends SingleRel(cluster, traitSet, inputRel)
+  extends StreamPhysicalWindowAggregateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    grouping,
+    aggCalls,
+    namedWindowProperties)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = window match {

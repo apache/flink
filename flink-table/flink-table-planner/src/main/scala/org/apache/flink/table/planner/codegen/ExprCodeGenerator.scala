@@ -351,6 +351,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
+    // for specific custom code generation
+    if (input1Type == null) {
+      return GeneratedExpression(
+        inputRef.getName,
+        inputRef.getName + "IsNull",
+        NO_CODE,
+        FlinkTypeFactory.toLogicalType(inputRef.getType))
+    }
+    // for the general cases with a previous call to bindInput()
     val input1Arity = input1Type match {
       case r: RowType => r.getFieldCount
       case _ => 1
@@ -537,8 +546,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case MULTIPLY if isTimeInterval(resultType) =>
         val left = operands.head
         val right = operands(1)
-        requireTimeInterval(left)
-        requireNumeric(right)
+        requireNumericAndTimeInterval(left, right)
         generateBinaryArithmeticOperator(ctx, "*", resultType, left, right)
 
       case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
@@ -563,7 +571,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case UNARY_MINUS if isTimeInterval(resultType) =>
         val operand = operands.head
         requireTimeInterval(operand)
-        generateUnaryIntervalPlusMinus(ctx, plus = false, operand)
+        generateUnaryIntervalPlusMinus(ctx, plus = false, resultType, operand)
 
       case UNARY_PLUS if isNumeric(resultType) =>
         val operand = operands.head
@@ -573,59 +581,64 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case UNARY_PLUS if isTimeInterval(resultType) =>
         val operand = operands.head
         requireTimeInterval(operand)
-        generateUnaryIntervalPlusMinus(ctx, plus = true, operand)
+        generateUnaryIntervalPlusMinus(ctx, plus = true, resultType, operand)
 
       // comparison
       case EQUALS =>
         val left = operands.head
         val right = operands(1)
-        generateEquals(ctx, left, right)
+        generateEquals(ctx, left, right, resultType)
+
+      case IS_DISTINCT_FROM =>
+        val left = operands.head
+        val right = operands(1)
+        generateIsDistinctFrom(ctx, left, right, resultType)
 
       case IS_NOT_DISTINCT_FROM =>
         val left = operands.head
         val right = operands(1)
-        generateIsNotDistinctFrom(ctx, left, right)
+        generateIsNotDistinctFrom(ctx, left, right, resultType)
 
       case NOT_EQUALS =>
         val left = operands.head
         val right = operands(1)
-        generateNotEquals(ctx, left, right)
+        generateNotEquals(ctx, left, right, resultType)
 
       case GREATER_THAN =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, ">", left, right)
+        generateComparison(ctx, ">", left, right, resultType)
 
       case GREATER_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, ">=", left, right)
+        generateComparison(ctx, ">=", left, right, resultType)
 
       case LESS_THAN =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, "<", left, right)
+        generateComparison(ctx, "<", left, right, resultType)
 
       case LESS_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, "<=", left, right)
+        generateComparison(ctx, "<=", left, right, resultType)
 
       case IS_NULL =>
         val operand = operands.head
-        generateIsNull(operand)
+        generateIsNull(operand, resultType)
 
       case IS_NOT_NULL =>
         val operand = operands.head
-        generateIsNotNull(operand)
+        generateIsNotNull(operand, resultType)
 
       // logic
       case AND =>
@@ -633,7 +646,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           (left: GeneratedExpression, right: GeneratedExpression) =>
             requireBoolean(left)
             requireBoolean(right)
-            generateAnd(left, right)
+            generateAnd(left, right, resultType)
         }
 
       case OR =>
@@ -641,13 +654,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           (left: GeneratedExpression, right: GeneratedExpression) =>
             requireBoolean(left)
             requireBoolean(right)
-            generateOr(left, right)
+            generateOr(left, right, resultType)
         }
 
       case NOT =>
         val operand = operands.head
         requireBoolean(operand)
-        generateNot(ctx, operand)
+        generateNot(ctx, operand, resultType)
 
       case CASE =>
         generateIfElse(ctx, operands, resultType)
@@ -655,22 +668,22 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case IS_TRUE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsTrue(operand)
+        generateIsTrue(operand, resultType)
 
       case IS_NOT_TRUE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsNotTrue(operand)
+        generateIsNotTrue(operand, resultType)
 
       case IS_FALSE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsFalse(operand)
+        generateIsFalse(operand, resultType)
 
       case IS_NOT_FALSE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsNotFalse(operand)
+        generateIsNotFalse(operand, resultType)
 
       // casting
       case CAST =>
@@ -728,11 +741,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         operands.head.resultType match {
           case t: LogicalType if TypeCheckUtils.isArray(t) =>
             val array = operands.head
-            generateArrayCardinality(ctx, array)
+            generateArrayCardinality(ctx, array, resultType)
 
           case t: LogicalType if TypeCheckUtils.isMap(t) =>
             val map = operands.head
-            generateMapCardinality(ctx, map)
+            generateMapCardinality(ctx, map, resultType)
 
           case _ => throw new CodeGenException("Expect an array or a map.")
         }
@@ -801,7 +814,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call).generate(ctx, operands, resultType)
 
-          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS =>
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS |
+              BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS =>
             val left = operands.head
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)

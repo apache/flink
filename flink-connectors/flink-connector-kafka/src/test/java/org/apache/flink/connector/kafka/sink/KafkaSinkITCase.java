@@ -67,11 +67,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -99,7 +95,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -109,13 +104,8 @@ import java.util.stream.LongStream;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.hasItems;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for using KafkaSink writing to a Kafka cluster. */
 public class KafkaSinkITCase extends TestLogger {
@@ -223,8 +213,7 @@ public class KafkaSinkITCase extends TestLogger {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.AT_LEAST_ONCE,
                 1,
-                (records) ->
-                        assertThat(records, hasItems(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)));
+                (records) -> assertThat(records).contains(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L));
     }
 
     @Test
@@ -233,12 +222,11 @@ public class KafkaSinkITCase extends TestLogger {
                 DeliveryGuarantee.EXACTLY_ONCE,
                 1,
                 (records) ->
-                        assertThat(
-                                records,
-                                contains(
-                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                        assertThat(records)
+                                .contains(
+                                        (LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                                 .boxed()
-                                                .toArray())));
+                                                .toArray(Long[]::new))));
     }
 
     @Test
@@ -247,12 +235,11 @@ public class KafkaSinkITCase extends TestLogger {
                 DeliveryGuarantee.EXACTLY_ONCE,
                 2,
                 (records) ->
-                        assertThat(
-                                records,
-                                contains(
+                        assertThat(records)
+                                .contains(
                                         LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                                 .boxed()
-                                                .toArray())));
+                                                .toArray(Long[]::new)));
     }
 
     @Test
@@ -271,9 +258,8 @@ public class KafkaSinkITCase extends TestLogger {
         try {
             executeWithMapper(new FailAsyncCheckpointMapper(1), config, "firstPrefix");
         } catch (Exception e) {
-            assertThat(
-                    e.getCause().getCause().getMessage(),
-                    containsString("Exceeded checkpoint tolerable failure"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("Exceeded checkpoint tolerable failure");
         }
         final File completedCheckpoint = TestUtils.getMostRecentCompletedCheckpoint(checkpointDir);
 
@@ -286,12 +272,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new FailingCheckpointMapper(failed, lastCheckpointedRecord), config, "newPrefix");
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
                 drainAllRecordsFromTopic(topic, true);
-        assertThat(
-                deserializeValues(collectedRecords),
-                contains(
+        assertThat(deserializeValues(collectedRecords))
+                .contains(
                         LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                 .boxed()
-                                .toArray()));
+                                .toArray(Long[]::new));
     }
 
     @Test
@@ -302,11 +287,10 @@ public class KafkaSinkITCase extends TestLogger {
         try {
             executeWithMapper(new FailAsyncCheckpointMapper(0), config, null);
         } catch (Exception e) {
-            assertThat(
-                    e.getCause().getCause().getMessage(),
-                    containsString("Exceeded checkpoint tolerable failure"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("Exceeded checkpoint tolerable failure");
         }
-        assertTrue(deserializeValues(drainAllRecordsFromTopic(topic, true)).isEmpty());
+        assertThat(deserializeValues(drainAllRecordsFromTopic(topic, true))).isEmpty();
 
         // Second job aborts all transactions from previous runs with higher parallelism
         config.set(CoreOptions.DEFAULT_PARALLELISM, 1);
@@ -315,12 +299,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new FailingCheckpointMapper(failed, lastCheckpointedRecord), config, null);
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
                 drainAllRecordsFromTopic(topic, true);
-        assertThat(
-                deserializeValues(collectedRecords),
-                contains(
+        assertThat(deserializeValues(collectedRecords))
+                .contains(
                         LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                 .boxed()
-                                .toArray()));
+                                .toArray(Long[]::new));
     }
 
     private void executeWithMapper(
@@ -335,7 +318,7 @@ public class KafkaSinkITCase extends TestLogger {
         final DataStream<Long> stream = source.map(mapper);
         final KafkaSinkBuilder<Long> builder =
                 new KafkaSinkBuilder<Long>()
-                        .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
+                        .setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
@@ -365,7 +348,7 @@ public class KafkaSinkITCase extends TestLogger {
 
         stream.sinkTo(
                 new KafkaSinkBuilder<Long>()
-                        .setDeliverGuarantee(guarantee)
+                        .setDeliveryGuarantee(guarantee)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
@@ -394,7 +377,7 @@ public class KafkaSinkITCase extends TestLogger {
         source.sinkTo(
                 new KafkaSinkBuilder<Long>()
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
-                        .setDeliverGuarantee(deliveryGuarantee)
+                        .setDeliveryGuarantee(deliveryGuarantee)
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
                                         .setTopic(topic)
@@ -408,10 +391,9 @@ public class KafkaSinkITCase extends TestLogger {
                 drainAllRecordsFromTopic(
                         topic, deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE);
         final long recordsCount = expectedRecords.get().get();
-        assertEquals(collectedRecords.size(), recordsCount);
-        assertThat(
-                deserializeValues(collectedRecords),
-                contains(LongStream.range(1, recordsCount + 1).boxed().toArray()));
+        assertThat(recordsCount).isEqualTo(collectedRecords.size());
+        assertThat(deserializeValues(collectedRecords))
+                .contains(LongStream.range(1, recordsCount + 1).boxed().toArray(Long[]::new));
         checkProducerLeak();
     }
 
@@ -440,31 +422,19 @@ public class KafkaSinkITCase extends TestLogger {
         return standardProps;
     }
 
-    private static Consumer<byte[], byte[]> createTestConsumer(
-            String topic, Properties properties) {
-        final Properties consumerConfig = new Properties();
-        consumerConfig.putAll(properties);
-        consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
-        consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        final KafkaConsumer<byte[], byte[]> kafkaConsumer = new KafkaConsumer<>(consumerConfig);
-        kafkaConsumer.subscribe(Collections.singletonList(topic));
-        return kafkaConsumer;
-    }
-
     private void createTestTopic(String topic, int numPartitions, short replicationFactor)
             throws ExecutionException, InterruptedException, TimeoutException {
         final CreateTopicsResult result =
                 admin.createTopics(
                         Collections.singletonList(
                                 new NewTopic(topic, numPartitions, replicationFactor)));
-        result.all().get(1, TimeUnit.MINUTES);
+        result.all().get();
     }
 
     private void deleteTestTopic(String topic)
             throws ExecutionException, InterruptedException, TimeoutException {
         final DeleteTopicsResult result = admin.deleteTopics(Collections.singletonList(topic));
-        result.all().get(1, TimeUnit.MINUTES);
+        result.all().get();
     }
 
     private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(

@@ -18,19 +18,21 @@
 package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.planner.expressions.utils.Func0
+import org.apache.flink.table.planner.factories.TestValuesCatalog
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-import org.apache.flink.util.FileUtils
+import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
 import org.junit.{Before, Rule, Test}
-import org.junit.Assert.{assertEquals, assertNotEquals, fail}
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -39,8 +41,10 @@ import java.io.File
 import java.math.{BigDecimal => JBigDecimal}
 import java.net.URI
 import java.util
+import java.util.UUID
 
 import scala.collection.JavaConversions._
+import scala.util.Random
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
@@ -1057,6 +1061,61 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
+  def testCreateTableWithCommentAndShowCreateTable(): Unit = {
+    val executedDDL =
+      """
+        |create temporary table TBL1 (
+        |  pk1 bigint not null comment 'this is column pk1 which part of primary key',
+        |  h string,
+        |  a bigint,
+        |  g as 2*(a+1) comment 'notice: computed column, expression ''2*(`a`+1)''.',
+        |  pk2 string not null comment 'this is column pk2 which part of primary key',
+        |  c bigint metadata virtual comment 'notice: metadata column, named ''c''.',
+        |  e row<name string, age int, flag boolean>,
+        |  f as myfunc(a),
+        |  ts1 timestamp(3) comment 'notice: watermark, named ''ts1''.',
+        |  ts2 timestamp_ltz(3) metadata from 'timestamp' comment 'notice: metadata column, named ''ts2''.',
+        |  `__source__` varchar(255),
+        |  proc as proctime(),
+        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
+        |  constraint test_constraint primary key (pk1, pk2) not enforced
+        |) comment 'test show create table statement'
+        |partitioned by (h)
+        |with (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+
+    val expectedDDL =
+      """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
+        |  `pk1` BIGINT NOT NULL COMMENT 'this is column pk1 which part of primary key',
+        |  `h` VARCHAR(2147483647),
+        |  `a` BIGINT,
+        |  `g` AS 2 * (`a` + 1) COMMENT 'notice: computed column, expression ''2*(`a`+1)''.',
+        |  `pk2` VARCHAR(2147483647) NOT NULL COMMENT 'this is column pk2 which part of primary key',
+        |  `c` BIGINT METADATA VIRTUAL COMMENT 'notice: metadata column, named ''c''.',
+        |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
+        |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
+        |  `ts1` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts1''.',
+        |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp' COMMENT 'notice: metadata column, named ''ts2''.',
+        |  `__source__` VARCHAR(255),
+        |  `proc` AS PROCTIME(),
+        |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
+        |  CONSTRAINT `test_constraint` PRIMARY KEY (`pk1`, `pk2`) NOT ENFORCED
+        |) COMMENT 'test show create table statement'
+        |PARTITIONED BY (`h`)
+        |WITH (
+        |  'connector' = 'kafka',
+        |  'kafka.topic' = 'log.test'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(executedDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
+    assertEquals(expectedDDL, row.getField(0).toString)
+  }
+
+  @Test
   def testCreateViewAndShowCreateTable(): Unit = {
     val createTableDDL =
       """ |create table `source` (
@@ -1234,6 +1293,40 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     expectedProperty.put("k1", "a")
     expectedProperty.put("k2", "b")
     assertEquals(expectedProperty, database.getProperties)
+  }
+
+  @Test
+  def testLoadFunction(): Unit = {
+    tableEnv.registerCatalog("cat2", new TestValuesCatalog("cat2", "default", true))
+    tableEnv.executeSql("use catalog cat2")
+    // test load customer function packaged in a jar
+    val random = new Random();
+    val udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50)
+    val jarPath = UserClassLoaderJarTestUtils
+      .createJarFile(
+        AbstractTestBase.TEMPORARY_FOLDER.newFolder(String.format("test-jar-%s", UUID.randomUUID)),
+        "test-classloader-udf.jar",
+        udfClassName,
+        String.format(GENERATED_LOWER_UDF_CODE, udfClassName)
+      )
+      .toURI
+      .toString
+    tableEnv.executeSql(s"""create function lowerUdf as '$udfClassName' using jar '$jarPath'""")
+
+    TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.initData(List(Row.of("BoB")))
+    val ddl1 =
+      """
+        |create table t1(
+        |  a varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(ddl1)
+    assertEquals(
+      "+I[bob]",
+      tableEnv.executeSql("select lowerUdf(a) from t1").collect().next().toString)
   }
 }
 

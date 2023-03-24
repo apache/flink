@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-clients</artifactId>
@@ -95,6 +95,22 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<classifier>job-jar</classifier>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<classifier>job-lib-jar</classifier>
+		</dependency>
 	</dependencies>
 
 	<!-- More information on this:
@@ -125,79 +141,36 @@ under the License.
 							</descriptors>
 						</configuration>
 					</execution>
-					<execution>
-						<id>create-test-dependency-user-jar</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<archive>
-								<manifest>
-									<mainClass>org.apache.flink.client.testjar.TestUserClassLoaderJob</mainClass>
-								</manifest>
-							</archive>
-							<finalName>maven</finalName>
-							<attach>false</attach>
-							<descriptors>
-								<descriptor>src/test/assembly/test-assembly-test-user-classloader-job-jar.xml</descriptor>
-							</descriptors>
-						</configuration>
-					</execution>
-					<execution>
-						<id>create-test-dependency-user-jar-depend</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<finalName>maven</finalName>
-							<attach>false</attach>
-							<descriptors>
-								<descriptor>src/test/assembly/test-assembly-test-user-classloader-job-lib-jar.xml</descriptor>
-							</descriptors>
-						</configuration>
-					</execution>
 				</executions>
 			</plugin>
-			<!--Remove the external jar test code from the test-classes directory since it mustn't be in the
-			classpath when running the tests to actually test whether the user code class loader
-			is properly used.-->
 			<plugin>
-				<artifactId>maven-clean-plugin</artifactId>
-				<version>2.5</version><!--$NO-MVN-MAN-VER$-->
-				<executions>
-					<execution>
-						<id>remove-externaltestclasses</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>clean</goal>
-						</goals>
-						<configuration>
-							<excludeDefaultDirectories>true</excludeDefaultDirectories>
-							<filesets>
-								<fileset>
-									<directory>${project.build.testOutputDirectory}</directory>
-									<includes>
-										<include>**/testjar/TestUser*.class</include>
-									</includes>
-								</fileset>
-							</filesets>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<!-- Make test classes available to other modules. -->
-			<plugin>
+				<!-- Copy user jars into target/ directory -->
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
+				<artifactId>maven-dependency-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>copy-dependencies</id>
+						<phase>process-test-resources</phase>
 						<goals>
-							<goal>test-jar</goal>
+							<goal>copy-dependencies</goal>
 						</goals>
+						<configuration>
+							<stripVersion>true</stripVersion>
+							<includeArtifactIds>flink-clients-test-utils</includeArtifactIds>
+							<outputDirectory>${project.build.directory}</outputDirectory>
+						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<!-- Exclude user jars From classpath -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>*:flink-clients-test-utils:*</classpathDependencyExclude>
+					</classpathDependencyExcludes>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

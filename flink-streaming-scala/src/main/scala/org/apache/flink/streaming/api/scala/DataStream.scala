@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.eventtime.{TimestampAssigner, WatermarkGenerator, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
@@ -1203,6 +1203,42 @@ class DataStream[T](stream: JavaStream[T]) {
     stream.executeAndCollect(jobExecutionName, limit).asScala.toList
 
   /**
+   * Sets up the collection of the elements in this [[DataStream]], and returns an iterator over the
+   * collected elements that can be used to retrieve elements once the job execution has started.
+   *
+   * <p>Caution: When multiple streams are being collected it is recommended to consume all streams
+   * in parallel to not back-pressure the job.
+   *
+   * <p>Caution: Closing the returned iterator cancels the job! It is recommended to close all
+   * iterators once you are no longer interested in any of the collected streams.
+   *
+   * @return
+   *   iterator over the contained elements
+   */
+  @Experimental
+  def collectAsync(): CloseableIterator[T] = CloseableIterator.fromJava(stream.collectAsync())
+
+  /**
+   * Sets up the collection of the elements in this [[DataStream]], which can be retrieved later via
+   * the given [[Collector]].
+   *
+   * <p>Caution: When multiple streams are being collected it is recommended to consume all streams
+   * in parallel to not back-pressure the job.
+   *
+   * <p>Caution: Closing the iterator from the collector cancels the job! It is recommended to close
+   * all iterators once you are no longer interested in any of the collected streams.
+   *
+   * <p>This method is meant to support use-cases where the application of a sink is done via a
+   * [[java.util.function.Consumer]], where it wouldn't be possible (or inconvenient) to return an
+   * iterator.
+   *
+   * @param collector
+   *   a collector that can be used to retrieve the elements
+   */
+  @Experimental
+  def collectAsync(collector: JavaStream.Collector[T]) = stream.collectAsync(collector)
+
+  /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning is
    * not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
    */
@@ -1245,5 +1281,13 @@ class DataStream[T](stream: JavaStream[T]) {
     case _ =>
       throw new UnsupportedOperationException("Only supported for operators.")
       this
+  }
+
+  @PublicEvolving
+  def cache(): CachedDataStream[T] = stream match {
+    case stream: SingleOutputStreamOperator[T] => new CachedDataStream(stream.cache())
+    case stream: SideOutputDataStream[T] => new CachedDataStream(stream.cache())
+    case _ =>
+      throw new UnsupportedOperationException("Operator " + stream + " cannot cache")
   }
 }

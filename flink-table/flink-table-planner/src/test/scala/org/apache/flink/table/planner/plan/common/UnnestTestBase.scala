@@ -121,7 +121,24 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
     verifyPlan("SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1")
   }
 
-  private def verifyPlan(sql: String): Unit = {
+  @Test
+  def testUnnestWithNestedFilter(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    val sqlQuery =
+      """
+        |SELECT * FROM (
+        |   SELECT a, b1, b2 FROM
+        |       (SELECT a, b FROM MyTable) T
+        |       CROSS JOIN
+        |       UNNEST(T.b) AS S(b1, b2)
+        |       WHERE S.b1 >= 12
+        |   ) tmp
+        |WHERE b2 <> 'Hello'
+    """.stripMargin
+    verifyPlan(sqlQuery)
+  }
+
+  def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)
     } else {

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 
 import org.apache.calcite.rex.{RexBuilder, RexLiteral, RexNode, RexUtil}
@@ -32,7 +32,8 @@ import java.math.BigDecimal
 import java.util.Collections
 
 class FlinkRexUtilTest {
-  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE)
+  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+    Thread.currentThread().getContextClassLoader)
   private val rexBuilder = new FlinkRexBuilder(typeFactory)
   private val varcharType = typeFactory.createSqlType(VARCHAR)
   private val intType = typeFactory.createSqlType(INTEGER)
@@ -455,9 +456,7 @@ class FlinkRexUtilTest {
       predicate17Equals,
       rexBuilder.makeIn(c, java.util.Arrays.asList(intLiteral(0), intLiteral(1))))
     val newPredicate17 = simplify(rexBuilder, predicate17)
-    assertEquals(
-      rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(0))).toString,
-      newPredicate17.toString)
+    assertEquals(rexBuilder.makeCall(EQUALS, c, intLiteral(0)).toString, newPredicate17.toString)
 
     // c = 0 OR SEARCH(c, [0, 1])
     val predicate18Search =
@@ -483,18 +482,17 @@ class FlinkRexUtilTest {
       rexBuilder.makeCall(GREATER_THAN, c, intLiteral(0)),
       predicate19Layer1)
     val newPredicate19 = simplify(rexBuilder, predicate19)
-    assertEquals(
-      rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(1))).toString,
-      newPredicate19.toString)
+    assertEquals(rexBuilder.makeCall(EQUALS, c, intLiteral(1)).toString, newPredicate19.toString)
 
     // c >= 0 OR SEARCH(c, [0, 1])
-    // TODO `c >= 0 OR SEARCH(c, [0, 1])` should be simplified to c >= 0
     val predicate20 = rexBuilder.makeCall(
       OR,
       rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, c, intLiteral(0)),
       predicate18Search)
     val newPredicate20 = simplify(rexBuilder, predicate20)
-    assertEquals(predicate20.toString, newPredicate20.toString)
+    assertEquals(
+      rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, c, intLiteral(0)).toString,
+      newPredicate20.toString)
 
     // CAST(1 AS BOOLEAN)
     val predicate21CastFromData = intLiteral(1)
@@ -518,7 +516,10 @@ class FlinkRexUtilTest {
   def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
 
   def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode = {
-    val expressionReducer = new ExpressionReducer(TableConfig.getDefault, false)
+    val expressionReducer = new ExpressionReducer(
+      TableConfig.getDefault,
+      Thread.currentThread().getContextClassLoader,
+      false)
     FlinkRexUtil.simplify(rexBuilder, expr, expressionReducer)
   }
 

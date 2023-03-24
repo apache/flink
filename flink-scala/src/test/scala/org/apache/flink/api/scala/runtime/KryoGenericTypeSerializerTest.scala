@@ -196,7 +196,7 @@ class KryoGenericTypeSerializerTest {
     val serializer = typeInfo.createSerializer(conf)
     val typeClass = typeInfo.getTypeClass
 
-    val instance = new SerializerTestInstance[T](serializer, typeClass, -1, objects: _*)
+    val instance = new SerializerTestInstance[T](serializer, typeClass, -1, objects: _*) {}
 
     instance.testAll()
   }

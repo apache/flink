@@ -22,6 +22,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -30,6 +31,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** Builder for {@link DeclarativeSlotManager}. */
@@ -47,6 +49,8 @@ public class DeclarativeSlotManagerBuilder {
     private int redundantTaskManagerNum;
     private ResourceTracker resourceTracker;
     private SlotTracker slotTracker;
+    private Duration requirementCheckDelay;
+    private Duration declareNeededResourceDelay;
 
     private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
         this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -64,6 +68,8 @@ public class DeclarativeSlotManagerBuilder {
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
         this.resourceTracker = new DefaultResourceTracker();
         this.slotTracker = new DefaultSlotTracker();
+        this.requirementCheckDelay = Duration.ZERO;
+        this.declareNeededResourceDelay = Duration.ZERO;
     }
 
     public static DeclarativeSlotManagerBuilder newBuilder(ScheduledExecutor scheduledExecutor) {
@@ -135,12 +141,25 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
+    public DeclarativeSlotManagerBuilder setRequirementCheckDelay(Duration requirementCheckDelay) {
+        this.requirementCheckDelay = requirementCheckDelay;
+        return this;
+    }
+
+    public DeclarativeSlotManagerBuilder setDeclareNeededResourceDelay(
+            Duration declareNeededResourceDelay) {
+        this.declareNeededResourceDelay = declareNeededResourceDelay;
+        return this;
+    }
+
     public DeclarativeSlotManager build() {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
                         taskManagerRequestTimeout,
                         slotRequestTimeout,
                         taskManagerTimeout,
+                        requirementCheckDelay,
+                        declareNeededResourceDelay,
                         waitResultConsumedBeforeRelease,
                         slotMatchingStrategy,
                         defaultWorkerResourceSpec,
@@ -160,20 +179,56 @@ public class DeclarativeSlotManagerBuilder {
 
     public DeclarativeSlotManager buildAndStartWithDirectExec() {
         return buildAndStartWithDirectExec(
-                ResourceManagerId.generate(), new TestingResourceActionsBuilder().build());
+                ResourceManagerId.generate(),
+                new TestingResourceAllocatorBuilder().build(),
+                new TestingResourceEventListenerBuilder().build());
     }
 
     public DeclarativeSlotManager buildAndStartWithDirectExec(
-            ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions) {
-        return buildAndStart(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
+            ResourceManagerId resourceManagerId, ResourceAllocator resourceAllocator) {
+        return buildAndStartWithDirectExec(
+                resourceManagerId,
+                resourceAllocator,
+                new TestingResourceEventListenerBuilder().build());
+    }
+
+    public DeclarativeSlotManager buildAndStartWithDirectExec(
+            ResourceManagerId resourceManagerId,
+            ResourceAllocator resourceAllocator,
+            ResourceEventListener resourceEventListener) {
+        return buildAndStart(
+                resourceManagerId,
+                Executors.directExecutor(),
+                resourceAllocator,
+                resourceEventListener);
     }
 
     public DeclarativeSlotManager buildAndStart(
             ResourceManagerId resourceManagerId,
             Executor executor,
-            ResourceActions resourceManagerActions) {
+            ResourceAllocator resourceAllocator,
+            ResourceEventListener resourceEventListener) {
+        return buildAndStart(
+                resourceManagerId,
+                executor,
+                resourceAllocator,
+                resourceEventListener,
+                resourceID -> false);
+    }
+
+    public DeclarativeSlotManager buildAndStart(
+            ResourceManagerId resourceManagerId,
+            Executor executor,
+            ResourceAllocator resourceAllocator,
+            ResourceEventListener resourceEventListener,
+            BlockedTaskManagerChecker blockedTaskManagerChecker) {
         final DeclarativeSlotManager slotManager = build();
-        slotManager.start(resourceManagerId, executor, resourceManagerActions);
+        slotManager.start(
+                resourceManagerId,
+                executor,
+                resourceAllocator,
+                resourceEventListener,
+                blockedTaskManagerChecker);
         return slotManager;
     }
 }

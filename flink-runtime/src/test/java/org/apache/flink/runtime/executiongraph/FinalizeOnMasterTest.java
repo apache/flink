@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
@@ -77,8 +78,8 @@ public class FinalizeOnMasterTest extends TestLogger {
         ExecutionGraphTestUtils.finishAllVertices(eg);
         assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
 
-        verify(vertex1, times(1)).finalizeOnMaster(any(ClassLoader.class));
-        verify(vertex2, times(1)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex1, times(1)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
+        verify(vertex2, times(1)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
 
         assertEquals(0, eg.getRegisteredExecutions().size());
     }
@@ -109,7 +110,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 
         assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
 
-        verify(vertex, times(0)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex, times(0)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
 
         assertEquals(0, eg.getRegisteredExecutions().size());
     }

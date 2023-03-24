@@ -58,6 +58,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -471,8 +472,17 @@ public class FileUploadHandlerITCase extends TestLogger {
             Class<?> clazz = Class.forName("java.io.DeleteOnExitHook");
             Field field = clazz.getDeclaredField("files");
             field.setAccessible(true);
-            LinkedHashSet files = (LinkedHashSet) field.get(null);
-            assertTrue(files.isEmpty());
+            LinkedHashSet<String> files = (LinkedHashSet<String>) field.get(null);
+            boolean fileFound = false;
+            // Mockito automatically registers mockitoboot*.jar for on-exit removal. Verify that
+            // there are no other files registered.
+            for (String file : files) {
+                if (!file.contains("mockitoboot")) {
+                    fileFound = true;
+                    break;
+                }
+            }
+            assertFalse(fileFound);
         } catch (ClassNotFoundException | IllegalAccessException | NoSuchFieldException e) {
             fail("This should never happen.");
         }

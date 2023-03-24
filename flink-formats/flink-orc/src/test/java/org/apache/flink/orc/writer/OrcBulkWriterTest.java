@@ -28,9 +28,8 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.util.Arrays;
@@ -38,17 +37,14 @@ import java.util.List;
 import java.util.Properties;
 
 /** Unit test for the ORC BulkWriter implementation. */
-public class OrcBulkWriterTest {
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+class OrcBulkWriterTest {
 
     private final String schema = "struct<_col0:string,_col1:int>";
     private final List<Record> input =
             Arrays.asList(new Record("Shiv", 44), new Record("Jesse", 23), new Record("Walt", 50));
 
     @Test
-    public void testOrcBulkWriter() throws Exception {
-        final File outDir = TEMPORARY_FOLDER.newFolder();
+    void testOrcBulkWriter(@TempDir File outDir) throws Exception {
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 

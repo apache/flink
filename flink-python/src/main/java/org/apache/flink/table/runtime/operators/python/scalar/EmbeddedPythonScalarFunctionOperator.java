@@ -21,90 +21,45 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractEmbeddedPythonFunctionOperator;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.operators.python.AbstractEmbeddedStatelessFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
+import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
 /** The Python {@link ScalarFunction} operator in embedded Python environment. */
 @Internal
 public class EmbeddedPythonScalarFunctionOperator
-        extends AbstractEmbeddedPythonFunctionOperator<RowData>
-        implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
+        extends AbstractEmbeddedStatelessFunctionOperator {
 
     private static final long serialVersionUID = 1L;
 
     /** The Python {@link ScalarFunction}s to be executed. */
     private final PythonFunctionInfo[] scalarFunctions;
 
-    /** The offsets of user-defined function inputs. */
-    private final int[] udfInputOffsets;
+    @Nullable private GeneratedProjection forwardedFieldGeneratedProjection;
 
-    /** The input logical type. */
-    protected final RowType inputType;
+    /** Whether there is only one input argument. */
+    private transient boolean hasOnlyOneInputArgument;
 
-    /** The user-defined function input logical type. */
-    protected final RowType udfInputType;
-
-    /** The user-defined function output logical type. */
-    protected final RowType udfOutputType;
-
-    private GeneratedProjection forwardedFieldGeneratedProjection;
-
-    /** The GenericRowData reused holding the execution result of python udf. */
-    private GenericRowData reuseResultRowData;
-
-    /** The collector used to collect records. */
-    private transient StreamRecordRowDataWrappingCollector rowDataWrapper;
+    /** Whether is only one user-defined function. */
+    private transient boolean hasOnlyOneUserDefinedFunction;
 
     /** The Projection which projects the forwarded fields from the input row. */
     private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
-
-    private transient PythonTypeUtils.DataConverter[] userDefinedFunctionInputConverters;
-    private transient Object[] userDefinedFunctionInputArgs;
-    private transient PythonTypeUtils.DataConverter[] userDefinedFunctionOutputConverters;
-
-    /** Whether there is only one input argument. */
-    private transient boolean isOneArg;
-
-    /** Whether is only one field of udf result. */
-    private transient boolean isOneFieldResult;
-
-    public EmbeddedPythonScalarFunctionOperator(
-            Configuration config,
-            PythonFunctionInfo[] scalarFunctions,
-            RowType inputType,
-            RowType udfInputType,
-            RowType udfOutputType,
-            int[] udfInputOffsets) {
-        super(config);
-        this.inputType = Preconditions.checkNotNull(inputType);
-        this.udfInputType = Preconditions.checkNotNull(udfInputType);
-        this.udfOutputType = Preconditions.checkNotNull(udfOutputType);
-        this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
-        this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-    }
 
     public EmbeddedPythonScalarFunctionOperator(
             Configuration config,
@@ -113,76 +68,85 @@ public class EmbeddedPythonScalarFunctionOperator
             RowType udfInputType,
             RowType udfOutputType,
             int[] udfInputOffsets,
-            GeneratedProjection forwardedFieldGeneratedProjection) {
-        this(config, scalarFunctions, inputType, udfInputType, udfOutputType, udfInputOffsets);
-        this.forwardedFieldGeneratedProjection =
-                Preconditions.checkNotNull(forwardedFieldGeneratedProjection);
+            @Nullable GeneratedProjection forwardedFieldGeneratedProjection) {
+        super(config, inputType, udfInputType, udfOutputType, udfInputOffsets);
+        this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
+        this.forwardedFieldGeneratedProjection = forwardedFieldGeneratedProjection;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void open() throws Exception {
-        isOneArg = udfInputOffsets.length == 1;
-        isOneFieldResult = udfOutputType.getFieldCount() == 1;
-        super.open();
-        rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
-        reuseResultRowData = new GenericRowData(udfOutputType.getFieldCount());
-        RowType userDefinedFunctionInputType =
-                new RowType(
-                        Arrays.stream(udfInputOffsets)
-                                .mapToObj(i -> inputType.getFields().get(i))
-                                .collect(Collectors.toList()));
-        userDefinedFunctionInputConverters =
-                userDefinedFunctionInputType.getFields().stream()
-                        .map(RowType.RowField::getType)
-                        .map(PythonTypeUtils::toDataConverter)
-                        .toArray(PythonTypeUtils.DataConverter[]::new);
-        userDefinedFunctionInputArgs = new Object[udfInputOffsets.length];
-        userDefinedFunctionOutputConverters =
-                udfOutputType.getFields().stream()
-                        .map(RowType.RowField::getType)
-                        .map(PythonTypeUtils::toDataConverter)
-                        .toArray(PythonTypeUtils.DataConverter[]::new);
+        hasOnlyOneInputArgument = udfInputOffsets.length == 1;
+        hasOnlyOneUserDefinedFunction = udfOutputType.getFieldCount() == 1;
 
         if (forwardedFieldGeneratedProjection != null) {
             forwardedFieldProjection =
                     forwardedFieldGeneratedProjection.newInstance(
                             Thread.currentThread().getContextClassLoader());
         }
+
+        super.open();
     }
 
     @Override
-    public void openPythonInterpreter(String pythonExecutable, Map<String, String> env) {
-        LOG.info("Create Operation in multi-threads.");
+    public void openPythonInterpreter() {
+        // from pyflink.fn_execution.embedded.operation_utils import
+        // create_scalar_operation_from_proto
+        //
+        // proto = xxx
+        // scalar_operation = create_scalar_operation_from_proto(
+        //     proto, input_coder_proto, output_coder_proto,
+        //     hasOnlyOneInputArgument, hasOnlyOneUserDefinedFunction)
+        // scalar_operation.open()
 
-        // The CPython extension included in proto does not support initialization
-        // multiple times, so we choose the only interpreter process to be responsible for
-        // initialization and proto parsing. The only interpreter parses the proto and
-        // serializes function operations with cloudpickle.
         interpreter.exec(
-                "from pyflink.fn_execution.utils.operation_utils import create_scalar_operation_from_proto");
-        interpreter.set("proto", getUserDefinedFunctionsProto().toByteArray());
+                "from pyflink.fn_execution.embedded.operation_utils import create_scalar_operation_from_proto");
 
+        interpreter.set(
+                "input_coder_proto",
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                                udfInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false)
+                        .toByteArray());
+
+        interpreter.set(
+                "output_coder_proto",
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                                udfOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false)
+                        .toByteArray());
+
+        // initialize scalar_operation
+        interpreter.set(
+                "proto",
+                ProtoUtils.createUserDefinedFunctionsProto(
+                                getRuntimeContext(),
+                                scalarFunctions,
+                                config.get(PYTHON_METRIC_ENABLED),
+                                config.get(PYTHON_PROFILE_ENABLED))
+                        .toByteArray());
         interpreter.exec(
                 String.format(
-                        "scalar_operation = create_scalar_operation_from_proto(proto, %s, %s)",
-                        isOneArg ? "True" : "False", isOneFieldResult ? "True" : "False"));
+                        "scalar_operation = create_scalar_operation_from_proto("
+                                + "proto,"
+                                + "input_coder_proto,"
+                                + "output_coder_proto,"
+                                + "%s,"
+                                + "%s)",
+                        hasOnlyOneInputArgument ? "True" : "False",
+                        hasOnlyOneUserDefinedFunction ? "True" : "False"));
 
-        // invoke `open` method of ScalarOperation.
+        // invoke the open method of scalar_operation which calls
+        // the open method of the user-defined functions.
         interpreter.invokeMethod("scalar_operation", "open");
     }
 
     @Override
     public void endInput() {
         if (interpreter != null) {
-            // invoke `close` method of ScalarOperation.
+            // invoke the close method of scalar_operation  which calls
+            // the close method of the user-defined functions.
             interpreter.invokeMethod("scalar_operation", "close");
         }
-    }
-
-    @Override
-    public PythonEnv getPythonEnv() {
-        return scalarFunctions[0].getPythonFunction().getPythonEnv();
     }
 
     @SuppressWarnings("unchecked")
@@ -201,7 +165,7 @@ public class EmbeddedPythonScalarFunctionOperator
             udfArgs = userDefinedFunctionInputConverters[0].toExternal(value, udfInputOffsets[0]);
         }
 
-        if (isOneFieldResult) {
+        if (hasOnlyOneUserDefinedFunction) {
             Object udfResult =
                     interpreter.invokeMethod("scalar_operation", "process_element", udfArgs);
             reuseResultRowData.setField(
@@ -224,23 +188,5 @@ public class EmbeddedPythonScalarFunctionOperator
         } else {
             rowDataWrapper.collect(reuseResultRowData);
         }
-    }
-
-    @Override
-    protected void invokeFinishBundle() throws Exception {
-        // TODO: Support batches invoking.
-    }
-
-    @Override
-    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-        FlinkFnApi.UserDefinedFunctions.Builder builder =
-                FlinkFnApi.UserDefinedFunctions.newBuilder();
-        // add udf proto
-        for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-            builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
-        }
-        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
-        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
-        return builder.build();
     }
 }

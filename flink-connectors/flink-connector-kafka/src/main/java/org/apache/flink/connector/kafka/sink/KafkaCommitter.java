@@ -72,6 +72,7 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
                                 .orElseGet(() -> getRecoveryProducer(committable));
                 producer.commitTransaction();
                 producer.flush();
+                recyclable.ifPresent(Recyclable::close);
             } catch (RetriableException e) {
                 LOG.warn(
                         "Encountered retriable exception while committing {}.", transactionalId, e);
@@ -90,6 +91,7 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
                         ProducerConfig.TRANSACTION_TIMEOUT_CONFIG,
                         kafkaProducerConfig.getProperty(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG),
                         e);
+                recyclable.ifPresent(Recyclable::close);
                 request.signalFailedWithKnownReason(e);
             } catch (InvalidTxnStateException e) {
                 // This exception only occurs when aborting after a commit or vice versa.
@@ -99,12 +101,15 @@ class KafkaCommitter implements Committer<KafkaCommittable>, Closeable {
                                 + "Most likely the transaction has been aborted for some reason. Please check the Kafka logs for more details.",
                         request,
                         e);
+                recyclable.ifPresent(Recyclable::close);
                 request.signalFailedWithKnownReason(e);
             } catch (UnknownProducerIdException e) {
                 LOG.error(
                         "Unable to commit transaction ({}) " + UNKNOWN_PRODUCER_ID_ERROR_MESSAGE,
                         request,
                         e);
+                recyclable.ifPresent(Recyclable::close);
+                request.signalFailedWithKnownReason(e);
             } catch (Exception e) {
                 LOG.error(
                         "Transaction ({}) encountered error and data has been potentially lost.",

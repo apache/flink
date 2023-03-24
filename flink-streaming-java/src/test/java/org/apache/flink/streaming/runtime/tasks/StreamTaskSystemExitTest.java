@@ -25,12 +25,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.core.security.UserSystemExitException;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -38,11 +38,11 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -74,6 +74,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
@@ -154,6 +155,7 @@ public class StreamTaskSystemExitTest extends TestLogger {
         streamConfig.setOperatorID(new OperatorID());
         streamConfig.setStreamOperator(operator);
         streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime); // for source run
+        streamConfig.serializeAllConfigs();
 
         final JobInformation jobInformation =
                 new JobInformation(
@@ -181,13 +183,12 @@ public class StreamTaskSystemExitTest extends TestLogger {
         return new Task(
                 jobInformation,
                 taskInformation,
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(taskInformation.getJobVertexId()),
                 new AllocationID(),
-                0,
-                0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
+                new SharedResources(),
                 new IOManagerAsync(),
                 shuffleEnvironment,
                 new KvStateService(new KvStateRegistry(), null, null),
@@ -204,9 +205,9 @@ public class StreamTaskSystemExitTest extends TestLogger {
                 mock(FileCache.class),
                 taskManagerRuntimeInfo,
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-                new NoOpResultPartitionConsumableNotifier(),
                 mock(PartitionProducerStateChecker.class),
-                Executors.directExecutor());
+                Executors.directExecutor(),
+                new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()));
     }
 
     /** StreamTask emulating system exit behavior from different callback functions. */

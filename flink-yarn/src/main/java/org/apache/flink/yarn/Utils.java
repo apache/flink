@@ -19,12 +19,11 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.security.token.DelegationTokenConverter;
 import org.apache.flink.runtime.util.HadoopUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -35,7 +34,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -48,17 +46,15 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.URL;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,7 +63,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
@@ -170,7 +168,7 @@ public final class Utils {
             LocalResourceVisibility resourceVisibility,
             LocalResourceType resourceType) {
         LocalResource localResource = Records.newRecord(LocalResource.class);
-        localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
+        localResource.setResource(URL.fromURI(remoteRsrcPath.toUri()));
         localResource.setSize(resourceSize);
         localResource.setTimestamp(resourceModificationTime);
         localResource.setType(resourceType);
@@ -194,119 +192,6 @@ public final class Utils {
                 jarStat.getModificationTime(),
                 LocalResourceVisibility.APPLICATION,
                 resourceType);
-    }
-
-    public static void setTokensFor(
-            ContainerLaunchContext amContainer,
-            List<Path> paths,
-            Configuration conf,
-            boolean obtainingDelegationTokens)
-            throws IOException {
-        Credentials credentials = new Credentials();
-
-        if (obtainingDelegationTokens) {
-            LOG.info("Obtaining delegation tokens for HDFS and HBase.");
-            // for HDFS
-            TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
-            // for HBase
-            obtainTokenForHBase(credentials, conf);
-        } else {
-            LOG.info("Delegation token retrieval for HDFS and HBase is disabled.");
-        }
-
-        // for user
-        UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
-
-        Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
-        for (Token<? extends TokenIdentifier> token : usrTok) {
-            LOG.info("Adding user token " + token.getService() + " with " + token);
-            credentials.addToken(token.getService(), token);
-        }
-
-        ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
-        amContainer.setTokens(tokens);
-    }
-
-    /** Obtain Kerberos security token for HBase. */
-    private static void obtainTokenForHBase(Credentials credentials, Configuration conf)
-            throws IOException {
-        if (UserGroupInformation.isSecurityEnabled()) {
-            LOG.info("Attempting to obtain Kerberos security token for HBase");
-            try {
-                // ----
-                // Intended call: HBaseConfiguration.addHbaseResources(conf);
-                Class.forName("org.apache.hadoop.hbase.HBaseConfiguration")
-                        .getMethod("addHbaseResources", Configuration.class)
-                        .invoke(null, conf);
-                // ----
-
-                LOG.info("HBase security setting: {}", conf.get("hbase.security.authentication"));
-
-                if (!"kerberos".equals(conf.get("hbase.security.authentication"))) {
-                    LOG.info("HBase has not been configured to use Kerberos.");
-                    return;
-                }
-
-                Token<?> token;
-                try {
-                    LOG.info("Obtaining Kerberos security token for HBase");
-                    // ----
-                    // Intended call: Token<AuthenticationTokenIdentifier> token =
-                    // TokenUtil.obtainToken(conf);
-                    token =
-                            (Token<?>)
-                                    Class.forName(
-                                                    "org.apache.hadoop.hbase.security.token.TokenUtil")
-                                            .getMethod("obtainToken", Configuration.class)
-                                            .invoke(null, conf);
-                    // ----
-                } catch (NoSuchMethodException e) {
-                    // for HBase 2
-
-                    // ----
-                    // Intended call: ConnectionFactory connectionFactory =
-                    // ConnectionFactory.createConnection(conf);
-                    Closeable connectionFactory =
-                            (Closeable)
-                                    Class.forName(
-                                                    "org.apache.hadoop.hbase.client.ConnectionFactory")
-                                            .getMethod("createConnection", Configuration.class)
-                                            .invoke(null, conf);
-                    // ----
-                    Class<?> connectionClass =
-                            Class.forName("org.apache.hadoop.hbase.client.Connection");
-                    // ----
-                    // Intended call: Token<AuthenticationTokenIdentifier> token =
-                    // TokenUtil.obtainToken(connectionFactory);
-                    token =
-                            (Token<?>)
-                                    Class.forName(
-                                                    "org.apache.hadoop.hbase.security.token.TokenUtil")
-                                            .getMethod("obtainToken", connectionClass)
-                                            .invoke(null, connectionFactory);
-                    // ----
-                    if (null != connectionFactory) {
-                        connectionFactory.close();
-                    }
-                }
-
-                if (token == null) {
-                    LOG.error("No Kerberos security token for HBase available");
-                    return;
-                }
-
-                credentials.addToken(token.getService(), token);
-                LOG.info("Added HBase Kerberos security token to credentials.");
-            } catch (ClassNotFoundException
-                    | NoSuchMethodException
-                    | IllegalAccessException
-                    | InvocationTargetException e) {
-                LOG.info(
-                        "HBase is not available (not packaged with this application): {} : \"{}\".",
-                        e.getClass().getSimpleName(),
-                        e.getMessage());
-            }
-        }
     }
 
     /**
@@ -633,12 +518,12 @@ public final class Utils {
         return Resource.newInstance(unitMemMB, unitVcore);
     }
 
-    public static List<Path> getQualifiedRemoteSharedPaths(
+    public static List<Path> getQualifiedRemoteProvidedLibDirs(
             org.apache.flink.configuration.Configuration configuration,
             YarnConfiguration yarnConfiguration)
-            throws IOException, FlinkException {
+            throws IOException {
 
-        return getRemoteSharedPaths(
+        return getRemoteSharedLibPaths(
                 configuration,
                 pathStr -> {
                     final Path path = new Path(pathStr);
@@ -646,10 +531,10 @@ public final class Utils {
                 });
     }
 
-    private static List<Path> getRemoteSharedPaths(
+    private static List<Path> getRemoteSharedLibPaths(
             org.apache.flink.configuration.Configuration configuration,
             FunctionWithException<String, Path, IOException> strToPathMapper)
-            throws IOException, FlinkException {
+            throws IOException {
 
         final List<Path> providedLibDirs =
                 ConfigUtils.decodeListFromConfig(
@@ -657,7 +542,7 @@ public final class Utils {
 
         for (Path path : providedLibDirs) {
             if (!Utils.isRemotePath(path.toString())) {
-                throw new FlinkException(
+                throw new IllegalArgumentException(
                         "The \""
                                 + YarnConfigOptions.PROVIDED_LIB_DIRS.key()
                                 + "\" should only contain"
@@ -667,6 +552,37 @@ public final class Utils {
             }
         }
         return providedLibDirs;
+    }
+
+    public static boolean isUsrLibDirectory(final FileSystem fileSystem, final Path path)
+            throws IOException {
+        final FileStatus fileStatus = fileSystem.getFileStatus(path);
+        // Use the Path obj from fileStatus to get rid of trailing slash
+        return fileStatus.isDirectory()
+                && ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR.equals(fileStatus.getPath().getName());
+    }
+
+    public static Optional<Path> getQualifiedRemoteProvidedUsrLib(
+            org.apache.flink.configuration.Configuration configuration,
+            YarnConfiguration yarnConfiguration)
+            throws IOException, IllegalArgumentException {
+        String usrlib = configuration.getString(YarnConfigOptions.PROVIDED_USRLIB_DIR);
+        if (usrlib == null) {
+            return Optional.empty();
+        }
+        final Path qualifiedUsrLibPath =
+                FileSystem.get(yarnConfiguration).makeQualified(new Path(usrlib));
+        checkArgument(
+                isRemotePath(qualifiedUsrLibPath.toString()),
+                "The \"%s\" must point to a remote dir "
+                        + "which is accessible from all worker nodes.",
+                YarnConfigOptions.PROVIDED_USRLIB_DIR.key());
+        checkArgument(
+                isUsrLibDirectory(FileSystem.get(yarnConfiguration), qualifiedUsrLibPath),
+                "The \"%s\" should be named with \"%s\".",
+                YarnConfigOptions.PROVIDED_USRLIB_DIR.key(),
+                ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+        return Optional.of(qualifiedUsrLibPath);
     }
 
     public static YarnConfiguration getYarnAndHadoopConfiguration(

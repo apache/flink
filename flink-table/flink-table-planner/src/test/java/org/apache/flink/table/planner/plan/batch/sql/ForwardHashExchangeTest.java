@@ -35,7 +35,6 @@ public class ForwardHashExchangeTest extends TableTestBase {
     public void before() {
         util = batchTestUtil(TableConfig.getDefault());
 
-        util.getStreamEnv().getConfig().setDynamicGraph(true);
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()

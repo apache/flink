@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.factories.{DynamicTableFactory, DynamicTableSourceFactory}
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 
+import org.assertj.core.api.Assertions
 import org.junit.Test
 
 import java.util
@@ -56,6 +57,23 @@ class TableSinkTest extends TableTestBase {
       |  'connector' = 'values'
       |)
       |""".stripMargin)
+
+  @Test
+  def testInsertWithTargetColumnsAndSqlHint(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE appendSink (
+                     |  `a` BIGINT,
+                     |  `b` STRING
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */(a, b) SELECT a + b, c FROM MyTable")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
 
   @Test
   def testInsertMismatchTypeForEmptyChar(): Unit = {
@@ -779,6 +797,17 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO zm_test(`a`) SELECT `a` FROM MyTable")
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testCreateTableAsSelect(): Unit = {
+    // TODO: support explain CreateTableASOperation
+    // Flink does not support explain CreateTableASOperation yet, we will fix it in FLINK-28770.
+    Assertions
+      .assertThatThrownBy(
+        () => util.tableEnv.explainSql("CREATE TABLE zm_ctas_test AS SELECT * FROM MyTable"))
+      .hasMessageContaining(
+        "Unsupported ModifyOperation: org.apache.flink.table.operations.CreateTableASOperation")
   }
 }
 

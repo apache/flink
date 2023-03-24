@@ -31,11 +31,8 @@ or show added jars in the classpath in the runtime.
 
 Flink SQL supports the following JAR statements for now:
 - ADD JAR
-- REMOVE JAR
 - SHOW JARS
-
-<span class="label label-danger">Attention</span> JAR statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
-
+- REMOVE JAR
 
 ## Run a JAR statement
 
@@ -51,10 +48,18 @@ The following examples show how to run `JAR` statements in [SQL CLI]({{< ref "do
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> ADD JAR '/path/hello.jar';
-[INFO] The specified jar is added into session classloader.
+[INFO] Execute statement succeed.
+
+Flink SQL> ADD JAR 'hdfs:///udf/common-udf.jar';
+[INFO] Execute statement succeed.
 
 Flink SQL> SHOW JARS;
-/path/hello.jar
++----------------------------+
+|                       jars |
++----------------------------+
+|            /path/hello.jar |
+| hdfs:///udf/common-udf.jar |
++----------------------------+
 
 Flink SQL> REMOVE JAR '/path/hello.jar';
 [INFO] The specified jar is removed from session classloader.
@@ -68,15 +73,10 @@ Flink SQL> REMOVE JAR '/path/hello.jar';
 ADD JAR '<path_to_filename>.jar'
 ```
 
-Currently it only supports to add the local jar into the session classloader.
+Add a JAR file to the list of resources, it supports adding the jar locates in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}). The added JAR file can be listed using [`SHOW JARS`](#show-jars) statements.
 
-## REMOVE JAR
-
-```sql
-REMOVE JAR '<path_to_filename>.jar'
-```
-
-Currently it only supports to remove the jar that is added by the [`ADD JAR`](#add-jar) statements.
+### Limitation
+Please don't use `ADD JAR` statements to load Hive source/sink/function/catalog. This is a known limitation of Hive connector and will be fixed in the future version. Currently, it's recommended to follow this [instruction]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) to setup Hive integration.
 
 ## SHOW JARS
 
@@ -84,6 +84,16 @@ Currently it only supports to remove the jar that is added by the [`ADD JAR`](#a
 SHOW JARS
 ```
 
-Show all added jars in the session classloader which are added by [`ADD JAR`](#add-jar) statements.
+Show all added jars which are added by [`ADD JAR`](#add-jar) statements.
+
+## REMOVE JAR
+
+```sql
+REMOVE JAR '<path_to_filename>.jar'
+```
+
+Remove the specified jar that is added by the [`ADD JAR`](#add-jar) statements.
+
+<span class="label label-danger">Attention</span> REMOVE JAR statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
 {{< top >}}

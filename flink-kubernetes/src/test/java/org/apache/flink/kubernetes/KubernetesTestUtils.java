@@ -63,6 +63,7 @@ public class KubernetesTestUtils {
                 "",
                 "",
                 containeredTaskManagerParameters,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                Collections.emptySet());
     }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.docs.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationStatusMessageHeaders;
@@ -28,10 +27,9 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableString;
@@ -41,6 +39,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.types.ObjectSchema;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,12 +50,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
@@ -99,54 +95,24 @@ public class RestAPIDocGenerator {
     private static final JsonSchemaGenerator schemaGen;
 
     static {
-        mapper = new ObjectMapper();
+        mapper = JacksonMapperFactory.createObjectMapper();
         mapper.getFactory().setCharacterEscapes(new HTMLCharacterEscapes());
         mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         schemaGen = new JsonSchemaGenerator(mapper);
-    }
-
-    /**
-     * Generates the REST API documentation.
-     *
-     * @param args args[0] contains the directory into which the generated files are placed
-     * @throws IOException if any file operation failed
-     */
-    public static void main(String[] args) throws IOException, ConfigurationException {
-        String outputDirectory = args[0];
-
-        for (final RestAPIVersion apiVersion : RestAPIVersion.values()) {
-            if (apiVersion == RestAPIVersion.V0) {
-                // this version exists only for testing purposes
-                continue;
-            }
-            createHtmlFile(
-                    new DocumentingDispatcherRestEndpoint(),
-                    apiVersion,
-                    Paths.get(
-                            outputDirectory,
-                            "rest_" + apiVersion.getURLVersionPrefix() + "_dispatcher.html"));
-        }
     }
 
     @VisibleForTesting
     static void createHtmlFile(
             DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile)
             throws IOException {
-        StringBuilder html = new StringBuilder();
-
-        List<MessageHeaders> specs =
-                restEndpoint.getSpecs().stream()
-                        .filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
-                        .filter(RestAPIDocGenerator::shouldBeDocumented)
-                        .collect(Collectors.toList());
-        specs.forEach(spec -> html.append(createHtmlEntry(spec)));
-
+        final StringBuilder html = new StringBuilder();
+        restEndpoint.getSpecs().stream()
+                .filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
+                .filter(ApiSpecGeneratorUtils::shouldBeDocumented)
+                .map(RestAPIDocGenerator::createHtmlEntry)
+                .forEach(html::append);
         Files.deleteIfExists(outputFile);
         Files.write(outputFile, html.toString().getBytes(StandardCharsets.UTF_8));
-    }
-
-    private static boolean shouldBeDocumented(MessageHeaders spec) {
-        return spec.getClass().getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
     }
 
     private static String createHtmlEntry(MessageHeaders<?, ?, ?> spec) {
@@ -221,55 +187,23 @@ public class RestAPIDocGenerator {
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
         }
-        int reqHash =
-                spec.getTargetRestEndpointURL().hashCode()
-                        + spec.getHttpMethod().name().hashCode()
-                        + spec.getRequestClass().getCanonicalName().hashCode();
-        int resHash =
-                spec.getTargetRestEndpointURL().hashCode()
-                        + spec.getHttpMethod().name().hashCode()
-                        + spec.getResponseClass().getCanonicalName().hashCode();
         {
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append("      <div class=\"book-expand\">\n");
             sb.append("        <label>\n");
-            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
-            sb.append("            <span>Request</span>\n");
-            sb.append("            &nbsp;");
-            sb.append("            <span>▾</span>\n");
-            sb.append("          </div>\n");
-            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
-            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
-            sb.append("          <pre>\n");
-            sb.append("            <code>\n");
-            sb.append(requestEntry);
-            sb.append("            </code>\n");
-            sb.append("          </pre>\n");
-            sb.append("          </div>\n");
+            sb.append("          <details>\n");
+            sb.append("          <summary>Request</summary>\n");
+            sb.append("          <pre><code>" + requestEntry + "</code></pre>\n");
             sb.append("        </label>\n");
-            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append("      <div class=\"book-expand\">\n");
             sb.append("        <label>\n");
-            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
-            sb.append("            <span>Response</span>\n");
-            sb.append("            &nbsp;");
-            sb.append("            <span>▾</span>\n");
-            sb.append("          </div>\n");
-            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
-            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
-            sb.append("          <pre>\n");
-            sb.append("            <code>\n");
-            sb.append(responseEntry);
-            sb.append("            </code>\n");
-            sb.append("          </pre>\n");
-            sb.append("          </div>\n");
+            sb.append("          <details>\n");
+            sb.append("          <summary>Response</summary>\n");
+            sb.append("          <pre><code>" + responseEntry + "</code></pre>\n");
             sb.append("        </label>\n");
-            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("  </tbody>\n");
@@ -310,7 +244,8 @@ public class RestAPIDocGenerator {
         return queryParameterList.toString();
     }
 
-    private static String createMessageHtmlEntry(
+    @VisibleForTesting
+    static String createMessageHtmlEntry(
             Class<?> messageClass,
             @Nullable Class<?> nestedAsyncOperationResultClass,
             Class<?> emptyMessageClass) {
@@ -322,6 +257,15 @@ public class RestAPIDocGenerator {
                     .getProperties()
                     .put(AsynchronousOperationResult.FIELD_NAME_OPERATION, innerSchema);
         }
+
+        ApiSpecGeneratorUtils.findAdditionalFieldType(messageClass)
+                .map(RestAPIDocGenerator::generateSchema)
+                .ifPresent(
+                        additionalFieldSchema ->
+                                schema.asObjectSchema()
+                                        .setAdditionalProperties(
+                                                new ObjectSchema.SchemaAdditionalProperties(
+                                                        additionalFieldSchema)));
 
         String json;
         if (messageClass == emptyMessageClass) {

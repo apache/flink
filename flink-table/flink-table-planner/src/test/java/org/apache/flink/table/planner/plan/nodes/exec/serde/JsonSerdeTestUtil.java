@@ -66,7 +66,6 @@ class JsonSerdeTestUtil {
 
     static SerdeContext configuredSerdeContext(
             CatalogManager catalogManager, TableConfig tableConfig) {
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final PlannerContext plannerContext =
                 PlannerMocks.newBuilder()
                         .withCatalogManager(catalogManager)
@@ -78,7 +77,6 @@ class JsonSerdeTestUtil {
         return new SerdeContext(
                 new ParserImpl(null, null, plannerContext::createCalciteParser, null),
                 plannerContext.getFlinkContext(),
-                classLoader,
                 plannerContext.getTypeFactory(),
                 plannerContext.createFrameworkConfig().getOperatorTable());
     }

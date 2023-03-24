@@ -17,10 +17,12 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.changelog.fs.BatchingStateChangeUploadSchedulerTest.BlockingUploader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -51,10 +53,13 @@ public class FsStateChangelogStorageTest
     protected StateChangelogStorage<ChangelogStateHandleStreamImpl> getFactory(
             boolean compression, File temporaryFolder) throws IOException {
         return new FsStateChangelogStorage(
+                JobID.generate(),
                 Path.fromLocalFile(temporaryFolder),
                 compression,
                 1024 * 1024 * 10,
-                createUnregisteredChangelogStorageMetricGroup());
+                createUnregisteredChangelogStorageMetricGroup(),
+                TaskChangelogRegistry.NO_OP,
+                TestLocalRecoveryConfig.disabled());
     }
 
     /**
@@ -97,7 +102,11 @@ public class FsStateChangelogStorageTest
                             }
                         };
                 StateChangelogWriter<?> writer =
-                        new FsStateChangelogStorage(scheduler, 0 /* persist immediately */)
+                        new FsStateChangelogStorage(
+                                        scheduler,
+                                        0,
+                                        TaskChangelogRegistry.NO_OP, /* persist immediately */
+                                        TestLocalRecoveryConfig.disabled())
                                 .createWriter(
                                         new OperatorID().toString(),
                                         KeyGroupRange.of(0, 0),

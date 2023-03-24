@@ -29,7 +29,9 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
@@ -59,11 +61,16 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Time;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Utilities for converting Flink logical types, such as convert it to the related TypeSerializer or
@@ -619,6 +626,147 @@ public final class PythonTypeUtils {
         }
     }
 
+    /**
+     * RowData will be converted to the Object Array [RowKind(as Long Object), Field Values(as
+     * Object Array)].
+     */
+    public static final class RowDataConverter extends DataConverter<RowData, Row, Object[]> {
+
+        private final DataConverter[] fieldDataConverters;
+        private final Row reuseRow;
+        private final Object[] reuseExternalRow;
+        private final Object[] reuseExternalRowData;
+
+        RowDataConverter(
+                DataConverter[] fieldDataConverters,
+                DataFormatConverters.DataFormatConverter<RowData, Row> dataFormatConverter) {
+            super(dataFormatConverter);
+            this.fieldDataConverters = fieldDataConverters;
+            this.reuseRow = new Row(fieldDataConverters.length);
+            this.reuseExternalRowData = new Object[fieldDataConverters.length];
+            this.reuseExternalRow = new Object[2];
+            this.reuseExternalRow[1] = reuseExternalRowData;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Row toInternalImpl(Object[] value) {
+
+            RowKind rowKind = RowKind.fromByteValue(((Long) value[0]).byteValue());
+            reuseRow.setKind(rowKind);
+
+            Object[] fieldValues = (Object[]) value[1];
+
+            for (int i = 0; i < fieldValues.length; i++) {
+                reuseRow.setField(i, fieldDataConverters[i].toInternalImpl(fieldValues[i]));
+            }
+            return reuseRow;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Object[] toExternalImpl(Row value) {
+
+            reuseExternalRow[0] = (long) value.getKind().toByteValue();
+            for (int i = 0; i < value.getArity(); i++) {
+                reuseExternalRowData[i] = fieldDataConverters[i].toExternalImpl(value.getField(i));
+            }
+
+            return reuseExternalRow;
+        }
+    }
+
+    /**
+     * The element in the Object Array will be converted to the corresponding Data through element
+     * DataConverter.
+     */
+    public static final class ArrayDataConverter<T>
+            extends DataConverter<ArrayData, T[], Object[]> {
+
+        private final DataConverter elementConverter;
+        private final Class<T> componentClass;
+
+        ArrayDataConverter(
+                Class<T> componentClass,
+                DataConverter elementConverter,
+                DataFormatConverters.DataFormatConverter<ArrayData, T[]> dataFormatConverter) {
+            super(dataFormatConverter);
+            this.componentClass = componentClass;
+            this.elementConverter = elementConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        T[] toInternalImpl(Object[] value) {
+            T[] array = (T[]) Array.newInstance(componentClass, value.length);
+
+            for (int i = 0; i < value.length; i++) {
+                array[i] = (T) elementConverter.toInternalImpl(value[i]);
+            }
+
+            return array;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Object[] toExternalImpl(T[] value) {
+            Object[] array = new Object[value.length];
+
+            for (int i = 0; i < value.length; i++) {
+                array[i] = elementConverter.toExternalImpl(value[i]);
+            }
+
+            return array;
+        }
+    }
+
+    /**
+     * The key/value in the Map will be converted to the corresponding Data through key/value
+     * DataConverter.
+     */
+    public static final class MapDataConverter
+            extends DataConverter<MapData, Map<?, ?>, Map<?, ?>> {
+
+        private final DataConverter keyConverter;
+        private final DataConverter valueConverter;
+
+        MapDataConverter(
+                DataConverter keyConverter,
+                DataConverter valueConverter,
+                DataFormatConverters.DataFormatConverter<MapData, Map<?, ?>> dataFormatConverter) {
+            super(dataFormatConverter);
+            this.keyConverter = keyConverter;
+            this.valueConverter = valueConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Map toInternalImpl(Map<?, ?> value) {
+            Map<Object, Object> map = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : value.entrySet()) {
+                map.put(
+                        keyConverter.toInternalImpl(entry.getKey()),
+                        valueConverter.toInternalImpl(entry.getValue()));
+            }
+
+            return map;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Map<?, ?> toExternalImpl(Map<?, ?> value) {
+            Map<Object, Object> map = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : value.entrySet()) {
+                map.put(
+                        keyConverter.toExternalImpl(entry.getKey()),
+                        valueConverter.toExternalImpl(entry.getValue()));
+            }
+            return map;
+        }
+    }
+
     private static final class LogicalTypeToDataConverter
             extends LogicalTypeDefaultVisitor<DataConverter> {
 
@@ -699,13 +847,50 @@ public final class PythonTypeUtils {
         }
 
         @Override
-        public DataConverter visit(ArrayType arrayType) {
-            return defaultConverter(arrayType);
+        public DataConverter visit(LocalZonedTimestampType localZonedTimestampType) {
+            return new IdentityDataConverter<>(
+                    new DataFormatConverters.TimestampConverter(
+                            localZonedTimestampType.getPrecision()));
         }
 
+        @SuppressWarnings("unchecked")
+        @Override
+        public DataConverter visit(ArrayType arrayType) {
+            LogicalType elementType = arrayType.getElementType();
+            DataConverter elementDataConverter = elementType.accept(this);
+            return new ArrayDataConverter(
+                    TypeConversions.fromLogicalToDataType(elementType).getConversionClass(),
+                    elementDataConverter,
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(arrayType)));
+        }
+
+        @SuppressWarnings("unchecked")
         @Override
         public DataConverter visit(MapType mapType) {
-            return defaultConverter(mapType);
+            LogicalType keyType = mapType.getKeyType();
+            LogicalType valueType = mapType.getValueType();
+            DataConverter keyTypeDataConverter = keyType.accept(this);
+            DataConverter valueTyDataConverter = valueType.accept(this);
+            return new MapDataConverter(
+                    keyTypeDataConverter,
+                    valueTyDataConverter,
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(mapType)));
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public DataConverter visit(RowType rowType) {
+            final DataConverter[] fieldDataConverters =
+                    rowType.getFields().stream()
+                            .map(f -> f.getType().accept(this))
+                            .toArray(DataConverter[]::new);
+
+            return new RowDataConverter(
+                    fieldDataConverters,
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(rowType)));
         }
 
         @Override

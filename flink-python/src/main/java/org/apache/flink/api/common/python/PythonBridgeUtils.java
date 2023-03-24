@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -44,6 +45,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
@@ -240,7 +242,7 @@ public final class PythonBridgeUtils {
         Pickler pickler = new Pickler();
         initialize();
         if (obj == null) {
-            return new byte[0];
+            return pickler.dumps(null);
         } else {
             if (dataType instanceof SqlTimeTypeInfo) {
                 SqlTimeTypeInfo<?> sqlTimeTypeInfo =
@@ -269,13 +271,21 @@ public final class PythonBridgeUtils {
                 }
                 return fieldBytes;
             } else if (dataType instanceof BasicArrayTypeInfo
-                    || dataType instanceof PrimitiveArrayTypeInfo) {
-                Object[] objects = (Object[]) obj;
+                    || dataType instanceof PrimitiveArrayTypeInfo
+                    || dataType instanceof ObjectArrayTypeInfo) {
+                Object[] objects;
+                TypeInformation<?> elementType;
+                if (dataType instanceof BasicArrayTypeInfo) {
+                    objects = (Object[]) obj;
+                    elementType = ((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo();
+                } else if (dataType instanceof PrimitiveArrayTypeInfo) {
+                    objects = primitiveArrayConverter(obj, dataType);
+                    elementType = ((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
+                } else {
+                    objects = (Object[]) obj;
+                    elementType = ((ObjectArrayTypeInfo<?, ?>) dataType).getComponentInfo();
+                }
                 List<Object> serializedElements = new ArrayList<>(objects.length);
-                TypeInformation<?> elementType =
-                        dataType instanceof BasicArrayTypeInfo
-                                ? ((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo()
-                                : ((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
                 for (Object object : objects) {
                     serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
                 }
@@ -321,6 +331,71 @@ public final class PythonBridgeUtils {
                 return pickler.dumps(baos.toByteArray());
             }
         }
+    }
+
+    private static Object[] primitiveArrayConverter(
+            Object array, TypeInformation<?> arrayTypeInfo) {
+        Preconditions.checkArgument(arrayTypeInfo instanceof PrimitiveArrayTypeInfo);
+        Preconditions.checkArgument(array.getClass().isArray());
+        Object[] objects;
+        if (PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            boolean[] booleans = (boolean[]) array;
+            objects = new Object[booleans.length];
+            for (int i = 0; i < booleans.length; i++) {
+                objects[i] = booleans[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            byte[] bytes = (byte[]) array;
+            objects = new Object[bytes.length];
+            for (int i = 0; i < bytes.length; i++) {
+                objects[i] = bytes[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            short[] shorts = (short[]) array;
+            objects = new Object[shorts.length];
+            for (int i = 0; i < shorts.length; i++) {
+                objects[i] = shorts[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            int[] ints = (int[]) array;
+            objects = new Object[ints.length];
+            for (int i = 0; i < ints.length; i++) {
+                objects[i] = ints[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            long[] longs = (long[]) array;
+            objects = new Object[longs.length];
+            for (int i = 0; i < longs.length; i++) {
+                objects[i] = longs[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            float[] floats = (float[]) array;
+            objects = new Object[floats.length];
+            for (int i = 0; i < floats.length; i++) {
+                objects[i] = floats[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            double[] doubles = (double[]) array;
+            objects = new Object[doubles.length];
+            for (int i = 0; i < doubles.length; i++) {
+                objects[i] = doubles[i];
+            }
+        } else if (PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
+            char[] chars = (char[]) array;
+            objects = new Object[chars.length];
+            for (int i = 0; i < chars.length; i++) {
+                objects[i] = chars[i];
+            }
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Primitive array of %s is not supported in PyFlink yet",
+                            ((PrimitiveArrayTypeInfo<?>) arrayTypeInfo)
+                                    .getComponentType()
+                                    .getTypeClass()
+                                    .getSimpleName()));
+        }
+        return objects;
     }
 
     public static Object getPickledBytesFromRow(Row row, DataType[] dataTypes) throws IOException {

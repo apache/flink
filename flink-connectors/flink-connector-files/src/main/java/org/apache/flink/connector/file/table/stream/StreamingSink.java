@@ -68,16 +68,18 @@ public class StreamingSink {
                     bucketsBuilder,
             int parallelism,
             List<String> partitionKeys,
-            Configuration conf) {
+            Configuration conf,
+            boolean parallelismConfigured) {
         StreamingFileWriter<T> fileWriter =
                 new StreamingFileWriter<>(bucketCheckInterval, bucketsBuilder, partitionKeys, conf);
-        return inputStream
-                .transform(
+        SingleOutputStreamOperator<PartitionCommitInfo> writerStream =
+                inputStream.transform(
                         StreamingFileWriter.class.getSimpleName(),
                         TypeInformation.of(PartitionCommitInfo.class),
-                        fileWriter)
-                .uid(providerContext.generateUid("streaming-writer").get())
-                .setParallelism(parallelism);
+                        fileWriter);
+        writerStream.getTransformation().setParallelism(parallelism, parallelismConfigured);
+        providerContext.generateUid("streaming-writer").ifPresent(writerStream::uid);
+        return writerStream;
     }
 
     /**
@@ -95,7 +97,8 @@ public class StreamingSink {
             Path path,
             CompactReader.Factory<T> readFactory,
             long targetFileSize,
-            int parallelism) {
+            int parallelism,
+            boolean parallelismConfigured) {
         CompactFileWriter<T> writer = new CompactFileWriter<>(bucketCheckInterval, bucketsBuilder);
 
         SupplierWithException<FileSystem, IOException> fsSupplier =
@@ -104,21 +107,22 @@ public class StreamingSink {
 
         CompactCoordinator coordinator = new CompactCoordinator(fsSupplier, targetFileSize);
 
-        SingleOutputStreamOperator<CoordinatorOutput> coordinatorOp =
-                inputStream
-                        .transform(
-                                "streaming-writer",
-                                TypeInformation.of(CoordinatorInput.class),
-                                writer)
-                        .uid(providerContext.generateUid("streaming-writer").get())
-                        .setParallelism(parallelism)
+        SingleOutputStreamOperator<CoordinatorInput> writerStream =
+                inputStream.transform(
+                        "streaming-writer", TypeInformation.of(CoordinatorInput.class), writer);
+        writerStream.getTransformation().setParallelism(parallelism, parallelismConfigured);
+
+        providerContext.generateUid("streaming-writer").ifPresent(writerStream::uid);
+
+        SingleOutputStreamOperator<CoordinatorOutput> coordinatorStream =
+                writerStream
                         .transform(
                                 "compact-coordinator",
                                 TypeInformation.of(CoordinatorOutput.class),
                                 coordinator)
-                        .uid(providerContext.generateUid("compact-coordinator").get())
                         .setParallelism(1)
                         .setMaxParallelism(1);
+        providerContext.generateUid("compact-coordinator").ifPresent(coordinatorStream::uid);
 
         CompactWriter.Factory<T> writerFactory =
                 CompactBucketWriter.factory(
@@ -128,14 +132,17 @@ public class StreamingSink {
         CompactOperator<T> compacter =
                 new CompactOperator<>(fsSupplier, readFactory, writerFactory);
 
-        return coordinatorOp
-                .broadcast()
-                .transform(
-                        "compact-operator",
-                        TypeInformation.of(PartitionCommitInfo.class),
-                        compacter)
-                .uid(providerContext.generateUid("compact-operator").get())
-                .setParallelism(parallelism);
+        SingleOutputStreamOperator<PartitionCommitInfo> operatorStream =
+                coordinatorStream
+                        .broadcast()
+                        .transform(
+                                "compact-operator",
+                                TypeInformation.of(PartitionCommitInfo.class),
+                                compacter);
+        operatorStream.getTransformation().setParallelism(parallelism, parallelismConfigured);
+        providerContext.generateUid("compact-operator").ifPresent(operatorStream::uid);
+
+        return operatorStream;
     }
 
     /**
@@ -156,17 +163,18 @@ public class StreamingSink {
             PartitionCommitter committer =
                     new PartitionCommitter(
                             locationPath, identifier, partitionKeys, msFactory, fsFactory, options);
-            stream =
+            SingleOutputStreamOperator<Void> committerStream =
                     writer.transform(
                                     PartitionCommitter.class.getSimpleName(), Types.VOID, committer)
-                            .uid(providerContext.generateUid("partition-committer").get())
                             .setParallelism(1)
                             .setMaxParallelism(1);
+            providerContext.generateUid("partition-committer").ifPresent(committerStream::uid);
+            stream = committerStream;
         }
 
-        return stream.addSink(new DiscardingSink<>())
-                .uid(providerContext.generateUid("discarding-sink").get())
-                .name("end")
-                .setParallelism(1);
+        DataStreamSink<?> discardingSink =
+                stream.addSink(new DiscardingSink<>()).name("end").setParallelism(1);
+        providerContext.generateUid("discarding-sink").ifPresent(discardingSink::uid);
+        return discardingSink;
     }
 }

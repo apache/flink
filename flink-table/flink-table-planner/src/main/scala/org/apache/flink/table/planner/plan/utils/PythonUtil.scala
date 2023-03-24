@@ -17,15 +17,18 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.functions.FunctionDefinition
+import org.apache.flink.table.functions.{DeclarativeAggregateFunction, FunctionDefinition}
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunction}
 import org.apache.flink.table.planner.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexNode}
+import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlKind
 
 import scala.collection.JavaConversions._
 
@@ -132,6 +135,35 @@ object PythonUtil {
     }
   }
 
+  def isFlattenCalc(calc: FlinkLogicalCalc): Boolean = {
+    val child = calc.getInput match {
+      case relSubset: RelSubset => relSubset.getOriginal
+      case hepRelVertex: HepRelVertex => hepRelVertex.getCurrentRel
+    }
+    if (!child.isInstanceOf[FlinkLogicalCalc]) {
+      return false
+    }
+
+    if (calc.getProgram.getCondition != null) {
+      return false
+    }
+
+    val inputFields = calc.getProgram.getInputRowType.getFieldList
+    if (inputFields.size != 1 || !inputFields.get(0).getValue.isStruct) {
+      return false
+    }
+
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+
+    if (inputFields.get(0).getValue.getFieldList.size() != projects.size) {
+      return false
+    }
+
+    projects.zipWithIndex.forall {
+      case (project: RexNode, idx: Int) => project.accept(new FieldReferenceDetector(idx))
+    }
+  }
+
   /**
    * Checks whether it contains the specified kind of function in a RexNode.
    *
@@ -181,5 +213,31 @@ object PythonUtil {
     }
 
     override def visitNode(rexNode: RexNode): Boolean = false
+  }
+
+  /** Checks whether a rexNode is only a field reference of the given index. */
+  private class FieldReferenceDetector(idx: Int) extends RexDefaultVisitor[Boolean] {
+
+    override def visitNode(rexNode: RexNode): Boolean = false
+
+    override def visitFieldAccess(fieldAccess: RexFieldAccess): Boolean = {
+      if (fieldAccess.getField.getIndex != idx) {
+        return false
+      }
+
+      val expr: RexNode = fieldAccess.getReferenceExpr
+      expr match {
+        case ref: RexInputRef => ref.getIndex == 0
+        case _ => false
+      }
+    }
+
+    override def visitCall(call: RexCall): Boolean = {
+      if (call.getKind == SqlKind.AS) {
+        call.getOperands.get(0).accept(this)
+      } else {
+        false
+      }
+    }
   }
 }

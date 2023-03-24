@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -71,9 +72,12 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     }
 
     @Override
-    public void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
+    public void initializeOperatorCoordinators(
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
         for (OperatorCoordinatorHolder coordinatorHolder : coordinatorMap.values()) {
-            coordinatorHolder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+            coordinatorHolder.lazyInitialize(
+                    globalFailureHandler, mainThreadExecutor, jobManagerJobMetricGroup);
         }
     }
 
@@ -118,7 +122,8 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
         }
 
         try {
-            coordinator.handleEventFromOperator(exec.getParallelSubtaskIndex(), evt);
+            coordinator.handleEventFromOperator(
+                    exec.getParallelSubtaskIndex(), exec.getAttemptNumber(), evt);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             globalFailureHandler.handleGlobalFailure(t);
@@ -149,11 +154,13 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     @Override
     public void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
 
         for (OperatorCoordinatorHolder coordinator : coordinators) {
             coordinatorMap.put(coordinator.operatorId(), coordinator);
-            coordinator.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+            coordinator.lazyInitialize(
+                    globalFailureHandler, mainThreadExecutor, jobManagerJobMetricGroup);
         }
         startOperatorCoordinators(coordinators);
     }

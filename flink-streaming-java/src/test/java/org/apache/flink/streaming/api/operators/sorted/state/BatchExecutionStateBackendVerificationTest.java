@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sorted.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -45,7 +46,8 @@ public class BatchExecutionStateBackendVerificationTest extends TestLogger {
         expectedException.expectMessage("Snapshotting is not supported in BATCH runtime mode.");
 
         BatchExecutionKeyedStateBackend<Long> stateBackend =
-                new BatchExecutionKeyedStateBackend<>(LONG_SERIALIZER, new KeyGroupRange(0, 9));
+                new BatchExecutionKeyedStateBackend<>(
+                        LONG_SERIALIZER, new KeyGroupRange(0, 9), new ExecutionConfig());
 
         long checkpointId = 0L;
         CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);

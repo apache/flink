@@ -112,17 +112,6 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
-        <strong>sql_query(query)</strong>
-      </td>
-      <td>
-        执行一条 SQL 查询，并将查询的结果作为一个 `Table` 对象。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>create_temporary_view(view_path, table)</strong>
       </td>
       <td>
@@ -168,6 +157,17 @@ TableEnvironment API
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.execute_sql" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>sql_query(query)</strong>
+      </td>
+      <td>
+        执行一条 SQL 查询，并将查询的结果作为一个 `Table` 对象。
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="链接">}}
       </td>
     </tr>
   </tbody>
@@ -570,7 +570,9 @@ TableEnvironment API
         <a href="{{< ref "docs/dev/python/python_config" >}}">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
         下面的代码示例展示了如何通过这个 API 来设置配置选项：<br>
 # set the parallelism to 8 <br>
-table_env.get_config().set("parallelism.default", "8")
+table_env.get_config().set("parallelism.default", "8")<br>
+# set the job name <br>
+table_env.get_config().set("pipeline.name", "my_first_job")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.get_config" name="链接">}}
@@ -819,7 +821,7 @@ Statebackend，Checkpoint 以及重启策略
 下面代码示例展示了如何通过 Table API 来配置 statebackend，checkpoint 以及重启策略：
 ```python
 # 设置重启策略为 "fixed-delay"
-table_env.get_config().set("restart-strategy", "fixed-delay")
+table_env.get_config().set("restart-strategy.type", "fixed-delay")
 table_env.get_config().set("restart-strategy.fixed-delay.attempts", "3")
 table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 
@@ -830,7 +832,7 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 # 设置 statebackend 类型为 "rocksdb"，其他可选项有 "filesystem" 和 "jobmanager"
 # 你也可以将这个属性设置为 StateBackendFactory 的完整类名
 # e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
-table_env.get_config().set("state.backend", "rocksdb")
+table_env.get_config().set("state.backend.type", "rocksdb")
 
 # 设置 RocksDB statebackend 所需要的 checkpoint 目录
 table_env.get_config().set("state.checkpoints.dir", "file:///tmp/checkpoints/")

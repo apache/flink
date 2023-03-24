@@ -19,12 +19,13 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.DeploymentOptions;
 
 import java.util.Collection;
 
 /**
- * If {@link org.apache.flink.configuration.DeploymentOptions#ALLOW_CLIENT_JOB_CONFIGURATIONS} is
- * disabled configurations in the user jar will throw this exception.
+ * If {@link DeploymentOptions#PROGRAM_CONFIG_ENABLED} is disabled, configurations in the user jar
+ * will throw this exception.
  */
 @Internal
 public class MutatedConfigurationException extends Exception {
@@ -33,6 +34,15 @@ public class MutatedConfigurationException extends Exception {
     private static final long serialVersionUID = -2417524218857151612L;
 
     public MutatedConfigurationException(Collection<String> errorMessages) {
-        super(String.join("\n", errorMessages));
+        super(prettyFormat(errorMessages));
+    }
+
+    private static String prettyFormat(Collection<String> errorMessages) {
+        StringBuilder builder =
+                new StringBuilder("Not allowed configuration change(s) were detected:");
+        for (String error : errorMessages) {
+            builder.append("\n - " + error);
+        }
+        return builder.toString();
     }
 }

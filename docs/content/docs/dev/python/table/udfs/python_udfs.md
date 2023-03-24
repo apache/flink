@@ -28,7 +28,7 @@ under the License.
 
 User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
 
-**NOTE:** Python UDF execution requires Python version (3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
+**NOTE:** Python UDF execution requires Python version (3.7, 3.8, 3.9 or 3.10) with PyFlink installed. It's required on both the client side and the cluster side. 
 
 ## Scalar Functions
 
@@ -41,7 +41,9 @@ The following example shows how to define your own Python hash code function, re
 Note that you can configure your scalar function via a constructor before it is registered:
 
 ```python
-from pyflink.table.expressions import call 
+from pyflink.table.expressions import call, col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import ScalarFunction, udf
 
 class HashCode(ScalarFunction):
   def __init__(self):
@@ -53,13 +55,13 @@ class HashCode(ScalarFunction):
 settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
-hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
+hash_code = udf(HashCode(), result_type='BIGINT')
 
 # use the Python function in Python Table API
-my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
+my_table.select(col("string"), col("bigint"), hash_code(col("bigint")), call(hash_code, col("bigint")))
 
 # use the Python function in SQL API
-table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type='BIGINT'))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 ```
 
@@ -78,7 +80,8 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
 settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
@@ -87,7 +90,7 @@ table_env = TableEnvironment.create(settings)
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # use the Java function in Python Table API
-my_table.select(call('hash_code', my_table.string))
+my_table.select(call('hash_code', col("string")))
 
 # use the Java function in SQL API
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
@@ -106,33 +109,33 @@ class Add(ScalarFunction):
 add = udf(Add(), result_type=DataTypes.BIGINT())
 
 # option 2: Python function
-@udf(result_type=DataTypes.BIGINT())
+@udf(result_type='BIGINT')
 def add(i, j):
   return i + j
 
 # option 3: lambda function
-add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
+add = udf(lambda i, j: i + j, result_type='BIGINT')
 
 # option 4: callable function
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
-add = udf(CallableAdd(), result_type=DataTypes.BIGINT())
+add = udf(CallableAdd(), result_type='BIGINT')
 
 # option 5: partial function
 def partial_add(i, j, k):
   return i + j + k
 
-add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
+add = udf(functools.partial(partial_add, k=1), result_type='BIGINT')
 
 # register the Python function
 table_env.create_temporary_function("add", add)
 # use the function in Python Table API
-my_table.select(call('add', my_table.a, my_table.b))
+my_table.select(call('add', col('a'), col('b')))
 
 # You can also use the Python function in Python Table API directly
-my_table.select(add(my_table.a, my_table.b))
+my_table.select(add(col('a'), col('b')))
 ```
 
 ## Table Functions
@@ -145,6 +148,10 @@ The following example shows how to define your own Python multi emit function, r
 TableEnvironment, and call it in a query.
 
 ```python
+from pyflink.table.expressions import col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import TableFunction, udtf
+
 class Split(TableFunction):
     def eval(self, string):
         for s in string.split(" "):
@@ -155,14 +162,14 @@ table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
 # register the Python Table Function
-split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
+split = udtf(Split(), result_types=['STRING', 'INT'])
 
 # use the Python Table Function in Python Table API
-my_table.join_lateral(split(my_table.a).alias("word", "length"))
-my_table.left_outer_join_lateral(split(my_table.a).alias("word", "length"))
+my_table.join_lateral(split(col("a")).alias("word", "length"))
+my_table.left_outer_join_lateral(split(col("a")).alias("word", "length"))
 
 # use the Python Table function in SQL API
-table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+table_env.create_temporary_function("split", udtf(Split(), result_types=['STRING', 'INT']))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
@@ -186,7 +193,8 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -196,8 +204,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
 # Use the table function in the Python Table API. "alias" specifies the field names of the table.
-my_table.join_lateral(call('split', my_table.a).alias("word", "length")).select(my_table.a, col('word'), col('length'))
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word", "length")).select(my_table.a, col('word'), col('length'))
+my_table.join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
 
 # Register the python function.
 
@@ -214,18 +222,18 @@ Like Python scalar functions, you can use the above five ways to define Python T
 
 ```python
 # option 1: generator function
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def generator_func(x):
       yield 1
       yield 2
 
 # option 2: return iterator
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def iterator_func(x):
       return range(5)
 
 # option 3: return iterable
-@udtf(result_types=DataTypes.BIGINT())
+@udtf(result_types='BIGINT')
 def iterable_func(x):
       result = [1, 2, 3]
       return result
@@ -294,12 +302,10 @@ class WeightedAvg(AggregateFunction):
         accumulator[1] -= weight
         
     def get_result_type(self):
-        return DataTypes.BIGINT()
+        return 'BIGINT'
         
     def get_accumulator_type(self):
-        return DataTypes.ROW([
-            DataTypes.FIELD("f0", DataTypes.BIGINT()), 
-            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+        return 'ROW<f0 BIGINT, f1 BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()
@@ -313,23 +319,23 @@ t = table_env.from_elements([(1, 2, "Lee"),
                              (7, 8, "Lee")]).alias("value", "count", "name")
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.name).select(weighted_avg(t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(col("name")).select(weighted_avg(col("value"), col("count")).alias("avg")).execute()
+result.print()
 
 # register function
 table_env.create_temporary_function("weighted_avg", WeightedAvg())
 
 # call registered function in Table API
-result = t.group_by(t.name).select(call("weighted_avg", t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(col("name")).select(call("weighted_avg", col("value"), col("count")).alias("avg")).execute()
+result.print()
 
 # register table
 table_env.create_temporary_view("source", t)
 
 # call registered function in SQL
 result = table_env.sql_query(
-    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").to_pandas()
-print(result)
+    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").execute()
+result.print()
 
 # use the general Python aggregate function in GroupBy Window Aggregation
 tumble_window = Tumble.over(lit(1).hours) \
@@ -339,9 +345,8 @@ tumble_window = Tumble.over(lit(1).hours) \
 result = t.window(tumble_window) \
         .group_by(col('w'), col('name')) \
         .select(col('w').start, col('w').end, weighted_avg(col('value'), col('count'))) \
-        .to_pandas()
-print(result)
-
+        .execute()
+result.print()
 ```
 
 The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
@@ -449,6 +454,7 @@ The following example shows how to define your own aggregate function and call i
 ```python
 from pyflink.common import Row
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
 from pyflink.table.udf import udtaf, TableAggregateFunction
 
 class Top2(TableAggregateFunction):
@@ -469,11 +475,10 @@ class Top2(TableAggregateFunction):
                 accumulator[1] = row[0]
 
     def get_accumulator_type(self):
-        return DataTypes.ARRAY(DataTypes.BIGINT())
+        return 'ARRAY<BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+        return 'ROW<a BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()
@@ -482,13 +487,14 @@ table_env = TableEnvironment.create(env_settings)
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
 top2 = udtaf(Top2())
 t = table_env.from_elements([(1, 'Hi', 'Hello'),
-                              (3, 'Hi', 'hi'),
-                              (5, 'Hi2', 'hi'),
-                              (7, 'Hi', 'Hello'),
-                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                             (3, 'Hi', 'hi'),
+                             (5, 'Hi2', 'hi'),
+                             (7, 'Hi', 'Hello'),
+                             (2, 'Hi', 'Hello')],
+                            ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
+t.group_by(col('b')).flat_aggregate(top2).select(col('*')).execute().print()
 
 # the result is:
 #      b    a

@@ -20,19 +20,19 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -40,36 +40,36 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@code DefaultJobManagerRunnerRegistryTest} tests the functionality of {@link
  * DefaultJobManagerRunnerRegistry}.
  */
-public class DefaultJobManagerRunnerRegistryTest {
+class DefaultJobManagerRunnerRegistryTest {
 
     private JobManagerRunnerRegistry testInstance;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         testInstance = new DefaultJobManagerRunnerRegistry(4);
     }
 
     @Test
-    public void testIsRegistered() {
+    void testIsRegistered() {
         final JobID jobId = new JobID();
         testInstance.register(TestingJobManagerRunner.newBuilder().setJobId(jobId).build());
         assertThat(testInstance.isRegistered(jobId)).isTrue();
     }
 
     @Test
-    public void testIsNotRegistered() {
+    void testIsNotRegistered() {
         assertThat(testInstance.isRegistered(new JobID())).isFalse();
     }
 
     @Test
-    public void testRegister() {
+    void testRegister() {
         final JobID jobId = new JobID();
         testInstance.register(TestingJobManagerRunner.newBuilder().setJobId(jobId).build());
         assertThat(testInstance.isRegistered(jobId)).isTrue();
     }
 
     @Test
-    public void testRegisteringTwiceCausesFailure() {
+    void testRegisteringTwiceCausesFailure() {
         final JobID jobId = new JobID();
         testInstance.register(TestingJobManagerRunner.newBuilder().setJobId(jobId).build());
         assertThat(testInstance.isRegistered(jobId)).isTrue();
@@ -84,7 +84,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testGet() {
+    void testGet() {
         final JobID jobId = new JobID();
         final JobManagerRunner jobManagerRunner =
                 TestingJobManagerRunner.newBuilder().setJobId(jobId).build();
@@ -94,22 +94,22 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testGetOnNonExistingJobManagerRunner() {
+    void testGetOnNonExistingJobManagerRunner() {
         assertThatThrownBy(() -> testInstance.get(new JobID()))
                 .isInstanceOf(NoSuchElementException.class);
     }
 
     @Test
-    public void size() {
-        assertThat(testInstance.size()).isEqualTo(0);
+    void size() {
+        assertThat(testInstance.size()).isZero();
         testInstance.register(TestingJobManagerRunner.newBuilder().build());
-        assertThat(testInstance.size()).isEqualTo(1);
+        assertThat(testInstance.size()).isOne();
         testInstance.register(TestingJobManagerRunner.newBuilder().build());
         assertThat(testInstance.size()).isEqualTo(2);
     }
 
     @Test
-    public void testGetRunningJobIds() {
+    void testGetRunningJobIds() {
         assertThat(testInstance.getRunningJobIds()).isEmpty();
 
         final JobID jobId0 = new JobID();
@@ -121,7 +121,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testGetJobManagerRunners() {
+    void testGetJobManagerRunners() {
         assertThat(testInstance.getJobManagerRunners()).isEmpty();
 
         final JobManagerRunner jobManagerRunner0 = TestingJobManagerRunner.newBuilder().build();
@@ -134,7 +134,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testSuccessfulLocalCleanup() throws Throwable {
+    void testSuccessfulLocalCleanup() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(
@@ -146,7 +146,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testFailingLocalCleanup() {
+    void testFailingLocalCleanup() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
@@ -155,23 +155,20 @@ public class DefaultJobManagerRunnerRegistryTest {
         final RuntimeException expectedException = new RuntimeException("Expected exception");
         jobManagerRunner.completeTerminationFutureExceptionally(expectedException);
 
-        assertThat(
+        assertThatFuture(
                         testInstance.localCleanupAsync(
                                 jobManagerRunner.getJobID(), Executors.directExecutor()))
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
+                .isCompletedExceptionally()
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
-                .hasExactlyElementsOfTypes(
-                        ExecutionException.class,
-                        FlinkException.class,
-                        expectedException.getClass())
+                .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
     }
 
     @Test
-    public void testSuccessfulLocalCleanupAsync() throws Exception {
+    void testSuccessfulLocalCleanupAsync() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         final CompletableFuture<Void> cleanupResult =
@@ -182,7 +179,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testFailingLocalCleanupAsync() throws Exception {
+    void testFailingLocalCleanupAsync() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
@@ -195,17 +192,33 @@ public class DefaultJobManagerRunnerRegistryTest {
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(), Executors.directExecutor());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
-        assertThat(cleanupResult)
+        assertThatFuture(cleanupResult)
                 .isCompletedExceptionally()
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
-                .hasExactlyElementsOfTypes(
-                        ExecutionException.class,
-                        FlinkException.class,
-                        expectedException.getClass())
+                .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
+    }
+
+    @Test
+    void testLocalCleanupAsyncNonBlocking() {
+        final TestingJobManagerRunner jobManagerRunner =
+                TestingJobManagerRunner.newBuilder().setBlockingTermination(true).build();
+        testInstance.register(jobManagerRunner);
+
+        // this call shouldn't block
+        final CompletableFuture<Void> cleanupFuture =
+                testInstance.localCleanupAsync(
+                        jobManagerRunner.getJobID(), UnsupportedOperationExecutor.INSTANCE);
+
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        assertThat(jobManagerRunner.getTerminationFuture()).isNotCompleted();
+        assertThat(cleanupFuture).isNotCompleted();
+
+        jobManagerRunner.getTerminationFuture().complete(null);
+
+        assertThat(cleanupFuture).isCompleted();
     }
 
     private TestingJobManagerRunner registerTestingJobManagerRunner() {
@@ -220,7 +233,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testLocalCleanupAsyncOnUnknownJobId() {
+    void testLocalCleanupAsyncOnUnknownJobId() {
         assertThat(testInstance.localCleanupAsync(new JobID(), Executors.directExecutor()))
                 .isCompleted();
     }

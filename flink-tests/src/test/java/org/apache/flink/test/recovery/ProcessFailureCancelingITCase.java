@@ -20,7 +20,6 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -38,7 +37,7 @@ import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -153,7 +152,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                             rpcService,
                             haServices,
                             blobServerResource.getBlobServer(),
-                            new HeartbeatServices(100L, 10000L, 2),
+                            new HeartbeatServicesImpl(100L, 10000L, 2),
                             new NoOpDelegationTokenManager(),
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
@@ -239,7 +238,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             fatalErrorHandler.rethrowError();
 
-            RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+            RpcUtils.terminateRpcService(rpcService);
 
             haServices.closeAndCleanupAllData();
         }

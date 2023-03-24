@@ -34,11 +34,11 @@ import java.util.List;
  * BinaryRowDataSerializer#deserializeFromPages}.
  */
 public class BinaryRowChannelInputViewIterator implements MutableObjectIterator<BinaryRowData> {
-    private final ChannelReaderInputView inView;
+    protected final ChannelReaderInputView inView;
 
-    private final BinaryRowDataSerializer serializer;
+    protected final BinaryRowDataSerializer serializer;
 
-    private final List<MemorySegment> freeMemTarget;
+    protected final List<MemorySegment> freeMemTarget;
 
     public BinaryRowChannelInputViewIterator(
             ChannelReaderInputView inView, BinaryRowDataSerializer serializer) {

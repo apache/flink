@@ -21,6 +21,7 @@ package org.apache.flink.test.scheduling;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -30,10 +31,9 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,11 +44,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for {@link AdaptiveBatchScheduler}. */
-public class AdaptiveBatchSchedulerITCase extends TestLogger {
+class AdaptiveBatchSchedulerITCase {
 
     private static final int DEFAULT_MAX_PARALLELISM = 4;
     private static final int SOURCE_PARALLELISM_1 = 2;
@@ -59,8 +58,8 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
 
     private Map<Long, Long> expectedResult;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         expectedResult =
                 LongStream.range(0, NUMBERS_TO_PRODUCE)
                         .boxed()
@@ -70,16 +69,65 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
     }
 
     @Test
-    public void testSchedulingWithUnknownResource() throws Exception {
+    void testSchedulingWithUnknownResource() throws Exception {
         testScheduling(false);
     }
 
     @Test
-    public void testSchedulingWithFineGrainedResource() throws Exception {
+    void testSchedulingWithFineGrainedResource() throws Exception {
         testScheduling(true);
     }
 
-    public void testScheduling(Boolean isFineGrained) throws Exception {
+    @Test
+    void testParallelismOfForwardGroupLargerThanGlobalMaxParallelism() throws Exception {
+        final Configuration configuration = createConfiguration();
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(8);
+
+        final DataStream<Long> source =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(8)
+                        .name("source")
+                        .slotSharingGroup("group1");
+
+        source.forward().map(new NumberCounter()).name("map").slotSharingGroup("group2");
+        env.execute();
+    }
+
+    @Test
+    void testDifferentConsumerParallelism() throws Exception {
+        final Configuration configuration = createConfiguration();
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(8);
+
+        final DataStream<Long> source2 =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(8)
+                        .name("source2")
+                        .slotSharingGroup("group2");
+
+        final DataStream<Long> source1 =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(8)
+                        .name("source1")
+                        .slotSharingGroup("group1");
+
+        source1.forward()
+                .union(source2)
+                .map(new NumberCounter())
+                .name("map1")
+                .slotSharingGroup("group3");
+
+        source2.map(new NumberCounter()).name("map2").slotSharingGroup("group4");
+
+        env.execute();
+    }
+
+    private void testScheduling(Boolean isFineGrained) throws Exception {
         executeJob(isFineGrained);
 
         Map<Long, Long> numberCountResultMap =
@@ -96,24 +144,11 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
                 System.out.println(i + ": " + numberCountResultMap.get(i));
             }
         }
-        assertThat(numberCountResultMap, equalTo(expectedResult));
+        assertThat(numberCountResultMap).isEqualTo(expectedResult);
     }
 
     private void executeJob(Boolean isFineGrained) throws Exception {
-        final Configuration configuration = new Configuration();
-        configuration.setString(RestOptions.BIND_PORT, "0");
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
-        configuration.set(
-                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
-        configuration.setInteger(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM,
-                DEFAULT_MAX_PARALLELISM);
-        configuration.set(
-                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
-                MemorySize.parse("150kb"));
-        configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
-        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-
+        final Configuration configuration = createConfiguration();
         if (isFineGrained) {
             configuration.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
             configuration.set(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING, true);
@@ -121,7 +156,6 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
 
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironment(configuration);
-        env.setParallelism(-1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         List<SlotSharingGroup> slotSharingGroups = new ArrayList<>();
@@ -159,6 +193,22 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
                 .slotSharingGroup(slotSharingGroups.get(2));
 
         env.execute();
+    }
+
+    private static Configuration createConfiguration() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(RestOptions.BIND_PORT, "0");
+        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.setInteger(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
+                DEFAULT_MAX_PARALLELISM);
+        configuration.set(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
+                MemorySize.parse("150kb"));
+        configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 1);
+
+        return configuration;
     }
 
     private static class NumberCounter extends RichMapFunction<Long, Long> {

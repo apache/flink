@@ -214,7 +214,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             inputTimeFieldIndex =
                     timeFieldIndex(
                             planner.getTypeFactory().buildRelNodeRowType(inputRowType),
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             window.timeAttribute());
             if (inputTimeFieldIndex < 0) {
                 throw new TableException(
@@ -247,7 +247,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                 createAggsHandler(
                         aggInfoList,
                         config,
-                        planner.getRelBuilder(),
+                        planner.getFlinkContext().getClassLoader(),
+                        planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
 
@@ -258,7 +259,9 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         .toArray(LogicalType[]::new);
 
         final EqualiserCodeGenerator generator =
-                new EqualiserCodeGenerator(ArrayUtils.addAll(aggResultTypes, windowPropertyTypes));
+                new EqualiserCodeGenerator(
+                        ArrayUtils.addAll(aggResultTypes, windowPropertyTypes),
+                        planner.getFlinkContext().getClassLoader());
         final GeneratedRecordEqualiser equaliser =
                 generator.generateRecordEqualiser("WindowValueEqualiser");
 
@@ -285,11 +288,15 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;
@@ -304,6 +311,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private GeneratedClass<?> createAggsHandler(
             AggregateInfoList aggInfoList,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
             ZoneId shiftTimeZone) {
@@ -326,7 +334,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config, classLoader),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(fieldTypes),
                                 false) // copyInputField

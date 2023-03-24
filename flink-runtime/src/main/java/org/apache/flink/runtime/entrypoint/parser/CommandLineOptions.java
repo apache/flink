@@ -32,6 +32,8 @@ public class CommandLineOptions {
                     .desc("Directory which contains the configuration file flink-conf.yml.")
                     .build();
 
+    /** @deprecated subsumed by dynamic properties */
+    @Deprecated
     public static final Option REST_PORT_OPTION =
             Option.builder("r")
                     .longOpt("webui-port")
@@ -49,6 +51,8 @@ public class CommandLineOptions {
                     .desc("use value for given property")
                     .build();
 
+    /** @deprecated subsumed by dynamic properties */
+    @Deprecated
     public static final Option HOST_OPTION =
             Option.builder("h")
                     .longOpt("host")

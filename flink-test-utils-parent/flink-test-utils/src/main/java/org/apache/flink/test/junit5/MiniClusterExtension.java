@@ -23,6 +23,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -170,7 +172,7 @@ public final class MiniClusterExtension
             throws ParameterResolutionException {
         Class<?> parameterType = parameterContext.getParameter().getType();
         if (parameterContext.isAnnotated(InjectClusterClient.class)
-                && parameterType.isAssignableFrom(ClusterClient.class)) {
+                && ClusterClient.class.isAssignableFrom(parameterType)) {
             return true;
         }
         return internalMiniClusterExtension.supportsParameter(parameterContext, extensionContext);
@@ -241,21 +243,28 @@ public final class MiniClusterExtension
 
     @Override
     public void afterAll(ExtensionContext context) throws Exception {
-        internalMiniClusterExtension.afterAll(context);
+        if (internalMiniClusterExtension != null) {
+            internalMiniClusterExtension.afterAll(context);
+        }
     }
 
     // Implementation
 
     private void registerEnv(InternalMiniClusterExtension internalMiniClusterExtension) {
+        final Configuration configuration =
+                internalMiniClusterExtension.getMiniCluster().getConfiguration();
+
+        final int defaultParallelism =
+                configuration
+                        .getOptional(CoreOptions.DEFAULT_PARALLELISM)
+                        .orElse(internalMiniClusterExtension.getNumberSlots());
+
         TestEnvironment executionEnvironment =
                 new TestEnvironment(
-                        internalMiniClusterExtension.getMiniCluster(),
-                        internalMiniClusterExtension.getNumberSlots(),
-                        false);
+                        internalMiniClusterExtension.getMiniCluster(), defaultParallelism, false);
         executionEnvironment.setAsContext();
         TestStreamEnvironment.setAsContext(
-                internalMiniClusterExtension.getMiniCluster(),
-                internalMiniClusterExtension.getNumberSlots());
+                internalMiniClusterExtension.getMiniCluster(), defaultParallelism);
     }
 
     private void unregisterEnv(InternalMiniClusterExtension internalMiniClusterExtension) {
@@ -275,6 +284,12 @@ public final class MiniClusterExtension
         return new RestClusterClient<>(
                 internalMiniClusterExtension.getClientConfiguration(),
                 MiniClusterClient.MiniClusterId.INSTANCE);
+    }
+
+    // Utils
+
+    public Configuration getClientConfiguration() {
+        return internalMiniClusterExtension.getClientConfiguration();
     }
 
     private static class CloseableParameter<T extends AutoCloseable>

@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-scala_${scala.binary.version}</artifactId>
@@ -155,12 +155,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
@@ -233,12 +227,13 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Adding scala source directories to build path -->
+			<!-- Adding scala source directories to build path
+			 	 This is required for the source jar -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
+					<!-- Add src/main/scala to build path -->
 					<execution>
 						<id>add-source</id>
 						<phase>generate-sources</phase>
@@ -251,7 +246,7 @@ under the License.
 							</sources>
 						</configuration>
 					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
+					<!-- Add src/test/scala to build path -->
 					<execution>
 						<id>add-test-source</id>
 						<phase>generate-test-sources</phase>

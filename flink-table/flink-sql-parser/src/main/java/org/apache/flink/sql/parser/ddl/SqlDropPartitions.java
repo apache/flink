@@ -43,7 +43,7 @@ public class SqlDropPartitions extends SqlAlterTable {
             SqlIdentifier tableName,
             boolean ifExists,
             List<SqlNodeList> partSpecs) {
-        super(pos, tableName);
+        super(pos, tableName, false);
         this.ifExists = ifExists;
         this.partSpecs = partSpecs;
     }

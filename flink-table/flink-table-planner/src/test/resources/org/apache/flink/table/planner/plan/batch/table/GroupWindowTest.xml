@@ -96,12 +96,13 @@ LogicalProject(string=[$0], EXPR$0=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(EXPR$0) AS EXPR$0])
-+- Sort(orderBy=[string ASC, assignedWindow$ ASC])
-   +- Exchange(distribution=[hash[string]])
-      +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(long, int0) AS EXPR$0])
-         +- Calc(select=[long, int, string, CAST(int AS BIGINT) AS int0])
-            +- Sort(orderBy=[string ASC, long ASC])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[string ASC, assignedWindow$ ASC])
+      +- Exchange(distribution=[hash[string]])
+         +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(long, int0) AS EXPR$0])
+            +- Calc(select=[long, int, string, CAST(int AS BIGINT) AS int0])
+               +- Sort(orderBy=[string ASC, long ASC])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
 ]]>
     </Resource>
   </TestCase>

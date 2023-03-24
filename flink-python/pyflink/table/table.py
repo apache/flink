@@ -84,7 +84,7 @@ class Table(object):
     Example:
     ::
 
-        >>> from pyflink.table import TableEnvironment
+        >>> from pyflink.table import EnvironmentSettings, TableEnvironment
         >>> from pyflink.table.expressions import *
         >>> env_settings = EnvironmentSettings.in_streaming_mode()
         >>> t_env = TableEnvironment.create(env_settings)
@@ -122,9 +122,9 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as expr
-            >>> tab.select(tab.key, expr.concat(tab.value, 'hello'))
-            >>> tab.select(expr.col('key'), expr.concat(expr.col('value'), 'hello'))
+            >>> from pyflink.table.expressions import col, concat
+            >>> tab.select(tab.key, concat(tab.value, 'hello'))
+            >>> tab.select(col('key'), concat(col('value'), 'hello'))
 
         :return: The result table.
         """
@@ -156,7 +156,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.filter(tab.name == 'Fred')
+            >>> tab.filter(col('name') == 'Fred')
 
         :param predicate: Predicate expression string.
         :return: The result table.
@@ -171,7 +171,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.where(tab.name == 'Fred')
+            >>> tab.where(col('name') == 'Fred')
 
         :param predicate: Predicate expression string.
         :return: The result table.
@@ -186,7 +186,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.group_by(tab.key).select(tab.key, tab.value.avg)
+            >>> tab.group_by(col('key')).select(col('key'), col('value').avg)
 
         :param fields: Group keys.
         :return: The grouped table.
@@ -200,7 +200,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.select(tab.key, tab.value).distinct()
+            >>> tab.select(col('key'), col('value')).distinct()
 
         :return: The result table.
         """
@@ -220,9 +220,8 @@ class Table(object):
         Example:
         ::
 
-            >>> left.join(right).where((left.a == right.b) && (left.c > 3))
-            >>> left.join(right).where("a = b && c > 3")
-            >>> left.join(right, left.a == right.b)
+            >>> left.join(right).where((col('a') == col('b')) && (col('c') > 3))
+            >>> left.join(right, col('a') == col('b'))
 
         :param right: Right table.
         :param join_predicate: Optional, the join predicate expression string.
@@ -251,7 +250,7 @@ class Table(object):
         ::
 
             >>> left.left_outer_join(right)
-            >>> left.left_outer_join(right, left.a == right.b)
+            >>> left.left_outer_join(right, col('a') == col('b'))
 
         :param right: Right table.
         :param join_predicate: Optional, the join predicate expression string.
@@ -279,7 +278,7 @@ class Table(object):
         Example:
         ::
 
-            >>> left.right_outer_join(right, left.a == right.b)
+            >>> left.right_outer_join(right, col('a') == col('b'))
 
         :param right: Right table.
         :param join_predicate: The join predicate expression string.
@@ -304,7 +303,7 @@ class Table(object):
         Example:
         ::
 
-            >>> left.full_outer_join(right, left.a == right.b)
+            >>> left.full_outer_join(right, col('a') == col('b'))
 
         :param right: Right table.
         :param join_predicate: The join predicate expression string.
@@ -324,11 +323,10 @@ class Table(object):
         Example:
         ::
 
+            >>> from pyflink.table.expressions import *
             >>> t_env.create_java_temporary_system_function("split",
             ...     "java.table.function.class.name")
-
-            >>> from pyflink.table import expressions as expr
-            >>> tab.join_lateral(expr.call('split', ' ').alias('b'), expr.col('a') == expr.col('b'))
+            >>> tab.join_lateral(call('split', ' ').alias('b'), col('a') == col('b'))
             >>> # take all the columns as inputs
             >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
             ... def split_row(row: Row):
@@ -374,8 +372,9 @@ class Table(object):
 
             >>> t_env.create_java_temporary_system_function("split",
             ...     "java.table.function.class.name")
-            >>> from pyflink.table import expressions as expr
-            >>> tab.left_outer_join_lateral(expr.call('split', ' ').alias('b'))
+            >>> from pyflink.table.expressions import *
+            >>> tab.left_outer_join_lateral(call('split', ' ').alias('b'))
+
             >>> # take all the columns as inputs
             >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
             ... def split_row(row: Row):
@@ -539,7 +538,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.order_by(tab.name.desc)
+            >>> tab.order_by(col('name').desc)
 
         For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
         fetch operation.
@@ -561,9 +560,9 @@ class Table(object):
         ::
 
             # skips the first 3 rows and returns all following rows.
-            >>> tab.order_by(tab.name.desc).offset(3)
+            >>> tab.order_by(col('name').desc).offset(3)
             # skips the first 10 rows and returns the next 5 rows.
-            >>> tab.order_by(tab.name.desc).offset(10).fetch(5)
+            >>> tab.order_by(col('name').desc).offset(10).fetch(5)
 
         For unbounded tables, this operation requires a subsequent fetch operation.
 
@@ -585,12 +584,12 @@ class Table(object):
         Returns the first 3 records.
         ::
 
-            >>> tab.order_by(tab.name.desc).fetch(3)
+            >>> tab.order_by(col('name').desc).fetch(3)
 
         Skips the first 10 rows and returns the next 5 rows.
         ::
 
-            >>> tab.order_by(tab.name.desc).offset(10).fetch(5)
+            >>> tab.order_by(col('name').desc).offset(10).fetch(5)
 
         :param fetch: The number of records to return. Fetch must be >= 0.
         :return: The result table.
@@ -646,10 +645,10 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as expr
-            >>> tab.window(Tumble.over(expr.lit(10).minutes).on(tab.rowtime).alias('w')) \\
+            >>> from pyflink.table.expressions import col, lit
+            >>> tab.window(Tumble.over(lit(10).minutes).on(col('rowtime')).alias('w')) \\
             ...     .group_by(col('w')) \\
-            ...     .select(tab.a.sum.alias('a'),
+            ...     .select(col('a').sum.alias('a'),
             ...             col('w').start.alias('b'),
             ...             col('w').end.alias('c'),
             ...             col('w').rowtime.alias('d'))
@@ -671,10 +670,10 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as expr
-            >>> tab.over_window(Over.partition_by(tab.c).order_by(tab.rowtime) \\
+            >>> from pyflink.table.expressions import col, lit
+            >>> tab.over_window(Over.partition_by(col('c')).order_by(col('rowtime')) \\
             ...     .preceding(lit(10).seconds).alias("ow")) \\
-            ...     .select(tab.c, tab.b.count.over(col('ow'), tab.e.sum.over(col('ow'))))
+            ...     .select(col('c'), col('b').count.over(col('ow'), col('e').sum.over(col('ow'))))
 
         .. note::
 
@@ -703,8 +702,8 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as expr
-            >>> tab.add_columns((tab.a + 1).alias('a1'), expr.concat(tab.b, 'sunny').alias('b1'))
+            >>> from pyflink.table.expressions import col, concat
+            >>> tab.add_columns((col('a') + 1).alias('a1'), concat(col('b'), 'sunny').alias('b1'))
 
         :param fields: Column list string.
         :return: The result table.
@@ -721,9 +720,9 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as expr
-            >>> tab.add_or_replace_columns((tab.a + 1).alias('a1'),
-            ...                            expr.concat(tab.b, 'sunny').alias('b1'))
+            >>> from pyflink.table.expressions import col, concat
+            >>> tab.add_or_replace_columns((col('a') + 1).alias('a1'),
+            ...                            concat(col('b'), 'sunny').alias('b1'))
 
         :param fields: Column list string.
         :return: The result table.
@@ -739,7 +738,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.rename_columns(tab.a.alias('a1'), tab.b.alias('b1'))
+            >>> tab.rename_columns(col('a').alias('a1'), col('b').alias('b1'))
 
         :param fields: Column list string.
         :return: The result table.
@@ -754,7 +753,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.drop_columns(tab.a, tab.b)
+            >>> tab.drop_columns(col('a'), col('b'))
 
         :param fields: Column list string.
         :return: The result table.
@@ -771,7 +770,7 @@ class Table(object):
 
             >>> add = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.Row(
             ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
-            >>> tab.map(add(tab.a)).alias("a, b")
+            >>> tab.map(add(col('a'))).alias("a", "b")
             >>> # take all the columns as inputs
             >>> identity = udf(lambda row: row, result_type=DataTypes.Row(
             ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
@@ -799,7 +798,7 @@ class Table(object):
             ... def split(x, string):
             ...     for s in string.split(","):
             ...         yield x, s
-            >>> tab.flat_map(split(tab.a, table.b))
+            >>> tab.flat_map(split(col('a'), col('b')))
             >>> # take all the columns as inputs
             >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
             ... def split_row(row: Row):
@@ -832,7 +831,7 @@ class Table(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select(col('a'), col('b'))
+            >>> tab.aggregate(agg(col('a')).alias("a", "b")).select(col('a'), col('b'))
             >>> # take all the columns as inputs
             >>> # pd is a Pandas.DataFrame
             >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.a.max()),
@@ -840,7 +839,7 @@ class Table(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> tab.aggregate(agg.alias("a, b")).select(col('a'), col('b'))
+            >>> tab.aggregate(agg.alias("a", "b")).select(col('a'), col('b'))
 
         :param func: user-defined aggregate function.
         :return: The result table.
@@ -869,7 +868,7 @@ class Table(object):
         ::
 
             >>> table_agg = udtaf(MyTableAggregateFunction())
-            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select(col('a'), col('b'))
+            >>> tab.flat_aggregate(table_agg(col('a')).alias("a", "b")).select(col('a'), col('b'))
             >>> # take all the columns as inputs
             >>> class Top2(TableAggregateFunction):
             ...     def emit_value(self, accumulator):
@@ -924,7 +923,7 @@ class Table(object):
 
             >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
             >>> table = table_env.from_pandas(pdf, ["a", "b"])
-            >>> table.filter(table.a > 0.5).to_pandas()
+            >>> table.filter(col('a') > 0.5).to_pandas()
 
         :return: the result pandas DataFrame.
 
@@ -1074,8 +1073,9 @@ class Table(object):
 
         .. versionadded:: 1.11.0
         """
+        TEXT = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat.TEXT
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_table.explain(j_extra_details)
+        return self._j_table.explain(TEXT, j_extra_details)
 
 
 class GroupedTable(object):
@@ -1095,7 +1095,7 @@ class GroupedTable(object):
         Example:
         ::
 
-            >>> tab.group_by(tab.key).select(tab.key, tab.value.avg.alias('average'))
+            >>> tab.group_by(col('key')).select(col('key'), col('value').avg.alias('average'))
 
         :param fields: Expression string that contains group keys and aggregate function calls.
         :return: The result table.
@@ -1116,7 +1116,7 @@ class GroupedTable(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> tab.group_by(tab.a).aggregate(agg(tab.b).alias("c", "d")).select(
+            >>> tab.group_by(col('a')).aggregate(agg(col('b')).alias("c", "d")).select(
             ...     col('a'), col('c'), col('d'))
             >>> # take all the columns as inputs
             >>> # pd is a Pandas.DataFrame
@@ -1125,7 +1125,7 @@ class GroupedTable(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select(col('a'), col('b'))
+            >>> tab.group_by(col('a')).aggregate(agg.alias("a", "b")).select(col('a'), col('b'))
 
         :param func: user-defined aggregate function.
         :return: The result table.
@@ -1154,7 +1154,7 @@ class GroupedTable(object):
         ::
 
             >>> table_agg = udtaf(MyTableAggregateFunction())
-            >>> tab.group_by(tab.c).flat_aggregate(table_agg(tab.a).alias("a")).select(
+            >>> tab.group_by(col('c')).flat_aggregate(table_agg(col('a')).alias("a")).select(
             ...     col('c'), col('a'))
             >>> # take all the columns as inputs
             >>> class Top2(TableAggregateFunction):
@@ -1181,7 +1181,9 @@ class GroupedTable(object):
             ...         return DataTypes.ROW(
             ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
             >>> top2 = udtaf(Top2())
-            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select(col('a'), col('b'))
+            >>> tab.group_by(col('c')) \\
+            ...    .flat_aggregate(top2.alias("a", "b")) \\
+            ...    .select(col('a'), col('b'))
 
         :param func: user-defined table aggregate function.
         :return: The result table.
@@ -1224,10 +1226,10 @@ class GroupWindowedTable(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as expr
-            >>> tab.window(Tumble.over(expr.lit(10).minutes).on(tab.rowtime).alias('w')) \\
+            >>> from pyflink.table.expressions import col, lit
+            >>> tab.window(Tumble.over(lit(10).minutes).on(col('rowtime')).alias('w')) \\
             ...     .group_by(col('w')) \\
-            ...     .select(tab.a.sum.alias('a'),
+            ...     .select(col('a').sum.alias('a'),
             ...             col('w').start.alias('b'),
             ...             col('w').end.alias('c'),
             ...             col('w').rowtime.alias('d'))
@@ -1285,9 +1287,9 @@ class WindowGroupedTable(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> window_grouped_table.group_by("w") \
-            ...     .aggregate(agg(window_grouped_table.b) \
-            ...     .alias("c", "d")) \
+            >>> window_grouped_table.group_by(col("w")) \
+            ...     .aggregate(agg(col('b'))) \
+            ...     .alias("c", "d") \
             ...     .select(col('c'), col('d'))
             >>> # take all the columns as inputs
             >>> # pd is a Pandas.DataFrame
@@ -1296,7 +1298,7 @@ class WindowGroupedTable(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> window_grouped_table.group_by("w, a").aggregate(agg_row)
+            >>> window_grouped_table.group_by(col("w"), col("a")).aggregate(agg_row)
 
         :param func: user-defined aggregate function.
         :return: The result table.
@@ -1378,7 +1380,7 @@ class AggregatedTable(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select(col('a'), col('b'))
+            >>> tab.aggregate(agg(col('a')).alias("a", "b")).select(col('a'), col('b'))
             >>> # take all the columns as inputs
             >>> # pd is a Pandas.DataFrame
             >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
@@ -1386,7 +1388,7 @@ class AggregatedTable(object):
             ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
-            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select(col('a'), col('b'))
+            >>> tab.group_by(col('a')).aggregate(agg.alias("a", "b")).select(col('a'), col('b'))
 
         :param fields: Expression string.
         :return: The result table.
@@ -1413,7 +1415,7 @@ class FlatAggregateTable(object):
         ::
 
             >>> table_agg = udtaf(MyTableAggregateFunction())
-            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select(col('a'), col('b'))
+            >>> tab.flat_aggregate(table_agg(col('a')).alias("a", "b")).select(col('a'), col('b'))
             >>> # take all the columns as inputs
             >>> class Top2(TableAggregateFunction):
             ...     def emit_value(self, accumulator):
@@ -1439,7 +1441,9 @@ class FlatAggregateTable(object):
             ...         return DataTypes.ROW(
             ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
             >>> top2 = udtaf(Top2())
-            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select(col('a'), col('b'))
+            >>> tab.group_by(col('c')) \\
+            ...    .flat_aggregate(top2.alias("a", "b")) \\
+            ...    .select(col('a'), col('b'))
 
         :param fields: Expression string.
         :return: The result table.
