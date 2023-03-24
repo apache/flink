@@ -65,86 +65,29 @@ SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌
 ./bin/sql-client.sh gateway --endpoint <gateway address>
 ```
 
+在 gateway 模式下，客户端将 SQL 提交到指定的远端 gateway 并执行。
 <span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。
 
 参阅 [SQL Client startup options](#sql-client-startup-options) 了解更多启动命令。
 
 ### 执行 SQL 查询
 
-命令行界面启动后，你可以使用 `HELP` 命令列出所有可用的 SQL 语句。输入第一条 SQL 查询语句并按 `Enter` 键执行，可以验证你的设置及集群连接是否正确：
+输入以下简单查询并按 `Enter` 键执行，可以验证你的设置及集群连接是否正确：
 
 ```sql
-SELECT 'Hello World';
-```
-
-该查询不需要 table source，并且只产生一行结果。CLI 将从集群中检索结果并将其可视化。按 `Q` 键退出结果视图。
-
-CLI 为维护和可视化结果提供**三种模式**。
-
-**表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
-
-```text
-SET 'sql-client.execution.result-mode' = 'table';
-```
-
-**变更日志模式**（changelog mode）不会实体化和可视化结果，而是由插入（`+`）和撤销（`-`）组成的持续查询产生结果流。
-
-```text
-SET 'sql-client.execution.result-mode' = 'changelog';
-```
-
-**Tableau模式**（tableau mode）更接近传统的数据库，会将执行的结果以制表的形式直接打在屏幕之上。具体显示的内容会取决于作业
-执行模式的不同(`execution.type`)：
-
-```text
 SET 'sql-client.execution.result-mode' = 'tableau';
+SET 'execution.runtime-mode' = 'batch';
+
+SELECT
+    name,
+    COUNT(*) AS cnt
+FROM
+        (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name)
+GROUP BY name;
 ```
 
-注意当你使用这个模式运行一个流式查询的时候，Flink 会将结果持续的打印在当前的屏幕之上。如果这个流式查询的输入是有限的数据集，
-那么Flink在处理完所有的数据之后，会自动的停止作业，同时屏幕上的打印也会相应的停止。如果你想提前结束这个查询，那么可以直接使用
-`CTRL-C` 按键，这个会停掉作业同时停止屏幕上的打印。
+SQL 客户端会从集群获取结果并将其可视化（按 `Q` 键退出结果视图）：
 
-你可以用如下查询来查看三种结果模式的运行情况：
-
-```sql
-SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
-```
-
-此查询执行一个有限字数示例：
-
-*变更日志模式* 下，看到的结果应该类似于：
-
-```text
-+ Bob, 1
-+ Alice, 1
-+ Greg, 1
-- Bob, 1
-+ Bob, 2
-```
-
-*表格模式* 下，可视化结果表将不断更新，直到表程序以如下内容结束：
-
-```text
-Bob, 2
-Alice, 1
-Greg, 1
-```
-
-*Tableau模式* 下，如果这个查询以流的方式执行，那么将显示以下内容：
-```text
-+-----+----------------------+----------------------+
-| +/- |                 name |                  cnt |
-+-----+----------------------+----------------------+
-|   + |                  Bob |                    1 |
-|   + |                Alice |                    1 |
-|   + |                 Greg |                    1 |
-|   - |                  Bob |                    1 |
-|   + |                  Bob |                    2 |
-+-----+----------------------+----------------------+
-Received a total of 5 rows
-```
-
-如果这个查询以批的方式执行，显示的内容如下：
 ```text
 +-------+-----+
 |  name | cnt |
@@ -156,18 +99,13 @@ Received a total of 5 rows
 3 rows in set
 ```
 
-这几种结果模式在 SQL 查询的原型设计过程中都非常有用。这些模式的结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI
-界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](#sql-client-execution-max-table-result-rows)（`sql-client.execution.max-table-result.rows`）的限制。
+你可以通过 `SET` 命令调整作业执行和 sql 客户端的行为。参阅 [SQL Client Configuration](#sql-client-configuration) 了解更多信息。
+一个查询可以作为独立的长时间运行的 Flink 作业被提交到集群。[configuration section](#configuration) 描述了如何声明读取数据的 table source，写入
+数据的 sink 以及配置其他表程序属性的方法。
 
-<span class="label label-danger">注意</span> 在批处理环境下执行的查询只能用表格模式或者Tableau模式进行检索。
+### 快捷键
 
-定义查询语句后，可以将其作为长时间运行的独立 Flink 作业提交给集群。[配置部分](#configuration)解释如何声明读取数据的 table source，写入数据的 sink 以及配置其他表程序属性的方法。
-
-{{< top >}}
-
-### Key-strokes
-
-There is a list of available key-strokes in SQL Client
+SQL 客户端中可用的快捷键列表如下
 
 | Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                                                            |
 |:---------------------------------|------------------|:---------------------------------------------------------------------------------------|
@@ -199,20 +137,18 @@ There is a list of available key-strokes in SQL Client
 | `ctrl-r`                         | `⌘-r`            | History incremental search backward                                                    |
 | `ctrl-s`                         | `⌘-s`            | History incremental search forward                                                     |
 
-### Getting help
+### 获取帮助
 
-The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
-
-See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
+可以在 SQL 客户端输入 `HELP` 命令获得文档中的命令列表。也可以参阅文档 [SQL]({{< ref "docs/dev/table/sql/overview" >}})。
 
 {{< top >}}
 
-Configuration
+配置
 -------------
 
-### SQL Client startup options
+### SQL 客户端启动参数
 
-The SQL Client can be started with the following optional CLI commands. They are discussed in detail in the subsequent paragraphs.
+可以通过以下 CLI 命令启动 SQL 客户端。它们将在后续的章节中详细讨论。
 
 ```text
 ./sql-client [MODE] [OPTIONS]
@@ -395,9 +331,9 @@ Mode "gateway" mode connects to the SQL gateway for submission.
                                            option -f to submit update statement.
 ```
 
-### SQL Client Configuration
+### SQL 客户端配置
 
-You can configure the SQL Client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
+你可以通过以下方式设置 SQL 客户端参数，或者任意合法的 [Flink configuration]({{< ref "docs/dev/table/config" >}}) 配置项：
 
 ```sql
 SET 'key' = 'value';
@@ -405,19 +341,17 @@ SET 'key' = 'value';
 
 {{< generated/sql_client_configuration >}}
 
-### SQL Client result modes
+### SQL 客户端结果模式
 
-The CLI supports **three modes** for maintaining and visualizing results.
+CLI 为维护和可视化结果提供**三种模式**。
 
-The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation.
-It can be enabled by executing the following command in the CLI:
+**表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
 
 ```text
 SET 'sql-client.execution.result-mode' = 'table';
 ```
 
-The result of a query would then look like this, you can use the keys indicated at the bottom of the screen as well
-as the arrows keys to navigate and open the various records:
+查询结果最终展示如下，你可以使用屏幕底部指示的按键和箭头键来选取和打开不同记录：
 
 ```text
 
@@ -438,14 +372,13 @@ Q Quit                     + Inc Refresh              G Goto Page               
 R Refresh                  - Dec Refresh              L Last Page                P Prev Page
 ```
 
-The **changelog mode** does not materialize results and visualizes the result stream that is produced
-by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+**变更日志模式**（changelog mode）不会实体化和可视化结果，而是由插入（`+`）和撤销（`-`）组成的持续查询 [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) 产生结果流。
 
 ```text
 SET 'sql-client.execution.result-mode' = 'changelog';
 ```
 
-The result of a query would then look like this:
+查询结果最终展示如下：
 
 ```text
  op                           name         age isHappy        dob                         height
@@ -466,14 +399,13 @@ R Refresh                                    - Dec Refresh
 
 ```
 
-The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
-The displaying content will be influenced by the query execution type (`execution.type`).
+**Tableau模式**（tableau mode）更接近传统的数据库，会将执行的结果以制表的形式直接打在屏幕之上。具体显示的内容会取决于作业执行模式的不同(`execution.type`)。
 
 ```text
 SET 'sql-client.execution.result-mode' = 'tableau';
 ```
 
-The result of a query would then look like this:
+查询结果最终展示如下：
 
 ```text
 +----+--------------------------------+-------------+---------+------------+--------------------------------+
@@ -491,26 +423,20 @@ The result of a query would then look like this:
 Received a total of 8 rows
 ```
 
-Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of
-this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
-Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+注意，当你使用这个模式运行一个流式查询的时候，Flink 会将结果持续的打印在当前的屏幕之上。如果这个流式查询的输入是有限的数据集，那么Flink在处理完所有的
+数据之后，会自动的停止作业，同时屏幕上的打印也会相应的停止。如果你想提前结束这个查询，那么可以直接使用 `CTRL-C` 按键，这个会停掉作业同时停止屏幕上的打印。
 
-All these result modes can be useful during the prototyping of SQL queries. In all these modes,
-results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive,
-the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through
-bigger results that are only limited by the available main memory and the configured
-[maximum number of rows](#sql-client-execution-max-table-result-rows) (`sql-client.execution.max-table-result.rows`).
+这几种结果模式在 SQL 查询的原型设计过程中都非常有用。这些模式的结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI
+界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](#sql-client-execution-max-table-result-rows)（`sql-client.execution.max-table-result.rows`）的限制。
 
-<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
+<span class="label label-danger">注意</span> 在批处理环境下执行的查询只能用表格模式或者Tableau模式进行检索。
 
-### Initialize Session Using SQL Files
+### 使用 SQL 文件初始化 Session
 
-A SQL query needs a configuration environment in which it is executed. SQL Client supports the `-i`
-startup option to execute an initialization SQL file to setup environment when starting up the SQL Client.
-The so-called *initialization SQL file* can use DDLs to define available catalogs, table sources and sinks,
-user-defined functions, and other properties required for execution and deployment.
+SQL 查询执行需要配置环境。SQL 客户端支持 `-i` 参数，在启动时执行一个 SQL 文件来初始化环境。*初始化 SQL 文件* 中可以使用 DDL 定义 catalogs，
+table sources 和 sinks，用户自定义函数以及其他查询执行和部署所需的配置。
 
-An example of such a file is presented below.
+初始化文件的示例如下所示。
 
 ```sql
 -- Define available catalogs
@@ -565,65 +491,54 @@ SET 'table.exec.spill-compression.enabled' = 'true';
 SET 'table.exec.spill-compression.block-size' = '128kb';
 ```
 
-This configuration:
+内容包括：
 
-- connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
-- defines a table `MyTable` that can read data from a CSV file,
-- defines a view `MyCustomView` that declares a virtual table using a SQL query,
-- defines a user-defined function `myUDF` that can be instantiated using the class name,
-- uses streaming mode for running statements and a parallelism of 1,
-- runs exploratory queries in the `table` result mode,
-- and makes some planner adjustments around join reordering and spilling via configuration options.
+- 连接到 Hive catalogs 并使用 `MyCatalog` 和 `MyDatabase` 作为当前的 catalog 和数据库，
+- 定义从 CSV 文件读取数据的表 `MyTable`，
+- 使用 SQL 查询定义视图 `MyCustomView`，
+- 定义自定义函数 `myUDF`并且可以用类名实例化该函数，
+- 使用流模式执行 SQL 语句并设置并发度为 1，
+- 用 `table` 结果模式执行查询，
+- 设置一些调整执行计划 join 顺序和数据溢出的配置项。
 
-When using `-i <init.sql>` option to initialize SQL Client session, the following statements are allowed in an initialization SQL file:
+使用 `-i <init.sql>` 参数初始化 session 的 SQL 文件可以包含以下 SQL 语句：
 - DDL(CREATE/DROP/ALTER),
 - USE CATALOG/DATABASE,
 - LOAD/UNLOAD MODULE,
 - SET command,
 - RESET command.
 
-When execute queries or insert statements, please enter the interactive mode or use the -f option to submit the SQL statements.
+如果需要执行查询或者插入的 SQL 语句，请使用交互模式或者使用 -f 参数提交 SQL 文件。
 
-<span class="label label-danger">Attention</span> If SQL Client receives errors during initialization, SQL Client will exit with error messages.
+<span class="label label-danger">注意</span> 如果 SQL 客户端在执行初始化文件时出错，会报错并退出。
 
-### Dependencies
+### 依赖
 
-The SQL Client does not require setting up a Java project using Maven, Gradle, or sbt. Instead, you
-can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify
-each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For
-connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON),
-Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from
-the Maven central repository.
+SQL 客户端可以直接将依赖的 JAR 文件提交到集群，不需要使用 Maven、Gradle 或者 sbt 启动一个 Java 项目。你可以使用 `--jar`
+指定每个 JAR 文件，也可以使用 `--library` 指定整个依赖目录。对于外部的连接器（例如 Apache Kafka）和对应的 format（例如 JSON），
+Flink 提供 **即用型 JAR 包**，你可以根据 Flink 的发布版本从 Maven 仓库下载这些 JAR 文件。
 
-The full list of offered SQL JARs can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
+Flink 提供的 SQL JAR 文件可以在这里查看 [connection to external systems page]({{< ref "docs/connectors/table/overview" >}})。
 
-You can refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section for
-information on how to configure connector and format dependencies.
+你可以查看 [configuration]({{< ref "docs/dev/configuration/connector" >}}) 章节了解如何配置连接器和 format 的依赖。
 
 {{< top >}}
 
-Usage
+使用
 ----------------------------
 
-SQL Client allows users to submit jobs either within the interactive command line or using `-f` option to execute sql file.
+SQL 客户端允许用户通过交互式命令或者 `-f` sql 文件提交作业。在这两种模式中，SQL 客户端支持解析和执行 Flink 支持的所有 SQL 语句。
 
-In both modes, SQL Client supports to parse and execute all types of the Flink supported SQL statements.
+### 交互式命令行
 
-### Interactive Command Line
+SQL 客户端通过交互式命令行读取用户的输入，并执行以分号（`;`）结尾的SQL语句。SQL 语句执行成功后，客户端会打印成功信息。如果执行出错，客户端
+也会输出错误信息。默认情况下错误信息只包含错误原因，如果需要打印整个异常栈，可以通过命令行 `SET 'sql-client.verbose' = 'true';` 将 `sql-client.verbose` 设置为 true。
 
-In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by a semicolon (`;`).
+### 执行 SQL 文件
 
-SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
-By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
-`sql-client.verbose` to true through command `SET 'sql-client.verbose' = 'true';`.
+SQL 客户端支持 `-f` 参数提交 SQL 脚本，执行脚本中的每条 SQL 语句并打印执行消息。如果其中某条 SQL 执行失败，客户端会直接退出，剩余的 SQL 语句不会被执行。
 
-### Execute SQL Files
-
-SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
-statements one by one in the SQL script file and print execution messages for each executed statements.
-Once a statement fails, the SQL Client will exit and all the remaining statements will not be executed.
-
-An example of such a file is presented below.
+SQL 脚本文件示例如下。
 
 ```sql
 CREATE TEMPORARY TABLE users (
@@ -661,24 +576,20 @@ FROM pageviews AS p
 LEFT JOIN users FOR SYSTEM_TIME AS OF p.proctime AS u
 ON p.user_id = u.user_id;
 ```
-This configuration:
+内容包括：
 
-- defines a temporal table source `users` that reads from a CSV file,
-- set the properties, e.g job name,
-- set the savepoint path,
-- submit a sql job that load the savepoint from the specified savepoint path.
+- 定义读取 CSV 文件的 temporal 源头表，
+- 设置参数，例如作业名字，
+- 设置 savepoint 路径，
+- 提交一个从指定路径加载 savepoint 的 sql 作业。
 
-<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
+<span class="label label-danger">注意</span> 和交互式模式相比，文件模式的 SQL 客户端遇到错误时会直接退出。
 
-### Execute a set of SQL statements
+### 执行 SQL 语句集合
 
-SQL Client execute each INSERT INTO statement as a single Flink job. However, this is sometimes not
-optimal because some part of the pipeline can be reused. SQL Client supports STATEMENT SET syntax to
-execute a set of SQL statements. This is an equivalent feature with StatementSet in Table API. The
-`STATEMENT SET` syntax encloses one or more `INSERT INTO` statements. All statements in a `STATEMENT SET`
-block are holistically optimized and executed as a single Flink job. Joint optimization and execution
-allows for reusing common intermediate results and can therefore significantly improve the efficiency
-of executing multiple queries.
+SQL 客户端将每条 INSERT INTO 语句作为独立的 Flink 作业，但这不是最佳方式，因为有些中间结果可以复用。SQL 客户端支持 STATEMENT SET 语法
+执行 SQL 语句集合，这和 Table API 的 StatementSet 等价。`STATEMENT SET` 可以包含多条 `INSERT INTO` 语句，这些语句被优化成
+一个 Flink 作业。这可以复用很多中间结果，相比多个作业独立运行，可以显著提升性能。
 
 #### Syntax
 ```sql
@@ -689,8 +600,7 @@ BEGIN
 END;
 ```
 
-<span class="label label-danger">Attention</span> The statements of enclosed in the `STATEMENT SET` must be separated by a semicolon (;).
-The old syntax `BEGIN STATEMENT SET; ... END;` is deprecated, may be removed in the future version.
+<span class="label label-danger">注意</span> `STATEMENT SET` 语法中的多个 SQL 语句必须以分号（;）分隔。旧的语法 `BEGIN STATEMENT SET; ... END;` 已经不推荐使用，可能会在后续版本中删除。
 
 {{< tabs "statement set" >}}
 
@@ -799,14 +709,11 @@ END;
 {{< /tab >}}
 {{< /tabs >}}
 
-### Execute DML statements sync/async
+### 同步/异步执行 DML 语句
 
-By default, SQL Client executes DML statements asynchronously. That means, SQL Client will submit a
-job for the DML statement to a Flink cluster, and not wait for the job to finish.
-So SQL Client can submit multiple jobs at the same time. This is useful for streaming jobs, which are long-running in general.
+SQL 客户端默认异步执行 DML 语句，客户端提交 DML 语句到 Flink 集群后，不会等待作业结束。这意味着 SQL 客户端可以同时提交多个作业，这对长时间运行的流式作业很有用。
 
-SQL Client makes sure that a statement is successfully submitted to the cluster. Once the statement
-is submitted, the CLI will show information about the Flink job.
+SQL 客户端确保 SQL 语句被成功的提交到集群，并在控制台输出 Flink 作业信息。
 
 ```sql
 Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
@@ -815,15 +722,11 @@ Cluster ID: StandaloneClusterId
 Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 ```
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the
-running Flink job after submission. The CLI process can be shutdown after the submission without
-affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
-use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
-or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
+<span class="label label-danger">注意</span> SQL 客户端在作业提交后不会追踪作业的运行状态，作业提交后退出
+客户端不会影响作业。Flink 的 `重启策略` 处理 fault-tolerance。可以参阅 [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
+或 [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
 
-However, for batch users, it's more common that the next DML statement requires waiting until the
-previous DML statement finishes. In order to execute DML statements synchronously, you can set
-`table.dml-sync` option to `true` in SQL Client.
+对于批式作业用户，通常上一条 DML 语句执行完成后再执行下一条。为了同步执行 SQL 语句，你可以在 SQL 客户端中将 `table.dml-sync` 设置为 `true`。
 
 ```sql
 Flink SQL> SET 'table.dml-sync' = 'true';
@@ -835,11 +738,11 @@ Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 [INFO] Complete execution of the SQL update statement.
 ```
 
-<span class="label label-danger">Attention</span>  If you want to terminate the job, just type `CTRL-C` to cancel the execution.
+<span class="label label-danger">注意</span> 使用 `CTRL-C` 可以直接结束作业。
 
-### Start a SQL Job from a savepoint
+### 从 savepoint 启动 SQL 作业
 
-Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
+Flink 支持从指定的 savepoint 启动作业。SQL 客户端支持使用 `SET` 命令设置 savepoint 的路径。
 
 ```sql
 Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
@@ -849,20 +752,20 @@ Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca
 Flink SQL> INSERT INTO ...
 ```
 
-When the path to savepoint is specified, Flink will try to restore the state from the savepoint when executing all the following DML statements.
+Flink 后续所有的 DML 语句都会从这个指定的 savepoint 路径恢复状态并执行。
 
-Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
+由于指定 savepoint 路径会影响后续所有提交的作业，你可以通过 `RESET` 命令取消这个配置项，例如关闭从 savepoint 恢复。
 
 ```sql
 Flink SQL> RESET execution.savepoint.path;
 [INFO] Session property has been reset.
 ```
 
-For more details about creating and managing savepoints, please refer to [Job Lifecycle Management]({{< ref "docs/deployment/cli" >}}#job-lifecycle-management).
+更多创建和管理 savepoint 的细节请参阅 [Job Lifecycle Management]({{< ref "docs/deployment/cli" >}}#job-lifecycle-management).
 
-### Define a Custom Job Name
+### 自定义作业名称
 
-SQL Client supports to define job name for queries and DML statements through `SET` command.
+SQL 客户端支持通过 `SET` 命令设置查询和 DML 语句的作业名。
 
 ```sql
 Flink SQL> SET 'pipeline.name' = 'kafka-to-hive';
@@ -872,18 +775,18 @@ Flink SQL> SET 'pipeline.name' = 'kafka-to-hive';
 Flink SQL> INSERT INTO ...
 ```
 
-Because the specified job name will affect all the following queries and DML statements, you can also use `RESET` command to reset this configuration, i.e. use default job names.
+设置作业名会影响所有后续提交的作业，你也可以使用 `RESET` 命令取消设置，例如使用默认的作业名。
 
 ```sql
 Flink SQL> RESET pipeline.name;
 [INFO] Session property has been reset.
 ```
 
-If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
+如果没有设置 `pipeline.name`，SQL 客户端会为提交的作业生成默认名字，例如为 `INSERT INTO` 语句生成 `insert-into_<sink_table_name>`。
 
-### Monitoring Job Status
+### 监控作业状态
 
-SQL Client supports to list jobs status in the cluster through `SHOW JOBS` statements.
+SQL 客户端支持通过 `SHOW JOBS` 语句获取集群中的作业状态列表。
 
 ```sql
 Flink SQL> SHOW JOBS;
@@ -894,9 +797,9 @@ Flink SQL> SHOW JOBS;
 +----------------------------------+---------------+----------+-------------------------+
 ```
 
-### Terminating a Job
+### 结束作业
 
-SQL Client supports to stop jobs with or without savepoints through `STOP JOB` statements.
+SQL 客户端支持通过 `STOP JOB` 结束作业，可以指定或者不指定 savepoint。
 
 ```sql
 Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
@@ -907,9 +810,8 @@ Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 +-----------------------------------------+
 ```
 
-The savepoint path could be specified with [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir)
-either in the cluster configuration or session configuration (the latter would take precedence).
+可以通过 [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 在集群配置或者 session 配置（优先级更高）中指定 savepoint 路径。
 
-For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
+更多停止作业，可以参阅 [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
 {{< top >}}
