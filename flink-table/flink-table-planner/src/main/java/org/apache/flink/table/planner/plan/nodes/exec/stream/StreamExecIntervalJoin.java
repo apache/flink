@@ -148,7 +148,6 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         IntervalJoinSpec.WindowBounds windowBounds = intervalJoinSpec.getWindowBounds();
         long minCleanUpIntervalMillis =
                 planner.getTableConfig()
-                        .getConfiguration()
                         .get(TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS)
                         .toMillis();
         switch (joinSpec.getJoinType()) {
