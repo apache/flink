@@ -543,13 +543,16 @@ public class ExecutionConfigOptions {
                                     + "which would prevent migrations in the future.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<Long> TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS =
-            key("table.exec.join.interval-join-min-cleanup-interval-millis")
-                    .longType()
-                    .defaultValue(0L)
-                    .withDescription(
-                            "Set the waiting time for interval join executing cleanup logic. "
-                                    + "Modify this param will cause rows disorder.");
+    public static final ConfigOption<Duration>
+            TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS =
+                    key("table.exec.interval-join.min-cleanup-interval")
+                            .durationType()
+                            .defaultValue(Duration.ofMillis(0))
+                            .withDescription(
+                                    "Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. "
+                                            + "Before Flink 1.18, the default value of this param was the half of interval duration. "
+                                            + "NOTE: This option greater than 0 will cause records disorder and may cause downstream operator discard these records, e.g. window operator. "
+                                            + "Default value is 0, which means that it will cleanup unmatched records immediately.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types

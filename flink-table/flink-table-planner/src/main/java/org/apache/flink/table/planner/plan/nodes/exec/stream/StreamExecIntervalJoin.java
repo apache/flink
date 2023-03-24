@@ -146,10 +146,11 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         InternalTypeInfo<RowData> returnTypeInfo = InternalTypeInfo.of(returnType);
         JoinSpec joinSpec = intervalJoinSpec.getJoinSpec();
         IntervalJoinSpec.WindowBounds windowBounds = intervalJoinSpec.getWindowBounds();
-        long minCleanUpInterval =
+        long minCleanUpIntervalMillis =
                 planner.getTableConfig()
                         .getConfiguration()
-                        .get(TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS);
+                        .get(TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS)
+                        .toMillis();
         switch (joinSpec.getJoinType()) {
             case INNER:
             case LEFT:
@@ -192,7 +193,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                                         joinFunction,
                                         joinSpec,
                                         windowBounds,
-                                        minCleanUpInterval,
+                                        minCleanUpIntervalMillis,
                                         config);
                     } else {
                         transform =
@@ -203,7 +204,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                                         joinFunction,
                                         joinSpec,
                                         windowBounds,
-                                        minCleanUpInterval,
+                                        minCleanUpIntervalMillis,
                                         config);
                     }
 
@@ -388,7 +389,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             IntervalJoinFunction joinFunction,
             JoinSpec joinSpec,
             IntervalJoinSpec.WindowBounds windowBounds,
-            long minCleanUpInterval,
+            long minCleanUpIntervalMillis,
             ExecNodeConfig config) {
 
         InternalTypeInfo<RowData> leftTypeInfo =
@@ -401,7 +402,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         windowBounds.getLeftLowerBound(),
                         windowBounds.getLeftUpperBound(),
                         0L, // allowedLateness
-                        minCleanUpInterval,
+                        minCleanUpIntervalMillis,
                         leftTypeInfo,
                         rightTypeInfo,
                         joinFunction,
