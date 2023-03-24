@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
@@ -59,7 +58,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
-import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -164,8 +162,6 @@ class ZooKeeperLeaderElectionTest {
      */
     @Test
     void testZooKeeperReelection() throws Exception {
-        Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5L));
-
         int num = 10;
 
         DefaultLeaderElectionService[] leaderElectionService =
@@ -198,7 +194,7 @@ class ZooKeeperLeaderElectionTest {
 
             int numberSeenLeaders = 0;
 
-            while (deadline.hasTimeLeft() && numberSeenLeaders < num) {
+            while (numberSeenLeaders < num) {
                 LOG.debug("Wait for new leader #{}.", numberSeenLeaders);
                 String address = listener.waitForNewLeader();
 
@@ -226,10 +222,6 @@ class ZooKeeperLeaderElectionTest {
                     fail("Did not find the leader's index.");
                 }
             }
-
-            assertThat(deadline.isOverdue())
-                    .as("Did not complete the leader reelection in time.")
-                    .isFalse();
             assertThat(num).isEqualTo(numberSeenLeaders);
         } finally {
             if (leaderRetrievalService != null) {

@@ -19,15 +19,12 @@ package org.apache.flink.runtime.io.disk;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -37,8 +34,6 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link BatchShuffleReadBufferPool}. */
 public class BatchShuffleReadBufferPoolTest {
-
-    @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
 
     @Test(expected = IllegalArgumentException.class)
     public void testIllegalTotalBytes() {

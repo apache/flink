@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.service.session;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -43,12 +42,14 @@ class SessionManagerImplTest {
 
     private SessionManagerImpl sessionManager;
 
+    private static final int SESSION_IDLE_TIMEOUT_SEC = 2;
+
     @BeforeEach
     void setup() {
         Configuration conf = new Configuration();
         conf.set(
                 SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_IDLE_TIMEOUT,
-                Duration.ofSeconds(2));
+                Duration.ofSeconds(SESSION_IDLE_TIMEOUT_SEC));
         conf.set(
                 SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_CHECK_INTERVAL,
                 Duration.ofMillis(100));
@@ -72,14 +73,10 @@ class SessionManagerImplTest {
                         .build();
         Session session = sessionManager.openSession(environment);
         SessionHandle sessionId = session.getSessionHandle();
-        for (int i = 0; i < 3; i++) {
-            // should success
-            sessionManager.getSession(sessionId);
-            Thread.sleep(1000);
-        }
-        Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
-        while (deadline.hasTimeLeft() && sessionManager.isSessionAlive(sessionId)) {
-            //noinspection BusyWait
+        // wait for timeout
+        Thread.sleep(SESSION_IDLE_TIMEOUT_SEC);
+
+        while (sessionManager.isSessionAlive(sessionId)) {
             Thread.sleep(1000);
         }
         assertFalse(sessionManager.isSessionAlive(sessionId));

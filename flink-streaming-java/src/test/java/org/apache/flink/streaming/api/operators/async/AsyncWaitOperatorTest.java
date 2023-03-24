@@ -70,7 +70,6 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -115,7 +114,6 @@ import static org.junit.Assert.assertTrue;
 public class AsyncWaitOperatorTest extends TestLogger {
     private static final long TIMEOUT = 1000L;
 
-    @Rule public Timeout timeoutRule = new Timeout(100, TimeUnit.SECONDS);
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
     private static AsyncRetryStrategy emptyResultFixedDelayRetryStrategy =

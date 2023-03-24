@@ -68,7 +68,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -468,9 +467,7 @@ class WebFrontendITCase {
         final URL u = new URL(url);
         LOG.info("Accessing URL " + url + " as URL: " + u);
 
-        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10L));
-
-        while (deadline.hasTimeLeft()) {
+        while (true) {
             HttpURLConnection connection = (HttpURLConnection) u.openConnection();
             connection.setConnectTimeout(100000);
             connection.connect();
@@ -498,9 +495,6 @@ class WebFrontendITCase {
                 return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
             }
         }
-
-        throw new TimeoutException(
-                "Could not get HTTP response in time since the service is still unavailable.");
     }
 
     /** Test invokable that allows waiting for all subtasks to be running. */

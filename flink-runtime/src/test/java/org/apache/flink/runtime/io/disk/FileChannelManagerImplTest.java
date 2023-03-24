@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.disk;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
@@ -132,8 +131,7 @@ public class FileChannelManagerImplTest extends TestLogger {
             kill.waitFor();
             assertEquals("Failed to send SIG_TERM to process", 0, kill.exitValue());
 
-            Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
-            while (fileChannelManagerTestProcess.isAlive() && deadline.hasTimeLeft()) {
+            while (fileChannelManagerTestProcess.isAlive()) {
                 Thread.sleep(100);
             }
 

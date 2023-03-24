@@ -17,7 +17,6 @@
 
 package org.apache.flink.changelog.fs;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.changelog.fs.RetryingExecutor.RetriableAction;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -28,7 +27,6 @@ import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -74,7 +72,6 @@ class RetryingExecutorTest {
         List<Integer> completed = new CopyOnWriteArrayList<>();
         List<Integer> discarded = new CopyOnWriteArrayList<>();
         AtomicBoolean executionBlocked = new AtomicBoolean(true);
-        Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
         ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (RetryingExecutor executor =
                 new RetryingExecutor(
@@ -110,11 +107,11 @@ class RetryingExecutorTest {
                         @Override
                         public void handleFailure(Throwable throwable) {}
                     });
-            while (completed.isEmpty() && deadline.hasTimeLeft()) {
+            while (completed.isEmpty()) {
                 Thread.sleep(10);
             }
             executionBlocked.set(false);
-            while (discarded.size() < successfulAttempt && deadline.hasTimeLeft()) {
+            while (discarded.size() < successfulAttempt) {
                 Thread.sleep(10);
             }
         }

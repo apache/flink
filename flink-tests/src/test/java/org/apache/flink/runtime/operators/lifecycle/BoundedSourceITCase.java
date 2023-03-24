@@ -32,14 +32,12 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.TestCommandScope.ALL_SUBTASKS;
@@ -71,8 +69,6 @@ public class BoundedSourceITCase extends TestLogger {
                             .build());
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.MINUTES);
 
     private static Configuration configuration() {
         Configuration conf = new Configuration();

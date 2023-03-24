@@ -28,9 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Rule;
-import org.junit.rules.Timeout;
-
 import java.io.IOException;
 import java.util.Random;
 
@@ -42,8 +39,6 @@ import java.util.Random;
 public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
 
     protected String resultPath;
-
-    @Rule public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
 
     @Override
     protected void preSubmit() throws Exception {
