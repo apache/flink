@@ -267,7 +267,7 @@ public class PipelineOptions {
                                     .linebreak()
                                     .add(
                                             TextElement.code(
-                                                    "name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
+                                                    "name:file1,path:'file:///tmp/file1';name:file2,path:'hdfs:///tmp/file2'"))
                                     .build());
 
     public static final ConfigOption<VertexDescriptionMode> VERTEX_DESCRIPTION_MODE =
