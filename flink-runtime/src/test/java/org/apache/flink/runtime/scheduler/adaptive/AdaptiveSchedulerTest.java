@@ -80,6 +80,7 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.TestSlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
@@ -108,7 +109,10 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -217,56 +221,40 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    void testHasEnoughResourcesReturnsFalseIfUnsatisfied() throws Exception {
-        final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
-
-        scheduler.startScheduling();
-
+    void testHasEnoughResourcesReturnsFalseIfUnsatisfied() {
         final ResourceCounter resourceRequirement =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
-
-        assertThat(scheduler.hasDesiredResources(resourceRequirement)).isFalse();
+        assertThat(
+                        AdaptiveScheduler.hasDesiredResources(
+                                resourceRequirement, Collections.emptyList()))
+                .isFalse();
     }
 
     @Test
-    void testHasEnoughResourcesReturnsTrueIfSatisfied() throws Exception {
-        final JobGraph jobGraph = createJobGraph();
-
-        final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
-
-        final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
-                        .setDeclarativeSlotPool(declarativeSlotPool)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
-
-        scheduler.startScheduling();
-
+    void testHasEnoughResourcesReturnsTrueIfSatisfied() {
         final ResourceCounter resourceRequirement =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
+        final Collection<TestSlotInfo> freeSlots =
+                createSlotInfosForResourceRequirements(resourceRequirement);
+        assertThat(AdaptiveScheduler.hasDesiredResources(resourceRequirement, freeSlots)).isTrue();
+    }
 
-        offerSlots(
-                declarativeSlotPool, createSlotOffersForResourceRequirements(resourceRequirement));
+    private Collection<TestSlotInfo> createSlotInfosForResourceRequirements(
+            ResourceCounter resourceRequirements) {
+        final Collection<TestSlotInfo> slotInfos = new ArrayList<>();
 
-        assertThat(scheduler.hasDesiredResources(resourceRequirement)).isTrue();
+        for (Map.Entry<ResourceProfile, Integer> resourceProfileCount :
+                resourceRequirements.getResourcesWithCount()) {
+            for (int i = 0; i < resourceProfileCount.getValue(); i++) {
+                slotInfos.add(new TestSlotInfo(resourceProfileCount.getKey()));
+            }
+        }
+
+        return slotInfos;
     }
 
     @Test
     void testHasEnoughResourcesUsesUnmatchedSlotsAsUnknown() throws Exception {
-        final JobGraph jobGraph = createJobGraph();
-
-        final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
-
-        final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
-                        .setDeclarativeSlotPool(declarativeSlotPool)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
-
-        scheduler.startScheduling();
-
         final int numRequiredSlots = 1;
         final ResourceCounter requiredResources =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, numRequiredSlots);
@@ -274,9 +262,10 @@ public class AdaptiveSchedulerTest {
                 ResourceCounter.withResource(
                         ResourceProfile.newBuilder().setCpuCores(1).build(), numRequiredSlots);
 
-        offerSlots(declarativeSlotPool, createSlotOffersForResourceRequirements(providedResources));
+        final Collection<TestSlotInfo> freeSlots =
+                createSlotInfosForResourceRequirements(providedResources);
 
-        assertThat(scheduler.hasDesiredResources(requiredResources)).isTrue();
+        assertThat(AdaptiveScheduler.hasDesiredResources(requiredResources, freeSlots)).isTrue();
     }
 
     @Test
