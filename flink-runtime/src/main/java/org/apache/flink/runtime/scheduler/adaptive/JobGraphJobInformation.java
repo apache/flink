@@ -84,6 +84,10 @@ public class JobGraphJobInformation implements JobInformation {
         return InstantiationUtil.clone(jobGraph);
     }
 
+    public VertexParallelismStore getVertexParallelismStore() {
+        return vertexParallelismStore;
+    }
+
     private static final class JobVertexInformation implements JobInformation.VertexInformation {
 
         private final JobVertex jobVertex;

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -59,13 +60,18 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -95,6 +101,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.junit.jupiter.api.Test;
@@ -102,7 +109,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -124,6 +130,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -140,6 +147,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerTest {
 
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofHours(1);
     private static final int PARALLELISM = 4;
     private static final JobVertex JOB_VERTEX = createNoOpVertex("v1", PARALLELISM);
 
@@ -940,6 +948,137 @@ public class AdaptiveSchedulerTest {
         assertThat(resubmittedArchivedVertex.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
     }
 
+    @Test
+    void testRequirementIncreaseTriggersScaleUp() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final AdaptiveScheduler scheduler =
+                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+
+        final int scaledUpParallelism = PARALLELISM * 2;
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                createSubmissionBufferingTaskManagerGateway(scaledUpParallelism, scheduler);
+
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, PARALLELISM);
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, PARALLELISM);
+
+        JobResourceRequirements newJobResourceRequirements =
+                createRequirementsWithUpperParallelism(scaledUpParallelism);
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    // first update requirements as otherwise slots are rejected!
+                    scheduler.updateJobResourceRequirements(newJobResourceRequirements);
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
+                            taskManagerGateway);
+                });
+
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, scaledUpParallelism);
+    }
+
+    @Test
+    void testRequirementDecreaseTriggersScaleDown() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final AdaptiveScheduler scheduler =
+                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
+
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, PARALLELISM);
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, PARALLELISM);
+
+        int scaledDownParallelism = PARALLELISM - 1;
+        JobResourceRequirements newJobResourceRequirements =
+                createRequirementsWithUpperParallelism(scaledDownParallelism);
+        singleThreadMainThreadExecutor.execute(
+                () -> scheduler.updateJobResourceRequirements(newJobResourceRequirements));
+
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, scaledDownParallelism);
+    }
+
+    private AdaptiveScheduler createSchedulerWithNoResourceWaitTimeout(
+            JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+
+        return new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                .setDeclarativeSlotPool(declarativeSlotPool)
+                .setJobMasterConfiguration(configuration)
+                .build(EXECUTOR_RESOURCE.getExecutor());
+    }
+
+    private SubmissionBufferingTaskManagerGateway createSubmissionBufferingTaskManagerGateway(
+            int parallelism, SchedulerNG scheduler) {
+        SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(parallelism);
+        taskManagerGateway.setCancelConsumer(
+                executionAttemptID ->
+                        singleThreadMainThreadExecutor.execute(
+                                () ->
+                                        scheduler.updateTaskExecutionState(
+                                                new TaskExecutionState(
+                                                        executionAttemptID,
+                                                        ExecutionState.CANCELED))));
+        return taskManagerGateway;
+    }
+
+    private void startJobWithSlotsMatchingParallelism(
+            SchedulerNG scheduler,
+            DeclarativeSlotPool declarativeSlotPool,
+            TaskManagerGateway taskManagerGateway,
+            int parallelism) {
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, parallelism)),
+                            taskManagerGateway);
+                });
+    }
+
+    private void awaitJobReachingParallelism(
+            SubmissionBufferingTaskManagerGateway taskManagerGateway,
+            SchedulerNG scheduler,
+            int parallelism)
+            throws Exception {
+        // Wait for all tasks to be submitted
+        taskManagerGateway.waitForSubmissions(parallelism);
+
+        final ArchivedExecutionGraph executionGraph =
+                CompletableFuture.supplyAsync(
+                                () -> scheduler.requestJob().getArchivedExecutionGraph(),
+                                singleThreadMainThreadExecutor)
+                        .get();
+
+        assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
+                .isEqualTo(parallelism);
+    }
+
+    private static JobResourceRequirements createRequirementsWithUpperParallelism(int parallelism) {
+        return new JobResourceRequirements(
+                Collections.singletonMap(
+                        JOB_VERTEX.getID(),
+                        new JobVertexResourceRequirements(
+                                new JobVertexResourceRequirements.Parallelism(1, parallelism))));
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Failure handling tests
     // ---------------------------------------------------------------------------------------------
@@ -1479,6 +1618,75 @@ public class AdaptiveSchedulerTest {
         }
     }
 
+    @Test
+    public void testUpdateResourceRequirementsInReactiveModeIsNotSupported() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        assertThatThrownBy(
+                        () ->
+                                scheduler.updateJobResourceRequirements(
+                                        JobResourceRequirements.empty()))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void testRequestDefaultResourceRequirements() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final Configuration configuration = new Configuration();
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isEqualTo(
+                        JobResourceRequirements.newBuilder()
+                                .setParallelismForJobVertex(
+                                        JOB_VERTEX.getID(), 1, JOB_VERTEX.getParallelism())
+                                .build());
+    }
+
+    @Test
+    public void testRequestDefaultResourceRequirementsInReactiveMode() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isEqualTo(
+                        JobResourceRequirements.newBuilder()
+                                .setParallelismForJobVertex(
+                                        JOB_VERTEX.getID(),
+                                        1,
+                                        SchedulerBase.getDefaultMaxParallelism(JOB_VERTEX))
+                                .build());
+    }
+
+    @Test
+    public void testRequestUpdatedResourceRequirements() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final Configuration configuration = new Configuration();
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        final JobResourceRequirements newJobResourceRequirements =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(JOB_VERTEX.getID(), 1, 12)
+                        .build();
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isNotEqualTo(newJobResourceRequirements);
+        scheduler.updateJobResourceRequirements(newJobResourceRequirements);
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isEqualTo(newJobResourceRequirements);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Utils
     // ---------------------------------------------------------------------------------------------
@@ -1505,14 +1713,18 @@ public class AdaptiveSchedulerTest {
                                                 executionAttemptId, ExecutionState.CANCELED)));
     }
 
-    @Nonnull
     private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(JobID jobId) {
+        return createDeclarativeSlotPool(jobId, DEFAULT_TIMEOUT);
+    }
+
+    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
+            JobID jobId, Duration idleSlotTimeout) {
         return new DefaultDeclarativeSlotPool(
                 jobId,
                 new DefaultAllocatedSlotPool(),
                 ignored -> {},
-                Time.minutes(10),
-                Time.minutes(10));
+                Time.fromDuration(idleSlotTimeout),
+                Time.fromDuration(DEFAULT_TIMEOUT));
     }
 
     private static JobGraph createJobGraph() {
@@ -1542,17 +1754,32 @@ public class AdaptiveSchedulerTest {
     public static class SubmissionBufferingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
         final BlockingQueue<TaskDeploymentDescriptor> submittedTasks;
+        final BlockingQueue<AllocationID> freedSlots;
 
         public SubmissionBufferingTaskManagerGateway(int capacity) {
             submittedTasks = new ArrayBlockingQueue<>(capacity);
-            setSubmitConsumer(ignored -> {});
+            freedSlots = new ArrayBlockingQueue<>(capacity);
+            initializeFunctions();
         }
 
         @Override
         public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
             super.setSubmitConsumer(
-                    ((Consumer<TaskDeploymentDescriptor>) submittedTasks::offer)
-                            .andThen(submitConsumer));
+                    taskDeploymentDescriptor -> {
+                        Preconditions.checkState(submittedTasks.offer(taskDeploymentDescriptor));
+                        submitConsumer.accept(taskDeploymentDescriptor);
+                    });
+        }
+
+        @Override
+        public void setFreeSlotFunction(
+                BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
+                        freeSlotFunction) {
+            super.setFreeSlotFunction(
+                    (allocationID, throwable) -> {
+                        Preconditions.checkState(freedSlots.offer(allocationID));
+                        return freeSlotFunction.apply(allocationID, throwable);
+                    });
         }
 
         /**
@@ -1569,6 +1796,21 @@ public class AdaptiveSchedulerTest {
                 descriptors.add(submittedTasks.take());
             }
             return descriptors;
+        }
+
+        public List<AllocationID> waitForFreedSlots(int numFreedSlots) throws InterruptedException {
+            final List<AllocationID> allocationIds = new ArrayList<>();
+            for (int i = 0; i < numFreedSlots; i++) {
+                allocationIds.add(freedSlots.take());
+            }
+            return allocationIds;
+        }
+
+        private void initializeFunctions() {
+            setSubmitConsumer(ignored -> {});
+            setFreeSlotFunction(
+                    (allocationId, throwable) ->
+                            CompletableFuture.completedFuture(Acknowledge.get()));
         }
     }
 
