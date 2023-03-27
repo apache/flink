@@ -188,31 +188,16 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
-
-								<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
-								<relocation>
-									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
-								</relocation>
-
-								<!-- shade dependencies internally used by Hadoop and never exposed downstream -->
-								<relocation>
-									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>
-								</relocation>
-
-								<!-- shade Flink's Hadoop FS adapter classes  -->
+								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
 									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.fs.hdfs</shadedPattern>
 								</relocation>
-
-								<!-- shade Flink's Hadoop FS utility classes -->
+								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.util</shadedPattern>
 								</relocation>
-
 							</relocations>
 							<filters>
 								<filter>
