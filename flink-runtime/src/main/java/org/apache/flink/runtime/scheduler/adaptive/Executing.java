@@ -124,8 +124,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     @Override
     public void notifyNewResourcesAvailable() {
-        if (context.canScaleUp(getExecutionGraph())) {
-            getLogger().info("New resources are available. Restarting job to scale up.");
+        if (context.shouldRescale(getExecutionGraph())) {
+            getLogger().info("Can change the parallelism of job. Restarting job.");
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
@@ -184,12 +184,12 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         FailureResult howToHandleFailure(Throwable failure);
 
         /**
-         * Asks if we can scale up the currently executing job.
+         * Asks if we should rescale the currently executing job.
          *
          * @param executionGraph executionGraph for making the scaling decision.
-         * @return true, if we can scale up
+         * @return true, if we should rescale
          */
-        boolean canScaleUp(ExecutionGraph executionGraph);
+        boolean shouldRescale(ExecutionGraph executionGraph);
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.

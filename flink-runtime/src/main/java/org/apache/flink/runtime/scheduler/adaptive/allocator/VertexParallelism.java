@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -48,8 +49,8 @@ public class VertexParallelism {
         return Optional.ofNullable(parallelismForVertices.get(jobVertexId));
     }
 
-    public int getCumulativeParallelism() {
-        return parallelismForVertices.values().stream().reduce(0, Integer::sum);
+    public Set<JobVertexID> getVertices() {
+        return Collections.unmodifiableSet(parallelismForVertices.keySet());
     }
 
     @Override

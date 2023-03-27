@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.scheduler.adaptive.scalingpolicy;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 
 import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
 
@@ -25,16 +27,25 @@ import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_I
  * Simple scaling policy for a reactive mode. The user can configure a minimum cumulative
  * parallelism increase to allow a scale up.
  */
-public class ReactiveScaleUpController implements ScaleUpController {
+public class EnforceMinimalIncreaseRescalingController implements RescalingController {
 
     private final int minParallelismIncrease;
 
-    public ReactiveScaleUpController(Configuration configuration) {
+    public EnforceMinimalIncreaseRescalingController(Configuration configuration) {
         minParallelismIncrease = configuration.get(MIN_PARALLELISM_INCREASE);
     }
 
     @Override
-    public boolean canScaleUp(int currentCumulativeParallelism, int newCumulativeParallelism) {
-        return newCumulativeParallelism - currentCumulativeParallelism >= minParallelismIncrease;
+    public boolean shouldRescale(
+            VertexParallelism currentParallelism, VertexParallelism newParallelism) {
+        for (JobVertexID vertex : currentParallelism.getVertices()) {
+            int parallelismChange =
+                    newParallelism.getParallelism(vertex)
+                            - currentParallelism.getParallelism(vertex);
+            if (parallelismChange < 0 || parallelismChange >= minParallelismIncrease) {
+                return true;
+            }
+        }
+        return false;
     }
 }
