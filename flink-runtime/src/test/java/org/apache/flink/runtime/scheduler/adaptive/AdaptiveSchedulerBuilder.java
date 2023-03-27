@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
@@ -57,6 +58,8 @@ public class AdaptiveSchedulerBuilder {
     private final JobGraph jobGraph;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
+
+    @Nullable private JobResourceRequirements jobResourceRequirements;
 
     private Configuration jobMasterConfiguration = new Configuration();
     private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
@@ -93,6 +96,12 @@ public class AdaptiveSchedulerBuilder {
                         ignored -> {},
                         DEFAULT_TIMEOUT,
                         rpcTimeout);
+    }
+
+    public AdaptiveSchedulerBuilder setJobResourceRequirements(
+            JobResourceRequirements jobResourceRequirements) {
+        this.jobResourceRequirements = jobResourceRequirements;
+        return this;
     }
 
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
@@ -193,6 +202,7 @@ public class AdaptiveSchedulerBuilder {
 
         return new AdaptiveScheduler(
                 jobGraph,
+                jobResourceRequirements,
                 jobMasterConfiguration,
                 declarativeSlotPool,
                 slotAllocator == null
