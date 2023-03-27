@@ -68,6 +68,12 @@ import java.util.Map;
  * </ul>
  *
  * Once Flink applies same logic for both table api and sql, this class should be removed.
+ *
+ * <p>Changed lines
+ *
+ * <ol>
+ *   <li>Line 92 ~ 112
+ * </ol>
  */
 public class SqlRowOperator extends SqlSpecialOperator {
     public SqlRowOperator(String name) {
@@ -83,6 +89,7 @@ public class SqlRowOperator extends SqlSpecialOperator {
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+        // ----- FLINK MODIFICATION BEGIN -----
         // The type of a ROW(e1,e2) expression is a record with the types
         // {e1type,e2type}.  According to the standard, field names are
         // implementation-defined.
@@ -102,6 +109,7 @@ public class SqlRowOperator extends SqlSpecialOperator {
                                 return opBinding.getOperandCount();
                             }
                         });
+        // ----- FLINK MODIFICATION END -----
     }
 
     @Override
