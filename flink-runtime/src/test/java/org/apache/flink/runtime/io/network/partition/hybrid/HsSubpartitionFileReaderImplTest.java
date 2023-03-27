@@ -57,7 +57,9 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -559,6 +561,28 @@ class HsSubpartitionFileReaderImplTest {
         checkData(consumer2, 1, 2, 3);
     }
 
+    @Test
+    void testReadBuffersAfterReleased() throws Throwable {
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
+        CompletableFuture<Void> isReleased = new CompletableFuture<>();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(
+                        0,
+                        HsConsumerId.DEFAULT,
+                        viewNotifier,
+                        (ignore) -> isReleased.complete(null));
+
+        writeDataToFile(0, 0, 2);
+        subpartitionFileReader.prepareForScheduling();
+        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        subpartitionFileReader.releaseDataView();
+
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+        assertThat(memorySegments).hasSize(2);
+        assertThat(isReleased).isCompleted();
+    }
+
     private static void checkData(
             HsSubpartitionFileReaderImpl fileReader,
             BufferDecompressor bufferDecompressor,
@@ -595,6 +619,14 @@ class HsSubpartitionFileReaderImplTest {
             int targetChannel,
             HsConsumerId consumerId,
             HsSubpartitionConsumerInternalOperations operations) {
+        return createSubpartitionFileReader(targetChannel, consumerId, operations, ignore -> {});
+    }
+
+    private HsSubpartitionFileReaderImpl createSubpartitionFileReader(
+            int targetChannel,
+            HsConsumerId consumerId,
+            HsSubpartitionConsumerInternalOperations operations,
+            Consumer<HsSubpartitionFileReader> fileReaderReleaser) {
         return new HsSubpartitionFileReaderImpl(
                 targetChannel,
                 consumerId,
@@ -602,7 +634,7 @@ class HsSubpartitionFileReaderImplTest {
                 operations,
                 diskIndex,
                 MAX_BUFFERS_READ_AHEAD,
-                (ignore) -> {},
+                fileReaderReleaser,
                 BufferReaderWriterUtil.allocatedHeaderBuffer());
     }
 
