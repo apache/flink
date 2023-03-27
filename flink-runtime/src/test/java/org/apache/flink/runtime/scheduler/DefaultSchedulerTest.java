@@ -1489,7 +1489,6 @@ public class DefaultSchedulerTest extends TestLogger {
                         .build();
 
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
-        final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
 
         final Configuration configuration = new Configuration();
         configuration.set(
