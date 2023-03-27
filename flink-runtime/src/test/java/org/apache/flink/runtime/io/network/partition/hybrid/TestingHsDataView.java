@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.util.function.FunctionWithException;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -57,13 +58,14 @@ public class TestingHsDataView implements HsDataView {
     }
 
     @Override
-    public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(int nextBufferToConsume)
-            throws Throwable {
+    public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
+            int nextBufferToConsume, Collection<Buffer> buffersToRecycle) throws Throwable {
         return consumeBufferFunction.apply(nextBufferToConsume);
     }
 
     @Override
-    public Buffer.DataType peekNextToConsumeDataType(int nextBufferToConsume) {
+    public Buffer.DataType peekNextToConsumeDataType(
+            int nextBufferToConsume, Collection<Buffer> buffersToRecycle) {
         return peekNextToConsumeDataTypeFunction.apply(nextBufferToConsume);
     }
 

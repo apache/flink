@@ -32,6 +32,8 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.Objects;
 import java.util.Optional;
@@ -228,9 +230,10 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     }
 
     @Override
-    public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(int nextBufferToConsume)
-            throws Throwable {
-        if (!checkAndGetFirstBufferIndexOrError(nextBufferToConsume).isPresent()) {
+    public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
+            int nextBufferToConsume, Collection<Buffer> buffersToRecycle) throws Throwable {
+        if (!checkAndGetFirstBufferIndexOrError(nextBufferToConsume, buffersToRecycle)
+                .isPresent()) {
             return Optional.empty();
         }
 
@@ -254,11 +257,12 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     }
 
     @Override
-    public Buffer.DataType peekNextToConsumeDataType(int nextBufferToConsume) {
+    public Buffer.DataType peekNextToConsumeDataType(
+            int nextBufferToConsume, Collection<Buffer> buffersToRecycle) {
         Buffer.DataType dataType = Buffer.DataType.NONE;
         try {
             dataType =
-                    checkAndGetFirstBufferIndexOrError(nextBufferToConsume)
+                    checkAndGetFirstBufferIndexOrError(nextBufferToConsume, buffersToRecycle)
                             .map(BufferIndexOrError::getDataType)
                             .orElse(Buffer.DataType.NONE);
         } catch (Throwable throwable) {
@@ -269,9 +273,19 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
     @Override
     public void releaseDataView() {
+        Queue<Buffer> bufferToRecycle = new ArrayDeque<>();
         synchronized (lock) {
             isReleased = true;
+            // all loaded buffers should be recycled after data view released.
+            while (!loadedBuffers.isEmpty()) {
+                BufferIndexOrError bufferIndexOrError = loadedBuffers.poll();
+                if (bufferIndexOrError.getBuffer().isPresent()) {
+                    bufferToRecycle.add(bufferIndexOrError.getBuffer().get());
+                }
+            }
         }
+        // recycle buffers outside of lock to avoid deadlock.
+        bufferToRecycle.forEach(Buffer::recycleBuffer);
         fileReaderReleaser.accept(this);
     }
 
@@ -284,8 +298,8 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     //  Internal Methods
     // ------------------------------------------------------------------------
 
-    private Optional<BufferIndexOrError> checkAndGetFirstBufferIndexOrError(int expectedBufferIndex)
-            throws Throwable {
+    private Optional<BufferIndexOrError> checkAndGetFirstBufferIndexOrError(
+            int expectedBufferIndex, Collection<Buffer> buffersToRecycle) throws Throwable {
         BufferIndexOrError peek = loadedBuffers.peek();
         while (peek != null) {
             if (peek.getThrowable().isPresent()) {
@@ -298,7 +312,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
                 // Because the update of consumption progress may be delayed, there is a
                 // very small probability to load the buffer that has been consumed from memory.
                 // Skip these buffers directly to avoid repeated consumption.
-                loadedBuffers.poll();
+                buffersToRecycle.add(checkNotNull(loadedBuffers.poll()).buffer);
                 peek = loadedBuffers.peek();
             }
         }
