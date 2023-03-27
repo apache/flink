@@ -312,7 +312,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // wait for all tasks to be submitted
-        taskManagerGateway.waitForSubmissions(numAvailableSlots, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(numAvailableSlots);
 
         final ArchivedExecutionGraph executionGraph =
                 CompletableFuture.supplyAsync(
@@ -364,7 +364,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // Wait for just the first submission to indicate the execution graph is ready
-        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(1);
 
         final ArchivedExecutionGraph executionGraph =
                 CompletableFuture.supplyAsync(
@@ -501,7 +501,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // wait for the first task submission
-        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(1);
 
         assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
 
@@ -517,7 +517,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // wait for the second task submissions
-        taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(PARALLELISM);
 
         assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
     }
@@ -589,7 +589,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // wait for the first task submission
-        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(1);
 
         CommonTestUtils.waitUntilCondition(() -> upTimeGauge.getValue() > 0L);
         assertThat(downTimeGauge.getValue()).isEqualTo(0L);
@@ -606,7 +606,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // wait for the second task submissions
-        taskManagerGateway.waitForSubmissions(2, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(2);
 
         CommonTestUtils.waitUntilCondition(() -> upTimeGauge.getValue() > 0L);
         assertThat(downTimeGauge.getValue()).isEqualTo(0L);
@@ -708,7 +708,7 @@ public class AdaptiveSchedulerTest {
         assertThat(startingStateFuture.get()).isInstanceOf(WaitingForResources.class);
 
         // Wait for all tasks to be submitted
-        taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(PARALLELISM);
 
         final ArchivedExecutionGraph executionGraph =
                 CompletableFuture.supplyAsync(
@@ -915,7 +915,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // Wait for task to be submitted
-        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(1);
 
         ArchivedExecutionGraph executionGraph =
                 getArchivedExecutionGraphForRunningJob(scheduler).get();
@@ -938,7 +938,7 @@ public class AdaptiveSchedulerTest {
                 });
 
         // wait for the job to be re-submitted
-        taskManagerGateway.waitForSubmissions(parallelism, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(parallelism);
 
         ArchivedExecutionGraph resubmittedExecutionGraph =
                 getArchivedExecutionGraphForRunningJob(scheduler).get();
@@ -1064,7 +1064,7 @@ public class AdaptiveSchedulerTest {
         // wait for all tasks to be deployed
         // this is important because some tests trigger savepoints
         // these only properly work if the deployment has been started
-        taskManagerGateway.waitForSubmissions(PARALLELISM, TestingUtils.infiniteDuration());
+        taskManagerGateway.waitForSubmissions(PARALLELISM);
 
         CompletableFuture<Iterable<ArchivedExecutionVertex>> vertexFuture =
                 new CompletableFuture<>();
@@ -1570,16 +1570,14 @@ public class AdaptiveSchedulerTest {
          * Block until an arbitrary number of submissions have been received.
          *
          * @param numSubmissions The number of submissions to wait for
-         * @param perTaskTimeout The max amount of time to wait between each submission
          * @return the list of the waited-for submissions
          * @throws InterruptedException if a timeout is exceeded waiting for a submission
          */
-        public List<TaskDeploymentDescriptor> waitForSubmissions(
-                int numSubmissions, Duration perTaskTimeout) throws InterruptedException {
+        public List<TaskDeploymentDescriptor> waitForSubmissions(int numSubmissions)
+                throws InterruptedException {
             List<TaskDeploymentDescriptor> descriptors = new ArrayList<>();
             for (int i = 0; i < numSubmissions; i++) {
-                descriptors.add(
-                        submittedTasks.poll(perTaskTimeout.toMillis(), TimeUnit.MILLISECONDS));
+                descriptors.add(submittedTasks.take());
             }
             return descriptors;
         }
