@@ -100,8 +100,8 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInfor
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
-import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
-import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalIncreaseRescalingController;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
@@ -135,6 +135,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A {@link SchedulerNG} implementation that uses the declarative resource management and
@@ -192,7 +193,7 @@ public class AdaptiveScheduler
 
     private final SlotAllocator slotAllocator;
 
-    private final ScaleUpController scaleUpController;
+    private final RescalingController rescalingController;
 
     private final Duration initialResourceAllocationTimeout;
 
@@ -268,7 +269,7 @@ public class AdaptiveScheduler
 
         this.componentMainThreadExecutor = mainThreadExecutor;
 
-        this.scaleUpController = new ReactiveScaleUpController(configuration);
+        this.rescalingController = new EnforceMinimalIncreaseRescalingController(configuration);
 
         this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
 
@@ -1051,35 +1052,25 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public boolean canScaleUp(ExecutionGraph executionGraph) {
-        int availableSlots = declarativeSlotPool.getFreeSlotsInformation().size();
-
-        if (availableSlots > 0) {
-            final Optional<VertexParallelism> potentialNewParallelism =
-                    slotAllocator.determineParallelism(
-                            jobInformation, declarativeSlotPool.getAllSlotsInformation());
-
-            if (potentialNewParallelism.isPresent()) {
-                int currentCumulativeParallelism = getCurrentCumulativeParallelism(executionGraph);
-                int newCumulativeParallelism =
-                        potentialNewParallelism.get().getCumulativeParallelism();
-                if (newCumulativeParallelism > currentCumulativeParallelism) {
-                    LOG.debug(
-                            "Offering scale up to scale up controller with currentCumulativeParallelism={}, newCumulativeParallelism={}",
-                            currentCumulativeParallelism,
-                            newCumulativeParallelism);
-                    return scaleUpController.canScaleUp(
-                            currentCumulativeParallelism, newCumulativeParallelism);
-                }
-            }
-        }
-        return false;
+    public boolean shouldRescale(ExecutionGraph executionGraph) {
+        final Optional<VertexParallelism> maybeNewParallelism =
+                slotAllocator.determineParallelism(
+                        jobInformation, declarativeSlotPool.getAllSlotsInformation());
+        return maybeNewParallelism
+                .filter(
+                        vertexParallelism ->
+                                rescalingController.shouldRescale(
+                                        getCurrentParallelism(executionGraph), vertexParallelism))
+                .isPresent();
     }
 
-    private static int getCurrentCumulativeParallelism(ExecutionGraph executionGraph) {
-        return executionGraph.getAllVertices().values().stream()
-                .map(ExecutionJobVertex::getParallelism)
-                .reduce(0, Integer::sum);
+    private static VertexParallelism getCurrentParallelism(ExecutionGraph executionGraph) {
+        return new VertexParallelism(
+                executionGraph.getAllVertices().values().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        ExecutionJobVertex::getJobVertexId,
+                                        ExecutionJobVertex::getParallelism)));
     }
 
     @Override

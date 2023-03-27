@@ -588,7 +588,7 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public boolean canScaleUp(ExecutionGraph executionGraph) {
+        public boolean shouldRescale(ExecutionGraph executionGraph) {
             return canScaleUp.get();
         }
 

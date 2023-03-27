@@ -18,20 +18,21 @@
 package org.apache.flink.runtime.scheduler.adaptive.scalingpolicy;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 
-/** Simple policy for controlling the scale up behavior of the {@link AdaptiveScheduler}. */
+/** Simple policy for controlling the scale up/down behavior of the {@link AdaptiveScheduler}. */
 @Internal
-public interface ScaleUpController {
+public interface RescalingController {
 
     /**
-     * This method gets called whenever new resources are available to the scheduler to scale up.
+     * This method gets called whenever new resources or {@link JobResourceRequirements resource
+     * requirements} are available and the scheduler needs to design whether to rescale or not.
      *
-     * @param currentCumulativeParallelism Cumulative parallelism of the currently running job
-     *     graph.
-     * @param newCumulativeParallelism Potential new cumulative parallelism with the additional
-     *     resources.
-     * @return true if the policy decided to scale up based on the provided information.
+     * @param currentParallelism parallelism of the currently running job graph.
+     * @param newParallelism Potential new parallelism with the additional resources.
+     * @return true if the policy decided to rescale based on the provided information.
      */
-    boolean canScaleUp(int currentCumulativeParallelism, int newCumulativeParallelism);
+    boolean shouldRescale(VertexParallelism currentParallelism, VertexParallelism newParallelism);
 }
