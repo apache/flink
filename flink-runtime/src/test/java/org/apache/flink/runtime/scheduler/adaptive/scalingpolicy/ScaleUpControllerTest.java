@@ -28,11 +28,8 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link ScaleUpController}. */
 public class ScaleUpControllerTest extends TestLogger {
-    private static final Configuration TEST_CONFIG = new Configuration();
-
-    static {
-        TEST_CONFIG.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 2);
-    }
+    private static final Configuration TEST_CONFIG =
+            new Configuration().set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 2);
 
     @Test
     public void testScaleUp() {
