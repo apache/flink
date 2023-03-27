@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -69,7 +70,13 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
     private final Consumer<HsSubpartitionFileReader> fileReaderReleaser;
 
-    private volatile boolean isFailed;
+    private final Object lock = new Object();
+
+    @GuardedBy("lock")
+    private boolean isFailed;
+
+    @GuardedBy("lock")
+    private boolean isReleased;
 
     public HsSubpartitionFileReaderImpl(
             int subpartitionId,
@@ -119,72 +126,83 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
      * read ahead the downstream consuming offset.
      */
     @Override
-    public synchronized void readBuffers(Queue<MemorySegment> buffers, BufferRecycler recycler)
+    public void readBuffers(Queue<MemorySegment> buffers, BufferRecycler recycler)
             throws IOException {
-        if (isFailed) {
-            throw new IOException("subpartition reader has already failed.");
-        }
-        int firstBufferToLoad = bufferIndexManager.getNextToLoad();
-        if (firstBufferToLoad < 0) {
-            return;
-        }
-
-        // If lookup result is empty, it means that one the following things have happened:
-        // 1) The target buffer has not been spilled into disk.
-        // 2) The target buffer has not been released from memory.
-        // So, just skip this round reading.
-        int numRemainingBuffer = cachedRegionManager.getRemainingBuffersInRegion(firstBufferToLoad);
-        if (numRemainingBuffer == 0) {
-            return;
-        }
-        moveFileOffsetToBuffer(firstBufferToLoad);
-
-        int indexToLoad;
-        int numLoaded = 0;
-        while (!buffers.isEmpty()
-                && (indexToLoad = bufferIndexManager.getNextToLoad()) >= 0
-                && numRemainingBuffer-- > 0) {
-            MemorySegment segment = buffers.poll();
-            Buffer buffer;
-            try {
-                if ((buffer = readFromByteChannel(dataFileChannel, headerBuf, segment, recycler))
-                        == null) {
-                    buffers.add(segment);
-                    break;
-                }
-            } catch (Throwable throwable) {
-                buffers.add(segment);
-                throw throwable;
+        synchronized (lock) {
+            if (isReleased) {
+                return;
+            }
+            if (isFailed) {
+                throw new IOException("subpartition reader has already failed.");
+            }
+            int firstBufferToLoad = bufferIndexManager.getNextToLoad();
+            if (firstBufferToLoad < 0) {
+                return;
             }
 
-            loadedBuffers.add(BufferIndexOrError.newBuffer(buffer, indexToLoad));
-            bufferIndexManager.updateLastLoaded(indexToLoad);
-            cachedRegionManager.advance(
-                    buffer.readableBytes() + BufferReaderWriterUtil.HEADER_LENGTH);
-            ++numLoaded;
-        }
+            // If lookup result is empty, it means that one the following things have happened:
+            // 1) The target buffer has not been spilled into disk.
+            // 2) The target buffer has not been released from memory.
+            // So, just skip this round reading.
+            int numRemainingBuffer =
+                    cachedRegionManager.getRemainingBuffersInRegion(firstBufferToLoad);
+            if (numRemainingBuffer == 0) {
+                return;
+            }
+            moveFileOffsetToBuffer(firstBufferToLoad);
 
-        if (loadedBuffers.size() <= numLoaded) {
-            operations.notifyDataAvailable();
+            int indexToLoad;
+            int numLoaded = 0;
+            while (!buffers.isEmpty()
+                    && (indexToLoad = bufferIndexManager.getNextToLoad()) >= 0
+                    && numRemainingBuffer-- > 0) {
+                MemorySegment segment = buffers.poll();
+                Buffer buffer;
+                try {
+                    if ((buffer =
+                                    readFromByteChannel(
+                                            dataFileChannel, headerBuf, segment, recycler))
+                            == null) {
+                        buffers.add(segment);
+                        break;
+                    }
+                } catch (Throwable throwable) {
+                    buffers.add(segment);
+                    throw throwable;
+                }
+
+                loadedBuffers.add(BufferIndexOrError.newBuffer(buffer, indexToLoad));
+                bufferIndexManager.updateLastLoaded(indexToLoad);
+                cachedRegionManager.advance(
+                        buffer.readableBytes() + BufferReaderWriterUtil.HEADER_LENGTH);
+                ++numLoaded;
+            }
+
+            if (loadedBuffers.size() <= numLoaded) {
+                operations.notifyDataAvailable();
+            }
         }
     }
 
     @Override
-    public synchronized void fail(Throwable failureCause) {
-        if (isFailed) {
-            return;
-        }
-        isFailed = true;
-        BufferIndexOrError bufferIndexOrError;
-        // empty from tail, in-case subpartition view consumes concurrently and gets the wrong order
-        while ((bufferIndexOrError = loadedBuffers.pollLast()) != null) {
-            if (bufferIndexOrError.getBuffer().isPresent()) {
-                checkNotNull(bufferIndexOrError.buffer).recycleBuffer();
+    public void fail(Throwable failureCause) {
+        synchronized (lock) {
+            if (isFailed) {
+                return;
             }
-        }
+            isFailed = true;
+            BufferIndexOrError bufferIndexOrError;
+            // empty from tail, in-case subpartition view consumes concurrently and gets the wrong
+            // order
+            while ((bufferIndexOrError = loadedBuffers.pollLast()) != null) {
+                if (bufferIndexOrError.getBuffer().isPresent()) {
+                    checkNotNull(bufferIndexOrError.buffer).recycleBuffer();
+                }
+            }
 
-        loadedBuffers.add(BufferIndexOrError.newError(failureCause));
-        operations.notifyDataAvailable();
+            loadedBuffers.add(BufferIndexOrError.newError(failureCause));
+            operations.notifyDataAvailable();
+        }
     }
 
     /** Refresh downstream consumption progress for another round scheduling of reading. */
@@ -251,6 +269,9 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
     @Override
     public void releaseDataView() {
+        synchronized (lock) {
+            isReleased = true;
+        }
         fileReaderReleaser.accept(this);
     }
 
