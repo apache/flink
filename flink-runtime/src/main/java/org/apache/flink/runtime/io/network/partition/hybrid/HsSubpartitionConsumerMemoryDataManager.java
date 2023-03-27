@@ -25,6 +25,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Optional;
@@ -84,6 +85,7 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
      * return the buffer and backlog.
      *
      * @param toConsumeIndex index of buffer to be consumed.
+     * @param buffersToRecycle buffers to recycle if needed.
      * @return If the head of {@link #unConsumedBuffers} is target, return optional of the buffer
      *     and backlog. Otherwise, return {@link Optional#empty()}.
      */
@@ -91,7 +93,8 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
     // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
     // subpartitionLock.
     @Override
-    public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(int toConsumeIndex) {
+    public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
+            int toConsumeIndex, Collection<Buffer> buffersToRecycle) {
         Optional<Tuple2<HsBufferContext, Buffer.DataType>> bufferAndNextDataType =
                 callWithLock(
                         () -> {
@@ -125,6 +128,7 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
      * If so, return the next buffer's data type.
      *
      * @param nextToConsumeIndex index of the buffer to be consumed next time.
+     * @param buffersToRecycle buffers to recycle if needed.
      * @return If the head of {@link #unConsumedBuffers} is target, return the buffer's data type.
      *     Otherwise, return {@link Buffer.DataType#NONE}.
      */
@@ -132,7 +136,8 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
     // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
     // consumerLock.
     @Override
-    public Buffer.DataType peekNextToConsumeDataType(int nextToConsumeIndex) {
+    public Buffer.DataType peekNextToConsumeDataType(
+            int nextToConsumeIndex, Collection<Buffer> buffersToRecycle) {
         return callWithLock(() -> peekNextToConsumeDataTypeInternal(nextToConsumeIndex));
     }
 

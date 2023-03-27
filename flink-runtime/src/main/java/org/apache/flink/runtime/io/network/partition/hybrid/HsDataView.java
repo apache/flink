@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -35,18 +37,22 @@ public interface HsDataView {
      * <p>Only invoked by consumer thread.
      *
      * @param nextBufferToConsume next buffer index to consume.
+     * @param buffersToRecycle buffers to recycle if needed.
      * @return If the target buffer does exist, return buffer and next buffer's backlog, otherwise
      *     return {@link Optional#empty()}.
      */
-    Optional<BufferAndBacklog> consumeBuffer(int nextBufferToConsume) throws Throwable;
+    Optional<BufferAndBacklog> consumeBuffer(
+            int nextBufferToConsume, Collection<Buffer> buffersToRecycle) throws Throwable;
 
     /**
      * Get dataType of next buffer to consume.
      *
      * @param nextBufferToConsume next buffer index to consume
+     * @param buffersToRecycle buffers to recycle if needed.
      * @return next buffer's dataType. If not found in memory, return {@link DataType#NONE}.
      */
-    DataType peekNextToConsumeDataType(int nextBufferToConsume);
+    DataType peekNextToConsumeDataType(
+            int nextBufferToConsume, Collection<Buffer> buffersToRecycle);
 
     /**
      * Get the number of buffers backlog.
