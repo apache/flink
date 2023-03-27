@@ -109,7 +109,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -132,7 +131,6 @@ import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
-import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
@@ -175,7 +173,7 @@ public class DefaultSchedulerTest extends TestLogger {
     @BeforeEach
     void setUp() {
         executor = Executors.newSingleThreadExecutor();
-        scheduledExecutorService = new DirectScheduledExecutorService();
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
         configuration = new Configuration();
 
@@ -1526,6 +1524,9 @@ public class DefaultSchedulerTest extends TestLogger {
         final AdaptiveSchedulerTest.SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 new AdaptiveSchedulerTest.SubmissionBufferingTaskManagerGateway(1);
 
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        assertThat(slotPool.registerTaskManager(taskManagerLocation.getResourceID())).isTrue();
+
         taskManagerGateway.setCancelConsumer(
                 executionAttemptId -> {
                     singleThreadMainThreadExecutor.execute(
@@ -1539,15 +1540,15 @@ public class DefaultSchedulerTest extends TestLogger {
                 () -> {
                     scheduler.startScheduling();
 
-                    offerSlots(
-                            slotPool,
+                    slotPool.offerSlots(
+                            taskManagerLocation,
+                            taskManagerGateway,
                             createSlotOffersForResourceRequirements(
-                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
-                            taskManagerGateway);
+                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
                 });
 
         // wait for the first task submission
-        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+        taskManagerGateway.waitForSubmissions(1);
 
         // sleep a bit to ensure uptime is > 0
         Thread.sleep(10L);
