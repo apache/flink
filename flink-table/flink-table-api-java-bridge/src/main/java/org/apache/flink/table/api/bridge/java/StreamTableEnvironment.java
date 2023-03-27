@@ -186,8 +186,11 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * assumes append-only/insert-only semantics during the stream-to-table conversion. Records of
      * type {@link Row} must describe {@link RowKind#INSERT} changes.
      *
-     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
-     * explicitly declared via {@link #fromDataStream(DataStream, Schema)}.
+     * <p>By default, the stream record's timestamp and watermarks are not propagated to downstream
+     * table operations unless explicitly declared via {@link #fromDataStream(DataStream, Schema)}.
+     *
+     * <p>If returned table is converted to DataStream again via {@link #toDataStream(Table)}, the
+     * original DataStream is returned.
      *
      * @param dataStream The {@link DataStream} to be converted.
      * @param <T> The external type of the {@link DataStream}.
@@ -210,8 +213,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * assumes append-only/insert-only semantics during the stream-to-table conversion. Records of
      * class {@link Row} must describe {@link RowKind#INSERT} changes.
      *
-     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
-     * explicitly declared.
+     * <p>By default, the stream record's timestamp and watermarks are not propagated to downstream
+     * table operations unless explicitly declared in the given {@link Schema}.
      *
      * <p>This method allows to declare a {@link Schema} for the resulting table. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
@@ -304,8 +307,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * black-box {@link DataTypes#RAW(Class, TypeSerializer)} type. Thus, composite nested fields
      * will not be accessible.
      *
-     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
-     * explicitly declared via {@link #fromChangelogStream(DataStream, Schema)}.
+     * <p>By default, the stream record's timestamp and watermarks are not propagated to downstream
+     * table operations unless explicitly declared via {@link #fromChangelogStream(DataStream, Schema)}.
      *
      * @param dataStream The changelog stream of {@link Row}.
      * @return The converted {@link Table}.
@@ -330,8 +333,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * black-box {@link DataTypes#RAW(Class, TypeSerializer)} type. Thus, composite nested fields
      * will not be accessible.
      *
-     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
-     * explicitly declared.
+     * <p>By default, the stream record's timestamp and watermarks are not propagated to downstream
+     * table operations unless explicitly declared in the given {@link Schema}.
      *
      * <p>This method allows to declare a {@link Schema} for the resulting table. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
@@ -372,8 +375,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * black-box {@link DataTypes#RAW(Class, TypeSerializer)} type. Thus, composite nested fields
      * will not be accessible.
      *
-     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
-     * explicitly declared.
+     * <p>By default, the stream record's timestamp and watermarks are not propagated to downstream
+     * table operations unless explicitly declared in the given {@link Schema}.
      *
      * <p>This method allows to declare a {@link Schema} for the resulting table. The declaration is
      * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
