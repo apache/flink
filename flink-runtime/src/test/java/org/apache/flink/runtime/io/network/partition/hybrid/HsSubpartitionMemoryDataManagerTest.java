@@ -165,7 +165,7 @@ class HsSubpartitionMemoryDataManagerTest {
                 subpartitionMemoryDataManager.registerNewConsumer(DEFAULT);
         ArrayList<Optional<BufferAndBacklog>> bufferAndBacklogOpts = new ArrayList<>();
         for (int i = 0; i < numDataBuffers + 1; i++) {
-            bufferAndBacklogOpts.add(consumer.consumeBuffer(i));
+            bufferAndBacklogOpts.add(consumer.consumeBuffer(i, Collections.emptyList()));
         }
         checkConsumedBufferAndNextDataType(
                 numRecordsPerBuffer, bufferDecompressor, expectedRecords, bufferAndBacklogOpts);
@@ -205,8 +205,8 @@ class HsSubpartitionMemoryDataManagerTest {
         subpartitionMemoryDataManager.spillSubpartitionBuffers(toStartSpilling, spilledDoneFuture);
 
         // consume buffer 0, 1
-        consumer.consumeBuffer(0);
-        consumer.consumeBuffer(1);
+        consumer.consumeBuffer(0, Collections.emptyList());
+        consumer.consumeBuffer(1, Collections.emptyList());
 
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(SpillStatus.ALL, ALL_ANY),

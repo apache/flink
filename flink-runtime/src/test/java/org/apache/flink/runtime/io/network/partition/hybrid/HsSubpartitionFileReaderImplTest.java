@@ -51,6 +51,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Queue;
@@ -395,6 +396,46 @@ class HsSubpartitionFileReaderImplTest {
     }
 
     @Test
+    void testRecycleBuffersForConsumeBuffer() throws Throwable {
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(0, viewNotifier);
+        writeDataToFile(0, 0, 0, 4);
+
+        Queue<MemorySegment> memorySegments = createsMemorySegments(4);
+        subpartitionFileReader.prepareForScheduling();
+        // trigger reading, add buffer to queue.
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+        ArrayList<Buffer> buffers = new ArrayList<>();
+        // expected buffer index is 2, buffer 0 & 1 should be recycled.
+        subpartitionFileReader.consumeBuffer(2, buffers);
+        assertThat(buffers).hasSize(2);
+        assertThat(buffers).element(0).satisfies((buffer -> assertBufferContentEqualTo(buffer, 0)));
+        assertThat(buffers).element(1).satisfies((buffer -> assertBufferContentEqualTo(buffer, 1)));
+    }
+
+    @Test
+    void testRecycleBuffersForPeekNextToConsumeDataType() throws Throwable {
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(0, viewNotifier);
+        writeDataToFile(0, 0, 0, 4);
+
+        Queue<MemorySegment> memorySegments = createsMemorySegments(4);
+        subpartitionFileReader.prepareForScheduling();
+        // trigger reading, add buffer to queue.
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+        ArrayList<Buffer> buffers = new ArrayList<>();
+        // expected buffer index is 2, buffer 0 & 1 should be recycled.
+        subpartitionFileReader.peekNextToConsumeDataType(2, buffers);
+        assertThat(buffers).hasSize(2);
+        assertThat(buffers).element(0).satisfies((buffer -> assertBufferContentEqualTo(buffer, 0)));
+        assertThat(buffers).element(1).satisfies((buffer -> assertBufferContentEqualTo(buffer, 1)));
+    }
+
+    @Test
     void testConsumeBuffer() throws Throwable {
         TestingSubpartitionConsumerInternalOperation viewNotifier =
                 new TestingSubpartitionConsumerInternalOperation();
@@ -402,7 +443,7 @@ class HsSubpartitionFileReaderImplTest {
                 createSubpartitionFileReader(0, viewNotifier);
 
         // if no preload data in file reader, return Optional.empty.
-        assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
+        assertThat(subpartitionFileReader.consumeBuffer(0, Collections.emptyList())).isNotPresent();
 
         // buffers in file: (0-0, 0-1, 0-2)
         writeDataToFile(0, 0, 0, 3);
@@ -413,7 +454,7 @@ class HsSubpartitionFileReaderImplTest {
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
         // if nextBufferToConsume is equal to peek elements index.
-        assertThat(subpartitionFileReader.consumeBuffer(0))
+        assertThat(subpartitionFileReader.consumeBuffer(0, new ArrayList<>()))
                 .hasValueSatisfying(
                         (bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getNextDataType())
@@ -430,11 +471,11 @@ class HsSubpartitionFileReaderImplTest {
                         }));
 
         // if nextBufferToConsume is less than peek elements index, return Optional.empty.
-        assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
+        assertThat(subpartitionFileReader.consumeBuffer(0, Collections.emptyList())).isNotPresent();
 
         // if nextBufferToConsume is greater than peek elements index, skip this buffer and keep
         // looking.
-        assertThat(subpartitionFileReader.consumeBuffer(2))
+        assertThat(subpartitionFileReader.consumeBuffer(2, new ArrayList<>()))
                 .hasValueSatisfying(
                         (bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getNextDataType()).isEqualTo(DataType.NONE);
@@ -459,11 +500,14 @@ class HsSubpartitionFileReaderImplTest {
 
         subpartitionFileReader.fail(new RuntimeException("expected exception."));
 
-        assertThatThrownBy(() -> subpartitionFileReader.peekNextToConsumeDataType(0))
+        assertThatThrownBy(
+                        () ->
+                                subpartitionFileReader.peekNextToConsumeDataType(
+                                        0, Collections.emptyList()))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("expected exception.");
 
-        assertThatThrownBy(() -> subpartitionFileReader.consumeBuffer(0))
+        assertThatThrownBy(() -> subpartitionFileReader.consumeBuffer(0, Collections.emptyList()))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("expected exception.");
     }
@@ -476,7 +520,8 @@ class HsSubpartitionFileReaderImplTest {
                 createSubpartitionFileReader(0, viewNotifier);
 
         // if no preload data in file reader, return DataType.NONE.
-        assertThat(subpartitionFileReader.peekNextToConsumeDataType(0)).isEqualTo(DataType.NONE);
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(0, new ArrayList<>()))
+                .isEqualTo(DataType.NONE);
 
         // buffers in file: (0-0, 0-1, 0-2)
         writeDataToFile(0, 0, 3);
@@ -487,15 +532,16 @@ class HsSubpartitionFileReaderImplTest {
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
         // if nextBufferToConsume is equal to peek elements index, return the real DataType.
-        assertThat(subpartitionFileReader.peekNextToConsumeDataType(0))
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(0, Collections.emptyList()))
                 .isEqualTo(DataType.DATA_BUFFER);
 
         // if nextBufferToConsume is greater than peek elements index, skip this buffer and keep
         // looking.
-        assertThat(subpartitionFileReader.peekNextToConsumeDataType(2))
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(2, new ArrayList<>()))
                 .isEqualTo(DataType.EVENT_BUFFER);
         // if nextBufferToConsume is less than peek elements index, return DataType.NONE.
-        assertThat(subpartitionFileReader.peekNextToConsumeDataType(1)).isEqualTo(DataType.NONE);
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(1, Collections.emptyList()))
+                .isEqualTo(DataType.NONE);
     }
 
     /**
@@ -573,13 +619,21 @@ class HsSubpartitionFileReaderImplTest {
                         viewNotifier,
                         (ignore) -> isReleased.complete(null));
 
-        writeDataToFile(0, 0, 2);
+        writeDataToFile(0, 0, 4);
         subpartitionFileReader.prepareForScheduling();
         Queue<MemorySegment> memorySegments = createsMemorySegments(2);
-        subpartitionFileReader.releaseDataView();
+        Queue<MemorySegment> recycledBuffers = new ArrayDeque<>();
+        subpartitionFileReader.readBuffers(memorySegments, recycledBuffers::add);
+        assertThat(memorySegments).isEmpty();
 
-        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+        subpartitionFileReader.releaseDataView();
+        assertThat(subpartitionFileReader.getLoadedBuffers()).isEmpty();
+        assertThat(recycledBuffers).hasSize(2);
+
+        memorySegments = createsMemorySegments(2);
+        subpartitionFileReader.readBuffers(memorySegments, recycledBuffers::add);
         assertThat(memorySegments).hasSize(2);
+        assertThat(recycledBuffers).hasSize(2);
         assertThat(isReleased).isCompleted();
     }
 
@@ -714,5 +768,10 @@ class HsSubpartitionFileReaderImplTest {
 
         bufferWithHeaders[index] = header;
         bufferWithHeaders[index + 1] = buffer.getNioBufferReadable();
+    }
+
+    private static void assertBufferContentEqualTo(Buffer buffer, int expectedValue) {
+        assertThat(buffer.getNioBufferReadable().order(ByteOrder.nativeOrder()).getInt())
+                .isEqualTo(expectedValue);
     }
 }
