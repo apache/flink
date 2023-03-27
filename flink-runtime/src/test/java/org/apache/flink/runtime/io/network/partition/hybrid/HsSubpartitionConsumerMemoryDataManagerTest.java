@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
@@ -48,7 +49,9 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
                 createSubpartitionConsumerMemoryDataManager(memoryDataManagerOperation);
 
         subpartitionConsumerMemoryDataManager.addBuffer(createBufferContext(0, false));
-        assertThat(subpartitionConsumerMemoryDataManager.peekNextToConsumeDataType(1))
+        assertThat(
+                        subpartitionConsumerMemoryDataManager.peekNextToConsumeDataType(
+                                1, new ArrayDeque<>()))
                 .isEqualTo(Buffer.DataType.NONE);
     }
 
@@ -68,7 +71,9 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
         buffer1.release();
         buffer2.release();
 
-        assertThat(subpartitionConsumerMemoryDataManager.peekNextToConsumeDataType(2))
+        assertThat(
+                        subpartitionConsumerMemoryDataManager.peekNextToConsumeDataType(
+                                2, Collections.emptyList()))
                 .isEqualTo(Buffer.DataType.EVENT_BUFFER);
     }
 
@@ -80,7 +85,8 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
                 createSubpartitionConsumerMemoryDataManager(memoryDataManagerOperation);
 
         subpartitionConsumerMemoryDataManager.addBuffer(createBufferContext(0, false));
-        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(1)).isNotPresent();
+        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(1, Collections.emptyList()))
+                .isNotPresent();
     }
 
     @Test
@@ -99,7 +105,8 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
         buffer1.release();
         buffer2.release();
 
-        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(2)).isPresent();
+        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(2, Collections.emptyList()))
+                .isPresent();
     }
 
     @Test
@@ -112,7 +119,7 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
         subpartitionConsumerMemoryDataManager.addBuffer(createBufferContext(0, false));
 
         Optional<ResultSubpartition.BufferAndBacklog> bufferOpt =
-                subpartitionConsumerMemoryDataManager.consumeBuffer(0);
+                subpartitionConsumerMemoryDataManager.consumeBuffer(0, Collections.emptyList());
         assertThat(bufferOpt)
                 .hasValueSatisfying(
                         (bufferAndBacklog ->
@@ -132,21 +139,21 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
         subpartitionConsumerMemoryDataManager.addInitialBuffers(initialBuffers);
         subpartitionConsumerMemoryDataManager.addBuffer(createBufferContext(2, true));
 
-        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(0))
+        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(0, Collections.emptyList()))
                 .hasValueSatisfying(
                         bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(0);
                             assertThat(bufferAndBacklog.buffer().getDataType())
                                     .isEqualTo(Buffer.DataType.DATA_BUFFER);
                         });
-        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(1))
+        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(1, Collections.emptyList()))
                 .hasValueSatisfying(
                         bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(1);
                             assertThat(bufferAndBacklog.buffer().getDataType())
                                     .isEqualTo(Buffer.DataType.DATA_BUFFER);
                         });
-        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(2))
+        assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(2, Collections.emptyList()))
                 .hasValueSatisfying(
                         bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(2);
