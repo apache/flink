@@ -260,7 +260,7 @@ public class ExecutingTest extends TestLogger {
                         assertThat(restartingArguments.getBackoffTime(), is(Duration.ZERO));
                     });
             ctx.setCanScaleUp(() -> true);
-            exec.notifyNewResourcesAvailable();
+            exec.onNewResourcesAvailable();
         }
     }
 
@@ -269,7 +269,7 @@ public class ExecutingTest extends TestLogger {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
             ctx.setCanScaleUp(() -> false);
-            exec.notifyNewResourcesAvailable();
+            exec.onNewResourcesAvailable();
             ctx.assertNoStateTransition();
         }
     }

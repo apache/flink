@@ -84,7 +84,7 @@ public class WaitingForResourcesTest extends TestLogger {
                             ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             // we expect no state transition.
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
         }
     }
 
@@ -97,7 +97,7 @@ public class WaitingForResourcesTest extends TestLogger {
                             ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
             ctx.setHasDesiredResources(() -> true); // make resources available
             ctx.setExpectCreatingExecutionGraph();
-            wfr.notifyNewResourcesAvailable(); // .. and notify
+            wfr.onNewResourcesAvailable(); // .. and notify
         }
     }
 
@@ -117,7 +117,7 @@ public class WaitingForResourcesTest extends TestLogger {
             ctx.setHasDesiredResources(() -> false);
             ctx.setHasSufficientResources(() -> true);
             ctx.setExpectCreatingExecutionGraph();
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
         }
     }
 
@@ -137,7 +137,7 @@ public class WaitingForResourcesTest extends TestLogger {
 
             ctx.setHasDesiredResources(() -> false);
             ctx.setHasSufficientResources(() -> true);
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
             // we are not triggering the scheduled tasks, to simulate a long stabilization timeout
 
             assertThat(ctx.hasStateTransition(), is(false));
@@ -165,7 +165,7 @@ public class WaitingForResourcesTest extends TestLogger {
             ctx.setHasSufficientResources(() -> true);
 
             // notify about sufficient resources
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             ctx.setExpectCreatingExecutionGraph();
 
@@ -201,17 +201,17 @@ public class WaitingForResourcesTest extends TestLogger {
             // notify about resources, trigger stabilization timeout
             ctx.setHasSufficientResources(() -> true);
             ctx.advanceTimeByMillis(40); // advance time, but don't trigger stabilizationTimeout
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             // notify again, but insufficient (reset stabilization timeout)
             ctx.setHasSufficientResources(() -> false);
             ctx.advanceTimeByMillis(40);
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             // notify again, but sufficient, trigger timeout
             ctx.setHasSufficientResources(() -> true);
             ctx.advanceTimeByMillis(40);
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             // sanity check: no state transition has been triggered so far
             assertThat(ctx.hasStateTransition(), is(false));
