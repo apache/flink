@@ -1,5 +1,5 @@
 ---
-title: Overview
+title: 概览
 weight: 1
 type: docs
 aliases:
@@ -24,47 +24,45 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Introduction
+介绍
 ----------------
 
-The SQL Gateway is a service that enables multiple clients from the remote to execute SQL in concurrency. It provides
-an easy way to submit the Flink Job, look up the metadata, and analyze the data online.
+SQL Gateway 服务支持并发执行从多个client提交的 SQL。它提供了一种简单的方法来提交 Flink 作业、查找元数据和在线分析数据。
 
-The SQL Gateway is composed of pluggable endpoints and the `SqlGatewayService`. The `SqlGatewayService` is a processor that is
-reused by the endpoints to handle the requests. The endpoint is an entry point that allows users to connect. Depending on the
-type of the endpoints, users can use different utils to connect.
+SQL Gateway 由插件化的 endpoint 和 `SqlGatewayService` 组成。多个 endpoint 可以复用 `SqlGatewayService` 处理请求。endpoint 是用户连接的入口。
+用户可以使用不同的工具连接不同类型的 endpoint。
 
 {{< img width="80%" src="/fig/sql-gateway-architecture.png" alt="SQL Gateway Architecture" >}}
 
-Getting Started
+开始
 ---------------
 
-This section describes how to setup and run your first Flink SQL program from the command-line.
-
-The SQL Gateway is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+这个章节描述如何通过命令行启动和执行你的第一个 Flink SQL 作业。
+SQL Gateway 和 Flink 版本一起发布，开箱即用。它只需要一个正在运行的 Flink 集群，可以执行 Flink SQL 作业。
+更多启动 Flink 集群的信息可以查看 [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}})。
+如果你只是想简单尝试 SQL Client，你也可以使用以下命令启动只有一个 worker 的本地集群。
 
 ```bash
 $ ./bin/start-cluster.sh
 ```
 ### Starting the SQL Gateway
 
-The SQL Gateway scripts are also located in the binary directory of Flink. Users can start by calling:
+SQL Gateway 脚本也在 Flink 二进制包的目录中。用户通过以下命令启动：
 
 ```bash
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.rest.address=localhost
 ```
 
-The command starts the SQL Gateway with REST Endpoint that listens on the address localhost:8083. You can use the curl command to check
-whether the REST Endpoint is available.
+这个命令启动 SQL Gateway 和 REST Endpoint，监听 localhost:8083 地址。你可以使用 curl 命令检查 REST Endpoint 是否存活。
 
 ```bash
 $ curl http://localhost:8083/v1/info
 {"productName":"Apache Flink","version":"{{< version >}}"}
 ```
 
-### Running SQL Queries
+### 执行 SQL 查询
 
-For validating your setup and cluster connection, you can work with following steps.
+你可以通过以下步骤来验证集群配置和连接。
 
 **Step 1: Open a session**
 
@@ -73,7 +71,7 @@ $ curl --request POST http://localhost:8083/v1/sessions
 {"sessionHandle":"..."}
 ```
 
-The `sessionHandle` in the return results is used by the SQL Gateway to uniquely identify every active user.
+SQL Gateway 返回结果中的 `sessionHandle` 用来唯一标识每个活跃用户。
 
 **Step 2: Execute a query**
 
@@ -82,12 +80,12 @@ $ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/stateme
 {"operationHandle":"..."}
 ```
 
-The `operationHandle` in the return results is used by the SQL Gateway to uniquely identify the submitted SQL.
+SQL Gateway 返回结果中的 `operationHandle` 用来唯一标识提交的 SQL。
 
 
 **Step 3: Fetch results**
 
-With the `sessionHandle` and `operationHandle` above, you can fetch the corresponding results.
+通过上述 `sessionHandle` 和 `operationHandle`，你能获取相应的结果。
 
 ```bash
 $ curl --request GET http://localhost:8083/v1/sessions/${sessionHandle}/operations/${operationHandle}/result/0
@@ -116,18 +114,18 @@ $ curl --request GET http://localhost:8083/v1/sessions/${sessionHandle}/operatio
 }
 ```
 
-The `nextResultUri` in the results is used to fetch the next batch results if it is not `null`.
+结果中的 `nextResultUri` 不是null时，用于获取下一批结果。
 
 ```bash
 $ curl --request GET ${nextResultUri}
 ```
 
-Configuration
+配置
 ----------------
 
-### SQL Gateway startup options
+### SQL Gateway 启动参数
 
-Currently, the SQL Gateway script has the following optional commands. They are discussed in details in the subsequent paragraphs.
+目前 SQL Gateway 有以下可选命令，它们将在下文详细讨论。
 
 ```bash
 $ ./bin/sql-gateway.sh --help
@@ -141,7 +139,7 @@ Usage: sql-gateway.sh [start|start-foreground|stop|stop-all] [args]
     -h | --help         - Show this help message
 ```
 
-For "start" or "start-foreground" command,  you are able to configure the SQL Gateway in the CLI.
+"start" 或者 "start-foreground" 命令可以使你在 CLI 中配置 SQL Gateway。
 
 ```bash
 $ ./bin/sql-gateway.sh start --help
@@ -154,9 +152,9 @@ Start the Flink SQL Gateway as a daemon to submit Flink SQL.
                            options.
 ```
 
-### SQL Gateway Configuration
+### SQL Gateway 配置
 
-You can configure the SQL Gateway when starting the SQL Gateway below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
+你可以通过以下方式在启动时配置 SQL Gateway，或者任意合法的 [Flink configuration]({{< ref "docs/dev/table/config" >}}) 配置：
 
 ```bash
 $ ./sql-gateway -Dkey=value
@@ -176,61 +174,61 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.check-interval</h5></td>
             <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
-            <td>The check interval for idle session timeout, which can be disabled by setting to zero.</td>
+            <td>定时检查空闲 session 是否超时的间隔时间，设置为 0 时关闭检查。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.idle-timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
-            <td>Timeout interval for closing the session when the session hasn't been accessed during the interval. If setting to zero, the session will not be closed.</td>
+            <td>session 超时时间，在这个时间区间内没有被访问过的 session 会被关闭。如果设置为 0，session 将不会被关闭。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.max-num</h5></td>
             <td style="word-wrap: break-word;">1000000</td>
             <td>Integer</td>
-            <td>The maximum number of the active session for sql gateway service.</td>
+            <td>SQL Gateway 服务中存活 session 的最大数量。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.keepalive-time</h5></td>
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
-            <td>Keepalive time for an idle worker thread. When the number of workers exceeds min workers, excessive threads are killed after this time interval.</td>
+            <td>空闲工作线程的存活时间。当工作线程数量超过了配置的最小值，超过存活时间的多余空闲工作线程会被杀掉。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.threads.max</h5></td>
             <td style="word-wrap: break-word;">500</td>
             <td>Integer</td>
-            <td>The maximum number of worker threads for sql gateway service.</td>
+            <td>SQL Gateway 服务中工作线程的最大数量。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.worker.threads.min</h5></td>
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
-            <td>The minimum number of worker threads for sql gateway service.</td>
+            <td>SQL Gateway 服务中工作线程的最小数量。</td>
         </tr>
     </tbody>
 </table>
 
-Supported Endpoints
+已支持的 Endpoints
 ----------------
 
-Flink natively support [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}).
-The SQL Gateway is bundled with the REST Endpoint by default. With the flexible architecture, users are able to start the SQL Gateway with the specified endpoints by calling
+Flink 原生支持 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) 和 [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}})。
+SQL Gateway 默认集成 REST Endpoint。由于架构的可扩展性，用户可以通过指定 endpoint 来启动 SQL Gateway。
 
 ```bash
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.type=hiveserver2
 ```
 
-or add the following config in the `conf/flink-conf.yaml`:
+或者在 `conf/flink-conf.yaml` 中增加如下配置：
 
 ```yaml
 sql-gateway.endpoint.type: hiveserver2
 ```
 
 {{< hint info >}}
-Notice: The CLI command has higher priority if flink-conf.yaml also contains the option `sql-gateway.endpoint.type`.
+Notice: 如果 CLI 命令和 flink-conf.yaml 都有 `sql-gateway.endpoint.type`，CLI 的优先级比 flink-conf.yaml 更高。
 {{< /hint >}}
 
-For the specific endpoint, please refer to the corresponding page.
+具体的 endpoint 请参考相应页面。
 
 {{< top >}}
