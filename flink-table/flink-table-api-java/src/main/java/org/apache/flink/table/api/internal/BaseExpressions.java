@@ -58,6 +58,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REVERSE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -1384,6 +1385,15 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayRemove(InType needle) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_REMOVE, toExpr(), objectToExpression(needle)));
+    }
+
+    /**
+     * Returns an array in reverse order.
+     *
+     * <p>If the array itself is null, the function will return null.
+     */
+    public OutType arrayReverse() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_REVERSE, toExpr()));
     }
 
     /** Returns the keys of the map as an array. */

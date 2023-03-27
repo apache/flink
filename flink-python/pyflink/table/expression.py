@@ -1505,6 +1505,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayRemove")(self, needle)
 
+    def array_reverse(self) -> 'Expression':
+        """
+        Returns an array in reverse order.
+        If the array itself is null, the function will return null.
+        """
+        return _binary_op("arrayReverse")(self)
+
     @property
     def map_keys(self) -> 'Expression':
         """
