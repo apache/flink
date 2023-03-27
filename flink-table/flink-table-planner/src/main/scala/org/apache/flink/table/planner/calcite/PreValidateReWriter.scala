@@ -331,7 +331,7 @@ object PreValidateReWriter {
         if (currentNodes.size > 0) {
           fieldNodes.addAll(currentNodes)
         }
-        fixedNodes.add(FlinkSqlOperatorTable.ROW.createCall(value.getParserPosition, fieldNodes))
+        fixedNodes.add(SqlStdOperatorTable.ROW.createCall(value.getParserPosition, fieldNodes))
     }
     SqlStdOperatorTable.VALUES.createCall(values.getParserPosition, fixedNodes)
   }

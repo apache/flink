@@ -1130,7 +1130,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     // SPECIAL OPERATORS
     public static final SqlOperator MULTISET_VALUE = SqlStdOperatorTable.MULTISET_VALUE;
-    public static final SqlOperator ROW = new SqlRowConstructor();
+    public static final SqlOperator ROW = SqlStdOperatorTable.ROW;
     public static final SqlOperator OVERLAPS = SqlStdOperatorTable.OVERLAPS;
     public static final SqlOperator LITERAL_CHAIN = SqlStdOperatorTable.LITERAL_CHAIN;
     public static final SqlOperator BETWEEN = SqlStdOperatorTable.BETWEEN;
