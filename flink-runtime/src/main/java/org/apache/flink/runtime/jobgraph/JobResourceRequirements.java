@@ -118,7 +118,7 @@ public class JobResourceRequirements implements Serializable {
                     Optional.ofNullable(maxParallelismPerVertex.get(jobVertexId));
             if (maybeMaxParallelism.isPresent()) {
                 final JobVertexResourceRequirements.Parallelism requestedParallelism =
-                        jobResourceRequirements.findParallelism(jobVertexId).get();
+                        jobResourceRequirements.getParallelism(jobVertexId);
                 int lowerBound =
                         requestedParallelism.getLowerBound() == -1
                                 ? 1
@@ -197,10 +197,13 @@ public class JobResourceRequirements implements Serializable {
                 Collections.unmodifiableMap(new HashMap<>(checkNotNull(vertexResources)));
     }
 
-    public Optional<JobVertexResourceRequirements.Parallelism> findParallelism(
-            JobVertexID jobVertexId) {
+    public JobVertexResourceRequirements.Parallelism getParallelism(JobVertexID jobVertexId) {
         return Optional.ofNullable(vertexResources.get(jobVertexId))
-                .map(JobVertexResourceRequirements::getParallelism);
+                .map(JobVertexResourceRequirements::getParallelism)
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        "No requirement set for vertex " + jobVertexId));
     }
 
     public Set<JobVertexID> getJobVertices() {
