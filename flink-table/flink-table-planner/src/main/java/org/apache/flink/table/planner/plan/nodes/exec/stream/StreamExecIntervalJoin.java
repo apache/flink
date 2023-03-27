@@ -66,8 +66,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS;
-
 /** {@link StreamExecNode} for a time interval stream join. */
 @ExecNodeMetadata(
         name = "stream-exec-interval-join",
@@ -148,7 +146,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         IntervalJoinSpec.WindowBounds windowBounds = intervalJoinSpec.getWindowBounds();
         long minCleanUpIntervalMillis =
                 planner.getTableConfig()
-                        .get(TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL_MILLIS)
+                        .get(ExecutionConfigOptions.TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL)
                         .toMillis();
         switch (joinSpec.getJoinType()) {
             case INNER:
@@ -355,7 +353,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             IntervalJoinFunction joinFunction,
             JoinSpec joinSpec,
             IntervalJoinSpec.WindowBounds windowBounds,
-            long minCleanUpInterval,
+            long minCleanUpIntervalMillis,
             ExecNodeConfig config) {
         InternalTypeInfo<RowData> leftTypeInfo =
                 (InternalTypeInfo<RowData>) leftInputTransform.getOutputType();
@@ -366,7 +364,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         joinSpec.getJoinType(),
                         windowBounds.getLeftLowerBound(),
                         windowBounds.getLeftUpperBound(),
-                        minCleanUpInterval,
+                        minCleanUpIntervalMillis,
                         leftTypeInfo,
                         rightTypeInfo,
                         joinFunction);
