@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +30,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static java.lang.Integer.parseInt;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkArgument;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkNotNull;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.isNullOrWhitespaceOnly;
 
 /**
  * Driver info for flink driver, it reads driver name and version from driver.properties which will
@@ -53,7 +52,7 @@ final class DriverInfo {
         try {
             Properties properties = new Properties();
             URL url = DriverInfo.class.getResource("driver.properties");
-            try (InputStream in = checkNotNull(url.openStream())) {
+            try (InputStream in = checkNotNull(url, "Cannot find driver.properties").openStream()) {
                 properties.load(in);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -70,14 +69,13 @@ final class DriverInfo {
 
             Matcher matcher =
                     Pattern.compile("^(\\d+)(\\.(\\d+))($|[.-])?").matcher(DRIVER_VERSION);
-            checkState(
+            checkArgument(
                     matcher.find(),
                     String.format("%s is invalid: %s", DRIVER_VERSION_OPTION, DRIVER_VERSION));
 
             DRIVER_VERSION_MAJOR = parseInt(matcher.group(1));
             final String minor = matcher.group(3);
-            DRIVER_VERSION_MINOR =
-                    parseInt(StringUtils.isNullOrWhitespaceOnly(minor) ? "0" : minor);
+            DRIVER_VERSION_MINOR = parseInt(isNullOrWhitespaceOnly(minor) ? "0" : minor);
         } catch (RuntimeException e) {
             LOG.error("Failed to load flink driver info", e);
             throw e;

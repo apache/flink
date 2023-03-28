@@ -18,30 +18,26 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.util.StringUtils;
-
-import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkNotNull;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.fromProperties;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.isNullOrWhitespaceOnly;
 
 /** Parse catalog, table and connection properties from uri for {@link FlinkDriver}. */
 public class DriverUri {
     private static final String URL_PREFIX = "jdbc:";
     private static final String URL_START = URL_PREFIX + "flink:";
-
-    private static final Splitter URL_ARG_SPLITTER = Splitter.on('&').omitEmptyStrings();
-    private static final Splitter ARG_VALUE_SPLITTER = Splitter.on('=').limit(2);
     private final String host;
     private final int port;
     private final URI uri;
@@ -86,7 +82,7 @@ public class DriverUri {
 
     private void initCatalogAndSchema() throws SQLException {
         String path = uri.getPath();
-        if (StringUtils.isNullOrWhitespaceOnly(uri.getPath()) || path.equals("/")) {
+        if (isNullOrWhitespaceOnly(uri.getPath()) || path.equals("/")) {
             return;
         }
 
@@ -96,7 +92,7 @@ public class DriverUri {
         }
         path = path.substring(1);
 
-        List<String> parts = Splitter.on("/").splitToList(path);
+        List<String> parts = Arrays.stream(path.split("/")).collect(Collectors.toList());
         // remove last item due to a trailing slash
         if (parts.get(parts.size() - 1).isEmpty()) {
             parts = parts.subList(0, parts.size() - 1);
@@ -124,7 +120,7 @@ public class DriverUri {
     private static Properties mergeDynamicProperties(URI uri, Properties driverProperties)
             throws SQLException {
         Map<String, String> urlProperties = parseUriParameters(uri.getQuery());
-        Map<String, String> suppliedProperties = Maps.fromProperties(driverProperties);
+        Map<String, String> suppliedProperties = fromProperties(driverProperties);
 
         for (String key : urlProperties.keySet()) {
             if (suppliedProperties.containsKey(key)) {
@@ -134,12 +130,12 @@ public class DriverUri {
         }
 
         Properties result = new Properties();
-        setMapToProperties(result, urlProperties);
-        setMapToProperties(result, suppliedProperties);
+        addMapToProperties(result, urlProperties);
+        addMapToProperties(result, suppliedProperties);
         return result;
     }
 
-    private static void setMapToProperties(Properties properties, Map<String, String> values) {
+    private static void addMapToProperties(Properties properties, Map<String, String> values) {
         for (Map.Entry<String, String> entry : values.entrySet()) {
             properties.setProperty(entry.getKey(), entry.getValue());
         }
@@ -149,20 +145,18 @@ public class DriverUri {
         Map<String, String> result = new HashMap<>();
 
         if (query != null) {
-            Iterable<String> queryArgs = URL_ARG_SPLITTER.split(query);
+            String[] queryArgs = query.split("&");
             for (String queryArg : queryArgs) {
-                List<String> parts = ARG_VALUE_SPLITTER.splitToList(queryArg);
-                if (parts.size() != 2) {
+                String[] parts = queryArg.split("=");
+                if (parts.length != 2) {
                     throw new SQLException(
                             format(
                                     "Connection property in uri must be key=val format: '%s'",
                                     queryArg));
                 }
-                if (result.put(parts.get(0), parts.get(1)) != null) {
+                if (result.put(parts[0], parts[1]) != null) {
                     throw new SQLException(
-                            format(
-                                    "Connection property '%s' is in URL multiple times",
-                                    parts.get(0)));
+                            format("Connection property '%s' is in URL multiple times", parts[0]));
                 }
             }
         }
@@ -172,28 +166,29 @@ public class DriverUri {
 
     private static URI parseDriverUrl(String url) throws SQLException {
         if (!url.startsWith(URL_START)) {
-            throw new SQLException("Invalid Flink JDBC URL: " + url);
+            throw new SQLException(
+                    String.format("Flink JDBC URL[%s] must start with [%s]", url, URL_START));
         }
 
         if (url.equals(URL_START)) {
-            throw new SQLException("Empty Flink JDBC URL: " + url);
+            throw new SQLException(String.format("Empty Flink JDBC URL: %s", url));
         }
 
         URI uri;
         try {
             uri = new URI(url.substring(URL_PREFIX.length()));
         } catch (URISyntaxException e) {
-            throw new SQLException("Invalid Flink JDBC URL: " + url, e);
+            throw new SQLException(String.format("Invalid Flink JDBC URL: %s", url), e);
         }
 
-        if (StringUtils.isNullOrWhitespaceOnly(uri.getHost())) {
-            throw new SQLException("No host specified in uri: " + url);
+        if (isNullOrWhitespaceOnly(uri.getHost())) {
+            throw new SQLException(String.format("No host specified in uri: %s", url));
         }
         if (uri.getPort() == -1) {
-            throw new SQLException("No port specified in uri: " + url);
+            throw new SQLException(String.format("No port specified in uri: %s", url));
         }
         if ((uri.getPort() < 1) || (uri.getPort() > 65535)) {
-            throw new SQLException("Port must be [1, 65535] in uri: " + url);
+            throw new SQLException(String.format("Port must be [1, 65535] in uri: %s", url));
         }
         return uri;
     }
