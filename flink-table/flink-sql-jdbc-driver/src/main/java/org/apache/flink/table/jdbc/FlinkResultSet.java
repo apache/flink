@@ -26,8 +26,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.types.RowKind;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Array;
@@ -56,12 +54,12 @@ public class FlinkResultSet extends BaseResultSet {
     private RowData currentRow;
     private boolean wasNull;
 
-    @GuardedBy("this")
-    private boolean closed;
+    private volatile boolean closed;
 
     public FlinkResultSet(Statement statement, StatementResult result) {
-        this.statement = checkNotNull(statement);
-        this.result = checkNotNull(result);
+        // TODO use Utils.checkNotNull to get rid of flink-core
+        this.statement = checkNotNull(statement, "Statement cannot be null");
+        this.result = checkNotNull(result, "Statement result cannot be null");
         this.currentRow = null;
         this.wasNull = false;
 
@@ -91,10 +89,8 @@ public class FlinkResultSet extends BaseResultSet {
     }
 
     private void checkClosed() throws SQLException {
-        synchronized (this) {
-            if (closed) {
-                throw new SQLException("This result set is already closed");
-            }
+        if (closed) {
+            throw new SQLException("This result set is already closed");
         }
     }
 
@@ -124,12 +120,10 @@ public class FlinkResultSet extends BaseResultSet {
 
     @Override
     public void close() throws SQLException {
-        synchronized (this) {
-            if (closed) {
-                return;
-            }
-            closed = true;
+        if (closed) {
+            return;
         }
+        closed = true;
 
         result.close();
     }
@@ -454,8 +448,6 @@ public class FlinkResultSet extends BaseResultSet {
 
     @Override
     public boolean isClosed() throws SQLException {
-        synchronized (this) {
-            return this.closed;
-        }
+        return this.closed;
     }
 }
