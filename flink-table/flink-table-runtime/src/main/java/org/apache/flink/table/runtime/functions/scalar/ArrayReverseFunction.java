@@ -25,12 +25,10 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_REVERSE}. */
@@ -47,20 +45,15 @@ public class ArrayReverseFunction extends BuiltInScalarFunction {
     }
 
     public @Nullable ArrayData eval(ArrayData haystack) {
-        try {
-            if (haystack == null) {
-                return null;
-            }
-
-            List list = new ArrayList();
-            for (int i = 0; i < haystack.size(); i++) {
-                final Object element = elementGetter.getElementOrNull(haystack, i);
-                list.add(element);
-            }
-            Collections.reverse(list);
-            return new GenericArrayData(list.toArray());
-        } catch (Throwable t) {
-            throw new FlinkRuntimeException(t);
+        if (haystack == null) {
+            return null;
         }
+
+        List list = new ArrayList();
+        for (int j = haystack.size() - 1; j >= 0; j--) {
+            final Object element = elementGetter.getElementOrNull(haystack, j);
+            list.add(element);
+        }
+        return new GenericArrayData(list.toArray());
     }
 }
