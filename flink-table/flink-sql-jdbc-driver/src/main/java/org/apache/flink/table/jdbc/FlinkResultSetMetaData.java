@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 public class FlinkResultSetMetaData implements ResultSetMetaData {
     private final List<ColumnInfo> columnList;
 
-    public FlinkResultSetMetaData(ResolvedSchema schema) throws Exception {
+    public FlinkResultSetMetaData(ResolvedSchema schema) {
         this.columnList =
                 schema.getColumns().stream()
                         .map(

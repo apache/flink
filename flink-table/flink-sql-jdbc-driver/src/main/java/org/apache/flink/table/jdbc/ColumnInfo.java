@@ -44,7 +44,7 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import java.sql.ResultSetMetaData;
 import java.sql.Types;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkNotNull;
 
 /** Column info for {@link ResultSetMetaData}, it is converted from {@link LogicalType}. */
 public class ColumnInfo {
@@ -81,7 +81,6 @@ public class ColumnInfo {
         this.precision = precision;
         this.scale = scale;
         this.columnDisplaySize = columnDisplaySize;
-        // TODO use Utils.checkNotNull instead.
         this.columnName = checkNotNull(columnName, "column name cannot be null");
     }
 
