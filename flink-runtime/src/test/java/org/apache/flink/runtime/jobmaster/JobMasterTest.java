@@ -1193,8 +1193,7 @@ class JobMasterTest {
                 .map(
                         accessExecutionJobVertex ->
                                 Arrays.asList(accessExecutionJobVertex.getTaskVertices()))
-                .orElse(Collections.emptyList())
-                .stream()
+                .orElse(Collections.emptyList()).stream()
                 .map(AccessExecutionVertex::getCurrentExecutionAttempt)
                 .collect(Collectors.toList());
     }
@@ -2042,11 +2041,11 @@ class JobMasterTest {
 
     @Test
     public void testSuccessfulResourceRequirementsUpdate() throws Exception {
-        final CompletableFuture<Void> schedulerUpdateFuture = new CompletableFuture<>();
+        final CompletableFuture<JobResourceRequirements> schedulerUpdateFuture =
+                new CompletableFuture<>();
         final TestingSchedulerNG scheduler =
                 TestingSchedulerNG.newBuilder()
-                        .setUpdateJobResourceRequirementsConsumer(
-                                jobResourceRequirements -> schedulerUpdateFuture.complete(null))
+                        .setUpdateJobResourceRequirementsConsumer(schedulerUpdateFuture::complete)
                         .build();
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(jobGraph, rpcService)
@@ -2067,12 +2066,12 @@ class JobMasterTest {
                 jobResourceRequirementsBuilder.setParallelismForJobVertex(jobVertex.getID(), 1, 2);
             }
 
+            final JobResourceRequirements newRequirements = jobResourceRequirementsBuilder.build();
             final CompletableFuture<Acknowledge> jobMasterUpdateFuture =
-                    jobMasterGateway.updateJobResourceRequirements(
-                            jobResourceRequirementsBuilder.build());
+                    jobMasterGateway.updateJobResourceRequirements(newRequirements);
 
             assertThatFuture(jobMasterUpdateFuture).eventuallySucceeds();
-            assertThatFuture(schedulerUpdateFuture).eventuallySucceeds();
+            assertThatFuture(schedulerUpdateFuture).eventuallySucceeds().isEqualTo(newRequirements);
         }
     }
 
@@ -2125,7 +2124,7 @@ class JobMasterTest {
                     jobMaster.getSelfGateway(JobMasterGateway.class);
             assertThatFuture(jobMasterGateway.requestJobResourceRequirements())
                     .eventuallySucceeds()
-                    .isSameAs(jobResourceRequirements);
+                    .isEqualTo(jobResourceRequirements);
         }
     }
 
