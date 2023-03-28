@@ -27,7 +27,6 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.util.Pair;
 
 import java.util.AbstractList;
@@ -76,16 +75,20 @@ import java.util.Map;
  * </ol>
  */
 public class SqlRowOperator extends SqlSpecialOperator {
+    // ~ Constructors -----------------------------------------------------------
+
     public SqlRowOperator(String name) {
         super(
                 name,
                 SqlKind.ROW,
-                200,
+                MDX_PRECEDENCE,
                 false,
-                (SqlReturnTypeInference) null,
+                null,
                 InferTypes.RETURN_TYPE,
                 OperandTypes.VARIADIC);
     }
+
+    // ~ Methods ----------------------------------------------------------------
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
