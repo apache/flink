@@ -39,19 +39,16 @@
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-jdbc-driver</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-client</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-gateway-api</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
