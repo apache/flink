@@ -24,7 +24,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.types.RowKind;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -40,7 +39,7 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkNotNull;
 
 /**
  * ResultSet for flink jdbc driver. Only Batch Mode queries are supported. If you force to submit
@@ -57,7 +56,6 @@ public class FlinkResultSet extends BaseResultSet {
     private volatile boolean closed;
 
     public FlinkResultSet(Statement statement, StatementResult result) {
-        // TODO use Utils.checkNotNull to get rid of flink-core
         this.statement = checkNotNull(statement, "Statement cannot be null");
         this.result = checkNotNull(result, "Statement result cannot be null");
         this.currentRow = null;
@@ -73,14 +71,8 @@ public class FlinkResultSet extends BaseResultSet {
         checkClosed();
 
         if (result.hasNext()) {
+            // TODO check the kind of currentRow
             currentRow = result.next();
-            if (currentRow.getRowKind() != RowKind.INSERT) {
-                throw new SQLException(
-                        String.format(
-                                "Not supported %s row kind, only batch sql is supported",
-                                currentRow.getRowKind()));
-            }
-
             wasNull = currentRow == null;
             return true;
         } else {
