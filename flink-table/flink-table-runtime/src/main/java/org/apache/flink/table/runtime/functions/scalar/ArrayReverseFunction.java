@@ -48,8 +48,10 @@ public class ArrayReverseFunction extends BuiltInScalarFunction {
         if (haystack == null) {
             return null;
         }
-
-        List list = new ArrayList();
+        if (haystack.size() <= 1) {
+            return haystack;
+        }
+        List list = new ArrayList(haystack.size());
         for (int j = haystack.size() - 1; j >= 0; j--) {
             final Object element = elementGetter.getElementOrNull(haystack, j);
             list.add(element);

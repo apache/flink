@@ -387,8 +387,6 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 new Row[] {
                                     Row.of(true, LocalDate.of(2022, 4, 20)),
                                     Row.of(true, LocalDate.of(1990, 10, 14)),
-                                    Row.of(true, LocalDate.of(1990, 10, 14)),
-                                    Row.of(true, LocalDate.of(1990, 10, 14)),
                                     null
                                 })
                         .andDataTypes(
@@ -411,8 +409,6 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_REVERSE(f2)",
                                 new Row[] {
                                     null,
-                                    Row.of(true, LocalDate.of(1990, 10, 14)),
-                                    Row.of(true, LocalDate.of(1990, 10, 14)),
                                     Row.of(true, LocalDate.of(1990, 10, 14)),
                                     Row.of(true, LocalDate.of(2022, 4, 20)),
                                 },
