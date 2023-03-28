@@ -150,6 +150,10 @@ class ElasticsearchConfiguration {
         return config.getOptional(ElasticsearchConnectorOptions.CONNECTION_PATH_PREFIX);
     }
 
+    public int getRetryConflict() {
+        return config.get(ElasticsearchConnectorOptions.RETRY_ON_CONFLICT_OPTION);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

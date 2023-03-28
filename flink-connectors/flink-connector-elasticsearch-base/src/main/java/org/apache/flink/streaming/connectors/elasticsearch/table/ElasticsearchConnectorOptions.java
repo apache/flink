@@ -153,6 +153,12 @@ public class ElasticsearchConnectorOptions {
                             "The format must produce a valid JSON document. "
                                     + "Please refer to the documentation on formats for more details.");
 
+    public static final ConfigOption<Integer> RETRY_ON_CONFLICT_OPTION =
+            ConfigOptions.key("sink.retry_on_conflict.num")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription("retry on conflict num when sink.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------

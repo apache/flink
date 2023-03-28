@@ -50,6 +50,7 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
     private final XContentType contentType;
     private final RequestFactory requestFactory;
     private final Function<RowData, String> createKey;
+    private final int retryConflict;
 
     public RowElasticsearchSinkFunction(
             IndexGenerator indexGenerator,
@@ -57,13 +58,15 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
             SerializationSchema<RowData> serializationSchema,
             XContentType contentType,
             RequestFactory requestFactory,
-            Function<RowData, String> createKey) {
+            Function<RowData, String> createKey,
+            int retryConflict) {
         this.indexGenerator = Preconditions.checkNotNull(indexGenerator);
         this.docType = docType;
         this.serializationSchema = Preconditions.checkNotNull(serializationSchema);
         this.contentType = Preconditions.checkNotNull(contentType);
         this.requestFactory = Preconditions.checkNotNull(requestFactory);
         this.createKey = Preconditions.checkNotNull(createKey);
+        this.retryConflict = retryConflict;
     }
 
     @Override
@@ -91,9 +94,12 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
         final byte[] document = serializationSchema.serialize(row);
         final String key = createKey.apply(row);
         if (key != null) {
-            final UpdateRequest updateRequest =
+            UpdateRequest updateRequest =
                     requestFactory.createUpdateRequest(
                             indexGenerator.generate(row), docType, key, contentType, document);
+            if (retryConflict != 0) {
+                updateRequest = updateRequest.retryOnConflict(retryConflict);
+            }
             indexer.add(updateRequest);
         } else {
             final IndexRequest indexRequest =
