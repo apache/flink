@@ -34,6 +34,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -299,4 +300,20 @@ public interface JobMasterGateway
      */
     CompletableFuture<?> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> partitionIds);
+
+    /**
+     * Read current {@link JobResourceRequirements job resource requirements}.
+     *
+     * @return Future which that contains current resource requirements.
+     */
+    CompletableFuture<JobResourceRequirements> requestJobResourceRequirements();
+
+    /**
+     * Update {@link JobResourceRequirements job resource requirements}.
+     *
+     * @param jobResourceRequirements new resource requirements
+     * @return Future which is completed successfully when requirements are updated
+     */
+    CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobResourceRequirements jobResourceRequirements);
 }
