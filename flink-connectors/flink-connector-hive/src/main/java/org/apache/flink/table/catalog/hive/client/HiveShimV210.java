@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;

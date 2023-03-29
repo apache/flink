@@ -20,7 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.Test;
