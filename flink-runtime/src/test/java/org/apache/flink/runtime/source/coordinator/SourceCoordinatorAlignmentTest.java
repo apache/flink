@@ -83,6 +83,22 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
             reportWatermarkEvent(sourceCoordinator1, subtask0, 42);
             assertLatestWatermarkAlignmentEvent(subtask0, 1042);
             assertLatestWatermarkAlignmentEvent(subtask1, 1042);
+
+            // all subtask becomes idle
+            reportWatermarkEvent(sourceCoordinator1, subtask0, Long.MAX_VALUE);
+            reportWatermarkEvent(sourceCoordinator1, subtask1, Long.MAX_VALUE);
+            assertLatestWatermarkAlignmentEvent(subtask0, Long.MAX_VALUE);
+            assertLatestWatermarkAlignmentEvent(subtask1, Long.MAX_VALUE);
+
+            // subtask0 becomes active again
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 42);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1042);
+
+            // subtask1 becomes active again
+            reportWatermarkEvent(sourceCoordinator1, subtask1, 46);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1042);
         }
     }
 
