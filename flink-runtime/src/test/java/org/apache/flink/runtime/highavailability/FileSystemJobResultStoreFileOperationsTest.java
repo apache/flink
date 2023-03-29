@@ -117,6 +117,9 @@ public class FileSystemJobResultStoreFileOperationsTest {
 
         fileSystemJobResultStore =
                 new FileSystemJobResultStore(basePath.getFileSystem(), basePath, false);
+        // Result store operations are creating the base directory on-the-fly
+        assertThat(emptyBaseDirectory).doesNotExist();
+        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         assertThat(emptyBaseDirectory).exists().isDirectory();
     }
 
