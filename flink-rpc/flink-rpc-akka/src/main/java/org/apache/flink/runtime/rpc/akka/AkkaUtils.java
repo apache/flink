@@ -209,8 +209,14 @@ class AkkaUtils {
 
         final String akkaFramesize = configuration.getString(AkkaOptions.FRAMESIZE);
 
-        final String outboundRestartBackoff =
-                configuration.getString(AkkaOptions.OUTBOUND_RESTART_BACKOFF);
+        final String outboundRestartBackoff;
+        if (!configuration.contains(AkkaOptions.OUTBOUND_RESTART_BACKOFF)
+                && configuration.contains(AkkaOptions.RETRY_GATE_CLOSED_FOR)) {
+            outboundRestartBackoff =
+                    configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR) + " ms";
+        } else {
+            outboundRestartBackoff = configuration.getString(AkkaOptions.OUTBOUND_RESTART_BACKOFF);
+        }
 
         akkaConfigBuilder
                 .add("akka {")

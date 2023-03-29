@@ -175,7 +175,10 @@ public class AkkaOptions {
             ConfigOptions.key("akka.outbound-restart-backoff")
                     .stringType()
                     .defaultValue("50 ms")
-                    .withDescription("Retry outbound connection only after this backoff.");
+                    .withDescription(
+                            "Retry outbound connection only after this backoff."
+                                    + " Replaces the \"akka.retry-gate-closed-for\" key, which is now deprecated."
+                                    + " For now, if only the deprecated key is set, its value will be picked up.");
 
     // ==================================================
     // Configurations for fork-join-executor.
@@ -241,7 +244,9 @@ public class AkkaOptions {
                     .longType()
                     .defaultValue(50L)
                     .withDescription(
-                            "Milliseconds a gate should be closed for after a remote connection was disconnected.");
+                            "Milliseconds a gate should be closed for after a remote connection was disconnected."
+                                    + " Replaced by \"akka.outbound-restart-backoff\"."
+                                    + " For now, this is used as a backup if the new option is not set.");
 
     /** @deprecated Don't use this option anymore. It has no effect on Flink. */
     @Deprecated
