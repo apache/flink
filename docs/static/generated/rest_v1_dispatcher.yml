@@ -271,9 +271,6 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  empty:
-                    type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobmanager/environment:
@@ -657,9 +654,6 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  empty:
-                    type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobs/{jobid}/jobmanager/environment:
@@ -2262,9 +2256,6 @@ components:
             $ref: '#/components/schemas/UserAccumulator'
     ConfigurationInfo:
       type: array
-      properties:
-        empty:
-          type: boolean
       items:
         $ref: '#/components/schemas/ConfigurationInfoEntry'
     Type:
