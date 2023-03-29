@@ -35,6 +35,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -102,7 +104,7 @@ class TaskExecutorManager implements AutoCloseable {
 
     private final Executor mainThreadExecutor;
 
-    private final ScheduledFuture<?> taskManagerTimeoutsAndRedundancyCheck;
+    @Nullable private final ScheduledFuture<?> taskManagerTimeoutsAndRedundancyCheck;
 
     private final Set<InstanceID> unWantedWorkers;
     private final ScheduledExecutor scheduledExecutor;
@@ -135,19 +137,25 @@ class TaskExecutorManager implements AutoCloseable {
         this.unWantedWorkers = new HashSet<>();
         this.resourceAllocator = Preconditions.checkNotNull(resourceAllocator);
         this.mainThreadExecutor = mainThreadExecutor;
-        taskManagerTimeoutsAndRedundancyCheck =
-                scheduledExecutor.scheduleWithFixedDelay(
-                        () ->
-                                mainThreadExecutor.execute(
-                                        this::checkTaskManagerTimeoutsAndRedundancy),
-                        0L,
-                        taskManagerTimeout.toMilliseconds(),
-                        TimeUnit.MILLISECONDS);
+        if (resourceAllocator.isSupported()) {
+            taskManagerTimeoutsAndRedundancyCheck =
+                    scheduledExecutor.scheduleWithFixedDelay(
+                            () ->
+                                    mainThreadExecutor.execute(
+                                            this::checkTaskManagerTimeoutsAndRedundancy),
+                            0L,
+                            taskManagerTimeout.toMilliseconds(),
+                            TimeUnit.MILLISECONDS);
+        } else {
+            taskManagerTimeoutsAndRedundancyCheck = null;
+        }
     }
 
     @Override
     public void close() {
-        taskManagerTimeoutsAndRedundancyCheck.cancel(false);
+        if (taskManagerTimeoutsAndRedundancyCheck != null) {
+            taskManagerTimeoutsAndRedundancyCheck.cancel(false);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -442,13 +450,12 @@ class TaskExecutorManager implements AutoCloseable {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        if (resourceAllocator.isSupported()) {
-            LOG.debug(
-                    "Release TaskExecutor {} because it exceeded the idle timeout.",
-                    timedOutTaskManagerId);
-            unWantedWorkers.add(timedOutTaskManagerId);
-            declareNeededResourcesWithDelay();
-        }
+        Preconditions.checkState(resourceAllocator.isSupported());
+        LOG.debug(
+                "Release TaskExecutor {} because it exceeded the idle timeout.",
+                timedOutTaskManagerId);
+        unWantedWorkers.add(timedOutTaskManagerId);
+        declareNeededResourcesWithDelay();
     }
 
     // ---------------------------------------------------------------------------------------------
