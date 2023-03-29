@@ -220,12 +220,14 @@ public class FineGrainedSlotManager implements SlotManager {
 
         started = true;
 
-        taskManagerTimeoutsCheck =
-                scheduledExecutor.scheduleWithFixedDelay(
-                        () -> mainThreadExecutor.execute(this::checkTaskManagerTimeouts),
-                        0L,
-                        taskManagerTimeout.toMilliseconds(),
-                        TimeUnit.MILLISECONDS);
+        if (resourceAllocator.isSupported()) {
+            taskManagerTimeoutsCheck =
+                    scheduledExecutor.scheduleWithFixedDelay(
+                            () -> mainThreadExecutor.execute(this::checkTaskManagerTimeouts),
+                            0L,
+                            taskManagerTimeout.toMilliseconds(),
+                            TimeUnit.MILLISECONDS);
+        }
 
         registerSlotManagerMetrics();
     }
@@ -822,10 +824,9 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        if (resourceAllocator.isSupported()) {
-            taskManagerTracker.addUnWantedTaskManager(timedOutTaskManagerId);
-            declareNeededResourcesWithDelay();
-        }
+        Preconditions.checkState(resourceAllocator.isSupported());
+        taskManagerTracker.addUnWantedTaskManager(timedOutTaskManagerId);
+        declareNeededResourcesWithDelay();
     }
 
     private boolean allocateResource(PendingTaskManager pendingTaskManager) {
