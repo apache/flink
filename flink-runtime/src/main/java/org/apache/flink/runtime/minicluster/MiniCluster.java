@@ -418,6 +418,21 @@ public class MiniCluster implements AutoCloseableAsync {
                                 ClusterEntrypointUtils.getPoolSize(configuration),
                                 new ExecutorThreadFactory("mini-cluster-io"));
 
+                delegationTokenManager =
+                        DefaultDelegationTokenManagerFactory.create(
+                                configuration,
+                                miniClusterConfiguration.getPluginManager(),
+                                commonRpcService.getScheduledExecutor(),
+                                ioExecutor);
+                // Obtaining delegation tokens and propagating them to the local JVM receivers in a
+                // one-time fashion is required because BlobServer may connect to external file
+                // systems
+                delegationTokenManager.obtainDelegationTokens();
+
+                delegationTokenReceiverRepository =
+                        new DelegationTokenReceiverRepository(
+                                configuration, miniClusterConfiguration.getPluginManager());
+
                 haServicesFactory = createHighAvailabilityServicesFactory(configuration);
 
                 haServices = createHighAvailabilityServices(configuration, ioExecutor);
@@ -430,17 +445,6 @@ public class MiniCluster implements AutoCloseableAsync {
                 blobServer.start();
 
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
-
-                delegationTokenManager =
-                        DefaultDelegationTokenManagerFactory.create(
-                                configuration,
-                                miniClusterConfiguration.getPluginManager(),
-                                commonRpcService.getScheduledExecutor(),
-                                ioExecutor);
-
-                delegationTokenReceiverRepository =
-                        new DelegationTokenReceiverRepository(
-                                configuration, miniClusterConfiguration.getPluginManager());
 
                 blobCacheService =
                         BlobUtils.createBlobCacheService(

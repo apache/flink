@@ -213,6 +213,20 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         LOG.info("Delegation tokens obtained successfully");
     }
 
+    @Override
+    public void obtainDelegationTokens() throws Exception {
+        LOG.info("Obtaining delegation tokens");
+        DelegationTokenContainer container = new DelegationTokenContainer();
+        obtainDelegationTokensAndGetNextRenewal(container);
+        LOG.info("Delegation tokens obtained successfully");
+
+        if (container.hasTokens()) {
+            delegationTokenReceiverRepository.onNewTokensObtained(container);
+        } else {
+            LOG.warn("No tokens obtained so skipping notifications");
+        }
+    }
+
     protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
             DelegationTokenContainer container) {
         return delegationTokenProviders.values().stream()
@@ -281,7 +295,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 listener.onNewTokensObtained(InstantiationUtil.serializeObject(container));
                 LOG.info("Listener notified successfully");
             } else {
-                LOG.warn("No tokens obtained so skipping listener notification");
+                LOG.warn("No tokens obtained so skipping notifications");
             }
 
             if (nextRenewal.isPresent()) {
