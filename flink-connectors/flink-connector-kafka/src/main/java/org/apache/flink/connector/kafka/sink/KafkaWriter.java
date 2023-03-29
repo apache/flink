@@ -268,16 +268,6 @@ class KafkaWriter<IN>
         return currentProducer;
     }
 
-    @VisibleForTesting
-    Exception getAsyncProducerException() {
-        return asyncProducerException;
-    }
-
-    @VisibleForTesting
-    void setAsyncProducerException(Exception asyncProducerException) {
-        this.asyncProducerException = asyncProducerException;
-    }
-
     void abortLingeringTransactions(
             Collection<KafkaWriterState> recoveredStates, long startCheckpointId) {
         List<String> prefixesToAbort = Lists.newArrayList(transactionalIdPrefix);
@@ -411,13 +401,17 @@ class KafkaWriter<IN>
                 });
     }
 
-    /** This logic needs to be invoked by write AND flush since we support various semantics. */
+    /**
+     * This method should only be invoked in the mailbox thread since the counter is not volatile.
+     * Logic needs to be invoked by write AND flush since we support various semantics.
+     */
     private void checkAsyncException() throws IOException {
         // reset this exception since we could close the writer later on
         Exception e = asyncProducerException;
         if (e != null) {
 
             asyncProducerException = null;
+            numRecordsOutErrorsCounter.inc();
             throw new IOException(
                     "One or more Kafka Producer send requests have encountered exception", e);
         }
@@ -445,17 +439,12 @@ class KafkaWriter<IN>
                 // complete. The same guarantee does not hold for tasks executed in separate
                 // executor e.g. mailbox executor. flush() needs to have the exception immediately
                 // available to fail the checkpoint.
-                if (asyncProducerException != null) {
+                if (asyncProducerException == null) {
                     asyncProducerException = decorateException(metadata, exception, producer);
                 }
 
                 mailboxExecutor.submit(
                         () -> {
-                            // Need to send metrics through mailbox thread since we are in the
-                            // producer io
-                            // thread
-                            numRecordsOutErrorsCounter.inc();
-
                             // Checking for exceptions from previous writes
                             checkAsyncException();
                         },
