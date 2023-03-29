@@ -32,11 +32,14 @@ public class ExceptionThrowingDelegationTokenReceiver implements DelegationToken
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> constructed =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Integer> onNewTokensObtainedCallCount =
+            ThreadLocal.withInitial(() -> 0);
 
     public static void reset() {
         throwInInit.set(false);
         throwInUsage.set(false);
         constructed.set(false);
+        onNewTokensObtainedCallCount.set(0);
     }
 
     public ExceptionThrowingDelegationTokenReceiver() {
@@ -60,5 +63,6 @@ public class ExceptionThrowingDelegationTokenReceiver implements DelegationToken
         if (throwInUsage.get()) {
             throw new IllegalArgumentException();
         }
+        onNewTokensObtainedCallCount.set(onNewTokensObtainedCallCount.get() + 1);
     }
 }
