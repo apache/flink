@@ -52,13 +52,38 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Used to create Executor in connection. TODO jdbc driver should get rid of flink-core which is a big module. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>io.github.zentol.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<!-- TODO this should be removed after get rid of flink core in issue https://issues.apache.org/jira/browse/FLINK-31687. -->
+					<skip>true</skip>
+				</configuration>
+			</plugin>
 			<!-- Build flink-sql-gateway jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -77,7 +102,10 @@
 									<include>org.apache.flink:flink-sql-jdbc-driver</include>
 									<include>org.apache.flink:flink-sql-client</include>
 									<include>org.apache.flink:flink-sql-gateway-api</include>
+									<include>org.apache.flink:flink-sql-gateway</include>
 									<include>org.apache.flink:flink-table-common</include>
+									<include>org.apache.flink:flink-annotations</include>
+									<include>org.apache.flink:flink-core</include>
 								</includes>
 							</artifactSet>
 						</configuration>

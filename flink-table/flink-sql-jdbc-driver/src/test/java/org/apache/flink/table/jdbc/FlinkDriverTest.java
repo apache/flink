@@ -51,8 +51,8 @@ public class FlinkDriverTest {
         DriverUri driverUri = DriverUri.create(uri, properties);
         assertEquals("catalog_name", driverUri.getCatalog().get());
         assertEquals("database_name", driverUri.getDatabase().get());
-        assertEquals("localhost", driverUri.getHost());
-        assertEquals(8888, driverUri.getPort());
+        assertEquals("localhost", driverUri.getAddress().getHostName());
+        assertEquals(8888, driverUri.getAddress().getPort());
         assertEquals(5, driverUri.getProperties().size());
 
         String uriWithoutDBUri =
@@ -60,8 +60,8 @@ public class FlinkDriverTest {
         DriverUri driverWithoutDBUri = DriverUri.create(uriWithoutDBUri, properties);
         assertEquals("catalog_name", driverWithoutDBUri.getCatalog().get());
         assertFalse(driverWithoutDBUri.getDatabase().isPresent());
-        assertEquals("localhost", driverWithoutDBUri.getHost());
-        assertEquals(8888, driverWithoutDBUri.getPort());
+        assertEquals("localhost", driverWithoutDBUri.getAddress().getHostName());
+        assertEquals(8888, driverWithoutDBUri.getAddress().getPort());
         assertEquals(5, driverWithoutDBUri.getProperties().size());
     }
 
