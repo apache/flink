@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -156,11 +157,13 @@ public class TestingMiniCluster extends MiniCluster {
         final List<DispatcherResourceManagerComponent> result =
                 new ArrayList<>(numberDispatcherResourceManagerComponents);
 
+        String configuredPort = configuration.getString(RestOptions.BIND_PORT);
         for (int i = 0; i < numberDispatcherResourceManagerComponents; i++) {
             // FLINK-24038 relies on the fact that there is only one leader election instance per
             // JVM that is freed when the JobManager stops. This is simulated in the
             // TestingMiniCluster by providing individual HighAvailabilityServices per
             // DispatcherResourceManagerComponent to allow running more-than-once JobManager tests
+
             final HighAvailabilityServices thisHaServices =
                     createHighAvailabilityServices(configuration, getIOExecutor());
             final DispatcherResourceManagerComponent dispatcherResourceManagerComponent =
@@ -200,6 +203,10 @@ public class TestingMiniCluster extends MiniCluster {
                                     });
             FutureUtils.assertNoException(shutDownFuture);
             result.add(dispatcherResourceManagerComponent);
+            if (i + 1 < numberDispatcherResourceManagerComponents) {
+                // Reset the port to original
+                configuration.setString(RestOptions.BIND_PORT, configuredPort);
+            }
         }
 
         return result;

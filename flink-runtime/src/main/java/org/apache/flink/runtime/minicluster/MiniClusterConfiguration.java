@@ -25,7 +25,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
@@ -41,7 +40,7 @@ public class MiniClusterConfiguration {
 
     static final int DEFAULT_IO_POOL_SIZE = 4;
 
-    private final UnmodifiableConfiguration configuration;
+    private final Configuration configuration;
 
     private final int numTaskManagers;
 
@@ -72,7 +71,7 @@ public class MiniClusterConfiguration {
         this.pluginManager = pluginManager;
     }
 
-    private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
+    private Configuration generateConfiguration(final Configuration configuration) {
         final Configuration modifiedConfig = new Configuration(configuration);
 
         TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
@@ -94,7 +93,7 @@ public class MiniClusterConfiguration {
             modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
         }
 
-        return new UnmodifiableConfiguration(modifiedConfig);
+        return new Configuration(modifiedConfig);
     }
 
     // ------------------------------------------------------------------------
@@ -146,7 +145,7 @@ public class MiniClusterConfiguration {
                 : configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
     }
 
-    public UnmodifiableConfiguration getConfiguration() {
+    public Configuration getConfiguration() {
         return configuration;
     }
 

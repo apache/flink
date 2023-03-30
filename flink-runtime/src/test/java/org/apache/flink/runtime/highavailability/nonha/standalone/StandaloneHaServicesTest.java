@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability.nonha.standalone;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -39,16 +40,14 @@ public class StandaloneHaServicesTest extends TestLogger {
 
     private final String dispatcherAddress = "dispatcher";
     private final String resourceManagerAddress = "resourceManager";
-    private final String webMonitorAddress = "webMonitor";
 
     private StandaloneHaServices standaloneHaServices;
 
     @Before
     public void setupTest() {
-
+        Configuration config = new Configuration();
         standaloneHaServices =
-                new StandaloneHaServices(
-                        resourceManagerAddress, dispatcherAddress, webMonitorAddress);
+                new StandaloneHaServices(resourceManagerAddress, dispatcherAddress, config);
     }
 
     @After

@@ -19,12 +19,17 @@
 package org.apache.flink.runtime.highavailability.nonha.standalone;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.runtime.rpc.AddressResolution;
+
+import java.net.UnknownHostException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,23 +50,20 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     /** The fix address of the Dispatcher. */
     private final String dispatcherAddress;
 
-    private final String clusterRestEndpointAddress;
+    private final Configuration configuration;
 
     /**
      * Creates a new services class for the fix pre-defined leaders.
      *
      * @param resourceManagerAddress The fix address of the ResourceManager
-     * @param clusterRestEndpointAddress
+     * @param configuration
      */
     public StandaloneHaServices(
-            String resourceManagerAddress,
-            String dispatcherAddress,
-            String clusterRestEndpointAddress) {
+            String resourceManagerAddress, String dispatcherAddress, Configuration configuration) {
         this.resourceManagerAddress =
                 checkNotNull(resourceManagerAddress, "resourceManagerAddress");
         this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
-        this.clusterRestEndpointAddress =
-                checkNotNull(clusterRestEndpointAddress, clusterRestEndpointAddress);
+        this.configuration = configuration;
     }
 
     // ------------------------------------------------------------------------
@@ -134,10 +136,13 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever()
+            throws UnknownHostException {
+        String clusterRestEndpointAddress =
+                HighAvailabilityServicesUtils.getWebMonitorAddress(
+                        configuration, AddressResolution.NO_ADDRESS_RESOLUTION);
         synchronized (lock) {
             checkNotShutdown();
-
             return new StandaloneLeaderRetrievalService(
                     clusterRestEndpointAddress, DEFAULT_LEADER_ID);
         }
