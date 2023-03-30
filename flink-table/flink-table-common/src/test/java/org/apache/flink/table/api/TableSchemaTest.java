@@ -328,7 +328,7 @@ class TableSchemaTest {
                                 + " |-- f0: BIGINT NOT NULL\n"
                                 + " |-- f1: STRING NOT NULL\n"
                                 + " |-- f2: DOUBLE NOT NULL\n"
-                                + " |-- CONSTRAINT pk PRIMARY KEY (f0, f2)\n");
+                                + " |-- CONSTRAINT `pk` PRIMARY KEY (`f0`, `f2`) NOT ENFORCED\n");
     }
 
     @Test
