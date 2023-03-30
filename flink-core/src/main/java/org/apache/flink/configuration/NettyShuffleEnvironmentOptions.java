@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 
@@ -378,6 +379,19 @@ public class NettyShuffleEnvironmentOptions {
                                     + "the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream"
                                     + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
                                     + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This option is used to temporarily enable tiered store architecture for hybrid shuffle mode. "
+                    + "It will be available to users once the new architecture is ready.")
+    @Experimental
+    @Internal
+    public static final ConfigOption<Boolean> NETWORK_HYBRID_SHUFFLE_ENABLE_TIERED_STORE =
+            ConfigOptions.key("taskmanager.network.hybrid-shuffle.enable-tiered-store")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "This is a temporary configuration to enable tiered store architecture for hybrid shuffle mode. When the new architecture reaches "
+                                    + "the releasable state, hybrid shuffle will be replaced by it and this configuration will be removed.");
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
